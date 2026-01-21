@@ -11,7 +11,7 @@ interface EmployeeCardProps {
 }
 
 const EmployeeCard = ({ employee, onEdit, onDelete }: EmployeeCardProps) => {
-  const custoTotal = employee.salarioMensal + employee.beneficios + employee.encargos;
+  const custoTotal = employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0);
   const custoHora = (custoTotal / 176).toFixed(2); // 176 = 8h * 22 dias
 
   return (
