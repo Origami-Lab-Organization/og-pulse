@@ -36,6 +36,7 @@ interface NavItem {
   icon: React.ElementType;
   disabled?: boolean;
   requiresManager?: boolean;
+  requiresAdmin?: boolean;
 }
 
 const navigationGroups = [
@@ -64,7 +65,7 @@ const navigationGroups = [
   {
     label: 'Configurações',
     items: [
-      { title: 'Tabela de Preços', url: '/pricing', icon: DollarSign, disabled: true },
+      { title: 'Tabela de Preços', url: '/pricing', icon: DollarSign, requiresAdmin: true },
       { title: 'Configurações', url: '/settings', icon: Settings, disabled: true },
     ] as NavItem[],
   },
@@ -78,10 +79,16 @@ export function AppSidebar() {
 
   const isActive = (path: string) => location.pathname === path;
   const isManager = employee?.is_gerente ?? false;
+  const isAdmin = employee?.isAdmin ?? false;
 
   const renderNavItem = (item: NavItem) => {
-    // Hide items that require manager if user is not a manager
-    if (item.requiresManager && !isManager) {
+    // Hide items that require admin if user is not an admin
+    if (item.requiresAdmin && !isAdmin) {
+      return null;
+    }
+
+    // Hide items that require manager if user is not a manager or admin
+    if (item.requiresManager && !isManager && !isAdmin) {
       return null;
     }
 
@@ -143,10 +150,12 @@ export function AppSidebar() {
 
       <SidebarContent>
         {navigationGroups.map((group) => {
-          // Filter out items that require manager access
-          const visibleItems = group.items.filter(
-            item => !item.requiresManager || isManager
-          );
+          // Filter out items that require manager or admin access
+          const visibleItems = group.items.filter((item) => {
+            if (item.requiresAdmin && !isAdmin) return false;
+            if (item.requiresManager && !isManager && !isAdmin) return false;
+            return true;
+          });
           
           if (visibleItems.length === 0) return null;
 

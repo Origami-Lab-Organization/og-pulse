@@ -6,9 +6,14 @@ import { Loader2 } from 'lucide-react';
 interface RoleProtectedRouteProps {
   children: ReactNode;
   requireManager?: boolean;
+  requireAdmin?: boolean;
 }
 
-const RoleProtectedRoute = ({ children, requireManager = false }: RoleProtectedRouteProps) => {
+const RoleProtectedRoute = ({ 
+  children, 
+  requireManager = false,
+  requireAdmin = false,
+}: RoleProtectedRouteProps) => {
   const { user, employee, loading } = useAuth();
 
   if (loading) {
@@ -23,9 +28,14 @@ const RoleProtectedRoute = ({ children, requireManager = false }: RoleProtectedR
     return <Navigate to="/login" replace />;
   }
 
+  // Check if user needs admin access
+  if (requireAdmin && !employee.isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
   // Check if user has manager/admin access
   // is_gerente = true means the user is a manager or admin
-  if (requireManager && !employee.is_gerente) {
+  if (requireManager && !employee.is_gerente && !employee.isAdmin) {
     return <Navigate to="/" replace />;
   }
 
