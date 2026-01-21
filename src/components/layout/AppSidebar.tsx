@@ -50,7 +50,7 @@ const navigationGroups = [
     items: [
       { title: 'Funcionários', url: '/', icon: Users },
       { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
-      { title: 'Projetos', url: '/projects', icon: FolderKanban, disabled: true },
+      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
     ] as NavItem[],
   },
   {

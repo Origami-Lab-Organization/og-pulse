@@ -1,0 +1,351 @@
+import { supabase } from '@/integrations/supabase/client';
+import {
+  ProjectDB,
+  ProjectMemberDB,
+  ProjectInstallmentDB,
+  CreateProjectInput,
+  CreateProjectMemberInput,
+  UpdateInstallmentInput,
+  ProjectWithRelations,
+  InstallmentStatus,
+} from '@/types/project';
+
+function generateInstallments(
+  projectId: string,
+  totalValue: number,
+  installmentsCount: number,
+  firstInvoiceDate: string,
+  dueDay: number
+): Omit<ProjectInstallmentDB, 'id' | 'created_at' | 'updated_at'>[] {
+  const installments: Omit<ProjectInstallmentDB, 'id' | 'created_at' | 'updated_at'>[] = [];
+  const valuePerInstallment = totalValue / installmentsCount;
+  let currentDate = new Date(firstInvoiceDate);
+
+  for (let i = 1; i <= installmentsCount; i++) {
+    // Adjust to due day
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+    const adjustedDueDay = Math.min(dueDay, lastDayOfMonth);
+    
+    const dueDate = new Date(year, month, adjustedDueDay);
+
+    installments.push({
+      project_id: projectId,
+      installment_number: i,
+      value: Number(valuePerInstallment.toFixed(2)),
+      due_date: dueDate.toISOString().split('T')[0],
+      status: 'pending' as InstallmentStatus,
+      invoice_number: null,
+      invoice_date: null,
+      payment_date: null,
+      notes: null,
+    });
+
+    // Move to next month
+    currentDate.setMonth(currentDate.getMonth() + 1);
+  }
+
+  return installments;
+}
+
+export const projectService = {
+  async getAll(tenantId: string): Promise<ProjectWithRelations[]> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:clients(id, company_name, trading_name),
+        manager:employees!projects_manager_id_fkey(id, nome, cargo)
+      `)
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching projects:', error);
+      throw error;
+    }
+
+    return (data || []) as unknown as ProjectWithRelations[];
+  },
+
+  async getById(id: string): Promise<ProjectWithRelations | null> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:clients(id, company_name, trading_name),
+        manager:employees!projects_manager_id_fkey(id, nome, cargo)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching project:', error);
+      throw error;
+    }
+
+    // Fetch members separately
+    const { data: members } = await supabase
+      .from('project_members')
+      .select(`
+        *,
+        employee:employees(id, nome, cargo)
+      `)
+      .eq('project_id', id);
+
+    // Fetch installments separately
+    const { data: installments } = await supabase
+      .from('project_installments')
+      .select('*')
+      .eq('project_id', id)
+      .order('installment_number', { ascending: true });
+
+    return {
+      ...data,
+      members: members || [],
+      installments: installments || [],
+    } as unknown as ProjectWithRelations;
+  },
+
+  async create(input: CreateProjectInput, tenantId: string): Promise<ProjectDB> {
+    // First create the project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .insert({
+        tenant_id: tenantId,
+        client_id: input.clientId,
+        manager_id: input.managerId,
+        budget_id: input.budgetId || null,
+        name: input.name,
+        description: input.description || null,
+        start_date: input.startDate,
+        end_date: input.endDate,
+        total_value: input.totalValue,
+        payment_method: input.paymentMethod,
+        installments_count: input.installmentsCount,
+        first_invoice_date: input.firstInvoiceDate || null,
+        due_day: input.dueDay,
+        status: input.status || 'planning',
+        contract_url: input.contractUrl || null,
+      })
+      .select()
+      .single();
+
+    if (projectError) {
+      console.error('Error creating project:', projectError);
+      throw projectError;
+    }
+
+    // Generate and insert installments if payment info is provided
+    if (input.firstInvoiceDate && input.installmentsCount > 0) {
+      const installments = generateInstallments(
+        project.id,
+        input.totalValue,
+        input.installmentsCount,
+        input.firstInvoiceDate,
+        input.dueDay
+      );
+
+      const { error: installmentsError } = await supabase
+        .from('project_installments')
+        .insert(installments);
+
+      if (installmentsError) {
+        console.error('Error creating installments:', installmentsError);
+        // Don't throw - project was created successfully
+      }
+    }
+
+    return project as unknown as ProjectDB;
+  },
+
+  async update(id: string, updates: Partial<CreateProjectInput>): Promise<ProjectDB> {
+    const updateData: Record<string, unknown> = {};
+
+    if (updates.clientId !== undefined) updateData.client_id = updates.clientId;
+    if (updates.managerId !== undefined) updateData.manager_id = updates.managerId;
+    if (updates.budgetId !== undefined) updateData.budget_id = updates.budgetId;
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.startDate !== undefined) updateData.start_date = updates.startDate;
+    if (updates.endDate !== undefined) updateData.end_date = updates.endDate;
+    if (updates.totalValue !== undefined) updateData.total_value = updates.totalValue;
+    if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
+    if (updates.installmentsCount !== undefined) updateData.installments_count = updates.installmentsCount;
+    if (updates.firstInvoiceDate !== undefined) updateData.first_invoice_date = updates.firstInvoiceDate;
+    if (updates.dueDay !== undefined) updateData.due_day = updates.dueDay;
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.contractUrl !== undefined) updateData.contract_url = updates.contractUrl;
+
+    const { data, error } = await supabase
+      .from('projects')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating project:', error);
+      throw error;
+    }
+
+    return data as unknown as ProjectDB;
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+
+    if (error) {
+      console.error('Error deleting project:', error);
+      throw error;
+    }
+  },
+
+  // Project Members
+  async addMember(input: CreateProjectMemberInput): Promise<ProjectMemberDB> {
+    const { data, error } = await supabase
+      .from('project_members')
+      .insert({
+        project_id: input.projectId,
+        employee_id: input.employeeId,
+        role: input.role,
+        seniority: input.seniority,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding project member:', error);
+      throw error;
+    }
+
+    return data as unknown as ProjectMemberDB;
+  },
+
+  async updateMember(
+    id: string,
+    updates: { role?: string; seniority?: string }
+  ): Promise<ProjectMemberDB> {
+    const { data, error } = await supabase
+      .from('project_members')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating project member:', error);
+      throw error;
+    }
+
+    return data as unknown as ProjectMemberDB;
+  },
+
+  async removeMember(id: string): Promise<void> {
+    const { error } = await supabase.from('project_members').delete().eq('id', id);
+
+    if (error) {
+      console.error('Error removing project member:', error);
+      throw error;
+    }
+  },
+
+  async getMembers(projectId: string): Promise<(ProjectMemberDB & { employee?: { id: string; nome: string; cargo: string } })[]> {
+    const { data, error } = await supabase
+      .from('project_members')
+      .select(`
+        *,
+        employee:employees(id, nome, cargo)
+      `)
+      .eq('project_id', projectId);
+
+    if (error) {
+      console.error('Error fetching project members:', error);
+      throw error;
+    }
+
+    return (data || []) as unknown as (ProjectMemberDB & { employee?: { id: string; nome: string; cargo: string } })[];
+  },
+
+  // Project Installments
+  async getInstallments(projectId: string): Promise<ProjectInstallmentDB[]> {
+    const { data, error } = await supabase
+      .from('project_installments')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('installment_number', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching installments:', error);
+      throw error;
+    }
+
+    return (data || []) as unknown as ProjectInstallmentDB[];
+  },
+
+  async updateInstallment(id: string, updates: UpdateInstallmentInput): Promise<ProjectInstallmentDB> {
+    const updateData: Record<string, unknown> = {};
+
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.invoiceNumber !== undefined) updateData.invoice_number = updates.invoiceNumber;
+    if (updates.invoiceDate !== undefined) updateData.invoice_date = updates.invoiceDate;
+    if (updates.paymentDate !== undefined) updateData.payment_date = updates.paymentDate;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+
+    const { data, error } = await supabase
+      .from('project_installments')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating installment:', error);
+      throw error;
+    }
+
+    return data as unknown as ProjectInstallmentDB;
+  },
+
+  // Contract upload
+  async uploadContract(file: File, projectId: string): Promise<string> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${projectId}/contract-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('contracts')
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error('Error uploading contract:', uploadError);
+      throw uploadError;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('contracts')
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  },
+
+  async search(query: string, tenantId: string): Promise<ProjectWithRelations[]> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:clients(id, company_name, trading_name),
+        manager:employees!projects_manager_id_fkey(id, nome, cargo)
+      `)
+      .eq('tenant_id', tenantId)
+      .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error searching projects:', error);
+      throw error;
+    }
+
+    return (data || []) as unknown as ProjectWithRelations[];
+  },
+};
