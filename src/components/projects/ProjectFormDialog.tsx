@@ -38,6 +38,7 @@ import {
 } from '@/types/project';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
+import { formatCurrency, parseCurrency } from '@/lib/masks';
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -343,11 +344,13 @@ export function ProjectFormDialog({
                       <FormLabel>Valor Total do Projeto *</FormLabel>
                       <FormControl>
                         <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0,00"
-                          {...field}
+                          placeholder="R$ 0,00"
+                          value={field.value ? formatCurrency(field.value) : ''}
+                          onChange={(e) => {
+                            const formatted = formatCurrency(e.target.value);
+                            e.target.value = formatted;
+                            field.onChange(parseCurrency(formatted));
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
