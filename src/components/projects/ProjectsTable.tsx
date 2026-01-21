@@ -99,7 +99,12 @@ export function createProjectColumns({
     {
       accessorKey: 'end_date',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Fim" />,
-      cell: ({ row }) => formatDate(row.original.end_date),
+      cell: ({ row }) => {
+        if (row.original.is_continuous) {
+          return <Badge variant="secondary">Contínuo</Badge>;
+        }
+        return formatDate(row.original.end_date);
+      },
     },
     {
       accessorKey: 'total_value',

@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   CreateProjectInput,
@@ -44,13 +45,17 @@ const projectSchema = z.object({
   clientId: z.string().min(1, 'Cliente é obrigatório'),
   managerId: z.string().min(1, 'Gerente é obrigatório'),
   startDate: z.string().min(1, 'Data de início é obrigatória'),
-  endDate: z.string().min(1, 'Data de fim é obrigatória'),
+  endDate: z.string().optional(),
+  isContinuous: z.boolean().default(false),
   status: z.string().default('planning'),
   totalValue: z.coerce.number().min(0, 'Valor deve ser positivo'),
   paymentMethod: z.string().default('mensal'),
   installmentsCount: z.coerce.number().min(1, 'Mínimo de 1 parcela'),
   firstInvoiceDate: z.string().optional(),
   dueDay: z.coerce.number().min(1).max(31).default(10),
+}).refine((data) => data.isContinuous || (data.endDate && data.endDate.length > 0), {
+  message: 'Data de fim é obrigatória para projetos com prazo determinado',
+  path: ['endDate'],
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -85,6 +90,7 @@ export function ProjectFormDialog({
       managerId: project?.manager_id || '',
       startDate: project?.start_date || '',
       endDate: project?.end_date || '',
+      isContinuous: project?.is_continuous || false,
       status: project?.status || 'planning',
       totalValue: Number(project?.total_value) || 0,
       paymentMethod: project?.payment_method || 'mensal',
@@ -94,6 +100,8 @@ export function ProjectFormDialog({
     },
   });
 
+  const isContinuous = form.watch('isContinuous');
+
   const handleSubmit = (values: ProjectFormValues) => {
     onSubmit({
       name: values.name,
@@ -101,7 +109,8 @@ export function ProjectFormDialog({
       clientId: values.clientId,
       managerId: values.managerId,
       startDate: values.startDate,
-      endDate: values.endDate,
+      endDate: values.isContinuous ? undefined : values.endDate,
+      isContinuous: values.isContinuous,
       status: values.status as ProjectStatus,
       totalValue: values.totalValue,
       paymentMethod: values.paymentMethod,
@@ -239,20 +248,43 @@ export function ProjectFormDialog({
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="endDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Data de Fim *</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {!isContinuous && (
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data de Fim *</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="isContinuous"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Projeto Contínuo</FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          Marque esta opção para projetos sem prazo de término definido
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
