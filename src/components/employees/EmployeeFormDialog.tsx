@@ -29,8 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Wrench } from 'lucide-react';
 import { formatPhone, formatCPF, formatCurrency, parseCurrency } from '@/lib/masks';
+import { EmployeeToolsTable } from './EmployeeToolsTable';
 
 const formSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -64,6 +66,7 @@ const EmployeeFormDialog = ({
   isLoading = false,
 }: EmployeeFormDialogProps) => {
   const isEditing = !!employee;
+  const [activeTab, setActiveTab] = useState('dados');
 
   // Masked display values
   const [phoneDisplay, setPhoneDisplay] = useState('');
@@ -130,6 +133,7 @@ const EmployeeFormDialog = ({
       setSalarioDisplay('');
       setBeneficiosDisplay('');
       setEncargosDisplay('');
+      setActiveTab('dados');
     }
   }, [employee, form, open]);
 
@@ -180,161 +184,276 @@ const EmployeeFormDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="nome"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome Completo</FormLabel>
-                    <FormControl>
-                      <Input placeholder="João da Silva" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        {isEditing ? (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="dados">Dados</TabsTrigger>
+              <TabsTrigger value="ferramentas" className="flex items-center gap-2">
+                <Wrench className="h-4 w-4" />
+                Ferramentas
+              </TabsTrigger>
+            </TabsList>
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="joao@empresa.com" 
-                        disabled={isEditing}
-                        {...field} 
+            <TabsContent value="dados" className="mt-4">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="nome"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome Completo</FormLabel>
+                          <FormControl>
+                            <Input placeholder="João da Silva" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="email" 
+                              placeholder="joao@empresa.com" 
+                              disabled={isEditing}
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="telefone"
+                      render={() => (
+                        <FormItem>
+                          <FormLabel>Telefone (opcional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="(11) 99999-9999" 
+                              value={phoneDisplay}
+                              onChange={handlePhoneChange}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="cpf"
+                      render={() => (
+                        <FormItem>
+                          <FormLabel>CPF (opcional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="000.000.000-00" 
+                              value={cpfDisplay}
+                              onChange={handleCpfChange}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="cargo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cargo</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Desenvolvedor Sênior" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="dataAdmissao"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data de Admissão</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="ativo">Ativo</SelectItem>
+                              <SelectItem value="inativo">Inativo</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="isGerente"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>Administrador?</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-foreground">Informações Financeiras</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="salarioMensal"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Salário Mensal</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="R$ 0,00"
+                                value={salarioDisplay}
+                                onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="telefone"
-                render={() => (
-                  <FormItem>
-                    <FormLabel>Telefone (opcional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="(11) 99999-9999" 
-                        value={phoneDisplay}
-                        onChange={handlePhoneChange}
+                      <FormField
+                        control={form.control}
+                        name="beneficios"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Benefícios</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="R$ 0,00"
+                                value={beneficiosDisplay}
+                                onChange={(e) => handleCurrencyChange(e, 'beneficios', setBeneficiosDisplay)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="cpf"
-                render={() => (
-                  <FormItem>
-                    <FormLabel>CPF (opcional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="000.000.000-00" 
-                        value={cpfDisplay}
-                        onChange={handleCpfChange}
+                      <FormField
+                        control={form.control}
+                        name="encargos"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Encargos</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="R$ 0,00"
+                                value={encargosDisplay}
+                                onChange={(e) => handleCurrencyChange(e, 'encargos', setEncargosDisplay)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="cargo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cargo</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Desenvolvedor Sênior" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="dataAdmissao"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data de Admissão</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="ativo">Ativo</SelectItem>
-                        <SelectItem value="inativo">Inativo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="isGerente"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5">
-                      <FormLabel>Administrador?</FormLabel>
                     </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
+                  </div>
 
-            <div className="space-y-4">
-              <h4 className="font-medium text-foreground">Informações Financeiras</h4>
-              <div className="grid grid-cols-3 gap-4">
+                  <div className="flex justify-end gap-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onOpenChange(false)}
+                      disabled={isLoading}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        'Salvar Alterações'
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </TabsContent>
+
+            <TabsContent value="ferramentas" className="mt-4">
+              {employee && (
+                <EmployeeToolsTable employeeId={employee.id} employeeName={employee.nome} />
+              )}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="salarioMensal"
-                  render={() => (
+                  name="nome"
+                  render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Salário Mensal</FormLabel>
+                      <FormLabel>Nome Completo</FormLabel>
+                      <FormControl>
+                        <Input placeholder="João da Silva" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="R$ 0,00"
-                          value={salarioDisplay}
-                          onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
+                          type="email" 
+                          placeholder="joao@empresa.com" 
+                          {...field} 
                         />
                       </FormControl>
                       <FormMessage />
@@ -344,15 +463,15 @@ const EmployeeFormDialog = ({
 
                 <FormField
                   control={form.control}
-                  name="beneficios"
+                  name="telefone"
                   render={() => (
                     <FormItem>
-                      <FormLabel>Benefícios</FormLabel>
+                      <FormLabel>Telefone (opcional)</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="R$ 0,00"
-                          value={beneficiosDisplay}
-                          onChange={(e) => handleCurrencyChange(e, 'beneficios', setBeneficiosDisplay)}
+                          placeholder="(11) 99999-9999" 
+                          value={phoneDisplay}
+                          onChange={handlePhoneChange}
                         />
                       </FormControl>
                       <FormMessage />
@@ -362,46 +481,173 @@ const EmployeeFormDialog = ({
 
                 <FormField
                   control={form.control}
-                  name="encargos"
+                  name="cpf"
                   render={() => (
                     <FormItem>
-                      <FormLabel>Encargos</FormLabel>
+                      <FormLabel>CPF (opcional)</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="R$ 0,00"
-                          value={encargosDisplay}
-                          onChange={(e) => handleCurrencyChange(e, 'encargos', setEncargosDisplay)}
+                          placeholder="000.000.000-00" 
+                          value={cpfDisplay}
+                          onChange={handleCpfChange}
                         />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="cargo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cargo</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Desenvolvedor Sênior" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="dataAdmissao"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data de Admissão</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="ativo">Ativo</SelectItem>
+                          <SelectItem value="inativo">Inativo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="isGerente"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Administrador?</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />
               </div>
-            </div>
 
-            <div className="flex justify-end gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isLoading}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isEditing ? 'Salvando...' : 'Cadastrando...'}
-                  </>
-                ) : (
-                  isEditing ? 'Salvar Alterações' : 'Adicionar Funcionário'
-                )}
-              </Button>
-            </div>
-          </form>
-        </Form>
+              <div className="space-y-4">
+                <h4 className="font-medium text-foreground">Informações Financeiras</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="salarioMensal"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Salário Mensal</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="R$ 0,00"
+                            value={salarioDisplay}
+                            onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="beneficios"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Benefícios</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="R$ 0,00"
+                            value={beneficiosDisplay}
+                            onChange={(e) => handleCurrencyChange(e, 'beneficios', setBeneficiosDisplay)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="encargos"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Encargos</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="R$ 0,00"
+                            value={encargosDisplay}
+                            onChange={(e) => handleCurrencyChange(e, 'encargos', setEncargosDisplay)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isLoading}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Cadastrando...
+                    </>
+                  ) : (
+                    'Adicionar Funcionário'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        )}
       </DialogContent>
     </Dialog>
   );
