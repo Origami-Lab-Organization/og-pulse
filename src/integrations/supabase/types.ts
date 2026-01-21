@@ -247,10 +247,11 @@ export type Database = {
           created_at: string
           description: string | null
           due_day: number
-          end_date: string
+          end_date: string | null
           first_invoice_date: string | null
           id: string
           installments_count: number
+          is_continuous: boolean
           manager_id: string
           name: string
           payment_method: string
@@ -267,10 +268,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_day?: number
-          end_date: string
+          end_date?: string | null
           first_invoice_date?: string | null
           id?: string
           installments_count?: number
+          is_continuous?: boolean
           manager_id: string
           name: string
           payment_method?: string
@@ -287,10 +289,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_day?: number
-          end_date?: string
+          end_date?: string | null
           first_invoice_date?: string | null
           id?: string
           installments_count?: number
+          is_continuous?: boolean
           manager_id?: string
           name?: string
           payment_method?: string

@@ -120,7 +120,8 @@ export const projectService = {
         name: input.name,
         description: input.description || null,
         start_date: input.startDate,
-        end_date: input.endDate,
+        end_date: input.endDate || null,
+        is_continuous: input.isContinuous || false,
         total_value: input.totalValue,
         payment_method: input.paymentMethod,
         installments_count: input.installmentsCount,
@@ -170,6 +171,7 @@ export const projectService = {
     if (updates.description !== undefined) updateData.description = updates.description;
     if (updates.startDate !== undefined) updateData.start_date = updates.startDate;
     if (updates.endDate !== undefined) updateData.end_date = updates.endDate;
+    if (updates.isContinuous !== undefined) updateData.is_continuous = updates.isContinuous;
     if (updates.totalValue !== undefined) updateData.total_value = updates.totalValue;
     if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
     if (updates.installmentsCount !== undefined) updateData.installments_count = updates.installmentsCount;

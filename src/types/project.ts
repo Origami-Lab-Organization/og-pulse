@@ -10,7 +10,8 @@ export interface ProjectDB {
   name: string;
   description: string | null;
   start_date: string;
-  end_date: string;
+  end_date: string | null;
+  is_continuous: boolean;
   total_value: number;
   payment_method: string;
   installments_count: number;
@@ -53,7 +54,8 @@ export interface CreateProjectInput {
   name: string;
   description?: string;
   startDate: string;
-  endDate: string;
+  endDate?: string;
+  isContinuous?: boolean;
   totalValue: number;
   paymentMethod: string;
   installmentsCount: number;

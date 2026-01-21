@@ -132,7 +132,7 @@ export function ProjectDetailDialog({
                 </CardHeader>
                 <CardContent>
                   <p className="font-medium">
-                    {formatDate(project.start_date)} - {formatDate(project.end_date)}
+                    {formatDate(project.start_date)} - {project.is_continuous ? 'Contínuo' : formatDate(project.end_date)}
                   </p>
                 </CardContent>
               </Card>
