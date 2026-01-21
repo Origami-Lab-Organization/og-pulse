@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
+import { formatPhone, formatCPF, formatCurrency, parseCurrency } from '@/lib/masks';
 
 const formSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -40,9 +41,9 @@ const formSchema = z.object({
   dataAdmissao: z.string().min(1, 'Data de admissão é obrigatória'),
   isGerente: z.boolean(),
   status: z.enum(['ativo', 'inativo']),
-  salarioMensal: z.coerce.number().positive('Salário deve ser positivo'),
-  beneficios: z.coerce.number().min(0, 'Benefícios não pode ser negativo'),
-  encargos: z.coerce.number().min(0, 'Encargos não pode ser negativo'),
+  salarioMensal: z.number().positive('Salário deve ser positivo'),
+  beneficios: z.number().min(0, 'Benefícios não pode ser negativo'),
+  encargos: z.number().min(0, 'Encargos não pode ser negativo'),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -63,6 +64,13 @@ const EmployeeFormDialog = ({
   isLoading = false,
 }: EmployeeFormDialogProps) => {
   const isEditing = !!employee;
+
+  // Masked display values
+  const [phoneDisplay, setPhoneDisplay] = useState('');
+  const [cpfDisplay, setCpfDisplay] = useState('');
+  const [salarioDisplay, setSalarioDisplay] = useState('');
+  const [beneficiosDisplay, setBeneficiosDisplay] = useState('');
+  const [encargosDisplay, setEncargosDisplay] = useState('');
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -96,6 +104,12 @@ const EmployeeFormDialog = ({
         beneficios: employee.beneficios,
         encargos: employee.encargos,
       });
+      // Set display values
+      setPhoneDisplay(employee.telefone ? formatPhone(employee.telefone) : '');
+      setCpfDisplay(employee.cpf ? formatCPF(employee.cpf) : '');
+      setSalarioDisplay(employee.salarioMensal ? formatCurrency(employee.salarioMensal) : '');
+      setBeneficiosDisplay(employee.beneficios ? formatCurrency(employee.beneficios) : '');
+      setEncargosDisplay(employee.encargos ? formatCurrency(employee.encargos) : '');
     } else {
       form.reset({
         nome: '',
@@ -110,12 +124,46 @@ const EmployeeFormDialog = ({
         beneficios: 0,
         encargos: 0,
       });
+      // Reset display values
+      setPhoneDisplay('');
+      setCpfDisplay('');
+      setSalarioDisplay('');
+      setBeneficiosDisplay('');
+      setEncargosDisplay('');
     }
-  }, [employee, form]);
+  }, [employee, form, open]);
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setPhoneDisplay(formatted);
+    form.setValue('telefone', formatted.replace(/\D/g, ''));
+  };
+
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCPF(e.target.value);
+    setCpfDisplay(formatted);
+    form.setValue('cpf', formatted.replace(/\D/g, ''));
+  };
+
+  const handleCurrencyChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'salarioMensal' | 'beneficios' | 'encargos',
+    setDisplay: React.Dispatch<React.SetStateAction<string>>
+  ) => {
+    const formatted = formatCurrency(e.target.value);
+    setDisplay(formatted);
+    form.setValue(field, parseCurrency(formatted));
+  };
 
   const handleSubmit = (data: FormData) => {
     onSubmit(data as CreateEmployeeInput);
     form.reset();
+    // Reset display values
+    setPhoneDisplay('');
+    setCpfDisplay('');
+    setSalarioDisplay('');
+    setBeneficiosDisplay('');
+    setEncargosDisplay('');
   };
 
   return (
@@ -171,11 +219,15 @@ const EmployeeFormDialog = ({
               <FormField
                 control={form.control}
                 name="telefone"
-                render={({ field }) => (
+                render={() => (
                   <FormItem>
                     <FormLabel>Telefone (opcional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="(11) 99999-9999" {...field} />
+                      <Input 
+                        placeholder="(11) 99999-9999" 
+                        value={phoneDisplay}
+                        onChange={handlePhoneChange}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -185,11 +237,15 @@ const EmployeeFormDialog = ({
               <FormField
                 control={form.control}
                 name="cpf"
-                render={({ field }) => (
+                render={() => (
                   <FormItem>
                     <FormLabel>CPF (opcional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="000.000.000-00" {...field} />
+                      <Input 
+                        placeholder="000.000.000-00" 
+                        value={cpfDisplay}
+                        onChange={handleCpfChange}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -271,11 +327,15 @@ const EmployeeFormDialog = ({
                 <FormField
                   control={form.control}
                   name="salarioMensal"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
-                      <FormLabel>Salário Mensal (R$)</FormLabel>
+                      <FormLabel>Salário Mensal</FormLabel>
                       <FormControl>
-                        <Input type="number" min="0" step="0.01" {...field} />
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={salarioDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -285,11 +345,15 @@ const EmployeeFormDialog = ({
                 <FormField
                   control={form.control}
                   name="beneficios"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
-                      <FormLabel>Benefícios (R$)</FormLabel>
+                      <FormLabel>Benefícios</FormLabel>
                       <FormControl>
-                        <Input type="number" min="0" step="0.01" {...field} />
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={beneficiosDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'beneficios', setBeneficiosDisplay)}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -299,11 +363,15 @@ const EmployeeFormDialog = ({
                 <FormField
                   control={form.control}
                   name="encargos"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
-                      <FormLabel>Encargos (R$)</FormLabel>
+                      <FormLabel>Encargos</FormLabel>
                       <FormControl>
-                        <Input type="number" min="0" step="0.01" {...field} />
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={encargosDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'encargos', setEncargosDisplay)}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
