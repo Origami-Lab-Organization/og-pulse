@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      clients: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string | null
+          company_name: string
+          created_at: string
+          estado: string | null
+          id: string
+          logradouro: string | null
+          numero: string | null
+          status: string
+          tenant_id: string
+          trading_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          company_name: string
+          created_at?: string
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          numero?: string | null
+          status?: string
+          tenant_id: string
+          trading_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          company_name?: string
+          created_at?: string
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          numero?: string | null
+          status?: string
+          tenant_id?: string
+          trading_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           auth_id: string | null
@@ -150,6 +209,10 @@ export type Database = {
           _tenant_id: string
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_admin_or_manager: {
+        Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
       user_belongs_to_tenant: {
