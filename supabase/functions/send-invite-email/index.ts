@@ -26,22 +26,60 @@ const handler = async (req: Request): Promise<Response> => {
     const smtpUser = Deno.env.get("SMTP_USER");
     const smtpPass = Deno.env.get("SMTP_PASS");
     const smtpFrom = Deno.env.get("SMTP_FROM");
+    const smtpSecure = Deno.env.get("SMTP_SECURE") === "true";
+
+    console.log("SMTP Configuration:", {
+      host: smtpHost,
+      port: smtpPort,
+      user: smtpUser ? `${smtpUser.substring(0, 5)}...` : "NOT SET",
+      from: smtpFrom,
+      secure: smtpSecure,
+      passSet: !!smtpPass,
+    });
 
     if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
+      console.error("Missing SMTP configuration:", {
+        host: !!smtpHost,
+        user: !!smtpUser,
+        pass: !!smtpPass,
+        from: !!smtpFrom,
+      });
       throw new Error("SMTP configuration is incomplete");
     }
 
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: true,
-        auth: {
-          username: smtpUser,
-          password: smtpPass,
-        },
+    console.log(`Attempting to connect to SMTP server ${smtpHost}:${smtpPort}...`);
+
+    // Configure TLS based on port and SMTP_SECURE setting
+    // Port 465 = implicit TLS (SSL), Port 587 = STARTTLS
+    const connectionConfig: any = {
+      hostname: smtpHost,
+      port: smtpPort,
+      auth: {
+        username: smtpUser,
+        password: smtpPass,
       },
+    };
+
+    // For port 465 (SSL) or when SMTP_SECURE is true, use direct TLS
+    if (smtpPort === 465 || smtpSecure) {
+      connectionConfig.tls = true;
+    } else {
+      // For port 587, use STARTTLS
+      connectionConfig.tls = false;
+    }
+
+    console.log("Connection config (without password):", {
+      hostname: connectionConfig.hostname,
+      port: connectionConfig.port,
+      tls: connectionConfig.tls,
+      authUser: connectionConfig.auth.username,
     });
+
+    const client = new SMTPClient({
+      connection: connectionConfig,
+    });
+
+    console.log("SMTP client created, attempting to send email...");
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -96,17 +134,31 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    await client.send({
-      from: smtpFrom,
-      to: to,
-      subject: "Bem-vindo! Suas credenciais de acesso",
-      content: "auto",
-      html: htmlContent,
-    });
+    try {
+      await client.send({
+        from: smtpFrom,
+        to: to,
+        subject: "Bem-vindo! Suas credenciais de acesso",
+        content: "auto",
+        html: htmlContent,
+      });
+      console.log("Email sent successfully to:", to);
+    } catch (sendError: any) {
+      console.error("Error during email send:", sendError);
+      console.error("Send error details:", {
+        message: sendError.message,
+        name: sendError.name,
+        stack: sendError.stack,
+      });
+      throw sendError;
+    }
 
-    await client.close();
-
-    console.log("Email sent successfully to:", to);
+    try {
+      await client.close();
+      console.log("SMTP connection closed successfully");
+    } catch (closeError: any) {
+      console.error("Error closing SMTP connection:", closeError);
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: "Email enviado com sucesso" }),
@@ -116,9 +168,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   } catch (error: any) {
-    console.error("Error sending email:", error);
+    console.error("Error in send-invite-email:", error);
+    console.error("Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message, details: error.stack }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
