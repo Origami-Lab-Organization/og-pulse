@@ -1,6 +1,15 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { LogOut, User } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
 const Header = () => {
+  const { employee, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   return (
     <header className="border-b border-border bg-card shadow-card">
       <div className="container flex h-16 items-center justify-between px-4">
@@ -26,6 +35,29 @@ const Header = () => {
             Orçamentos
           </span>
         </nav>
+
+        {employee && (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="text-foreground font-medium">{employee.nome}</span>
+              {employee.is_gerente && (
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  Admin
+                </span>
+              )}
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleSignOut}
+              className="gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
+          </div>
+        )}
       </div>
     </header>
   );

@@ -1,1 +1,7 @@
 project_id = "vkriobpmolgopbbpqeky"
+
+[functions.send-invite-email]
+verify_jwt = false
+
+[functions.create-employee-user]
+verify_jwt = false
