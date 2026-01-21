@@ -1,0 +1,93 @@
+import { Employee } from '@/types/employee';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Pencil, Trash2, Phone, Mail, Crown } from 'lucide-react';
+
+interface EmployeeCardProps {
+  employee: Employee;
+  onEdit: (employee: Employee) => void;
+  onDelete: (employee: Employee) => void;
+}
+
+const EmployeeCard = ({ employee, onEdit, onDelete }: EmployeeCardProps) => {
+  const custoTotal = employee.salarioMensal + employee.beneficios + employee.encargos;
+  const custoHora = (custoTotal / 176).toFixed(2); // 176 = 8h * 22 dias
+
+  return (
+    <Card className="group animate-fade-in transition-all duration-200 hover:shadow-card-hover">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground font-semibold text-lg">
+              {employee.nome.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-foreground">{employee.nome}</h3>
+                {employee.isGerente && (
+                  <Crown className="h-4 w-4 text-secondary" />
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">{employee.cargo}</p>
+            </div>
+          </div>
+          
+          <Badge 
+            variant={employee.status === 'ativo' ? 'default' : 'secondary'}
+            className={employee.status === 'ativo' ? 'bg-success text-success-foreground' : ''}
+          >
+            {employee.status === 'ativo' ? 'Ativo' : 'Inativo'}
+          </Badge>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Mail className="h-4 w-4" />
+            <span>{employee.email}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Phone className="h-4 w-4" />
+            <span>{employee.telefone}</span>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between rounded-lg bg-muted p-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Custo/Hora</p>
+            <p className="font-semibold text-foreground">R$ {custoHora}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Custo Mensal</p>
+            <p className="font-semibold text-foreground">
+              R$ {custoTotal.toLocaleString('pt-BR')}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(employee)}
+            className="gap-1"
+          >
+            <Pencil className="h-3 w-3" />
+            Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onDelete(employee)}
+            className="gap-1 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+          >
+            <Trash2 className="h-3 w-3" />
+            Excluir
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default EmployeeCard;
