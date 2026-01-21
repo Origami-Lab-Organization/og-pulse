@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
+import Projects from "./pages/Projects";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <Clients />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/projects" 
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <Projects />
                   </RoleProtectedRoute>
                 } 
               />

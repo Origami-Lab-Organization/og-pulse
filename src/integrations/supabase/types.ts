@@ -144,6 +144,186 @@ export type Database = {
           },
         ]
       }
+      project_installments: {
+        Row: {
+          created_at: string
+          due_date: string
+          id: string
+          installment_number: number
+          invoice_date: string | null
+          invoice_number: string | null
+          notes: string | null
+          payment_date: string | null
+          project_id: string
+          status: Database["public"]["Enums"]["installment_status"]
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          due_date: string
+          id?: string
+          installment_number: number
+          invoice_date?: string | null
+          invoice_number?: string | null
+          notes?: string | null
+          payment_date?: string | null
+          project_id: string
+          status?: Database["public"]["Enums"]["installment_status"]
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          due_date?: string
+          id?: string
+          installment_number?: number
+          invoice_date?: string | null
+          invoice_number?: string | null
+          notes?: string | null
+          payment_date?: string | null
+          project_id?: string
+          status?: Database["public"]["Enums"]["installment_status"]
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_installments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_members: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          project_id: string
+          role: string
+          seniority: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          project_id: string
+          role: string
+          seniority?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          project_id?: string
+          role?: string
+          seniority?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          budget_id: string | null
+          client_id: string
+          contract_url: string | null
+          created_at: string
+          description: string | null
+          due_day: number
+          end_date: string
+          first_invoice_date: string | null
+          id: string
+          installments_count: number
+          manager_id: string
+          name: string
+          payment_method: string
+          start_date: string
+          status: Database["public"]["Enums"]["project_status"]
+          tenant_id: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          budget_id?: string | null
+          client_id: string
+          contract_url?: string | null
+          created_at?: string
+          description?: string | null
+          due_day?: number
+          end_date: string
+          first_invoice_date?: string | null
+          id?: string
+          installments_count?: number
+          manager_id: string
+          name: string
+          payment_method?: string
+          start_date: string
+          status?: Database["public"]["Enums"]["project_status"]
+          tenant_id: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          budget_id?: string | null
+          client_id?: string
+          contract_url?: string | null
+          created_at?: string
+          description?: string | null
+          due_day?: number
+          end_date?: string
+          first_invoice_date?: string | null
+          id?: string
+          installments_count?: number
+          manager_id?: string
+          name?: string
+          payment_method?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["project_status"]
+          tenant_id?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           created_at: string
@@ -215,6 +395,7 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      update_overdue_installments: { Args: never; Returns: undefined }
       user_belongs_to_tenant: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
@@ -222,6 +403,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "manager"
+      installment_status: "pending" | "invoiced" | "received" | "overdue"
+      project_status:
+        | "planning"
+        | "active"
+        | "paused"
+        | "completed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -350,6 +538,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "manager"],
+      installment_status: ["pending", "invoiced", "received", "overdue"],
+      project_status: [
+        "planning",
+        "active",
+        "paused",
+        "completed",
+        "cancelled",
+      ],
     },
   },
 } as const
