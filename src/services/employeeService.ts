@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { EmployeeTool, CreateEmployeeToolInput } from '@/types/employee';
 
 export interface EmployeeDB {
   id: string;
@@ -154,5 +155,75 @@ export const employeeService = {
     }
 
     return data || [];
+  },
+
+  // Employee Tools
+  async getTools(employeeId: string): Promise<EmployeeTool[]> {
+    const { data, error } = await supabase
+      .from('employee_tools')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching employee tools:', error);
+      throw error;
+    }
+
+    return (data || []) as EmployeeTool[];
+  },
+
+  async addTool(input: CreateEmployeeToolInput): Promise<EmployeeTool> {
+    const { data, error } = await supabase
+      .from('employee_tools')
+      .insert({
+        employee_id: input.employeeId,
+        name: input.name,
+        description: input.description || null,
+        monthly_cost: input.monthlyCost,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding employee tool:', error);
+      throw error;
+    }
+
+    return data as EmployeeTool;
+  },
+
+  async updateTool(id: string, updates: Partial<Omit<CreateEmployeeToolInput, 'employeeId'>>): Promise<EmployeeTool> {
+    const updateData: Record<string, unknown> = {};
+    
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.monthlyCost !== undefined) updateData.monthly_cost = updates.monthlyCost;
+
+    const { data, error } = await supabase
+      .from('employee_tools')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating employee tool:', error);
+      throw error;
+    }
+
+    return data as EmployeeTool;
+  },
+
+  async deleteTool(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('employee_tools')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting employee tool:', error);
+      throw error;
+    }
   },
 };
