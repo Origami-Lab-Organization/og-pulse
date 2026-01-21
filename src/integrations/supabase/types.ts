@@ -182,6 +182,44 @@ export type Database = {
           },
         ]
       }
+      financial_settings: {
+        Row: {
+          admin_expenses_percent: number
+          commission_percent: number
+          created_at: string
+          id: string
+          taxes_percent: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_expenses_percent?: number
+          commission_percent?: number
+          created_at?: string
+          id?: string
+          taxes_percent?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_expenses_percent?: number
+          commission_percent?: number
+          created_at?: string
+          id?: string
+          taxes_percent?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_installments: {
         Row: {
           created_at: string
