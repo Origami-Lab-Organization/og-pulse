@@ -13,6 +13,7 @@ import ChangePassword from "./pages/ChangePassword";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 import Projects from "./pages/Projects";
+import Pricing from "./pages/Pricing";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <Projects />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/pricing" 
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <Pricing />
                   </RoleProtectedRoute>
                 } 
               />

@@ -10,6 +10,7 @@ interface EmployeeData {
   tenant_id: string;
   is_gerente: boolean;
   must_change_password: boolean;
+  isAdmin: boolean;
 }
 
 interface AuthContextType {
@@ -43,18 +44,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   const fetchEmployeeData = async (userId: string) => {
-    const { data, error } = await supabase
+    // Fetch employee data
+    const { data: empData, error: empError } = await supabase
       .from('employees')
       .select('id, nome, email, cargo, tenant_id, is_gerente, must_change_password')
       .eq('auth_id', userId)
       .single();
 
-    if (error) {
-      console.error('Error fetching employee data:', error);
+    if (empError) {
+      console.error('Error fetching employee data:', empError);
       return null;
     }
 
-    return data as EmployeeData;
+    // Check if user has admin role
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('tenant_id', empData.tenant_id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    return {
+      ...empData,
+      isAdmin: !!roleData,
+    } as EmployeeData;
   };
 
   useEffect(() => {
