@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -84,21 +84,43 @@ export function ProjectFormDialog({
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
-      name: project?.name || '',
-      description: project?.description || '',
-      clientId: project?.client_id || '',
-      managerId: project?.manager_id || '',
-      startDate: project?.start_date || '',
-      endDate: project?.end_date || '',
-      isContinuous: project?.is_continuous || false,
-      status: project?.status || 'planning',
-      totalValue: Number(project?.total_value) || 0,
-      paymentMethod: project?.payment_method || 'mensal',
-      installmentsCount: project?.installments_count || 1,
-      firstInvoiceDate: project?.first_invoice_date || '',
-      dueDay: project?.due_day || 10,
+      name: '',
+      description: '',
+      clientId: '',
+      managerId: '',
+      startDate: '',
+      endDate: '',
+      isContinuous: false,
+      status: 'planning',
+      totalValue: 0,
+      paymentMethod: 'mensal',
+      installmentsCount: 1,
+      firstInvoiceDate: '',
+      dueDay: 10,
     },
   });
+
+  // Reset form when project changes (for edit mode)
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        name: project?.name || '',
+        description: project?.description || '',
+        clientId: project?.client_id || '',
+        managerId: project?.manager_id || '',
+        startDate: project?.start_date || '',
+        endDate: project?.end_date || '',
+        isContinuous: project?.is_continuous || false,
+        status: project?.status || 'planning',
+        totalValue: Number(project?.total_value) || 0,
+        paymentMethod: project?.payment_method || 'mensal',
+        installmentsCount: project?.installments_count || 1,
+        firstInvoiceDate: project?.first_invoice_date || '',
+        dueDay: project?.due_day || 10,
+      });
+      setActiveTab('basic');
+    }
+  }, [open, project, form]);
 
   const isContinuous = form.watch('isContinuous');
 
