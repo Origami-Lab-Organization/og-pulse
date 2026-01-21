@@ -29,6 +29,7 @@ export interface ProjectMemberDB {
   employee_id: string;
   role: string;
   seniority: string;
+  hours_per_month: number;
   created_at: string;
 }
 
@@ -70,6 +71,7 @@ export interface CreateProjectMemberInput {
   employeeId: string;
   role: string;
   seniority: string;
+  hoursPerMonth: number;
 }
 
 export interface UpdateInstallmentInput {
@@ -97,6 +99,9 @@ export interface ProjectWithRelations extends ProjectDB {
       id: string;
       nome: string;
       cargo: string;
+      salario_mensal: number;
+      beneficios: number;
+      encargos: number;
     };
   })[];
   installments?: ProjectInstallmentDB[];

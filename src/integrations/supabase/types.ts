@@ -201,6 +201,7 @@ export type Database = {
         Row: {
           created_at: string
           employee_id: string
+          hours_per_month: number
           id: string
           project_id: string
           role: string
@@ -209,6 +210,7 @@ export type Database = {
         Insert: {
           created_at?: string
           employee_id: string
+          hours_per_month?: number
           id?: string
           project_id: string
           role: string
@@ -217,6 +219,7 @@ export type Database = {
         Update: {
           created_at?: string
           employee_id?: string
+          hours_per_month?: number
           id?: string
           project_id?: string
           role?: string

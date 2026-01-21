@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectMemberDB, SENIORITY_OPTIONS } from '@/types/project';
 import {
   useAddProjectMember,
@@ -32,12 +33,22 @@ import {
   useRemoveProjectMember,
 } from '@/hooks/useProjects';
 import { useEmployees } from '@/hooks/useEmployees';
-import { Pencil, Trash2, Plus, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Plus, Check, X, DollarSign } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { formatCurrency } from '@/lib/formatters';
+
+interface MemberEmployee {
+  id: string;
+  nome: string;
+  cargo: string;
+  salario_mensal?: number;
+  beneficios?: number;
+  encargos?: number;
+}
 
 interface ProjectMembersTableProps {
   members: (ProjectMemberDB & {
-    employee?: { id: string; nome: string; cargo: string };
+    employee?: MemberEmployee;
   })[];
   projectId: string;
 }
@@ -48,17 +59,34 @@ const seniorityLabels: Record<string, string> = {
   senior: 'Sênior',
 };
 
+const HOURS_PER_MONTH = 176; // Standard working hours
+
+function calculateHourlyCost(employee?: MemberEmployee): number {
+  if (!employee) return 0;
+  const totalCost =
+    Number(employee.salario_mensal || 0) +
+    Number(employee.beneficios || 0) +
+    Number(employee.encargos || 0);
+  return totalCost / HOURS_PER_MONTH;
+}
+
 export function ProjectMembersTable({ members, projectId }: ProjectMembersTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<{ role: string; seniority: string }>({
+  const [editData, setEditData] = useState<{
+    role: string;
+    seniority: string;
+    hoursPerMonth: number;
+  }>({
     role: '',
     seniority: 'pleno',
+    hoursPerMonth: 0,
   });
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newMember, setNewMember] = useState({
     employeeId: '',
     role: '',
     seniority: 'pleno',
+    hoursPerMonth: 40,
   });
 
   const { data: employees = [] } = useEmployees();
@@ -71,17 +99,26 @@ export function ProjectMembersTable({ members, projectId }: ProjectMembersTableP
     (e) => !members.some((m) => m.employee_id === e.id)
   );
 
+  // Calculate total project cost
+  const totalMonthlyCost = useMemo(() => {
+    return members.reduce((acc, member) => {
+      const hourlyCost = calculateHourlyCost(member.employee);
+      return acc + hourlyCost * Number(member.hours_per_month || 0);
+    }, 0);
+  }, [members]);
+
   const startEdit = (member: ProjectMemberDB) => {
     setEditingId(member.id);
     setEditData({
       role: member.role,
       seniority: member.seniority,
+      hoursPerMonth: Number(member.hours_per_month) || 0,
     });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditData({ role: '', seniority: 'pleno' });
+    setEditData({ role: '', seniority: 'pleno', hoursPerMonth: 0 });
   };
 
   const saveEdit = (id: string) => {
@@ -89,7 +126,11 @@ export function ProjectMembersTable({ members, projectId }: ProjectMembersTableP
       {
         id,
         projectId,
-        updates: editData,
+        updates: {
+          role: editData.role,
+          seniority: editData.seniority,
+          hours_per_month: editData.hoursPerMonth,
+        },
       },
       {
         onSuccess: () => {
@@ -108,11 +149,12 @@ export function ProjectMembersTable({ members, projectId }: ProjectMembersTableP
         employeeId: newMember.employeeId,
         role: newMember.role,
         seniority: newMember.seniority,
+        hoursPerMonth: newMember.hoursPerMonth,
       },
       {
         onSuccess: () => {
           setAddDialogOpen(false);
-          setNewMember({ employeeId: '', role: '', seniority: 'pleno' });
+          setNewMember({ employeeId: '', role: '', seniority: 'pleno', hoursPerMonth: 40 });
         },
       }
     );
@@ -141,6 +183,26 @@ export function ProjectMembersTable({ members, projectId }: ProjectMembersTableP
         </Button>
       </div>
 
+      {/* Cost Summary Card */}
+      {members.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              Custo Mensal da Equipe
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-primary">
+              {formatCurrency(totalMonthlyCost)}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Baseado nas horas alocadas e custo/hora de cada membro
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {members.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground border rounded-md">
           Nenhum membro adicionado ao projeto ainda.
@@ -153,106 +215,135 @@ export function ProjectMembersTable({ members, projectId }: ProjectMembersTableP
                 <TableHead>Funcionário</TableHead>
                 <TableHead>Papel no Projeto</TableHead>
                 <TableHead>Senioridade</TableHead>
+                <TableHead className="text-right">Horas/Mês</TableHead>
+                <TableHead className="text-right">Custo/Hora</TableHead>
+                <TableHead className="text-right">Custo/Mês</TableHead>
                 <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {members.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs">
-                          {member.employee ? getInitials(member.employee.nome) : '??'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{member.employee?.nome || 'Desconhecido'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {member.employee?.cargo || ''}
-                        </p>
+              {members.map((member) => {
+                const hourlyCost = calculateHourlyCost(member.employee);
+                const monthlyCost = hourlyCost * Number(member.hours_per_month || 0);
+
+                return (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="text-xs">
+                            {member.employee ? getInitials(member.employee.nome) : '??'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{member.employee?.nome || 'Desconhecido'}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {member.employee?.cargo || ''}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {editingId === member.id ? (
-                      <Input
-                        value={editData.role}
-                        onChange={(e) => setEditData({ ...editData, role: e.target.value })}
-                        placeholder="Ex: Desenvolvedor"
-                        className="w-[180px]"
-                      />
-                    ) : (
-                      member.role
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {editingId === member.id ? (
-                      <Select
-                        value={editData.seniority}
-                        onValueChange={(value) =>
-                          setEditData({ ...editData, seniority: value })
-                        }
-                      >
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SENIORITY_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge variant="secondary">
-                        {seniorityLabels[member.seniority] || member.seniority}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {editingId === member.id ? (
-                      <div className="flex gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => saveEdit(member.id)}
-                          disabled={updateMember.isPending}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === member.id ? (
+                        <Input
+                          value={editData.role}
+                          onChange={(e) => setEditData({ ...editData, role: e.target.value })}
+                          placeholder="Ex: Desenvolvedor"
+                          className="w-[180px]"
+                        />
+                      ) : (
+                        member.role
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === member.id ? (
+                        <Select
+                          value={editData.seniority}
+                          onValueChange={(value) =>
+                            setEditData({ ...editData, seniority: value })
+                          }
                         >
-                          <Check className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={cancelEdit}
-                          disabled={updateMember.isPending}
-                        >
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => startEdit(member)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleRemoveMember(member.id)}
-                          disabled={removeMember.isPending}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SENIORITY_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant="secondary">
+                          {seniorityLabels[member.seniority] || member.seniority}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {editingId === member.id ? (
+                        <Input
+                          type="number"
+                          value={editData.hoursPerMonth}
+                          onChange={(e) =>
+                            setEditData({ ...editData, hoursPerMonth: Number(e.target.value) })
+                          }
+                          className="w-[80px] text-right"
+                          min="0"
+                        />
+                      ) : (
+                        <span className="font-medium">{member.hours_per_month || 0}h</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(hourlyCost)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(monthlyCost)}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === member.id ? (
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => saveEdit(member.id)}
+                            disabled={updateMember.isPending}
+                          >
+                            <Check className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={cancelEdit}
+                            disabled={updateMember.isPending}
+                          >
+                            <X className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => startEdit(member)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleRemoveMember(member.id)}
+                            disabled={removeMember.isPending}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -264,7 +355,7 @@ export function ProjectMembersTable({ members, projectId }: ProjectMembersTableP
           <DialogHeader>
             <DialogTitle>Adicionar Membro ao Projeto</DialogTitle>
             <DialogDescription>
-              Selecione um funcionário e defina seu papel no projeto.
+              Selecione um funcionário e defina seu papel e alocação no projeto.
             </DialogDescription>
           </DialogHeader>
 
@@ -300,25 +391,40 @@ export function ProjectMembersTable({ members, projectId }: ProjectMembersTableP
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium">Senioridade</label>
-              <Select
-                value={newMember.seniority}
-                onValueChange={(value) =>
-                  setNewMember({ ...newMember, seniority: value })
-                }
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SENIORITY_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Senioridade</label>
+                <Select
+                  value={newMember.seniority}
+                  onValueChange={(value) =>
+                    setNewMember({ ...newMember, seniority: value })
+                  }
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SENIORITY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Horas/Mês</label>
+                <Input
+                  type="number"
+                  value={newMember.hoursPerMonth}
+                  onChange={(e) =>
+                    setNewMember({ ...newMember, hoursPerMonth: Number(e.target.value) })
+                  }
+                  min="0"
+                  className="mt-1"
+                />
+              </div>
             </div>
           </div>
 
