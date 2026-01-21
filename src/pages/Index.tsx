@@ -5,7 +5,6 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { DataTable } from '@/components/data-table/DataTable';
 import { createEmployeeColumns } from '@/components/employees/EmployeesTable';
 import EmployeeFormDialog from '@/components/employees/EmployeeFormDialog';
-import { EmployeeDetailDialog } from '@/components/employees/EmployeeDetailDialog';
 import DeleteConfirmDialog from '@/components/employees/DeleteConfirmDialog';
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
@@ -21,19 +20,12 @@ const Index = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [formDialogOpen, setFormDialogOpen] = useState(false);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
     setFormDialogOpen(true);
-  };
-
-  const handleViewEmployee = (employee: Employee) => {
-    setViewingEmployee(employee);
-    setDetailDialogOpen(true);
   };
 
   const handleEditEmployee = (employee: Employee) => {
@@ -146,7 +138,6 @@ const Index = () => {
           data={employees}
           searchKey="nome"
           searchValue={searchQuery}
-          onRowClick={handleViewEmployee}
         />
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
@@ -173,12 +164,6 @@ const Index = () => {
         employee={selectedEmployee}
         onSubmit={handleFormSubmit}
         isLoading={createEmployee.isPending || updateEmployee.isPending}
-      />
-
-      <EmployeeDetailDialog
-        open={detailDialogOpen}
-        onOpenChange={setDetailDialogOpen}
-        employee={viewingEmployee}
       />
 
       <DeleteConfirmDialog
