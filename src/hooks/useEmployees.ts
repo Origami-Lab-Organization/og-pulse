@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService, CreateEmployeeInput, EmployeeDB } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { CreateEmployeeToolInput } from '@/types/employee';
 
 // Convert DB format to frontend format
 export const dbToEmployee = (db: EmployeeDB) => ({
@@ -128,6 +129,99 @@ export const useDeleteEmployee = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao excluir funcionário',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+// Employee Tools hooks
+export const useEmployeeTools = (employeeId: string | undefined) => {
+  return useQuery({
+    queryKey: ['employee-tools', employeeId],
+    queryFn: () => employeeService.getTools(employeeId!),
+    enabled: !!employeeId,
+  });
+};
+
+export const useAddEmployeeTool = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: CreateEmployeeToolInput) => {
+      return employeeService.addTool(input);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['employee-tools', variables.employeeId] });
+      toast({
+        title: 'Ferramenta adicionada',
+        description: 'A ferramenta foi adicionada com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao adicionar ferramenta',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useUpdateEmployeeTool = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      employeeId,
+      updates,
+    }: {
+      id: string;
+      employeeId: string;
+      updates: Partial<Omit<CreateEmployeeToolInput, 'employeeId'>>;
+    }) => {
+      return employeeService.updateTool(id, updates);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['employee-tools', variables.employeeId] });
+      toast({
+        title: 'Ferramenta atualizada',
+        description: 'A ferramenta foi atualizada com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao atualizar ferramenta',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useDeleteEmployeeTool = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, employeeId }: { id: string; employeeId: string }) => {
+      await employeeService.deleteTool(id);
+      return { employeeId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['employee-tools', data.employeeId] });
+      toast({
+        title: 'Ferramenta removida',
+        description: 'A ferramenta foi removida com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao remover ferramenta',
         description: error.message,
         variant: 'destructive',
       });
