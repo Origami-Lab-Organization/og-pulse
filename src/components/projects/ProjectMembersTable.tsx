@@ -37,18 +37,13 @@ import { Pencil, Trash2, Plus, Check, X, DollarSign } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatCurrency } from '@/lib/formatters';
 
-interface MemberEmployee {
-  id: string;
-  nome: string;
-  cargo: string;
-  salario_mensal?: number;
-  beneficios?: number;
-  encargos?: number;
-}
-
 interface ProjectMembersTableProps {
   members: (ProjectMemberDB & {
-    employee?: MemberEmployee;
+    employee?: {
+      id: string;
+      nome: string;
+      cargo: string;
+    };
   })[];
   projectId: string;
 }
@@ -61,12 +56,18 @@ const seniorityLabels: Record<string, string> = {
 
 const HOURS_PER_MONTH = 176; // Standard working hours
 
-function calculateHourlyCost(employee?: MemberEmployee): number {
+// Uses employee data from useEmployees which includes totalToolsCost
+function getEmployeeHourlyCost(
+  employeeId: string,
+  employees: { id: string; salarioMensal: number; beneficios: number; encargos: number; totalToolsCost: number }[]
+): number {
+  const employee = employees.find((e) => e.id === employeeId);
   if (!employee) return 0;
   const totalCost =
-    Number(employee.salario_mensal || 0) +
-    Number(employee.beneficios || 0) +
-    Number(employee.encargos || 0);
+    employee.salarioMensal +
+    employee.beneficios +
+    employee.encargos +
+    (employee.totalToolsCost || 0);
   return totalCost / HOURS_PER_MONTH;
 }
 
@@ -99,13 +100,13 @@ export function ProjectMembersTable({ members, projectId }: ProjectMembersTableP
     (e) => !members.some((m) => m.employee_id === e.id)
   );
 
-  // Calculate total project cost
+  // Calculate total project cost using employee data with tools
   const totalMonthlyCost = useMemo(() => {
     return members.reduce((acc, member) => {
-      const hourlyCost = calculateHourlyCost(member.employee);
+      const hourlyCost = getEmployeeHourlyCost(member.employee_id, employees);
       return acc + hourlyCost * Number(member.hours_per_month || 0);
     }, 0);
-  }, [members]);
+  }, [members, employees]);
 
   const startEdit = (member: ProjectMemberDB) => {
     setEditingId(member.id);
@@ -222,8 +223,8 @@ export function ProjectMembersTable({ members, projectId }: ProjectMembersTableP
               </TableRow>
             </TableHeader>
             <TableBody>
-              {members.map((member) => {
-                const hourlyCost = calculateHourlyCost(member.employee);
+            {members.map((member) => {
+                const hourlyCost = getEmployeeHourlyCost(member.employee_id, employees);
                 const monthlyCost = hourlyCost * Number(member.hours_per_month || 0);
 
                 return (
