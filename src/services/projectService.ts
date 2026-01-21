@@ -192,6 +192,74 @@ export const projectService = {
       throw error;
     }
 
+    // Regenerate installments if financial data changed
+    const shouldRegenerateInstallments = 
+      updates.totalValue !== undefined ||
+      updates.installmentsCount !== undefined ||
+      updates.firstInvoiceDate !== undefined ||
+      updates.dueDay !== undefined;
+
+    if (shouldRegenerateInstallments && updates.firstInvoiceDate && updates.installmentsCount && updates.installmentsCount > 0) {
+      // Delete existing installments that haven't been invoiced or received
+      await supabase
+        .from('project_installments')
+        .delete()
+        .eq('project_id', id)
+        .in('status', ['pending', 'overdue']);
+
+      // Get count of remaining installments
+      const { count: remainingCount } = await supabase
+        .from('project_installments')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', id);
+
+      const remainingInstallments = remainingCount || 0;
+      const newInstallmentsCount = updates.installmentsCount - remainingInstallments;
+
+      if (newInstallmentsCount > 0) {
+        // Calculate value considering what's already been paid/invoiced
+        const { data: existingInstallments } = await supabase
+          .from('project_installments')
+          .select('value')
+          .eq('project_id', id);
+
+        const existingValue = (existingInstallments || []).reduce((sum, i) => sum + Number(i.value), 0);
+        const remainingValue = (updates.totalValue || 0) - existingValue;
+        const valuePerNewInstallment = remainingValue / newInstallmentsCount;
+
+        const installments = [];
+        let currentDate = new Date(updates.firstInvoiceDate);
+        // Skip months for existing installments
+        currentDate.setMonth(currentDate.getMonth() + remainingInstallments);
+
+        for (let i = 1; i <= newInstallmentsCount; i++) {
+          const year = currentDate.getFullYear();
+          const month = currentDate.getMonth();
+          const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+          const adjustedDueDay = Math.min(updates.dueDay || 10, lastDayOfMonth);
+          const dueDate = new Date(year, month, adjustedDueDay);
+
+          installments.push({
+            project_id: id,
+            installment_number: remainingInstallments + i,
+            value: Number(valuePerNewInstallment.toFixed(2)),
+            due_date: dueDate.toISOString().split('T')[0],
+            status: 'pending' as InstallmentStatus,
+            invoice_number: null,
+            invoice_date: null,
+            payment_date: null,
+            notes: null,
+          });
+
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+
+        if (installments.length > 0) {
+          await supabase.from('project_installments').insert(installments);
+        }
+      }
+    }
+
     return data as unknown as ProjectDB;
   },
 
@@ -295,6 +363,7 @@ export const projectService = {
     if (updates.invoiceDate !== undefined) updateData.invoice_date = updates.invoiceDate;
     if (updates.paymentDate !== undefined) updateData.payment_date = updates.paymentDate;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
+    if (updates.value !== undefined) updateData.value = updates.value;
 
     const { data, error } = await supabase
       .from('project_installments')
