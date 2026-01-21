@@ -171,7 +171,7 @@ export const useUpdateProjectMember = () => {
     }: {
       id: string;
       projectId: string;
-      updates: { role?: string; seniority?: string };
+      updates: { role?: string; seniority?: string; hours_per_month?: number };
     }) => {
       return projectService.updateMember(id, updates);
     },

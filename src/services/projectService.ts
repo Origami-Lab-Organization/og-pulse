@@ -85,12 +85,12 @@ export const projectService = {
       throw error;
     }
 
-    // Fetch members separately
+    // Fetch members separately with cost data
     const { data: members } = await supabase
       .from('project_members')
       .select(`
         *,
-        employee:employees(id, nome, cargo)
+        employee:employees(id, nome, cargo, salario_mensal, beneficios, encargos)
       `)
       .eq('project_id', id);
 
@@ -213,6 +213,7 @@ export const projectService = {
         employee_id: input.employeeId,
         role: input.role,
         seniority: input.seniority,
+        hours_per_month: input.hoursPerMonth,
       })
       .select()
       .single();
@@ -227,7 +228,7 @@ export const projectService = {
 
   async updateMember(
     id: string,
-    updates: { role?: string; seniority?: string }
+    updates: { role?: string; seniority?: string; hours_per_month?: number }
   ): Promise<ProjectMemberDB> {
     const { data, error } = await supabase
       .from('project_members')
