@@ -14,16 +14,151 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      employees: {
+        Row: {
+          auth_id: string | null
+          beneficios: number
+          cargo: string
+          cpf: string | null
+          created_at: string
+          data_admissao: string
+          email: string
+          encargos: number
+          id: string
+          is_gerente: boolean
+          must_change_password: boolean
+          nome: string
+          salario_mensal: number
+          status: string
+          telefone: string | null
+          temp_password: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          auth_id?: string | null
+          beneficios?: number
+          cargo: string
+          cpf?: string | null
+          created_at?: string
+          data_admissao: string
+          email: string
+          encargos?: number
+          id?: string
+          is_gerente?: boolean
+          must_change_password?: boolean
+          nome: string
+          salario_mensal?: number
+          status?: string
+          telefone?: string | null
+          temp_password?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          auth_id?: string | null
+          beneficios?: number
+          cargo?: string
+          cpf?: string | null
+          created_at?: string
+          data_admissao?: string
+          email?: string
+          encargos?: number
+          id?: string
+          is_gerente?: boolean
+          must_change_password?: boolean
+          nome?: string
+          salario_mensal?: number
+          status?: string
+          telefone?: string | null
+          temp_password?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _tenant_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      user_belongs_to_tenant: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +285,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
