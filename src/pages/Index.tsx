@@ -1,14 +1,16 @@
 import { useState, useMemo } from 'react';
 import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, Employee } from '@/hooks/useEmployees';
 import { CreateEmployeeInput } from '@/services/employeeService';
-import Header from '@/components/layout/Header';
-import EmployeeCard from '@/components/employees/EmployeeCard';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { DataTable } from '@/components/data-table/DataTable';
+import { createEmployeeColumns } from '@/components/employees/EmployeesTable';
 import EmployeeFormDialog from '@/components/employees/EmployeeFormDialog';
 import DeleteConfirmDialog from '@/components/employees/DeleteConfirmDialog';
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, Users, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
   const { data: employees = [], isLoading } = useEmployees();
@@ -20,17 +22,6 @@ const Index = () => {
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-
-  const filteredEmployees = useMemo(() => {
-    if (!searchQuery.trim()) return employees;
-    const query = searchQuery.toLowerCase();
-    return employees.filter(
-      (emp) =>
-        emp.nome.toLowerCase().includes(query) ||
-        emp.cargo.toLowerCase().includes(query) ||
-        emp.email.toLowerCase().includes(query)
-    );
-  }, [employees, searchQuery]);
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
@@ -65,22 +56,16 @@ const Index = () => {
     setSelectedEmployee(null);
   };
 
-  // Convert Employee to the format expected by stats/card components
-  const employeesForDisplay = filteredEmployees.map((emp) => ({
-    id: emp.id,
-    nome: emp.nome,
-    email: emp.email,
-    telefone: emp.telefone,
-    cargo: emp.cargo,
-    cpf: emp.cpf,
-    dataAdmissao: emp.dataAdmissao,
-    isGerente: emp.isGerente,
-    status: emp.status,
-    salarioMensal: emp.salarioMensal,
-    beneficios: emp.beneficios,
-    encargos: emp.encargos,
-  }));
+  const columns = useMemo(
+    () =>
+      createEmployeeColumns({
+        onEdit: handleEditEmployee,
+        onDelete: handleDeleteEmployee,
+      }),
+    []
+  );
 
+  // Convert Employee to the format expected by stats components
   const allEmployeesForStats = employees.map((emp) => ({
     id: emp.id,
     nome: emp.nome,
@@ -96,88 +81,81 @@ const Index = () => {
     encargos: emp.encargos,
   }));
 
+  const actions = (
+    <Button onClick={handleAddEmployee} className="gap-2">
+      <Plus className="h-4 w-4" />
+      Adicionar Funcionário
+    </Button>
+  );
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container py-8 px-4">
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <AppLayout
+        title="Funcionários"
+        description="Gerencie sua equipe e acompanhe custos"
+        breadcrumbs={[{ label: 'Funcionários' }]}
+      >
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-lg" />
+            ))}
           </div>
-        </main>
-      </div>
+          <Skeleton className="h-10 w-80" />
+          <Skeleton className="h-96 rounded-lg" />
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <AppLayout
+      title="Funcionários"
+      description="Gerencie sua equipe e acompanhe custos"
+      breadcrumbs={[{ label: 'Funcionários' }]}
+      actions={actions}
+    >
+      {/* Stats */}
+      <EmployeeStats employees={allEmployeesForStats} />
 
-      <main className="container py-8 px-4">
-        {/* Page Title */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground">Gestão de Funcionários</h2>
-          <p className="text-muted-foreground mt-1">
-            Gerencie sua equipe e acompanhe custos em um só lugar
-          </p>
+      {/* Search */}
+      <div className="mt-6 mb-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, cargo ou email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
         </div>
+      </div>
 
-        {/* Stats */}
-        <EmployeeStats employees={allEmployeesForStats} />
-
-        {/* Actions Bar */}
-        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, cargo ou email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+      {/* Table or Empty State */}
+      {employees.length > 0 ? (
+        <DataTable
+          columns={columns}
+          data={employees}
+          searchKey="nome"
+          searchValue={searchQuery}
+        />
+      ) : (
+        <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
+          <div className="rounded-full bg-muted p-4 mb-4">
+            <Users className="h-8 w-8 text-muted-foreground" />
           </div>
-          <Button onClick={handleAddEmployee} className="gap-2">
+          <h3 className="text-lg font-medium text-foreground">
+            Nenhum funcionário cadastrado
+          </h3>
+          <p className="text-muted-foreground mt-1 max-w-sm">
+            Comece adicionando funcionários à sua equipe para gerenciar alocações e orçamentos.
+          </p>
+          <Button onClick={handleAddEmployee} className="mt-4 gap-2">
             <Plus className="h-4 w-4" />
             Adicionar Funcionário
           </Button>
         </div>
-
-        {/* Employee Grid */}
-        <div className="mt-6">
-          {employeesForDisplay.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {employeesForDisplay.map((employee) => (
-                <EmployeeCard
-                  key={employee.id}
-                  employee={employee}
-                  onEdit={() => handleEditEmployee(filteredEmployees.find(e => e.id === employee.id)!)}
-                  onDelete={() => handleDeleteEmployee(filteredEmployees.find(e => e.id === employee.id)!)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <Users className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-medium text-foreground">
-                {searchQuery ? 'Nenhum resultado encontrado' : 'Nenhum funcionário cadastrado'}
-              </h3>
-              <p className="text-muted-foreground mt-1 max-w-sm">
-                {searchQuery
-                  ? 'Tente buscar por outro termo.'
-                  : 'Comece adicionando funcionários à sua equipe para gerenciar alocações e orçamentos.'}
-              </p>
-              {!searchQuery && (
-                <Button onClick={handleAddEmployee} className="mt-4 gap-2">
-                  <Plus className="h-4 w-4" />
-                  Adicionar Funcionário
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </main>
+      )}
 
       {/* Dialogs */}
       <EmployeeFormDialog
@@ -207,7 +185,7 @@ const Index = () => {
         } : null}
         onConfirm={handleDeleteConfirm}
       />
-    </div>
+    </AppLayout>
   );
 };
 

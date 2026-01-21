@@ -1,15 +1,17 @@
 import { useState, useMemo } from 'react';
 import { Loader2, Plus, Search, Building2 } from 'lucide-react';
-import Header from '@/components/layout/Header';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import ClientCard from '@/components/clients/ClientCard';
+import { DataTable } from '@/components/data-table/DataTable';
+import { createClientColumns } from '@/components/clients/ClientsTable';
 import ClientStats from '@/components/clients/ClientStats';
 import ClientFormDialog from '@/components/clients/ClientFormDialog';
 import DeleteClientDialog from '@/components/clients/DeleteClientDialog';
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients';
 import { Client, CreateClientInput } from '@/types/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Clients = () => {
   const { employee } = useAuth();
@@ -23,19 +25,7 @@ const Clients = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
-  // Check if user can manage clients (admin or gerente)
   const canManage = employee?.is_gerente ?? false;
-
-  const filteredClients = useMemo(() => {
-    if (!searchQuery) return clients;
-    const query = searchQuery.toLowerCase();
-    return clients.filter(
-      (client) =>
-        client.companyName.toLowerCase().includes(query) ||
-        client.tradingName?.toLowerCase().includes(query) ||
-        client.cnpj?.includes(query)
-    );
-  }, [clients, searchQuery]);
 
   const handleAddClient = () => {
     setSelectedClient(null);
@@ -72,77 +62,95 @@ const Clients = () => {
     }
   };
 
+  const columns = useMemo(
+    () =>
+      createClientColumns({
+        onEdit: handleEditClient,
+        onDelete: handleDeleteClient,
+        canManage,
+      }),
+    [canManage]
+  );
+
+  const actions = canManage && (
+    <Button onClick={handleAddClient} className="gap-2">
+      <Plus className="h-4 w-4" />
+      Adicionar Cliente
+    </Button>
+  );
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <AppLayout
+        title="Clientes"
+        description="Gerencie sua carteira de clientes"
+        breadcrumbs={[{ label: 'Clientes' }]}
+      >
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-10 w-80" />
+          <Skeleton className="h-96 rounded-lg" />
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container px-4 py-8">
-        <ClientStats clients={clients} />
+    <AppLayout
+      title="Clientes"
+      description="Gerencie sua carteira de clientes"
+      breadcrumbs={[{ label: 'Clientes' }]}
+      actions={actions}
+    >
+      {/* Stats */}
+      <ClientStats clients={clients} />
 
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, fantasia ou CNPJ..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+      {/* Search */}
+      <div className="mt-6 mb-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, fantasia ou CNPJ..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
+      {/* Table or Empty State */}
+      {clients.length > 0 ? (
+        <DataTable
+          columns={columns}
+          data={clients}
+          searchKey="companyName"
+          searchValue={searchQuery}
+        />
+      ) : (
+        <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
+          <div className="rounded-full bg-muted p-4 mb-4">
+            <Building2 className="h-8 w-8 text-muted-foreground" />
           </div>
-
+          <h3 className="text-lg font-medium text-foreground">
+            Nenhum cliente cadastrado
+          </h3>
+          <p className="text-muted-foreground mt-1 max-w-sm">
+            {canManage
+              ? 'Comece adicionando seu primeiro cliente'
+              : 'Aguarde um administrador cadastrar clientes'}
+          </p>
           {canManage && (
-            <Button onClick={handleAddClient} className="gap-2">
+            <Button onClick={handleAddClient} className="mt-4 gap-2">
               <Plus className="h-4 w-4" />
               Adicionar Cliente
             </Button>
           )}
         </div>
-
-        {filteredClients.length === 0 ? (
-          <div className="mt-12 text-center">
-            <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground">
-              {searchQuery ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
-            </h3>
-            <p className="text-muted-foreground mt-1">
-              {searchQuery
-                ? 'Tente buscar por outro termo'
-                : canManage
-                ? 'Comece adicionando seu primeiro cliente'
-                : 'Aguarde um administrador cadastrar clientes'}
-            </p>
-            {!searchQuery && canManage && (
-              <Button onClick={handleAddClient} className="mt-4 gap-2">
-                <Plus className="h-4 w-4" />
-                Adicionar Cliente
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredClients.map((client) => (
-              <ClientCard
-                key={client.id}
-                client={client}
-                onEdit={handleEditClient}
-                onDelete={handleDeleteClient}
-                canManage={canManage}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+      )}
 
       <ClientFormDialog
         open={formDialogOpen}
@@ -159,7 +167,7 @@ const Clients = () => {
         onConfirm={handleDeleteConfirm}
         isLoading={deleteClient.isPending}
       />
-    </div>
+    </AppLayout>
   );
 };
 
