@@ -100,7 +100,7 @@ export const createEmployeeColumns = ({
     ),
     cell: ({ row }) => {
       const employee = row.original;
-      const custoTotal = employee.salarioMensal + employee.beneficios + employee.encargos;
+      const custoTotal = employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0);
       const custoHora = custoTotal / 176;
       return (
         <div className="flex flex-col">
@@ -114,8 +114,8 @@ export const createEmployeeColumns = ({
       );
     },
     sortingFn: (rowA, rowB) => {
-      const custoA = rowA.original.salarioMensal + rowA.original.beneficios + rowA.original.encargos;
-      const custoB = rowB.original.salarioMensal + rowB.original.beneficios + rowB.original.encargos;
+      const custoA = rowA.original.salarioMensal + rowA.original.beneficios + rowA.original.encargos + (rowA.original.totalToolsCost || 0);
+      const custoB = rowB.original.salarioMensal + rowB.original.beneficios + rowB.original.encargos + (rowB.original.totalToolsCost || 0);
       return custoA - custoB;
     },
   },

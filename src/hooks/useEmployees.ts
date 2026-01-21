@@ -4,24 +4,35 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CreateEmployeeToolInput } from '@/types/employee';
 
+// Type for employee with tools from DB
+type EmployeeWithTools = EmployeeDB & { employee_tools?: { monthly_cost: number }[] };
+
 // Convert DB format to frontend format
-export const dbToEmployee = (db: EmployeeDB) => ({
-  id: db.id,
-  nome: db.nome,
-  email: db.email,
-  telefone: db.telefone || '',
-  cargo: db.cargo,
-  cpf: db.cpf || '',
-  dataAdmissao: db.data_admissao,
-  isGerente: db.is_gerente,
-  status: db.status as 'ativo' | 'inativo',
-  salarioMensal: Number(db.salario_mensal),
-  beneficios: Number(db.beneficios),
-  encargos: Number(db.encargos),
-  tenantId: db.tenant_id,
-  authId: db.auth_id,
-  mustChangePassword: db.must_change_password,
-});
+export const dbToEmployee = (db: EmployeeWithTools) => {
+  const totalToolsCost = (db.employee_tools || []).reduce(
+    (sum, tool) => sum + Number(tool.monthly_cost),
+    0
+  );
+  
+  return {
+    id: db.id,
+    nome: db.nome,
+    email: db.email,
+    telefone: db.telefone || '',
+    cargo: db.cargo,
+    cpf: db.cpf || '',
+    dataAdmissao: db.data_admissao,
+    isGerente: db.is_gerente,
+    status: db.status as 'ativo' | 'inativo',
+    salarioMensal: Number(db.salario_mensal),
+    beneficios: Number(db.beneficios),
+    encargos: Number(db.encargos),
+    totalToolsCost,
+    tenantId: db.tenant_id,
+    authId: db.auth_id,
+    mustChangePassword: db.must_change_password,
+  };
+};
 
 export type Employee = ReturnType<typeof dbToEmployee>;
 
@@ -155,6 +166,7 @@ export const useAddEmployeeTool = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-tools', variables.employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({
         title: 'Ferramenta adicionada',
         description: 'A ferramenta foi adicionada com sucesso.',
@@ -188,6 +200,7 @@ export const useUpdateEmployeeTool = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-tools', variables.employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({
         title: 'Ferramenta atualizada',
         description: 'A ferramenta foi atualizada com sucesso.',
@@ -214,6 +227,7 @@ export const useDeleteEmployeeTool = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['employee-tools', data.employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({
         title: 'Ferramenta removida',
         description: 'A ferramenta foi removida com sucesso.',

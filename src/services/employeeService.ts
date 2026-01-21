@@ -37,10 +37,10 @@ export interface CreateEmployeeInput {
 }
 
 export const employeeService = {
-  async getAll(tenantId: string): Promise<EmployeeDB[]> {
+  async getAll(tenantId: string): Promise<(EmployeeDB & { employee_tools: { monthly_cost: number }[] })[]> {
     const { data, error } = await supabase
       .from('employees')
-      .select('*')
+      .select('*, employee_tools(monthly_cost)')
       .eq('tenant_id', tenantId)
       .order('nome');
 
