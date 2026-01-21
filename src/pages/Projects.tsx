@@ -141,6 +141,7 @@ export default function Projects() {
             data={filteredProjects}
             searchKey="name"
             searchValue={searchQuery}
+            onRowClick={handleView}
           />
         )}
       </div>
