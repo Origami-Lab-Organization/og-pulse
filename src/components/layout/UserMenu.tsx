@@ -1,5 +1,6 @@
-import { LogOut, User, KeyRound } from 'lucide-react';
+import { LogOut, KeyRound, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,10 +13,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 
 export function UserMenu() {
   const { employee, signOut } = useAuth();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   if (!employee) return null;
 
@@ -29,6 +32,12 @@ export function UserMenu() {
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
+  };
+
+  const isDark = theme === 'dark';
+
+  const toggleTheme = () => {
+    setTheme(isDark ? 'light' : 'dark');
   };
 
   return (
@@ -59,6 +68,25 @@ export function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem 
+          onClick={(e) => {
+            e.preventDefault();
+            toggleTheme();
+          }}
+          className="cursor-pointer"
+        >
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              {isDark ? (
+                <Moon className="h-4 w-4" />
+              ) : (
+                <Sun className="h-4 w-4" />
+              )}
+              <span>Modo Escuro</span>
+            </div>
+            <Switch checked={isDark} onCheckedChange={toggleTheme} />
+          </div>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/change-password')}>
           <KeyRound className="mr-2 h-4 w-4" />
           <span>Alterar Senha</span>
