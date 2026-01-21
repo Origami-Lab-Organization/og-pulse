@@ -66,7 +66,7 @@ const navigationGroups = [
     label: 'Configurações',
     items: [
       { title: 'Tabela de Preços', url: '/pricing', icon: DollarSign, requiresAdmin: true },
-      { title: 'Configurações', url: '/settings', icon: Settings, disabled: true },
+      { title: 'Configurações', url: '/settings', icon: Settings, requiresAdmin: true },
     ] as NavItem[],
   },
 ];

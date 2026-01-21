@@ -14,6 +14,7 @@ import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 import Projects from "./pages/Projects";
 import Pricing from "./pages/Pricing";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireAdmin>
                     <Pricing />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/settings" 
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <Settings />
                   </RoleProtectedRoute>
                 } 
               />
