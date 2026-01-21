@@ -28,6 +28,14 @@ const Header = () => {
           >
             Funcionários
           </a>
+          {employee?.is_gerente && (
+            <a 
+              href="/clients" 
+              className="text-sm font-medium text-foreground transition-colors hover:text-secondary"
+            >
+              Clientes
+            </a>
+          )}
           <span className="text-sm text-muted-foreground cursor-not-allowed">
             Projetos
           </span>

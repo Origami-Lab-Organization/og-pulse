@@ -5,9 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
+import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,14 @@ const App = () => (
                 <ProtectedRoute>
                   <Index />
                 </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/clients" 
+              element={
+                <RoleProtectedRoute requireManager>
+                  <Clients />
+                </RoleProtectedRoute>
               } 
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
