@@ -80,6 +80,7 @@ export interface UpdateInstallmentInput {
   invoiceDate?: string;
   paymentDate?: string;
   notes?: string;
+  value?: number;
 }
 
 // Extended types with relations

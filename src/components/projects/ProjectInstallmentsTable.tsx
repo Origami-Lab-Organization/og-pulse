@@ -23,6 +23,7 @@ import {
   InstallmentStatus,
 } from '@/types/project';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { formatCurrency as formatCurrencyMask, parseCurrency } from '@/lib/masks';
 import { useUpdateInstallment } from '@/hooks/useProjects';
 import { Pencil, Check, X } from 'lucide-react';
 
@@ -48,11 +49,15 @@ export function ProjectInstallmentsTable({
     invoiceNumber: string;
     invoiceDate: string;
     paymentDate: string;
+    value: number;
+    valueDisplay: string;
   }>({
     status: 'pending',
     invoiceNumber: '',
     invoiceDate: '',
     paymentDate: '',
+    value: 0,
+    valueDisplay: '',
   });
 
   const updateInstallment = useUpdateInstallment();
@@ -64,6 +69,8 @@ export function ProjectInstallmentsTable({
       invoiceNumber: installment.invoice_number || '',
       invoiceDate: installment.invoice_date || '',
       paymentDate: installment.payment_date || '',
+      value: Number(installment.value),
+      valueDisplay: formatCurrencyMask(Number(installment.value)),
     });
   };
 
@@ -74,6 +81,8 @@ export function ProjectInstallmentsTable({
       invoiceNumber: '',
       invoiceDate: '',
       paymentDate: '',
+      value: 0,
+      valueDisplay: '',
     });
   };
 
@@ -87,6 +96,7 @@ export function ProjectInstallmentsTable({
           invoiceNumber: editData.invoiceNumber || undefined,
           invoiceDate: editData.invoiceDate || undefined,
           paymentDate: editData.paymentDate || undefined,
+          value: editData.value,
         },
       },
       {
@@ -126,7 +136,25 @@ export function ProjectInstallmentsTable({
               <TableCell className="font-medium">
                 {installment.installment_number}
               </TableCell>
-              <TableCell>{formatCurrency(Number(installment.value))}</TableCell>
+              <TableCell>
+                {editingId === installment.id ? (
+                  <Input
+                    value={editData.valueDisplay}
+                    onChange={(e) => {
+                      const formatted = formatCurrencyMask(e.target.value);
+                      setEditData({
+                        ...editData,
+                        valueDisplay: formatted,
+                        value: parseCurrency(formatted),
+                      });
+                    }}
+                    placeholder="R$ 0,00"
+                    className="w-[140px]"
+                  />
+                ) : (
+                  formatCurrency(Number(installment.value))
+                )}
+              </TableCell>
               <TableCell>{formatDate(installment.due_date)}</TableCell>
               <TableCell>
                 {editingId === installment.id ? (
