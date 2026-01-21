@@ -1,12 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Employee, EmployeeFormData } from '@/types/employee';
-import {
-  getEmployees,
-  createEmployee,
-  updateEmployee,
-  deleteEmployee,
-  searchEmployees,
-} from '@/lib/employeeStore';
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, Employee } from '@/hooks/useEmployees';
+import { CreateEmployeeInput } from '@/services/employeeService';
 import Header from '@/components/layout/Header';
 import EmployeeCard from '@/components/employees/EmployeeCard';
 import EmployeeFormDialog from '@/components/employees/EmployeeFormDialog';
@@ -14,12 +8,14 @@ import DeleteConfirmDialog from '@/components/employees/DeleteConfirmDialog';
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Users } from 'lucide-react';
+import { Plus, Search, Users, Loader2 } from 'lucide-react';
 
 const Index = () => {
-  const { toast } = useToast();
-  const [employees, setEmployees] = useState<Employee[]>(getEmployees());
+  const { data: employees = [], isLoading } = useEmployees();
+  const createEmployee = useCreateEmployee();
+  const updateEmployee = useUpdateEmployee();
+  const deleteEmployee = useDeleteEmployee();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -27,7 +23,13 @@ const Index = () => {
 
   const filteredEmployees = useMemo(() => {
     if (!searchQuery.trim()) return employees;
-    return searchEmployees(searchQuery);
+    const query = searchQuery.toLowerCase();
+    return employees.filter(
+      (emp) =>
+        emp.nome.toLowerCase().includes(query) ||
+        emp.cargo.toLowerCase().includes(query) ||
+        emp.email.toLowerCase().includes(query)
+    );
   }, [employees, searchQuery]);
 
   const handleAddEmployee = () => {
@@ -45,38 +47,67 @@ const Index = () => {
     setDeleteDialogOpen(true);
   };
 
-  const handleFormSubmit = (data: EmployeeFormData) => {
+  const handleFormSubmit = async (data: CreateEmployeeInput) => {
     if (selectedEmployee) {
-      updateEmployee(selectedEmployee.id, data);
-      toast({
-        title: 'Funcionário atualizado',
-        description: `${data.nome} foi atualizado com sucesso.`,
-      });
+      await updateEmployee.mutateAsync({ id: selectedEmployee.id, updates: data });
     } else {
-      createEmployee(data);
-      toast({
-        title: 'Funcionário cadastrado',
-        description: `${data.nome} foi adicionado à equipe.`,
-      });
+      await createEmployee.mutateAsync(data);
     }
-    setEmployees(getEmployees());
     setFormDialogOpen(false);
     setSelectedEmployee(null);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedEmployee) {
-      deleteEmployee(selectedEmployee.id);
-      toast({
-        title: 'Funcionário excluído',
-        description: `${selectedEmployee.nome} foi removido.`,
-        variant: 'destructive',
-      });
-      setEmployees(getEmployees());
+      await deleteEmployee.mutateAsync({ id: selectedEmployee.id, nome: selectedEmployee.nome });
     }
     setDeleteDialogOpen(false);
     setSelectedEmployee(null);
   };
+
+  // Convert Employee to the format expected by stats/card components
+  const employeesForDisplay = filteredEmployees.map((emp) => ({
+    id: emp.id,
+    nome: emp.nome,
+    email: emp.email,
+    telefone: emp.telefone,
+    cargo: emp.cargo,
+    cpf: emp.cpf,
+    dataAdmissao: emp.dataAdmissao,
+    isGerente: emp.isGerente,
+    status: emp.status,
+    salarioMensal: emp.salarioMensal,
+    beneficios: emp.beneficios,
+    encargos: emp.encargos,
+  }));
+
+  const allEmployeesForStats = employees.map((emp) => ({
+    id: emp.id,
+    nome: emp.nome,
+    email: emp.email,
+    telefone: emp.telefone,
+    cargo: emp.cargo,
+    cpf: emp.cpf,
+    dataAdmissao: emp.dataAdmissao,
+    isGerente: emp.isGerente,
+    status: emp.status,
+    salarioMensal: emp.salarioMensal,
+    beneficios: emp.beneficios,
+    encargos: emp.encargos,
+  }));
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container py-8 px-4">
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -92,7 +123,7 @@ const Index = () => {
         </div>
 
         {/* Stats */}
-        <EmployeeStats employees={employees} />
+        <EmployeeStats employees={allEmployeesForStats} />
 
         {/* Actions Bar */}
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -113,14 +144,14 @@ const Index = () => {
 
         {/* Employee Grid */}
         <div className="mt-6">
-          {filteredEmployees.length > 0 ? (
+          {employeesForDisplay.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredEmployees.map((employee) => (
+              {employeesForDisplay.map((employee) => (
                 <EmployeeCard
                   key={employee.id}
                   employee={employee}
-                  onEdit={handleEditEmployee}
-                  onDelete={handleDeleteEmployee}
+                  onEdit={() => handleEditEmployee(filteredEmployees.find(e => e.id === employee.id)!)}
+                  onDelete={() => handleDeleteEmployee(filteredEmployees.find(e => e.id === employee.id)!)}
                 />
               ))}
             </div>
@@ -154,12 +185,26 @@ const Index = () => {
         onOpenChange={setFormDialogOpen}
         employee={selectedEmployee}
         onSubmit={handleFormSubmit}
+        isLoading={createEmployee.isPending || updateEmployee.isPending}
       />
 
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        employee={selectedEmployee}
+        employee={selectedEmployee ? {
+          id: selectedEmployee.id,
+          nome: selectedEmployee.nome,
+          email: selectedEmployee.email,
+          telefone: selectedEmployee.telefone,
+          cargo: selectedEmployee.cargo,
+          cpf: selectedEmployee.cpf,
+          dataAdmissao: selectedEmployee.dataAdmissao,
+          isGerente: selectedEmployee.isGerente,
+          status: selectedEmployee.status,
+          salarioMensal: selectedEmployee.salarioMensal,
+          beneficios: selectedEmployee.beneficios,
+          encargos: selectedEmployee.encargos,
+        } : null}
         onConfirm={handleDeleteConfirm}
       />
     </div>

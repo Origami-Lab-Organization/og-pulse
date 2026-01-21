@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Employee, EmployeeFormData } from '@/types/employee';
+import { Employee } from '@/hooks/useEmployees';
+import { CreateEmployeeInput } from '@/services/employeeService';
 import {
   Dialog,
   DialogContent,
@@ -28,13 +29,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
   email: z.string().email('Email inválido').max(255, 'Email muito longo'),
-  telefone: z.string().min(1, 'Telefone é obrigatório'),
+  telefone: z.string().optional(),
   cargo: z.string().min(1, 'Cargo é obrigatório'),
-  cpf: z.string().min(11, 'CPF inválido'),
+  cpf: z.string().optional(),
   dataAdmissao: z.string().min(1, 'Data de admissão é obrigatória'),
   isGerente: z.boolean(),
   status: z.enum(['ativo', 'inativo']),
@@ -43,11 +45,14 @@ const formSchema = z.object({
   encargos: z.coerce.number().min(0, 'Encargos não pode ser negativo'),
 });
 
+type FormData = z.infer<typeof formSchema>;
+
 interface EmployeeFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   employee?: Employee | null;
-  onSubmit: (data: EmployeeFormData) => void;
+  onSubmit: (data: CreateEmployeeInput) => void;
+  isLoading?: boolean;
 }
 
 const EmployeeFormDialog = ({
@@ -55,10 +60,11 @@ const EmployeeFormDialog = ({
   onOpenChange,
   employee,
   onSubmit,
+  isLoading = false,
 }: EmployeeFormDialogProps) => {
   const isEditing = !!employee;
 
-  const form = useForm<EmployeeFormData>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       nome: '',
@@ -77,7 +83,19 @@ const EmployeeFormDialog = ({
 
   useEffect(() => {
     if (employee) {
-      form.reset(employee);
+      form.reset({
+        nome: employee.nome,
+        email: employee.email,
+        telefone: employee.telefone || '',
+        cargo: employee.cargo,
+        cpf: employee.cpf || '',
+        dataAdmissao: employee.dataAdmissao,
+        isGerente: employee.isGerente,
+        status: employee.status,
+        salarioMensal: employee.salarioMensal,
+        beneficios: employee.beneficios,
+        encargos: employee.encargos,
+      });
     } else {
       form.reset({
         nome: '',
@@ -95,8 +113,8 @@ const EmployeeFormDialog = ({
     }
   }, [employee, form]);
 
-  const handleSubmit = (data: EmployeeFormData) => {
-    onSubmit(data);
+  const handleSubmit = (data: FormData) => {
+    onSubmit(data as CreateEmployeeInput);
     form.reset();
   };
 
@@ -110,7 +128,7 @@ const EmployeeFormDialog = ({
           <DialogDescription>
             {isEditing
               ? 'Atualize as informações do funcionário abaixo.'
-              : 'Preencha as informações para adicionar um novo funcionário.'}
+              : 'Preencha as informações para adicionar um novo funcionário. Um email de convite será enviado automaticamente.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -138,7 +156,12 @@ const EmployeeFormDialog = ({
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="joao@empresa.com" {...field} />
+                      <Input 
+                        type="email" 
+                        placeholder="joao@empresa.com" 
+                        disabled={isEditing}
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -150,7 +173,7 @@ const EmployeeFormDialog = ({
                 name="telefone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefone</FormLabel>
+                    <FormLabel>Telefone (opcional)</FormLabel>
                     <FormControl>
                       <Input placeholder="(11) 99999-9999" {...field} />
                     </FormControl>
@@ -164,7 +187,7 @@ const EmployeeFormDialog = ({
                 name="cpf"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CPF</FormLabel>
+                    <FormLabel>CPF (opcional)</FormLabel>
                     <FormControl>
                       <Input placeholder="000.000.000-00" {...field} />
                     </FormControl>
@@ -229,7 +252,7 @@ const EmployeeFormDialog = ({
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                     <div className="space-y-0.5">
-                      <FormLabel>Gerente de Projeto?</FormLabel>
+                      <FormLabel>Administrador?</FormLabel>
                     </div>
                     <FormControl>
                       <Switch
@@ -294,11 +317,19 @@ const EmployeeFormDialog = ({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={isLoading}
               >
                 Cancelar
               </Button>
-              <Button type="submit">
-                {isEditing ? 'Salvar Alterações' : 'Adicionar Funcionário'}
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isEditing ? 'Salvando...' : 'Cadastrando...'}
+                  </>
+                ) : (
+                  isEditing ? 'Salvar Alterações' : 'Adicionar Funcionário'
+                )}
               </Button>
             </div>
           </form>
