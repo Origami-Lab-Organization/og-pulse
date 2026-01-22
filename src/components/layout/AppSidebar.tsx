@@ -58,7 +58,7 @@ const navigationGroups = [
     label: 'Operações',
     items: [
       { title: 'Timesheets', url: '/timesheets', icon: Clock, disabled: true },
-      { title: 'Orçamentos', url: '/budgets', icon: FileText, disabled: true },
+      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresManager: true },
       { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true },
     ] as NavItem[],
   },
