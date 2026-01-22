@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -6,23 +7,20 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BudgetStats } from '@/components/budgets/BudgetStats';
 import { BudgetsTable } from '@/components/budgets/BudgetsTable';
-import { BudgetFormDialog } from '@/components/budgets/BudgetFormDialog';
 import { DeleteBudgetDialog } from '@/components/budgets/DeleteBudgetDialog';
-import { useBudgets, useCreateBudget, useUpdateBudget, useDeleteBudget, useDuplicateBudget, useUpdateBudgetStatus } from '@/hooks/useBudgets';
-import { BudgetWithDetails, BudgetStatus, CreateBudgetInput, BUDGET_STATUS_OPTIONS } from '@/types/budget';
+import { useBudgets, useDeleteBudget, useDuplicateBudget, useUpdateBudgetStatus } from '@/hooks/useBudgets';
+import { BudgetWithDetails, BudgetStatus, BUDGET_STATUS_OPTIONS } from '@/types/budget';
 import { Loader2 } from 'lucide-react';
 
 export default function Budgets() {
+  const navigate = useNavigate();
   const { data: budgets = [], isLoading } = useBudgets();
-  const createMutation = useCreateBudget();
-  const updateMutation = useUpdateBudget();
   const deleteMutation = useDeleteBudget();
   const duplicateMutation = useDuplicateBudget();
   const statusMutation = useUpdateBudgetStatus();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<BudgetWithDetails | null>(null);
 
@@ -38,21 +36,13 @@ export default function Budgets() {
     });
   }, [budgets, searchQuery, statusFilter]);
 
-  const handleCreate = () => { setSelectedBudget(null); setFormOpen(true); };
-  const handleEdit = (budget: BudgetWithDetails) => { setSelectedBudget(budget); setFormOpen(true); };
+  const handleCreate = () => navigate('/budgets/new');
+  const handleEdit = (budget: BudgetWithDetails) => navigate(`/budgets/${budget.id}/edit`);
   const handleDelete = (budget: BudgetWithDetails) => { setSelectedBudget(budget); setDeleteOpen(true); };
-  const handleView = (budget: BudgetWithDetails) => { setSelectedBudget(budget); setFormOpen(true); };
+  const handleView = (budget: BudgetWithDetails) => navigate(`/budgets/${budget.id}`);
   const handleDuplicate = (budget: BudgetWithDetails) => { duplicateMutation.mutate(budget.id); };
   const handleStatusChange = (budget: BudgetWithDetails, status: BudgetStatus) => {
     statusMutation.mutate({ id: budget.id, status });
-  };
-
-  const handleFormSubmit = (data: CreateBudgetInput) => {
-    if (selectedBudget) {
-      updateMutation.mutate({ id: selectedBudget.id, input: data }, { onSuccess: () => setFormOpen(false) });
-    } else {
-      createMutation.mutate(data, { onSuccess: () => setFormOpen(false) });
-    }
   };
 
   const handleConfirmDelete = () => {
@@ -102,14 +92,6 @@ export default function Budgets() {
           onStatusChange={handleStatusChange}
         />
       </div>
-
-      <BudgetFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        budget={selectedBudget}
-        onSubmit={handleFormSubmit}
-        isSubmitting={createMutation.isPending || updateMutation.isPending}
-      />
 
       <DeleteBudgetDialog
         open={deleteOpen}

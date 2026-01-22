@@ -16,6 +16,8 @@ import Projects from "./pages/Projects";
 import Pricing from "./pages/Pricing";
 import Settings from "./pages/Settings";
 import Budgets from "./pages/Budgets";
+import BudgetForm from "./pages/BudgetForm";
+import BudgetDetail from "./pages/BudgetDetail";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +68,30 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <Budgets />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/budgets/new" 
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <BudgetForm />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/budgets/:id" 
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <BudgetDetail />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/budgets/:id/edit" 
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <BudgetForm />
                   </RoleProtectedRoute>
                 } 
               />
