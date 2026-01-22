@@ -1,0 +1,144 @@
+export type BudgetStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired';
+
+export interface BudgetDB {
+  id: string;
+  tenant_id: string;
+  budget_number: string;
+  title: string;
+  status: BudgetStatus;
+  valid_until: string | null;
+  client_id: string | null;
+  lead_name: string | null;
+  lead_contact: string | null;
+  start_date: string;
+  duration_months: number;
+  admin_expenses_percent: number;
+  taxes_percent: number;
+  commission_percent: number;
+  discount_percent: number;
+  subtotal: number;
+  total_with_fees: number;
+  final_total: number;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetRoleDB {
+  id: string;
+  budget_id: string;
+  role_rate_id: string | null;
+  role_name: string;
+  seniority: string;
+  hourly_rate: number;
+  created_at: string;
+}
+
+export interface BudgetRoleMonthDB {
+  id: string;
+  budget_role_id: string;
+  month_number: number;
+  hours: number;
+}
+
+export interface BudgetWithDetails extends BudgetDB {
+  client?: {
+    id: string;
+    company_name: string;
+    trading_name: string | null;
+  } | null;
+  roles: BudgetRoleWithMonths[];
+}
+
+export interface BudgetRoleWithMonths extends BudgetRoleDB {
+  months: BudgetRoleMonthDB[];
+}
+
+// Form types for creating/updating budgets
+export interface BudgetRoleInput {
+  tempId: string;
+  roleRateId: string;
+  roleName: string;
+  seniority: string;
+  hourlyRate: number;
+  months: { monthNumber: number; hours: number }[];
+}
+
+export interface CreateBudgetInput {
+  title: string;
+  validUntil?: string;
+  clientId?: string;
+  leadName?: string;
+  leadContact?: string;
+  startDate: string;
+  durationMonths: number;
+  adminExpensesPercent: number;
+  taxesPercent: number;
+  commissionPercent: number;
+  discountPercent: number;
+  notes?: string;
+  roles: BudgetRoleInput[];
+}
+
+export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {
+  status?: BudgetStatus;
+}
+
+// Calculation helpers
+export interface BudgetCalculation {
+  subtotal: number;
+  adminExpenses: number;
+  taxes: number;
+  commission: number;
+  totalWithFees: number;
+  discount: number;
+  finalTotal: number;
+}
+
+export function calculateBudgetTotals(
+  roles: BudgetRoleInput[],
+  adminExpensesPercent: number,
+  taxesPercent: number,
+  commissionPercent: number,
+  discountPercent: number
+): BudgetCalculation {
+  // Calculate subtotal from all roles and their hours
+  const subtotal = roles.reduce((acc, role) => {
+    const roleHours = role.months.reduce((h, m) => h + m.hours, 0);
+    return acc + roleHours * role.hourlyRate;
+  }, 0);
+
+  // Apply percentages
+  const adminExpenses = subtotal * (adminExpensesPercent / 100);
+  const taxes = subtotal * (taxesPercent / 100);
+  const commission = subtotal * (commissionPercent / 100);
+
+  const totalWithFees = subtotal + adminExpenses + taxes + commission;
+
+  // Apply discount
+  const discount = totalWithFees * (discountPercent / 100);
+  const finalTotal = totalWithFees - discount;
+
+  return {
+    subtotal,
+    adminExpenses,
+    taxes,
+    commission,
+    totalWithFees,
+    discount,
+    finalTotal,
+  };
+}
+
+export const BUDGET_STATUS_OPTIONS = [
+  { value: 'draft', label: 'Rascunho', color: 'bg-muted text-muted-foreground' },
+  { value: 'sent', label: 'Enviado', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  { value: 'approved', label: 'Aprovado', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  { value: 'rejected', label: 'Rejeitado', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
+  { value: 'expired', label: 'Expirado', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' },
+] as const;
+
+export function getBudgetStatusOption(status: BudgetStatus) {
+  return BUDGET_STATUS_OPTIONS.find((s) => s.value === status) || BUDGET_STATUS_OPTIONS[0];
+}

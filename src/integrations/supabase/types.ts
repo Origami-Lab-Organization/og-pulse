@@ -14,6 +14,177 @@ export type Database = {
   }
   public: {
     Tables: {
+      budget_role_months: {
+        Row: {
+          budget_role_id: string
+          hours: number
+          id: string
+          month_number: number
+        }
+        Insert: {
+          budget_role_id: string
+          hours?: number
+          id?: string
+          month_number: number
+        }
+        Update: {
+          budget_role_id?: string
+          hours?: number
+          id?: string
+          month_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_role_months_budget_role_id_fkey"
+            columns: ["budget_role_id"]
+            isOneToOne: false
+            referencedRelation: "budget_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_roles: {
+        Row: {
+          budget_id: string
+          created_at: string
+          hourly_rate: number
+          id: string
+          role_name: string
+          role_rate_id: string | null
+          seniority: string
+        }
+        Insert: {
+          budget_id: string
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          role_name: string
+          role_rate_id?: string | null
+          seniority: string
+        }
+        Update: {
+          budget_id?: string
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          role_name?: string
+          role_rate_id?: string | null
+          seniority?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_roles_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_roles_role_rate_id_fkey"
+            columns: ["role_rate_id"]
+            isOneToOne: false
+            referencedRelation: "role_rates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          admin_expenses_percent: number
+          budget_number: string
+          client_id: string | null
+          commission_percent: number
+          created_at: string
+          created_by: string | null
+          discount_percent: number
+          duration_months: number
+          final_total: number
+          id: string
+          lead_contact: string | null
+          lead_name: string | null
+          notes: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["budget_status"]
+          subtotal: number
+          taxes_percent: number
+          tenant_id: string
+          title: string
+          total_with_fees: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          admin_expenses_percent?: number
+          budget_number: string
+          client_id?: string | null
+          commission_percent?: number
+          created_at?: string
+          created_by?: string | null
+          discount_percent?: number
+          duration_months?: number
+          final_total?: number
+          id?: string
+          lead_contact?: string | null
+          lead_name?: string | null
+          notes?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["budget_status"]
+          subtotal?: number
+          taxes_percent?: number
+          tenant_id: string
+          title: string
+          total_with_fees?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          admin_expenses_percent?: number
+          budget_number?: string
+          client_id?: string | null
+          commission_percent?: number
+          created_at?: string
+          created_by?: string | null
+          discount_percent?: number
+          duration_months?: number
+          final_total?: number
+          id?: string
+          lead_contact?: string | null
+          lead_name?: string | null
+          notes?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["budget_status"]
+          subtotal?: number
+          taxes_percent?: number
+          tenant_id?: string
+          title?: string
+          total_with_fees?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           bairro: string | null
@@ -500,6 +671,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_budget_number: { Args: { p_tenant_id: string }; Returns: string }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -521,6 +693,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "manager"
+      budget_status: "draft" | "sent" | "approved" | "rejected" | "expired"
       installment_status: "pending" | "invoiced" | "received" | "overdue"
       project_status:
         | "planning"
@@ -656,6 +829,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "manager"],
+      budget_status: ["draft", "sent", "approved", "rejected", "expired"],
       installment_status: ["pending", "invoiced", "received", "overdue"],
       project_status: [
         "planning",
