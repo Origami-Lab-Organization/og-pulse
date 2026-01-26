@@ -42,6 +42,14 @@ export interface BudgetRoleMonthDB {
   hours: number;
 }
 
+export interface BudgetMaterialDB {
+  id: string;
+  budget_id: string;
+  description: string;
+  value: number;
+  created_at: string;
+}
+
 export interface BudgetWithDetails extends BudgetDB {
   client?: {
     id: string;
@@ -49,6 +57,7 @@ export interface BudgetWithDetails extends BudgetDB {
     trading_name: string | null;
   } | null;
   roles: BudgetRoleWithMonths[];
+  materials: BudgetMaterialDB[];
 }
 
 export interface BudgetRoleWithMonths extends BudgetRoleDB {
@@ -56,6 +65,11 @@ export interface BudgetRoleWithMonths extends BudgetRoleDB {
 }
 
 // Form types for creating/updating budgets
+export interface BudgetMaterialInput {
+  tempId: string;
+  description: string;
+  value: number;
+}
 export interface BudgetRoleInput {
   tempId: string;
   roleRateId: string;
@@ -79,6 +93,7 @@ export interface CreateBudgetInput {
   discountPercent: number;
   notes?: string;
   roles: BudgetRoleInput[];
+  materials: BudgetMaterialInput[];
 }
 
 export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {
@@ -88,6 +103,7 @@ export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {
 // Calculation helpers
 export interface BudgetCalculation {
   subtotal: number;
+  materialsTotal: number;
   adminExpenses: number;
   taxes: number;
   commission: number;
@@ -98,6 +114,7 @@ export interface BudgetCalculation {
 
 export function calculateBudgetTotals(
   roles: BudgetRoleInput[],
+  materials: BudgetMaterialInput[],
   adminExpensesPercent: number,
   taxesPercent: number,
   commissionPercent: number,
@@ -109,12 +126,18 @@ export function calculateBudgetTotals(
     return acc + roleHours * role.hourlyRate;
   }, 0);
 
-  // Apply percentages
-  const adminExpenses = subtotal * (adminExpensesPercent / 100);
-  const taxes = subtotal * (taxesPercent / 100);
-  const commission = subtotal * (commissionPercent / 100);
+  // Calculate materials total
+  const materialsTotal = materials.reduce((acc, m) => acc + (m.value || 0), 0);
 
-  const totalWithFees = subtotal + adminExpenses + taxes + commission;
+  // Base for percentages is subtotal + materials
+  const base = subtotal + materialsTotal;
+
+  // Apply percentages
+  const adminExpenses = base * (adminExpensesPercent / 100);
+  const taxes = base * (taxesPercent / 100);
+  const commission = base * (commissionPercent / 100);
+
+  const totalWithFees = base + adminExpenses + taxes + commission;
 
   // Apply discount
   const discount = totalWithFees * (discountPercent / 100);
@@ -122,6 +145,7 @@ export function calculateBudgetTotals(
 
   return {
     subtotal,
+    materialsTotal,
     adminExpenses,
     taxes,
     commission,

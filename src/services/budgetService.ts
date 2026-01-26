@@ -57,6 +57,14 @@ type BudgetRoleMonthRow = {
   hours: number;
 };
 
+type BudgetMaterialRow = {
+  id: string;
+  budget_id: string;
+  description: string;
+  value: number;
+  created_at: string;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const fromTable = (table: string) => supabase.from(table as any);
 
@@ -108,6 +116,18 @@ export const budgetService = {
       months = monthsData as unknown as BudgetRoleMonthRow[];
     }
 
+    // Fetch materials for all budgets
+    const { data: materialsData, error: materialsError } = await fromTable('budget_materials')
+      .select('*')
+      .in('budget_id', budgetIds);
+
+    if (materialsError) {
+      console.error('Error fetching budget materials:', materialsError);
+      throw materialsError;
+    }
+
+    const materials = materialsData as unknown as BudgetMaterialRow[];
+
     // Build the complete structure
     return budgets.map((budget) => {
       const budgetRoles = roles.filter((r) => r.budget_id === budget.id);
@@ -116,9 +136,12 @@ export const budgetService = {
         months: months.filter((m) => m.budget_role_id === role.id),
       }));
 
+      const budgetMaterials = materials.filter((m) => m.budget_id === budget.id);
+
       return {
         ...budget,
         roles: rolesWithMonths,
+        materials: budgetMaterials,
       } as BudgetWithDetails;
     });
   },
@@ -174,9 +197,22 @@ export const budgetService = {
       months: months.filter((m) => m.budget_role_id === role.id),
     }));
 
+    // Fetch materials
+    const { data: materialsData, error: materialsError } = await fromTable('budget_materials')
+      .select('*')
+      .eq('budget_id', id);
+
+    if (materialsError) {
+      console.error('Error fetching budget materials:', materialsError);
+      throw materialsError;
+    }
+
+    const materials = materialsData as unknown as BudgetMaterialRow[];
+
     return {
       ...budget,
       roles: rolesWithMonths,
+      materials,
     } as BudgetWithDetails;
   },
 
@@ -205,6 +241,7 @@ export const budgetService = {
     // Calculate totals
     const totals = calculateBudgetTotals(
       input.roles,
+      input.materials || [],
       input.adminExpensesPercent,
       input.taxesPercent,
       input.commissionPercent,
@@ -283,6 +320,27 @@ export const budgetService = {
       }
     }
 
+    // Insert materials
+    if (input.materials && input.materials.length > 0) {
+      const materialsToInsert = input.materials
+        .filter((m) => m.description.trim() !== '')
+        .map((m) => ({
+          budget_id: createdBudget.id,
+          description: m.description,
+          value: m.value || 0,
+        }));
+
+      if (materialsToInsert.length > 0) {
+        const { error: materialsError } = await fromTable('budget_materials')
+          .insert(materialsToInsert);
+
+        if (materialsError) {
+          console.error('Error creating budget materials:', materialsError);
+          throw materialsError;
+        }
+      }
+    }
+
     return createdBudget;
   },
 
@@ -292,6 +350,7 @@ export const budgetService = {
     if (input.roles && input.adminExpensesPercent !== undefined) {
       totals = calculateBudgetTotals(
         input.roles,
+        input.materials || [],
         input.adminExpensesPercent,
         input.taxesPercent || 0,
         input.commissionPercent || 0,
@@ -386,6 +445,40 @@ export const budgetService = {
       }
     }
 
+    // If materials are being updated, delete old and insert new
+    if (input.materials !== undefined) {
+      // Delete existing materials
+      const { error: deleteMaterialsError } = await fromTable('budget_materials')
+        .delete()
+        .eq('budget_id', id);
+
+      if (deleteMaterialsError) {
+        console.error('Error deleting budget materials:', deleteMaterialsError);
+        throw deleteMaterialsError;
+      }
+
+      // Insert new materials
+      if (input.materials.length > 0) {
+        const materialsToInsert = input.materials
+          .filter((m) => m.description.trim() !== '')
+          .map((m) => ({
+            budget_id: id,
+            description: m.description,
+            value: m.value || 0,
+          }));
+
+        if (materialsToInsert.length > 0) {
+          const { error: insertMaterialsError } = await fromTable('budget_materials')
+            .insert(materialsToInsert);
+
+          if (insertMaterialsError) {
+            console.error('Error creating budget materials:', insertMaterialsError);
+            throw insertMaterialsError;
+          }
+        }
+      }
+    }
+
     return updatedBudget;
   },
 
@@ -446,6 +539,11 @@ export const budgetService = {
           monthNumber: m.month_number,
           hours: m.hours,
         })),
+      })),
+      materials: (original.materials || []).map((m) => ({
+        tempId: crypto.randomUUID(),
+        description: m.description,
+        value: m.value,
       })),
     };
 
