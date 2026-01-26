@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,63 +19,18 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log("Starting send-invite-email function");
+    console.log("Starting send-invite-email function with Resend");
+    
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      console.error("RESEND_API_KEY not configured");
+      throw new Error("RESEND_API_KEY não configurada");
+    }
+
+    const resend = new Resend(resendApiKey);
     
     const { to, nome, tempPassword, loginUrl }: InviteEmailRequest = await req.json();
     console.log("Email request received for:", to);
-
-    const smtpHost = Deno.env.get("SMTP_HOST");
-    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
-    const smtpUser = Deno.env.get("SMTP_USER");
-    const smtpPass = Deno.env.get("SMTP_PASS");
-    const smtpFrom = Deno.env.get("SMTP_FROM");
-    const smtpSecure = Deno.env.get("SMTP_SECURE") === "true";
-
-    console.log("SMTP Configuration:", {
-      host: smtpHost,
-      port: smtpPort,
-      user: smtpUser ? `${smtpUser.substring(0, 5)}...` : "NOT SET",
-      from: smtpFrom,
-      secure: smtpSecure,
-      passSet: !!smtpPass,
-    });
-
-    if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
-      const missingConfig = [];
-      if (!smtpHost) missingConfig.push('SMTP_HOST');
-      if (!smtpUser) missingConfig.push('SMTP_USER');
-      if (!smtpPass) missingConfig.push('SMTP_PASS');
-      if (!smtpFrom) missingConfig.push('SMTP_FROM');
-      
-      console.error("Missing SMTP configuration:", missingConfig);
-      throw new Error(`Configuração SMTP incompleta. Faltando: ${missingConfig.join(', ')}`);
-    }
-
-    console.log(`Connecting to SMTP server ${smtpHost}:${smtpPort}...`);
-
-    // Configure TLS based on port and SMTP_SECURE setting
-    // Port 465 = implicit TLS (SSL), Port 587 = STARTTLS
-    const useTls = smtpPort === 465 || smtpSecure;
-
-    console.log("Connection config:", {
-      hostname: smtpHost,
-      port: smtpPort,
-      tls: useTls,
-    });
-
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: useTls,
-        auth: {
-          username: smtpUser,
-          password: smtpPass,
-        },
-      },
-    });
-
-    console.log("SMTP client created, sending email...");
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -130,31 +85,17 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    try {
-      await client.send({
-        from: smtpFrom,
-        to: to,
-        subject: "Bem-vindo! Suas credenciais de acesso",
-        content: "auto",
-        html: htmlContent,
-      });
-      console.log("Email sent successfully to:", to);
-    } catch (sendError: unknown) {
-      const errorMessage = sendError instanceof Error ? sendError.message : String(sendError);
-      console.error("Error during email send:", sendError);
-      console.error("Send error message:", errorMessage);
-      throw new Error(`Falha ao enviar email: ${errorMessage}`);
-    }
+    const emailResponse = await resend.emails.send({
+      from: Deno.env.get("RESEND_FROM_EMAIL") || "OG Pulse <noreply@resend.dev>",
+      to: [to],
+      subject: "Bem-vindo! Suas credenciais de acesso",
+      html: htmlContent,
+    });
 
-    try {
-      await client.close();
-      console.log("SMTP connection closed successfully");
-    } catch (closeError) {
-      console.error("Error closing SMTP connection:", closeError);
-    }
+    console.log("Email sent successfully via Resend:", emailResponse);
 
     return new Response(
-      JSON.stringify({ success: true, message: "Email enviado com sucesso" }),
+      JSON.stringify({ success: true, message: "Email enviado com sucesso", data: emailResponse }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
