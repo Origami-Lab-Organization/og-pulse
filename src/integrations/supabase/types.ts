@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      budget_materials: {
+        Row: {
+          budget_id: string
+          created_at: string
+          description: string
+          id: string
+          value: number
+        }
+        Insert: {
+          budget_id: string
+          created_at?: string
+          description: string
+          id?: string
+          value?: number
+        }
+        Update: {
+          budget_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_materials_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_role_months: {
         Row: {
           budget_role_id: string

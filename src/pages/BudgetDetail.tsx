@@ -18,7 +18,8 @@ import {
   DollarSign,
   TrendingUp,
   Users,
-  Loader2
+  Loader2,
+  Package
 } from 'lucide-react';
 import { useBudget, useDuplicateBudget } from '@/hooks/useBudgets';
 import { BudgetStatusBadge } from '@/components/budgets/BudgetStatusBadge';
@@ -43,8 +44,14 @@ export default function BudgetDetail() {
       hourlyRate: r.hourly_rate,
       months: r.months.map((m) => ({ monthNumber: m.month_number, hours: m.hours })),
     }));
+    const materials = (budget.materials || []).map((m) => ({
+      tempId: m.id,
+      description: m.description,
+      value: m.value,
+    }));
     return calculateBudgetTotals(
       roles,
+      materials,
       budget.admin_expenses_percent,
       budget.taxes_percent,
       budget.commission_percent,
@@ -260,6 +267,44 @@ export default function BudgetDetail() {
           </CardContent>
         </Card>
 
+        {/* Materials table */}
+        {budget.materials && budget.materials.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Materiais
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2 font-medium">Descrição</th>
+                      <th className="text-right p-2 font-medium">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {budget.materials.map((material) => (
+                      <tr key={material.id} className="border-b hover:bg-muted/50">
+                        <td className="p-2">{material.description}</td>
+                        <td className="p-2 text-right font-medium">{formatCurrency(material.value)}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-muted/50">
+                      <td className="p-2 font-semibold">Total Materiais</td>
+                      <td className="p-2 text-right font-semibold">
+                        {formatCurrency(calculation?.materialsTotal || 0)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Financial breakdown */}
         <Card>
           <CardHeader>
@@ -274,6 +319,20 @@ export default function BudgetDetail() {
                 <span className="text-muted-foreground">Subtotal (horas × valor)</span>
                 <span className="font-medium">{formatCurrency(calculation?.subtotal || 0)}</span>
               </div>
+              {(calculation?.materialsTotal || 0) > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Materiais</span>
+                    <span className="font-medium">{formatCurrency(calculation?.materialsTotal || 0)}</span>
+                  </div>
+                  <div className="flex justify-between bg-muted/50 rounded-md p-2 -mx-2">
+                    <span className="font-medium">Base para cálculo</span>
+                    <span className="font-semibold">
+                      {formatCurrency((calculation?.subtotal || 0) + (calculation?.materialsTotal || 0))}
+                    </span>
+                  </div>
+                </>
+              )}
               <Separator />
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Despesas Administrativas ({budget.admin_expenses_percent}%)</span>

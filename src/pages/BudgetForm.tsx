@@ -16,8 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, ArrowLeft, Save } from 'lucide-react';
 import { BudgetRolesEditor } from '@/components/budgets/BudgetRolesEditor';
+import { BudgetMaterialsEditor } from '@/components/budgets/BudgetMaterialsEditor';
 import { BudgetFinancialSummary } from '@/components/budgets/BudgetFinancialSummary';
-import { CreateBudgetInput, BudgetRoleInput, calculateBudgetTotals } from '@/types/budget';
+import { CreateBudgetInput, BudgetRoleInput, BudgetMaterialInput, calculateBudgetTotals } from '@/types/budget';
 import { useClients } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
@@ -53,6 +54,7 @@ export default function BudgetForm() {
   const updateMutation = useUpdateBudget();
 
   const [roles, setRoles] = useState<BudgetRoleInput[]>([]);
+  const [materials, setMaterials] = useState<BudgetMaterialInput[]>([]);
   const [commissionPercent, setCommissionPercent] = useState(0);
   const [discountPercent, setDiscountPercent] = useState(0);
 
@@ -79,8 +81,8 @@ export default function BudgetForm() {
   const clientType = form.watch('clientType');
 
   const calculation = useMemo(() =>
-    calculateBudgetTotals(roles, adminExpensesPercent, taxesPercent, commissionPercent, discountPercent),
-    [roles, adminExpensesPercent, taxesPercent, commissionPercent, discountPercent]
+    calculateBudgetTotals(roles, materials, adminExpensesPercent, taxesPercent, commissionPercent, discountPercent),
+    [roles, materials, adminExpensesPercent, taxesPercent, commissionPercent, discountPercent]
   );
 
   useEffect(() => {
@@ -106,6 +108,11 @@ export default function BudgetForm() {
         hourlyRate: r.hourly_rate,
         months: r.months.map((m) => ({ monthNumber: m.month_number, hours: m.hours })),
       })));
+      setMaterials(budget.materials?.map((m) => ({
+        tempId: crypto.randomUUID(),
+        description: m.description,
+        value: m.value,
+      })) || []);
     }
   }, [budget]);
 
@@ -124,6 +131,7 @@ export default function BudgetForm() {
       discountPercent,
       notes: values.notes,
       roles,
+      materials,
     };
 
     if (isEditing && id) {
@@ -166,9 +174,10 @@ export default function BudgetForm() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
               <TabsTrigger value="roles">Alocação</TabsTrigger>
+              <TabsTrigger value="materials">Materiais</TabsTrigger>
               <TabsTrigger value="financial">Financeiro</TabsTrigger>
             </TabsList>
 
@@ -281,6 +290,13 @@ export default function BudgetForm() {
                   />
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="materials" className="mt-6">
+              <BudgetMaterialsEditor
+                materials={materials}
+                onMaterialsChange={setMaterials}
+              />
             </TabsContent>
 
             <TabsContent value="financial" className="mt-6">

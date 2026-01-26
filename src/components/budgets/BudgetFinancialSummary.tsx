@@ -37,11 +37,27 @@ export function BudgetFinancialSummary({
         <CardTitle className="text-lg">Resumo Financeiro</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Subtotal */}
+        {/* Subtotal (horas) */}
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Subtotal (Horas × Valores)</span>
-          <span className="text-xl font-bold">{formatCurrency(calculation.subtotal)}</span>
+          <span className="text-lg font-semibold">{formatCurrency(calculation.subtotal)}</span>
         </div>
+
+        {/* Materials total */}
+        {calculation.materialsTotal > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Materiais</span>
+            <span className="text-lg font-semibold">{formatCurrency(calculation.materialsTotal)}</span>
+          </div>
+        )}
+
+        {/* Base total */}
+        {calculation.materialsTotal > 0 && (
+          <div className="flex items-center justify-between bg-muted/50 rounded-md p-2 -mx-2">
+            <span className="font-medium">Base para cálculo</span>
+            <span className="font-semibold">{formatCurrency(calculation.subtotal + calculation.materialsTotal)}</span>
+          </div>
+        )}
 
         <Separator />
 
