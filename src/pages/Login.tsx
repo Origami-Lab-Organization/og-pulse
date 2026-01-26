@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -130,6 +130,15 @@ const Login = () => {
                   </>
                 )}
               </Button>
+
+              <div className="text-center pt-2">
+                <span className="text-sm text-muted-foreground">
+                  Não tem uma conta?{' '}
+                  <Link to="/register" className="text-primary hover:underline font-medium">
+                    Cadastrar Empresa
+                  </Link>
+                </span>
+              </div>
             </form>
           </Form>
         </CardContent>

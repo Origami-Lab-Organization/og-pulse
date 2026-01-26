@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.seed-admin]
 verify_jwt = false
+
+[functions.register-tenant]
+verify_jwt = false
