@@ -19,7 +19,10 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log("Starting send-invite-email function");
+    
     const { to, nome, tempPassword, loginUrl }: InviteEmailRequest = await req.json();
+    console.log("Email request received for:", to);
 
     const smtpHost = Deno.env.get("SMTP_HOST");
     const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
@@ -38,48 +41,41 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
-      console.error("Missing SMTP configuration:", {
-        host: !!smtpHost,
-        user: !!smtpUser,
-        pass: !!smtpPass,
-        from: !!smtpFrom,
-      });
-      throw new Error("SMTP configuration is incomplete");
+      const missingConfig = [];
+      if (!smtpHost) missingConfig.push('SMTP_HOST');
+      if (!smtpUser) missingConfig.push('SMTP_USER');
+      if (!smtpPass) missingConfig.push('SMTP_PASS');
+      if (!smtpFrom) missingConfig.push('SMTP_FROM');
+      
+      console.error("Missing SMTP configuration:", missingConfig);
+      throw new Error(`Configuração SMTP incompleta. Faltando: ${missingConfig.join(', ')}`);
     }
 
-    console.log(`Attempting to connect to SMTP server ${smtpHost}:${smtpPort}...`);
+    console.log(`Connecting to SMTP server ${smtpHost}:${smtpPort}...`);
 
     // Configure TLS based on port and SMTP_SECURE setting
     // Port 465 = implicit TLS (SSL), Port 587 = STARTTLS
-    const connectionConfig: any = {
+    const useTls = smtpPort === 465 || smtpSecure;
+
+    console.log("Connection config:", {
       hostname: smtpHost,
       port: smtpPort,
-      auth: {
-        username: smtpUser,
-        password: smtpPass,
-      },
-    };
-
-    // For port 465 (SSL) or when SMTP_SECURE is true, use direct TLS
-    if (smtpPort === 465 || smtpSecure) {
-      connectionConfig.tls = true;
-    } else {
-      // For port 587, use STARTTLS
-      connectionConfig.tls = false;
-    }
-
-    console.log("Connection config (without password):", {
-      hostname: connectionConfig.hostname,
-      port: connectionConfig.port,
-      tls: connectionConfig.tls,
-      authUser: connectionConfig.auth.username,
+      tls: useTls,
     });
 
     const client = new SMTPClient({
-      connection: connectionConfig,
+      connection: {
+        hostname: smtpHost,
+        port: smtpPort,
+        tls: useTls,
+        auth: {
+          username: smtpUser,
+          password: smtpPass,
+        },
+      },
     });
 
-    console.log("SMTP client created, attempting to send email...");
+    console.log("SMTP client created, sending email...");
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -143,20 +139,17 @@ const handler = async (req: Request): Promise<Response> => {
         html: htmlContent,
       });
       console.log("Email sent successfully to:", to);
-    } catch (sendError: any) {
+    } catch (sendError: unknown) {
+      const errorMessage = sendError instanceof Error ? sendError.message : String(sendError);
       console.error("Error during email send:", sendError);
-      console.error("Send error details:", {
-        message: sendError.message,
-        name: sendError.name,
-        stack: sendError.stack,
-      });
-      throw sendError;
+      console.error("Send error message:", errorMessage);
+      throw new Error(`Falha ao enviar email: ${errorMessage}`);
     }
 
     try {
       await client.close();
       console.log("SMTP connection closed successfully");
-    } catch (closeError: any) {
+    } catch (closeError) {
       console.error("Error closing SMTP connection:", closeError);
     }
 
@@ -167,11 +160,11 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error in send-invite-email:", error);
-    console.error("Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return new Response(
-      JSON.stringify({ error: error.message, details: error.stack }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

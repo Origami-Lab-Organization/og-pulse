@@ -49,9 +49,12 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log("Starting create-employee-user function");
+    
     // Verify admin authorization
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
+      console.error("No authorization header provided");
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -60,29 +63,28 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    // Create client with user's token to verify they're admin
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // Create admin client for privileged operations
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Use getUser to verify the token and get user info
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    const { data: userData, error: userError } = await adminClient.auth.getUser(token);
     
-    if (claimsError || !claimsData?.claims) {
+    if (userError || !userData?.user) {
+      console.error("Error verifying user token:", userError);
       return new Response(
         JSON.stringify({ error: 'Invalid token' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const userId = claimsData.claims.sub as string;
-
-    // Create admin client for privileged operations
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const userId = userData.user.id;
+    console.log("Authenticated user:", userId);
 
     const body: CreateEmployeeRequest = await req.json();
+    console.log("Request body:", { ...body, loginUrl: body.loginUrl ? "[REDACTED]" : undefined });
+    
     const {
       nome,
       email,
@@ -100,21 +102,33 @@ const handler = async (req: Request): Promise<Response> => {
     } = body;
 
     // Verify the requesting user is admin of the tenant
-    const { data: isAdmin } = await adminClient.rpc('has_role', {
+    const { data: isAdmin, error: adminCheckError } = await adminClient.rpc('has_role', {
       _user_id: userId,
       _tenant_id: tenantId,
       _role: 'admin'
     });
 
-    if (!isAdmin) {
+    console.log("Admin check result:", { isAdmin, adminCheckError });
+
+    if (adminCheckError) {
+      console.error("Error checking admin role:", adminCheckError);
       return new Response(
-        JSON.stringify({ error: 'Only admins can create employees' }),
+        JSON.stringify({ error: 'Erro ao verificar permissões' }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!isAdmin) {
+      console.error("User is not admin");
+      return new Response(
+        JSON.stringify({ error: 'Apenas administradores podem criar funcionários' }),
         { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     // Generate temporary password
     const tempPassword = generateTempPassword();
+    console.log("Generated temp password for:", email);
 
     // Create user in Supabase Auth
     const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
@@ -130,6 +144,8 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    console.log("Auth user created:", authUser.user.id);
 
     // Create employee record
     const { data: employee, error: employeeError } = await adminClient
@@ -164,6 +180,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    console.log("Employee created:", employee.id);
+
     // Create user role (default: user)
     const { error: roleError } = await adminClient
       .from('user_roles')
@@ -178,13 +196,18 @@ const handler = async (req: Request): Promise<Response> => {
       // Note: We don't rollback here as the employee was created successfully
     }
 
+    console.log("User role created");
+
     // Send invite email
+    let emailSent = false;
+    let emailError = null;
+    
     try {
+      console.log("Attempting to send invite email to:", email);
       const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify({
           to: email,
@@ -194,22 +217,32 @@ const handler = async (req: Request): Promise<Response> => {
         }),
       });
 
+      const emailResult = await emailResponse.json();
+      console.log("Email response:", { status: emailResponse.status, result: emailResult });
+
       if (!emailResponse.ok) {
-        const emailError = await emailResponse.json();
+        emailError = emailResult.error || 'Erro ao enviar email';
         console.error('Error sending invite email:', emailError);
-        // Don't fail the entire operation if email fails
+      } else {
+        emailSent = true;
+        console.log("Invite email sent successfully");
       }
-    } catch (emailError) {
-      console.error('Error calling send-invite-email:', emailError);
+    } catch (error: any) {
+      emailError = error.message;
+      console.error('Error calling send-invite-email:', error);
     }
 
-    console.log('Employee created successfully:', employee.id);
+    console.log('Employee created successfully:', employee.id, 'Email sent:', emailSent);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         employee,
-        message: 'Funcionário criado e convite enviado com sucesso' 
+        emailSent,
+        emailError,
+        message: emailSent 
+          ? 'Funcionário criado e convite enviado com sucesso' 
+          : `Funcionário criado. ${emailError ? `Erro no envio do email: ${emailError}` : 'Email não enviado.'}`
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
