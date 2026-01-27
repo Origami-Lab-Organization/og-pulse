@@ -282,8 +282,11 @@ export type Database = {
           description: string | null
           employee_id: string
           id: string
+          is_active: boolean
           monthly_value: number
           name: string
+          origin: string
+          origin_key: string | null
           updated_at: string
         }
         Insert: {
@@ -291,8 +294,11 @@ export type Database = {
           description?: string | null
           employee_id: string
           id?: string
+          is_active?: boolean
           monthly_value?: number
           name: string
+          origin?: string
+          origin_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -300,8 +306,11 @@ export type Database = {
           description?: string | null
           employee_id?: string
           id?: string
+          is_active?: boolean
           monthly_value?: number
           name?: string
+          origin?: string
+          origin_key?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -316,28 +325,37 @@ export type Database = {
       }
       employee_tools: {
         Row: {
+          annual_amount: number
+          billing_cycle: string
           created_at: string
           description: string | null
           employee_id: string
           id: string
+          is_active: boolean
           monthly_cost: number
           name: string
           updated_at: string
         }
         Insert: {
+          annual_amount?: number
+          billing_cycle?: string
           created_at?: string
           description?: string | null
           employee_id: string
           id?: string
+          is_active?: boolean
           monthly_cost?: number
           name: string
           updated_at?: string
         }
         Update: {
+          annual_amount?: number
+          billing_cycle?: string
           created_at?: string
           description?: string | null
           employee_id?: string
           id?: string
+          is_active?: boolean
           monthly_cost?: number
           name?: string
           updated_at?: string
@@ -424,11 +442,14 @@ export type Database = {
         Row: {
           auth_id: string | null
           beneficios: number
+          bolsa_auxilio: number
+          breakdown_json: Json | null
           cargo: string
           cpf: string
           created_at: string
           data_admissao: string
           decimo_terceiro: number
+          dividendos: number
           email: string
           encargos: number
           ferias: number
@@ -440,6 +461,9 @@ export type Database = {
           must_change_password: boolean
           nome: string
           pro_labore: number
+          provisao_13: number
+          provisao_ferias: number
+          provisao_recesso: number
           salario_liquido: number
           salario_mensal: number
           status: string
@@ -447,16 +471,22 @@ export type Database = {
           temp_password: string | null
           tenant_id: string
           tipo_contratacao: string
+          total_annual_cost_estimated: number
+          total_monthly_cost_estimated: number
           updated_at: string
+          valor_contrato_pj: number
         }
         Insert: {
           auth_id?: string | null
           beneficios?: number
+          bolsa_auxilio?: number
+          breakdown_json?: Json | null
           cargo: string
           cpf: string
           created_at?: string
           data_admissao: string
           decimo_terceiro?: number
+          dividendos?: number
           email: string
           encargos?: number
           ferias?: number
@@ -468,6 +498,9 @@ export type Database = {
           must_change_password?: boolean
           nome: string
           pro_labore?: number
+          provisao_13?: number
+          provisao_ferias?: number
+          provisao_recesso?: number
           salario_liquido?: number
           salario_mensal?: number
           status?: string
@@ -475,16 +508,22 @@ export type Database = {
           temp_password?: string | null
           tenant_id: string
           tipo_contratacao?: string
+          total_annual_cost_estimated?: number
+          total_monthly_cost_estimated?: number
           updated_at?: string
+          valor_contrato_pj?: number
         }
         Update: {
           auth_id?: string | null
           beneficios?: number
+          bolsa_auxilio?: number
+          breakdown_json?: Json | null
           cargo?: string
           cpf?: string
           created_at?: string
           data_admissao?: string
           decimo_terceiro?: number
+          dividendos?: number
           email?: string
           encargos?: number
           ferias?: number
@@ -496,6 +535,9 @@ export type Database = {
           must_change_password?: boolean
           nome?: string
           pro_labore?: number
+          provisao_13?: number
+          provisao_ferias?: number
+          provisao_recesso?: number
           salario_liquido?: number
           salario_mensal?: number
           status?: string
@@ -503,7 +545,10 @@ export type Database = {
           temp_password?: string | null
           tenant_id?: string
           tipo_contratacao?: string
+          total_annual_cost_estimated?: number
+          total_monthly_cost_estimated?: number
           updated_at?: string
+          valor_contrato_pj?: number
         }
         Relationships: [
           {
@@ -546,6 +591,89 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "financial_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_profiles: {
+        Row: {
+          apply_fgts_on_13th: boolean
+          apply_fgts_on_vacation: boolean
+          apply_inss_on_13th: boolean
+          apply_inss_on_vacation: boolean
+          apply_outros_on_13th: boolean
+          apply_outros_on_vacation: boolean
+          apply_rat_on_13th: boolean
+          apply_rat_on_vacation: boolean
+          apply_terceiros_on_13th: boolean
+          apply_terceiros_on_vacation: boolean
+          created_at: string
+          fgts_prolabore_rate: number
+          fgts_rate_apprentice: number
+          fgts_rate_clt: number
+          id: string
+          inss_patronal_prolabore_rate: number
+          inss_patronal_rate: number
+          outros_rate: number
+          rat_rate: number
+          tenant_id: string
+          terceiros_rate: number
+          updated_at: string
+        }
+        Insert: {
+          apply_fgts_on_13th?: boolean
+          apply_fgts_on_vacation?: boolean
+          apply_inss_on_13th?: boolean
+          apply_inss_on_vacation?: boolean
+          apply_outros_on_13th?: boolean
+          apply_outros_on_vacation?: boolean
+          apply_rat_on_13th?: boolean
+          apply_rat_on_vacation?: boolean
+          apply_terceiros_on_13th?: boolean
+          apply_terceiros_on_vacation?: boolean
+          created_at?: string
+          fgts_prolabore_rate?: number
+          fgts_rate_apprentice?: number
+          fgts_rate_clt?: number
+          id?: string
+          inss_patronal_prolabore_rate?: number
+          inss_patronal_rate?: number
+          outros_rate?: number
+          rat_rate?: number
+          tenant_id: string
+          terceiros_rate?: number
+          updated_at?: string
+        }
+        Update: {
+          apply_fgts_on_13th?: boolean
+          apply_fgts_on_vacation?: boolean
+          apply_inss_on_13th?: boolean
+          apply_inss_on_vacation?: boolean
+          apply_outros_on_13th?: boolean
+          apply_outros_on_vacation?: boolean
+          apply_rat_on_13th?: boolean
+          apply_rat_on_vacation?: boolean
+          apply_terceiros_on_13th?: boolean
+          apply_terceiros_on_vacation?: boolean
+          created_at?: string
+          fgts_prolabore_rate?: number
+          fgts_rate_apprentice?: number
+          fgts_rate_clt?: number
+          id?: string
+          inss_patronal_prolabore_rate?: number
+          inss_patronal_rate?: number
+          outros_rate?: number
+          rat_rate?: number
+          tenant_id?: string
+          terceiros_rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_profiles_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
             referencedRelation: "tenants"

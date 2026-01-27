@@ -1,6 +1,7 @@
 import { Employee } from '@/hooks/useEmployees';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, UserCheck, Crown, DollarSign } from 'lucide-react';
+import { Users, UserCheck, Crown, DollarSign, TrendingUp } from 'lucide-react';
+import { formatCurrency } from '@/lib/formatters';
 
 interface EmployeeStatsProps {
   employees: Employee[];
@@ -10,9 +11,19 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter((e) => e.status === 'ativo').length;
   const managers = employees.filter((e) => e.isGerente).length;
-  const totalCost = employees
+  
+  // Use totalMonthlyCostEstimated if available, otherwise calculate from old fields
+  const totalMonthlyCost = employees
     .filter((e) => e.status === 'ativo')
-    .reduce((sum, e) => sum + e.salarioMensal + e.beneficios + e.encargos, 0);
+    .reduce((sum, e) => {
+      if (e.totalMonthlyCostEstimated > 0) {
+        return sum + e.totalMonthlyCostEstimated;
+      }
+      // Fallback to old calculation
+      return sum + e.salarioMensal + e.beneficios + e.encargos + (e.totalToolsCost || 0);
+    }, 0);
+  
+  const totalAnnualCost = totalMonthlyCost * 12;
 
   const stats = [
     {
@@ -31,11 +42,12 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
       label: 'Gerentes',
       value: managers,
       icon: Crown,
-      color: 'bg-secondary/10 text-secondary',
+      color: 'bg-secondary/10 text-secondary-foreground',
     },
     {
       label: 'Custo Mensal Total',
-      value: `R$ ${totalCost.toLocaleString('pt-BR')}`,
+      value: formatCurrency(totalMonthlyCost),
+      subValue: `Anual: ${formatCurrency(totalAnnualCost)}`,
       icon: DollarSign,
       color: 'bg-accent/20 text-foreground',
     },
@@ -52,6 +64,9 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
             <div>
               <p className="text-sm text-muted-foreground">{stat.label}</p>
               <p className="text-xl font-semibold text-foreground">{stat.value}</p>
+              {'subValue' in stat && stat.subValue && (
+                <p className="text-xs text-muted-foreground">{stat.subValue}</p>
+              )}
             </div>
           </CardContent>
         </Card>

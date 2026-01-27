@@ -1,11 +1,11 @@
-export type ContractType = 'SOCIO' | 'CLT' | 'PJ' | 'JOVEM_APRENDIZ' | 'ESTAGIO';
+export type ContractType = 'SOCIO' | 'CLT' | 'PJ' | 'MENOR_APRENDIZ' | 'ESTAGIO';
 
 export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
   SOCIO: 'Sócio',
   CLT: 'CLT',
   PJ: 'PJ',
-  JOVEM_APRENDIZ: 'Jovem Aprendiz',
-  ESTAGIO: 'Estágio',
+  MENOR_APRENDIZ: 'Menor Aprendiz',
+  ESTAGIO: 'Estagiário',
 };
 
 export interface Employee {

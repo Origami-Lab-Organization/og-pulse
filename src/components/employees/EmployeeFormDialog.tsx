@@ -54,7 +54,7 @@ const formSchema = z.object({
   dataAdmissao: z.string().min(1, 'Data de admissão é obrigatória'),
   isGerente: z.boolean(),
   status: z.enum(['ativo', 'inativo', 'aguardando_confirmacao']),
-  tipoContratacao: z.enum(['SOCIO', 'CLT', 'PJ', 'JOVEM_APRENDIZ', 'ESTAGIO'] as const),
+  tipoContratacao: z.enum(['SOCIO', 'CLT', 'PJ', 'MENOR_APRENDIZ', 'ESTAGIO'] as const),
   jornadaMensal: z.number().min(1, 'Jornada deve ser maior que 0'),
   salarioMensal: z.number().min(0, 'Salário não pode ser negativo'),
   salarioLiquido: z.number().min(0, 'Salário líquido não pode ser negativo'),
@@ -762,7 +762,7 @@ const EmployeeFormDialog = ({
         {renderFinancialFields()}
         
         {/* Info about automatic versioning */}
-        <Alert className="mt-4 border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-900/20">
+        <Alert className="mt-4 border-primary/30 bg-primary/5">
           <History className="h-4 w-4" />
           <AlertDescription>
             Alterações em valores financeiros (salário, encargos, jornada, cargo) criam automaticamente um novo marco, 

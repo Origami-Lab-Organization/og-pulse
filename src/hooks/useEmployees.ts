@@ -4,6 +4,7 @@ import { employeeVersionService, EmployeeVersionDB } from '@/services/employeeVe
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CreateEmployeeToolInput, CreateEmployeeBenefitInput, ContractType } from '@/types/employee';
+import { CostBreakdown } from '@/lib/employeeCostCalculator';
 
 // Type for employee with tools and benefits from DB
 type EmployeeWithRelations = EmployeeDB & { 
@@ -44,6 +45,16 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     decimoTerceiro: Number(db.decimo_terceiro) || 0,
     ferias: Number(db.ferias) || 0,
     proLabore: Number(db.pro_labore) || 0,
+    // New fields
+    bolsaAuxilio: Number(db.bolsa_auxilio) || 0,
+    valorContratoPj: Number(db.valor_contrato_pj) || 0,
+    dividendos: Number(db.dividendos) || 0,
+    provisao13: Number(db.provisao_13) || 0,
+    provisaoFerias: Number(db.provisao_ferias) || 0,
+    provisaoRecesso: Number(db.provisao_recesso) || 0,
+    totalMonthlyCostEstimated: Number(db.total_monthly_cost_estimated) || 0,
+    totalAnnualCostEstimated: Number(db.total_annual_cost_estimated) || 0,
+    breakdownJson: db.breakdown_json as unknown as CostBreakdown | null,
     totalToolsCost,
     totalBenefitsCost,
     tenantId: db.tenant_id,
