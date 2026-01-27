@@ -1,12 +1,11 @@
 import { useState, useMemo } from 'react';
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, Employee, useAddEmployeeBenefit, useAddEmployeeTool } from '@/hooks/useEmployees';
-import { CreateEmployeeInput } from '@/services/employeeService';
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useInactivateEmployee, Employee, useAddEmployeeBenefit, useAddEmployeeTool } from '@/hooks/useEmployees';
 import { EmployeeFormSubmitData } from '@/components/employees/EmployeeFormDialog';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DataTable } from '@/components/data-table/DataTable';
 import { createEmployeeColumns } from '@/components/employees/EmployeesTable';
 import EmployeeFormDialog from '@/components/employees/EmployeeFormDialog';
-import DeleteConfirmDialog from '@/components/employees/DeleteConfirmDialog';
+import InactivateConfirmDialog from '@/components/employees/InactivateConfirmDialog';
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,13 +16,13 @@ const Index = () => {
   const { data: employees = [], isLoading } = useEmployees();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
-  const deleteEmployee = useDeleteEmployee();
+  const inactivateEmployee = useInactivateEmployee();
   const addBenefit = useAddEmployeeBenefit();
   const addTool = useAddEmployeeTool();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [formDialogOpen, setFormDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [inactivateDialogOpen, setInactivateDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const handleAddEmployee = () => {
@@ -36,9 +35,9 @@ const Index = () => {
     setFormDialogOpen(true);
   };
 
-  const handleDeleteEmployee = (employee: Employee) => {
+  const handleInactivateEmployee = (employee: Employee) => {
     setSelectedEmployee(employee);
-    setDeleteDialogOpen(true);
+    setInactivateDialogOpen(true);
   };
 
   const handleFormSubmit = async (data: EmployeeFormSubmitData) => {
@@ -81,11 +80,11 @@ const Index = () => {
     setSelectedEmployee(null);
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleInactivateConfirm = async () => {
     if (selectedEmployee) {
-      await deleteEmployee.mutateAsync({ id: selectedEmployee.id, nome: selectedEmployee.nome });
+      await inactivateEmployee.mutateAsync({ id: selectedEmployee.id, nome: selectedEmployee.nome });
     }
-    setDeleteDialogOpen(false);
+    setInactivateDialogOpen(false);
     setSelectedEmployee(null);
   };
 
@@ -93,12 +92,10 @@ const Index = () => {
     () =>
       createEmployeeColumns({
         onEdit: handleEditEmployee,
-        onDelete: handleDeleteEmployee,
+        onInactivate: handleInactivateEmployee,
       }),
     []
   );
-
-  // Employees already have the correct format from the hook
 
   const actions = (
     <Button onClick={handleAddEmployee} className="gap-2">
@@ -185,11 +182,11 @@ const Index = () => {
         isLoading={createEmployee.isPending || updateEmployee.isPending}
       />
 
-      <DeleteConfirmDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+      <InactivateConfirmDialog
+        open={inactivateDialogOpen}
+        onOpenChange={setInactivateDialogOpen}
         employee={selectedEmployee}
-        onConfirm={handleDeleteConfirm}
+        onConfirm={handleInactivateConfirm}
       />
     </AppLayout>
   );

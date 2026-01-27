@@ -1,5 +1,5 @@
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Pencil, Trash2, Crown, Mail, Phone } from 'lucide-react';
+import { MoreHorizontal, Pencil, UserX, Crown, Mail, Phone, Clock } from 'lucide-react';
 import { Employee } from '@/hooks/useEmployees';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,12 +17,30 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface EmployeeColumnsProps {
   onEdit: (employee: Employee) => void;
-  onDelete: (employee: Employee) => void;
+  onInactivate: (employee: Employee) => void;
 }
+
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'ativo':
+      return <Badge variant="default">Ativo</Badge>;
+    case 'inativo':
+      return <Badge variant="secondary">Inativo</Badge>;
+    case 'aguardando_confirmacao':
+      return (
+        <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">
+          <Clock className="h-3 w-3 mr-1" />
+          Aguardando
+        </Badge>
+      );
+    default:
+      return <Badge variant="secondary">{status}</Badge>;
+  }
+};
 
 export const createEmployeeColumns = ({
   onEdit,
-  onDelete,
+  onInactivate,
 }: EmployeeColumnsProps): ColumnDef<Employee>[] => [
   {
     accessorKey: 'nome',
@@ -86,11 +104,7 @@ export const createEmployeeColumns = ({
     ),
     cell: ({ row }) => {
       const status = row.getValue('status') as string;
-      return (
-        <Badge variant={status === 'ativo' ? 'default' : 'secondary'}>
-          {status === 'ativo' ? 'Ativo' : 'Inativo'}
-        </Badge>
-      );
+      return getStatusBadge(status);
     },
   },
   {
@@ -138,6 +152,7 @@ export const createEmployeeColumns = ({
     id: 'actions',
     cell: ({ row }) => {
       const employee = row.original;
+      const isInactive = employee.status === 'inativo';
 
       return (
         <DropdownMenu>
@@ -158,13 +173,15 @@ export const createEmployeeColumns = ({
               <Pencil className="mr-2 h-4 w-4" />
               Editar
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onDelete(employee)}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Excluir
-            </DropdownMenuItem>
+            {!isInactive && (
+              <DropdownMenuItem
+                onClick={() => onInactivate(employee)}
+                className="text-destructive focus:text-destructive"
+              >
+                <UserX className="mr-2 h-4 w-4" />
+                Inativar
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       );

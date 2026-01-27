@@ -210,7 +210,7 @@ const handler = async (req: Request): Promise<Response> => {
         cpf,
         data_admissao: dataAdmissao,
         is_gerente: isGerente,
-        status,
+        status: 'aguardando_confirmacao', // Always start as pending until first login
         salario_mensal: salarioMensal,
         beneficios,
         encargos,
