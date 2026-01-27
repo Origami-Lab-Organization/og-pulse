@@ -9,17 +9,40 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/formatters';
 import { formatCurrency as formatCurrencyMask, parseCurrency } from '@/lib/masks';
-import { Plus, Pencil, Trash2, Check, X, Heart } from 'lucide-react';
+import { Plus, Trash2, Check, X, Heart } from 'lucide-react';
 
 export interface LocalBenefit {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   monthlyValue: number;
 }
+
+const BENEFIT_OPTIONS = [
+  { value: 'vale_refeicao', label: 'Vale Refeição' },
+  { value: 'vale_alimentacao', label: 'Vale Alimentação' },
+  { value: 'vale_transporte', label: 'Vale Transporte' },
+  { value: 'plano_saude', label: 'Plano de Saúde' },
+  { value: 'plano_odontologico', label: 'Plano Odontológico' },
+  { value: 'seguro_vida', label: 'Seguro de Vida' },
+  { value: 'auxilio_creche', label: 'Auxílio Creche' },
+  { value: 'auxilio_educacao', label: 'Auxílio Educação' },
+  { value: 'gympass', label: 'Gympass/Wellhub' },
+  { value: 'auxilio_home_office', label: 'Auxílio Home Office' },
+  { value: 'bonus', label: 'Bônus' },
+  { value: 'participacao_lucros', label: 'PLR' },
+  { value: 'outros', label: 'Outros' },
+];
 
 interface EmployeeBenefitsLocalTableProps {
   benefits: LocalBenefit[];
@@ -33,23 +56,20 @@ export function EmployeeBenefitsLocalTable({
   employeeName = 'Funcionário' 
 }: EmployeeBenefitsLocalTableProps) {
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   
   const [newBenefit, setNewBenefit] = useState({
+    selectedValue: '',
     name: '',
-    description: '',
-    monthlyValue: 0,
-    monthlyValueDisplay: '',
-  });
-
-  const [editData, setEditData] = useState({
-    name: '',
-    description: '',
     monthlyValue: 0,
     monthlyValueDisplay: '',
   });
 
   const totalValue = benefits.reduce((sum, benefit) => sum + benefit.monthlyValue, 0);
+
+  // Filter out benefits that are already added
+  const availableBenefits = BENEFIT_OPTIONS.filter(
+    opt => !benefits.some(b => b.name === opt.label)
+  );
 
   const handleAdd = () => {
     if (!newBenefit.name.trim()) return;
@@ -57,43 +77,25 @@ export function EmployeeBenefitsLocalTable({
     const newItem: LocalBenefit = {
       id: `temp-${Date.now()}`,
       name: newBenefit.name.trim(),
-      description: newBenefit.description.trim(),
       monthlyValue: newBenefit.monthlyValue,
     };
     
     onChange([...benefits, newItem]);
     setIsAdding(false);
-    setNewBenefit({ name: '', description: '', monthlyValue: 0, monthlyValueDisplay: '' });
-  };
-
-  const startEdit = (benefit: LocalBenefit) => {
-    setEditingId(benefit.id);
-    setEditData({
-      name: benefit.name,
-      description: benefit.description,
-      monthlyValue: benefit.monthlyValue,
-      monthlyValueDisplay: formatCurrencyMask(benefit.monthlyValue),
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditData({ name: '', description: '', monthlyValue: 0, monthlyValueDisplay: '' });
-  };
-
-  const saveEdit = (id: string) => {
-    if (!editData.name.trim()) return;
-    
-    onChange(benefits.map(b => 
-      b.id === id 
-        ? { ...b, name: editData.name.trim(), description: editData.description.trim(), monthlyValue: editData.monthlyValue }
-        : b
-    ));
-    setEditingId(null);
+    setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
   };
 
   const handleDelete = (id: string) => {
     onChange(benefits.filter(b => b.id !== id));
+  };
+
+  const handleSelectBenefit = (value: string) => {
+    const option = BENEFIT_OPTIONS.find(o => o.value === value);
+    setNewBenefit({ 
+      ...newBenefit, 
+      selectedValue: value,
+      name: option?.label || value 
+    });
   };
 
   return (
@@ -108,7 +110,7 @@ export function EmployeeBenefitsLocalTable({
             Benefícios mensais de {employeeName}
           </CardDescription>
         </div>
-        {!isAdding && (
+        {!isAdding && availableBenefits.length > 0 && (
           <Button onClick={() => setIsAdding(true)} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
@@ -127,29 +129,29 @@ export function EmployeeBenefitsLocalTable({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Benefício</TableHead>
-                    <TableHead>Descrição</TableHead>
                     <TableHead className="text-right">Valor Mensal</TableHead>
-                    <TableHead className="w-[100px]">Ações</TableHead>
+                    <TableHead className="w-[80px]">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isAdding && (
                     <TableRow>
                       <TableCell>
-                        <Input
-                          value={newBenefit.name}
-                          onChange={(e) => setNewBenefit({ ...newBenefit, name: e.target.value })}
-                          placeholder="Ex: Vale Refeição, Plano de Saúde..."
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={newBenefit.description}
-                          onChange={(e) => setNewBenefit({ ...newBenefit, description: e.target.value })}
-                          placeholder="Descrição (opcional)"
-                          className="w-full"
-                        />
+                        <Select
+                          value={newBenefit.selectedValue}
+                          onValueChange={handleSelectBenefit}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione o benefício" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableBenefits.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -181,7 +183,7 @@ export function EmployeeBenefitsLocalTable({
                             variant="ghost"
                             onClick={() => {
                               setIsAdding(false);
-                              setNewBenefit({ name: '', description: '', monthlyValue: 0, monthlyValueDisplay: '' });
+                              setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
                             }}
                           >
                             <X className="h-4 w-4 text-destructive" />
@@ -193,81 +195,19 @@ export function EmployeeBenefitsLocalTable({
                   {benefits.map((benefit) => (
                     <TableRow key={benefit.id}>
                       <TableCell>
-                        {editingId === benefit.id ? (
-                          <Input
-                            value={editData.name}
-                            onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                            className="w-full"
-                          />
-                        ) : (
-                          <span className="font-medium">{benefit.name}</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingId === benefit.id ? (
-                          <Input
-                            value={editData.description}
-                            onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                            className="w-full"
-                          />
-                        ) : (
-                          <span className="text-muted-foreground">{benefit.description || '-'}</span>
-                        )}
+                        <span className="font-medium">{benefit.name}</span>
                       </TableCell>
                       <TableCell className="text-right">
-                        {editingId === benefit.id ? (
-                          <Input
-                            value={editData.monthlyValueDisplay}
-                            onChange={(e) => {
-                              const formatted = formatCurrencyMask(e.target.value);
-                              setEditData({
-                                ...editData,
-                                monthlyValueDisplay: formatted,
-                                monthlyValue: parseCurrency(formatted),
-                              });
-                            }}
-                            className="w-[140px] text-right"
-                          />
-                        ) : (
-                          formatCurrency(benefit.monthlyValue)
-                        )}
+                        {formatCurrency(benefit.monthlyValue)}
                       </TableCell>
                       <TableCell>
-                        {editingId === benefit.id ? (
-                          <div className="flex gap-1">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => saveEdit(benefit.id)}
-                            >
-                              <Check className="h-4 w-4 text-green-600" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={cancelEdit}
-                            >
-                              <X className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-1">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => startEdit(benefit)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleDelete(benefit.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleDelete(benefit.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
