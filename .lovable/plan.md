@@ -1,285 +1,146 @@
 
-# Plano: Etapa 2 do Wizard de Novo Funcionario (Contratacao)
 
-## Resumo
+# Plano: Ajustes na Etapa 2 do Wizard de Funcionarios
 
-Ajustar a Etapa 2 do cadastro de funcionario para exibir campos dinamicos por tipo de contratacao, calcular automaticamente encargos e provisoes em tempo real usando o motor de calculo existente (`calculateEmployeeCost`), e exibir um card de "Resumo Mensal (Estimado)" com breakdown completo.
+## Resumo das Mudancas
 
----
-
-## O Que Ja Existe
-
-1. **Motor de Calculo**: `src/lib/employeeCostCalculator.ts` - Funcao `calculateEmployeeCost()` ja implementada com logica para CLT, Menor Aprendiz, Estagiario, PJ e Socio.
-
-2. **Perfil de Encargos**: Hook `usePayrollProfile()` busca as aliquotas configuradas do tenant.
-
-3. **Tipos**: `ContractType` e `CONTRACT_TYPE_LABELS` ja definidos em `src/types/employee.ts`.
-
-4. **Formulario Atual**: `EmployeeFormDialog.tsx` tem a estrutura do wizard, mas Step 2 mostra campos fixos (todos visiveis) e campos de encargos editaveis.
+1. Atualizar os valores default das aliquotas para refletir o regime do Simples Nacional
+2. Simplificar o card de resumo mostrando apenas custo de salario e encargos
 
 ---
 
-## Mudancas Necessarias
+## 1. Revisao das Aliquotas para Simples Nacional
 
-### 1. Remocoes
+### Aliquotas Atuais vs Simples Nacional
 
-- Remover campo "Salario Liquido" do formulario
-- Remover `salarioLiquido` do schema Zod e dos default values
-- Remover `salarioLiquidoDisplay` state
+| Encargo                   | Valor Atual | Simples Nacional | Acao           |
+|---------------------------|-------------|------------------|----------------|
+| FGTS CLT                  | 8%          | 8%               | Manter         |
+| FGTS Menor Aprendiz       | 2%          | 2%               | Manter         |
+| INSS Patronal             | 20%         | **0%**           | **Alterar**    |
+| RAT/SAT                   | 3%          | **0%**           | **Alterar**    |
+| Terceiros (Sistema S)     | 5.8%        | **0%**           | **Alterar**    |
+| INSS Pro-Labore           | 20%         | **0%**           | **Alterar**    |
+| FGTS Pro-Labore           | 0%          | 0%               | Manter         |
 
-### 2. Novos Campos no Schema
+### Justificativa Legal
 
-Adicionar ao schema Zod:
-- `bolsaAuxilio` (number, min 0) - Para Estagiario
-- `valorContratoPj` (number, min 0) - Para PJ
-- `dividendos` (number, min 0) - Para Socio
+No regime do Simples Nacional (LC 123/2006):
+- **INSS Patronal**: Substituido pelo recolhimento unificado no DAS
+- **RAT/SAT**: Incluido no DAS, nao ha pagamento separado
+- **Terceiros (Sistema S)**: Empresas do Simples sao isentas de contribuicao ao Sistema S
+- **FGTS**: Permanece obrigatorio (nao faz parte do DAS)
 
-### 3. Validacao Dinamica por Tipo
+### Arquivos a Modificar
 
-Implementar validacao customizada no Zod usando `.refine()`:
-- CLT / Menor Aprendiz: `salarioMensal > 0`
-- Estagiario: `bolsaAuxilio > 0`
-- PJ: `valorContratoPj > 0`
-- Socio: `proLabore > 0 OU dividendos > 0`
+**1. `src/types/payrollProfile.ts`** - Alterar DEFAULT_PAYROLL_PROFILE:
 
-### 4. Campos Dinamicos na UI (Card "Valores")
-
-Exibir campos conforme `tipoContratacao`:
-
-```text
-+----------------+-------------------------------------------+
-| Tipo           | Campos Exibidos                           |
-+----------------+-------------------------------------------+
-| CLT            | Salario Bruto (editavel)                  |
-| Menor Aprendiz | Salario Bruto (editavel)                  |
-| Estagiario     | Bolsa-Auxilio (editavel)                  |
-| PJ             | Valor Mensal do Contrato (editavel)       |
-| Socio          | Pro-Labore (editavel), Dividendos (edit.) |
-+----------------+-------------------------------------------+
+```typescript
+export const DEFAULT_PAYROLL_PROFILE = {
+  fgtsRateClt: 0.08,           // Manter 8%
+  fgtsRateApprentice: 0.02,    // Manter 2%
+  inssPatronalRate: 0,         // Alterar de 0.20 para 0 (Simples)
+  ratRate: 0,                  // Alterar de 0.03 para 0 (Simples)
+  terceirosRate: 0,            // Alterar de 0.058 para 0 (Simples)
+  outrosRate: 0,               // Manter 0
+  inssPatronalProlaboreRate: 0, // Alterar de 0.20 para 0 (Simples)
+  fgtsProlaboreRate: 0,        // Manter 0
+  // Incidencia sobre provisoes - desativar INSS/RAT/Terceiros
+  applyFgtsOn13th: true,
+  applyInssOn13th: false,      // Alterar para false
+  applyRatOn13th: false,       // Alterar para false
+  applyTerceirosOn13th: false, // Alterar para false
+  applyOutrosOn13th: false,
+  applyFgtsOnVacation: true,
+  applyInssOnVacation: false,  // Alterar para false
+  applyRatOnVacation: false,   // Alterar para false
+  applyTerceirosOnVacation: false, // Alterar para false
+  applyOutrosOnVacation: false,
+};
 ```
 
-### 5. Card "Encargos" - Campos READ-ONLY
+**2. Migration SQL** - Atualizar defaults na tabela:
 
-Todos os campos de encargos serao somente leitura (disabled inputs):
-- FGTS
-- INSS Empresa  
-- 13o Salario (provisao) - OU "Provisao Recesso" para Estagiario
-- Ferias + 1/3 (provisao)
-
-Regras de exibicao:
-- Estagiario: Substituir "13o Salario" por "Provisao Recesso"; ocultar "Ferias"
-- PJ: Mostrar todos zerados ou ocultar completamente o card
-- Socio: Mostrar apenas FGTS e INSS (sobre pro-labore)
-
-### 6. Integracao com Motor de Calculo
-
-Usar `useEffect` para recalcular sempre que mudar:
-- `tipoContratacao`
-- `salarioMensal` / `bolsaAuxilio` / `valorContratoPj` / `proLabore` / `dividendos`
-- `localBenefits` / `localTools`
-
-Chamar `calculateEmployeeCost()` e preencher automaticamente:
-- `fgts`, `inssEmpresa`, `decimoTerceiro`, `ferias`
-- Valores do breakdown para exibir no resumo
-
-### 7. Novo Card "Resumo Mensal (Estimado)"
-
-Adicionar ao final da Etapa 2:
-
-```text
-+------------------------------------------+
-| Resumo Mensal (Estimado)                 |
-+------------------------------------------+
-| Base                         R$ X.XXX,XX |
-| Encargos                     R$ X.XXX,XX |
-| Provisoes                    R$ X.XXX,XX |
-| Beneficios                   R$ X.XXX,XX |
-| Ferramentas                  R$ X.XXX,XX |
-+------------------------------------------+
-| CUSTO TOTAL MENSAL          R$ XX.XXX,XX |
-| CUSTO TOTAL ANUAL          R$ XXX.XXX,XX |
-+------------------------------------------+
-| (!) Calculo estimado; valide com         |
-|     contabilidade.                       |
-+------------------------------------------+
+```sql
+ALTER TABLE public.payroll_profiles 
+  ALTER COLUMN inss_patronal_rate SET DEFAULT 0,
+  ALTER COLUMN rat_rate SET DEFAULT 0,
+  ALTER COLUMN terceiros_rate SET DEFAULT 0,
+  ALTER COLUMN inss_patronal_prolabore_rate SET DEFAULT 0,
+  ALTER COLUMN apply_inss_on_13th SET DEFAULT false,
+  ALTER COLUMN apply_rat_on_13th SET DEFAULT false,
+  ALTER COLUMN apply_terceiros_on_13th SET DEFAULT false,
+  ALTER COLUMN apply_inss_on_vacation SET DEFAULT false,
+  ALTER COLUMN apply_rat_on_vacation SET DEFAULT false,
+  ALTER COLUMN apply_terceiros_on_vacation SET DEFAULT false;
 ```
 
 ---
 
-## Detalhamento Tecnico
+## 2. Simplificacao do Card de Resumo
 
-### Arquivo: `src/components/employees/EmployeeFormDialog.tsx`
+### Alteracao em `src/components/employees/EmployeeFormDialog.tsx`
 
-**1. Imports Adicionais:**
-```typescript
-import { usePayrollProfile } from '@/hooks/usePayrollProfile';
-import { calculateEmployeeCost, CostBreakdown } from '@/lib/employeeCostCalculator';
-import { AlertCircle } from 'lucide-react';
-```
+Modificar a funcao `renderCostSummaryCard()` para:
 
-**2. Schema Zod Atualizado:**
-```typescript
-const formSchema = z.object({
-  // ... campos existentes ...
-  // REMOVER: salarioLiquido
-  bolsaAuxilio: z.number().min(0),
-  valorContratoPj: z.number().min(0),
-  dividendos: z.number().min(0),
-}).refine((data) => {
-  switch (data.tipoContratacao) {
-    case 'CLT':
-    case 'MENOR_APRENDIZ':
-      return data.salarioMensal > 0;
-    case 'ESTAGIO':
-      return data.bolsaAuxilio > 0;
-    case 'PJ':
-      return data.valorContratoPj > 0;
-    case 'SOCIO':
-      return data.proLabore > 0 || data.dividendos > 0;
-    default:
-      return true;
-  }
-}, {
-  message: 'Preencha o valor base conforme o tipo de contratacao',
-  path: ['salarioMensal'],
-});
-```
+- Remover linhas de "Beneficios" e "Ferramentas"
+- Substituir "Custo Total Mensal/Anual" por "Subtotal Salarial"
+- Adicionar mensagem informativa sobre etapas seguintes
 
-**3. Estados Adicionais:**
-```typescript
-const [bolsaAuxilioDisplay, setBolsaAuxilioDisplay] = useState('');
-const [valorContratoPjDisplay, setValorContratoPjDisplay] = useState('');
-const [dividendosDisplay, setDividendosDisplay] = useState('');
-const [costBreakdown, setCostBreakdown] = useState<CostBreakdown | null>(null);
-```
+### Codigo Final do Card
 
-**4. Hook do Perfil de Encargos:**
-```typescript
-const { data: payrollProfile } = usePayrollProfile();
-```
-
-**5. useEffect para Calculo Automatico:**
-```typescript
-useEffect(() => {
-  if (!payrollProfile) return;
-  
-  const benefitsTotal = localBenefits.reduce((sum, b) => sum + b.monthlyValue, 0);
-  const toolsTotal = localTools.reduce((sum, t) => sum + t.monthlyCost, 0);
-  
-  const breakdown = calculateEmployeeCost({
-    tipoContratacao: form.getValues('tipoContratacao'),
-    salarioBruto: form.getValues('salarioMensal'),
-    bolsaAuxilio: form.getValues('bolsaAuxilio'),
-    valorContratoPj: form.getValues('valorContratoPj'),
-    proLabore: form.getValues('proLabore'),
-    dividendos: form.getValues('dividendos'),
-    benefitsTotalMonthly: benefitsTotal,
-    toolsTotalMonthly: toolsTotal,
-    payrollProfile,
-  });
-  
-  setCostBreakdown(breakdown);
-  
-  // Atualizar campos read-only
-  form.setValue('fgts', breakdown.details.fgts);
-  form.setValue('inssEmpresa', breakdown.details.inss);
-  form.setValue('decimoTerceiro', breakdown.details.provisao13);
-  form.setValue('ferias', breakdown.details.provisaoFerias);
-  
-  // Atualizar displays
-  setFgtsDisplay(formatCurrency(breakdown.details.fgts));
-  setInssDisplay(formatCurrency(breakdown.details.inss));
-  setDecimoDisplay(formatCurrency(breakdown.details.provisao13 || breakdown.details.provisaoRecesso));
-  setFeriasDisplay(formatCurrency(breakdown.details.provisaoFerias));
-}, [tipoContratacao, salarioMensal, bolsaAuxilio, valorContratoPj, proLabore, dividendos, payrollProfile, localBenefits, localTools]);
-```
-
-**6. Funcao renderFinancialFields() Refatorada:**
-
-Card "Valores" com renderizacao condicional:
-```typescript
-{/* CLT / Menor Aprendiz */}
-{(tipoContratacao === 'CLT' || tipoContratacao === 'MENOR_APRENDIZ') && (
-  <FormField name="salarioMensal" ... />
-)}
-
-{/* Estagiario */}
-{tipoContratacao === 'ESTAGIO' && (
-  <FormField name="bolsaAuxilio" label="Bolsa-Auxilio" ... />
-)}
-
-{/* PJ */}
-{tipoContratacao === 'PJ' && (
-  <FormField name="valorContratoPj" label="Valor Mensal do Contrato" ... />
-)}
-
-{/* Socio */}
-{tipoContratacao === 'SOCIO' && (
-  <>
-    <FormField name="proLabore" label="Pro-Labore (mensal)" ... />
-    <FormField name="dividendos" label="Dividendos (mensal)" ... />
-  </>
-)}
-```
-
-Card "Encargos" com campos disabled:
-```typescript
-<Input 
-  disabled 
-  value={fgtsDisplay}
-  className="bg-muted"
-/>
-```
-
-Labels dinamicos para Estagiario:
-```typescript
-{tipoContratacao === 'ESTAGIO' ? 'Provisao Recesso' : '13o Salario'}
-```
-
-**7. Novo Componente: Card Resumo Mensal**
-```typescript
+```tsx
 const renderCostSummaryCard = () => {
   if (!costBreakdown) return null;
-  
+
+  const subtotalSalarial = 
+    costBreakdown.baseAmount + 
+    costBreakdown.chargesAmount + 
+    costBreakdown.provisionsAmount;
+
   return (
-    <Card className="mt-6 border-primary/30">
+    <Card className="mt-6 border-primary/30 bg-primary/5">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Calculator className="h-5 w-5" />
-          Resumo Mensal (Estimado)
+          Resumo de Custo (Estimado)
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <span>Base</span>
-          <span className="text-right">{formatCurrency(costBreakdown.baseAmount)}</span>
-          <span>Encargos</span>
-          <span className="text-right">{formatCurrency(costBreakdown.chargesAmount)}</span>
-          <span>Provisoes</span>
-          <span className="text-right">{formatCurrency(costBreakdown.provisionsAmount)}</span>
-          <span>Beneficios</span>
-          <span className="text-right">{formatCurrency(costBreakdown.benefitsAmount)}</span>
-          <span>Ferramentas</span>
-          <span className="text-right">{formatCurrency(costBreakdown.toolsAmount)}</span>
+          <span className="text-muted-foreground">Base</span>
+          <span className="text-right font-medium">
+            {formatCurrency(costBreakdown.baseAmount)}
+          </span>
+          <span className="text-muted-foreground">Encargos</span>
+          <span className="text-right font-medium">
+            {formatCurrency(costBreakdown.chargesAmount)}
+          </span>
+          <span className="text-muted-foreground">Provisões</span>
+          <span className="text-right font-medium">
+            {formatCurrency(costBreakdown.provisionsAmount)}
+          </span>
         </div>
         
         <Separator />
         
         <div className="flex justify-between font-bold text-lg">
-          <span>CUSTO TOTAL MENSAL</span>
-          <span className="text-primary">{formatCurrency(costBreakdown.totalMonthlyCost)}</span>
-        </div>
-        <div className="flex justify-between text-muted-foreground">
-          <span>CUSTO TOTAL ANUAL</span>
-          <span>{formatCurrency(costBreakdown.totalAnnualCost)}</span>
+          <span>SUBTOTAL SALARIAL</span>
+          <span className="text-primary">
+            {formatCurrency(subtotalSalarial)}
+          </span>
         </div>
         
-        <Alert variant="warning" className="mt-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Calculo estimado; valide com contabilidade.
-          </AlertDescription>
-        </Alert>
+        <p className="text-xs text-muted-foreground text-center">
+          Benefícios e ferramentas serão adicionados nas etapas seguintes.
+        </p>
+        
+        <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+          <p className="text-sm text-warning-foreground">
+            Cálculo estimado; valide com contabilidade.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
@@ -290,40 +151,38 @@ const renderCostSummaryCard = () => {
 
 ## Arquivos a Modificar
 
-1. **`src/components/employees/EmployeeFormDialog.tsx`**
-   - Adicionar imports (`usePayrollProfile`, `calculateEmployeeCost`, `Separator`, `Calculator`, `AlertCircle`)
-   - Atualizar schema Zod (remover `salarioLiquido`, adicionar `bolsaAuxilio`, `valorContratoPj`, `dividendos`, validacao dinamica)
-   - Adicionar estados para novos campos e `costBreakdown`
-   - Adicionar hook `usePayrollProfile()`
-   - Adicionar `useEffect` para calculo automatico
-   - Refatorar `renderFinancialFields()` com campos condicionais e read-only
-   - Adicionar `renderCostSummaryCard()` no final da Etapa 2
-   - Remover referencias a `salarioLiquido`
-
-2. **`src/types/employee.ts`** (opcional)
-   - Adicionar campos `bolsaAuxilio`, `valorContratoPj`, `dividendos` se nao existirem no Employee interface
+1. **`src/types/payrollProfile.ts`** - Atualizar DEFAULT_PAYROLL_PROFILE com aliquotas zeradas para Simples Nacional
+2. **`src/components/employees/EmployeeFormDialog.tsx`** - Simplificar card de resumo
+3. **Nova migration SQL** - Atualizar defaults na tabela payroll_profiles
 
 ---
 
-## Fluxo de Usuario
+## Resumo das Alteracoes
 
-1. Usuario seleciona "Tipo de Contratacao" no dropdown
-2. Campos de valores mudam dinamicamente conforme o tipo
-3. Usuario preenche o valor base (ex: Salario Bruto para CLT)
-4. Sistema calcula automaticamente FGTS, INSS, provisoes
-5. Card "Resumo Mensal" mostra breakdown em tempo real
-6. Valores de Beneficios/Ferramentas aparecem como 0 ate preencher Etapas 3/4
-7. Aviso "Calculo estimado; valide com contabilidade" sempre visivel
+| Item                              | De           | Para         |
+|-----------------------------------|--------------|--------------|
+| INSS Patronal (default)           | 20%          | 0%           |
+| RAT (default)                     | 3%           | 0%           |
+| Terceiros (default)               | 5.8%         | 0%           |
+| INSS Pro-Labore (default)         | 20%          | 0%           |
+| Incidencia INSS/RAT/Terceiros     | true         | false        |
+| Card Resumo - Beneficios          | Exibir       | Remover      |
+| Card Resumo - Ferramentas         | Exibir       | Remover      |
+| Card Resumo - Total               | Custo Total  | Subtotal Sal |
+
+---
+
+## Nota Importante
+
+Os valores permanecem **configuraveis** no Perfil de Encargos em Configuracoes. Se o tenant optar por Lucro Presumido/Real no futuro, o administrador pode alterar as aliquotas para os valores tradicionais (20% INSS, 3% RAT, etc).
 
 ---
 
 ## Criterios de Aceite
 
-1. Campo "Salario Liquido" removido
-2. Campos base mudam conforme tipo de contratacao
-3. Encargos/provisoes sao read-only e calculados automaticamente
-4. Para Estagiario: FGTS/INSS = 0, exibe "Provisao Recesso"
-5. Para PJ: todos encargos/provisoes = 0
-6. Para Socio: encargos apenas sobre Pro-Labore
-7. Card Resumo recalcula em tempo real
-8. Validacao: Socio precisa Pro-Labore OU Dividendos > 0
+1. Defaults do perfil de encargos refletem Simples Nacional (INSS/RAT/Terceiros = 0%)
+2. FGTS permanece 8% CLT e 2% Menor Aprendiz
+3. Card de resumo na Etapa 2 mostra apenas Base, Encargos, Provisoes e Subtotal Salarial
+4. Mensagem informativa indica que beneficios/ferramentas virao nas proximas etapas
+5. Aliquotas permanecem configuraveis em Configuracoes > Encargos/Folha
+
