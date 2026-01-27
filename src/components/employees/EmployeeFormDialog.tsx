@@ -16,6 +16,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Form,
   FormControl,
   FormField,
@@ -124,6 +134,7 @@ const EmployeeFormDialog = ({
 }: EmployeeFormDialogProps) => {
   const isEditing = !!employee;
   const [currentStep, setCurrentStep] = useState(0);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // Fetch versions for editing mode
   const { data: versions = [], isLoading: versionsLoading } = useEmployeeVersions(
@@ -149,7 +160,6 @@ const EmployeeFormDialog = ({
   const [proLaboreDisplay, setProLaboreDisplay] = useState('');
   const [dividendosDisplay, setDividendosDisplay] = useState('');
   const [fgtsDisplay, setFgtsDisplay] = useState('');
-  const [inssDisplay, setInssDisplay] = useState('');
   const [decimoDisplay, setDecimoDisplay] = useState('');
   const [feriasDisplay, setFeriasDisplay] = useState('');
 
@@ -186,11 +196,22 @@ const EmployeeFormDialog = ({
   const valorContratoPj = form.watch('valorContratoPj');
   const proLabore = form.watch('proLabore');
   const dividendos = form.watch('dividendos');
-  const fgts = form.watch('fgts');
-  const inssEmpresa = form.watch('inssEmpresa');
-  const decimoTerceiro = form.watch('decimoTerceiro');
-  const ferias = form.watch('ferias');
   const nome = form.watch('nome');
+
+  // Handle dialog close with confirmation
+  const handleClose = (openState: boolean) => {
+    if (!openState) {
+      // User is trying to close - show confirmation
+      setShowExitConfirm(true);
+    } else {
+      onOpenChange(openState);
+    }
+  };
+
+  const confirmExit = () => {
+    setShowExitConfirm(false);
+    onOpenChange(false);
+  };
 
   // Calculate costs automatically when inputs change
   useEffect(() => {
@@ -224,7 +245,6 @@ const EmployeeFormDialog = ({
 
     // Update display values
     setFgtsDisplay(formatCurrency(breakdown.details.fgts));
-    setInssDisplay(formatCurrency(breakdown.details.inss));
     setDecimoDisplay(formatCurrency(breakdown.details.provisao13 || breakdown.details.provisaoRecesso));
     setFeriasDisplay(formatCurrency(breakdown.details.provisaoFerias));
   }, [tipoContratacao, salarioMensal, bolsaAuxilio, valorContratoPj, proLabore, dividendos, payrollProfile, localBenefits, localTools, form]);
@@ -263,7 +283,6 @@ const EmployeeFormDialog = ({
       setProLaboreDisplay(employee.proLabore ? formatCurrency(employee.proLabore) : '');
       setDividendosDisplay(employee.dividendos ? formatCurrency(employee.dividendos) : '');
       setFgtsDisplay(employee.fgts ? formatCurrency(employee.fgts) : '');
-      setInssDisplay(employee.inssEmpresa ? formatCurrency(employee.inssEmpresa) : '');
       setDecimoDisplay(employee.decimoTerceiro ? formatCurrency(employee.decimoTerceiro) : '');
       setFeriasDisplay(employee.ferias ? formatCurrency(employee.ferias) : '');
     } else {
@@ -299,7 +318,6 @@ const EmployeeFormDialog = ({
       setProLaboreDisplay('');
       setDividendosDisplay('');
       setFgtsDisplay('');
-      setInssDisplay('');
       setDecimoDisplay('');
       setFeriasDisplay('');
       setCurrentStep(0);
@@ -410,7 +428,6 @@ const EmployeeFormDialog = ({
     setProLaboreDisplay('');
     setDividendosDisplay('');
     setFgtsDisplay('');
-    setInssDisplay('');
     setDecimoDisplay('');
     setFeriasDisplay('');
     setLocalBenefits([]);
@@ -599,113 +616,76 @@ const EmployeeFormDialog = ({
     </div>
   );
 
-  const renderCostSummaryCard = () => {
-    if (!costBreakdown) return null;
-
-    const subtotalSalarial = 
-      costBreakdown.baseAmount + 
-      costBreakdown.chargesAmount + 
-      costBreakdown.provisionsAmount;
-
-    return (
-      <Card className="mt-6 border-primary/30 bg-primary/5">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Calculator className="h-5 w-5" />
-            Resumo de Custo (Estimado)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <span className="text-muted-foreground">Base</span>
-            <span className="text-right font-medium">{formatCurrency(costBreakdown.baseAmount)}</span>
-            <span className="text-muted-foreground">Encargos</span>
-            <span className="text-right font-medium">{formatCurrency(costBreakdown.chargesAmount)}</span>
-            <span className="text-muted-foreground">Provisões</span>
-            <span className="text-right font-medium">{formatCurrency(costBreakdown.provisionsAmount)}</span>
-          </div>
-          
-          <Separator />
-          
-          <div className="flex justify-between font-bold text-lg">
-            <span>SUBTOTAL SALARIAL</span>
-            <span className="text-primary">{formatCurrency(subtotalSalarial)}</span>
-          </div>
-          
-          <p className="text-xs text-muted-foreground text-center">
-            Benefícios e ferramentas serão adicionados nas etapas seguintes.
-          </p>
-          
-          <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-            <p className="text-sm text-warning-foreground">
-              Cálculo estimado; valide com contabilidade.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
   const renderFinancialFields = () => {
     const showCharges = showsChargesSection(tipoContratacao as ContractType);
     const showProvisions = showsProvisionsSection(tipoContratacao as ContractType);
     const baseLabel = getBaseFieldLabel(tipoContratacao as ContractType);
     
+    const subtotalSalarial = costBreakdown
+      ? costBreakdown.baseAmount + costBreakdown.chargesAmount + costBreakdown.provisionsAmount
+      : 0;
+    
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="tipoContratacao"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo de Contratação *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Dados da Contratação</CardTitle>
+          <CardDescription>
+            Configure o tipo de vínculo e valores do funcionário
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Tipo e Jornada */}
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="tipoContratacao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Contratação *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {(Object.keys(CONTRACT_TYPE_LABELS) as ContractType[]).map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {CONTRACT_TYPE_LABELS[type]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="jornadaMensal"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Jornada Mensal (horas) *</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
+                    <Input 
+                      type="number" 
+                      placeholder="176"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                    />
                   </FormControl>
-                  <SelectContent>
-                    {(Object.keys(CONTRACT_TYPE_LABELS) as ContractType[]).map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {CONTRACT_TYPE_LABELS[type]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="jornadaMensal"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Jornada Mensal (horas) *</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="176"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Valores - Dinâmico por tipo de contratação */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Valores</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <Separator />
+          
+          {/* Valores - Dinâmico por tipo */}
+          <div>
+            <h4 className="text-sm font-medium mb-3">Valores</h4>
             <div className="grid grid-cols-2 gap-4">
               {/* CLT / Menor Aprendiz: Salário Bruto */}
               {(tipoContratacao === 'CLT' || tipoContratacao === 'MENOR_APRENDIZ') && (
@@ -813,108 +793,105 @@ const EmployeeFormDialog = ({
                 </>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          
+          {/* Encargos e Provisões - Se aplicável */}
+          {(showCharges || showProvisions) && tipoContratacao !== 'PJ' && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-medium mb-1">
+                  {tipoContratacao === 'ESTAGIO' ? 'Provisões' : 'Encargos e Provisões'}
+                </h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Calculados automaticamente
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* FGTS */}
+                  {showCharges && (
+                    <FormItem>
+                      <FormLabel>FGTS</FormLabel>
+                      <Input disabled value={fgtsDisplay} className="bg-muted" />
+                    </FormItem>
+                  )}
 
-        {/* Encargos e Provisões - READ-ONLY */}
-        {(showCharges || showProvisions) && tipoContratacao !== 'PJ' && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">
-                {tipoContratacao === 'ESTAGIO' ? 'Provisões' : 'Encargos e Provisões'}
-              </CardTitle>
-              <CardDescription>
-                Valores calculados automaticamente com base no perfil de encargos configurado
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* FGTS - CLT, Menor Aprendiz, Sócio */}
-                {showCharges && (
-                  <FormItem>
-                    <FormLabel>FGTS</FormLabel>
-                    <FormControl>
-                      <Input 
-                        disabled
-                        value={fgtsDisplay}
-                        className="bg-muted"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
+                  {/* 13º Salário / Provisão Recesso */}
+                  {showProvisions && (
+                    <FormItem>
+                      <FormLabel>
+                        {tipoContratacao === 'ESTAGIO' ? 'Provisão Recesso' : '13º Salário'}
+                      </FormLabel>
+                      <Input disabled value={decimoDisplay} className="bg-muted" />
+                    </FormItem>
+                  )}
 
-                {/* INSS Empresa - CLT, Menor Aprendiz, Sócio */}
-                {showCharges && (
-                  <FormItem>
-                    <FormLabel>INSS Empresa</FormLabel>
-                    <FormControl>
-                      <Input 
-                        disabled
-                        value={inssDisplay}
-                        className="bg-muted"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-
-                {/* 13º Salário / Provisão Recesso */}
-                {showProvisions && (
-                  <FormItem>
-                    <FormLabel>
-                      {tipoContratacao === 'ESTAGIO' ? 'Provisão Recesso' : '13º Salário'}
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        disabled
-                        value={decimoDisplay}
-                        className="bg-muted"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-
-                {/* Férias + 1/3 - Não exibe para Estagiário */}
-                {showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
-                  <FormItem>
-                    <FormLabel>Férias + 1/3</FormLabel>
-                    <FormControl>
-                      <Input 
-                        disabled
-                        value={feriasDisplay}
-                        className="bg-muted"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              </div>
-
-              {/* Total Encargos - apenas para tipos que têm encargos */}
-              {showCharges && (
-                <div className="mt-3 p-3 bg-primary/10 rounded-lg flex justify-between items-center">
-                  <span className="font-medium">Total Encargos + Provisões</span>
-                  <span className="font-bold text-lg">
-                    {formatCurrency((costBreakdown?.chargesAmount || 0) + (costBreakdown?.provisionsAmount || 0))}
-                  </span>
+                  {/* Férias + 1/3 - Não exibe para Estagiário e Sócio */}
+                  {showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
+                    <FormItem>
+                      <FormLabel>Férias + 1/3</FormLabel>
+                      <Input disabled value={feriasDisplay} className="bg-muted" />
+                    </FormItem>
+                  )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* PJ - Mensagem informativa */}
-        {tipoContratacao === 'PJ' && (
-          <Card>
-            <CardContent className="pt-6">
+              </div>
+            </>
+          )}
+          
+          {/* PJ - Mensagem informativa */}
+          {tipoContratacao === 'PJ' && (
+            <>
+              <Separator />
               <p className="text-sm text-muted-foreground">
                 Para contratos PJ, não há encargos trabalhistas ou provisões a calcular.
               </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Card Resumo Mensal */}
-        {renderCostSummaryCard()}
-      </div>
+            </>
+          )}
+          
+          {/* Resumo Integrado */}
+          {costBreakdown && (
+            <>
+              <Separator />
+              <div className="bg-primary/5 rounded-lg p-4 space-y-3">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <Calculator className="h-4 w-4" />
+                  Resumo de Custo
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <span className="text-muted-foreground">Base</span>
+                  <span className="text-right font-medium">
+                    {formatCurrency(costBreakdown.baseAmount)}
+                  </span>
+                  <span className="text-muted-foreground">Encargos</span>
+                  <span className="text-right font-medium">
+                    {formatCurrency(costBreakdown.chargesAmount)}
+                  </span>
+                  <span className="text-muted-foreground">Provisões</span>
+                  <span className="text-right font-medium">
+                    {formatCurrency(costBreakdown.provisionsAmount)}
+                  </span>
+                </div>
+                <div className="border-t pt-3 flex justify-between font-bold">
+                  <span>SUBTOTAL SALARIAL</span>
+                  <span className="text-primary">
+                    {formatCurrency(subtotalSalarial)}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Benefícios e ferramentas serão adicionados nas etapas seguintes.
+                </p>
+              </div>
+            </>
+          )}
+          
+          {/* Aviso */}
+          <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+            <p className="text-sm text-warning-foreground">
+              Cálculo estimado; valide com contabilidade.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -1018,98 +995,109 @@ const EmployeeFormDialog = ({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">
-            {isEditing ? 'Editar Funcionário' : 'Novo Funcionário'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditing
-              ? 'Atualize as informações do funcionário.'
-              : `Etapa ${currentStep + 1} de ${STEPS.length}: ${STEPS[currentStep].label}`}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">
+              {isEditing ? 'Editar Funcionário' : 'Novo Funcionário'}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditing
+                ? 'Atualize as informações do funcionário.'
+                : `Etapa ${currentStep + 1} de ${STEPS.length}: ${STEPS[currentStep].label}`}
+            </DialogDescription>
+          </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)}>
-            {isEditing ? (
-              // Edit mode: Traditional tabs
-              <div className="min-h-[300px]">
-                {renderEditTabs()}
-              </div>
-            ) : (
-              // Create mode: Wizard steps
-              <>
-                {renderStepIndicator()}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)}>
+              {isEditing ? (
+                // Edit mode: Traditional tabs
                 <div className="min-h-[300px]">
-                  {renderCurrentStep()}
+                  {renderEditTabs()}
                 </div>
-              </>
-            )}
+              ) : (
+                // Create mode: Wizard steps
+                <>
+                  {renderStepIndicator()}
+                  <div className="min-h-[300px]">
+                    {renderCurrentStep()}
+                  </div>
+                </>
+              )}
 
-            <div className="flex justify-between gap-3 pt-4 mt-4 border-t">
-              <div>
-                {!isEditing && currentStep > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handlePrevious}
-                    disabled={isLoading}
-                  >
-                    <ChevronLeft className="mr-2 h-4 w-4" />
-                    Anterior
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  disabled={isLoading}
-                >
-                  Cancelar
-                </Button>
+              <div className="flex justify-between gap-3 pt-4 mt-4 border-t">
+                <div>
+                  {!isEditing && currentStep > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handlePrevious}
+                      disabled={isLoading}
+                    >
+                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      Anterior
+                    </Button>
+                  )}
+                </div>
                 
-                {!isEditing && isLastStep ? (
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Finalizar Cadastro
-                      </>
-                    )}
-                  </Button>
-                ) : !isEditing ? (
-                  <Button type="button" onClick={handleNext}>
-                    Próximo
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      'Salvar Alterações'
-                    )}
-                  </Button>
-                )}
+                <div className="flex gap-3">
+                  {!isEditing && isLastStep ? (
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="mr-2 h-4 w-4" />
+                          Finalizar Cadastro
+                        </>
+                      )}
+                    </Button>
+                  ) : !isEditing ? (
+                    <Button type="button" onClick={handleNext}>
+                      Próximo
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        'Salvar Alterações'
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Exit Confirmation Dialog */}
+      <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deseja sair?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os dados preenchidos serão perdidos. Tem certeza que deseja sair?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmExit}>
+              Sair sem salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
