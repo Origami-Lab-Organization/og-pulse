@@ -5,6 +5,9 @@ import { z } from 'zod';
 import { Employee, useEmployeeVersions } from '@/hooks/useEmployees';
 import { CreateEmployeeInput } from '@/services/employeeService';
 import { ContractType, CONTRACT_TYPE_LABELS } from '@/types/employee';
+import { usePayrollProfile } from '@/hooks/usePayrollProfile';
+import { calculateEmployeeCost, CostBreakdown, getBaseFieldLabel, showsChargesSection, showsProvisionsSection } from '@/lib/employeeCostCalculator';
+import { formatCurrency } from '@/lib/formatters';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 
 import {
   Select,
@@ -32,8 +36,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History } from 'lucide-react';
-import { formatPhone, formatCPF, formatCurrency, parseCurrency, validateCPF } from '@/lib/masks';
+import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History, Calculator, AlertCircle } from 'lucide-react';
+import { formatPhone, formatCPF, formatCurrency as formatCurrencyMask, parseCurrency, validateCPF } from '@/lib/masks';
 import { EmployeeToolsTable } from './EmployeeToolsTable';
 import { EmployeeBenefitsTable } from './EmployeeBenefitsTable';
 import { EmployeeBenefitsLocalTable, LocalBenefit } from './EmployeeBenefitsLocalTable';
@@ -43,7 +47,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const formSchema = z.object({
+const baseFormSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
   email: z.string().email('Email inválido').max(255, 'Email muito longo'),
   telefone: z.string().min(10, 'Telefone é obrigatório'),
@@ -57,8 +61,10 @@ const formSchema = z.object({
   tipoContratacao: z.enum(['SOCIO', 'CLT', 'PJ', 'MENOR_APRENDIZ', 'ESTAGIO'] as const),
   jornadaMensal: z.number().min(1, 'Jornada deve ser maior que 0'),
   salarioMensal: z.number().min(0, 'Salário não pode ser negativo'),
-  salarioLiquido: z.number().min(0, 'Salário líquido não pode ser negativo'),
+  bolsaAuxilio: z.number().min(0, 'Bolsa-auxílio não pode ser negativa'),
+  valorContratoPj: z.number().min(0, 'Valor do contrato não pode ser negativo'),
   proLabore: z.number().min(0, 'Pró-labore não pode ser negativo'),
+  dividendos: z.number().min(0, 'Dividendos não podem ser negativos'),
   fgts: z.number().min(0),
   inssEmpresa: z.number().min(0),
   decimoTerceiro: z.number().min(0),
@@ -67,7 +73,26 @@ const formSchema = z.object({
   encargos: z.number().min(0),
 });
 
-type FormData = z.infer<typeof formSchema>;
+const formSchema = baseFormSchema.refine((data) => {
+  switch (data.tipoContratacao) {
+    case 'CLT':
+    case 'MENOR_APRENDIZ':
+      return data.salarioMensal > 0;
+    case 'ESTAGIO':
+      return data.bolsaAuxilio > 0;
+    case 'PJ':
+      return data.valorContratoPj > 0;
+    case 'SOCIO':
+      return data.proLabore > 0 || data.dividendos > 0;
+    default:
+      return true;
+  }
+}, {
+  message: 'Preencha o valor base conforme o tipo de contratação',
+  path: ['salarioMensal'],
+});
+
+type FormData = z.infer<typeof baseFormSchema>;
 
 export interface EmployeeFormSubmitData extends CreateEmployeeInput {
   localBenefits?: LocalBenefit[];
@@ -105,16 +130,24 @@ const EmployeeFormDialog = ({
     isEditing ? employee?.id : undefined
   );
 
+  // Fetch payroll profile for cost calculation
+  const { data: payrollProfile } = usePayrollProfile();
+
   // Local state for benefits and tools (for new employees)
   const [localBenefits, setLocalBenefits] = useState<LocalBenefit[]>([]);
   const [localTools, setLocalTools] = useState<LocalTool[]>([]);
+
+  // Cost breakdown state
+  const [costBreakdown, setCostBreakdown] = useState<CostBreakdown | null>(null);
 
   // Masked display values
   const [phoneDisplay, setPhoneDisplay] = useState('');
   const [cpfDisplay, setCpfDisplay] = useState('');
   const [salarioDisplay, setSalarioDisplay] = useState('');
-  const [salarioLiquidoDisplay, setSalarioLiquidoDisplay] = useState('');
+  const [bolsaAuxilioDisplay, setBolsaAuxilioDisplay] = useState('');
+  const [valorContratoPjDisplay, setValorContratoPjDisplay] = useState('');
   const [proLaboreDisplay, setProLaboreDisplay] = useState('');
+  const [dividendosDisplay, setDividendosDisplay] = useState('');
   const [fgtsDisplay, setFgtsDisplay] = useState('');
   const [inssDisplay, setInssDisplay] = useState('');
   const [decimoDisplay, setDecimoDisplay] = useState('');
@@ -134,8 +167,10 @@ const EmployeeFormDialog = ({
       tipoContratacao: 'CLT',
       jornadaMensal: 176,
       salarioMensal: 0,
-      salarioLiquido: 0,
+      bolsaAuxilio: 0,
+      valorContratoPj: 0,
       proLabore: 0,
+      dividendos: 0,
       fgts: 0,
       inssEmpresa: 0,
       decimoTerceiro: 0,
@@ -146,17 +181,53 @@ const EmployeeFormDialog = ({
   });
 
   const tipoContratacao = form.watch('tipoContratacao');
+  const salarioMensal = form.watch('salarioMensal');
+  const bolsaAuxilio = form.watch('bolsaAuxilio');
+  const valorContratoPj = form.watch('valorContratoPj');
+  const proLabore = form.watch('proLabore');
+  const dividendos = form.watch('dividendos');
   const fgts = form.watch('fgts');
   const inssEmpresa = form.watch('inssEmpresa');
   const decimoTerceiro = form.watch('decimoTerceiro');
   const ferias = form.watch('ferias');
   const nome = form.watch('nome');
 
-  // Calculate total encargos when individual values change
+  // Calculate costs automatically when inputs change
   useEffect(() => {
-    const totalEncargos = fgts + inssEmpresa + decimoTerceiro + ferias;
-    form.setValue('encargos', totalEncargos);
-  }, [fgts, inssEmpresa, decimoTerceiro, ferias, form]);
+    if (!payrollProfile) return;
+
+    const benefitsTotal = localBenefits
+      .reduce((sum, b) => sum + b.monthlyValue, 0);
+    const toolsTotal = localTools
+      .reduce((sum, t) => sum + t.monthlyCost, 0);
+
+    const breakdown = calculateEmployeeCost({
+      tipoContratacao: tipoContratacao as ContractType,
+      salarioBruto: salarioMensal,
+      bolsaAuxilio: bolsaAuxilio,
+      valorContratoPj: valorContratoPj,
+      proLabore: proLabore,
+      dividendos: dividendos,
+      benefitsTotalMonthly: benefitsTotal,
+      toolsTotalMonthly: toolsTotal,
+      payrollProfile,
+    });
+
+    setCostBreakdown(breakdown);
+
+    // Update form values with calculated charges
+    form.setValue('fgts', breakdown.details.fgts);
+    form.setValue('inssEmpresa', breakdown.details.inss);
+    form.setValue('decimoTerceiro', breakdown.details.provisao13 || breakdown.details.provisaoRecesso);
+    form.setValue('ferias', breakdown.details.provisaoFerias);
+    form.setValue('encargos', breakdown.chargesAmount);
+
+    // Update display values
+    setFgtsDisplay(formatCurrency(breakdown.details.fgts));
+    setInssDisplay(formatCurrency(breakdown.details.inss));
+    setDecimoDisplay(formatCurrency(breakdown.details.provisao13 || breakdown.details.provisaoRecesso));
+    setFeriasDisplay(formatCurrency(breakdown.details.provisaoFerias));
+  }, [tipoContratacao, salarioMensal, bolsaAuxilio, valorContratoPj, proLabore, dividendos, payrollProfile, localBenefits, localTools, form]);
 
   useEffect(() => {
     if (employee) {
@@ -172,8 +243,10 @@ const EmployeeFormDialog = ({
         tipoContratacao: employee.tipoContratacao || 'CLT',
         jornadaMensal: employee.jornadaMensal || 176,
         salarioMensal: employee.salarioMensal,
-        salarioLiquido: employee.salarioLiquido || 0,
+        bolsaAuxilio: employee.bolsaAuxilio || 0,
+        valorContratoPj: employee.valorContratoPj || 0,
         proLabore: employee.proLabore || 0,
+        dividendos: employee.dividendos || 0,
         fgts: employee.fgts || 0,
         inssEmpresa: employee.inssEmpresa || 0,
         decimoTerceiro: employee.decimoTerceiro || 0,
@@ -185,8 +258,10 @@ const EmployeeFormDialog = ({
       setPhoneDisplay(employee.telefone ? formatPhone(employee.telefone) : '');
       setCpfDisplay(employee.cpf ? formatCPF(employee.cpf) : '');
       setSalarioDisplay(employee.salarioMensal ? formatCurrency(employee.salarioMensal) : '');
-      setSalarioLiquidoDisplay(employee.salarioLiquido ? formatCurrency(employee.salarioLiquido) : '');
+      setBolsaAuxilioDisplay(employee.bolsaAuxilio ? formatCurrency(employee.bolsaAuxilio) : '');
+      setValorContratoPjDisplay(employee.valorContratoPj ? formatCurrency(employee.valorContratoPj) : '');
       setProLaboreDisplay(employee.proLabore ? formatCurrency(employee.proLabore) : '');
+      setDividendosDisplay(employee.dividendos ? formatCurrency(employee.dividendos) : '');
       setFgtsDisplay(employee.fgts ? formatCurrency(employee.fgts) : '');
       setInssDisplay(employee.inssEmpresa ? formatCurrency(employee.inssEmpresa) : '');
       setDecimoDisplay(employee.decimoTerceiro ? formatCurrency(employee.decimoTerceiro) : '');
@@ -204,8 +279,10 @@ const EmployeeFormDialog = ({
         tipoContratacao: 'CLT',
         jornadaMensal: 176,
         salarioMensal: 0,
-        salarioLiquido: 0,
+        bolsaAuxilio: 0,
+        valorContratoPj: 0,
         proLabore: 0,
+        dividendos: 0,
         fgts: 0,
         inssEmpresa: 0,
         decimoTerceiro: 0,
@@ -217,8 +294,10 @@ const EmployeeFormDialog = ({
       setPhoneDisplay('');
       setCpfDisplay('');
       setSalarioDisplay('');
-      setSalarioLiquidoDisplay('');
+      setBolsaAuxilioDisplay('');
+      setValorContratoPjDisplay('');
       setProLaboreDisplay('');
+      setDividendosDisplay('');
       setFgtsDisplay('');
       setInssDisplay('');
       setDecimoDisplay('');
@@ -226,6 +305,7 @@ const EmployeeFormDialog = ({
       setCurrentStep(0);
       setLocalBenefits([]);
       setLocalTools([]);
+      setCostBreakdown(null);
     }
   }, [employee, form, open]);
 
@@ -247,7 +327,7 @@ const EmployeeFormDialog = ({
     field: keyof FormData,
     setDisplay: React.Dispatch<React.SetStateAction<string>>
   ) => {
-    const formatted = formatCurrency(e.target.value);
+    const formatted = formatCurrencyMask(e.target.value);
     setDisplay(formatted);
     form.setValue(field, parseCurrency(formatted) as never);
   };
@@ -257,7 +337,27 @@ const EmployeeFormDialog = ({
       return await form.trigger(['nome', 'email', 'telefone', 'cpf', 'cargo', 'dataAdmissao', 'status', 'isGerente']);
     }
     if (currentStep === 1) {
-      return await form.trigger(['tipoContratacao', 'jornadaMensal', 'salarioMensal', 'proLabore']);
+      // Validate based on contract type
+      const tipo = form.getValues('tipoContratacao');
+      const fieldsToValidate: (keyof FormData)[] = ['tipoContratacao', 'jornadaMensal'];
+      
+      switch (tipo) {
+        case 'CLT':
+        case 'MENOR_APRENDIZ':
+          fieldsToValidate.push('salarioMensal');
+          break;
+        case 'ESTAGIO':
+          fieldsToValidate.push('bolsaAuxilio');
+          break;
+        case 'PJ':
+          fieldsToValidate.push('valorContratoPj');
+          break;
+        case 'SOCIO':
+          fieldsToValidate.push('proLabore', 'dividendos');
+          break;
+      }
+      
+      return await form.trigger(fieldsToValidate);
     }
     return true;
   };
@@ -280,13 +380,13 @@ const EmployeeFormDialog = ({
     let hasVersionedChanges = false;
     if (isEditing && employee) {
       const versionedFields = [
-        'salarioMensal', 'salarioLiquido', 'beneficios', 'encargos',
+        'salarioMensal', 'bolsaAuxilio', 'valorContratoPj', 'beneficios', 'encargos',
         'fgts', 'inssEmpresa', 'decimoTerceiro', 'ferias', 
-        'proLabore', 'jornadaMensal', 'tipoContratacao', 'cargo'
+        'proLabore', 'dividendos', 'jornadaMensal', 'tipoContratacao', 'cargo'
       ] as const;
       
       for (const field of versionedFields) {
-        if (data[field] !== employee[field]) {
+        if (data[field] !== (employee as any)[field]) {
           hasVersionedChanges = true;
           break;
         }
@@ -305,8 +405,10 @@ const EmployeeFormDialog = ({
     setPhoneDisplay('');
     setCpfDisplay('');
     setSalarioDisplay('');
-    setSalarioLiquidoDisplay('');
+    setBolsaAuxilioDisplay('');
+    setValorContratoPjDisplay('');
     setProLaboreDisplay('');
+    setDividendosDisplay('');
     setFgtsDisplay('');
     setInssDisplay('');
     setDecimoDisplay('');
@@ -314,6 +416,7 @@ const EmployeeFormDialog = ({
     setLocalBenefits([]);
     setLocalTools([]);
     setCurrentStep(0);
+    setCostBreakdown(null);
   };
 
   const renderStepIndicator = () => (
@@ -496,205 +599,323 @@ const EmployeeFormDialog = ({
     </div>
   );
 
-  const renderFinancialFields = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <FormField
-          control={form.control}
-          name="tipoContratacao"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tipo de Contratação *</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+  const renderCostSummaryCard = () => {
+    if (!costBreakdown) return null;
+
+    return (
+      <Card className="mt-6 border-primary/30 bg-primary/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Calculator className="h-5 w-5" />
+            Resumo de Custo (Estimado)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <span className="text-muted-foreground">Base</span>
+            <span className="text-right font-medium">{formatCurrency(costBreakdown.baseAmount)}</span>
+            <span className="text-muted-foreground">Encargos</span>
+            <span className="text-right font-medium">{formatCurrency(costBreakdown.chargesAmount)}</span>
+            <span className="text-muted-foreground">Provisões</span>
+            <span className="text-right font-medium">{formatCurrency(costBreakdown.provisionsAmount)}</span>
+            <span className="text-muted-foreground">Benefícios</span>
+            <span className="text-right font-medium">{formatCurrency(costBreakdown.benefitsAmount)}</span>
+            <span className="text-muted-foreground">Ferramentas</span>
+            <span className="text-right font-medium">{formatCurrency(costBreakdown.toolsAmount)}</span>
+          </div>
+          
+          <Separator />
+          
+          <div className="flex justify-between font-bold text-lg">
+            <span>CUSTO TOTAL MENSAL</span>
+            <span className="text-primary">{formatCurrency(costBreakdown.totalMonthlyCost)}</span>
+          </div>
+          <div className="flex justify-between text-muted-foreground">
+            <span>CUSTO TOTAL ANUAL</span>
+            <span>{formatCurrency(costBreakdown.totalAnnualCost)}</span>
+          </div>
+          
+          <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+            <p className="text-sm text-warning-foreground">
+              Cálculo estimado; valide com contabilidade.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderFinancialFields = () => {
+    const showCharges = showsChargesSection(tipoContratacao as ContractType);
+    const showProvisions = showsProvisionsSection(tipoContratacao as ContractType);
+    const baseLabel = getBaseFieldLabel(tipoContratacao as ContractType);
+    
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="tipoContratacao"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tipo de Contratação *</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {(Object.keys(CONTRACT_TYPE_LABELS) as ContractType[]).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {CONTRACT_TYPE_LABELS[type]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="jornadaMensal"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Jornada Mensal (horas) *</FormLabel>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
+                  <Input 
+                    type="number" 
+                    placeholder="176"
+                    {...field}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                  />
                 </FormControl>
-                <SelectContent>
-                  {(Object.keys(CONTRACT_TYPE_LABELS) as ContractType[]).map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {CONTRACT_TYPE_LABELS[type]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-        <FormField
-          control={form.control}
-          name="jornadaMensal"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Jornada Mensal (horas) *</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  placeholder="176"
-                  {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+        {/* Valores - Dinâmico por tipo de contratação */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Valores</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              {/* CLT / Menor Aprendiz: Salário Bruto */}
+              {(tipoContratacao === 'CLT' || tipoContratacao === 'MENOR_APRENDIZ') && (
+                <FormField
+                  control={form.control}
+                  name="salarioMensal"
+                  render={() => (
+                    <FormItem className="col-span-2 md:col-span-1">
+                      <FormLabel>{baseLabel} *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={salarioDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+              )}
+
+              {/* Estagiário: Bolsa-Auxílio */}
+              {tipoContratacao === 'ESTAGIO' && (
+                <FormField
+                  control={form.control}
+                  name="bolsaAuxilio"
+                  render={() => (
+                    <FormItem className="col-span-2 md:col-span-1">
+                      <FormLabel>{baseLabel} *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={bolsaAuxilioDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'bolsaAuxilio', setBolsaAuxilioDisplay)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* PJ: Valor Mensal do Contrato */}
+              {tipoContratacao === 'PJ' && (
+                <FormField
+                  control={form.control}
+                  name="valorContratoPj"
+                  render={() => (
+                    <FormItem className="col-span-2 md:col-span-1">
+                      <FormLabel>{baseLabel} *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={valorContratoPjDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'valorContratoPj', setValorContratoPjDisplay)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Sócio: Pró-Labore + Dividendos */}
+              {tipoContratacao === 'SOCIO' && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="proLabore"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Pró-Labore (mensal)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="R$ 0,00"
+                            value={proLaboreDisplay}
+                            onChange={(e) => handleCurrencyChange(e, 'proLabore', setProLaboreDisplay)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="dividendos"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Dividendos (mensal)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="R$ 0,00"
+                            value={dividendosDisplay}
+                            onChange={(e) => handleCurrencyChange(e, 'dividendos', setDividendosDisplay)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <p className="col-span-2 text-xs text-muted-foreground">
+                    * Preencha Pró-Labore e/ou Dividendos. Encargos incidem apenas sobre Pró-Labore.
+                  </p>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Encargos e Provisões - READ-ONLY */}
+        {(showCharges || showProvisions) && tipoContratacao !== 'PJ' && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">
+                {tipoContratacao === 'ESTAGIO' ? 'Provisões' : 'Encargos e Provisões'}
+              </CardTitle>
+              <CardDescription>
+                Valores calculados automaticamente com base no perfil de encargos configurado
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* FGTS - CLT, Menor Aprendiz, Sócio */}
+                {showCharges && (
+                  <FormItem>
+                    <FormLabel>FGTS</FormLabel>
+                    <FormControl>
+                      <Input 
+                        disabled
+                        value={fgtsDisplay}
+                        className="bg-muted"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+
+                {/* INSS Empresa - CLT, Menor Aprendiz, Sócio */}
+                {showCharges && (
+                  <FormItem>
+                    <FormLabel>INSS Empresa</FormLabel>
+                    <FormControl>
+                      <Input 
+                        disabled
+                        value={inssDisplay}
+                        className="bg-muted"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+
+                {/* 13º Salário / Provisão Recesso */}
+                {showProvisions && (
+                  <FormItem>
+                    <FormLabel>
+                      {tipoContratacao === 'ESTAGIO' ? 'Provisão Recesso' : '13º Salário'}
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        disabled
+                        value={decimoDisplay}
+                        className="bg-muted"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+
+                {/* Férias + 1/3 - Não exibe para Estagiário */}
+                {showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
+                  <FormItem>
+                    <FormLabel>Férias + 1/3</FormLabel>
+                    <FormControl>
+                      <Input 
+                        disabled
+                        value={feriasDisplay}
+                        className="bg-muted"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              </div>
+
+              {/* Total Encargos - apenas para tipos que têm encargos */}
+              {showCharges && (
+                <div className="mt-3 p-3 bg-primary/10 rounded-lg flex justify-between items-center">
+                  <span className="font-medium">Total Encargos + Provisões</span>
+                  <span className="font-bold text-lg">
+                    {formatCurrency((costBreakdown?.chargesAmount || 0) + (costBreakdown?.provisionsAmount || 0))}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* PJ - Mensagem informativa */}
+        {tipoContratacao === 'PJ' && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">
+                Para contratos PJ, não há encargos trabalhistas ou provisões a calcular.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Card Resumo Mensal */}
+        {renderCostSummaryCard()}
       </div>
-
-      {/* Salários - Todos os tipos */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Valores</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="salarioMensal"
-              render={() => (
-                <FormItem>
-                  <FormLabel>Salário Bruto *</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="R$ 0,00"
-                      value={salarioDisplay}
-                      onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="salarioLiquido"
-              render={() => (
-                <FormItem>
-                  <FormLabel>Salário Líquido</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="R$ 0,00"
-                      value={salarioLiquidoDisplay}
-                      onChange={(e) => handleCurrencyChange(e, 'salarioLiquido', setSalarioLiquidoDisplay)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="proLabore"
-              render={() => (
-                <FormItem>
-                  <FormLabel>Pró-Labore</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="R$ 0,00"
-                      value={proLaboreDisplay}
-                      onChange={(e) => handleCurrencyChange(e, 'proLabore', setProLaboreDisplay)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Encargos - Todos os tipos */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Encargos</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="fgts"
-              render={() => (
-                <FormItem>
-                  <FormLabel>FGTS</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="R$ 0,00"
-                      value={fgtsDisplay}
-                      onChange={(e) => handleCurrencyChange(e, 'fgts', setFgtsDisplay)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="inssEmpresa"
-              render={() => (
-                <FormItem>
-                  <FormLabel>INSS Empresa</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="R$ 0,00"
-                      value={inssDisplay}
-                      onChange={(e) => handleCurrencyChange(e, 'inssEmpresa', setInssDisplay)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="decimoTerceiro"
-              render={() => (
-                <FormItem>
-                  <FormLabel>13º Salário</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="R$ 0,00"
-                      value={decimoDisplay}
-                      onChange={(e) => handleCurrencyChange(e, 'decimoTerceiro', setDecimoDisplay)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="ferias"
-              render={() => (
-                <FormItem>
-                  <FormLabel>Férias + 1/3</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="R$ 0,00"
-                      value={feriasDisplay}
-                      onChange={(e) => handleCurrencyChange(e, 'ferias', setFeriasDisplay)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <div className="mt-3 p-3 bg-primary/10 rounded-lg flex justify-between items-center">
-            <span className="font-medium">Total Encargos</span>
-            <span className="font-bold text-lg">{formatCurrency(fgts + inssEmpresa + decimoTerceiro + ferias)}</span>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+    );
+  };
 
   const renderCurrentStep = () => {
     switch (currentStep) {
