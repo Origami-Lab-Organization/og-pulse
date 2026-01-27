@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { formatPhone, formatCPF, formatCurrency, parseCurrency, validateCPF } from '@/lib/masks';
 import { EmployeeToolsTable } from './EmployeeToolsTable';
@@ -703,6 +704,41 @@ const EmployeeFormDialog = ({
 
   const isLastStep = currentStep === STEPS.length - 1;
 
+  const renderEditTabs = () => (
+    <Tabs defaultValue="dados" className="w-full">
+      <TabsList className="grid w-full grid-cols-4">
+        <TabsTrigger value="dados" className="flex items-center gap-2">
+          <User className="h-4 w-4" />
+          <span className="hidden sm:inline">Dados</span>
+        </TabsTrigger>
+        <TabsTrigger value="financeiro" className="flex items-center gap-2">
+          <Briefcase className="h-4 w-4" />
+          <span className="hidden sm:inline">Contratação</span>
+        </TabsTrigger>
+        <TabsTrigger value="beneficios" className="flex items-center gap-2">
+          <Heart className="h-4 w-4" />
+          <span className="hidden sm:inline">Benefícios</span>
+        </TabsTrigger>
+        <TabsTrigger value="ferramentas" className="flex items-center gap-2">
+          <Wrench className="h-4 w-4" />
+          <span className="hidden sm:inline">Ferramentas</span>
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="dados" className="mt-4">
+        {renderPersonalDataFields()}
+      </TabsContent>
+      <TabsContent value="financeiro" className="mt-4">
+        {renderFinancialFields()}
+      </TabsContent>
+      <TabsContent value="beneficios" className="mt-4">
+        {employee && <EmployeeBenefitsTable employeeId={employee.id} employeeName={employee.nome} />}
+      </TabsContent>
+      <TabsContent value="ferramentas" className="mt-4">
+        {employee && <EmployeeToolsTable employeeId={employee.id} employeeName={employee.nome} />}
+      </TabsContent>
+    </Tabs>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -717,17 +753,26 @@ const EmployeeFormDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        {!isEditing && renderStepIndicator()}
-
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)}>
-            <div className="min-h-[300px]">
-              {renderCurrentStep()}
-            </div>
+            {isEditing ? (
+              // Edit mode: Traditional tabs
+              <div className="min-h-[300px]">
+                {renderEditTabs()}
+              </div>
+            ) : (
+              // Create mode: Wizard steps
+              <>
+                {renderStepIndicator()}
+                <div className="min-h-[300px]">
+                  {renderCurrentStep()}
+                </div>
+              </>
+            )}
 
             <div className="flex justify-between gap-3 pt-4 mt-4 border-t">
               <div>
-                {currentStep > 0 && (
+                {!isEditing && currentStep > 0 && (
                   <Button
                     type="button"
                     variant="outline"
