@@ -23,7 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import {
   Select,
   SelectContent,
@@ -99,7 +99,6 @@ const EmployeeFormDialog = ({
 }: EmployeeFormDialogProps) => {
   const isEditing = !!employee;
   const [currentStep, setCurrentStep] = useState(0);
-  const [createNewVersion, setCreateNewVersion] = useState(false);
 
   // Fetch versions for editing mode
   const { data: versions = [], isLoading: versionsLoading } = useEmployeeVersions(
@@ -227,7 +226,6 @@ const EmployeeFormDialog = ({
       setCurrentStep(0);
       setLocalBenefits([]);
       setLocalTools([]);
-      setCreateNewVersion(false);
     }
   }, [employee, form, open]);
 
@@ -278,11 +276,28 @@ const EmployeeFormDialog = ({
   };
 
   const handleSubmit = (data: FormData) => {
+    // Detect if versioned fields changed (only for editing)
+    let hasVersionedChanges = false;
+    if (isEditing && employee) {
+      const versionedFields = [
+        'salarioMensal', 'salarioLiquido', 'beneficios', 'encargos',
+        'fgts', 'inssEmpresa', 'decimoTerceiro', 'ferias', 
+        'proLabore', 'jornadaMensal', 'tipoContratacao', 'cargo'
+      ] as const;
+      
+      for (const field of versionedFields) {
+        if (data[field] !== employee[field]) {
+          hasVersionedChanges = true;
+          break;
+        }
+      }
+    }
+
     onSubmit({
       ...data,
       localBenefits: isEditing ? undefined : localBenefits,
       localTools: isEditing ? undefined : localTools,
-      createNewVersion: isEditing ? createNewVersion : undefined,
+      createNewVersion: hasVersionedChanges,
     } as EmployeeFormSubmitData);
     
     // Reset everything
@@ -299,7 +314,6 @@ const EmployeeFormDialog = ({
     setLocalBenefits([]);
     setLocalTools([]);
     setCurrentStep(0);
-    setCreateNewVersion(false);
   };
 
   const renderStepIndicator = () => (
@@ -745,35 +759,16 @@ const EmployeeFormDialog = ({
         {renderPersonalDataFields()}
       </TabsContent>
       <TabsContent value="financeiro" className="mt-4">
-        <div className="space-y-4">
-          {renderFinancialFields()}
-          
-          {/* Versioning checkbox */}
-          <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/20">
-            <CardContent className="pt-4">
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="createNewVersion"
-                  checked={createNewVersion}
-                  onCheckedChange={(checked) => setCreateNewVersion(checked === true)}
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <label
-                    htmlFor="createNewVersion"
-                    className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
-                  >
-                    <History className="h-4 w-4" />
-                    Criar novo marco financeiro
-                  </label>
-                  <p className="text-xs text-muted-foreground">
-                    Ao marcar esta opção, os valores anteriores serão preservados para orçamentos e projetos passados. 
-                    As novas informações serão aplicadas apenas a partir de hoje.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {renderFinancialFields()}
+        
+        {/* Info about automatic versioning */}
+        <Alert className="mt-4 border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-900/20">
+          <History className="h-4 w-4" />
+          <AlertDescription>
+            Alterações em valores financeiros (salário, encargos, jornada, cargo) criam automaticamente um novo marco, 
+            preservando os dados anteriores para orçamentos e projetos passados.
+          </AlertDescription>
+        </Alert>
       </TabsContent>
       <TabsContent value="beneficios" className="mt-4">
         {employee && <EmployeeBenefitsTable employeeId={employee.id} employeeName={employee.nome} />}
