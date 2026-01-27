@@ -142,26 +142,62 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Generate temporary password
-    const tempPassword = generateTempPassword();
-    console.log("Generated temp password for:", email);
+    // Check if email already exists in employees table (same tenant)
+    const { data: existingEmployeeInTenant } = await adminClient
+      .from('employees')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('email', email)
+      .maybeSingle();
 
-    // Create user in Supabase Auth
-    const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true, // Auto-confirm since we're inviting
-    });
-
-    if (authError) {
-      console.error('Error creating auth user:', authError);
+    if (existingEmployeeInTenant) {
+      console.error("Employee already exists in this tenant:", email);
       return new Response(
-        JSON.stringify({ error: `Erro ao criar usuário: ${authError.message}` }),
+        JSON.stringify({ error: 'Este email já está cadastrado nesta empresa' }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log("Auth user created:", authUser.user.id);
+    // Check if the user already exists in another tenant
+    const { data: existingEmployee } = await adminClient
+      .from('employees')
+      .select('auth_id, email')
+      .eq('email', email)
+      .not('auth_id', 'is', null)
+      .limit(1)
+      .maybeSingle();
+
+    let authUserId: string;
+    let tempPassword: string | null = null;
+    let isExistingUser = false;
+
+    if (existingEmployee?.auth_id) {
+      // User already exists in another tenant - reuse their auth_id
+      console.log("Email already exists in another tenant, reusing auth_id:", existingEmployee.auth_id);
+      authUserId = existingEmployee.auth_id;
+      isExistingUser = true;
+    } else {
+      // Create new user in Supabase Auth
+      tempPassword = generateTempPassword();
+      console.log("Generated temp password for new user:", email);
+
+      const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true, // Auto-confirm since we're inviting
+      });
+
+      if (authError) {
+        console.error('Error creating auth user:', authError);
+        return new Response(
+          JSON.stringify({ error: `Erro ao criar usuário: ${authError.message}` }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      authUserId = authUser.user.id;
+      console.log("New auth user created:", authUserId);
+    }
 
     // Create employee record with all new fields
     const { data: employee, error: employeeError } = await adminClient
@@ -187,17 +223,19 @@ const handler = async (req: Request): Promise<Response> => {
         ferias: ferias || 0,
         pro_labore: proLabore || 0,
         tenant_id: tenantId,
-        auth_id: authUser.user.id,
-        must_change_password: true,
-        temp_password: tempPassword, // Store for reference (will be cleared on first login)
+        auth_id: authUserId,
+        must_change_password: !isExistingUser, // Only require change for new users
+        temp_password: tempPassword, // null for existing users
       })
       .select()
       .single();
 
     if (employeeError) {
       console.error('Error creating employee:', employeeError);
-      // Rollback: delete the auth user we just created
-      await adminClient.auth.admin.deleteUser(authUser.user.id);
+      // Rollback: delete the auth user we just created (only if it was a new user)
+      if (!isExistingUser) {
+        await adminClient.auth.admin.deleteUser(authUserId);
+      }
       return new Response(
         JSON.stringify({ error: `Erro ao criar funcionário: ${employeeError.message}` }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -206,11 +244,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Employee created:", employee.id);
 
-    // Create user role (default: user)
+    // Create user role for this tenant
     const { error: roleError } = await adminClient
       .from('user_roles')
       .insert({
-        user_id: authUser.user.id,
+        user_id: authUserId,
         tenant_id: tenantId,
         role: isGerente ? 'admin' : 'user',
       });
@@ -222,38 +260,42 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("User role created");
 
-    // Send invite email
+    // Send invite email only for new users
     let emailSent = false;
     let emailError = null;
     
-    try {
-      console.log("Attempting to send invite email to:", email);
-      const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: email,
-          nome,
-          tempPassword,
-          loginUrl,
-        }),
-      });
+    if (!isExistingUser && tempPassword) {
+      try {
+        console.log("Attempting to send invite email to:", email);
+        const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: email,
+            nome,
+            tempPassword,
+            loginUrl,
+          }),
+        });
 
-      const emailResult = await emailResponse.json();
-      console.log("Email response:", { status: emailResponse.status, result: emailResult });
+        const emailResult = await emailResponse.json();
+        console.log("Email response:", { status: emailResponse.status, result: emailResult });
 
-      if (!emailResponse.ok) {
-        emailError = emailResult.error || 'Erro ao enviar email';
-        console.error('Error sending invite email:', emailError);
-      } else {
-        emailSent = true;
-        console.log("Invite email sent successfully");
+        if (!emailResponse.ok) {
+          emailError = emailResult.error || 'Erro ao enviar email';
+          console.error('Error sending invite email:', emailError);
+        } else {
+          emailSent = true;
+          console.log("Invite email sent successfully");
+        }
+      } catch (error: unknown) {
+        emailError = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Error calling send-invite-email:', error);
       }
-    } catch (error: unknown) {
-      emailError = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error calling send-invite-email:', error);
+    } else if (isExistingUser) {
+      console.log("Skipping invite email - user already exists and can use existing credentials");
     }
 
     console.log('Employee created successfully:', employee.id, 'Email sent:', emailSent);
@@ -264,9 +306,12 @@ const handler = async (req: Request): Promise<Response> => {
         employee,
         emailSent,
         emailError,
-        message: emailSent 
-          ? 'Funcionário criado e convite enviado com sucesso' 
-          : `Funcionário criado. ${emailError ? `Erro no envio do email: ${emailError}` : 'Email não enviado.'}`
+        isExistingUser,
+        message: isExistingUser
+          ? 'Funcionário criado com sucesso. O usuário já possui acesso e pode usar suas credenciais existentes.'
+          : (emailSent 
+            ? 'Funcionário criado e convite enviado com sucesso' 
+            : `Funcionário criado. ${emailError ? `Erro no envio do email: ${emailError}` : 'Email não enviado.'}`)
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
