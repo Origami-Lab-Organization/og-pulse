@@ -1,7 +1,8 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FinancialSettingsForm } from '@/components/settings/FinancialSettingsForm';
-import { DollarSign } from 'lucide-react';
+import { PayrollProfileSettingsForm } from '@/components/settings/PayrollProfileSettingsForm';
+import { DollarSign, Receipt } from 'lucide-react';
 
 export default function Settings() {
   return (
@@ -16,10 +17,18 @@ export default function Settings() {
             <DollarSign className="h-4 w-4" />
             Financeiro
           </TabsTrigger>
+          <TabsTrigger value="payroll" className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            Encargos/Folha
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="financial" className="space-y-4">
           <FinancialSettingsForm />
+        </TabsContent>
+
+        <TabsContent value="payroll" className="space-y-4">
+          <PayrollProfileSettingsForm />
         </TabsContent>
       </Tabs>
     </AppLayout>

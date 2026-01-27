@@ -1,6 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeTool, CreateEmployeeToolInput, EmployeeBenefit, CreateEmployeeBenefitInput, ContractType } from '@/types/employee';
 import { employeeVersionService } from './employeeVersionService';
+import { CostBreakdown } from '@/lib/employeeCostCalculator';
+import { Json } from '@/integrations/supabase/types';
+
 export interface EmployeeDB {
   id: string;
   nome: string;
@@ -22,6 +25,16 @@ export interface EmployeeDB {
   decimo_terceiro: number;
   ferias: number;
   pro_labore: number;
+  // New fields
+  bolsa_auxilio: number;
+  valor_contrato_pj: number;
+  dividendos: number;
+  provisao_13: number;
+  provisao_ferias: number;
+  provisao_recesso: number;
+  total_monthly_cost_estimated: number;
+  total_annual_cost_estimated: number;
+  breakdown_json: Json | null;
   tenant_id: string;
   auth_id: string | null;
   must_change_password: boolean;
@@ -50,6 +63,16 @@ export interface CreateEmployeeInput {
   decimoTerceiro: number;
   ferias: number;
   proLabore: number;
+  // New fields
+  bolsaAuxilio?: number;
+  valorContratoPj?: number;
+  dividendos?: number;
+  provisao13?: number;
+  provisaoFerias?: number;
+  provisaoRecesso?: number;
+  totalMonthlyCostEstimated?: number;
+  totalAnnualCostEstimated?: number;
+  breakdownJson?: CostBreakdown;
 }
 
 export const employeeService = {
@@ -137,6 +160,16 @@ export const employeeService = {
     if (updates.decimoTerceiro !== undefined) dbUpdates.decimo_terceiro = updates.decimoTerceiro;
     if (updates.ferias !== undefined) dbUpdates.ferias = updates.ferias;
     if (updates.proLabore !== undefined) dbUpdates.pro_labore = updates.proLabore;
+    // New fields
+    if (updates.bolsaAuxilio !== undefined) dbUpdates.bolsa_auxilio = updates.bolsaAuxilio;
+    if (updates.valorContratoPj !== undefined) dbUpdates.valor_contrato_pj = updates.valorContratoPj;
+    if (updates.dividendos !== undefined) dbUpdates.dividendos = updates.dividendos;
+    if (updates.provisao13 !== undefined) dbUpdates.provisao_13 = updates.provisao13;
+    if (updates.provisaoFerias !== undefined) dbUpdates.provisao_ferias = updates.provisaoFerias;
+    if (updates.provisaoRecesso !== undefined) dbUpdates.provisao_recesso = updates.provisaoRecesso;
+    if (updates.totalMonthlyCostEstimated !== undefined) dbUpdates.total_monthly_cost_estimated = updates.totalMonthlyCostEstimated;
+    if (updates.totalAnnualCostEstimated !== undefined) dbUpdates.total_annual_cost_estimated = updates.totalAnnualCostEstimated;
+    if (updates.breakdownJson !== undefined) dbUpdates.breakdown_json = updates.breakdownJson;
 
     const { data, error } = await supabase
       .from('employees')

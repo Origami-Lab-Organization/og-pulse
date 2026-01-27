@@ -37,6 +37,10 @@
     --success: 152 55% 45%;
     --success-foreground: 0 0% 100%;
 
+    /* Warning states */
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 20%;
+
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
@@ -83,6 +87,10 @@
 
     --accent: 152 40% 40%;
     --accent-foreground: 145 25% 95%;
+
+    /* Warning states */
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 90%;
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 100%;

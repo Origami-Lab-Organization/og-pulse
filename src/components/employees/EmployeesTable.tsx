@@ -108,28 +108,35 @@ export const createEmployeeColumns = ({
     },
   },
   {
-    accessorKey: 'custoHora',
+    accessorKey: 'totalMonthlyCostEstimated',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Custo/Hora" />
+      <DataTableColumnHeader column={column} title="Custo Mensal" />
     ),
     cell: ({ row }) => {
       const employee = row.original;
-      const custoTotal = employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0);
-      const custoHora = custoTotal / 176;
+      // Use totalMonthlyCostEstimated if available, otherwise calculate fallback
+      const custoTotal = employee.totalMonthlyCostEstimated > 0 
+        ? employee.totalMonthlyCostEstimated 
+        : employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0);
+      const custoHora = custoTotal / (employee.jornadaMensal || 176);
       return (
         <div className="flex flex-col">
           <span className="font-medium text-foreground">
-            {formatCurrency(custoHora)}/h
+            {formatCurrency(custoTotal)}
           </span>
           <span className="text-xs text-muted-foreground">
-            Total: {formatCurrency(custoTotal)}
+            {formatCurrency(custoHora)}/h
           </span>
         </div>
       );
     },
     sortingFn: (rowA, rowB) => {
-      const custoA = rowA.original.salarioMensal + rowA.original.beneficios + rowA.original.encargos + (rowA.original.totalToolsCost || 0);
-      const custoB = rowB.original.salarioMensal + rowB.original.beneficios + rowB.original.encargos + (rowB.original.totalToolsCost || 0);
+      const custoA = rowA.original.totalMonthlyCostEstimated > 0 
+        ? rowA.original.totalMonthlyCostEstimated 
+        : rowA.original.salarioMensal + rowA.original.beneficios + rowA.original.encargos + (rowA.original.totalToolsCost || 0);
+      const custoB = rowB.original.totalMonthlyCostEstimated > 0 
+        ? rowB.original.totalMonthlyCostEstimated 
+        : rowB.original.salarioMensal + rowB.original.beneficios + rowB.original.encargos + (rowB.original.totalToolsCost || 0);
       return custoA - custoB;
     },
   },
