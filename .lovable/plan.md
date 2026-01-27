@@ -1,144 +1,284 @@
 
-
-# Plano: Ajustes na Etapa 2 do Wizard de Funcionarios
+# Plano: Ajustes no Wizard de Cadastro de Funcionario
 
 ## Resumo das Mudancas
 
-1. Atualizar os valores default das aliquotas para refletir o regime do Simples Nacional
-2. Simplificar o card de resumo mostrando apenas custo de salario e encargos
+1. Remover botao "Cancelar" e adicionar confirmacao ao clicar no X
+2. Remover campo INSS (ja incluido na DAS do Simples Nacional)
+3. Unificar as secoes Valores, Encargos, Provisoes e Resumo em uma unica secao
 
 ---
 
-## 1. Revisao das Aliquotas para Simples Nacional
+## 1. Remover Botao Cancelar e Adicionar Confirmacao no X
 
-### Aliquotas Atuais vs Simples Nacional
+### Situacao Atual
+- Existe um botao "Cancelar" no footer do dialog (linhas 1067-1074)
+- O X no topo do dialog fecha sem confirmacao
 
-| Encargo                   | Valor Atual | Simples Nacional | Acao           |
-|---------------------------|-------------|------------------|----------------|
-| FGTS CLT                  | 8%          | 8%               | Manter         |
-| FGTS Menor Aprendiz       | 2%          | 2%               | Manter         |
-| INSS Patronal             | 20%         | **0%**           | **Alterar**    |
-| RAT/SAT                   | 3%          | **0%**           | **Alterar**    |
-| Terceiros (Sistema S)     | 5.8%        | **0%**           | **Alterar**    |
-| INSS Pro-Labore           | 20%         | **0%**           | **Alterar**    |
-| FGTS Pro-Labore           | 0%          | 0%               | Manter         |
+### Mudanca
+- Remover o botao "Cancelar"
+- Interceptar o fechamento do dialog (onOpenChange)
+- Exibir AlertDialog de confirmacao perguntando se deseja sair
+- So fechar se o usuario confirmar
 
-### Justificativa Legal
+### Implementacao
 
-No regime do Simples Nacional (LC 123/2006):
-- **INSS Patronal**: Substituido pelo recolhimento unificado no DAS
-- **RAT/SAT**: Incluido no DAS, nao ha pagamento separado
-- **Terceiros (Sistema S)**: Empresas do Simples sao isentas de contribuicao ao Sistema S
-- **FGTS**: Permanece obrigatorio (nao faz parte do DAS)
-
-### Arquivos a Modificar
-
-**1. `src/types/payrollProfile.ts`** - Alterar DEFAULT_PAYROLL_PROFILE:
-
+Adicionar estado e componente AlertDialog:
 ```typescript
-export const DEFAULT_PAYROLL_PROFILE = {
-  fgtsRateClt: 0.08,           // Manter 8%
-  fgtsRateApprentice: 0.02,    // Manter 2%
-  inssPatronalRate: 0,         // Alterar de 0.20 para 0 (Simples)
-  ratRate: 0,                  // Alterar de 0.03 para 0 (Simples)
-  terceirosRate: 0,            // Alterar de 0.058 para 0 (Simples)
-  outrosRate: 0,               // Manter 0
-  inssPatronalProlaboreRate: 0, // Alterar de 0.20 para 0 (Simples)
-  fgtsProlaboreRate: 0,        // Manter 0
-  // Incidencia sobre provisoes - desativar INSS/RAT/Terceiros
-  applyFgtsOn13th: true,
-  applyInssOn13th: false,      // Alterar para false
-  applyRatOn13th: false,       // Alterar para false
-  applyTerceirosOn13th: false, // Alterar para false
-  applyOutrosOn13th: false,
-  applyFgtsOnVacation: true,
-  applyInssOnVacation: false,  // Alterar para false
-  applyRatOnVacation: false,   // Alterar para false
-  applyTerceirosOnVacation: false, // Alterar para false
-  applyOutrosOnVacation: false,
+const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+const handleClose = (open: boolean) => {
+  if (!open) {
+    // User is trying to close - show confirmation
+    setShowExitConfirm(true);
+  } else {
+    onOpenChange(open);
+  }
+};
+
+const confirmExit = () => {
+  setShowExitConfirm(false);
+  onOpenChange(false);
 };
 ```
 
-**2. Migration SQL** - Atualizar defaults na tabela:
+Adicionar AlertDialog de confirmacao:
+```tsx
+<AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Deseja sair?</AlertDialogTitle>
+      <AlertDialogDescription>
+        Os dados preenchidos serao perdidos. Tem certeza que deseja sair?
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+      <AlertDialogAction onClick={confirmExit}>
+        Sair sem salvar
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+```
 
-```sql
-ALTER TABLE public.payroll_profiles 
-  ALTER COLUMN inss_patronal_rate SET DEFAULT 0,
-  ALTER COLUMN rat_rate SET DEFAULT 0,
-  ALTER COLUMN terceiros_rate SET DEFAULT 0,
-  ALTER COLUMN inss_patronal_prolabore_rate SET DEFAULT 0,
-  ALTER COLUMN apply_inss_on_13th SET DEFAULT false,
-  ALTER COLUMN apply_rat_on_13th SET DEFAULT false,
-  ALTER COLUMN apply_terceiros_on_13th SET DEFAULT false,
-  ALTER COLUMN apply_inss_on_vacation SET DEFAULT false,
-  ALTER COLUMN apply_rat_on_vacation SET DEFAULT false,
-  ALTER COLUMN apply_terceiros_on_vacation SET DEFAULT false;
+Remover botao Cancelar (linhas 1067-1074):
+```tsx
+// REMOVER:
+<Button
+  type="button"
+  variant="outline"
+  onClick={() => onOpenChange(false)}
+  disabled={isLoading}
+>
+  Cancelar
+</Button>
 ```
 
 ---
 
-## 2. Simplificacao do Card de Resumo
+## 2. Remover Campo INSS Empresa
 
-### Alteracao em `src/components/employees/EmployeeFormDialog.tsx`
+### Justificativa
+No Simples Nacional, o INSS Patronal ja esta incluido no DAS (recolhimento unificado). O campo mostra R$ 0,00 e e confuso para o usuario.
 
-Modificar a funcao `renderCostSummaryCard()` para:
+### Mudanca
+- Remover campo "INSS Empresa" do card de Encargos (linhas 846-858)
+- Remover estado `inssDisplay` e referencias
+- Manter a logica de calculo no backend (para futura flexibilidade com outros regimes)
+- Manter o campo no schema (para persistencia), apenas nao exibir na UI
 
-- Remover linhas de "Beneficios" e "Ferramentas"
-- Substituir "Custo Total Mensal/Anual" por "Subtotal Salarial"
-- Adicionar mensagem informativa sobre etapas seguintes
+### Antes (linhas 846-858):
+```tsx
+{/* INSS Empresa - CLT, Menor Aprendiz, Sócio */}
+{showCharges && (
+  <FormItem>
+    <FormLabel>INSS Empresa</FormLabel>
+    <FormControl>
+      <Input 
+        disabled
+        value={inssDisplay}
+        className="bg-muted"
+      />
+    </FormControl>
+  </FormItem>
+)}
+```
 
-### Codigo Final do Card
+### Depois:
+Remover completamente este bloco da UI.
+
+---
+
+## 3. Unificar Secoes Valores, Encargos, Provisoes e Resumo
+
+### Situacao Atual
+Na Etapa 2 (renderFinancialFields) existem:
+- Card "Valores" (linhas 704-817)
+- Card "Encargos e Provisoes" (linhas 819-902)
+- Card "Resumo de Custo" (linhas 602-647)
+
+### Nova Estrutura
+Unificar tudo em um unico card chamado "Dados da Contratacao" com subsecoes internas usando Separator:
+
+```text
++--------------------------------------------------+
+| Dados da Contratacao                             |
++--------------------------------------------------+
+| Tipo de Contratacao [dropdown]                   |
+| Jornada Mensal (horas) [input]                   |
++--------------------------------------------------+
+| VALORES                                          |
+| Salario Bruto (ou campo dinamico) [input]        |
++--------------------------------------------------+
+| ENCARGOS (calculados automaticamente)            |
+| FGTS                         R$ X.XXX,XX         |
+| 13o Salario                  R$ X.XXX,XX         |
+| Ferias + 1/3                 R$ X.XXX,XX         |
++--------------------------------------------------+
+| RESUMO                                           |
+| Base                         R$ X.XXX,XX         |
+| Encargos                     R$ X.XXX,XX         |
+| Provisoes                    R$ X.XXX,XX         |
+| ----------------------------------------         |
+| SUBTOTAL SALARIAL           R$ XX.XXX,XX         |
++--------------------------------------------------+
+| (!) Calculo estimado; valide com contabilidade   |
++--------------------------------------------------+
+```
+
+### Implementacao
+
+Refatorar `renderFinancialFields()` para:
 
 ```tsx
-const renderCostSummaryCard = () => {
-  if (!costBreakdown) return null;
-
-  const subtotalSalarial = 
-    costBreakdown.baseAmount + 
-    costBreakdown.chargesAmount + 
-    costBreakdown.provisionsAmount;
-
+const renderFinancialFields = () => {
+  const showCharges = showsChargesSection(tipoContratacao as ContractType);
+  const showProvisions = showsProvisionsSection(tipoContratacao as ContractType);
+  const baseLabel = getBaseFieldLabel(tipoContratacao as ContractType);
+  
   return (
-    <Card className="mt-6 border-primary/30 bg-primary/5">
+    <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Calculator className="h-5 w-5" />
-          Resumo de Custo (Estimado)
-        </CardTitle>
+        <CardTitle className="text-lg">Dados da Contratacao</CardTitle>
+        <CardDescription>
+          Configure o tipo de vinculo e valores do funcionario
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <span className="text-muted-foreground">Base</span>
-          <span className="text-right font-medium">
-            {formatCurrency(costBreakdown.baseAmount)}
-          </span>
-          <span className="text-muted-foreground">Encargos</span>
-          <span className="text-right font-medium">
-            {formatCurrency(costBreakdown.chargesAmount)}
-          </span>
-          <span className="text-muted-foreground">Provisões</span>
-          <span className="text-right font-medium">
-            {formatCurrency(costBreakdown.provisionsAmount)}
-          </span>
+      <CardContent className="space-y-6">
+        {/* Tipo e Jornada */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Tipo de Contratacao */}
+          <FormField ... />
+          {/* Jornada Mensal */}
+          <FormField ... />
         </div>
         
         <Separator />
         
-        <div className="flex justify-between font-bold text-lg">
-          <span>SUBTOTAL SALARIAL</span>
-          <span className="text-primary">
-            {formatCurrency(subtotalSalarial)}
-          </span>
+        {/* Valores - Dinamico por tipo */}
+        <div>
+          <h4 className="text-sm font-medium mb-3">Valores</h4>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Campos dinamicos conforme tipoContratacao */}
+          </div>
         </div>
         
-        <p className="text-xs text-muted-foreground text-center">
-          Benefícios e ferramentas serão adicionados nas etapas seguintes.
-        </p>
+        {/* Encargos - Se aplicavel */}
+        {(showCharges || showProvisions) && tipoContratacao !== 'PJ' && (
+          <>
+            <Separator />
+            <div>
+              <h4 className="text-sm font-medium mb-3">
+                {tipoContratacao === 'ESTAGIO' ? 'Provisoes' : 'Encargos e Provisoes'}
+              </h4>
+              <p className="text-xs text-muted-foreground mb-3">
+                Calculados automaticamente
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                {/* FGTS */}
+                {showCharges && (
+                  <FormItem>
+                    <FormLabel>FGTS</FormLabel>
+                    <Input disabled value={fgtsDisplay} className="bg-muted" />
+                  </FormItem>
+                )}
+                {/* 13o / Provisao Recesso */}
+                {showProvisions && (
+                  <FormItem>
+                    <FormLabel>
+                      {tipoContratacao === 'ESTAGIO' ? 'Provisao Recesso' : '13o Salario'}
+                    </FormLabel>
+                    <Input disabled value={decimoDisplay} className="bg-muted" />
+                  </FormItem>
+                )}
+                {/* Ferias */}
+                {showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
+                  <FormItem>
+                    <FormLabel>Ferias + 1/3</FormLabel>
+                    <Input disabled value={feriasDisplay} className="bg-muted" />
+                  </FormItem>
+                )}
+              </div>
+            </div>
+          </>
+        )}
         
-        <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
+        {/* PJ - Mensagem */}
+        {tipoContratacao === 'PJ' && (
+          <>
+            <Separator />
+            <p className="text-sm text-muted-foreground">
+              Para contratos PJ, nao ha encargos trabalhistas ou provisoes.
+            </p>
+          </>
+        )}
+        
+        {/* Resumo Integrado */}
+        {costBreakdown && (
+          <>
+            <Separator />
+            <div className="bg-primary/5 rounded-lg p-4 space-y-3">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Calculator className="h-4 w-4" />
+                Resumo de Custo
+              </h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="text-muted-foreground">Base</span>
+                <span className="text-right font-medium">
+                  {formatCurrency(costBreakdown.baseAmount)}
+                </span>
+                <span className="text-muted-foreground">Encargos</span>
+                <span className="text-right font-medium">
+                  {formatCurrency(costBreakdown.chargesAmount)}
+                </span>
+                <span className="text-muted-foreground">Provisoes</span>
+                <span className="text-right font-medium">
+                  {formatCurrency(costBreakdown.provisionsAmount)}
+                </span>
+              </div>
+              <div className="border-t pt-3 flex justify-between font-bold">
+                <span>SUBTOTAL SALARIAL</span>
+                <span className="text-primary">
+                  {formatCurrency(
+                    costBreakdown.baseAmount + 
+                    costBreakdown.chargesAmount + 
+                    costBreakdown.provisionsAmount
+                  )}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Beneficios e ferramentas serao adicionados nas etapas seguintes.
+              </p>
+            </div>
+          </>
+        )}
+        
+        {/* Aviso */}
+        <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
           <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
           <p className="text-sm text-warning-foreground">
-            Cálculo estimado; valide com contabilidade.
+            Calculo estimado; valide com contabilidade.
           </p>
         </div>
       </CardContent>
@@ -151,38 +291,40 @@ const renderCostSummaryCard = () => {
 
 ## Arquivos a Modificar
 
-1. **`src/types/payrollProfile.ts`** - Atualizar DEFAULT_PAYROLL_PROFILE com aliquotas zeradas para Simples Nacional
-2. **`src/components/employees/EmployeeFormDialog.tsx`** - Simplificar card de resumo
-3. **Nova migration SQL** - Atualizar defaults na tabela payroll_profiles
+**`src/components/employees/EmployeeFormDialog.tsx`**
+- Adicionar imports: `AlertDialog`, `AlertDialogAction`, `AlertDialogCancel`, `AlertDialogContent`, `AlertDialogDescription`, `AlertDialogFooter`, `AlertDialogHeader`, `AlertDialogTitle`
+- Adicionar estado `showExitConfirm`
+- Adicionar funcao `handleClose` e `confirmExit`
+- Alterar Dialog para usar `handleClose` em vez de `onOpenChange`
+- Remover botao "Cancelar" do footer
+- Adicionar componente AlertDialog de confirmacao
+- Remover campo INSS Empresa da UI
+- Remover estado `inssDisplay` e referencias
+- Refatorar `renderFinancialFields()` para unificar os cards
+- Remover funcao `renderCostSummaryCard()` (integrada no card unico)
 
 ---
 
 ## Resumo das Alteracoes
 
-| Item                              | De           | Para         |
-|-----------------------------------|--------------|--------------|
-| INSS Patronal (default)           | 20%          | 0%           |
-| RAT (default)                     | 3%           | 0%           |
-| Terceiros (default)               | 5.8%         | 0%           |
-| INSS Pro-Labore (default)         | 20%          | 0%           |
-| Incidencia INSS/RAT/Terceiros     | true         | false        |
-| Card Resumo - Beneficios          | Exibir       | Remover      |
-| Card Resumo - Ferramentas         | Exibir       | Remover      |
-| Card Resumo - Total               | Custo Total  | Subtotal Sal |
-
----
-
-## Nota Importante
-
-Os valores permanecem **configuraveis** no Perfil de Encargos em Configuracoes. Se o tenant optar por Lucro Presumido/Real no futuro, o administrador pode alterar as aliquotas para os valores tradicionais (20% INSS, 3% RAT, etc).
+| Item                           | Acao                                      |
+|--------------------------------|-------------------------------------------|
+| Botao Cancelar                 | Remover                                   |
+| Clique no X                    | Adicionar confirmacao via AlertDialog     |
+| Campo INSS Empresa             | Remover da UI (manter na logica)          |
+| Card Valores                   | Integrar em card unico                    |
+| Card Encargos/Provisoes        | Integrar em card unico                    |
+| Card Resumo                    | Integrar em card unico                    |
+| Novo card                      | "Dados da Contratacao" (unico)            |
 
 ---
 
 ## Criterios de Aceite
 
-1. Defaults do perfil de encargos refletem Simples Nacional (INSS/RAT/Terceiros = 0%)
-2. FGTS permanece 8% CLT e 2% Menor Aprendiz
-3. Card de resumo na Etapa 2 mostra apenas Base, Encargos, Provisoes e Subtotal Salarial
-4. Mensagem informativa indica que beneficios/ferramentas virao nas proximas etapas
-5. Aliquotas permanecem configuraveis em Configuracoes > Encargos/Folha
-
+1. Nao existe mais botao "Cancelar" no wizard
+2. Ao clicar no X, aparece dialog de confirmacao "Deseja sair?"
+3. Usuario pode escolher "Continuar editando" ou "Sair sem salvar"
+4. Campo INSS Empresa nao aparece mais na interface
+5. Etapa 2 exibe apenas 1 card unificado com todas as informacoes
+6. Layout compacto com Separators entre secoes
+7. Resumo de custo integrado no mesmo card
