@@ -1,330 +1,335 @@
 
-# Plano: Ajustes no Wizard de Cadastro de Funcionario
+# Plano: Ajustes no Formulario de Funcionario
 
 ## Resumo das Mudancas
 
-1. Remover botao "Cancelar" e adicionar confirmacao ao clicar no X
-2. Remover campo INSS (ja incluido na DAS do Simples Nacional)
-3. Unificar as secoes Valores, Encargos, Provisoes e Resumo em uma unica secao
+1. Validar CPF duplicado no tenant antes de cadastrar funcionario
+2. Alterar jornada mensal padrao de 176 para 168 horas
+3. Remover mensagem sobre beneficios/ferramentas nas etapas seguintes
+4. Centralizar e compactar a mensagem de validacao contabil
+5. Reformular cadastro de beneficios: dropdown com opcoes pre-definidas, sem descricao, apenas deletar
 
 ---
 
-## 1. Remover Botao Cancelar e Adicionar Confirmacao no X
+## 1. Validacao de CPF Duplicado
 
 ### Situacao Atual
-- Existe um botao "Cancelar" no footer do dialog (linhas 1067-1074)
-- O X no topo do dialog fecha sem confirmacao
-
-### Mudanca
-- Remover o botao "Cancelar"
-- Interceptar o fechamento do dialog (onOpenChange)
-- Exibir AlertDialog de confirmacao perguntando se deseja sair
-- So fechar se o usuario confirmar
+- O CPF e validado apenas quanto ao formato e digitos verificadores (funcao `validateCPF`)
+- Nao ha verificacao se o CPF ja existe no banco de dados
 
 ### Implementacao
 
-Adicionar estado e componente AlertDialog:
-```typescript
-const [showExitConfirm, setShowExitConfirm] = useState(false);
+Adicionar validacao assincrona no `EmployeeFormDialog.tsx`:
 
-const handleClose = (open: boolean) => {
-  if (!open) {
-    // User is trying to close - show confirmation
-    setShowExitConfirm(true);
-  } else {
-    onOpenChange(open);
+**Novo hook para verificar CPF:**
+```typescript
+const checkCpfExists = async (cpf: string, tenantId: string, excludeEmployeeId?: string) => {
+  const { data, error } = await supabase
+    .from('employees')
+    .select('id, nome')
+    .eq('tenant_id', tenantId)
+    .eq('cpf', cpf.replace(/\D/g, ''))
+    .neq('id', excludeEmployeeId || '')
+    .maybeSingle();
+  
+  return data;
+};
+```
+
+**Modificar `handleCpfChange`:**
+```typescript
+const handleCpfChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const formatted = formatCPF(e.target.value);
+  setCpfDisplay(formatted);
+  const cpfClean = formatted.replace(/\D/g, '');
+  form.setValue('cpf', cpfClean);
+  form.trigger('cpf');
+  
+  // Verificar duplicidade se CPF valido
+  if (cpfClean.length === 11 && validateCPF(cpfClean) && tenantId) {
+    const existing = await checkCpfExists(cpfClean, tenantId, employee?.id);
+    if (existing) {
+      form.setError('cpf', { 
+        type: 'manual', 
+        message: `CPF ja cadastrado para ${existing.nome}` 
+      });
+    }
   }
 };
-
-const confirmExit = () => {
-  setShowExitConfirm(false);
-  onOpenChange(false);
-};
 ```
 
-Adicionar AlertDialog de confirmacao:
-```tsx
-<AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
-  <AlertDialogContent>
-    <AlertDialogHeader>
-      <AlertDialogTitle>Deseja sair?</AlertDialogTitle>
-      <AlertDialogDescription>
-        Os dados preenchidos serao perdidos. Tem certeza que deseja sair?
-      </AlertDialogDescription>
-    </AlertDialogHeader>
-    <AlertDialogFooter>
-      <AlertDialogCancel>Continuar editando</AlertDialogCancel>
-      <AlertDialogAction onClick={confirmExit}>
-        Sair sem salvar
-      </AlertDialogAction>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>
+---
+
+## 2. Alterar Jornada Mensal Padrao para 168
+
+### Arquivos a Modificar
+
+**`src/components/employees/EmployeeFormDialog.tsx`**
+
+Linha 178 - defaultValues:
+```typescript
+// DE:
+jornadaMensal: 176,
+
+// PARA:
+jornadaMensal: 168,
 ```
 
-Remover botao Cancelar (linhas 1067-1074):
+Linha 264 e 299 - reset values:
+```typescript
+// DE:
+jornadaMensal: employee.jornadaMensal || 176,
+// e
+jornadaMensal: 176,
+
+// PARA:
+jornadaMensal: employee.jornadaMensal || 168,
+// e
+jornadaMensal: 168,
+```
+
+Linha 674 - placeholder:
+```typescript
+// DE:
+placeholder="176"
+
+// PARA:
+placeholder="168"
+```
+
+**`src/hooks/useEmployees.ts`**
+
+Linha 41:
+```typescript
+// DE:
+jornadaMensal: Number(db.jornada_mensal) || 176,
+
+// PARA:
+jornadaMensal: Number(db.jornada_mensal) || 168,
+```
+
+---
+
+## 3. Remover Mensagem de Beneficios/Ferramentas
+
+### Arquivo a Modificar
+
+**`src/components/employees/EmployeeFormDialog.tsx`**
+
+Remover linhas 879-881:
 ```tsx
 // REMOVER:
-<Button
-  type="button"
-  variant="outline"
-  onClick={() => onOpenChange(false)}
-  disabled={isLoading}
->
-  Cancelar
-</Button>
+<p className="text-xs text-muted-foreground text-center">
+  Benefícios e ferramentas serão adicionados nas etapas seguintes.
+</p>
 ```
 
 ---
 
-## 2. Remover Campo INSS Empresa
+## 4. Centralizar e Compactar Aviso de Contabilidade
 
-### Justificativa
-No Simples Nacional, o INSS Patronal ja esta incluido no DAS (recolhimento unificado). O campo mostra R$ 0,00 e e confuso para o usuario.
-
-### Mudanca
-- Remover campo "INSS Empresa" do card de Encargos (linhas 846-858)
-- Remover estado `inssDisplay` e referencias
-- Manter a logica de calculo no backend (para futura flexibilidade com outros regimes)
-- Manter o campo no schema (para persistencia), apenas nao exibir na UI
-
-### Antes (linhas 846-858):
+### Situacao Atual (linhas 887-892)
 ```tsx
-{/* INSS Empresa - CLT, Menor Aprendiz, Sócio */}
-{showCharges && (
-  <FormItem>
-    <FormLabel>INSS Empresa</FormLabel>
-    <FormControl>
-      <Input 
-        disabled
-        value={inssDisplay}
-        className="bg-muted"
-      />
-    </FormControl>
-  </FormItem>
-)}
+<div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
+  <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+  <p className="text-sm text-warning-foreground">
+    Cálculo estimado; valide com contabilidade.
+  </p>
+</div>
 ```
 
-### Depois:
-Remover completamente este bloco da UI.
+### Nova Implementacao
+```tsx
+<p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+  <AlertCircle className="h-3 w-3" />
+  Cálculo estimado; valide com contabilidade.
+</p>
+```
+
+Alteracoes:
+- Remover o card/box ao redor
+- Centralizar texto horizontalmente
+- Usar fonte menor (text-xs)
+- Icone menor (h-3 w-3)
+- Layout inline compacto
 
 ---
 
-## 3. Unificar Secoes Valores, Encargos, Provisoes e Resumo
+## 5. Reformular Cadastro de Beneficios
 
-### Situacao Atual
-Na Etapa 2 (renderFinancialFields) existem:
-- Card "Valores" (linhas 704-817)
-- Card "Encargos e Provisoes" (linhas 819-902)
-- Card "Resumo de Custo" (linhas 602-647)
+### Situacao Atual (`EmployeeBenefitsLocalTable.tsx`)
+- Input de texto livre para nome do beneficio
+- Campo de descricao (opcional)
+- Campo de valor
+- Acoes: Editar e Deletar
 
-### Nova Estrutura
-Unificar tudo em um unico card chamado "Dados da Contratacao" com subsecoes internas usando Separator:
+### Nova Implementacao
 
-```text
-+--------------------------------------------------+
-| Dados da Contratacao                             |
-+--------------------------------------------------+
-| Tipo de Contratacao [dropdown]                   |
-| Jornada Mensal (horas) [input]                   |
-+--------------------------------------------------+
-| VALORES                                          |
-| Salario Bruto (ou campo dinamico) [input]        |
-+--------------------------------------------------+
-| ENCARGOS (calculados automaticamente)            |
-| FGTS                         R$ X.XXX,XX         |
-| 13o Salario                  R$ X.XXX,XX         |
-| Ferias + 1/3                 R$ X.XXX,XX         |
-+--------------------------------------------------+
-| RESUMO                                           |
-| Base                         R$ X.XXX,XX         |
-| Encargos                     R$ X.XXX,XX         |
-| Provisoes                    R$ X.XXX,XX         |
-| ----------------------------------------         |
-| SUBTOTAL SALARIAL           R$ XX.XXX,XX         |
-+--------------------------------------------------+
-| (!) Calculo estimado; valide com contabilidade   |
-+--------------------------------------------------+
+**Lista pre-definida de beneficios:**
+```typescript
+const BENEFIT_OPTIONS = [
+  { value: 'vale_refeicao', label: 'Vale Refeição' },
+  { value: 'vale_alimentacao', label: 'Vale Alimentação' },
+  { value: 'vale_transporte', label: 'Vale Transporte' },
+  { value: 'plano_saude', label: 'Plano de Saúde' },
+  { value: 'plano_odontologico', label: 'Plano Odontológico' },
+  { value: 'seguro_vida', label: 'Seguro de Vida' },
+  { value: 'auxilio_creche', label: 'Auxílio Creche' },
+  { value: 'auxilio_educacao', label: 'Auxílio Educação' },
+  { value: 'gympass', label: 'Gympass/Wellhub' },
+  { value: 'auxilio_home_office', label: 'Auxílio Home Office' },
+  { value: 'bonus', label: 'Bônus' },
+  { value: 'participacao_lucros', label: 'PLR' },
+  { value: 'outros', label: 'Outros' },
+];
 ```
 
-### Implementacao
+**Nova estrutura da tabela:**
 
-Refatorar `renderFinancialFields()` para:
+| Beneficio (dropdown)         | Valor Mensal | Acao   |
+|------------------------------|--------------|--------|
+| [Select: Vale Refeicao ▼]   | R$ 500,00    | [X]    |
+
+**Mudancas no componente:**
+1. Substituir Input por Select/Combobox para escolha do beneficio
+2. Remover coluna "Descricao"
+3. Remover botao de Editar (apenas Deletar)
+4. Simplificar interface: dropdown + valor + botao deletar
+5. Filtrar opcoes ja selecionadas do dropdown
+
+### Codigo Refatorado
 
 ```tsx
-const renderFinancialFields = () => {
-  const showCharges = showsChargesSection(tipoContratacao as ContractType);
-  const showProvisions = showsProvisionsSection(tipoContratacao as ContractType);
-  const baseLabel = getBaseFieldLabel(tipoContratacao as ContractType);
-  
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Dados da Contratacao</CardTitle>
-        <CardDescription>
-          Configure o tipo de vinculo e valores do funcionario
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Tipo e Jornada */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Tipo de Contratacao */}
-          <FormField ... />
-          {/* Jornada Mensal */}
-          <FormField ... />
-        </div>
-        
-        <Separator />
-        
-        {/* Valores - Dinamico por tipo */}
-        <div>
-          <h4 className="text-sm font-medium mb-3">Valores</h4>
-          <div className="grid grid-cols-2 gap-4">
-            {/* Campos dinamicos conforme tipoContratacao */}
-          </div>
-        </div>
-        
-        {/* Encargos - Se aplicavel */}
-        {(showCharges || showProvisions) && tipoContratacao !== 'PJ' && (
-          <>
-            <Separator />
-            <div>
-              <h4 className="text-sm font-medium mb-3">
-                {tipoContratacao === 'ESTAGIO' ? 'Provisoes' : 'Encargos e Provisoes'}
-              </h4>
-              <p className="text-xs text-muted-foreground mb-3">
-                Calculados automaticamente
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                {/* FGTS */}
-                {showCharges && (
-                  <FormItem>
-                    <FormLabel>FGTS</FormLabel>
-                    <Input disabled value={fgtsDisplay} className="bg-muted" />
-                  </FormItem>
-                )}
-                {/* 13o / Provisao Recesso */}
-                {showProvisions && (
-                  <FormItem>
-                    <FormLabel>
-                      {tipoContratacao === 'ESTAGIO' ? 'Provisao Recesso' : '13o Salario'}
-                    </FormLabel>
-                    <Input disabled value={decimoDisplay} className="bg-muted" />
-                  </FormItem>
-                )}
-                {/* Ferias */}
-                {showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
-                  <FormItem>
-                    <FormLabel>Ferias + 1/3</FormLabel>
-                    <Input disabled value={feriasDisplay} className="bg-muted" />
-                  </FormItem>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-        
-        {/* PJ - Mensagem */}
-        {tipoContratacao === 'PJ' && (
-          <>
-            <Separator />
-            <p className="text-sm text-muted-foreground">
-              Para contratos PJ, nao ha encargos trabalhistas ou provisoes.
-            </p>
-          </>
-        )}
-        
-        {/* Resumo Integrado */}
-        {costBreakdown && (
-          <>
-            <Separator />
-            <div className="bg-primary/5 rounded-lg p-4 space-y-3">
-              <h4 className="text-sm font-medium flex items-center gap-2">
-                <Calculator className="h-4 w-4" />
-                Resumo de Custo
-              </h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <span className="text-muted-foreground">Base</span>
-                <span className="text-right font-medium">
-                  {formatCurrency(costBreakdown.baseAmount)}
-                </span>
-                <span className="text-muted-foreground">Encargos</span>
-                <span className="text-right font-medium">
-                  {formatCurrency(costBreakdown.chargesAmount)}
-                </span>
-                <span className="text-muted-foreground">Provisoes</span>
-                <span className="text-right font-medium">
-                  {formatCurrency(costBreakdown.provisionsAmount)}
-                </span>
-              </div>
-              <div className="border-t pt-3 flex justify-between font-bold">
-                <span>SUBTOTAL SALARIAL</span>
-                <span className="text-primary">
-                  {formatCurrency(
-                    costBreakdown.baseAmount + 
-                    costBreakdown.chargesAmount + 
-                    costBreakdown.provisionsAmount
-                  )}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground text-center">
-                Beneficios e ferramentas serao adicionados nas etapas seguintes.
-              </p>
-            </div>
-          </>
-        )}
-        
-        {/* Aviso */}
-        <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-          <p className="text-sm text-warning-foreground">
-            Calculo estimado; valide com contabilidade.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+// Nova interface (sem description)
+export interface LocalBenefit {
+  id: string;
+  name: string;
+  monthlyValue: number;
+}
+
+// Nova row de adicao
+<TableRow>
+  <TableCell>
+    <Select
+      value={newBenefit.name}
+      onValueChange={(value) => {
+        const option = BENEFIT_OPTIONS.find(o => o.value === value);
+        setNewBenefit({ ...newBenefit, name: option?.label || value });
+      }}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Selecione o benefício" />
+      </SelectTrigger>
+      <SelectContent>
+        {BENEFIT_OPTIONS
+          .filter(opt => !benefits.some(b => b.name === opt.label))
+          .map(option => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+      </SelectContent>
+    </Select>
+  </TableCell>
+  <TableCell>
+    <Input
+      value={newBenefit.monthlyValueDisplay}
+      onChange={(e) => { /* currency mask */ }}
+      placeholder="R$ 0,00"
+      className="w-[140px] text-right"
+    />
+  </TableCell>
+  <TableCell>
+    <div className="flex gap-1">
+      <Button size="icon" variant="ghost" onClick={handleAdd}>
+        <Check className="h-4 w-4 text-green-600" />
+      </Button>
+      <Button size="icon" variant="ghost" onClick={() => setIsAdding(false)}>
+        <X className="h-4 w-4 text-destructive" />
+      </Button>
+    </div>
+  </TableCell>
+</TableRow>
+
+// Rows existentes - apenas exibicao e delete
+<TableRow key={benefit.id}>
+  <TableCell>
+    <span className="font-medium">{benefit.name}</span>
+  </TableCell>
+  <TableCell className="text-right">
+    {formatCurrency(benefit.monthlyValue)}
+  </TableCell>
+  <TableCell>
+    <Button size="icon" variant="ghost" onClick={() => handleDelete(benefit.id)}>
+      <Trash2 className="h-4 w-4 text-destructive" />
+    </Button>
+  </TableCell>
+</TableRow>
 ```
 
 ---
 
 ## Arquivos a Modificar
 
-**`src/components/employees/EmployeeFormDialog.tsx`**
-- Adicionar imports: `AlertDialog`, `AlertDialogAction`, `AlertDialogCancel`, `AlertDialogContent`, `AlertDialogDescription`, `AlertDialogFooter`, `AlertDialogHeader`, `AlertDialogTitle`
-- Adicionar estado `showExitConfirm`
-- Adicionar funcao `handleClose` e `confirmExit`
-- Alterar Dialog para usar `handleClose` em vez de `onOpenChange`
-- Remover botao "Cancelar" do footer
-- Adicionar componente AlertDialog de confirmacao
-- Remover campo INSS Empresa da UI
-- Remover estado `inssDisplay` e referencias
-- Refatorar `renderFinancialFields()` para unificar os cards
-- Remover funcao `renderCostSummaryCard()` (integrada no card unico)
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/components/employees/EmployeeFormDialog.tsx` | Validacao CPF duplicado, jornada 168, remover msg beneficios, compactar aviso |
+| `src/components/employees/EmployeeBenefitsLocalTable.tsx` | Dropdown de beneficios, remover descricao, apenas delete |
+| `src/hooks/useEmployees.ts` | Fallback jornada 168 |
 
 ---
 
-## Resumo das Alteracoes
+## Resumo Visual das Alteracoes
 
-| Item                           | Acao                                      |
-|--------------------------------|-------------------------------------------|
-| Botao Cancelar                 | Remover                                   |
-| Clique no X                    | Adicionar confirmacao via AlertDialog     |
-| Campo INSS Empresa             | Remover da UI (manter na logica)          |
-| Card Valores                   | Integrar em card unico                    |
-| Card Encargos/Provisoes        | Integrar em card unico                    |
-| Card Resumo                    | Integrar em card unico                    |
-| Novo card                      | "Dados da Contratacao" (unico)            |
+### Antes (Step 2 - Resumo)
+```
++----------------------------------------+
+| Resumo de Custo                        |
+| Base: R$ X.XXX                         |
+| Encargos: R$ X.XXX                     |
+| Provisoes: R$ X.XXX                    |
+| SUBTOTAL: R$ XX.XXX                    |
+| "Beneficios e ferramentas serao..."    |
++----------------------------------------+
++----------------------------------------+
+| (!) Calculo estimado; valide com       |
+|     contabilidade.                     |
++----------------------------------------+
+```
+
+### Depois (Step 2 - Resumo)
+```
++----------------------------------------+
+| Resumo de Custo                        |
+| Base: R$ X.XXX                         |
+| Encargos: R$ X.XXX                     |
+| Provisoes: R$ X.XXX                    |
+| SUBTOTAL: R$ XX.XXX                    |
++----------------------------------------+
+    (!) Calculo estimado; valide.
+```
+
+### Antes (Step 3 - Beneficios)
+```
+| Beneficio [input] | Descricao [input] | Valor [input] | [✓][X] |
+| VR                | Vale Refeicao     | R$ 500        | [✎][🗑] |
+```
+
+### Depois (Step 3 - Beneficios)
+```
+| Beneficio [dropdown ▼]     | Valor [input] | [✓][X] |
+| Vale Refeicao              | R$ 500        | [🗑]    |
+```
 
 ---
 
 ## Criterios de Aceite
 
-1. Nao existe mais botao "Cancelar" no wizard
-2. Ao clicar no X, aparece dialog de confirmacao "Deseja sair?"
-3. Usuario pode escolher "Continuar editando" ou "Sair sem salvar"
-4. Campo INSS Empresa nao aparece mais na interface
-5. Etapa 2 exibe apenas 1 card unificado com todas as informacoes
-6. Layout compacto com Separators entre secoes
-7. Resumo de custo integrado no mesmo card
+1. Ao digitar CPF ja cadastrado, exibe erro "CPF ja cadastrado para [Nome]"
+2. Jornada mensal inicia com 168 horas por padrao
+3. Nao existe mais mensagem sobre beneficios/ferramentas no Step 2
+4. Aviso de contabilidade aparece centralizado e compacto
+5. Beneficios sao selecionados via dropdown pre-definido
+6. Nao ha campo de descricao no cadastro de beneficios
+7. Unica acao disponivel em beneficios cadastrados e deletar
+8. Beneficios ja adicionados nao aparecem novamente no dropdown
