@@ -74,23 +74,26 @@ export interface CreatePayrollProfileInput {
   applyOutrosOnVacation?: boolean;
 }
 
+// Defaults for Simples Nacional regime (LC 123/2006)
+// INSS, RAT, Terceiros are included in the unified DAS tax
+// Only FGTS remains as a separate obligation
 export const DEFAULT_PAYROLL_PROFILE: Omit<PayrollProfile, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'> = {
-  fgtsRateClt: 0.08,
-  fgtsRateApprentice: 0.02,
-  inssPatronalRate: 0.20,
-  ratRate: 0.03,
-  terceirosRate: 0.058,
+  fgtsRateClt: 0.08,           // 8% - Lei 8.036/90
+  fgtsRateApprentice: 0.02,    // 2% - Lei 10.097/2000
+  inssPatronalRate: 0,         // 0% - Included in DAS (Simples Nacional)
+  ratRate: 0,                  // 0% - Included in DAS (Simples Nacional)
+  terceirosRate: 0,            // 0% - Exempt for Simples Nacional
   outrosRate: 0,
-  inssPatronalProlaboreRate: 0.20,
+  inssPatronalProlaboreRate: 0, // 0% - Included in DAS (Simples Nacional)
   fgtsProlaboreRate: 0,
   applyFgtsOn13th: true,
-  applyInssOn13th: true,
-  applyRatOn13th: true,
-  applyTerceirosOn13th: true,
+  applyInssOn13th: false,      // Disabled for Simples Nacional
+  applyRatOn13th: false,       // Disabled for Simples Nacional
+  applyTerceirosOn13th: false, // Disabled for Simples Nacional
   applyOutrosOn13th: false,
   applyFgtsOnVacation: true,
-  applyInssOnVacation: true,
-  applyRatOnVacation: true,
-  applyTerceirosOnVacation: true,
+  applyInssOnVacation: false,  // Disabled for Simples Nacional
+  applyRatOnVacation: false,   // Disabled for Simples Nacional
+  applyTerceirosOnVacation: false, // Disabled for Simples Nacional
   applyOutrosOnVacation: false,
 };

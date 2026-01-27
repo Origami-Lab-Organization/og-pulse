@@ -602,6 +602,11 @@ const EmployeeFormDialog = ({
   const renderCostSummaryCard = () => {
     if (!costBreakdown) return null;
 
+    const subtotalSalarial = 
+      costBreakdown.baseAmount + 
+      costBreakdown.chargesAmount + 
+      costBreakdown.provisionsAmount;
+
     return (
       <Card className="mt-6 border-primary/30 bg-primary/5">
         <CardHeader className="pb-3">
@@ -618,22 +623,18 @@ const EmployeeFormDialog = ({
             <span className="text-right font-medium">{formatCurrency(costBreakdown.chargesAmount)}</span>
             <span className="text-muted-foreground">Provisões</span>
             <span className="text-right font-medium">{formatCurrency(costBreakdown.provisionsAmount)}</span>
-            <span className="text-muted-foreground">Benefícios</span>
-            <span className="text-right font-medium">{formatCurrency(costBreakdown.benefitsAmount)}</span>
-            <span className="text-muted-foreground">Ferramentas</span>
-            <span className="text-right font-medium">{formatCurrency(costBreakdown.toolsAmount)}</span>
           </div>
           
           <Separator />
           
           <div className="flex justify-between font-bold text-lg">
-            <span>CUSTO TOTAL MENSAL</span>
-            <span className="text-primary">{formatCurrency(costBreakdown.totalMonthlyCost)}</span>
+            <span>SUBTOTAL SALARIAL</span>
+            <span className="text-primary">{formatCurrency(subtotalSalarial)}</span>
           </div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>CUSTO TOTAL ANUAL</span>
-            <span>{formatCurrency(costBreakdown.totalAnnualCost)}</span>
-          </div>
+          
+          <p className="text-xs text-muted-foreground text-center">
+            Benefícios e ferramentas serão adicionados nas etapas seguintes.
+          </p>
           
           <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
