@@ -795,15 +795,13 @@ const EmployeeFormDialog = ({
                   Cancelar
                 </Button>
                 
-                {isLastStep || isEditing ? (
+                {!isEditing && isLastStep ? (
                   <Button type="submit" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Salvando...
                       </>
-                    ) : isEditing ? (
-                      'Salvar Alterações'
                     ) : (
                       <>
                         <Check className="mr-2 h-4 w-4" />
@@ -811,10 +809,21 @@ const EmployeeFormDialog = ({
                       </>
                     )}
                   </Button>
-                ) : (
+                ) : !isEditing ? (
                   <Button type="button" onClick={handleNext}>
                     Próximo
                     <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      'Salvar Alterações'
+                    )}
                   </Button>
                 )}
               </div>
