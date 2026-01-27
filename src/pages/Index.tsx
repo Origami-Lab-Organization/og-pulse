@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, Employee } from '@/hooks/useEmployees';
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, Employee, useAddEmployeeBenefit, useAddEmployeeTool } from '@/hooks/useEmployees';
 import { CreateEmployeeInput } from '@/services/employeeService';
+import { EmployeeFormSubmitData } from '@/components/employees/EmployeeFormDialog';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DataTable } from '@/components/data-table/DataTable';
 import { createEmployeeColumns } from '@/components/employees/EmployeesTable';
@@ -17,6 +18,8 @@ const Index = () => {
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const deleteEmployee = useDeleteEmployee();
+  const addBenefit = useAddEmployeeBenefit();
+  const addTool = useAddEmployeeTool();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [formDialogOpen, setFormDialogOpen] = useState(false);
@@ -38,11 +41,37 @@ const Index = () => {
     setDeleteDialogOpen(true);
   };
 
-  const handleFormSubmit = async (data: CreateEmployeeInput) => {
+  const handleFormSubmit = async (data: EmployeeFormSubmitData) => {
+    const { localBenefits, localTools, ...employeeData } = data;
+    
     if (selectedEmployee) {
-      await updateEmployee.mutateAsync({ id: selectedEmployee.id, updates: data });
+      await updateEmployee.mutateAsync({ id: selectedEmployee.id, updates: employeeData });
     } else {
-      await createEmployee.mutateAsync(data);
+      // Create employee first
+      const newEmployee = await createEmployee.mutateAsync(employeeData);
+      
+      // Then create benefits and tools
+      if (localBenefits && localBenefits.length > 0) {
+        for (const benefit of localBenefits) {
+          await addBenefit.mutateAsync({
+            employeeId: newEmployee.id,
+            name: benefit.name,
+            description: benefit.description || undefined,
+            monthlyValue: benefit.monthlyValue,
+          });
+        }
+      }
+      
+      if (localTools && localTools.length > 0) {
+        for (const tool of localTools) {
+          await addTool.mutateAsync({
+            employeeId: newEmployee.id,
+            name: tool.name,
+            description: tool.description || undefined,
+            monthlyCost: tool.monthlyCost,
+          });
+        }
+      }
     }
     setFormDialogOpen(false);
     setSelectedEmployee(null);

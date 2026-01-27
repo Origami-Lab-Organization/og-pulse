@@ -30,12 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wrench, Heart, User, Briefcase } from 'lucide-react';
+import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { formatPhone, formatCPF, formatCurrency, parseCurrency, validateCPF } from '@/lib/masks';
 import { EmployeeToolsTable } from './EmployeeToolsTable';
 import { EmployeeBenefitsTable } from './EmployeeBenefitsTable';
+import { EmployeeBenefitsLocalTable, LocalBenefit } from './EmployeeBenefitsLocalTable';
+import { EmployeeToolsLocalTable, LocalTool } from './EmployeeToolsLocalTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -63,13 +65,25 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+export interface EmployeeFormSubmitData extends CreateEmployeeInput {
+  localBenefits?: LocalBenefit[];
+  localTools?: LocalTool[];
+}
+
 interface EmployeeFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   employee?: Employee | null;
-  onSubmit: (data: CreateEmployeeInput) => void;
+  onSubmit: (data: EmployeeFormSubmitData) => void;
   isLoading?: boolean;
 }
+
+const STEPS = [
+  { id: 'dados', label: 'Dados Pessoais', icon: User },
+  { id: 'financeiro', label: 'Contratação', icon: Briefcase },
+  { id: 'beneficios', label: 'Benefícios', icon: Heart },
+  { id: 'ferramentas', label: 'Ferramentas', icon: Wrench },
+];
 
 const EmployeeFormDialog = ({
   open,
@@ -79,8 +93,11 @@ const EmployeeFormDialog = ({
   isLoading = false,
 }: EmployeeFormDialogProps) => {
   const isEditing = !!employee;
-  const [activeTab, setActiveTab] = useState('dados');
-  const [newEmployeeId, setNewEmployeeId] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // Local state for benefits and tools (for new employees)
+  const [localBenefits, setLocalBenefits] = useState<LocalBenefit[]>([]);
+  const [localTools, setLocalTools] = useState<LocalTool[]>([]);
 
   // Masked display values
   const [phoneDisplay, setPhoneDisplay] = useState('');
@@ -123,6 +140,7 @@ const EmployeeFormDialog = ({
   const inssEmpresa = form.watch('inssEmpresa');
   const decimoTerceiro = form.watch('decimoTerceiro');
   const ferias = form.watch('ferias');
+  const nome = form.watch('nome');
 
   // Calculate total encargos when individual values change
   useEffect(() => {
@@ -165,7 +183,6 @@ const EmployeeFormDialog = ({
       setInssDisplay(employee.inssEmpresa ? formatCurrency(employee.inssEmpresa) : '');
       setDecimoDisplay(employee.decimoTerceiro ? formatCurrency(employee.decimoTerceiro) : '');
       setFeriasDisplay(employee.ferias ? formatCurrency(employee.ferias) : '');
-      setNewEmployeeId(null);
     } else {
       form.reset({
         nome: '',
@@ -198,8 +215,9 @@ const EmployeeFormDialog = ({
       setInssDisplay('');
       setDecimoDisplay('');
       setFeriasDisplay('');
-      setActiveTab('dados');
-      setNewEmployeeId(null);
+      setCurrentStep(0);
+      setLocalBenefits([]);
+      setLocalTools([]);
     }
   }, [employee, form, open]);
 
@@ -226,10 +244,38 @@ const EmployeeFormDialog = ({
     form.setValue(field, parseCurrency(formatted) as never);
   };
 
+  const validateCurrentStep = async () => {
+    if (currentStep === 0) {
+      return await form.trigger(['nome', 'email', 'telefone', 'cpf', 'cargo', 'dataAdmissao', 'status', 'isGerente']);
+    }
+    if (currentStep === 1) {
+      return await form.trigger(['tipoContratacao', 'jornadaMensal', 'salarioMensal', 'proLabore']);
+    }
+    return true;
+  };
+
+  const handleNext = async () => {
+    const isValid = await validateCurrentStep();
+    if (isValid && currentStep < STEPS.length - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   const handleSubmit = (data: FormData) => {
-    onSubmit(data as CreateEmployeeInput);
+    onSubmit({
+      ...data,
+      localBenefits: isEditing ? undefined : localBenefits,
+      localTools: isEditing ? undefined : localTools,
+    } as EmployeeFormSubmitData);
+    
+    // Reset everything
     form.reset();
-    // Reset display values
     setPhoneDisplay('');
     setCpfDisplay('');
     setSalarioDisplay('');
@@ -239,11 +285,47 @@ const EmployeeFormDialog = ({
     setInssDisplay('');
     setDecimoDisplay('');
     setFeriasDisplay('');
+    setLocalBenefits([]);
+    setLocalTools([]);
+    setCurrentStep(0);
   };
 
-  // Get the employee ID for tools/benefits (either editing existing or newly created)
-  const currentEmployeeId = employee?.id || newEmployeeId;
-  const currentEmployeeName = employee?.nome || form.watch('nome') || 'Novo Funcionário';
+  const renderStepIndicator = () => (
+    <div className="flex items-center justify-center gap-2 mb-6">
+      {STEPS.map((step, index) => {
+        const Icon = step.icon;
+        const isActive = index === currentStep;
+        const isCompleted = index < currentStep;
+        
+        return (
+          <div key={step.id} className="flex items-center">
+            <div
+              className={cn(
+                "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors",
+                isActive && "border-primary bg-primary text-primary-foreground",
+                isCompleted && "border-primary bg-primary/20 text-primary",
+                !isActive && !isCompleted && "border-muted-foreground/30 text-muted-foreground"
+              )}
+            >
+              {isCompleted ? (
+                <Check className="h-5 w-5" />
+              ) : (
+                <Icon className="h-5 w-5" />
+              )}
+            </div>
+            {index < STEPS.length - 1 && (
+              <div 
+                className={cn(
+                  "w-12 h-0.5 mx-1",
+                  isCompleted ? "bg-primary" : "bg-muted-foreground/30"
+                )}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 
   const renderPersonalDataFields = () => (
     <div className="space-y-6">
@@ -655,18 +737,40 @@ const EmployeeFormDialog = ({
     </div>
   );
 
-  const renderToolsBenefitsPlaceholder = (type: 'ferramentas' | 'beneficios') => (
-    <div className="text-center py-8 text-muted-foreground border rounded-lg">
-      <p className="mb-2">
-        {type === 'ferramentas' 
-          ? 'Salve o funcionário primeiro para gerenciar ferramentas.'
-          : 'Salve o funcionário primeiro para gerenciar benefícios.'}
-      </p>
-      <p className="text-sm">
-        Após cadastrar, você poderá adicionar {type === 'ferramentas' ? 'ferramentas e assinaturas' : 'benefícios mensais'}.
-      </p>
-    </div>
-  );
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 0:
+        return renderPersonalDataFields();
+      case 1:
+        return renderFinancialFields();
+      case 2:
+        // Benefits - use local table for new, database table for editing
+        return isEditing && employee ? (
+          <EmployeeBenefitsTable employeeId={employee.id} employeeName={employee.nome} />
+        ) : (
+          <EmployeeBenefitsLocalTable 
+            benefits={localBenefits} 
+            onChange={setLocalBenefits}
+            employeeName={nome || 'Novo Funcionário'}
+          />
+        );
+      case 3:
+        // Tools - use local table for new, database table for editing
+        return isEditing && employee ? (
+          <EmployeeToolsTable employeeId={employee.id} employeeName={employee.nome} />
+        ) : (
+          <EmployeeToolsLocalTable 
+            tools={localTools} 
+            onChange={setLocalTools}
+            employeeName={nome || 'Novo Funcionário'}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const isLastStep = currentStep === STEPS.length - 1;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -677,58 +781,35 @@ const EmployeeFormDialog = ({
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? 'Atualize as informações do funcionário abaixo.'
-              : 'Preencha as informações para adicionar um novo funcionário. Um email de convite será enviado automaticamente.'}
+              ? 'Atualize as informações do funcionário.'
+              : `Etapa ${currentStep + 1} de ${STEPS.length}: ${STEPS[currentStep].label}`}
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="dados" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Dados
-            </TabsTrigger>
-            <TabsTrigger value="financeiro" className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4" />
-              Financeiro
-            </TabsTrigger>
-            <TabsTrigger value="beneficios" className="flex items-center gap-2">
-              <Heart className="h-4 w-4" />
-              Benefícios
-            </TabsTrigger>
-            <TabsTrigger value="ferramentas" className="flex items-center gap-2">
-              <Wrench className="h-4 w-4" />
-              Ferramentas
-            </TabsTrigger>
-          </TabsList>
+        {!isEditing && renderStepIndicator()}
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)}>
-              <TabsContent value="dados" className="mt-4">
-                {renderPersonalDataFields()}
-              </TabsContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)}>
+            <div className="min-h-[300px]">
+              {renderCurrentStep()}
+            </div>
 
-              <TabsContent value="financeiro" className="mt-4">
-                {renderFinancialFields()}
-              </TabsContent>
-
-              <TabsContent value="beneficios" className="mt-4">
-                {currentEmployeeId ? (
-                  <EmployeeBenefitsTable employeeId={currentEmployeeId} employeeName={currentEmployeeName} />
-                ) : (
-                  renderToolsBenefitsPlaceholder('beneficios')
+            <div className="flex justify-between gap-3 pt-4 mt-4 border-t">
+              <div>
+                {currentStep > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={isLoading}
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Anterior
+                  </Button>
                 )}
-              </TabsContent>
-
-              <TabsContent value="ferramentas" className="mt-4">
-                {currentEmployeeId ? (
-                  <EmployeeToolsTable employeeId={currentEmployeeId} employeeName={currentEmployeeName} />
-                ) : (
-                  renderToolsBenefitsPlaceholder('ferramentas')
-                )}
-              </TabsContent>
-
-              <div className="flex justify-end gap-3 pt-4 mt-4 border-t">
+              </div>
+              
+              <div className="flex gap-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -737,22 +818,33 @@ const EmployeeFormDialog = ({
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : isEditing ? (
-                    'Salvar Alterações'
-                  ) : (
-                    'Adicionar Funcionário'
-                  )}
-                </Button>
+                
+                {isLastStep || isEditing ? (
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : isEditing ? (
+                      'Salvar Alterações'
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Finalizar Cadastro
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={handleNext}>
+                    Próximo
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
               </div>
-            </form>
-          </Form>
-        </Tabs>
+            </div>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
