@@ -144,11 +144,9 @@ const EmployeeFormDialog = ({
 
   // Calculate total encargos when individual values change
   useEffect(() => {
-    if (tipoContratacao === 'CLT') {
-      const totalEncargos = fgts + inssEmpresa + decimoTerceiro + ferias;
-      form.setValue('encargos', totalEncargos);
-    }
-  }, [fgts, inssEmpresa, decimoTerceiro, ferias, tipoContratacao, form]);
+    const totalEncargos = fgts + inssEmpresa + decimoTerceiro + ferias;
+    form.setValue('encargos', totalEncargos);
+  }, [fgts, inssEmpresa, decimoTerceiro, ferias, form]);
 
   useEffect(() => {
     if (employee) {
@@ -518,19 +516,55 @@ const EmployeeFormDialog = ({
         />
       </div>
 
-      {/* SÓCIO - Pró-labore */}
-      {tipoContratacao === 'SOCIO' && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Pró-labore</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Salários - Todos os tipos */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Valores</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="salarioMensal"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Salário Bruto *</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="R$ 0,00"
+                      value={salarioDisplay}
+                      onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="salarioLiquido"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Salário Líquido</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="R$ 0,00"
+                      value={salarioLiquidoDisplay}
+                      onChange={(e) => handleCurrencyChange(e, 'salarioLiquido', setSalarioLiquidoDisplay)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="proLabore"
               render={() => (
                 <FormItem>
-                  <FormLabel>Valor Mensal *</FormLabel>
+                  <FormLabel>Pró-Labore</FormLabel>
                   <FormControl>
                     <Input 
                       placeholder="R$ 0,00"
@@ -542,198 +576,95 @@ const EmployeeFormDialog = ({
                 </FormItem>
               )}
             />
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* CLT - Salário e encargos editáveis */}
-      {tipoContratacao === 'CLT' && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Salário e Encargos CLT</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="salarioMensal"
-                render={() => (
-                  <FormItem>
-                    <FormLabel>Salário Bruto *</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="R$ 0,00"
-                        value={salarioDisplay}
-                        onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="salarioLiquido"
-                render={() => (
-                  <FormItem>
-                    <FormLabel>Salário Líquido</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="R$ 0,00"
-                        value={salarioLiquidoDisplay}
-                        onChange={(e) => handleCurrencyChange(e, 'salarioLiquido', setSalarioLiquidoDisplay)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="border-t pt-4">
-              <p className="text-sm font-medium text-muted-foreground mb-3">
-                Encargos
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="fgts"
-                  render={() => (
-                    <FormItem>
-                      <FormLabel>FGTS</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="R$ 0,00"
-                          value={fgtsDisplay}
-                          onChange={(e) => handleCurrencyChange(e, 'fgts', setFgtsDisplay)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="inssEmpresa"
-                  render={() => (
-                    <FormItem>
-                      <FormLabel>INSS Empresa</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="R$ 0,00"
-                          value={inssDisplay}
-                          onChange={(e) => handleCurrencyChange(e, 'inssEmpresa', setInssDisplay)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="decimoTerceiro"
-                  render={() => (
-                    <FormItem>
-                      <FormLabel>13º Salário</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="R$ 0,00"
-                          value={decimoDisplay}
-                          onChange={(e) => handleCurrencyChange(e, 'decimoTerceiro', setDecimoDisplay)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="ferias"
-                  render={() => (
-                    <FormItem>
-                      <FormLabel>Férias + 1/3</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="R$ 0,00"
-                          value={feriasDisplay}
-                          onChange={(e) => handleCurrencyChange(e, 'ferias', setFeriasDisplay)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="mt-3 p-3 bg-primary/10 rounded-lg flex justify-between items-center">
-                <span className="font-medium">Total Encargos</span>
-                <span className="font-bold text-lg">{formatCurrency(fgts + inssEmpresa + decimoTerceiro + ferias)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* PJ - Valor mensal */}
-      {tipoContratacao === 'PJ' && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Valor PJ</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Encargos - Todos os tipos */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Encargos</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="salarioMensal"
+              name="fgts"
               render={() => (
                 <FormItem>
-                  <FormLabel>Valor Mensal *</FormLabel>
+                  <FormLabel>FGTS</FormLabel>
                   <FormControl>
                     <Input 
                       placeholder="R$ 0,00"
-                      value={salarioDisplay}
-                      onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
+                      value={fgtsDisplay}
+                      onChange={(e) => handleCurrencyChange(e, 'fgts', setFgtsDisplay)}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          </CardContent>
-        </Card>
-      )}
 
-      {/* JOVEM APRENDIZ / ESTÁGIO - Bolsa */}
-      {(tipoContratacao === 'JOVEM_APRENDIZ' || tipoContratacao === 'ESTAGIO') && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              {tipoContratacao === 'JOVEM_APRENDIZ' ? 'Salário Aprendiz' : 'Bolsa Estágio'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
             <FormField
               control={form.control}
-              name="salarioMensal"
+              name="inssEmpresa"
               render={() => (
                 <FormItem>
-                  <FormLabel>Valor Mensal *</FormLabel>
+                  <FormLabel>INSS Empresa</FormLabel>
                   <FormControl>
                     <Input 
                       placeholder="R$ 0,00"
-                      value={salarioDisplay}
-                      onChange={(e) => handleCurrencyChange(e, 'salarioMensal', setSalarioDisplay)}
+                      value={inssDisplay}
+                      onChange={(e) => handleCurrencyChange(e, 'inssEmpresa', setInssDisplay)}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          </CardContent>
-        </Card>
-      )}
+
+            <FormField
+              control={form.control}
+              name="decimoTerceiro"
+              render={() => (
+                <FormItem>
+                  <FormLabel>13º Salário</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="R$ 0,00"
+                      value={decimoDisplay}
+                      onChange={(e) => handleCurrencyChange(e, 'decimoTerceiro', setDecimoDisplay)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="ferias"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Férias + 1/3</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="R$ 0,00"
+                      value={feriasDisplay}
+                      onChange={(e) => handleCurrencyChange(e, 'ferias', setFeriasDisplay)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="mt-3 p-3 bg-primary/10 rounded-lg flex justify-between items-center">
+            <span className="font-medium">Total Encargos</span>
+            <span className="font-bold text-lg">{formatCurrency(fgts + inssEmpresa + decimoTerceiro + ferias)}</span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 
