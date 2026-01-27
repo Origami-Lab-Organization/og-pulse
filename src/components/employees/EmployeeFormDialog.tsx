@@ -6,6 +6,8 @@ import { Employee, useEmployeeVersions } from '@/hooks/useEmployees';
 import { CreateEmployeeInput } from '@/services/employeeService';
 import { ContractType, CONTRACT_TYPE_LABELS } from '@/types/employee';
 import { usePayrollProfile } from '@/hooks/usePayrollProfile';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { calculateEmployeeCost, CostBreakdown, getBaseFieldLabel, showsChargesSection, showsProvisionsSection } from '@/lib/employeeCostCalculator';
 import { formatCurrency } from '@/lib/formatters';
 import {
@@ -136,6 +138,9 @@ const EmployeeFormDialog = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
+  // Get current user for tenant context
+  const { employee: currentEmployee } = useAuth();
+
   // Fetch versions for editing mode
   const { data: versions = [], isLoading: versionsLoading } = useEmployeeVersions(
     isEditing ? employee?.id : undefined
@@ -175,7 +180,7 @@ const EmployeeFormDialog = ({
       isGerente: false,
       status: 'ativo',
       tipoContratacao: 'CLT',
-      jornadaMensal: 176,
+      jornadaMensal: 168,
       salarioMensal: 0,
       bolsaAuxilio: 0,
       valorContratoPj: 0,
@@ -261,7 +266,7 @@ const EmployeeFormDialog = ({
         isGerente: employee.isGerente,
         status: employee.status,
         tipoContratacao: employee.tipoContratacao || 'CLT',
-        jornadaMensal: employee.jornadaMensal || 176,
+        jornadaMensal: employee.jornadaMensal || 168,
         salarioMensal: employee.salarioMensal,
         bolsaAuxilio: employee.bolsaAuxilio || 0,
         valorContratoPj: employee.valorContratoPj || 0,
@@ -296,7 +301,7 @@ const EmployeeFormDialog = ({
         isGerente: false,
         status: 'ativo',
         tipoContratacao: 'CLT',
-        jornadaMensal: 176,
+        jornadaMensal: 168,
         salarioMensal: 0,
         bolsaAuxilio: 0,
         valorContratoPj: 0,
@@ -333,11 +338,30 @@ const EmployeeFormDialog = ({
     form.setValue('telefone', formatted.replace(/\D/g, ''));
   };
 
-  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCpfChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCPF(e.target.value);
     setCpfDisplay(formatted);
-    form.setValue('cpf', formatted.replace(/\D/g, ''));
+    const cpfClean = formatted.replace(/\D/g, '');
+    form.setValue('cpf', cpfClean);
     form.trigger('cpf');
+    
+    // Verificar duplicidade se CPF válido
+    if (cpfClean.length === 11 && validateCPF(cpfClean) && currentEmployee?.tenant_id) {
+      const { data: existing } = await supabase
+        .from('employees')
+        .select('id, nome')
+        .eq('tenant_id', currentEmployee.tenant_id)
+        .eq('cpf', cpfClean)
+        .neq('id', employee?.id || '')
+        .maybeSingle();
+      
+      if (existing) {
+        form.setError('cpf', { 
+          type: 'manual', 
+          message: `CPF já cadastrado para ${existing.nome}` 
+        });
+      }
+    }
   };
 
   const handleCurrencyChange = (
@@ -670,7 +694,7 @@ const EmployeeFormDialog = ({
                   <FormControl>
                     <Input 
                       type="number" 
-                      placeholder="176"
+                      placeholder="168"
                       {...field}
                       onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                     />
@@ -876,20 +900,15 @@ const EmployeeFormDialog = ({
                     {formatCurrency(subtotalSalarial)}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  Benefícios e ferramentas serão adicionados nas etapas seguintes.
-                </p>
               </div>
             </>
           )}
           
-          {/* Aviso */}
-          <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-            <p className="text-sm text-warning-foreground">
-              Cálculo estimado; valide com contabilidade.
-            </p>
-          </div>
+          {/* Aviso compacto e centralizado */}
+          <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+            <AlertCircle className="h-3 w-3" />
+            Cálculo estimado; valide com contabilidade.
+          </p>
         </CardContent>
       </Card>
     );
