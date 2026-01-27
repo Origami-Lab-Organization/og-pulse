@@ -1,6 +1,6 @@
 import { Employee, EmployeeFormData } from '@/types/employee';
 
-// Simulated in-memory store for MVP
+// Simulated in-memory store for MVP (deprecated - using Supabase instead)
 let employees: Employee[] = [
   {
     id: '1',
@@ -15,6 +15,14 @@ let employees: Employee[] = [
     salarioMensal: 12000,
     beneficios: 1500,
     encargos: 4800,
+    tipoContratacao: 'CLT',
+    jornadaMensal: 176,
+    salarioLiquido: 9000,
+    fgts: 960,
+    inssEmpresa: 2400,
+    decimoTerceiro: 1000,
+    ferias: 1333,
+    proLabore: 0,
   },
   {
     id: '2',
@@ -29,6 +37,14 @@ let employees: Employee[] = [
     salarioMensal: 18000,
     beneficios: 2000,
     encargos: 7200,
+    tipoContratacao: 'CLT',
+    jornadaMensal: 176,
+    salarioLiquido: 13500,
+    fgts: 1440,
+    inssEmpresa: 3600,
+    decimoTerceiro: 1500,
+    ferias: 2000,
+    proLabore: 0,
   },
   {
     id: '3',
@@ -43,6 +59,14 @@ let employees: Employee[] = [
     salarioMensal: 9000,
     beneficios: 1200,
     encargos: 3600,
+    tipoContratacao: 'CLT',
+    jornadaMensal: 176,
+    salarioLiquido: 6750,
+    fgts: 720,
+    inssEmpresa: 1800,
+    decimoTerceiro: 750,
+    ferias: 1000,
+    proLabore: 0,
   },
 ];
 

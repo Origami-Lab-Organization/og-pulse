@@ -1,3 +1,28 @@
+// Validate CPF with check digits
+export const validateCPF = (cpf: string): boolean => {
+  const numbers = cpf.replace(/\D/g, '');
+  if (numbers.length !== 11) return false;
+  if (/^(\d)\1+$/.test(numbers)) return false; // All same digits
+  
+  // First check digit
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(numbers[i]) * (10 - i);
+  }
+  let digit1 = (sum * 10) % 11;
+  if (digit1 === 10) digit1 = 0;
+  
+  // Second check digit
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(numbers[i]) * (11 - i);
+  }
+  let digit2 = (sum * 10) % 11;
+  if (digit2 === 10) digit2 = 0;
+  
+  return digit1 === parseInt(numbers[9]) && digit2 === parseInt(numbers[10]);
+};
+
 // Format phone number: (11) 99999-9999
 export const formatPhone = (value: string): string => {
   const numbers = value.replace(/\D/g, '').slice(0, 11);

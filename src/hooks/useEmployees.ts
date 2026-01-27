@@ -2,15 +2,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService, CreateEmployeeInput, EmployeeDB } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CreateEmployeeToolInput } from '@/types/employee';
+import { CreateEmployeeToolInput, CreateEmployeeBenefitInput, ContractType } from '@/types/employee';
 
-// Type for employee with tools from DB
-type EmployeeWithTools = EmployeeDB & { employee_tools?: { monthly_cost: number }[] };
+// Type for employee with tools and benefits from DB
+type EmployeeWithRelations = EmployeeDB & { 
+  employee_tools?: { monthly_cost: number }[];
+  employee_benefits?: { monthly_value: number }[];
+};
 
 // Convert DB format to frontend format
-export const dbToEmployee = (db: EmployeeWithTools) => {
+export const dbToEmployee = (db: EmployeeWithRelations) => {
   const totalToolsCost = (db.employee_tools || []).reduce(
     (sum, tool) => sum + Number(tool.monthly_cost),
+    0
+  );
+  
+  const totalBenefitsCost = (db.employee_benefits || []).reduce(
+    (sum, benefit) => sum + Number(benefit.monthly_value),
     0
   );
   
@@ -27,7 +35,16 @@ export const dbToEmployee = (db: EmployeeWithTools) => {
     salarioMensal: Number(db.salario_mensal),
     beneficios: Number(db.beneficios),
     encargos: Number(db.encargos),
+    tipoContratacao: (db.tipo_contratacao || 'CLT') as ContractType,
+    jornadaMensal: Number(db.jornada_mensal) || 176,
+    salarioLiquido: Number(db.salario_liquido) || 0,
+    fgts: Number(db.fgts) || 0,
+    inssEmpresa: Number(db.inss_empresa) || 0,
+    decimoTerceiro: Number(db.decimo_terceiro) || 0,
+    ferias: Number(db.ferias) || 0,
+    proLabore: Number(db.pro_labore) || 0,
     totalToolsCost,
+    totalBenefitsCost,
     tenantId: db.tenant_id,
     authId: db.auth_id,
     mustChangePassword: db.must_change_password,
@@ -236,6 +253,102 @@ export const useDeleteEmployeeTool = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao remover ferramenta',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+// Employee Benefits hooks
+export const useEmployeeBenefits = (employeeId: string | undefined) => {
+  return useQuery({
+    queryKey: ['employee-benefits', employeeId],
+    queryFn: () => employeeService.getBenefits(employeeId!),
+    enabled: !!employeeId,
+  });
+};
+
+export const useAddEmployeeBenefit = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: CreateEmployeeBenefitInput) => {
+      return employeeService.addBenefit(input);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['employee-benefits', variables.employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast({
+        title: 'Benefício adicionado',
+        description: 'O benefício foi adicionado com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao adicionar benefício',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useUpdateEmployeeBenefit = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      employeeId,
+      updates,
+    }: {
+      id: string;
+      employeeId: string;
+      updates: Partial<Omit<CreateEmployeeBenefitInput, 'employeeId'>>;
+    }) => {
+      return employeeService.updateBenefit(id, updates);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['employee-benefits', variables.employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast({
+        title: 'Benefício atualizado',
+        description: 'O benefício foi atualizado com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao atualizar benefício',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useDeleteEmployeeBenefit = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, employeeId }: { id: string; employeeId: string }) => {
+      await employeeService.deleteBenefit(id);
+      return { employeeId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['employee-benefits', data.employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast({
+        title: 'Benefício removido',
+        description: 'O benefício foi removido com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao remover benefício',
         description: error.message,
         variant: 'destructive',
       });
