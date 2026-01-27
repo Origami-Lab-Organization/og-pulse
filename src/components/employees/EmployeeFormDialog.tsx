@@ -1,10 +1,10 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Employee } from '@/hooks/useEmployees';
 import { CreateEmployeeInput } from '@/services/employeeService';
-import { ContractType, CONTRACT_TYPE_LABELS, calculateCLTCharges } from '@/types/employee';
+import { ContractType, CONTRACT_TYPE_LABELS } from '@/types/employee';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wrench, Heart, User, Briefcase, Calculator } from 'lucide-react';
+import { Loader2, Wrench, Heart, User, Briefcase } from 'lucide-react';
 import { formatPhone, formatCPF, formatCurrency, parseCurrency, validateCPF } from '@/lib/masks';
 import { EmployeeToolsTable } from './EmployeeToolsTable';
 import { EmployeeBenefitsTable } from './EmployeeBenefitsTable';
@@ -80,6 +80,7 @@ const EmployeeFormDialog = ({
 }: EmployeeFormDialogProps) => {
   const isEditing = !!employee;
   const [activeTab, setActiveTab] = useState('dados');
+  const [newEmployeeId, setNewEmployeeId] = useState<string | null>(null);
 
   // Masked display values
   const [phoneDisplay, setPhoneDisplay] = useState('');
@@ -87,6 +88,10 @@ const EmployeeFormDialog = ({
   const [salarioDisplay, setSalarioDisplay] = useState('');
   const [salarioLiquidoDisplay, setSalarioLiquidoDisplay] = useState('');
   const [proLaboreDisplay, setProLaboreDisplay] = useState('');
+  const [fgtsDisplay, setFgtsDisplay] = useState('');
+  const [inssDisplay, setInssDisplay] = useState('');
+  const [decimoDisplay, setDecimoDisplay] = useState('');
+  const [feriasDisplay, setFeriasDisplay] = useState('');
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -114,26 +119,18 @@ const EmployeeFormDialog = ({
   });
 
   const tipoContratacao = form.watch('tipoContratacao');
-  const salarioMensal = form.watch('salarioMensal');
+  const fgts = form.watch('fgts');
+  const inssEmpresa = form.watch('inssEmpresa');
+  const decimoTerceiro = form.watch('decimoTerceiro');
+  const ferias = form.watch('ferias');
 
-  // Auto-calculate CLT charges
-  const cltCharges = useMemo(() => {
-    if (tipoContratacao === 'CLT' && salarioMensal > 0) {
-      return calculateCLTCharges(salarioMensal);
-    }
-    return { fgts: 0, inssEmpresa: 0, decimoTerceiro: 0, ferias: 0, totalEncargos: 0 };
-  }, [tipoContratacao, salarioMensal]);
-
-  // Update form when CLT charges change
+  // Calculate total encargos when individual values change
   useEffect(() => {
     if (tipoContratacao === 'CLT') {
-      form.setValue('fgts', cltCharges.fgts);
-      form.setValue('inssEmpresa', cltCharges.inssEmpresa);
-      form.setValue('decimoTerceiro', cltCharges.decimoTerceiro);
-      form.setValue('ferias', cltCharges.ferias);
-      form.setValue('encargos', cltCharges.totalEncargos);
+      const totalEncargos = fgts + inssEmpresa + decimoTerceiro + ferias;
+      form.setValue('encargos', totalEncargos);
     }
-  }, [cltCharges, tipoContratacao, form]);
+  }, [fgts, inssEmpresa, decimoTerceiro, ferias, tipoContratacao, form]);
 
   useEffect(() => {
     if (employee) {
@@ -164,6 +161,11 @@ const EmployeeFormDialog = ({
       setSalarioDisplay(employee.salarioMensal ? formatCurrency(employee.salarioMensal) : '');
       setSalarioLiquidoDisplay(employee.salarioLiquido ? formatCurrency(employee.salarioLiquido) : '');
       setProLaboreDisplay(employee.proLabore ? formatCurrency(employee.proLabore) : '');
+      setFgtsDisplay(employee.fgts ? formatCurrency(employee.fgts) : '');
+      setInssDisplay(employee.inssEmpresa ? formatCurrency(employee.inssEmpresa) : '');
+      setDecimoDisplay(employee.decimoTerceiro ? formatCurrency(employee.decimoTerceiro) : '');
+      setFeriasDisplay(employee.ferias ? formatCurrency(employee.ferias) : '');
+      setNewEmployeeId(null);
     } else {
       form.reset({
         nome: '',
@@ -192,7 +194,12 @@ const EmployeeFormDialog = ({
       setSalarioDisplay('');
       setSalarioLiquidoDisplay('');
       setProLaboreDisplay('');
+      setFgtsDisplay('');
+      setInssDisplay('');
+      setDecimoDisplay('');
+      setFeriasDisplay('');
       setActiveTab('dados');
+      setNewEmployeeId(null);
     }
   }, [employee, form, open]);
 
@@ -228,7 +235,15 @@ const EmployeeFormDialog = ({
     setSalarioDisplay('');
     setSalarioLiquidoDisplay('');
     setProLaboreDisplay('');
+    setFgtsDisplay('');
+    setInssDisplay('');
+    setDecimoDisplay('');
+    setFeriasDisplay('');
   };
+
+  // Get the employee ID for tools/benefits (either editing existing or newly created)
+  const currentEmployeeId = employee?.id || newEmployeeId;
+  const currentEmployeeName = employee?.nome || form.watch('nome') || 'Novo Funcionário';
 
   const renderPersonalDataFields = () => (
     <div className="space-y-6">
@@ -449,14 +464,11 @@ const EmployeeFormDialog = ({
         </Card>
       )}
 
-      {/* CLT - Salário e encargos automáticos */}
+      {/* CLT - Salário e encargos editáveis */}
       {tipoContratacao === 'CLT' && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Calculator className="h-4 w-4" />
-              Salário e Encargos CLT
-            </CardTitle>
+            <CardTitle className="text-base">Salário e Encargos CLT</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -483,7 +495,7 @@ const EmployeeFormDialog = ({
                 name="salarioLiquido"
                 render={() => (
                   <FormItem>
-                    <FormLabel>Salário Líquido (informativo)</FormLabel>
+                    <FormLabel>Salário Líquido</FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="R$ 0,00"
@@ -499,29 +511,84 @@ const EmployeeFormDialog = ({
 
             <div className="border-t pt-4">
               <p className="text-sm font-medium text-muted-foreground mb-3">
-                Encargos calculados automaticamente ({((cltCharges.totalEncargos / (salarioMensal || 1)) * 100).toFixed(1)}% do salário bruto)
+                Encargos
               </p>
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                  <span className="text-sm">FGTS (8%)</span>
-                  <span className="font-medium">{formatCurrency(cltCharges.fgts)}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                  <span className="text-sm">INSS Empresa (20%)</span>
-                  <span className="font-medium">{formatCurrency(cltCharges.inssEmpresa)}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                  <span className="text-sm">13º Salário (8.33%)</span>
-                  <span className="font-medium">{formatCurrency(cltCharges.decimoTerceiro)}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                  <span className="text-sm">Férias + 1/3 (11.11%)</span>
-                  <span className="font-medium">{formatCurrency(cltCharges.ferias)}</span>
-                </div>
+                <FormField
+                  control={form.control}
+                  name="fgts"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>FGTS</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={fgtsDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'fgts', setFgtsDisplay)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="inssEmpresa"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>INSS Empresa</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={inssDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'inssEmpresa', setInssDisplay)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="decimoTerceiro"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>13º Salário</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={decimoDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'decimoTerceiro', setDecimoDisplay)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ferias"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>Férias + 1/3</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="R$ 0,00"
+                          value={feriasDisplay}
+                          onChange={(e) => handleCurrencyChange(e, 'ferias', setFeriasDisplay)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               <div className="mt-3 p-3 bg-primary/10 rounded-lg flex justify-between items-center">
                 <span className="font-medium">Total Encargos</span>
-                <span className="font-bold text-lg">{formatCurrency(cltCharges.totalEncargos)}</span>
+                <span className="font-bold text-lg">{formatCurrency(fgts + inssEmpresa + decimoTerceiro + ferias)}</span>
               </div>
             </div>
           </CardContent>
@@ -588,6 +655,19 @@ const EmployeeFormDialog = ({
     </div>
   );
 
+  const renderToolsBenefitsPlaceholder = (type: 'ferramentas' | 'beneficios') => (
+    <div className="text-center py-8 text-muted-foreground border rounded-lg">
+      <p className="mb-2">
+        {type === 'ferramentas' 
+          ? 'Salve o funcionário primeiro para gerenciar ferramentas.'
+          : 'Salve o funcionário primeiro para gerenciar benefícios.'}
+      </p>
+      <p className="text-sm">
+        Após cadastrar, você poderá adicionar {type === 'ferramentas' ? 'ferramentas e assinaturas' : 'benefícios mensais'}.
+      </p>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -602,142 +682,77 @@ const EmployeeFormDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        {isEditing ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="dados" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Dados
-              </TabsTrigger>
-              <TabsTrigger value="financeiro" className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                Financeiro
-              </TabsTrigger>
-              <TabsTrigger value="beneficios" className="flex items-center gap-2">
-                <Heart className="h-4 w-4" />
-                Benefícios
-              </TabsTrigger>
-              <TabsTrigger value="ferramentas" className="flex items-center gap-2">
-                <Wrench className="h-4 w-4" />
-                Ferramentas
-              </TabsTrigger>
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="dados" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Dados
+            </TabsTrigger>
+            <TabsTrigger value="financeiro" className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
+              Financeiro
+            </TabsTrigger>
+            <TabsTrigger value="beneficios" className="flex items-center gap-2">
+              <Heart className="h-4 w-4" />
+              Benefícios
+            </TabsTrigger>
+            <TabsTrigger value="ferramentas" className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              Ferramentas
+            </TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="dados" className="mt-4">
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-                  {renderPersonalDataFields()}
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => onOpenChange(false)}
-                      disabled={isLoading}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Salvando...
-                        </>
-                      ) : (
-                        'Salvar Alterações'
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </TabsContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)}>
+              <TabsContent value="dados" className="mt-4">
+                {renderPersonalDataFields()}
+              </TabsContent>
 
-            <TabsContent value="financeiro" className="mt-4">
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-                  {renderFinancialFields()}
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => onOpenChange(false)}
-                      disabled={isLoading}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Salvando...
-                        </>
-                      ) : (
-                        'Salvar Alterações'
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </TabsContent>
+              <TabsContent value="financeiro" className="mt-4">
+                {renderFinancialFields()}
+              </TabsContent>
 
-            <TabsContent value="beneficios" className="mt-4">
-              {employee && (
-                <EmployeeBenefitsTable employeeId={employee.id} employeeName={employee.nome} />
-              )}
-            </TabsContent>
+              <TabsContent value="beneficios" className="mt-4">
+                {currentEmployeeId ? (
+                  <EmployeeBenefitsTable employeeId={currentEmployeeId} employeeName={currentEmployeeName} />
+                ) : (
+                  renderToolsBenefitsPlaceholder('beneficios')
+                )}
+              </TabsContent>
 
-            <TabsContent value="ferramentas" className="mt-4">
-              {employee && (
-                <EmployeeToolsTable employeeId={employee.id} employeeName={employee.nome} />
-              )}
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <Tabs defaultValue="dados" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="dados" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Dados Pessoais
-              </TabsTrigger>
-              <TabsTrigger value="financeiro" className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                Contratação
-              </TabsTrigger>
-            </TabsList>
+              <TabsContent value="ferramentas" className="mt-4">
+                {currentEmployeeId ? (
+                  <EmployeeToolsTable employeeId={currentEmployeeId} employeeName={currentEmployeeName} />
+                ) : (
+                  renderToolsBenefitsPlaceholder('ferramentas')
+                )}
+              </TabsContent>
 
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-                <TabsContent value="dados" className="mt-4">
-                  {renderPersonalDataFields()}
-                </TabsContent>
-
-                <TabsContent value="financeiro" className="mt-4">
-                  {renderFinancialFields()}
-                </TabsContent>
-
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => onOpenChange(false)}
-                    disabled={isLoading}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      'Adicionar Funcionário'
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </Tabs>
-        )}
+              <div className="flex justify-end gap-3 pt-4 mt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isLoading}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : isEditing ? (
+                    'Salvar Alterações'
+                  ) : (
+                    'Adicionar Funcionário'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
