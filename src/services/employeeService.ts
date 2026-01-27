@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeTool, CreateEmployeeToolInput, EmployeeBenefit, CreateEmployeeBenefitInput, ContractType } from '@/types/employee';
-
+import { employeeVersionService } from './employeeVersionService';
 export interface EmployeeDB {
   id: string;
   nome: string;
@@ -115,7 +115,7 @@ export const employeeService = {
     return result.employee;
   },
 
-  async update(id: string, updates: Partial<CreateEmployeeInput>): Promise<EmployeeDB> {
+  async update(id: string, updates: Partial<CreateEmployeeInput>, createNewVersion: boolean = false): Promise<EmployeeDB> {
     const dbUpdates: Record<string, unknown> = {};
     
     if (updates.nome !== undefined) dbUpdates.nome = updates.nome;
@@ -150,7 +150,33 @@ export const employeeService = {
       throw error;
     }
 
-    return data as EmployeeDB;
+    const updatedEmployee = data as EmployeeDB;
+
+    // Create a new version if requested (for financial/charge changes)
+    if (createNewVersion) {
+      try {
+        await employeeVersionService.createVersion({
+          employeeId: id,
+          salarioMensal: updatedEmployee.salario_mensal,
+          salarioLiquido: updatedEmployee.salario_liquido,
+          beneficios: updatedEmployee.beneficios,
+          encargos: updatedEmployee.encargos,
+          fgts: updatedEmployee.fgts,
+          inssEmpresa: updatedEmployee.inss_empresa,
+          decimoTerceiro: updatedEmployee.decimo_terceiro,
+          ferias: updatedEmployee.ferias,
+          proLabore: updatedEmployee.pro_labore,
+          jornadaMensal: updatedEmployee.jornada_mensal,
+          tipoContratacao: updatedEmployee.tipo_contratacao,
+          cargo: updatedEmployee.cargo,
+        });
+      } catch (versionError) {
+        console.error('Error creating employee version:', versionError);
+        // Don't throw - the employee was updated successfully
+      }
+    }
+
+    return updatedEmployee;
   },
 
   async delete(id: string): Promise<void> {

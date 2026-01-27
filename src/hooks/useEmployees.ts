@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService, CreateEmployeeInput, EmployeeDB } from '@/services/employeeService';
+import { employeeVersionService, EmployeeVersionDB } from '@/services/employeeVersionService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CreateEmployeeToolInput, CreateEmployeeBenefitInput, ContractType } from '@/types/employee';
@@ -117,14 +118,27 @@ export const useUpdateEmployee = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<CreateEmployeeInput> }) => {
-      return employeeService.update(id, updates);
+    mutationFn: async ({ 
+      id, 
+      updates,
+      createNewVersion = false 
+    }: { 
+      id: string; 
+      updates: Partial<CreateEmployeeInput>;
+      createNewVersion?: boolean;
+    }) => {
+      return employeeService.update(id, updates, createNewVersion);
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      if (variables.createNewVersion) {
+        queryClient.invalidateQueries({ queryKey: ['employee-versions', variables.id] });
+      }
       toast({
         title: 'Funcionário atualizado',
-        description: `${data.nome} foi atualizado com sucesso.`,
+        description: variables.createNewVersion 
+          ? `${data.nome} foi atualizado. Um novo marco financeiro foi criado.`
+          : `${data.nome} foi atualizado com sucesso.`,
       });
     },
     onError: (error: Error) => {
@@ -355,3 +369,30 @@ export const useDeleteEmployeeBenefit = () => {
     },
   });
 };
+
+// Employee Versions hooks
+export const useEmployeeVersions = (employeeId: string | undefined) => {
+  return useQuery({
+    queryKey: ['employee-versions', employeeId],
+    queryFn: () => employeeVersionService.getVersions(employeeId!),
+    enabled: !!employeeId,
+  });
+};
+
+export const useCurrentEmployeeVersion = (employeeId: string | undefined) => {
+  return useQuery({
+    queryKey: ['employee-version-current', employeeId],
+    queryFn: () => employeeVersionService.getCurrentVersion(employeeId!),
+    enabled: !!employeeId,
+  });
+};
+
+export const useEmployeeVersionAtDate = (employeeId: string | undefined, date: string | undefined) => {
+  return useQuery({
+    queryKey: ['employee-version-at-date', employeeId, date],
+    queryFn: () => employeeVersionService.getVersionAtDate(employeeId!, date!),
+    enabled: !!employeeId && !!date,
+  });
+};
+
+export type { EmployeeVersionDB };

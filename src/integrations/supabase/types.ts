@@ -352,6 +352,74 @@ export type Database = {
           },
         ]
       }
+      employee_versions: {
+        Row: {
+          beneficios: number
+          cargo: string
+          created_at: string
+          decimo_terceiro: number
+          effective_from: string
+          effective_until: string | null
+          employee_id: string
+          encargos: number
+          ferias: number
+          fgts: number
+          id: string
+          inss_empresa: number
+          jornada_mensal: number
+          pro_labore: number
+          salario_liquido: number
+          salario_mensal: number
+          tipo_contratacao: string
+        }
+        Insert: {
+          beneficios?: number
+          cargo: string
+          created_at?: string
+          decimo_terceiro?: number
+          effective_from?: string
+          effective_until?: string | null
+          employee_id: string
+          encargos?: number
+          ferias?: number
+          fgts?: number
+          id?: string
+          inss_empresa?: number
+          jornada_mensal?: number
+          pro_labore?: number
+          salario_liquido?: number
+          salario_mensal?: number
+          tipo_contratacao?: string
+        }
+        Update: {
+          beneficios?: number
+          cargo?: string
+          created_at?: string
+          decimo_terceiro?: number
+          effective_from?: string
+          effective_until?: string | null
+          employee_id?: string
+          encargos?: number
+          ferias?: number
+          fgts?: number
+          id?: string
+          inss_empresa?: number
+          jornada_mensal?: number
+          pro_labore?: number
+          salario_liquido?: number
+          salario_mensal?: number
+          tipo_contratacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_versions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           auth_id: string | null
@@ -766,6 +834,26 @@ export type Database = {
     }
     Functions: {
       generate_budget_number: { Args: { p_tenant_id: string }; Returns: string }
+      get_employee_version_at_date: {
+        Args: { p_date?: string; p_employee_id: string }
+        Returns: {
+          beneficios: number
+          cargo: string
+          decimo_terceiro: number
+          effective_from: string
+          effective_until: string
+          encargos: number
+          ferias: number
+          fgts: number
+          inss_empresa: number
+          jornada_mensal: number
+          pro_labore: number
+          salario_liquido: number
+          salario_mensal: number
+          tipo_contratacao: string
+          version_id: string
+        }[]
+      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

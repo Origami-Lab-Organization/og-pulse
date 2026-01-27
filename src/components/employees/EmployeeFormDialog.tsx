@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Employee } from '@/hooks/useEmployees';
+import { Employee, useEmployeeVersions } from '@/hooks/useEmployees';
 import { CreateEmployeeInput } from '@/services/employeeService';
 import { ContractType, CONTRACT_TYPE_LABELS } from '@/types/employee';
 import {
@@ -23,6 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -31,14 +32,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History } from 'lucide-react';
 import { formatPhone, formatCPF, formatCurrency, parseCurrency, validateCPF } from '@/lib/masks';
 import { EmployeeToolsTable } from './EmployeeToolsTable';
 import { EmployeeBenefitsTable } from './EmployeeBenefitsTable';
 import { EmployeeBenefitsLocalTable, LocalBenefit } from './EmployeeBenefitsLocalTable';
 import { EmployeeToolsLocalTable, LocalTool } from './EmployeeToolsLocalTable';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmployeeVersionsTable } from './EmployeeVersionsTable';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const formSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -69,6 +72,7 @@ type FormData = z.infer<typeof formSchema>;
 export interface EmployeeFormSubmitData extends CreateEmployeeInput {
   localBenefits?: LocalBenefit[];
   localTools?: LocalTool[];
+  createNewVersion?: boolean;
 }
 
 interface EmployeeFormDialogProps {
@@ -95,6 +99,12 @@ const EmployeeFormDialog = ({
 }: EmployeeFormDialogProps) => {
   const isEditing = !!employee;
   const [currentStep, setCurrentStep] = useState(0);
+  const [createNewVersion, setCreateNewVersion] = useState(false);
+
+  // Fetch versions for editing mode
+  const { data: versions = [], isLoading: versionsLoading } = useEmployeeVersions(
+    isEditing ? employee?.id : undefined
+  );
 
   // Local state for benefits and tools (for new employees)
   const [localBenefits, setLocalBenefits] = useState<LocalBenefit[]>([]);
@@ -217,6 +227,7 @@ const EmployeeFormDialog = ({
       setCurrentStep(0);
       setLocalBenefits([]);
       setLocalTools([]);
+      setCreateNewVersion(false);
     }
   }, [employee, form, open]);
 
@@ -271,6 +282,7 @@ const EmployeeFormDialog = ({
       ...data,
       localBenefits: isEditing ? undefined : localBenefits,
       localTools: isEditing ? undefined : localTools,
+      createNewVersion: isEditing ? createNewVersion : undefined,
     } as EmployeeFormSubmitData);
     
     // Reset everything
@@ -287,6 +299,7 @@ const EmployeeFormDialog = ({
     setLocalBenefits([]);
     setLocalTools([]);
     setCurrentStep(0);
+    setCreateNewVersion(false);
   };
 
   const renderStepIndicator = () => (
@@ -706,7 +719,7 @@ const EmployeeFormDialog = ({
 
   const renderEditTabs = () => (
     <Tabs defaultValue="dados" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-5">
         <TabsTrigger value="dados" className="flex items-center gap-2">
           <User className="h-4 w-4" />
           <span className="hidden sm:inline">Dados</span>
@@ -723,18 +736,66 @@ const EmployeeFormDialog = ({
           <Wrench className="h-4 w-4" />
           <span className="hidden sm:inline">Ferramentas</span>
         </TabsTrigger>
+        <TabsTrigger value="historico" className="flex items-center gap-2">
+          <History className="h-4 w-4" />
+          <span className="hidden sm:inline">Histórico</span>
+        </TabsTrigger>
       </TabsList>
       <TabsContent value="dados" className="mt-4">
         {renderPersonalDataFields()}
       </TabsContent>
       <TabsContent value="financeiro" className="mt-4">
-        {renderFinancialFields()}
+        <div className="space-y-4">
+          {renderFinancialFields()}
+          
+          {/* Versioning checkbox */}
+          <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/20">
+            <CardContent className="pt-4">
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="createNewVersion"
+                  checked={createNewVersion}
+                  onCheckedChange={(checked) => setCreateNewVersion(checked === true)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label
+                    htmlFor="createNewVersion"
+                    className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
+                  >
+                    <History className="h-4 w-4" />
+                    Criar novo marco financeiro
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Ao marcar esta opção, os valores anteriores serão preservados para orçamentos e projetos passados. 
+                    As novas informações serão aplicadas apenas a partir de hoje.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </TabsContent>
       <TabsContent value="beneficios" className="mt-4">
         {employee && <EmployeeBenefitsTable employeeId={employee.id} employeeName={employee.nome} />}
       </TabsContent>
       <TabsContent value="ferramentas" className="mt-4">
         {employee && <EmployeeToolsTable employeeId={employee.id} employeeName={employee.nome} />}
+      </TabsContent>
+      <TabsContent value="historico" className="mt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Histórico de Versões
+            </CardTitle>
+            <CardDescription>
+              Veja todas as alterações financeiras feitas ao longo do tempo. Cada versão preserva os dados usados em orçamentos e projetos daquele período.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EmployeeVersionsTable versions={versions} isLoading={versionsLoading} />
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>
   );
