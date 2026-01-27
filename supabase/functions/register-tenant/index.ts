@@ -42,13 +42,27 @@ Deno.serve(async (req) => {
 
     // Check if email already exists
     const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-    const emailExists = existingUsers?.users?.some(u => u.email === email);
+    const existingUser = existingUsers?.users?.find(u => u.email === email);
     
-    if (emailExists) {
-      return new Response(
-        JSON.stringify({ error: 'Este email já está cadastrado' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let authUserId!: string;
+    let isExistingUser = false;
+
+    if (existingUser) {
+      // User exists - verify password by attempting sign in
+      const { data: signInData, error: signInError } = await adminClient.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError || !signInData.user) {
+        return new Response(
+          JSON.stringify({ error: 'Email já cadastrado. Verifique a senha ou faça login para adicionar uma nova empresa.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      authUserId = existingUser.id;
+      isExistingUser = true;
     }
 
     // 1. Create tenant
@@ -66,21 +80,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Create auth user
-    const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
+    // 2. Create auth user (only if new user)
+    if (!isExistingUser) {
+      const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
 
-    if (authError) {
-      console.error('Error creating auth user:', authError);
-      // Rollback: delete tenant
-      await adminClient.from('tenants').delete().eq('id', tenant.id);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao criar usuário' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (authError) {
+        console.error('Error creating auth user:', authError);
+        // Rollback: delete tenant
+        await adminClient.from('tenants').delete().eq('id', tenant.id);
+        return new Response(
+          JSON.stringify({ error: 'Erro ao criar usuário' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      authUserId = authUser.user.id;
     }
 
     // 3. Create employee record
@@ -93,7 +111,7 @@ Deno.serve(async (req) => {
         data_admissao: new Date().toISOString().split('T')[0],
         is_gerente: true,
         tenant_id: tenant.id,
-        auth_id: authUser.user.id,
+        auth_id: authUserId,
         must_change_password: false,
       })
       .select()
@@ -101,8 +119,10 @@ Deno.serve(async (req) => {
 
     if (employeeError) {
       console.error('Error creating employee:', employeeError);
-      // Rollback: delete auth user and tenant
-      await adminClient.auth.admin.deleteUser(authUser.user.id);
+      // Rollback: delete auth user (only if new) and tenant
+      if (!isExistingUser) {
+        await adminClient.auth.admin.deleteUser(authUserId);
+      }
       await adminClient.from('tenants').delete().eq('id', tenant.id);
       return new Response(
         JSON.stringify({ error: 'Erro ao criar funcionário' }),
@@ -114,16 +134,18 @@ Deno.serve(async (req) => {
     const { error: roleError } = await adminClient
       .from('user_roles')
       .insert({
-        user_id: authUser.user.id,
+        user_id: authUserId,
         tenant_id: tenant.id,
         role: 'admin',
       });
 
     if (roleError) {
       console.error('Error assigning role:', roleError);
-      // Rollback: delete employee, auth user, and tenant
+      // Rollback: delete employee, auth user (only if new), and tenant
       await adminClient.from('employees').delete().eq('id', employee.id);
-      await adminClient.auth.admin.deleteUser(authUser.user.id);
+      if (!isExistingUser) {
+        await adminClient.auth.admin.deleteUser(authUserId);
+      }
       await adminClient.from('tenants').delete().eq('id', tenant.id);
       return new Response(
         JSON.stringify({ error: 'Erro ao atribuir permissões' }),
