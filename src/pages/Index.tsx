@@ -65,21 +65,7 @@ const Index = () => {
     []
   );
 
-  // Convert Employee to the format expected by stats components
-  const allEmployeesForStats = employees.map((emp) => ({
-    id: emp.id,
-    nome: emp.nome,
-    email: emp.email,
-    telefone: emp.telefone,
-    cargo: emp.cargo,
-    cpf: emp.cpf,
-    dataAdmissao: emp.dataAdmissao,
-    isGerente: emp.isGerente,
-    status: emp.status,
-    salarioMensal: emp.salarioMensal,
-    beneficios: emp.beneficios,
-    encargos: emp.encargos,
-  }));
+  // Employees already have the correct format from the hook
 
   const actions = (
     <Button onClick={handleAddEmployee} className="gap-2">
@@ -116,7 +102,7 @@ const Index = () => {
       actions={actions}
     >
       {/* Stats */}
-      <EmployeeStats employees={allEmployeesForStats} />
+      <EmployeeStats employees={employees} />
 
       {/* Search */}
       <div className="mt-6 mb-4">
@@ -169,20 +155,7 @@ const Index = () => {
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        employee={selectedEmployee ? {
-          id: selectedEmployee.id,
-          nome: selectedEmployee.nome,
-          email: selectedEmployee.email,
-          telefone: selectedEmployee.telefone,
-          cargo: selectedEmployee.cargo,
-          cpf: selectedEmployee.cpf,
-          dataAdmissao: selectedEmployee.dataAdmissao,
-          isGerente: selectedEmployee.isGerente,
-          status: selectedEmployee.status,
-          salarioMensal: selectedEmployee.salarioMensal,
-          beneficios: selectedEmployee.beneficios,
-          encargos: selectedEmployee.encargos,
-        } : null}
+        employee={selectedEmployee}
         onConfirm={handleDeleteConfirm}
       />
     </AppLayout>

@@ -1,4 +1,4 @@
-import { Employee } from '@/types/employee';
+import { Employee } from '@/hooks/useEmployees';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, UserCheck, Crown, DollarSign } from 'lucide-react';
 

@@ -1,4 +1,4 @@
-import { Employee } from '@/types/employee';
+import { Employee } from '@/hooks/useEmployees';
 import {
   AlertDialog,
   AlertDialogAction,

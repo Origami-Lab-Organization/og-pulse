@@ -9,15 +9,23 @@ const corsHeaders = {
 interface CreateEmployeeRequest {
   nome: string;
   email: string;
-  telefone?: string;
+  telefone: string;
   cargo: string;
-  cpf?: string;
+  cpf: string;
   dataAdmissao: string;
   isGerente: boolean;
   status: string;
   salarioMensal: number;
   beneficios: number;
   encargos: number;
+  tipoContratacao: string;
+  jornadaMensal: number;
+  salarioLiquido: number;
+  fgts: number;
+  inssEmpresa: number;
+  decimoTerceiro: number;
+  ferias: number;
+  proLabore: number;
   tenantId: string;
   loginUrl: string;
 }
@@ -97,6 +105,14 @@ const handler = async (req: Request): Promise<Response> => {
       salarioMensal,
       beneficios,
       encargos,
+      tipoContratacao,
+      jornadaMensal,
+      salarioLiquido,
+      fgts,
+      inssEmpresa,
+      decimoTerceiro,
+      ferias,
+      proLabore,
       tenantId,
       loginUrl,
     } = body;
@@ -147,7 +163,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Auth user created:", authUser.user.id);
 
-    // Create employee record
+    // Create employee record with all new fields
     const { data: employee, error: employeeError } = await adminClient
       .from('employees')
       .insert({
@@ -162,6 +178,14 @@ const handler = async (req: Request): Promise<Response> => {
         salario_mensal: salarioMensal,
         beneficios,
         encargos,
+        tipo_contratacao: tipoContratacao || 'CLT',
+        jornada_mensal: jornadaMensal || 176,
+        salario_liquido: salarioLiquido || 0,
+        fgts: fgts || 0,
+        inss_empresa: inssEmpresa || 0,
+        decimo_terceiro: decimoTerceiro || 0,
+        ferias: ferias || 0,
+        pro_labore: proLabore || 0,
         tenant_id: tenantId,
         auth_id: authUser.user.id,
         must_change_password: true,
@@ -227,8 +251,8 @@ const handler = async (req: Request): Promise<Response> => {
         emailSent = true;
         console.log("Invite email sent successfully");
       }
-    } catch (error: any) {
-      emailError = error.message;
+    } catch (error: unknown) {
+      emailError = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error calling send-invite-email:', error);
     }
 
@@ -247,10 +271,10 @@ const handler = async (req: Request): Promise<Response> => {
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in create-employee-user:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

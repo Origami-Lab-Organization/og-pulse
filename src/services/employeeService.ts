@@ -1,19 +1,27 @@
 import { supabase } from '@/integrations/supabase/client';
-import { EmployeeTool, CreateEmployeeToolInput } from '@/types/employee';
+import { EmployeeTool, CreateEmployeeToolInput, EmployeeBenefit, CreateEmployeeBenefitInput, ContractType } from '@/types/employee';
 
 export interface EmployeeDB {
   id: string;
   nome: string;
   email: string;
-  telefone: string | null;
+  telefone: string;
   cargo: string;
-  cpf: string | null;
+  cpf: string;
   data_admissao: string;
   is_gerente: boolean;
   status: string;
   salario_mensal: number;
   beneficios: number;
   encargos: number;
+  tipo_contratacao: string;
+  jornada_mensal: number;
+  salario_liquido: number;
+  fgts: number;
+  inss_empresa: number;
+  decimo_terceiro: number;
+  ferias: number;
+  pro_labore: number;
   tenant_id: string;
   auth_id: string | null;
   must_change_password: boolean;
@@ -25,22 +33,30 @@ export interface EmployeeDB {
 export interface CreateEmployeeInput {
   nome: string;
   email: string;
-  telefone?: string;
+  telefone: string;
   cargo: string;
-  cpf?: string;
+  cpf: string;
   dataAdmissao: string;
   isGerente: boolean;
   status: string;
   salarioMensal: number;
   beneficios: number;
   encargos: number;
+  tipoContratacao: ContractType;
+  jornadaMensal: number;
+  salarioLiquido: number;
+  fgts: number;
+  inssEmpresa: number;
+  decimoTerceiro: number;
+  ferias: number;
+  proLabore: number;
 }
 
 export const employeeService = {
-  async getAll(tenantId: string): Promise<(EmployeeDB & { employee_tools: { monthly_cost: number }[] })[]> {
+  async getAll(tenantId: string): Promise<(EmployeeDB & { employee_tools: { monthly_cost: number }[], employee_benefits: { monthly_value: number }[] })[]> {
     const { data, error } = await supabase
       .from('employees')
-      .select('*, employee_tools(monthly_cost)')
+      .select('*, employee_tools(monthly_cost), employee_benefits(monthly_value)')
       .eq('tenant_id', tenantId)
       .order('nome');
 
@@ -49,7 +65,7 @@ export const employeeService = {
       throw error;
     }
 
-    return data || [];
+    return (data || []) as (EmployeeDB & { employee_tools: { monthly_cost: number }[], employee_benefits: { monthly_value: number }[] })[];
   },
 
   async getById(id: string): Promise<EmployeeDB | null> {
@@ -64,7 +80,7 @@ export const employeeService = {
       return null;
     }
 
-    return data;
+    return data as EmployeeDB;
   },
 
   async create(input: CreateEmployeeInput, tenantId: string, loginUrl: string): Promise<EmployeeDB> {
@@ -100,7 +116,7 @@ export const employeeService = {
   },
 
   async update(id: string, updates: Partial<CreateEmployeeInput>): Promise<EmployeeDB> {
-    const dbUpdates: Record<string, any> = {};
+    const dbUpdates: Record<string, unknown> = {};
     
     if (updates.nome !== undefined) dbUpdates.nome = updates.nome;
     if (updates.email !== undefined) dbUpdates.email = updates.email;
@@ -113,6 +129,14 @@ export const employeeService = {
     if (updates.salarioMensal !== undefined) dbUpdates.salario_mensal = updates.salarioMensal;
     if (updates.beneficios !== undefined) dbUpdates.beneficios = updates.beneficios;
     if (updates.encargos !== undefined) dbUpdates.encargos = updates.encargos;
+    if (updates.tipoContratacao !== undefined) dbUpdates.tipo_contratacao = updates.tipoContratacao;
+    if (updates.jornadaMensal !== undefined) dbUpdates.jornada_mensal = updates.jornadaMensal;
+    if (updates.salarioLiquido !== undefined) dbUpdates.salario_liquido = updates.salarioLiquido;
+    if (updates.fgts !== undefined) dbUpdates.fgts = updates.fgts;
+    if (updates.inssEmpresa !== undefined) dbUpdates.inss_empresa = updates.inssEmpresa;
+    if (updates.decimoTerceiro !== undefined) dbUpdates.decimo_terceiro = updates.decimoTerceiro;
+    if (updates.ferias !== undefined) dbUpdates.ferias = updates.ferias;
+    if (updates.proLabore !== undefined) dbUpdates.pro_labore = updates.proLabore;
 
     const { data, error } = await supabase
       .from('employees')
@@ -126,7 +150,7 @@ export const employeeService = {
       throw error;
     }
 
-    return data;
+    return data as EmployeeDB;
   },
 
   async delete(id: string): Promise<void> {
@@ -154,7 +178,7 @@ export const employeeService = {
       throw error;
     }
 
-    return data || [];
+    return (data || []) as EmployeeDB[];
   },
 
   // Employee Tools
@@ -223,6 +247,76 @@ export const employeeService = {
 
     if (error) {
       console.error('Error deleting employee tool:', error);
+      throw error;
+    }
+  },
+
+  // Employee Benefits
+  async getBenefits(employeeId: string): Promise<EmployeeBenefit[]> {
+    const { data, error } = await supabase
+      .from('employee_benefits')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching employee benefits:', error);
+      throw error;
+    }
+
+    return (data || []) as EmployeeBenefit[];
+  },
+
+  async addBenefit(input: CreateEmployeeBenefitInput): Promise<EmployeeBenefit> {
+    const { data, error } = await supabase
+      .from('employee_benefits')
+      .insert({
+        employee_id: input.employeeId,
+        name: input.name,
+        description: input.description || null,
+        monthly_value: input.monthlyValue,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding employee benefit:', error);
+      throw error;
+    }
+
+    return data as EmployeeBenefit;
+  },
+
+  async updateBenefit(id: string, updates: Partial<Omit<CreateEmployeeBenefitInput, 'employeeId'>>): Promise<EmployeeBenefit> {
+    const updateData: Record<string, unknown> = {};
+    
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.monthlyValue !== undefined) updateData.monthly_value = updates.monthlyValue;
+
+    const { data, error } = await supabase
+      .from('employee_benefits')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating employee benefit:', error);
+      throw error;
+    }
+
+    return data as EmployeeBenefit;
+  },
+
+  async deleteBenefit(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('employee_benefits')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting employee benefit:', error);
       throw error;
     }
   },

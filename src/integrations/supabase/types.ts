@@ -276,6 +276,44 @@ export type Database = {
           },
         ]
       }
+      employee_benefits: {
+        Row: {
+          created_at: string
+          description: string | null
+          employee_id: string
+          id: string
+          monthly_value: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          employee_id: string
+          id?: string
+          monthly_value?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          employee_id?: string
+          id?: string
+          monthly_value?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_benefits_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_tools: {
         Row: {
           created_at: string
@@ -319,60 +357,84 @@ export type Database = {
           auth_id: string | null
           beneficios: number
           cargo: string
-          cpf: string | null
+          cpf: string
           created_at: string
           data_admissao: string
+          decimo_terceiro: number
           email: string
           encargos: number
+          ferias: number
+          fgts: number
           id: string
+          inss_empresa: number
           is_gerente: boolean
+          jornada_mensal: number
           must_change_password: boolean
           nome: string
+          pro_labore: number
+          salario_liquido: number
           salario_mensal: number
           status: string
-          telefone: string | null
+          telefone: string
           temp_password: string | null
           tenant_id: string
+          tipo_contratacao: string
           updated_at: string
         }
         Insert: {
           auth_id?: string | null
           beneficios?: number
           cargo: string
-          cpf?: string | null
+          cpf: string
           created_at?: string
           data_admissao: string
+          decimo_terceiro?: number
           email: string
           encargos?: number
+          ferias?: number
+          fgts?: number
           id?: string
+          inss_empresa?: number
           is_gerente?: boolean
+          jornada_mensal?: number
           must_change_password?: boolean
           nome: string
+          pro_labore?: number
+          salario_liquido?: number
           salario_mensal?: number
           status?: string
-          telefone?: string | null
+          telefone: string
           temp_password?: string | null
           tenant_id: string
+          tipo_contratacao?: string
           updated_at?: string
         }
         Update: {
           auth_id?: string | null
           beneficios?: number
           cargo?: string
-          cpf?: string | null
+          cpf?: string
           created_at?: string
           data_admissao?: string
+          decimo_terceiro?: number
           email?: string
           encargos?: number
+          ferias?: number
+          fgts?: number
           id?: string
+          inss_empresa?: number
           is_gerente?: boolean
+          jornada_mensal?: number
           must_change_password?: boolean
           nome?: string
+          pro_labore?: number
+          salario_liquido?: number
           salario_mensal?: number
           status?: string
-          telefone?: string | null
+          telefone?: string
           temp_password?: string | null
           tenant_id?: string
+          tipo_contratacao?: string
           updated_at?: string
         }
         Relationships: [
