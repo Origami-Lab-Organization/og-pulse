@@ -17,7 +17,7 @@ export interface Employee {
   cpf: string;
   dataAdmissao: string;
   isGerente: boolean;
-  status: 'ativo' | 'inativo';
+  status: 'ativo' | 'inativo' | 'aguardando_confirmacao';
   salarioMensal: number;
   beneficios: number;
   encargos: number;

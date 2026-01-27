@@ -108,11 +108,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Update status to 'ativo' when user logs in (if still pending)
+  const activateEmployeeOnLogin = async (userId: string) => {
+    const { data: empData } = await supabase
+      .from('employees')
+      .select('id, status')
+      .eq('auth_id', userId)
+      .single();
+
+    if (empData && empData.status === 'aguardando_confirmacao') {
+      await supabase
+        .from('employees')
+        .update({ status: 'ativo' })
+        .eq('id', empData.id);
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    // Activate employee on successful login
+    if (!error && data.user) {
+      await activateEmployeeOnLogin(data.user.id);
+    }
 
     return { error: error as Error | null };
   };
@@ -130,12 +151,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     });
 
     if (!error && employee) {
-      // Update must_change_password to false and clear temp_password
+      // Update must_change_password to false, clear temp_password, and set status to 'ativo'
       await supabase
         .from('employees')
         .update({ 
           must_change_password: false,
-          temp_password: null 
+          temp_password: null,
+          status: 'ativo'
         })
         .eq('id', employee.id);
 

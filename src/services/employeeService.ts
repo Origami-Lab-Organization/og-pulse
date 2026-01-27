@@ -179,16 +179,20 @@ export const employeeService = {
     return updatedEmployee;
   },
 
-  async delete(id: string): Promise<void> {
-    const { error } = await supabase
+  async inactivate(id: string): Promise<EmployeeDB> {
+    const { data, error } = await supabase
       .from('employees')
-      .delete()
-      .eq('id', id);
+      .update({ status: 'inativo' })
+      .eq('id', id)
+      .select()
+      .single();
 
     if (error) {
-      console.error('Error deleting employee:', error);
+      console.error('Error inactivating employee:', error);
       throw error;
     }
+
+    return data as EmployeeDB;
   },
 
   async search(query: string, tenantId: string): Promise<EmployeeDB[]> {

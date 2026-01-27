@@ -32,7 +32,7 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     cpf: db.cpf || '',
     dataAdmissao: db.data_admissao,
     isGerente: db.is_gerente,
-    status: db.status as 'ativo' | 'inativo',
+    status: db.status as 'ativo' | 'inativo' | 'aguardando_confirmacao',
     salarioMensal: Number(db.salario_mensal),
     beneficios: Number(db.beneficios),
     encargos: Number(db.encargos),
@@ -151,26 +151,25 @@ export const useUpdateEmployee = () => {
   });
 };
 
-export const useDeleteEmployee = () => {
+export const useInactivateEmployee = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
-      await employeeService.delete(id);
+      await employeeService.inactivate(id);
       return { nome };
     },
     onSuccess: ({ nome }) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({
-        title: 'Funcionário excluído',
-        description: `${nome} foi removido.`,
-        variant: 'destructive',
+        title: 'Funcionário inativado',
+        description: `${nome} foi inativado com sucesso.`,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Erro ao excluir funcionário',
+        title: 'Erro ao inativar funcionário',
         description: error.message,
         variant: 'destructive',
       });
