@@ -43,27 +43,30 @@ const navigationGroups = [
   {
     label: 'Dashboard',
     items: [
-      { title: 'Visão Geral', url: '/dashboard', icon: LayoutDashboard, disabled: true },
+      { title: 'Visão Geral', url: '/dashboard', icon: LayoutDashboard },
     ] as NavItem[],
   },
   {
     label: 'Gestão',
+    requiresAdmin: true,
     items: [
-      { title: 'Funcionários', url: '/', icon: Users },
-      { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
-      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
+      { title: 'Funcionários', url: '/', icon: Users, requiresAdmin: true },
+      { title: 'Clientes', url: '/clients', icon: Building2, requiresAdmin: true },
+      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresAdmin: true },
     ] as NavItem[],
   },
   {
     label: 'Operações',
+    requiresAdmin: true,
     items: [
-      { title: 'Timesheets', url: '/timesheets', icon: Clock, disabled: true },
-      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresManager: true },
-      { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true },
+      { title: 'Timesheets', url: '/timesheets', icon: Clock, disabled: true, requiresAdmin: true },
+      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresAdmin: true },
+      { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true, requiresAdmin: true },
     ] as NavItem[],
   },
   {
     label: 'Configurações',
+    requiresAdmin: true,
     items: [
       { title: 'Tabela de Preços', url: '/pricing', icon: DollarSign, requiresAdmin: true },
       { title: 'Configurações', url: '/settings', icon: Settings, requiresAdmin: true },

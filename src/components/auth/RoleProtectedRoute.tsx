@@ -30,13 +30,13 @@ const RoleProtectedRoute = ({
 
   // Check if user needs admin access
   if (requireAdmin && !employee.isAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Check if user has manager/admin access
   // is_gerente = true means the user is a manager or admin
   if (requireManager && !employee.is_gerente && !employee.isAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

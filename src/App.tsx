@@ -20,6 +20,7 @@ import Budgets from "./pages/Budgets";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import LandingPage from "./pages/LandingPage";
+import UnderConstruction from "./pages/UnderConstruction";
 
 const queryClient = new QueryClient();
 
@@ -43,18 +44,28 @@ const App = () => (
                   </ProtectedRoute>
                 } 
               />
+              {/* Dashboard - accessible to all authenticated users */}
+              <Route 
+                path="/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <UnderConstruction />
+                  </ProtectedRoute>
+                } 
+              />
+              {/* Management routes - Admin only */}
               <Route 
                 path="/" 
                 element={
-                  <ProtectedRoute>
+                  <RoleProtectedRoute requireAdmin>
                     <Index />
-                  </ProtectedRoute>
+                  </RoleProtectedRoute>
                 } 
               />
               <Route 
                 path="/clients" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireAdmin>
                     <Clients />
                   </RoleProtectedRoute>
                 } 
@@ -62,7 +73,7 @@ const App = () => (
               <Route 
                 path="/projects" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireAdmin>
                     <Projects />
                   </RoleProtectedRoute>
                 } 
@@ -70,7 +81,7 @@ const App = () => (
               <Route 
                 path="/budgets" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireAdmin>
                     <Budgets />
                   </RoleProtectedRoute>
                 } 
@@ -78,7 +89,7 @@ const App = () => (
               <Route 
                 path="/budgets/new" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireAdmin>
                     <BudgetForm />
                   </RoleProtectedRoute>
                 } 
@@ -86,7 +97,7 @@ const App = () => (
               <Route 
                 path="/budgets/:id" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireAdmin>
                     <BudgetDetail />
                   </RoleProtectedRoute>
                 } 
@@ -94,7 +105,7 @@ const App = () => (
               <Route 
                 path="/budgets/:id/edit" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireAdmin>
                     <BudgetForm />
                   </RoleProtectedRoute>
                 } 
