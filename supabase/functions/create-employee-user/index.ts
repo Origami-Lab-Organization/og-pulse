@@ -26,6 +26,16 @@ interface CreateEmployeeRequest {
   decimoTerceiro: number;
   ferias: number;
   proLabore: number;
+  // New cost fields
+  bolsaAuxilio: number;
+  valorContratoPj: number;
+  dividendos: number;
+  provisao13: number;
+  provisaoFerias: number;
+  provisaoRecesso: number;
+  totalMonthlyCostEstimated: number;
+  totalAnnualCostEstimated: number;
+  breakdownJson: Record<string, unknown> | null;
   tenantId: string;
   loginUrl: string;
 }
@@ -113,6 +123,16 @@ const handler = async (req: Request): Promise<Response> => {
       decimoTerceiro,
       ferias,
       proLabore,
+      // New cost fields
+      bolsaAuxilio,
+      valorContratoPj,
+      dividendos,
+      provisao13,
+      provisaoFerias,
+      provisaoRecesso,
+      totalMonthlyCostEstimated,
+      totalAnnualCostEstimated,
+      breakdownJson,
       tenantId,
       loginUrl,
     } = body;
@@ -222,6 +242,16 @@ const handler = async (req: Request): Promise<Response> => {
         decimo_terceiro: decimoTerceiro || 0,
         ferias: ferias || 0,
         pro_labore: proLabore || 0,
+        // New cost fields
+        bolsa_auxilio: bolsaAuxilio || 0,
+        valor_contrato_pj: valorContratoPj || 0,
+        dividendos: dividendos || 0,
+        provisao_13: provisao13 || 0,
+        provisao_ferias: provisaoFerias || 0,
+        provisao_recesso: provisaoRecesso || 0,
+        total_monthly_cost_estimated: totalMonthlyCostEstimated || 0,
+        total_annual_cost_estimated: totalAnnualCostEstimated || 0,
+        breakdown_json: breakdownJson || null,
         tenant_id: tenantId,
         auth_id: authUserId,
         must_change_password: !isExistingUser, // Only require change for new users
