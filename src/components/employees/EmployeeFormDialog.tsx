@@ -1036,7 +1036,7 @@ const EmployeeFormDialog = ({
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)}>
+            <form onSubmit={(e) => e.preventDefault()}>
               {isEditing ? (
                 // Edit mode: Traditional tabs
                 <div className="min-h-[300px]">
@@ -1069,7 +1069,11 @@ const EmployeeFormDialog = ({
                 
                 <div className="flex gap-3">
                   {!isEditing && isLastStep ? (
-                    <Button type="submit" disabled={isLoading}>
+                    <Button 
+                      type="button" 
+                      disabled={isLoading}
+                      onClick={form.handleSubmit(handleSubmit)}
+                    >
                       {isLoading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1088,7 +1092,11 @@ const EmployeeFormDialog = ({
                       <ChevronRight className="ml-2 h-4 w-4" />
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={isLoading}>
+                    <Button 
+                      type="button" 
+                      disabled={isLoading}
+                      onClick={form.handleSubmit(handleSubmit)}
+                    >
                       {isLoading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
