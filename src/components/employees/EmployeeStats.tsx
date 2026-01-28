@@ -11,7 +11,6 @@ interface StatItem {
   label: string;
   value: string | number;
   subValue?: string;
-  subValue2?: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
 }
@@ -23,7 +22,7 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
   
   // Calculate total monthly cost considering contract types
   const totalMonthlyCost = employees
-    .filter((e) => e.status === 'ativo')
+    .filter((e) => e.status !== 'inativo')
     .reduce((sum, e) => {
       // Use saved cost if available
       if (e.totalMonthlyCostEstimated > 0) {
@@ -52,12 +51,10 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
       
       return sum + baseCost + e.encargos + (e.totalBenefitsCost || 0) + (e.totalToolsCost || 0);
     }, 0);
-  
-  const totalAnnualCost = totalMonthlyCost * 12;
 
   // Calculate total monthly provisions
   const totalMonthlyProvision = employees
-    .filter((e) => e.status === 'ativo')
+    .filter((e) => e.status !== 'inativo')
     .reduce((sum, e) => {
       // Use breakdown if available
       const breakdown = e.breakdownJson;
@@ -90,8 +87,7 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
     {
       label: 'Custo Mensal Total',
       value: formatCurrency(totalMonthlyCost),
-      subValue: `Anual: ${formatCurrency(totalAnnualCost)}`,
-      subValue2: `Provisão Mensal: ${formatCurrency(totalMonthlyProvision)}`,
+      subValue: `Provisão Mensal: ${formatCurrency(totalMonthlyProvision)}`,
       icon: DollarSign,
       color: 'bg-accent/20 text-foreground',
     },
@@ -110,9 +106,6 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
               <p className="text-xl font-semibold text-foreground">{stat.value}</p>
               {stat.subValue && (
                 <p className="text-xs text-muted-foreground">{stat.subValue}</p>
-              )}
-              {stat.subValue2 && (
-                <p className="text-xs text-muted-foreground">{stat.subValue2}</p>
               )}
             </div>
           </CardContent>
