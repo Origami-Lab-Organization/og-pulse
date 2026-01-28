@@ -437,6 +437,13 @@ const EmployeeFormDialog = ({
 
     onSubmit({
       ...data,
+      // Include calculated cost fields
+      provisao13: costBreakdown?.details.provisao13 || 0,
+      provisaoFerias: costBreakdown?.details.provisaoFerias || 0,
+      provisaoRecesso: costBreakdown?.details.provisaoRecesso || 0,
+      totalMonthlyCostEstimated: costBreakdown?.totalMonthlyCost || 0,
+      totalAnnualCostEstimated: costBreakdown?.totalAnnualCost || 0,
+      breakdownJson: costBreakdown || undefined,
       localBenefits: isEditing ? undefined : localBenefits,
       localTools: isEditing ? undefined : localTools,
       createNewVersion: hasVersionedChanges,

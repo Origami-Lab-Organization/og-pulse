@@ -1,10 +1,19 @@
 import { Employee } from '@/hooks/useEmployees';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, UserCheck, Crown, DollarSign, TrendingUp } from 'lucide-react';
+import { Users, UserCheck, Crown, DollarSign } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 
 interface EmployeeStatsProps {
   employees: Employee[];
+}
+
+interface StatItem {
+  label: string;
+  value: string | number;
+  subValue?: string;
+  subValue2?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
 }
 
 const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
@@ -12,20 +21,54 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
   const activeEmployees = employees.filter((e) => e.status === 'ativo').length;
   const managers = employees.filter((e) => e.isGerente).length;
   
-  // Use totalMonthlyCostEstimated if available, otherwise calculate from old fields
+  // Calculate total monthly cost considering contract types
   const totalMonthlyCost = employees
     .filter((e) => e.status === 'ativo')
     .reduce((sum, e) => {
+      // Use saved cost if available
       if (e.totalMonthlyCostEstimated > 0) {
         return sum + e.totalMonthlyCostEstimated;
       }
-      // Fallback to old calculation
-      return sum + e.salarioMensal + e.beneficios + e.encargos + (e.totalToolsCost || 0);
+      
+      // Fallback: calculate based on contract type
+      let baseCost = 0;
+      switch (e.tipoContratacao) {
+        case 'CLT':
+        case 'MENOR_APRENDIZ':
+          baseCost = e.salarioMensal;
+          break;
+        case 'ESTAGIO':
+          baseCost = e.bolsaAuxilio || e.salarioMensal;
+          break;
+        case 'PJ':
+          baseCost = e.valorContratoPj || e.salarioMensal;
+          break;
+        case 'SOCIO':
+          baseCost = (e.proLabore || 0) + (e.dividendos || 0) || e.salarioMensal;
+          break;
+        default:
+          baseCost = e.salarioMensal;
+      }
+      
+      return sum + baseCost + e.encargos + (e.totalBenefitsCost || 0) + (e.totalToolsCost || 0);
     }, 0);
   
   const totalAnnualCost = totalMonthlyCost * 12;
 
-  const stats = [
+  // Calculate total monthly provisions
+  const totalMonthlyProvision = employees
+    .filter((e) => e.status === 'ativo')
+    .reduce((sum, e) => {
+      // Use breakdown if available
+      const breakdown = e.breakdownJson;
+      if (breakdown && typeof breakdown === 'object' && 'provisionsAmount' in breakdown) {
+        return sum + (breakdown.provisionsAmount as number);
+      }
+      // Fallback: use individual fields
+      return sum + (e.provisao13 || 0) + (e.provisaoFerias || 0) + (e.provisaoRecesso || 0);
+    }, 0);
+
+  const stats: StatItem[] = [
     {
       label: 'Total de Funcionários',
       value: totalEmployees,
@@ -48,6 +91,7 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
       label: 'Custo Mensal Total',
       value: formatCurrency(totalMonthlyCost),
       subValue: `Anual: ${formatCurrency(totalAnnualCost)}`,
+      subValue2: `Provisão Mensal: ${formatCurrency(totalMonthlyProvision)}`,
       icon: DollarSign,
       color: 'bg-accent/20 text-foreground',
     },
@@ -64,8 +108,11 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
             <div>
               <p className="text-sm text-muted-foreground">{stat.label}</p>
               <p className="text-xl font-semibold text-foreground">{stat.value}</p>
-              {'subValue' in stat && stat.subValue && (
+              {stat.subValue && (
                 <p className="text-xs text-muted-foreground">{stat.subValue}</p>
+              )}
+              {stat.subValue2 && (
+                <p className="text-xs text-muted-foreground">{stat.subValue2}</p>
               )}
             </div>
           </CardContent>
