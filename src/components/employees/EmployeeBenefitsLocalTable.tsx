@@ -111,7 +111,7 @@ export function EmployeeBenefitsLocalTable({
           </CardDescription>
         </div>
         {!isAdding && availableBenefits.length > 0 && (
-          <Button onClick={() => setIsAdding(true)} size="sm">
+          <Button type="button" onClick={() => setIsAdding(true)} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
           </Button>
@@ -171,6 +171,7 @@ export function EmployeeBenefitsLocalTable({
                       <TableCell>
                         <div className="flex gap-1">
                           <Button
+                            type="button"
                             size="icon"
                             variant="ghost"
                             onClick={handleAdd}
@@ -179,6 +180,7 @@ export function EmployeeBenefitsLocalTable({
                             <Check className="h-4 w-4 text-green-600" />
                           </Button>
                           <Button
+                            type="button"
                             size="icon"
                             variant="ghost"
                             onClick={() => {
@@ -202,6 +204,7 @@ export function EmployeeBenefitsLocalTable({
                       </TableCell>
                       <TableCell>
                         <Button
+                          type="button"
                           size="icon"
                           variant="ghost"
                           onClick={() => handleDelete(benefit.id)}
