@@ -1,122 +1,185 @@
 
-# Plano: Unificar Campos de Beneficios entre Criacao e Edicao
+# Plano: Corrigir Calculo de Provisoes de Funcionarios
 
-## Problema Identificado
+## Analise do Problema
 
-A seção de benefícios apresenta comportamentos diferentes entre criação e edição de funcionário:
+A calculadora de referência mostra provisões detalhadas que o sistema atual não exibe corretamente:
 
-### Modo de Criação (EmployeeBenefitsLocalTable)
-- Usa **dropdown com opções predefinidas** (Vale Refeição, Vale Alimentação, etc.)
-- **Não tem campo de descrição**
-- 3 colunas na tabela: Benefício, Valor, Ação
-- Exclui itens diretamente sem confirmação
+| Item | Calculadora Referência | Sistema Atual |
+|------|------------------------|---------------|
+| 13º prop. 1/12 | R$ 208,33 | R$ 208,33 ✓ |
+| Férias prop. 1/12 | R$ 208,33 | (agrupado) |
+| 1/3 de férias | R$ 69,44 | (agrupado) |
+| FGTS férias (prov) | R$ 22,22 | (oculto em encargosFerias) |
+| FGTS 13º (prov) | R$ 16,67 | (oculto em encargos13) |
 
-### Modo de Edição (EmployeeBenefitsTable)
-- Usa **campo de texto livre** (Input)
-- **Tem campo de descrição**
-- 4 colunas na tabela: Benefício, Descrição, Valor, Ações
-- Possui edição inline de itens existentes
-- Diálogo de confirmação antes de excluir
+### Diferenca Principal
 
----
-
-## Decisao de Design
-
-Baseado na memória do projeto que diz:
-
-> "Benefits are selected from a predefined dropdown list with no description field and only a delete action for existing items."
-
-A interface **correta** é a do modo de criação (dropdown predefinido, sem descrição). Portanto, o componente `EmployeeBenefitsTable` precisa ser atualizado para seguir o mesmo padrão.
-
----
-
-## Alteracoes Propostas
-
-### Arquivo: `src/components/employees/EmployeeBenefitsTable.tsx`
-
-1. **Adicionar lista de opções predefinidas** (igual ao EmployeeBenefitsLocalTable)
-2. **Substituir Input por Select** para adicionar novos benefícios
-3. **Remover coluna de Descrição** da tabela
-4. **Remover edição inline** (benefícios só podem ser excluídos)
-5. **Filtrar opções já selecionadas** do dropdown
-
-### Codigo Atual vs Proposto
-
-**ANTES (campo de texto livre):**
+O código atual calcula `provisaoFerias` como:
 ```typescript
-<TableCell>
-  <Input
-    value={newBenefit.name}
-    onChange={(e) => setNewBenefit({ ...newBenefit, name: e.target.value })}
-    placeholder="Ex: Vale Refeição, Plano de Saúde..."
-  />
-</TableCell>
-<TableCell>
-  <Input
-    value={newBenefit.description}
-    onChange={(e) => setNewBenefit({ ...newBenefit, description: e.target.value })}
-    placeholder="Descrição (opcional)"
-  />
-</TableCell>
+details.provisaoFerias = (baseAmount * (1 + 1/3)) / 12;  // = 277,77
 ```
 
-**DEPOIS (dropdown predefinido):**
-```typescript
-const BENEFIT_OPTIONS = [
-  { value: 'vale_refeicao', label: 'Vale Refeição' },
-  { value: 'vale_alimentacao', label: 'Vale Alimentação' },
-  { value: 'vale_transporte', label: 'Vale Transporte' },
-  { value: 'plano_saude', label: 'Plano de Saúde' },
-  { value: 'plano_odontologico', label: 'Plano Odontológico' },
-  { value: 'seguro_vida', label: 'Seguro de Vida' },
-  { value: 'auxilio_creche', label: 'Auxílio Creche' },
-  { value: 'auxilio_educacao', label: 'Auxílio Educação' },
-  { value: 'gympass', label: 'Gympass/Wellhub' },
-  { value: 'auxilio_home_office', label: 'Auxílio Home Office' },
-  { value: 'bonus', label: 'Bônus' },
-  { value: 'participacao_lucros', label: 'PLR' },
-  { value: 'outros', label: 'Outros' },
-];
+Isso agrupa Férias + 1/3 em um único valor, enquanto a calculadora de referência separa:
+- Férias: R$ 208,33 (salário / 12)
+- 1/3 Férias: R$ 69,44 (férias / 3)
 
-// Filtrar benefícios já adicionados
-const availableBenefits = BENEFIT_OPTIONS.filter(
-  opt => !benefits.some(b => b.name === opt.label)
-);
-
-<TableCell>
-  <Select
-    value={newBenefit.selectedValue}
-    onValueChange={handleSelectBenefit}
-  >
-    <SelectTrigger>
-      <SelectValue placeholder="Selecione o benefício" />
-    </SelectTrigger>
-    <SelectContent>
-      {availableBenefits.map(option => (
-        <SelectItem key={option.value} value={option.value}>
-          {option.label}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</TableCell>
-```
+Os campos FGTS sobre provisões (`encargos13` e `encargosFerias`) existem no código mas são somados no total de encargos sem exibição detalhada.
 
 ---
 
-## Estrutura da Tabela de Beneficios (Unificada)
+## Solucao Proposta
 
-```text
-+-------------------------------------------+
-| Benefício          | Valor Mensal | Ação  |
-|--------------------|--------------|-------|
-| [Dropdown ▼]       | [R$ 0,00]    | ✓  X  |  <-- Linha de adição
-| Vale Refeição      | R$ 500,00    | 🗑️    |
-| Plano de Saúde     | R$ 800,00    | 🗑️    |
-|                    |              |       |
-|          Total Mensal: R$ 1.300,00        |
-+-------------------------------------------+
+### 1. Expandir CostBreakdownDetails
+
+Adicionar campos separados para exibição detalhada:
+
+```typescript
+// src/lib/employeeCostCalculator.ts
+
+export interface CostBreakdownDetails {
+  // Encargos sobre salário
+  fgts: number;
+  inss: number;
+  rat: number;
+  terceiros: number;
+  outros: number;
+  
+  // Provisões detalhadas
+  provisao13: number;           // 13º salário (salário / 12)
+  provisaoFeriasBase: number;   // NOVO: Férias base (salário / 12)
+  provisaoFeriasTerco: number;  // NOVO: 1/3 de férias (férias / 3)
+  provisaoFerias: number;       // Total férias + 1/3 (mantido para compatibilidade)
+  provisaoRecesso: number;      // Recesso estagiário
+  
+  // Encargos sobre provisões
+  fgts13: number;               // NOVO: FGTS sobre 13º
+  fgtsFerias: number;           // NOVO: FGTS sobre férias + 1/3
+  encargos13: number;           // Total encargos 13º (mantido)
+  encargosFerias: number;       // Total encargos férias (mantido)
+}
 ```
+
+### 2. Atualizar Calculo em employeeCostCalculator.ts
+
+```typescript
+case 'CLT':
+case 'MENOR_APRENDIZ': {
+  baseAmount = input.salarioBruto;
+  const fgtsRate = input.tipoContratacao === 'CLT' 
+    ? profile.fgtsRateClt 
+    : profile.fgtsRateApprentice;
+
+  // Encargos sobre salário
+  details.fgts = baseAmount * fgtsRate;
+  details.inss = baseAmount * profile.inssPatronalRate;
+  details.rat = baseAmount * profile.ratRate;
+  details.terceiros = baseAmount * profile.terceirosRate;
+  details.outros = baseAmount * profile.outrosRate;
+
+  // Provisões detalhadas
+  details.provisao13 = baseAmount / 12;
+  details.provisaoFeriasBase = baseAmount / 12;      // Férias (sem 1/3)
+  details.provisaoFeriasTerco = details.provisaoFeriasBase / 3;  // 1/3 férias
+  details.provisaoFerias = details.provisaoFeriasBase + details.provisaoFeriasTerco;
+
+  // FGTS sobre provisões (separado)
+  details.fgts13 = profile.applyFgtsOn13th ? details.provisao13 * fgtsRate : 0;
+  details.fgtsFerias = profile.applyFgtsOnVacation ? details.provisaoFerias * fgtsRate : 0;
+
+  // Encargos totais sobre provisões (para manter compatibilidade)
+  const rates13 = sum13thApplicableRates(profile, fgtsRate);
+  const ratesVacation = sumVacationApplicableRates(profile, fgtsRate);
+  
+  details.encargos13 = details.provisao13 * rates13;
+  details.encargosFerias = details.provisaoFerias * ratesVacation;
+
+  // Totais
+  chargesAmount = details.fgts + details.inss + details.rat + details.terceiros + details.outros
+                + details.encargos13 + details.encargosFerias;
+  provisionsAmount = details.provisao13 + details.provisaoFerias;
+  break;
+}
+```
+
+### 3. Atualizar Interface do Formulario
+
+Exibir os campos detalhados no formulário de funcionários:
+
+**Arquivo:** `src/components/employees/EmployeeFormDialog.tsx`
+
+```typescript
+{/* Encargos e Provisões - Se aplicável */}
+{(showCharges || showProvisions) && tipoContratacao !== 'PJ' && (
+  <>
+    <Separator />
+    <div>
+      <h4 className="text-sm font-medium mb-1">
+        {tipoContratacao === 'ESTAGIO' ? 'Provisões' : 'Encargos e Provisões'}
+      </h4>
+      <p className="text-xs text-muted-foreground mb-3">
+        Calculados automaticamente
+      </p>
+      
+      {/* Encargos sobre Salário */}
+      {showCharges && (
+        <div className="mb-4">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Encargos sobre Salário</p>
+          <div className="grid grid-cols-2 gap-4">
+            <FormItem>
+              <FormLabel>FGTS (8%)</FormLabel>
+              <Input disabled value={formatCurrency(costBreakdown?.details.fgts || 0)} className="bg-muted" />
+            </FormItem>
+            {/* INSS, RAT, etc - se configurados */}
+          </div>
+        </div>
+      )}
+      
+      {/* Provisões */}
+      {showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
+        <div className="mb-4">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Provisões Mensais</p>
+          <div className="grid grid-cols-2 gap-4">
+            <FormItem>
+              <FormLabel>13º prop. 1/12</FormLabel>
+              <Input disabled value={formatCurrency(costBreakdown?.details.provisao13 || 0)} className="bg-muted" />
+            </FormItem>
+            <FormItem>
+              <FormLabel>Férias prop. 1/12</FormLabel>
+              <Input disabled value={formatCurrency(costBreakdown?.details.provisaoFeriasBase || 0)} className="bg-muted" />
+            </FormItem>
+            <FormItem>
+              <FormLabel>1/3 de Férias</FormLabel>
+              <Input disabled value={formatCurrency(costBreakdown?.details.provisaoFeriasTerco || 0)} className="bg-muted" />
+            </FormItem>
+          </div>
+        </div>
+      )}
+      
+      {/* Encargos sobre Provisões */}
+      {showCharges && showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-2">Encargos sobre Provisões</p>
+          <div className="grid grid-cols-2 gap-4">
+            <FormItem>
+              <FormLabel>FGTS 13º (prov)</FormLabel>
+              <Input disabled value={formatCurrency(costBreakdown?.details.fgts13 || 0)} className="bg-muted" />
+            </FormItem>
+            <FormItem>
+              <FormLabel>FGTS Férias (prov)</FormLabel>
+              <Input disabled value={formatCurrency(costBreakdown?.details.fgtsFerias || 0)} className="bg-muted" />
+            </FormItem>
+          </div>
+        </div>
+      )}
+    </div>
+  </>
+)}
+```
+
+### 4. Atualizar Funcionarios Existentes
+
+Criar script/edge function para recalcular e atualizar o `breakdown_json` de todos os funcionários existentes com os novos campos.
 
 ---
 
@@ -124,43 +187,33 @@ const availableBenefits = BENEFIT_OPTIONS.filter(
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/employees/EmployeeBenefitsTable.tsx` | Substituir Input por Select, remover coluna Descrição, remover edição inline |
+| `src/lib/employeeCostCalculator.ts` | Adicionar campos detalhados e ajustar cálculo |
+| `src/components/employees/EmployeeFormDialog.tsx` | Exibir provisões detalhadas |
+| `src/hooks/useEmployees.ts` | Garantir mapeamento dos novos campos |
 
 ---
 
-## Resumo das Mudancas no EmployeeBenefitsTable
+## Exemplo de Calculo (CLT R$ 2.500)
 
-1. Importar componentes Select do shadcn/ui
-2. Adicionar constante BENEFIT_OPTIONS (mesma do EmployeeBenefitsLocalTable)
-3. Adicionar lógica para filtrar opções já selecionadas
-4. Remover estado e lógica de edição (editingId, editData, startEdit, saveEdit, cancelEdit)
-5. Alterar de 4 colunas para 3 colunas na tabela
-6. Trocar Input por Select na linha de adição
-7. Remover botão de editar (lápis) - manter apenas botão de excluir
-8. Adicionar `type="button"` em todos os botões para evitar submits acidentais
-
----
-
-## Resultado Esperado
-
-### Antes (Edição)
-- Campo de texto livre para nome
-- Campo de descrição
-- Botões de editar e excluir
-
-### Depois (Edição) - Igual à Criação
-- Dropdown com opções predefinidas
-- Sem campo de descrição
-- Apenas botão de excluir
+| Item | Fórmula | Valor |
+|------|---------|-------|
+| Salário | - | R$ 2.500,00 |
+| FGTS salário | 2.500 × 8% | R$ 200,00 |
+| 13º prop. 1/12 | 2.500 / 12 | R$ 208,33 |
+| Férias prop. 1/12 | 2.500 / 12 | R$ 208,33 |
+| 1/3 de Férias | 208,33 / 3 | R$ 69,44 |
+| FGTS 13º (prov) | 208,33 × 8% | R$ 16,67 |
+| FGTS Férias (prov) | 277,77 × 8% | R$ 22,22 |
+| **Total** | - | **R$ 3.225,00** |
 
 ---
 
 ## Criterios de Aceite
 
-1. Ao editar um funcionário, a aba de Benefícios mostra dropdown igual ao wizard de criação
-2. Não há campo de descrição para benefícios
-3. Tabela tem apenas 3 colunas: Benefício, Valor Mensal, Ação
-4. Botão de editar (lápis) não aparece mais
-5. Benefícios já adicionados não aparecem no dropdown
-6. O botão "Adicionar" some quando todas as opções estão selecionadas
-7. Diálogo de confirmação de exclusão continua funcionando
+1. O formulário de funcionário CLT exibe todas as provisões separadamente
+2. FGTS sobre 13º aparece como linha separada
+3. FGTS sobre Férias aparece como linha separada
+4. 1/3 de férias aparece separado da provisão de férias
+5. O total de custo mensal confere com a calculadora de referência
+6. Funcionários existentes têm seus custos recalculados
+7. O `breakdown_json` salva todos os campos detalhados
