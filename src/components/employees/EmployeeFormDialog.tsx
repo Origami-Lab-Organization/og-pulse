@@ -837,33 +837,72 @@ const EmployeeFormDialog = ({
                 <p className="text-xs text-muted-foreground mb-3">
                   Calculados automaticamente
                 </p>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* FGTS */}
-                  {showCharges && (
-                    <FormItem>
-                      <FormLabel>FGTS</FormLabel>
-                      <Input disabled value={fgtsDisplay} className="bg-muted" />
-                    </FormItem>
-                  )}
+                
+                {/* Encargos sobre Salário */}
+                {showCharges && (
+                  <div className="mb-4">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Encargos sobre Salário</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormItem>
+                        <FormLabel>FGTS ({tipoContratacao === 'MENOR_APRENDIZ' ? '2%' : '8%'})</FormLabel>
+                        <Input disabled value={formatCurrency(costBreakdown?.details.fgts || 0)} className="bg-muted" />
+                      </FormItem>
+                      {(costBreakdown?.details.inss || 0) > 0 && (
+                        <FormItem>
+                          <FormLabel>INSS Patronal</FormLabel>
+                          <Input disabled value={formatCurrency(costBreakdown?.details.inss || 0)} className="bg-muted" />
+                        </FormItem>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-                  {/* 13º Salário / Provisão Recesso */}
-                  {showProvisions && (
-                    <FormItem>
-                      <FormLabel>
-                        {tipoContratacao === 'ESTAGIO' ? 'Provisão Recesso' : '13º Salário'}
-                      </FormLabel>
-                      <Input disabled value={decimoDisplay} className="bg-muted" />
-                    </FormItem>
-                  )}
+                {/* Provisões Mensais */}
+                {showProvisions && tipoContratacao !== 'SOCIO' && (
+                  <div className="mb-4">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Provisões Mensais</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      {tipoContratacao === 'ESTAGIO' ? (
+                        <FormItem>
+                          <FormLabel>Provisão Recesso 1/12</FormLabel>
+                          <Input disabled value={formatCurrency(costBreakdown?.details.provisaoRecesso || 0)} className="bg-muted" />
+                        </FormItem>
+                      ) : (
+                        <>
+                          <FormItem>
+                            <FormLabel>13º prop. 1/12</FormLabel>
+                            <Input disabled value={formatCurrency(costBreakdown?.details.provisao13 || 0)} className="bg-muted" />
+                          </FormItem>
+                          <FormItem>
+                            <FormLabel>Férias prop. 1/12</FormLabel>
+                            <Input disabled value={formatCurrency(costBreakdown?.details.provisaoFeriasBase || 0)} className="bg-muted" />
+                          </FormItem>
+                          <FormItem>
+                            <FormLabel>1/3 de Férias</FormLabel>
+                            <Input disabled value={formatCurrency(costBreakdown?.details.provisaoFeriasTerco || 0)} className="bg-muted" />
+                          </FormItem>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-                  {/* Férias + 1/3 - Não exibe para Estagiário e Sócio */}
-                  {showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
-                    <FormItem>
-                      <FormLabel>Férias + 1/3</FormLabel>
-                      <Input disabled value={feriasDisplay} className="bg-muted" />
-                    </FormItem>
-                  )}
-                </div>
+                {/* Encargos sobre Provisões */}
+                {showCharges && showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Encargos sobre Provisões</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormItem>
+                        <FormLabel>FGTS 13º (prov)</FormLabel>
+                        <Input disabled value={formatCurrency(costBreakdown?.details.fgts13 || 0)} className="bg-muted" />
+                      </FormItem>
+                      <FormItem>
+                        <FormLabel>FGTS Férias (prov)</FormLabel>
+                        <Input disabled value={formatCurrency(costBreakdown?.details.fgtsFerias || 0)} className="bg-muted" />
+                      </FormItem>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
