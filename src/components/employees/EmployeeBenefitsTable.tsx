@@ -9,6 +9,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmployeeBenefit } from '@/types/employee';
 import { formatCurrency } from '@/lib/formatters';
@@ -16,10 +23,9 @@ import { formatCurrency as formatCurrencyMask, parseCurrency } from '@/lib/masks
 import {
   useEmployeeBenefits,
   useAddEmployeeBenefit,
-  useUpdateEmployeeBenefit,
   useDeleteEmployeeBenefit,
 } from '@/hooks/useEmployees';
-import { Plus, Pencil, Trash2, Check, X, Heart } from 'lucide-react';
+import { Plus, Trash2, Check, X, Heart } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +37,22 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+const BENEFIT_OPTIONS = [
+  { value: 'vale_refeicao', label: 'Vale Refeição' },
+  { value: 'vale_alimentacao', label: 'Vale Alimentação' },
+  { value: 'vale_transporte', label: 'Vale Transporte' },
+  { value: 'plano_saude', label: 'Plano de Saúde' },
+  { value: 'plano_odontologico', label: 'Plano Odontológico' },
+  { value: 'seguro_vida', label: 'Seguro de Vida' },
+  { value: 'auxilio_creche', label: 'Auxílio Creche' },
+  { value: 'auxilio_educacao', label: 'Auxílio Educação' },
+  { value: 'gympass', label: 'Gympass/Wellhub' },
+  { value: 'auxilio_home_office', label: 'Auxílio Home Office' },
+  { value: 'bonus', label: 'Bônus' },
+  { value: 'participacao_lucros', label: 'PLR' },
+  { value: 'outros', label: 'Outros' },
+];
+
 interface EmployeeBenefitsTableProps {
   employeeId: string;
   employeeName: string;
@@ -39,28 +61,33 @@ interface EmployeeBenefitsTableProps {
 export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBenefitsTableProps) {
   const { data: benefits = [], isLoading } = useEmployeeBenefits(employeeId);
   const addBenefit = useAddEmployeeBenefit();
-  const updateBenefit = useUpdateEmployeeBenefit();
   const deleteBenefit = useDeleteEmployeeBenefit();
 
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteBenefitId, setDeleteBenefitId] = useState<string | null>(null);
   
   const [newBenefit, setNewBenefit] = useState({
+    selectedValue: '',
     name: '',
-    description: '',
-    monthlyValue: 0,
-    monthlyValueDisplay: '',
-  });
-
-  const [editData, setEditData] = useState({
-    name: '',
-    description: '',
     monthlyValue: 0,
     monthlyValueDisplay: '',
   });
 
   const totalValue = benefits.reduce((sum, benefit) => sum + Number(benefit.monthly_value), 0);
+
+  // Filter out benefits that are already added
+  const availableBenefits = BENEFIT_OPTIONS.filter(
+    opt => !benefits.some(b => b.name === opt.label)
+  );
+
+  const handleSelectBenefit = (value: string) => {
+    const option = BENEFIT_OPTIONS.find(o => o.value === value);
+    setNewBenefit({ 
+      ...newBenefit, 
+      selectedValue: value,
+      name: option?.label || value 
+    });
+  };
 
   const handleAdd = () => {
     if (!newBenefit.name.trim()) return;
@@ -69,49 +96,12 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
       {
         employeeId,
         name: newBenefit.name.trim(),
-        description: newBenefit.description.trim() || undefined,
         monthlyValue: newBenefit.monthlyValue,
       },
       {
         onSuccess: () => {
           setIsAdding(false);
-          setNewBenefit({ name: '', description: '', monthlyValue: 0, monthlyValueDisplay: '' });
-        },
-      }
-    );
-  };
-
-  const startEdit = (benefit: EmployeeBenefit) => {
-    setEditingId(benefit.id);
-    setEditData({
-      name: benefit.name,
-      description: benefit.description || '',
-      monthlyValue: Number(benefit.monthly_value),
-      monthlyValueDisplay: formatCurrencyMask(Number(benefit.monthly_value)),
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditData({ name: '', description: '', monthlyValue: 0, monthlyValueDisplay: '' });
-  };
-
-  const saveEdit = (id: string) => {
-    if (!editData.name.trim()) return;
-    
-    updateBenefit.mutate(
-      {
-        id,
-        employeeId,
-        updates: {
-          name: editData.name.trim(),
-          description: editData.description.trim() || undefined,
-          monthlyValue: editData.monthlyValue,
-        },
-      },
-      {
-        onSuccess: () => {
-          setEditingId(null);
+          setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
         },
       }
     );
@@ -146,8 +136,8 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
             Benefícios mensais de {employeeName}
           </CardDescription>
         </div>
-        {!isAdding && (
-          <Button onClick={() => setIsAdding(true)} size="sm">
+        {!isAdding && availableBenefits.length > 0 && (
+          <Button type="button" onClick={() => setIsAdding(true)} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
           </Button>
@@ -165,29 +155,29 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
                 <TableHeader>
                   <TableRow>
                     <TableHead>Benefício</TableHead>
-                    <TableHead>Descrição</TableHead>
                     <TableHead className="text-right">Valor Mensal</TableHead>
-                    <TableHead className="w-[100px]">Ações</TableHead>
+                    <TableHead className="w-[80px]">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isAdding && (
                     <TableRow>
                       <TableCell>
-                        <Input
-                          value={newBenefit.name}
-                          onChange={(e) => setNewBenefit({ ...newBenefit, name: e.target.value })}
-                          placeholder="Ex: Vale Refeição, Plano de Saúde..."
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={newBenefit.description}
-                          onChange={(e) => setNewBenefit({ ...newBenefit, description: e.target.value })}
-                          placeholder="Descrição (opcional)"
-                          className="w-full"
-                        />
+                        <Select
+                          value={newBenefit.selectedValue}
+                          onValueChange={handleSelectBenefit}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione o benefício" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableBenefits.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -207,6 +197,7 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
                       <TableCell>
                         <div className="flex gap-1">
                           <Button
+                            type="button"
                             size="icon"
                             variant="ghost"
                             onClick={handleAdd}
@@ -215,11 +206,12 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
                             <Check className="h-4 w-4 text-green-600" />
                           </Button>
                           <Button
+                            type="button"
                             size="icon"
                             variant="ghost"
                             onClick={() => {
                               setIsAdding(false);
-                              setNewBenefit({ name: '', description: '', monthlyValue: 0, monthlyValueDisplay: '' });
+                              setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
                             }}
                           >
                             <X className="h-4 w-4 text-destructive" />
@@ -231,82 +223,20 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
                   {benefits.map((benefit) => (
                     <TableRow key={benefit.id}>
                       <TableCell>
-                        {editingId === benefit.id ? (
-                          <Input
-                            value={editData.name}
-                            onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                            className="w-full"
-                          />
-                        ) : (
-                          <span className="font-medium">{benefit.name}</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingId === benefit.id ? (
-                          <Input
-                            value={editData.description}
-                            onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                            className="w-full"
-                          />
-                        ) : (
-                          <span className="text-muted-foreground">{benefit.description || '-'}</span>
-                        )}
+                        <span className="font-medium">{benefit.name}</span>
                       </TableCell>
                       <TableCell className="text-right">
-                        {editingId === benefit.id ? (
-                          <Input
-                            value={editData.monthlyValueDisplay}
-                            onChange={(e) => {
-                              const formatted = formatCurrencyMask(e.target.value);
-                              setEditData({
-                                ...editData,
-                                monthlyValueDisplay: formatted,
-                                monthlyValue: parseCurrency(formatted),
-                              });
-                            }}
-                            className="w-[140px] text-right"
-                          />
-                        ) : (
-                          formatCurrency(Number(benefit.monthly_value))
-                        )}
+                        {formatCurrency(Number(benefit.monthly_value))}
                       </TableCell>
                       <TableCell>
-                        {editingId === benefit.id ? (
-                          <div className="flex gap-1">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => saveEdit(benefit.id)}
-                              disabled={updateBenefit.isPending}
-                            >
-                              <Check className="h-4 w-4 text-green-600" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={cancelEdit}
-                            >
-                              <X className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-1">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => startEdit(benefit)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setDeleteBenefitId(benefit.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        )}
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setDeleteBenefitId(benefit.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
