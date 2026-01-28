@@ -109,7 +109,7 @@ export function EmployeeToolsLocalTable({
           </CardDescription>
         </div>
         {!isAdding && (
-          <Button onClick={() => setIsAdding(true)} size="sm">
+          <Button type="button" onClick={() => setIsAdding(true)} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
           </Button>
@@ -169,6 +169,7 @@ export function EmployeeToolsLocalTable({
                       <TableCell>
                         <div className="flex gap-1">
                           <Button
+                            type="button"
                             size="icon"
                             variant="ghost"
                             onClick={handleAdd}
@@ -177,6 +178,7 @@ export function EmployeeToolsLocalTable({
                             <Check className="h-4 w-4 text-green-600" />
                           </Button>
                           <Button
+                            type="button"
                             size="icon"
                             variant="ghost"
                             onClick={() => {
@@ -236,6 +238,7 @@ export function EmployeeToolsLocalTable({
                         {editingId === tool.id ? (
                           <div className="flex gap-1">
                             <Button
+                              type="button"
                               size="icon"
                               variant="ghost"
                               onClick={() => saveEdit(tool.id)}
@@ -243,6 +246,7 @@ export function EmployeeToolsLocalTable({
                               <Check className="h-4 w-4 text-green-600" />
                             </Button>
                             <Button
+                              type="button"
                               size="icon"
                               variant="ghost"
                               onClick={cancelEdit}
@@ -253,6 +257,7 @@ export function EmployeeToolsLocalTable({
                         ) : (
                           <div className="flex gap-1">
                             <Button
+                              type="button"
                               size="icon"
                               variant="ghost"
                               onClick={() => startEdit(tool)}
@@ -260,6 +265,7 @@ export function EmployeeToolsLocalTable({
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
+                              type="button"
                               size="icon"
                               variant="ghost"
                               onClick={() => handleDelete(tool.id)}
