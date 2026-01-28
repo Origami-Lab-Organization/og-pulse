@@ -14,16 +14,25 @@ export interface CostCalculationInput {
 }
 
 export interface CostBreakdownDetails {
+  // Encargos sobre salário
   fgts: number;
   inss: number;
   rat: number;
   terceiros: number;
   outros: number;
-  provisao13: number;
-  provisaoFerias: number;
-  provisaoRecesso: number;
-  encargos13: number;
-  encargosFerias: number;
+  
+  // Provisões detalhadas
+  provisao13: number;           // 13º salário (salário / 12)
+  provisaoFeriasBase: number;   // Férias base (salário / 12)
+  provisaoFeriasTerco: number;  // 1/3 de férias (férias / 3)
+  provisaoFerias: number;       // Total férias + 1/3 (mantido para compatibilidade)
+  provisaoRecesso: number;      // Recesso estagiário
+  
+  // Encargos sobre provisões (detalhados)
+  fgts13: number;               // FGTS sobre 13º
+  fgtsFerias: number;           // FGTS sobre férias + 1/3
+  encargos13: number;           // Total encargos 13º
+  encargosFerias: number;       // Total encargos férias
 }
 
 export interface CostBreakdown {
@@ -72,14 +81,21 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
   let provisionsAmount = 0;
   
   const details: CostBreakdownDetails = {
+    // Encargos sobre salário
     fgts: 0,
     inss: 0,
     rat: 0,
     terceiros: 0,
     outros: 0,
+    // Provisões detalhadas
     provisao13: 0,
+    provisaoFeriasBase: 0,
+    provisaoFeriasTerco: 0,
     provisaoFerias: 0,
     provisaoRecesso: 0,
+    // Encargos sobre provisões
+    fgts13: 0,
+    fgtsFerias: 0,
     encargos13: 0,
     encargosFerias: 0,
   };
@@ -92,18 +108,24 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
         ? profile.fgtsRateClt 
         : profile.fgtsRateApprentice;
 
-      // Charges on salary
+      // Encargos sobre salário
       details.fgts = baseAmount * fgtsRate;
       details.inss = baseAmount * profile.inssPatronalRate;
       details.rat = baseAmount * profile.ratRate;
       details.terceiros = baseAmount * profile.terceirosRate;
       details.outros = baseAmount * profile.outrosRate;
 
-      // Provisions
+      // Provisões detalhadas
       details.provisao13 = baseAmount / 12;
-      details.provisaoFerias = (baseAmount * (1 + 1/3)) / 12; // base * 1.333... / 12
+      details.provisaoFeriasBase = baseAmount / 12;
+      details.provisaoFeriasTerco = details.provisaoFeriasBase / 3;
+      details.provisaoFerias = details.provisaoFeriasBase + details.provisaoFeriasTerco;
 
-      // Charges on provisions
+      // FGTS sobre provisões (separado para exibição)
+      details.fgts13 = profile.applyFgtsOn13th ? details.provisao13 * fgtsRate : 0;
+      details.fgtsFerias = profile.applyFgtsOnVacation ? details.provisaoFerias * fgtsRate : 0;
+
+      // Encargos totais sobre provisões
       const rates13 = sum13thApplicableRates(profile, fgtsRate);
       const ratesVacation = sumVacationApplicableRates(profile, fgtsRate);
       
