@@ -541,24 +541,7 @@ const EmployeeFormDialog = ({
       localTools: isEditing ? undefined : localTools,
       createNewVersion: hasVersionedChanges,
     } as EmployeeFormSubmitData);
-    
-    // Reset everything
-    form.reset();
-    setPhoneDisplay('');
-    setCpfDisplay('');
-    setSalarioDisplay('');
-    setBolsaAuxilioDisplay('');
-    setValorContratoPjDisplay('');
-    setProLaboreDisplay('');
-    setDividendosDisplay('');
-    setFgtsDisplay('');
-    setDecimoDisplay('');
-    setFeriasDisplay('');
-    setFotoPreview(null);
-    setLocalBenefits([]);
-    setLocalTools([]);
-    setCurrentStep(0);
-    setCostBreakdown(null);
+    // Reset happens via useEffect when open changes to false
   };
 
   const renderStepIndicator = () => (
