@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
 import { formatCNPJ } from '@/lib/masks';
+import { formatDate } from '@/lib/formatters';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface ClientColumnsProps {
@@ -111,11 +112,7 @@ export const createClientColumns = ({
       cell: ({ row }) => {
         const date = row.getValue('createdAt') as string;
         if (!date) return <span className="text-muted-foreground">-</span>;
-        return (
-          <span className="text-sm">
-            {new Date(date).toLocaleDateString('pt-BR')}
-          </span>
-        );
+        return <span className="text-sm">{formatDate(date)}</span>;
       },
     },
   ];
