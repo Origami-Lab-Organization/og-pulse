@@ -1,113 +1,124 @@
 
 
-# Plano: Adicionar Badge de Status no Modal de Edição
+# Plano: Corrigir Bug de Timezone na Exibicao de Datas
 
-## Resumo
+## Problema Identificado
 
-Ao abrir o modal de edição de um funcionário, exibir o status atual como uma badge ao lado do título do modal. Isso dará visibilidade imediata ao status sem a necessidade de um campo editável.
+Quando uma data como `"2025-01-15"` e retornada do banco de dados, o JavaScript interpreta como meia-noite UTC (`2025-01-15T00:00:00Z`). Ao converter para o fuso horario do Brasil (UTC-3), a data exibida fica um dia antes (`14/01/2025`).
 
----
-
-## Alterações Necessárias
-
-### Arquivo: `src/components/employees/EmployeeFormDialog.tsx`
-
-#### 1. Importar Badge e ícones necessários
-
-Adicionar import do componente Badge e dos ícones Clock e Ban:
-
-```typescript
-import { Badge } from '@/components/ui/badge';
-// Adicionar Clock e Ban aos imports do lucide-react
-import { ..., Clock, Ban } from 'lucide-react';
-```
-
-#### 2. Criar função para renderizar o badge de status
-
-Reutilizar a mesma lógica visual do `EmployeesTable.tsx`:
-
-```typescript
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case 'ativo':
-      return (
-        <Badge variant="default" className="bg-green-600 hover:bg-green-600/80">
-          Ativo
-        </Badge>
-      );
-    case 'aguardando_confirmacao':
-      return (
-        <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">
-          <Clock className="h-3 w-3 mr-1" />
-          Aguardando
-        </Badge>
-      );
-    case 'bloqueado':
-      return (
-        <Badge variant="destructive">
-          <Ban className="h-3 w-3 mr-1" />
-          Bloqueado
-        </Badge>
-      );
-    default:
-      return <Badge variant="secondary">{status}</Badge>;
-  }
-};
-```
-
-#### 3. Atualizar DialogHeader para exibir o badge
-
-Modificar o DialogHeader (linhas 1200-1209) para incluir o badge ao lado do título quando em modo de edição:
-
-```typescript
-<DialogHeader>
-  <div className="flex items-center gap-3">
-    <DialogTitle className="text-xl font-semibold">
-      {isEditing ? 'Editar Funcionário' : 'Novo Funcionário'}
-    </DialogTitle>
-    {isEditing && employee && getStatusBadge(employee.status)}
-  </div>
-  <DialogDescription>
-    {isEditing
-      ? 'Atualize as informações do funcionário.'
-      : `Etapa ${currentStep + 1} de ${STEPS.length}: ${STEPS[currentStep].label}`}
-  </DialogDescription>
-</DialogHeader>
-```
-
----
-
-## Resultado Visual
+### Exemplo do Bug
 
 ```text
-+------------------------------------------+
-| Editar Funcionário  [Aguardando]    [X]  |
-| Atualize as informações do funcionário.  |
-+------------------------------------------+
-|                                          |
-|  [Dados] [Contratação] [Benefícios] ...  |
-|                                          |
+Data no banco:     2025-01-15
+Interpretacao JS:  2025-01-15T00:00:00Z (meia-noite UTC)
+Conversao Brasil:  2025-01-14T21:00:00 (UTC-3)
+Data exibida:      14/01/2025  <-- ERRADO!
 ```
 
-Os badges terão as mesmas cores da tabela:
-- **Ativo**: Verde
-- **Aguardando**: Amarelo/Amber com ícone de relógio
-- **Bloqueado**: Vermelho com ícone de proibido
+---
+
+## Solucao
+
+Ao receber uma string de data no formato `YYYY-MM-DD`, devemos interpreta-la como data LOCAL (nao UTC). Para isso, basta adicionar `T00:00:00` a string antes de criar o objeto Date, ou usar uma funcao que parse os componentes da data diretamente.
+
+---
+
+## Alteracoes Necessarias
+
+### Arquivo: `src/lib/formatters.ts`
+
+Modificar a funcao `formatDate` para tratar corretamente datas no formato `YYYY-MM-DD`:
+
+```typescript
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return '-';
+  
+  if (typeof date === 'string') {
+    // Se a data vier no formato YYYY-MM-DD (sem horario),
+    // interpretar como data local, nao UTC
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [year, month, day] = date.split('-').map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
+    }
+    return new Date(date).toLocaleDateString('pt-BR');
+  }
+  
+  return date.toLocaleDateString('pt-BR');
+}
+
+export function formatShortDate(date: string | Date | null | undefined): string {
+  if (!date) return '-';
+  
+  if (typeof date === 'string') {
+    // Mesmo tratamento para datas no formato YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [year, month, day] = date.split('-').map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: 'short' 
+      });
+    }
+    return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  }
+  
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+```
+
+### Arquivo: `src/components/employees/EmployeesTable.tsx`
+
+Atualizar para usar a funcao `formatDate` do `formatters.ts` em vez de fazer a conversao manualmente:
+
+```typescript
+// Adicionar import
+import { formatDate } from '@/lib/formatters';
+
+// Na celula de dataAdmissao (linha 165-173)
+cell: ({ row }) => {
+  const date = row.getValue('dataAdmissao') as string;
+  if (!date) return <span className="text-muted-foreground">-</span>;
+  return <span className="text-sm">{formatDate(date)}</span>;
+},
+```
+
+### Arquivo: `src/components/clients/ClientsTable.tsx`
+
+Mesma correcao para consistencia:
+
+```typescript
+// Adicionar import
+import { formatDate } from '@/lib/formatters';
+
+// Na celula que exibe data, usar formatDate(date)
+```
+
+---
+
+## Logica da Correcao
+
+| Entrada | Antes (Bug) | Depois (Correto) |
+|---------|-------------|------------------|
+| `"2025-01-15"` | 14/01/2025 | 15/01/2025 |
+| `"2025-06-20"` | 19/06/2025 | 20/06/2025 |
+| `"2025-12-31"` | 30/12/2025 | 31/12/2025 |
+
+A funcao `new Date(year, month - 1, day)` cria a data no fuso horario LOCAL do navegador, evitando a conversao de UTC.
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteração |
+| Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/employees/EmployeeFormDialog.tsx` | Adicionar import do Badge, criar função getStatusBadge, atualizar DialogHeader |
+| `src/lib/formatters.ts` | Corrigir funcoes `formatDate` e `formatShortDate` para tratar datas `YYYY-MM-DD` como locais |
+| `src/components/employees/EmployeesTable.tsx` | Usar `formatDate` importado |
+| `src/components/clients/ClientsTable.tsx` | Usar `formatDate` importado (consistencia) |
 
 ---
 
-## Critérios de Aceite
+## Criterios de Aceite
 
-1. Ao abrir a edição de um funcionário, o badge de status aparece ao lado do título "Editar Funcionário"
-2. O badge mostra a cor e ícone corretos para cada status (ativo, aguardando, bloqueado)
-3. O badge NÃO aparece ao criar um novo funcionário
-4. O badge é apenas visual (não clicável/editável)
+1. A data de admissao exibida na lista de funcionarios corresponde exatamente a data cadastrada
+2. Nenhuma data aparece com "um dia antes"
+3. A correcao funciona para qualquer fuso horario do Brasil
 
