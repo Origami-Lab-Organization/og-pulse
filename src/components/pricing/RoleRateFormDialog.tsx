@@ -21,7 +21,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -31,36 +30,18 @@ import {
 } from '@/components/ui/select';
 import { RoleRateDB, CreateRoleRateInput, SENIORITY_OPTIONS } from '@/types/roleRate';
 import { formatCurrency, parseCurrency } from '@/lib/masks';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
+
+interface SeniorityLine {
+  id: string;
+  seniority: string;
+  hourlyRate: string;
+}
 
 const roleRateSchema = z.object({
   roleName: z.string().min(2, 'Nome do papel deve ter no mínimo 2 caracteres'),
-  isMultiple: z.boolean(),
-  // Simple mode
-  seniority: z.string().optional(),
-  hourlyRate: z.string().optional(),
-  // Multiple mode
-  juniorEnabled: z.boolean(),
-  juniorRate: z.string().optional(),
-  plenoEnabled: z.boolean(),
-  plenoRate: z.string().optional(),
-  seniorEnabled: z.boolean(),
-  seniorRate: z.string().optional(),
-  // Common
   description: z.string().optional(),
   isActive: z.boolean(),
-}).refine((data) => {
-  if (!data.isMultiple) {
-    return !!data.seniority && !!data.hourlyRate;
-  }
-  const hasAtLeastOne = data.juniorEnabled || data.plenoEnabled || data.seniorEnabled;
-  const juniorValid = !data.juniorEnabled || !!data.juniorRate;
-  const plenoValid = !data.plenoEnabled || !!data.plenoRate;
-  const seniorValid = !data.seniorEnabled || !!data.seniorRate;
-  return hasAtLeastOne && juniorValid && plenoValid && seniorValid;
-}, {
-  message: 'Selecione pelo menos uma senioridade e preencha o valor hora',
-  path: ['juniorEnabled'],
 });
 
 type RoleRateFormValues = z.infer<typeof roleRateSchema>;
@@ -83,21 +64,15 @@ export function RoleRateFormDialog({
   isSubmitting,
 }: RoleRateFormDialogProps) {
   const isEditing = !!roleRate;
-  const [isMultipleMode, setIsMultipleMode] = useState(false);
+  
+  const [lines, setLines] = useState<SeniorityLine[]>([
+    { id: crypto.randomUUID(), seniority: '', hourlyRate: '' }
+  ]);
 
   const form = useForm<RoleRateFormValues>({
     resolver: zodResolver(roleRateSchema),
     defaultValues: {
       roleName: '',
-      isMultiple: false,
-      seniority: '',
-      hourlyRate: '',
-      juniorEnabled: false,
-      juniorRate: '',
-      plenoEnabled: false,
-      plenoRate: '',
-      seniorEnabled: false,
-      seniorRate: '',
       description: '',
       isActive: true,
     },
@@ -108,104 +83,79 @@ export function RoleRateFormDialog({
       if (roleRate) {
         form.reset({
           roleName: roleRate.role_name,
-          isMultiple: false,
-          seniority: roleRate.seniority,
-          hourlyRate: formatCurrency(roleRate.hourly_rate),
-          juniorEnabled: false,
-          juniorRate: '',
-          plenoEnabled: false,
-          plenoRate: '',
-          seniorEnabled: false,
-          seniorRate: '',
           description: roleRate.description || '',
           isActive: roleRate.is_active,
         });
-        setIsMultipleMode(false);
+        setLines([{
+          id: crypto.randomUUID(),
+          seniority: roleRate.seniority,
+          hourlyRate: formatCurrency(roleRate.hourly_rate),
+        }]);
       } else {
         form.reset({
           roleName: '',
-          isMultiple: false,
-          seniority: '',
-          hourlyRate: '',
-          juniorEnabled: false,
-          juniorRate: '',
-          plenoEnabled: false,
-          plenoRate: '',
-          seniorEnabled: false,
-          seniorRate: '',
           description: '',
           isActive: true,
         });
-        setIsMultipleMode(false);
+        setLines([{ id: crypto.randomUUID(), seniority: '', hourlyRate: '' }]);
       }
     }
   }, [open, roleRate, form]);
 
-  const handleMultipleModeChange = (checked: boolean) => {
-    setIsMultipleMode(checked);
-    form.setValue('isMultiple', checked);
-    if (checked) {
-      form.setValue('seniority', '');
-      form.setValue('hourlyRate', '');
-    } else {
-      form.setValue('juniorEnabled', false);
-      form.setValue('juniorRate', '');
-      form.setValue('plenoEnabled', false);
-      form.setValue('plenoRate', '');
-      form.setValue('seniorEnabled', false);
-      form.setValue('seniorRate', '');
-    }
+  const addLine = () => {
+    setLines(prev => [...prev, { id: crypto.randomUUID(), seniority: '', hourlyRate: '' }]);
+  };
+
+  const removeLine = (id: string) => {
+    setLines(prev => prev.filter(line => line.id !== id));
+  };
+
+  const updateLine = (id: string, field: 'seniority' | 'hourlyRate', value: string) => {
+    setLines(prev => prev.map(line => 
+      line.id === id ? { ...line, [field]: value } : line
+    ));
+  };
+
+  const getAvailableSeniorities = (currentLineId: string) => {
+    const selectedSeniorities = lines
+      .filter(line => line.id !== currentLineId && line.seniority)
+      .map(line => line.seniority);
+    
+    return SENIORITY_OPTIONS.filter(opt => !selectedSeniorities.includes(opt.value));
+  };
+
+  const validateLines = (): boolean => {
+    const hasEmptyLines = lines.some(line => !line.seniority || !line.hourlyRate);
+    return !hasEmptyLines && lines.length > 0;
   };
 
   const handleSubmit = (values: RoleRateFormValues) => {
-    if (values.isMultiple && onSubmitMultiple) {
-      const inputs: CreateRoleRateInput[] = [];
-      
-      if (values.juniorEnabled && values.juniorRate) {
-        inputs.push({
-          roleName: values.roleName,
-          seniority: 'junior',
-          hourlyRate: parseCurrency(values.juniorRate),
-          description: values.description || undefined,
-          isActive: values.isActive,
-        });
-      }
-      
-      if (values.plenoEnabled && values.plenoRate) {
-        inputs.push({
-          roleName: values.roleName,
-          seniority: 'pleno',
-          hourlyRate: parseCurrency(values.plenoRate),
-          description: values.description || undefined,
-          isActive: values.isActive,
-        });
-      }
-      
-      if (values.seniorEnabled && values.seniorRate) {
-        inputs.push({
-          roleName: values.roleName,
-          seniority: 'senior',
-          hourlyRate: parseCurrency(values.seniorRate),
-          description: values.description || undefined,
-          isActive: values.isActive,
-        });
-      }
-      
-      onSubmitMultiple(inputs);
-    } else {
+    if (!validateLines()) {
+      return;
+    }
+
+    if (lines.length === 1) {
       onSubmit({
         roleName: values.roleName,
-        seniority: values.seniority!,
-        hourlyRate: parseCurrency(values.hourlyRate!),
+        seniority: lines[0].seniority,
+        hourlyRate: parseCurrency(lines[0].hourlyRate),
         description: values.description || undefined,
         isActive: values.isActive,
       });
+    } else if (onSubmitMultiple) {
+      const inputs: CreateRoleRateInput[] = lines.map(line => ({
+        roleName: values.roleName,
+        seniority: line.seniority,
+        hourlyRate: parseCurrency(line.hourlyRate),
+        description: values.description || undefined,
+        isActive: values.isActive,
+      }));
+      onSubmitMultiple(inputs);
     }
   };
 
-  const watchJuniorEnabled = form.watch('juniorEnabled');
-  const watchPlenoEnabled = form.watch('plenoEnabled');
-  const watchSeniorEnabled = form.watch('seniorEnabled');
+  const canAddMore = !isEditing && lines.length < SENIORITY_OPTIONS.length;
+  const hasLineErrors = lines.some(line => !line.seniority || !line.hourlyRate);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -235,208 +185,84 @@ export function RoleRateFormDialog({
               )}
             />
 
-            {/* Toggle for multiple seniorities - only show when creating */}
-            {!isEditing && (
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Criar múltiplas senioridades</p>
-                  <p className="text-sm text-muted-foreground">
-                    Cadastre o mesmo papel com diferentes níveis e valores
-                  </p>
-                </div>
-                <Switch
-                  checked={isMultipleMode}
-                  onCheckedChange={handleMultipleModeChange}
-                />
-              </div>
-            )}
-
-            {/* Simple mode - single seniority */}
-            {!isMultipleMode && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="seniority"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senioridade *</FormLabel>
+            <div className="space-y-3">
+              <FormLabel>Senioridades e Valores *</FormLabel>
+              
+              <div className="space-y-2">
+                {lines.map((line) => {
+                  const availableSeniorities = getAvailableSeniorities(line.id);
+                  const currentSeniority = SENIORITY_OPTIONS.find(opt => opt.value === line.seniority);
+                  
+                  return (
+                    <div key={line.id} className="flex items-center gap-2">
                       <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
+                        value={line.seniority}
+                        onValueChange={(value) => updateLine(line.id, 'seniority', value)}
                       >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione a senioridade" />
-                          </SelectTrigger>
-                        </FormControl>
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue placeholder="Senioridade" />
+                        </SelectTrigger>
                         <SelectContent>
-                          {SENIORITY_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
+                          {currentSeniority && (
+                            <SelectItem key={currentSeniority.value} value={currentSeniority.value}>
+                              {currentSeniority.label}
                             </SelectItem>
-                          ))}
+                          )}
+                          {availableSeniorities
+                            .filter(opt => opt.value !== line.seniority)
+                            .map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="hourlyRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Valor Hora *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="R$ 0,00"
-                          {...field}
-                          onChange={(e) => {
-                            const formatted = formatCurrency(e.target.value);
-                            field.onChange(formatted);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
-
-            {/* Multiple mode - checkboxes with rates */}
-            {isMultipleMode && (
-              <div className="space-y-3 rounded-lg border p-4">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Selecione as senioridades e informe os valores
-                </p>
-                
-                {/* Junior */}
-                <div className="flex items-center gap-4">
-                  <FormField
-                    control={form.control}
-                    name="juniorEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormLabel className="w-16 font-normal">Júnior</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="juniorRate"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormControl>
-                          <Input
-                            placeholder="R$ 0,00"
-                            disabled={!watchJuniorEnabled}
-                            {...field}
-                            onChange={(e) => {
-                              const formatted = formatCurrency(e.target.value);
-                              field.onChange(formatted);
-                            }}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Pleno */}
-                <div className="flex items-center gap-4">
-                  <FormField
-                    control={form.control}
-                    name="plenoEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormLabel className="w-16 font-normal">Pleno</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="plenoRate"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormControl>
-                          <Input
-                            placeholder="R$ 0,00"
-                            disabled={!watchPlenoEnabled}
-                            {...field}
-                            onChange={(e) => {
-                              const formatted = formatCurrency(e.target.value);
-                              field.onChange(formatted);
-                            }}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Senior */}
-                <div className="flex items-center gap-4">
-                  <FormField
-                    control={form.control}
-                    name="seniorEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormLabel className="w-16 font-normal">Sênior</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="seniorRate"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormControl>
-                          <Input
-                            placeholder="R$ 0,00"
-                            disabled={!watchSeniorEnabled}
-                            {...field}
-                            onChange={(e) => {
-                              const formatted = formatCurrency(e.target.value);
-                              field.onChange(formatted);
-                            }}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="juniorEnabled"
-                  render={() => (
-                    <FormItem>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      
+                      <Input
+                        placeholder="R$ 0,00"
+                        value={line.hourlyRate}
+                        onChange={(e) => {
+                          const formatted = formatCurrency(e.target.value);
+                          updateLine(line.id, 'hourlyRate', formatted);
+                        }}
+                        className="flex-1"
+                      />
+                      
+                      {lines.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeLine(line.id)}
+                          className="shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            )}
+
+              {canAddMore && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addLine}
+                  className="w-full"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar senioridade
+                </Button>
+              )}
+
+              {hasLineErrors && (
+                <p className="text-sm text-destructive">
+                  Preencha a senioridade e o valor de todas as linhas
+                </p>
+              )}
+            </div>
 
             <FormField
               control={form.control}
@@ -487,7 +313,7 @@ export function RoleRateFormDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || hasLineErrors}>
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
