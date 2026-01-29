@@ -43,6 +43,7 @@ export const clientService = {
         cep: input.cep || null,
         logradouro: input.logradouro || null,
         numero: input.numero || null,
+        complemento: input.complemento || null,
         bairro: input.bairro || null,
         cidade: input.cidade || null,
         estado: input.estado || null,
@@ -68,6 +69,7 @@ export const clientService = {
     if (updates.cep !== undefined) updateData.cep = updates.cep || null;
     if (updates.logradouro !== undefined) updateData.logradouro = updates.logradouro || null;
     if (updates.numero !== undefined) updateData.numero = updates.numero || null;
+    if (updates.complemento !== undefined) updateData.complemento = updates.complemento || null;
     if (updates.bairro !== undefined) updateData.bairro = updates.bairro || null;
     if (updates.cidade !== undefined) updateData.cidade = updates.cidade || null;
     if (updates.estado !== undefined) updateData.estado = updates.estado || null;

@@ -7,6 +7,7 @@ export interface ClientDB {
   cep: string | null;
   logradouro: string | null;
   numero: string | null;
+  complemento: string | null;
   bairro: string | null;
   cidade: string | null;
   estado: string | null;
@@ -24,6 +25,7 @@ export interface Client {
   cep: string | null;
   logradouro: string | null;
   numero: string | null;
+  complemento: string | null;
   bairro: string | null;
   cidade: string | null;
   estado: string | null;
@@ -39,6 +41,7 @@ export interface CreateClientInput {
   cep?: string;
   logradouro?: string;
   numero?: string;
+  complemento?: string;
   bairro?: string;
   cidade?: string;
   estado?: string;
@@ -54,6 +57,7 @@ export const dbToClient = (db: ClientDB): Client => ({
   cep: db.cep,
   logradouro: db.logradouro,
   numero: db.numero,
+  complemento: db.complemento,
   bairro: db.bairro,
   cidade: db.cidade,
   estado: db.estado,
