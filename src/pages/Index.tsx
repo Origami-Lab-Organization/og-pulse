@@ -149,11 +149,12 @@ const Index = () => {
 
       {/* Table or Empty State */}
       {employees.length > 0 ? (
-        <DataTable
+      <DataTable
           columns={columns}
           data={employees}
           searchKey="nome"
           searchValue={searchQuery}
+          onRowClick={handleEditEmployee}
         />
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
