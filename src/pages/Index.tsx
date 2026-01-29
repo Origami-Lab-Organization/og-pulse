@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useInactivateEmployee, Employee, useAddEmployeeBenefit, useAddEmployeeTool } from '@/hooks/useEmployees';
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useBlockEmployee, useUnblockEmployee, useArchiveEmployee, useResendInvite, Employee, useAddEmployeeBenefit, useAddEmployeeTool } from '@/hooks/useEmployees';
 import { EmployeeFormSubmitData } from '@/components/employees/EmployeeFormDialog';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DataTable } from '@/components/data-table/DataTable';
 import { createEmployeeColumns } from '@/components/employees/EmployeesTable';
 import EmployeeFormDialog from '@/components/employees/EmployeeFormDialog';
-import InactivateConfirmDialog from '@/components/employees/InactivateConfirmDialog';
+import BlockEmployeeDialog from '@/components/employees/BlockEmployeeDialog';
+import UnblockEmployeeDialog from '@/components/employees/UnblockEmployeeDialog';
+import ArchiveEmployeeDialog from '@/components/employees/ArchiveEmployeeDialog';
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,13 +18,18 @@ const Index = () => {
   const { data: employees = [], isLoading } = useEmployees();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
-  const inactivateEmployee = useInactivateEmployee();
+  const blockEmployee = useBlockEmployee();
+  const unblockEmployee = useUnblockEmployee();
+  const archiveEmployee = useArchiveEmployee();
+  const resendInvite = useResendInvite();
   const addBenefit = useAddEmployeeBenefit();
   const addTool = useAddEmployeeTool();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [formDialogOpen, setFormDialogOpen] = useState(false);
-  const [inactivateDialogOpen, setInactivateDialogOpen] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [unblockDialogOpen, setUnblockDialogOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const handleAddEmployee = () => {
@@ -35,9 +42,23 @@ const Index = () => {
     setFormDialogOpen(true);
   };
 
-  const handleInactivateEmployee = (employee: Employee) => {
+  const handleBlockEmployee = (employee: Employee) => {
     setSelectedEmployee(employee);
-    setInactivateDialogOpen(true);
+    setBlockDialogOpen(true);
+  };
+
+  const handleUnblockEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setUnblockDialogOpen(true);
+  };
+
+  const handleArchiveEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setArchiveDialogOpen(true);
+  };
+
+  const handleResendInvite = async (employee: Employee) => {
+    await resendInvite.mutateAsync({ id: employee.id, nome: employee.nome });
   };
 
   const handleFormSubmit = async (data: EmployeeFormSubmitData) => {
@@ -80,11 +101,33 @@ const Index = () => {
     setSelectedEmployee(null);
   };
 
-  const handleInactivateConfirm = async () => {
+  const handleBlockConfirm = async () => {
     if (selectedEmployee) {
-      await inactivateEmployee.mutateAsync({ id: selectedEmployee.id, nome: selectedEmployee.nome });
+      await blockEmployee.mutateAsync({ id: selectedEmployee.id, nome: selectedEmployee.nome });
     }
-    setInactivateDialogOpen(false);
+    setBlockDialogOpen(false);
+    setSelectedEmployee(null);
+  };
+
+  const handleUnblockConfirm = async () => {
+    if (selectedEmployee) {
+      // Check if employee had logged in before (has authId and was active)
+      const hadLoggedIn = !!selectedEmployee.authId;
+      await unblockEmployee.mutateAsync({ 
+        id: selectedEmployee.id, 
+        nome: selectedEmployee.nome,
+        hadLoggedIn
+      });
+    }
+    setUnblockDialogOpen(false);
+    setSelectedEmployee(null);
+  };
+
+  const handleArchiveConfirm = async () => {
+    if (selectedEmployee) {
+      await archiveEmployee.mutateAsync({ id: selectedEmployee.id, nome: selectedEmployee.nome });
+    }
+    setArchiveDialogOpen(false);
     setSelectedEmployee(null);
   };
 
@@ -92,9 +135,13 @@ const Index = () => {
     () =>
       createEmployeeColumns({
         onEdit: handleEditEmployee,
-        onInactivate: handleInactivateEmployee,
+        onBlock: handleBlockEmployee,
+        onUnblock: handleUnblockEmployee,
+        onArchive: handleArchiveEmployee,
+        onResendInvite: handleResendInvite,
+        isResendingInvite: resendInvite.isPending,
       }),
-    []
+    [resendInvite.isPending]
   );
 
   const actions = (
@@ -183,11 +230,28 @@ const Index = () => {
         isLoading={createEmployee.isPending || updateEmployee.isPending}
       />
 
-      <InactivateConfirmDialog
-        open={inactivateDialogOpen}
-        onOpenChange={setInactivateDialogOpen}
+      <BlockEmployeeDialog
+        open={blockDialogOpen}
+        onOpenChange={setBlockDialogOpen}
         employee={selectedEmployee}
-        onConfirm={handleInactivateConfirm}
+        onConfirm={handleBlockConfirm}
+        isLoading={blockEmployee.isPending}
+      />
+
+      <UnblockEmployeeDialog
+        open={unblockDialogOpen}
+        onOpenChange={setUnblockDialogOpen}
+        employee={selectedEmployee}
+        onConfirm={handleUnblockConfirm}
+        isLoading={unblockEmployee.isPending}
+      />
+
+      <ArchiveEmployeeDialog
+        open={archiveDialogOpen}
+        onOpenChange={setArchiveDialogOpen}
+        employee={selectedEmployee}
+        onConfirm={handleArchiveConfirm}
+        isLoading={archiveEmployee.isPending}
       />
     </AppLayout>
   );

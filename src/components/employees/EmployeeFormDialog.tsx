@@ -74,7 +74,7 @@ const baseFormSchema = z.object({
   dataNascimento: z.string().min(1, 'Data de nascimento é obrigatória'),
   fotoUrl: z.string().optional(),
   isGerente: z.boolean(),
-  status: z.enum(['ativo', 'inativo', 'aguardando_confirmacao']),
+  status: z.enum(['ativo', 'aguardando_confirmacao', 'bloqueado', 'arquivado']),
   tipoContratacao: z.enum(['SOCIO', 'CLT', 'PJ', 'MENOR_APRENDIZ', 'ESTAGIO'] as const),
   jornadaMensal: z.number().min(1, 'Jornada deve ser maior que 0'),
   salarioMensal: z.number().min(0, 'Salário não pode ser negativo'),

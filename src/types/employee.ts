@@ -8,6 +8,15 @@ export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
   ESTAGIO: 'Estagiário',
 };
 
+export type EmployeeStatus = 'ativo' | 'aguardando_confirmacao' | 'bloqueado' | 'arquivado';
+
+export const EMPLOYEE_STATUS_LABELS: Record<EmployeeStatus, string> = {
+  ativo: 'Ativo',
+  aguardando_confirmacao: 'Aguardando',
+  bloqueado: 'Bloqueado',
+  arquivado: 'Arquivado',
+};
+
 export interface Employee {
   id: string;
   nome: string;

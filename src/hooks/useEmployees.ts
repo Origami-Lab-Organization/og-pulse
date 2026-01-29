@@ -33,7 +33,7 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     cpf: db.cpf || '',
     dataAdmissao: db.data_admissao,
     isGerente: db.is_gerente,
-    status: db.status as 'ativo' | 'inativo' | 'aguardando_confirmacao',
+    status: db.status as 'ativo' | 'aguardando_confirmacao' | 'bloqueado' | 'arquivado',
     salarioMensal: Number(db.salario_mensal),
     beneficios: Number(db.beneficios),
     encargos: Number(db.encargos),
@@ -76,7 +76,10 @@ export const useEmployees = () => {
     queryFn: async () => {
       if (!tenantId) return [];
       const data = await employeeService.getAll(tenantId);
-      return data.map(dbToEmployee);
+      // Filter out archived employees from main listing
+      return data
+        .filter(emp => emp.status !== 'arquivado')
+        .map(dbToEmployee);
     },
     enabled: !!tenantId,
   });
@@ -164,25 +167,105 @@ export const useUpdateEmployee = () => {
   });
 };
 
-export const useInactivateEmployee = () => {
+export const useBlockEmployee = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
-      await employeeService.inactivate(id);
+      await employeeService.block(id);
       return { nome };
     },
     onSuccess: ({ nome }) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({
-        title: 'Funcionário inativado',
-        description: `${nome} foi inativado com sucesso.`,
+        title: 'Funcionário bloqueado',
+        description: `${nome} foi bloqueado e não poderá mais acessar o sistema.`,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Erro ao inativar funcionário',
+        title: 'Erro ao bloquear funcionário',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useUnblockEmployee = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, nome, hadLoggedIn }: { id: string; nome: string; hadLoggedIn: boolean }) => {
+      const newStatus = hadLoggedIn ? 'ativo' : 'aguardando_confirmacao';
+      await employeeService.unblock(id, newStatus);
+      return { nome };
+    },
+    onSuccess: ({ nome }) => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast({
+        title: 'Funcionário desbloqueado',
+        description: `${nome} pode acessar o sistema novamente.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao desbloquear funcionário',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useArchiveEmployee = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
+      await employeeService.archive(id);
+      return { nome };
+    },
+    onSuccess: ({ nome }) => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast({
+        title: 'Funcionário arquivado',
+        description: `${nome} foi arquivado e removido da listagem.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao arquivar funcionário',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useResendInvite = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
+      const loginUrl = `${window.location.origin}/login`;
+      await employeeService.resendInvite(id, loginUrl);
+      return { nome };
+    },
+    onSuccess: ({ nome }) => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast({
+        title: 'Convite reenviado',
+        description: `Um novo convite foi enviado para ${nome}.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao reenviar convite',
         description: error.message,
         variant: 'destructive',
       });
