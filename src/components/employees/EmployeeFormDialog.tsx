@@ -48,7 +48,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History, Calculator, AlertCircle, Camera, Upload, Trash2 } from 'lucide-react';
+import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History, Calculator, AlertCircle, Camera, Upload, Trash2, Clock, Ban } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatPhone, formatCPF, formatCurrency as formatCurrencyMask, parseCurrency, validateCPF } from '@/lib/masks';
@@ -1198,9 +1199,37 @@ const EmployeeFormDialog = ({
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">
-              {isEditing ? 'Editar Funcionário' : 'Novo Funcionário'}
-            </DialogTitle>
+            <div className="flex items-center gap-3">
+              <DialogTitle className="text-xl font-semibold">
+                {isEditing ? 'Editar Funcionário' : 'Novo Funcionário'}
+              </DialogTitle>
+              {isEditing && employee && (() => {
+                switch (employee.status) {
+                  case 'ativo':
+                    return (
+                      <Badge variant="default" className="bg-green-600 hover:bg-green-600/80">
+                        Ativo
+                      </Badge>
+                    );
+                  case 'aguardando_confirmacao':
+                    return (
+                      <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Aguardando
+                      </Badge>
+                    );
+                  case 'bloqueado':
+                    return (
+                      <Badge variant="destructive">
+                        <Ban className="h-3 w-3 mr-1" />
+                        Bloqueado
+                      </Badge>
+                    );
+                  default:
+                    return <Badge variant="secondary">{employee.status}</Badge>;
+                }
+              })()}
+            </div>
             <DialogDescription>
               {isEditing
                 ? 'Atualize as informações do funcionário.'
