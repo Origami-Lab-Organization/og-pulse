@@ -1,133 +1,113 @@
 
 
-# Plano: Remover Dropdown de Status e Corrigir Status Padrao
+# Plano: Adicionar Badge de Status no Modal de Edição
 
-## Problema Identificado
+## Resumo
 
-1. **Dropdown de Status no formulario**: O formulario de funcionario tem um dropdown que permite alterar o status manualmente, mas o status deve ser controlado apenas pelas acoes especificas (Bloquear, Desbloquear, Arquivar, Reenviar Convite)
-
-2. **Status padrao incorreto**: Ao criar um novo funcionario, o formulario inicializa com status `'ativo'` ao inves de `'aguardando_confirmacao'`
-
-3. **Funcionaria Mariana com status incorreto**: Mariana foi criada antes do novo sistema de status e esta com status `'ativo'` mesmo sem ter feito login (ela tem `auth_id` mas nunca logou)
+Ao abrir o modal de edição de um funcionário, exibir o status atual como uma badge ao lado do título do modal. Isso dará visibilidade imediata ao status sem a necessidade de um campo editável.
 
 ---
 
-## Alteracoes Necessarias
+## Alterações Necessárias
 
-### 1. Remover Dropdown de Status do Formulario
+### Arquivo: `src/components/employees/EmployeeFormDialog.tsx`
 
-**Arquivo:** `src/components/employees/EmployeeFormDialog.tsx`
+#### 1. Importar Badge e ícones necessários
 
-Remover completamente o FormField do status (linhas 757-777):
-
-```typescript
-// REMOVER ESTE BLOCO COMPLETO:
-<FormField
-  control={form.control}
-  name="status"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Status</FormLabel>
-      <Select onValueChange={field.onChange} value={field.value}>
-        <FormControl>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione o status" />
-          </SelectTrigger>
-        </FormControl>
-        <SelectContent>
-          <SelectItem value="ativo">Ativo</SelectItem>
-          <SelectItem value="inativo">Inativo</SelectItem>
-        </SelectContent>
-      </Select>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
-```
-
-### 2. Corrigir Status Padrao para Novos Funcionarios
-
-**Arquivo:** `src/components/employees/EmployeeFormDialog.tsx`
-
-Na linha 330, alterar o valor padrao:
+Adicionar import do componente Badge e dos ícones Clock e Ban:
 
 ```typescript
-// DE:
-status: 'ativo',
-
-// PARA:
-status: 'aguardando_confirmacao',
+import { Badge } from '@/components/ui/badge';
+// Adicionar Clock e Ban aos imports do lucide-react
+import { ..., Clock, Ban } from 'lucide-react';
 ```
 
-### 3. Nao Enviar Status na Atualizacao de Funcionario
+#### 2. Criar função para renderizar o badge de status
 
-O status nao deve ser enviado quando o usuario salva alteracoes no formulario, pois ele so pode ser alterado pelas acoes especificas.
-
-**Arquivo:** `src/components/employees/EmployeeFormDialog.tsx`
-
-No `handleSubmit`, remover o campo `status` do objeto enviado ao `onSubmit`:
+Reutilizar a mesma lógica visual do `EmployeesTable.tsx`:
 
 ```typescript
-// No onSubmit, nao incluir o status:
-onSubmit({
-  nome: data.nome,
-  email: data.email,
-  // ... outros campos
-  // NAO incluir: status: data.status,
-});
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'ativo':
+      return (
+        <Badge variant="default" className="bg-green-600 hover:bg-green-600/80">
+          Ativo
+        </Badge>
+      );
+    case 'aguardando_confirmacao':
+      return (
+        <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">
+          <Clock className="h-3 w-3 mr-1" />
+          Aguardando
+        </Badge>
+      );
+    case 'bloqueado':
+      return (
+        <Badge variant="destructive">
+          <Ban className="h-3 w-3 mr-1" />
+          Bloqueado
+        </Badge>
+      );
+    default:
+      return <Badge variant="secondary">{status}</Badge>;
+  }
+};
 ```
 
-### 4. (Opcional) Corrigir Status da Mariana no Banco
+#### 3. Atualizar DialogHeader para exibir o badge
 
-Executar query para corrigir o status da Mariana:
+Modificar o DialogHeader (linhas 1200-1209) para incluir o badge ao lado do título quando em modo de edição:
 
-```sql
-UPDATE employees 
-SET status = 'aguardando_confirmacao' 
-WHERE email = 'mariana@origamilab.com.br' 
-AND status = 'ativo';
+```typescript
+<DialogHeader>
+  <div className="flex items-center gap-3">
+    <DialogTitle className="text-xl font-semibold">
+      {isEditing ? 'Editar Funcionário' : 'Novo Funcionário'}
+    </DialogTitle>
+    {isEditing && employee && getStatusBadge(employee.status)}
+  </div>
+  <DialogDescription>
+    {isEditing
+      ? 'Atualize as informações do funcionário.'
+      : `Etapa ${currentStep + 1} de ${STEPS.length}: ${STEPS[currentStep].label}`}
+  </DialogDescription>
+</DialogHeader>
 ```
 
 ---
 
-## Resumo das Alteracoes
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/components/employees/EmployeeFormDialog.tsx` | Remover dropdown de status, corrigir status padrao, nao enviar status no update |
-
----
-
-## Fluxo Correto de Status
+## Resultado Visual
 
 ```text
-[Novo Funcionario Cadastrado]
-        |
-        v
-  aguardando_confirmacao  <-- Status inicial (automatico)
-        |
-   [Primeiro Login]
-        |
-        v
-      ativo  <-- Muda automaticamente no login (AuthContext)
-        |
-  [Admin Bloqueia via Acao]
-        |
-        v
-    bloqueado  <-- Muda via acao "Bloquear"
-        |
-   [Admin Desbloqueia ou Arquiva]
-        |
-    ativo ou arquivado  <-- Muda via acoes
++------------------------------------------+
+| Editar Funcionário  [Aguardando]    [X]  |
+| Atualize as informações do funcionário.  |
++------------------------------------------+
+|                                          |
+|  [Dados] [Contratação] [Benefícios] ...  |
+|                                          |
 ```
+
+Os badges terão as mesmas cores da tabela:
+- **Ativo**: Verde
+- **Aguardando**: Amarelo/Amber com ícone de relógio
+- **Bloqueado**: Vermelho com ícone de proibido
 
 ---
 
-## Criterios de Aceite
+## Arquivos a Modificar
 
-1. O dropdown de status NAO aparece no formulario de funcionario
-2. Novos funcionarios sao criados com status `aguardando_confirmacao`
-3. Ao editar um funcionario, o status NAO e alterado (permanece o mesmo do banco)
-4. O status so pode ser alterado atraves das acoes: Bloquear, Desbloquear, Arquivar
-5. O status muda para `ativo` automaticamente no primeiro login
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/components/employees/EmployeeFormDialog.tsx` | Adicionar import do Badge, criar função getStatusBadge, atualizar DialogHeader |
+
+---
+
+## Critérios de Aceite
+
+1. Ao abrir a edição de um funcionário, o badge de status aparece ao lado do título "Editar Funcionário"
+2. O badge mostra a cor e ícone corretos para cada status (ativo, aguardando, bloqueado)
+3. O badge NÃO aparece ao criar um novo funcionário
+4. O badge é apenas visual (não clicável/editável)
 
