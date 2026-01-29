@@ -136,3 +136,32 @@ export function useToggleRoleRateActive() {
     },
   });
 }
+
+export function useCreateMultipleRoleRates() {
+  const queryClient = useQueryClient();
+  const { employee } = useAuth();
+  const { toast } = useToast();
+  const tenantId = employee?.tenant_id;
+
+  return useMutation({
+    mutationFn: (inputs: CreateRoleRateInput[]) =>
+      roleRateService.createMultiple(inputs, tenantId!),
+    onSuccess: (data: RoleRateDB[]) => {
+      queryClient.invalidateQueries({ queryKey: ['role-rates'] });
+      toast({
+        title: 'Sucesso',
+        description: `${data.length} ${data.length === 1 ? 'papel cadastrado' : 'papéis cadastrados'} com sucesso!`,
+      });
+    },
+    onError: (error: Error) => {
+      const message = error.message.includes('duplicate key')
+        ? 'Já existe um papel com essa combinação de nome e senioridade.'
+        : 'Erro ao cadastrar papéis. Tente novamente.';
+      toast({
+        title: 'Erro',
+        description: message,
+        variant: 'destructive',
+      });
+    },
+  });
+}

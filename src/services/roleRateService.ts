@@ -91,4 +91,23 @@ export const roleRateService = {
   async toggleActive(id: string, isActive: boolean): Promise<RoleRateDB> {
     return this.update(id, { isActive });
   },
+
+  async createMultiple(inputs: CreateRoleRateInput[], tenantId: string): Promise<RoleRateDB[]> {
+    const records = inputs.map(input => ({
+      tenant_id: tenantId,
+      role_name: input.roleName,
+      seniority: input.seniority,
+      hourly_rate: input.hourlyRate,
+      description: input.description || null,
+      is_active: input.isActive ?? true,
+    }));
+
+    const { data, error } = await supabase
+      .from('role_rates')
+      .insert(records)
+      .select();
+
+    if (error) throw error;
+    return (data || []) as RoleRateDB[];
+  },
 };
