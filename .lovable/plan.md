@@ -1,167 +1,129 @@
 
+# Plano: Corrigir Modal em Branco ao Salvar Funcionario
 
-# Plano: Editor de Foto com Hover para Excluir e Exibicao na Listagem
+## Problema Identificado
 
-## Resumo
+Ao clicar em "Finalizar Cadastro" no ultimo passo do wizard, a modal fica em branco no passo 1 em vez de fechar e exibir o toast de sucesso.
 
-Implementar tres melhorias relacionadas a foto do funcionario:
-1. **Hover para excluir**: Ao passar o mouse sobre a foto, exibir icone de lixeira para remover
-2. **Editor de foto**: Permitir zoom e reposicionamento da imagem antes de salvar
-3. **Exibir foto na listagem**: Mostrar a foto cadastrada na tabela de funcionarios (em vez das iniciais)
+## Causa Raiz
+
+O problema esta na funcao `handleSubmit` do `EmployeeFormDialog.tsx` (linhas 513-561):
+
+```typescript
+const handleSubmit = (data: FormData) => {
+  // ... preparacao dos dados ...
+  
+  onSubmit({...}); // Chama a funcao do pai (async)
+  
+  // PROBLEMA: Reset imediato SEM aguardar o onSubmit terminar
+  form.reset();
+  setPhoneDisplay('');
+  // ... outros resets ...
+  setCurrentStep(0); // <-- Volta para o passo 1 imediatamente!
+};
+```
+
+O que acontece:
+1. Usuario clica em "Finalizar Cadastro"
+2. `onSubmit` e chamado (inicia operacao async no pai)
+3. **Imediatamente** (sem aguardar) o formulario reseta e `currentStep` volta para 0
+4. A modal mostra o passo 1 (em branco) porque tudo foi resetado
+5. Somente depois a operacao async termina e o pai fecha a modal
+
+## Solucao
+
+Remover o reset imediato do `handleSubmit`. O reset ja acontece automaticamente atraves do `useEffect` existente (linhas 280-362) quando:
+- A prop `employee` muda, ou
+- A prop `open` muda para `false`
+
+Quando o pai fecha a modal (`setFormDialogOpen(false)`), o `useEffect` detecta a mudanca em `open` e reseta o formulario.
 
 ---
 
 ## Alteracoes Necessarias
 
-### 1. Nova Dependencia
+### Arquivo: `src/components/employees/EmployeeFormDialog.tsx`
 
-Instalar a biblioteca `react-easy-crop` para o editor de imagem.
+**Remover linhas 545-561** (o reset imediato dentro do `handleSubmit`):
 
-Esta biblioteca oferece:
-- Zoom com slider ou scroll do mouse
-- Arrastar para reposicionar
-- Suporte para corte circular (perfeito para avatares)
-- Retorna coordenadas para gerar imagem recortada
+```typescript
+// ANTES:
+const handleSubmit = (data: FormData) => {
+  // ... logica de preparacao ...
+  
+  onSubmit({...});
+  
+  // Reset everything (REMOVER ESTAS LINHAS)
+  form.reset();
+  setPhoneDisplay('');
+  setCpfDisplay('');
+  setSalarioDisplay('');
+  setBolsaAuxilioDisplay('');
+  setValorContratoPjDisplay('');
+  setProLaboreDisplay('');
+  setDividendosDisplay('');
+  setFgtsDisplay('');
+  setDecimoDisplay('');
+  setFeriasDisplay('');
+  setFotoPreview(null);
+  setLocalBenefits([]);
+  setLocalTools([]);
+  setCurrentStep(0);
+  setCostBreakdown(null);
+};
+
+// DEPOIS:
+const handleSubmit = (data: FormData) => {
+  // ... logica de preparacao ...
+  
+  onSubmit({...});
+  // Nao reseta aqui - o reset acontece via useEffect quando open muda
+};
+```
 
 ---
 
-### 2. Novo Componente: ImageCropDialog
-
-Criar componente `src/components/ui/image-crop-dialog.tsx` com:
-
-- Area de corte circular
-- Slider de zoom (1x a 3x)
-- Arrastar para reposicionar
-- Botao para resetar posicao
-- Funcao auxiliar para gerar imagem recortada a partir das coordenadas
-
----
-
-### 3. Atualizar EmployeeFormDialog
-
-**Secao de Foto com Hover para Excluir:**
+## Fluxo Corrigido
 
 ```text
-+------------------------+
-|      +---------+       |
-|      |  Avatar |       |  <-- Foto ou icone de camera
-|      +---------+       |
-|                        |
-|   [Hover sobre foto]   |
-|      +---------+       |
-|      |  [X]    |       |  <-- Overlay escuro com lixeira
-|      +---------+       |
-|                        |
-|   [Adicionar Foto]     |  <-- Botao
-+------------------------+
-```
-
-**Novo Fluxo de Upload:**
-
-1. Usuario seleciona imagem
-2. Valida tipo e tamanho (max 5MB)
-3. Abre editor de corte
-4. Usuario ajusta zoom e posicao
-5. Clica "Aplicar"
-6. Imagem recortada enviada para Storage
-7. Preview atualizado
-
----
-
-### 4. Atualizar EmployeesTable - Exibir Foto na Listagem
-
-Modificar a coluna "nome" para exibir a foto do funcionario quando disponivel:
-
-**Arquivo:** `src/components/employees/EmployeesTable.tsx`
-
-Alterar linhas 59-65 para usar AvatarImage quando fotoUrl existir:
-
-```typescript
-// DE:
-<Avatar className="h-9 w-9">
-  <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-    {initials}
-  </AvatarFallback>
-</Avatar>
-
-// PARA:
-<Avatar className="h-9 w-9">
-  {employee.fotoUrl ? (
-    <AvatarImage src={employee.fotoUrl} alt={employee.nome} />
-  ) : null}
-  <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-    {initials}
-  </AvatarFallback>
-</Avatar>
-```
-
-Adicionar import do AvatarImage:
-```typescript
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+Usuario clica "Finalizar Cadastro"
+        |
+        v
+handleSubmit() chama onSubmit(data)
+        |
+        v
+Pai (Index.tsx) executa mutacao async
+        |
+        v
+Mutacao sucesso -> Toast aparece
+        |
+        v
+Pai chama setFormDialogOpen(false)
+        |
+        v
+useEffect detecta open=false
+        |
+        v
+Reset do formulario (step 0, campos limpos)
+        |
+        v
+Modal fecha normalmente
 ```
 
 ---
 
-## Arquivos a Modificar/Criar
+## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `package.json` | Adicionar dependencia `react-easy-crop` |
-| `src/components/ui/image-crop-dialog.tsx` | Criar componente do editor de imagem |
-| `src/components/employees/EmployeeFormDialog.tsx` | Integrar hover para excluir e abrir editor |
-| `src/components/employees/EmployeesTable.tsx` | Exibir foto no avatar da listagem |
-
----
-
-## Experiencia Visual
-
-### Hover na Foto (Formulario)
-- Avatar normal quando mouse nao esta sobre a foto
-- Ao passar mouse: overlay escuro (60% opacidade) com icone de lixeira branco
-- Transicao suave de opacidade
-
-### Editor de Corte
-- Area de corte circular (formato avatar)
-- Slider para controlar zoom (1x a 3x)
-- Arrastar imagem para reposicionar
-- Botao para resetar posicao
-- Botoes "Cancelar" e "Aplicar"
-
-### Listagem de Funcionarios
-- Se funcionario tem foto: exibe a foto no avatar
-- Se funcionario nao tem foto: exibe as iniciais (comportamento atual)
-
----
-
-## Resultado Visual na Listagem
-
-```text
-+------------------------------------------------------------------+
-| Funcionario          | Contato           | Status | Custo | ...  |
-|----------------------|-------------------|--------|-------|------|
-| [FOTO] Joao Silva    | joao@email.com    | Ativo  | R$... | ...  |
-|   Desenvolvedor      |                   |        |       |      |
-|----------------------|-------------------|--------|-------|------|
-| [JS] Maria Santos    | maria@email.com   | Ativo  | R$... | ...  |
-|   Designer           |                   |        |       |      |
-+------------------------------------------------------------------+
-
-[FOTO] = Avatar com foto real do funcionario
-[JS]   = Avatar com iniciais (fallback quando nao tem foto)
-```
+| `src/components/employees/EmployeeFormDialog.tsx` | Remover reset imediato no handleSubmit |
 
 ---
 
 ## Criterios de Aceite
 
-1. Ao passar mouse sobre foto existente no formulario, exibe overlay com lixeira
-2. Clicar na lixeira remove a foto
-3. Ao selecionar nova imagem, abre editor de corte
-4. Editor permite zoom com slider
-5. Editor permite arrastar para reposicionar
-6. Botao "Aplicar" salva a imagem recortada
-7. Botao "Cancelar" fecha editor sem alterar foto
-8. Foto final e circular e otimizada para avatar
-9. **Na listagem, funcionarios com foto exibem a foto no avatar**
-10. **Funcionarios sem foto continuam exibindo as iniciais**
-
+1. Ao clicar em "Finalizar Cadastro", a modal permanece visivel mostrando o spinner de "Salvando..."
+2. Apos a operacao completar com sucesso, o toast de sucesso aparece
+3. A modal fecha automaticamente
+4. Ao reabrir a modal, ela inicia no passo 1 com campos vazios
+5. Se ocorrer erro, a modal permanece aberta para o usuario corrigir
