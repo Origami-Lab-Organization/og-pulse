@@ -28,6 +28,7 @@ import {
 import { Loader2, Search, Upload, FileText, CheckCircle2 } from 'lucide-react';
 import { Client, CreateClientInput } from '@/types/client';
 import { formatCNPJ, formatCEP } from '@/lib/masks';
+import { toTitleCase } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/viaCep';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -165,12 +166,12 @@ const ClientFormDialog = ({
           throw new Error(data.error);
         }
 
-        // Preencher os campos do formulário
+        // Preencher os campos do formulário com formatação Title Case
         if (data.razaoSocial) {
-          form.setValue('companyName', data.razaoSocial);
+          form.setValue('companyName', toTitleCase(data.razaoSocial));
         }
         if (data.nomeFantasia) {
-          form.setValue('tradingName', data.nomeFantasia);
+          form.setValue('tradingName', toTitleCase(data.nomeFantasia));
         }
         if (data.cnpj) {
           const cleanCnpj = data.cnpj.replace(/\D/g, '');
@@ -183,16 +184,16 @@ const ClientFormDialog = ({
           setCepDisplay(formatCEP(cleanCep));
         }
         if (data.logradouro) {
-          form.setValue('logradouro', data.logradouro);
+          form.setValue('logradouro', toTitleCase(data.logradouro));
         }
         if (data.numero) {
           form.setValue('numero', data.numero);
         }
         if (data.bairro) {
-          form.setValue('bairro', data.bairro);
+          form.setValue('bairro', toTitleCase(data.bairro));
         }
         if (data.cidade) {
-          form.setValue('cidade', data.cidade);
+          form.setValue('cidade', toTitleCase(data.cidade));
         }
         if (data.estado) {
           form.setValue('estado', data.estado.toUpperCase());
