@@ -37,18 +37,6 @@ export function RoleRatesTable({
     return SENIORITY_OPTIONS.find((opt) => opt.value === seniority)?.label || seniority;
   };
 
-  const getSeniorityBadgeVariant = (seniority: string) => {
-    switch (seniority) {
-      case 'senior':
-        return 'default';
-      case 'pleno':
-        return 'secondary';
-      case 'junior':
-        return 'outline';
-      default:
-        return 'outline';
-    }
-  };
 
   const getStatusBadge = (status: RoleRateStatus) => {
     switch (status) {
@@ -111,9 +99,7 @@ export function RoleRatesTable({
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant={getSeniorityBadgeVariant(roleRate.seniority)}>
-                  {getSeniorityLabel(roleRate.seniority)}
-                </Badge>
+                {getSeniorityLabel(roleRate.seniority)}
               </TableCell>
               <TableCell className="text-right font-medium">
                 {formatCurrency(roleRate.hourly_rate)}
