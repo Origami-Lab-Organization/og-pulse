@@ -176,7 +176,7 @@ export default function BudgetForm() {
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
-              <TabsTrigger value="roles">Alocação</TabsTrigger>
+              <TabsTrigger value="roles">Mão de Obra</TabsTrigger>
               <TabsTrigger value="materials">Materiais</TabsTrigger>
               <TabsTrigger value="financial">Financeiro</TabsTrigger>
             </TabsList>
