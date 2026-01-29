@@ -127,7 +127,7 @@ export function BudgetRolesEditor({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Alocação de Papéis</h3>
+        <h3 className="text-lg font-medium">Mão de Obra</h3>
         <Button type="button" variant="outline" size="sm" onClick={handleAddRole}>
           <Plus className="mr-2 h-4 w-4" />
           Adicionar Papel
@@ -147,7 +147,6 @@ export function BudgetRolesEditor({
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[200px] sticky left-0 bg-background z-10">Papel</TableHead>
-                  <TableHead className="min-w-[100px]">Senioridade</TableHead>
                   <TableHead className="min-w-[100px] text-right">Valor/Hora</TableHead>
                   {months.map((m) => (
                     <TableHead key={m} className="min-w-[80px] text-center">
@@ -179,9 +178,6 @@ export function BudgetRolesEditor({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      {role.seniority ? getSeniorityLabel(role.seniority) : '-'}
-                    </TableCell>
                     <TableCell className="text-right">
                       {role.hourlyRate > 0 ? formatCurrency(role.hourlyRate) : '-'}
                     </TableCell>
@@ -192,7 +188,7 @@ export function BudgetRolesEditor({
                           <Input
                             type="number"
                             min={0}
-                            className="h-8 w-20 text-center"
+                            className="h-8 w-20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             value={monthData?.hours || ''}
                             onChange={(e) =>
                               handleHoursChange(
