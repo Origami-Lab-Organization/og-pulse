@@ -60,6 +60,7 @@ import { EmployeeVersionsTable } from './EmployeeVersionsTable';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ImageCropDialog } from '@/components/ui/image-crop-dialog';
 
 const baseFormSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -163,6 +164,8 @@ const EmployeeFormDialog = ({
   // Photo upload state
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Masked display values
@@ -400,8 +403,8 @@ const EmployeeFormDialog = ({
     form.setValue(field, parseCurrency(formatted) as never);
   };
 
-  // Photo upload handler
-  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Photo select handler - opens crop dialog
+  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
@@ -417,25 +420,31 @@ const EmployeeFormDialog = ({
       return;
     }
     
+    // Create temporary URL and open crop dialog
+    const imageUrl = URL.createObjectURL(file);
+    setTempImageSrc(imageUrl);
+    setCropDialogOpen(true);
+    
+    // Clear input to allow selecting same file again
+    event.target.value = '';
+  };
+
+  // Handle crop complete - upload cropped image
+  const handleCropComplete = async (croppedBlob: Blob) => {
     setUploadingPhoto(true);
     
     try {
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.jpg`;
       
-      // Upload to storage
       const { data, error } = await supabase.storage
         .from('employee-photos')
-        .upload(fileName, file);
+        .upload(fileName, croppedBlob, { contentType: 'image/jpeg' });
       
       if (error) {
         toast({ title: 'Erro', description: 'Falha ao enviar foto', variant: 'destructive' });
-        setUploadingPhoto(false);
         return;
       }
       
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from('employee-photos')
         .getPublicUrl(data.path);
@@ -446,6 +455,10 @@ const EmployeeFormDialog = ({
       toast({ title: 'Erro', description: 'Falha ao enviar foto', variant: 'destructive' });
     } finally {
       setUploadingPhoto(false);
+      if (tempImageSrc) {
+        URL.revokeObjectURL(tempImageSrc);
+        setTempImageSrc(null);
+      }
     }
   };
 
@@ -587,54 +600,64 @@ const EmployeeFormDialog = ({
 
   const renderPersonalDataFields = () => (
     <div className="space-y-6">
-      {/* Photo Upload Section */}
+      {/* Photo Upload Section with Hover to Delete */}
       <div className="flex flex-col items-center gap-4 pb-4 border-b">
-        <Avatar className="h-24 w-24 border-2 border-muted">
-          {fotoPreview ? (
-            <AvatarImage src={fotoPreview} alt="Foto do funcionário" />
-          ) : (
-            <AvatarFallback className="bg-muted">
-              <Camera className="h-8 w-8 text-muted-foreground" />
-            </AvatarFallback>
-          )}
-        </Avatar>
-        
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => document.getElementById('photo-upload')?.click()}
-            disabled={uploadingPhoto}
-          >
-            {uploadingPhoto ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        <div className="relative group">
+          <Avatar className="h-24 w-24 border-2 border-muted">
+            {fotoPreview ? (
+              <AvatarImage src={fotoPreview} alt="Foto do funcionário" />
             ) : (
-              <Upload className="h-4 w-4 mr-2" />
+              <AvatarFallback className="bg-muted">
+                <Camera className="h-8 w-8 text-muted-foreground" />
+              </AvatarFallback>
             )}
-            {fotoPreview ? 'Alterar Foto' : 'Adicionar Foto'}
-          </Button>
+          </Avatar>
+          
+          {/* Hover overlay with trash icon */}
           {fotoPreview && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
+            <div 
+              className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
               onClick={handleRemovePhoto}
             >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+              <Trash2 className="h-6 w-6 text-white" />
+            </div>
           )}
         </div>
+        
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => document.getElementById('photo-upload')?.click()}
+          disabled={uploadingPhoto}
+        >
+          {uploadingPhoto ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Upload className="h-4 w-4 mr-2" />
+          )}
+          {fotoPreview ? 'Alterar Foto' : 'Adicionar Foto'}
+        </Button>
         
         <input
           id="photo-upload"
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={handlePhotoUpload}
+          onChange={handlePhotoSelect}
         />
         <p className="text-xs text-muted-foreground">Foto opcional, máx. 5MB</p>
       </div>
+
+      {/* Image Crop Dialog */}
+      {tempImageSrc && (
+        <ImageCropDialog
+          open={cropDialogOpen}
+          onOpenChange={setCropDialogOpen}
+          imageSrc={tempImageSrc}
+          onCropComplete={handleCropComplete}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <FormField
