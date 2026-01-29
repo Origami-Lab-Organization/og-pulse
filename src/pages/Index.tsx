@@ -74,28 +74,27 @@ const Index = () => {
       // Create employee first
       const newEmployee = await createEmployee.mutateAsync(employeeData);
       
-      // Then create benefits and tools
-      if (localBenefits && localBenefits.length > 0) {
-        for (const benefit of localBenefits) {
-          await addBenefit.mutateAsync({
-            employeeId: newEmployee.id,
-            name: benefit.name,
-            description: benefit.description || undefined,
-            monthlyValue: benefit.monthlyValue,
-          });
-        }
-      }
+      // Then create benefits and tools IN PARALLEL for better performance
+      const benefitPromises = (localBenefits || []).map(benefit => 
+        addBenefit.mutateAsync({
+          employeeId: newEmployee.id,
+          name: benefit.name,
+          description: benefit.description || undefined,
+          monthlyValue: benefit.monthlyValue,
+        })
+      );
       
-      if (localTools && localTools.length > 0) {
-        for (const tool of localTools) {
-          await addTool.mutateAsync({
-            employeeId: newEmployee.id,
-            name: tool.name,
-            description: tool.description || undefined,
-            monthlyCost: tool.monthlyCost,
-          });
-        }
-      }
+      const toolPromises = (localTools || []).map(tool => 
+        addTool.mutateAsync({
+          employeeId: newEmployee.id,
+          name: tool.name,
+          description: tool.description || undefined,
+          monthlyCost: tool.monthlyCost,
+        })
+      );
+      
+      // Execute all in parallel
+      await Promise.all([...benefitPromises, ...toolPromises]);
     }
     setFormDialogOpen(false);
     setSelectedEmployee(null);
