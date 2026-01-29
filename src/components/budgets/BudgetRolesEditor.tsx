@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+
 import { RoleRateDB, SENIORITY_OPTIONS } from '@/types/roleRate';
 import { BudgetRoleInput } from '@/types/budget';
 import { formatCurrency } from '@/lib/formatters';
@@ -141,9 +141,8 @@ export function BudgetRolesEditor({
           </p>
         </div>
       ) : (
-        <ScrollArea className="w-full">
-          <div className="min-w-max">
-            <Table>
+        <div className="w-full overflow-x-auto">
+          <Table className="min-w-max">
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[200px] sticky left-0 bg-background z-10">Papel</TableHead>
@@ -222,10 +221,8 @@ export function BudgetRolesEditor({
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+          </Table>
+        </div>
       )}
     </div>
   );
