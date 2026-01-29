@@ -1,124 +1,139 @@
 
 
-# Plano: Corrigir Bug de Timezone na Exibicao de Datas
+# Plano: Formatar Textos Extraídos do Cartão CNPJ com Capitalização Correta
 
-## Problema Identificado
+## Problema
 
-Quando uma data como `"2025-01-15"` e retornada do banco de dados, o JavaScript interpreta como meia-noite UTC (`2025-01-15T00:00:00Z`). Ao converter para o fuso horario do Brasil (UTC-3), a data exibida fica um dia antes (`14/01/2025`).
+Quando os dados são extraídos do Cartão CNPJ via IA, eles vêm em MAIÚSCULAS (como aparece no documento oficial), mas o usuário deseja que sejam exibidos com apenas a primeira letra de cada palavra em maiúsculo.
 
-### Exemplo do Bug
-
-```text
-Data no banco:     2025-01-15
-Interpretacao JS:  2025-01-15T00:00:00Z (meia-noite UTC)
-Conversao Brasil:  2025-01-14T21:00:00 (UTC-3)
-Data exibida:      14/01/2025  <-- ERRADO!
-```
+**Exemplo:**
+- Atual: `PRUMO ENGENHARIA LTDA`
+- Desejado: `Prumo Engenharia LTDA`
 
 ---
 
-## Solucao
+## Solução
 
-Ao receber uma string de data no formato `YYYY-MM-DD`, devemos interpreta-la como data LOCAL (nao UTC). Para isso, basta adicionar `T00:00:00` a string antes de criar o objeto Date, ou usar uma funcao que parse os componentes da data diretamente.
+Criar uma função utilitária `toTitleCase` que formata o texto corretamente, preservando siglas e abreviações comuns em nomes empresariais.
 
 ---
 
-## Alteracoes Necessarias
+## Alterações Necessárias
 
-### Arquivo: `src/lib/formatters.ts`
+### 1. Arquivo: `src/lib/formatters.ts`
 
-Modificar a funcao `formatDate` para tratar corretamente datas no formato `YYYY-MM-DD`:
+Adicionar nova função `toTitleCase`:
 
 ```typescript
-export function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return '-';
+/**
+ * Converte texto para Title Case, preservando siglas empresariais
+ * Ex: "PRUMO ENGENHARIA LTDA" -> "Prumo Engenharia LTDA"
+ */
+export function toTitleCase(text: string | null | undefined): string {
+  if (!text) return '';
   
-  if (typeof date === 'string') {
-    // Se a data vier no formato YYYY-MM-DD (sem horario),
-    // interpretar como data local, nao UTC
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      const [year, month, day] = date.split('-').map(Number);
-      return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
-    }
-    return new Date(date).toLocaleDateString('pt-BR');
-  }
+  // Palavras que devem permanecer em MAIÚSCULO (siglas empresariais)
+  const upperCaseWords = ['LTDA', 'S/A', 'SA', 'ME', 'EPP', 'EIRELI', 'SS', 'CNPJ', 'CPF'];
   
-  return date.toLocaleDateString('pt-BR');
-}
-
-export function formatShortDate(date: string | Date | null | undefined): string {
-  if (!date) return '-';
+  // Palavras que devem permanecer em minúsculo
+  const lowerCaseWords = ['de', 'da', 'do', 'das', 'dos', 'e', 'para', 'com'];
   
-  if (typeof date === 'string') {
-    // Mesmo tratamento para datas no formato YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      const [year, month, day] = date.split('-').map(Number);
-      return new Date(year, month - 1, day).toLocaleDateString('pt-BR', { 
-        day: '2-digit', 
-        month: 'short' 
-      });
-    }
-    return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  }
-  
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map((word, index) => {
+      const upperWord = word.toUpperCase();
+      
+      // Verificar se é uma sigla que deve ficar em maiúsculo
+      if (upperCaseWords.includes(upperWord)) {
+        return upperWord;
+      }
+      
+      // Verificar se é uma palavra que deve ficar em minúsculo (exceto primeira palavra)
+      if (index > 0 && lowerCaseWords.includes(word)) {
+        return word;
+      }
+      
+      // Capitalizar primeira letra
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
 }
 ```
 
-### Arquivo: `src/components/employees/EmployeesTable.tsx`
+### 2. Arquivo: `src/components/clients/ClientFormDialog.tsx`
 
-Atualizar para usar a funcao `formatDate` do `formatters.ts` em vez de fazer a conversao manualmente:
-
-```typescript
-// Adicionar import
-import { formatDate } from '@/lib/formatters';
-
-// Na celula de dataAdmissao (linha 165-173)
-cell: ({ row }) => {
-  const date = row.getValue('dataAdmissao') as string;
-  if (!date) return <span className="text-muted-foreground">-</span>;
-  return <span className="text-sm">{formatDate(date)}</span>;
-},
-```
-
-### Arquivo: `src/components/clients/ClientsTable.tsx`
-
-Mesma correcao para consistencia:
+Importar a função e aplicar nos campos extraídos:
 
 ```typescript
 // Adicionar import
-import { formatDate } from '@/lib/formatters';
+import { toTitleCase } from '@/lib/formatters';
 
-// Na celula que exibe data, usar formatDate(date)
+// Na função handlePdfUpload, aplicar toTitleCase nos campos de texto:
+if (data.razaoSocial) {
+  form.setValue('companyName', toTitleCase(data.razaoSocial));
+}
+if (data.nomeFantasia) {
+  form.setValue('tradingName', toTitleCase(data.nomeFantasia));
+}
+if (data.logradouro) {
+  form.setValue('logradouro', toTitleCase(data.logradouro));
+}
+if (data.bairro) {
+  form.setValue('bairro', toTitleCase(data.bairro));
+}
+if (data.cidade) {
+  form.setValue('cidade', toTitleCase(data.cidade));
+}
 ```
 
 ---
 
-## Logica da Correcao
+## Campos Afetados
 
-| Entrada | Antes (Bug) | Depois (Correto) |
-|---------|-------------|------------------|
-| `"2025-01-15"` | 14/01/2025 | 15/01/2025 |
-| `"2025-06-20"` | 19/06/2025 | 20/06/2025 |
-| `"2025-12-31"` | 30/12/2025 | 31/12/2025 |
+| Campo | Antes | Depois |
+|-------|-------|--------|
+| Razão Social | `PRUMO ENGENHARIA LTDA` | `Prumo Engenharia LTDA` |
+| Nome Fantasia | `PRUMO ENGENHARIA` | `Prumo Engenharia` |
+| Logradouro | `RUA DAS FLORES` | `Rua das Flores` |
+| Bairro | `CENTRO` | `Centro` |
+| Cidade | `SAO PAULO` | `São Paulo` |
 
-A funcao `new Date(year, month - 1, day)` cria a data no fuso horario LOCAL do navegador, evitando a conversao de UTC.
+**Campos não afetados:**
+- CNPJ (números)
+- CEP (números)
+- Número (numérico)
+- Estado (mantém maiúsculo - 2 letras UF)
+
+---
+
+## Exemplos de Conversão
+
+| Entrada | Saída |
+|---------|-------|
+| `PRUMO ENGENHARIA LTDA` | `Prumo Engenharia LTDA` |
+| `COMERCIO DE ALIMENTOS SA` | `Comércio de Alimentos SA` |
+| `JOAO DA SILVA ME` | `João da Silva ME` |
+| `RUA DOS PIONEIROS` | `Rua dos Pioneiros` |
+| `AVENIDA BRASIL` | `Avenida Brasil` |
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteracao |
+| Arquivo | Alteração |
 |---------|-----------|
-| `src/lib/formatters.ts` | Corrigir funcoes `formatDate` e `formatShortDate` para tratar datas `YYYY-MM-DD` como locais |
-| `src/components/employees/EmployeesTable.tsx` | Usar `formatDate` importado |
-| `src/components/clients/ClientsTable.tsx` | Usar `formatDate` importado (consistencia) |
+| `src/lib/formatters.ts` | Adicionar função `toTitleCase` |
+| `src/components/clients/ClientFormDialog.tsx` | Aplicar `toTitleCase` nos campos extraídos do PDF |
 
 ---
 
-## Criterios de Aceite
+## Critérios de Aceite
 
-1. A data de admissao exibida na lista de funcionarios corresponde exatamente a data cadastrada
-2. Nenhuma data aparece com "um dia antes"
-3. A correcao funciona para qualquer fuso horario do Brasil
+1. Razão Social extraída aparece com capitalização correta
+2. Nome Fantasia extraído aparece com capitalização correta
+3. Campos de endereço (logradouro, bairro, cidade) aparecem com capitalização correta
+4. Siglas empresariais (LTDA, ME, EPP, SA, etc.) permanecem em maiúsculo
+5. Preposições (de, da, do, das, dos) ficam em minúsculo quando não são a primeira palavra
+6. O preenchimento manual continua funcionando normalmente (sem alteração)
 
