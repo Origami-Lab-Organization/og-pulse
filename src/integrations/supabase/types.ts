@@ -448,12 +448,14 @@ export type Database = {
           cpf: string
           created_at: string
           data_admissao: string
+          data_nascimento: string | null
           decimo_terceiro: number
           dividendos: number
           email: string
           encargos: number
           ferias: number
           fgts: number
+          foto_url: string | null
           id: string
           inss_empresa: number
           is_gerente: boolean
@@ -485,12 +487,14 @@ export type Database = {
           cpf: string
           created_at?: string
           data_admissao: string
+          data_nascimento?: string | null
           decimo_terceiro?: number
           dividendos?: number
           email: string
           encargos?: number
           ferias?: number
           fgts?: number
+          foto_url?: string | null
           id?: string
           inss_empresa?: number
           is_gerente?: boolean
@@ -522,12 +526,14 @@ export type Database = {
           cpf?: string
           created_at?: string
           data_admissao?: string
+          data_nascimento?: string | null
           decimo_terceiro?: number
           dividendos?: number
           email?: string
           encargos?: number
           ferias?: number
           fgts?: number
+          foto_url?: string | null
           id?: string
           inss_empresa?: number
           is_gerente?: boolean

@@ -48,7 +48,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History, Calculator, AlertCircle } from 'lucide-react';
+import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History, Calculator, AlertCircle, Camera, Upload, Trash2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 import { formatPhone, formatCPF, formatCurrency as formatCurrencyMask, parseCurrency, validateCPF } from '@/lib/masks';
 import { EmployeeToolsTable } from './EmployeeToolsTable';
 import { EmployeeBenefitsTable } from './EmployeeBenefitsTable';
@@ -68,6 +70,8 @@ const baseFormSchema = z.object({
     message: 'CPF inválido',
   }),
   dataAdmissao: z.string().min(1, 'Data de admissão é obrigatória'),
+  dataNascimento: z.string().min(1, 'Data de nascimento é obrigatória'),
+  fotoUrl: z.string().optional(),
   isGerente: z.boolean(),
   status: z.enum(['ativo', 'inativo', 'aguardando_confirmacao']),
   tipoContratacao: z.enum(['SOCIO', 'CLT', 'PJ', 'MENOR_APRENDIZ', 'ESTAGIO'] as const),
@@ -156,6 +160,11 @@ const EmployeeFormDialog = ({
   // Cost breakdown state
   const [costBreakdown, setCostBreakdown] = useState<CostBreakdown | null>(null);
 
+  // Photo upload state
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const { toast } = useToast();
+
   // Masked display values
   const [phoneDisplay, setPhoneDisplay] = useState('');
   const [cpfDisplay, setCpfDisplay] = useState('');
@@ -177,6 +186,8 @@ const EmployeeFormDialog = ({
       cargo: '',
       cpf: '',
       dataAdmissao: new Date().toISOString().split('T')[0],
+      dataNascimento: '',
+      fotoUrl: '',
       isGerente: false,
       status: 'ativo',
       tipoContratacao: 'CLT',
@@ -272,6 +283,8 @@ const EmployeeFormDialog = ({
         cargo: employee.cargo,
         cpf: employee.cpf || '',
         dataAdmissao: employee.dataAdmissao,
+        dataNascimento: employee.dataNascimento || '',
+        fotoUrl: employee.fotoUrl || '',
         isGerente: employee.isGerente,
         status: employee.status,
         tipoContratacao: employee.tipoContratacao || 'CLT',
@@ -288,7 +301,8 @@ const EmployeeFormDialog = ({
         beneficios: employee.beneficios,
         encargos: employee.encargos,
       });
-      // Set display values
+      // Set display values and photo preview
+      setFotoPreview(employee.fotoUrl || null);
       setPhoneDisplay(employee.telefone ? formatPhone(employee.telefone) : '');
       setCpfDisplay(employee.cpf ? formatCPF(employee.cpf) : '');
       setSalarioDisplay(employee.salarioMensal ? formatCurrency(employee.salarioMensal) : '');
@@ -307,6 +321,8 @@ const EmployeeFormDialog = ({
         cargo: '',
         cpf: '',
         dataAdmissao: new Date().toISOString().split('T')[0],
+        dataNascimento: '',
+        fotoUrl: '',
         isGerente: false,
         status: 'ativo',
         tipoContratacao: 'CLT',
@@ -334,6 +350,7 @@ const EmployeeFormDialog = ({
       setFgtsDisplay('');
       setDecimoDisplay('');
       setFeriasDisplay('');
+      setFotoPreview(null);
       setCurrentStep(0);
       setLocalBenefits([]);
       setLocalTools([]);
@@ -383,9 +400,63 @@ const EmployeeFormDialog = ({
     form.setValue(field, parseCurrency(formatted) as never);
   };
 
+  // Photo upload handler
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Validate type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Erro', description: 'Apenas imagens são permitidas', variant: 'destructive' });
+      return;
+    }
+    
+    // Validate size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Erro', description: 'A imagem deve ter no máximo 5MB', variant: 'destructive' });
+      return;
+    }
+    
+    setUploadingPhoto(true);
+    
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      
+      // Upload to storage
+      const { data, error } = await supabase.storage
+        .from('employee-photos')
+        .upload(fileName, file);
+      
+      if (error) {
+        toast({ title: 'Erro', description: 'Falha ao enviar foto', variant: 'destructive' });
+        setUploadingPhoto(false);
+        return;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('employee-photos')
+        .getPublicUrl(data.path);
+      
+      form.setValue('fotoUrl', urlData.publicUrl);
+      setFotoPreview(urlData.publicUrl);
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao enviar foto', variant: 'destructive' });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setFotoPreview(null);
+    form.setValue('fotoUrl', '');
+  };
+
   const validateCurrentStep = async () => {
     if (currentStep === 0) {
-      return await form.trigger(['nome', 'email', 'telefone', 'cpf', 'cargo', 'dataAdmissao', 'status', 'isGerente']);
+      return await form.trigger(['nome', 'email', 'telefone', 'cpf', 'cargo', 'dataAdmissao', 'dataNascimento', 'status', 'isGerente']);
     }
     if (currentStep === 1) {
       // Validate based on contract type
@@ -470,6 +541,7 @@ const EmployeeFormDialog = ({
     setFgtsDisplay('');
     setDecimoDisplay('');
     setFeriasDisplay('');
+    setFotoPreview(null);
     setLocalBenefits([]);
     setLocalTools([]);
     setCurrentStep(0);
@@ -515,6 +587,55 @@ const EmployeeFormDialog = ({
 
   const renderPersonalDataFields = () => (
     <div className="space-y-6">
+      {/* Photo Upload Section */}
+      <div className="flex flex-col items-center gap-4 pb-4 border-b">
+        <Avatar className="h-24 w-24 border-2 border-muted">
+          {fotoPreview ? (
+            <AvatarImage src={fotoPreview} alt="Foto do funcionário" />
+          ) : (
+            <AvatarFallback className="bg-muted">
+              <Camera className="h-8 w-8 text-muted-foreground" />
+            </AvatarFallback>
+          )}
+        </Avatar>
+        
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => document.getElementById('photo-upload')?.click()}
+            disabled={uploadingPhoto}
+          >
+            {uploadingPhoto ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
+            {fotoPreview ? 'Alterar Foto' : 'Adicionar Foto'}
+          </Button>
+          {fotoPreview && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleRemovePhoto}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        
+        <input
+          id="photo-upload"
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePhotoUpload}
+        />
+        <p className="text-xs text-muted-foreground">Foto opcional, máx. 5MB</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <FormField
           control={form.control}
@@ -593,6 +714,20 @@ const EmployeeFormDialog = ({
               <FormLabel>Cargo *</FormLabel>
               <FormControl>
                 <Input placeholder="Desenvolvedor Sênior" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="dataNascimento"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Data de Nascimento *</FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
