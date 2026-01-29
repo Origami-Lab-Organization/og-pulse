@@ -30,4 +30,5 @@ export const SENIORITY_OPTIONS = [
   { value: 'junior', label: 'Júnior' },
   { value: 'pleno', label: 'Pleno' },
   { value: 'senior', label: 'Sênior' },
+  { value: 'especialista', label: 'Especialista' },
 ];
