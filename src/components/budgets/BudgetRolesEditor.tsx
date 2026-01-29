@@ -141,7 +141,7 @@ export function BudgetRolesEditor({
           </p>
         </div>
       ) : (
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto max-w-full">
           <Table className="min-w-max">
               <TableHeader>
                 <TableRow>

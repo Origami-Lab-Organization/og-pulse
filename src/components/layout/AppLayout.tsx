@@ -31,7 +31,7 @@ export function AppLayout({
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        <SidebarInset className="flex flex-col flex-1">
+        <SidebarInset className="flex flex-col flex-1 overflow-hidden">
           {/* Top Header */}
           <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
             <SidebarTrigger className="-ml-1" />
@@ -80,8 +80,8 @@ export function AppLayout({
           </div>
 
           {/* Main Content */}
-          <main className="flex-1 overflow-auto">
-            <div className="container py-6 px-6">
+          <main className="flex-1 overflow-auto min-w-0">
+            <div className="py-6 px-6 max-w-full">
               {children}
             </div>
           </main>
