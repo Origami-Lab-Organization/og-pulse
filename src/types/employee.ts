@@ -29,6 +29,8 @@ export interface Employee {
   decimoTerceiro: number;
   ferias: number;
   proLabore: number;
+  dataNascimento?: string;
+  fotoUrl?: string;
   custoHora?: number;
   tools?: EmployeeTool[];
   totalToolsCost?: number;

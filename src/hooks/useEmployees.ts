@@ -55,6 +55,8 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     totalMonthlyCostEstimated: Number(db.total_monthly_cost_estimated) || 0,
     totalAnnualCostEstimated: Number(db.total_annual_cost_estimated) || 0,
     breakdownJson: db.breakdown_json as unknown as CostBreakdown | null,
+    dataNascimento: db.data_nascimento || undefined,
+    fotoUrl: db.foto_url || undefined,
     totalToolsCost,
     totalBenefitsCost,
     tenantId: db.tenant_id,

@@ -36,6 +36,8 @@ interface CreateEmployeeRequest {
   totalMonthlyCostEstimated: number;
   totalAnnualCostEstimated: number;
   breakdownJson: Record<string, unknown> | null;
+  dataNascimento: string | null;
+  fotoUrl: string | null;
   tenantId: string;
   loginUrl: string;
 }
@@ -133,6 +135,8 @@ const handler = async (req: Request): Promise<Response> => {
       totalMonthlyCostEstimated,
       totalAnnualCostEstimated,
       breakdownJson,
+      dataNascimento,
+      fotoUrl,
       tenantId,
       loginUrl,
     } = body;
@@ -252,6 +256,8 @@ const handler = async (req: Request): Promise<Response> => {
         total_monthly_cost_estimated: totalMonthlyCostEstimated || 0,
         total_annual_cost_estimated: totalAnnualCostEstimated || 0,
         breakdown_json: breakdownJson || null,
+        data_nascimento: dataNascimento || null,
+        foto_url: fotoUrl || null,
         tenant_id: tenantId,
         auth_id: authUserId,
         must_change_password: !isExistingUser, // Only require change for new users

@@ -35,6 +35,8 @@ export interface EmployeeDB {
   total_monthly_cost_estimated: number;
   total_annual_cost_estimated: number;
   breakdown_json: Json | null;
+  data_nascimento: string | null;
+  foto_url: string | null;
   tenant_id: string;
   auth_id: string | null;
   must_change_password: boolean;
@@ -73,6 +75,8 @@ export interface CreateEmployeeInput {
   totalMonthlyCostEstimated?: number;
   totalAnnualCostEstimated?: number;
   breakdownJson?: CostBreakdown;
+  dataNascimento?: string;
+  fotoUrl?: string;
 }
 
 export const employeeService = {
@@ -170,6 +174,8 @@ export const employeeService = {
     if (updates.totalMonthlyCostEstimated !== undefined) dbUpdates.total_monthly_cost_estimated = updates.totalMonthlyCostEstimated;
     if (updates.totalAnnualCostEstimated !== undefined) dbUpdates.total_annual_cost_estimated = updates.totalAnnualCostEstimated;
     if (updates.breakdownJson !== undefined) dbUpdates.breakdown_json = updates.breakdownJson;
+    if (updates.dataNascimento !== undefined) dbUpdates.data_nascimento = updates.dataNascimento;
+    if (updates.fotoUrl !== undefined) dbUpdates.foto_url = updates.fotoUrl;
 
     const { data, error } = await supabase
       .from('employees')
