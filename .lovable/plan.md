@@ -1,33 +1,16 @@
 
 
-# Plano: Melhorar Experiência de Cadastro de Papeis com Multiplas Senioridades
+# Plano: Reformular Cadastro de Papeis com Linhas Dinamicas
 
-## Analise do Cenario Atual
+## Problema Atual
 
-Atualmente, para cadastrar um papel como "Desenvolvedor" com 3 niveis de senioridade, o usuario precisa:
-1. Clicar em "Novo Papel" e cadastrar "Desenvolvedor Junior" com valor R$ 80,00
-2. Clicar novamente em "Novo Papel" e cadastrar "Desenvolvedor Pleno" com valor R$ 120,00
-3. Clicar novamente em "Novo Papel" e cadastrar "Desenvolvedor Senior" com valor R$ 180,00
-
-Isso gera 3 cliques, 3 formularios e retrabalho de digitar o mesmo nome do papel.
+O toggle "Criar multiplas senioridades" adiciona fricção e não é intuitivo. O usuário precisa decidir antecipadamente se quer criar uma ou várias senioridades.
 
 ---
 
-## Recomendacao de UX: Modo Hibrido com Toggle
+## Nova Experiência Proposta
 
-A melhor experiencia e um formulario unico que permite alternar entre dois modos:
-
-**Modo Simples** (toggle desativado - padrao):
-- Campo de nome do papel
-- Select de senioridade unica
-- Campo de valor hora unico
-- Ideal para adicionar uma senioridade especifica ou editar
-
-**Modo Multiplas Senioridades** (toggle ativado):
-- Campo de nome do papel
-- Checkboxes para selecionar quais senioridades criar (Junior, Pleno, Senior)
-- Campo de valor hora para cada senioridade selecionada
-- Cria multiplos registros de uma vez
+Um formulário mais simples e direto, onde o usuário sempre trabalha com linhas de senioridade/valor:
 
 ```text
 +--------------------------------------------------+
@@ -36,22 +19,19 @@ A melhor experiencia e um formulario unico que permite alternar entre dois modos
 |  Nome do Papel *                                 |
 |  [Desenvolvedor                              ]   |
 |                                                  |
-|  [ ] Criar multiplas senioridades                |
+|  Senioridades e Valores *                        |
+|  +--------------------------------------------+  |
+|  | [Junior  v]  [R$ 80,00     ]    [Remover] |  |
+|  +--------------------------------------------+  |
+|  | [Pleno   v]  [R$ 120,00    ]    [Remover] |  |
+|  +--------------------------------------------+  |
 |                                                  |
-|  Se DESATIVADO:                                  |
-|  +--------------------------------------------+  |
-|  | Senioridade: [Pleno v]  Valor: [R$ 120]   |  |
-|  +--------------------------------------------+  |
-|                                                  |
-|  Se ATIVADO:                                     |
-|  +--------------------------------------------+  |
-|  | [x] Junior   Valor/Hora: [R$ 80,00    ]   |  |
-|  | [x] Pleno    Valor/Hora: [R$ 120,00   ]   |  |
-|  | [x] Senior   Valor/Hora: [R$ 180,00   ]   |  |
-|  +--------------------------------------------+  |
+|  [+ Adicionar senioridade]                       |
 |                                                  |
 |  Descricao (opcional)                            |
 |  [                                           ]   |
+|                                                  |
+|  [ ] Ativo                                       |
 |                                                  |
 |              [Cancelar]  [Cadastrar]             |
 +--------------------------------------------------+
@@ -59,136 +39,147 @@ A melhor experiencia e um formulario unico que permite alternar entre dois modos
 
 ---
 
-## Vantagens desta Abordagem
-
-| Aspecto | Beneficio |
-|---------|-----------|
-| Flexibilidade | Usuario escolhe criar 1, 2 ou 3 senioridades de uma vez |
-| Produtividade | Reduz de 3 formularios para 1 ao criar papel completo |
-| Familiaridade | Modo simples continua funcionando como antes |
-| Clareza | Toggle explicito deixa claro o que vai acontecer |
-| Consistencia | Mesma descricao e status aplicados a todas senioridades |
-
----
-
-## Alteracoes Necessarias
-
-### 1. Atualizar RoleRateFormDialog
-
-**Arquivo: `src/components/pricing/RoleRateFormDialog.tsx`**
-
-- Adicionar estado para controle do modo (simples/multiplo)
-- Adicionar checkboxes para selecionar senioridades
-- Adicionar campos de valor hora dinamicos por senioridade
-- Validacao condicional baseada no modo selecionado
-
-### 2. Criar Hook para Criacao em Lote
-
-**Arquivo: `src/hooks/useRoleRates.ts`**
-
-- Adicionar `useCreateMultipleRoleRates` que recebe array de inputs
-- Reutiliza o service existente com Promise.all ou insercao em lote
-
-### 3. Atualizar Service (Opcional)
-
-**Arquivo: `src/services/roleRateService.ts`**
-
-- Adicionar metodo `createMultiple` para insercao em lote
-- Melhora performance ao criar 3 registros de uma vez
-
-### 4. Atualizar Tipos
-
-**Arquivo: `src/types/roleRate.ts`**
-
-- Adicionar tipo para criacao em lote
-
----
-
 ## Fluxo de Uso
 
-### Cenario 1: Criar papel com todas as senioridades
-1. Usuario clica "Novo Papel"
-2. Digita "Desenvolvedor"
-3. Ativa toggle "Criar multiplas senioridades"
-4. Marca Junior, Pleno e Senior
-5. Preenche os 3 valores hora
-6. Clica "Cadastrar"
-7. Sistema cria 3 registros de uma vez
+### Criar papel com uma senioridade:
+1. Digita "Tech Lead"
+2. Seleciona "Senior" na primeira linha
+3. Preenche valor R$ 200,00
+4. Clica "Cadastrar"
 
-### Cenario 2: Criar papel com senioridade especifica
-1. Usuario clica "Novo Papel"
-2. Digita "Tech Lead"
-3. Mantem toggle desativado
-4. Seleciona "Senior"
-5. Preenche valor hora
-6. Clica "Cadastrar"
-7. Sistema cria 1 registro
+### Criar papel com multiplas senioridades:
+1. Digita "Desenvolvedor"
+2. Seleciona "Junior" e preenche R$ 80,00
+3. Clica "+ Adicionar senioridade"
+4. Seleciona "Pleno" e preenche R$ 120,00
+5. Clica "+ Adicionar senioridade"
+6. Seleciona "Senior" e preenche R$ 180,00
+7. Clica "Cadastrar" (cria 3 registros)
 
-### Cenario 3: Editar papel existente
-1. Usuario clica em Editar no papel "Desenvolvedor Pleno"
-2. Formulario abre no modo simples (toggle oculto na edicao)
-3. Usuario altera o valor hora
-4. Clica "Salvar"
+### Editar papel existente:
+1. Abre formulário com uma linha pre-preenchida
+2. Edita o valor
+3. Clica "Salvar"
 
 ---
 
-## Detalhes Tecnicos
+## Regras de Negócio
 
-### Estrutura do Formulario com Multiplas Senioridades
+| Regra | Comportamento |
+|-------|---------------|
+| Minimo 1 linha | Sempre iniciar com uma linha |
+| Remover linha | So permitir se houver mais de 1 linha |
+| Senioridade unica | Nao permitir selecionar a mesma senioridade duas vezes |
+| Validacao | Cada linha deve ter senioridade e valor preenchidos |
+| Edicao | Exibir apenas 1 linha (sem botao de adicionar) |
+
+---
+
+## Alteracoes Tecnicas
+
+### Arquivo: `src/components/pricing/RoleRateFormDialog.tsx`
+
+**Remover:**
+- Estado `isMultipleMode`
+- Toggle de multiplas senioridades
+- Campos fixos para junior/pleno/senior com checkboxes
+- Schema atual com campos separados por senioridade
+
+**Adicionar:**
+- Estado para array de linhas: `[{ seniority: '', hourlyRate: '' }]`
+- Componente de linha com Select + Input + Botao remover
+- Botao "+ Adicionar senioridade"
+- Logica para filtrar senioridades ja selecionadas no Select
+- Novo schema Zod com array de linhas
+
+### Estrutura do Estado
 
 ```typescript
-// Schema Zod para modo multiplo
-const multipleRoleRateSchema = z.object({
-  roleName: z.string().min(2),
-  isMultiple: z.boolean(),
-  // Modo simples
-  seniority: z.string().optional(),
-  hourlyRate: z.string().optional(),
-  // Modo multiplo
-  juniorEnabled: z.boolean(),
-  juniorRate: z.string().optional(),
-  plenoEnabled: z.boolean(),
-  plenoRate: z.string().optional(),
-  seniorEnabled: z.boolean(),
-  seniorRate: z.string().optional(),
-  // Comum
+interface SeniorityLine {
+  id: string; // para key do React
+  seniority: string;
+  hourlyRate: string;
+}
+
+// Estado inicial
+const [lines, setLines] = useState<SeniorityLine[]>([
+  { id: crypto.randomUUID(), seniority: '', hourlyRate: '' }
+]);
+```
+
+### Novo Schema Zod
+
+```typescript
+const roleRateSchema = z.object({
+  roleName: z.string().min(2, 'Nome do papel deve ter no mínimo 2 caracteres'),
+  lines: z.array(z.object({
+    seniority: z.string().min(1, 'Selecione a senioridade'),
+    hourlyRate: z.string().min(1, 'Informe o valor hora'),
+  })).min(1, 'Adicione pelo menos uma senioridade'),
   description: z.string().optional(),
   isActive: z.boolean(),
-}).refine((data) => {
-  if (!data.isMultiple) {
-    return !!data.seniority && !!data.hourlyRate;
-  }
-  // Pelo menos uma senioridade deve estar ativa
-  const hasAtLeastOne = data.juniorEnabled || data.plenoEnabled || data.seniorEnabled;
-  // Cada senioridade ativa deve ter valor
-  const juniorValid = !data.juniorEnabled || !!data.juniorRate;
-  const plenoValid = !data.plenoEnabled || !!data.plenoRate;
-  const seniorValid = !data.seniorEnabled || !!data.seniorRate;
-  return hasAtLeastOne && juniorValid && plenoValid && seniorValid;
 });
 ```
 
-### Insercao em Lote no Service
+### Logica de Submit
 
 ```typescript
-async createMultiple(inputs: CreateRoleRateInput[], tenantId: string): Promise<RoleRateDB[]> {
-  const records = inputs.map(input => ({
-    tenant_id: tenantId,
-    role_name: input.roleName,
-    seniority: input.seniority,
-    hourly_rate: input.hourlyRate,
-    description: input.description || null,
-    is_active: input.isActive ?? true,
-  }));
+const handleSubmit = (values) => {
+  if (values.lines.length === 1) {
+    // Criar unico registro
+    onSubmit({
+      roleName: values.roleName,
+      seniority: values.lines[0].seniority,
+      hourlyRate: parseCurrency(values.lines[0].hourlyRate),
+      description: values.description,
+      isActive: values.isActive,
+    });
+  } else {
+    // Criar multiplos registros
+    const inputs = values.lines.map(line => ({
+      roleName: values.roleName,
+      seniority: line.seniority,
+      hourlyRate: parseCurrency(line.hourlyRate),
+      description: values.description,
+      isActive: values.isActive,
+    }));
+    onSubmitMultiple(inputs);
+  }
+};
+```
 
-  const { data, error } = await supabase
-    .from('role_rates')
-    .insert(records)
-    .select();
+---
 
-  if (error) throw error;
-  return data as RoleRateDB[];
-}
+## Layout da Linha de Senioridade
+
+```typescript
+<div className="flex items-center gap-2">
+  <Select value={line.seniority} onValueChange={...}>
+    <SelectTrigger className="w-[120px]">
+      <SelectValue placeholder="Senioridade" />
+    </SelectTrigger>
+    <SelectContent>
+      {availableSeniorities.map(opt => (
+        <SelectItem key={opt.value} value={opt.value}>
+          {opt.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+  
+  <Input 
+    placeholder="R$ 0,00"
+    value={line.hourlyRate}
+    onChange={...}
+    className="flex-1"
+  />
+  
+  {lines.length > 1 && (
+    <Button variant="ghost" size="icon" onClick={() => removeLine(line.id)}>
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  )}
+</div>
 ```
 
 ---
@@ -197,22 +188,18 @@ async createMultiple(inputs: CreateRoleRateInput[], tenantId: string): Promise<R
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/pricing/RoleRateFormDialog.tsx` | Adicionar toggle e campos dinamicos para multiplas senioridades |
-| `src/hooks/useRoleRates.ts` | Adicionar hook `useCreateMultipleRoleRates` |
-| `src/services/roleRateService.ts` | Adicionar metodo `createMultiple` |
-| `src/types/roleRate.ts` | Adicionar tipos para criacao em lote |
-| `src/pages/Pricing.tsx` | Atualizar para usar novo hook quando modo multiplo |
+| `src/components/pricing/RoleRateFormDialog.tsx` | Refatorar para usar linhas dinamicas |
 
 ---
 
 ## Criterios de Aceite
 
-1. Toggle "Criar multiplas senioridades" aparece no formulario de novo papel
-2. Ao ativar toggle, aparecem checkboxes para Junior, Pleno e Senior
-3. Cada checkbox ativado exibe campo de valor hora correspondente
-4. Ao cadastrar, sistema cria todos os registros selecionados
-5. Modo simples continua funcionando como antes (toggle desativado)
-6. Na edicao, toggle nao aparece (sempre modo simples)
-7. Validacao exige pelo menos uma senioridade quando toggle ativo
-8. Erro de duplicidade e tratado adequadamente
+1. Formulário inicia com uma linha de senioridade/valor
+2. Botao "+ Adicionar senioridade" adiciona nova linha
+3. Cada linha tem Select de senioridade e Input de valor
+4. Botao de remover aparece quando ha mais de 1 linha
+5. Senioridades ja selecionadas nao aparecem nas outras linhas
+6. Ao cadastrar, cria 1 ou mais registros conforme linhas preenchidas
+7. Na edicao, exibe apenas 1 linha sem opcao de adicionar
+8. Validacao exige pelo menos 1 linha com senioridade e valor
 
