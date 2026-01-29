@@ -195,6 +195,11 @@ const EmployeeFormDialog = ({
     },
   });
 
+  const { formState: { isDirty } } = form;
+
+  // Verificar se há mudanças não salvas (formulário ou benefícios/ferramentas locais para novos funcionários)
+  const hasUnsavedChanges = isDirty || (!isEditing && (localBenefits.length > 0 || localTools.length > 0));
+
   const tipoContratacao = form.watch('tipoContratacao');
   const salarioMensal = form.watch('salarioMensal');
   const bolsaAuxilio = form.watch('bolsaAuxilio');
@@ -203,11 +208,15 @@ const EmployeeFormDialog = ({
   const dividendos = form.watch('dividendos');
   const nome = form.watch('nome');
 
-  // Handle dialog close with confirmation
+  // Handle dialog close with confirmation only if there are unsaved changes
   const handleClose = (openState: boolean) => {
     if (!openState) {
-      // User is trying to close - show confirmation
-      setShowExitConfirm(true);
+      // User is trying to close - only show confirmation if there are changes
+      if (hasUnsavedChanges) {
+        setShowExitConfirm(true);
+      } else {
+        onOpenChange(false);
+      }
     } else {
       onOpenChange(openState);
     }
