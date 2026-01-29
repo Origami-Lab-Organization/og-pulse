@@ -130,8 +130,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       password,
     });
 
-    // Activate employee on successful login
     if (!error && data.user) {
+      // Check if employee is blocked
+      const { data: empData } = await supabase
+        .from('employees')
+        .select('id, status')
+        .eq('auth_id', data.user.id)
+        .single();
+
+      if (empData?.status === 'bloqueado') {
+        await supabase.auth.signOut();
+        return { error: new Error('Sua conta foi bloqueada. Entre em contato com o administrador.') };
+      }
+
+      if (empData?.status === 'arquivado') {
+        await supabase.auth.signOut();
+        return { error: new Error('Sua conta foi arquivada. Entre em contato com o administrador.') };
+      }
+
+      // Activate employee on successful login (if awaiting confirmation)
       await activateEmployeeOnLogin(data.user.id);
     }
 

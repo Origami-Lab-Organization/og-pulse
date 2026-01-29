@@ -20,9 +20,9 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
   const activeEmployees = employees.filter((e) => e.status === 'ativo').length;
   const managers = employees.filter((e) => e.isGerente).length;
   
-  // Calculate total monthly cost considering contract types
+  // Calculate total monthly cost considering contract types (exclude archived)
   const totalMonthlyCost = employees
-    .filter((e) => e.status !== 'inativo')
+    .filter((e) => e.status !== 'arquivado' && e.status !== 'bloqueado')
     .reduce((sum, e) => {
       // Use saved cost if available
       if (e.totalMonthlyCostEstimated > 0) {
@@ -52,9 +52,9 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
       return sum + baseCost + e.encargos + (e.totalBenefitsCost || 0) + (e.totalToolsCost || 0);
     }, 0);
 
-  // Calculate total monthly provisions
+  // Calculate total monthly provisions (exclude archived and blocked)
   const totalMonthlyProvision = employees
-    .filter((e) => e.status !== 'inativo')
+    .filter((e) => e.status !== 'arquivado' && e.status !== 'bloqueado')
     .reduce((sum, e) => {
       // Use breakdown if available
       const breakdown = e.breakdownJson;

@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.recalculate-employee-costs]
 verify_jwt = false
+
+[functions.resend-employee-invite]
+verify_jwt = false

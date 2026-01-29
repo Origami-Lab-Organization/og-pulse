@@ -218,20 +218,81 @@ export const employeeService = {
     return updatedEmployee;
   },
 
-  async inactivate(id: string): Promise<EmployeeDB> {
+  async block(id: string): Promise<EmployeeDB> {
     const { data, error } = await supabase
       .from('employees')
-      .update({ status: 'inativo' })
+      .update({ status: 'bloqueado' })
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
-      console.error('Error inactivating employee:', error);
+      console.error('Error blocking employee:', error);
       throw error;
     }
 
     return data as EmployeeDB;
+  },
+
+  async unblock(id: string, previousStatus: 'ativo' | 'aguardando_confirmacao' = 'ativo'): Promise<EmployeeDB> {
+    const { data, error } = await supabase
+      .from('employees')
+      .update({ status: previousStatus })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error unblocking employee:', error);
+      throw error;
+    }
+
+    return data as EmployeeDB;
+  },
+
+  async archive(id: string): Promise<EmployeeDB> {
+    const { data, error } = await supabase
+      .from('employees')
+      .update({ status: 'arquivado' })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error archiving employee:', error);
+      throw error;
+    }
+
+    return data as EmployeeDB;
+  },
+
+  async resendInvite(id: string, loginUrl: string): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    
+    if (!sessionData.session) {
+      throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resend-employee-invite`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionData.session.access_token}`,
+        },
+        body: JSON.stringify({
+          employeeId: id,
+          loginUrl,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to resend invite');
+    }
   },
 
   async search(query: string, tenantId: string): Promise<EmployeeDB[]> {

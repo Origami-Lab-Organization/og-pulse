@@ -1,5 +1,5 @@
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Pencil, UserX, Crown, Mail, Phone, Clock } from 'lucide-react';
+import { MoreHorizontal, Pencil, Ban, Unlock, Archive, Mail, Phone, Clock, Send } from 'lucide-react';
 import { Employee } from '@/hooks/useEmployees';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,20 +17,33 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface EmployeeColumnsProps {
   onEdit: (employee: Employee) => void;
-  onInactivate: (employee: Employee) => void;
+  onBlock: (employee: Employee) => void;
+  onUnblock: (employee: Employee) => void;
+  onArchive: (employee: Employee) => void;
+  onResendInvite: (employee: Employee) => void;
+  isResendingInvite?: boolean;
 }
 
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'ativo':
-      return <Badge variant="default">Ativo</Badge>;
-    case 'inativo':
-      return <Badge variant="secondary">Inativo</Badge>;
+      return (
+        <Badge variant="default" className="bg-green-600 hover:bg-green-600/80">
+          Ativo
+        </Badge>
+      );
     case 'aguardando_confirmacao':
       return (
         <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">
           <Clock className="h-3 w-3 mr-1" />
           Aguardando
+        </Badge>
+      );
+    case 'bloqueado':
+      return (
+        <Badge variant="destructive">
+          <Ban className="h-3 w-3 mr-1" />
+          Bloqueado
         </Badge>
       );
     default:
@@ -40,7 +53,11 @@ const getStatusBadge = (status: string) => {
 
 export const createEmployeeColumns = ({
   onEdit,
-  onInactivate,
+  onBlock,
+  onUnblock,
+  onArchive,
+  onResendInvite,
+  isResendingInvite,
 }: EmployeeColumnsProps): ColumnDef<Employee>[] => [
   {
     accessorKey: 'nome',
@@ -69,9 +86,6 @@ export const createEmployeeColumns = ({
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="font-medium text-foreground">{employee.nome}</span>
-              {employee.isGerente && (
-                <Crown className="h-3.5 w-3.5 text-amber-500" />
-              )}
             </div>
             <span className="text-xs text-muted-foreground">{employee.cargo}</span>
           </div>
@@ -162,7 +176,9 @@ export const createEmployeeColumns = ({
     id: 'actions',
     cell: ({ row }) => {
       const employee = row.original;
-      const isInactive = employee.status === 'inativo';
+      const isBlocked = employee.status === 'bloqueado';
+      const isAwaiting = employee.status === 'aguardando_confirmacao';
+      const isActive = employee.status === 'ativo';
 
       return (
         <DropdownMenu>
@@ -183,13 +199,49 @@ export const createEmployeeColumns = ({
               <Pencil className="mr-2 h-4 w-4" />
               Editar
             </DropdownMenuItem>
-            {!isInactive && (
+            
+            {/* Resend invite - only for awaiting confirmation */}
+            {isAwaiting && (
+              <DropdownMenuItem 
+                onClick={() => onResendInvite(employee)}
+                disabled={isResendingInvite}
+                className="text-blue-600 focus:text-blue-600"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {isResendingInvite ? 'Enviando...' : 'Reenviar Convite'}
+              </DropdownMenuItem>
+            )}
+            
+            {/* Block - for active or awaiting */}
+            {(isActive || isAwaiting) && (
               <DropdownMenuItem
-                onClick={() => onInactivate(employee)}
+                onClick={() => onBlock(employee)}
                 className="text-destructive focus:text-destructive"
               >
-                <UserX className="mr-2 h-4 w-4" />
-                Inativar
+                <Ban className="mr-2 h-4 w-4" />
+                Bloquear
+              </DropdownMenuItem>
+            )}
+            
+            {/* Unblock - only for blocked */}
+            {isBlocked && (
+              <DropdownMenuItem
+                onClick={() => onUnblock(employee)}
+                className="text-green-600 focus:text-green-600"
+              >
+                <Unlock className="mr-2 h-4 w-4" />
+                Desbloquear
+              </DropdownMenuItem>
+            )}
+            
+            {/* Archive - only for blocked */}
+            {isBlocked && (
+              <DropdownMenuItem
+                onClick={() => onArchive(employee)}
+                className="text-muted-foreground focus:text-muted-foreground"
+              >
+                <Archive className="mr-2 h-4 w-4" />
+                Arquivar
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
