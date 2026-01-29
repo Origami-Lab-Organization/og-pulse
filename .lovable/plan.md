@@ -1,139 +1,95 @@
 
 
-# Plano: Formatar Textos Extraídos do Cartão CNPJ com Capitalização Correta
+# Plano: Adicionar Campo Complemento no Endereço de Clientes
 
-## Problema
+## Resumo
 
-Quando os dados são extraídos do Cartão CNPJ via IA, eles vêm em MAIÚSCULAS (como aparece no documento oficial), mas o usuário deseja que sejam exibidos com apenas a primeira letra de cada palavra em maiúsculo.
-
-**Exemplo:**
-- Atual: `PRUMO ENGENHARIA LTDA`
-- Desejado: `Prumo Engenharia LTDA`
+Adicionar o campo "Complemento" no cadastro e edição de clientes, permitindo informar dados adicionais do endereço como sala, andar, bloco, etc.
 
 ---
 
-## Solução
+## Alteracoes Necessarias
 
-Criar uma função utilitária `toTitleCase` que formata o texto corretamente, preservando siglas e abreviações comuns em nomes empresariais.
+### 1. Banco de Dados
 
----
+Criar uma migration para adicionar a coluna `complemento` na tabela `clients`:
 
-## Alterações Necessárias
-
-### 1. Arquivo: `src/lib/formatters.ts`
-
-Adicionar nova função `toTitleCase`:
-
-```typescript
-/**
- * Converte texto para Title Case, preservando siglas empresariais
- * Ex: "PRUMO ENGENHARIA LTDA" -> "Prumo Engenharia LTDA"
- */
-export function toTitleCase(text: string | null | undefined): string {
-  if (!text) return '';
-  
-  // Palavras que devem permanecer em MAIÚSCULO (siglas empresariais)
-  const upperCaseWords = ['LTDA', 'S/A', 'SA', 'ME', 'EPP', 'EIRELI', 'SS', 'CNPJ', 'CPF'];
-  
-  // Palavras que devem permanecer em minúsculo
-  const lowerCaseWords = ['de', 'da', 'do', 'das', 'dos', 'e', 'para', 'com'];
-  
-  return text
-    .toLowerCase()
-    .split(' ')
-    .map((word, index) => {
-      const upperWord = word.toUpperCase();
-      
-      // Verificar se é uma sigla que deve ficar em maiúsculo
-      if (upperCaseWords.includes(upperWord)) {
-        return upperWord;
-      }
-      
-      // Verificar se é uma palavra que deve ficar em minúsculo (exceto primeira palavra)
-      if (index > 0 && lowerCaseWords.includes(word)) {
-        return word;
-      }
-      
-      // Capitalizar primeira letra
-      return word.charAt(0).toUpperCase() + word.slice(1);
-    })
-    .join(' ');
-}
-```
-
-### 2. Arquivo: `src/components/clients/ClientFormDialog.tsx`
-
-Importar a função e aplicar nos campos extraídos:
-
-```typescript
-// Adicionar import
-import { toTitleCase } from '@/lib/formatters';
-
-// Na função handlePdfUpload, aplicar toTitleCase nos campos de texto:
-if (data.razaoSocial) {
-  form.setValue('companyName', toTitleCase(data.razaoSocial));
-}
-if (data.nomeFantasia) {
-  form.setValue('tradingName', toTitleCase(data.nomeFantasia));
-}
-if (data.logradouro) {
-  form.setValue('logradouro', toTitleCase(data.logradouro));
-}
-if (data.bairro) {
-  form.setValue('bairro', toTitleCase(data.bairro));
-}
-if (data.cidade) {
-  form.setValue('cidade', toTitleCase(data.cidade));
-}
+```sql
+ALTER TABLE public.clients 
+ADD COLUMN complemento text;
 ```
 
 ---
 
-## Campos Afetados
+### 2. Tipos TypeScript
 
-| Campo | Antes | Depois |
-|-------|-------|--------|
-| Razão Social | `PRUMO ENGENHARIA LTDA` | `Prumo Engenharia LTDA` |
-| Nome Fantasia | `PRUMO ENGENHARIA` | `Prumo Engenharia` |
-| Logradouro | `RUA DAS FLORES` | `Rua das Flores` |
-| Bairro | `CENTRO` | `Centro` |
-| Cidade | `SAO PAULO` | `São Paulo` |
+**Arquivo: `src/types/client.ts`**
 
-**Campos não afetados:**
-- CNPJ (números)
-- CEP (números)
-- Número (numérico)
-- Estado (mantém maiúsculo - 2 letras UF)
+Adicionar o campo `complemento` nas interfaces e na funcao de conversao:
+
+| Interface | Campo a Adicionar |
+|-----------|-------------------|
+| `ClientDB` | `complemento: string \| null;` |
+| `Client` | `complemento: string \| null;` |
+| `CreateClientInput` | `complemento?: string;` |
+| `dbToClient` | `complemento: db.complemento,` |
 
 ---
 
-## Exemplos de Conversão
+### 3. Formulario de Cliente
 
-| Entrada | Saída |
-|---------|-------|
-| `PRUMO ENGENHARIA LTDA` | `Prumo Engenharia LTDA` |
-| `COMERCIO DE ALIMENTOS SA` | `Comércio de Alimentos SA` |
-| `JOAO DA SILVA ME` | `João da Silva ME` |
-| `RUA DOS PIONEIROS` | `Rua dos Pioneiros` |
-| `AVENIDA BRASIL` | `Avenida Brasil` |
+**Arquivo: `src/components/clients/ClientFormDialog.tsx`**
+
+- Adicionar `complemento` no schema Zod
+- Adicionar `complemento` nos valores default do formulario
+- Adicionar `complemento` no reset do formulario (edicao e novo)
+- Adicionar campo de input para Complemento entre Numero e Bairro
+
+Layout proposto da secao de endereco:
+
+```text
+|  CEP  |     Logradouro      |
+|Numero |    Complemento      |
+|Bairro |  Cidade  |  Estado  |
+```
+
+---
+
+### 4. Servico de Cliente
+
+**Arquivo: `src/services/clientService.ts`**
+
+Adicionar `complemento` nas funcoes:
+- `create`: incluir `complemento: input.complemento || null`
+- `update`: incluir tratamento para `complemento`
+
+---
+
+### 5. Edge Function (Extracao PDF)
+
+**Arquivo: `supabase/functions/parse-cnpj-card/index.ts`**
+
+Atualizar o prompt da IA para extrair tambem o complemento do Cartao CNPJ (se houver).
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteração |
+| Arquivo | Alteracao |
 |---------|-----------|
-| `src/lib/formatters.ts` | Adicionar função `toTitleCase` |
-| `src/components/clients/ClientFormDialog.tsx` | Aplicar `toTitleCase` nos campos extraídos do PDF |
+| Migracao SQL | Adicionar coluna `complemento` na tabela `clients` |
+| `src/types/client.ts` | Adicionar campo `complemento` nas interfaces |
+| `src/components/clients/ClientFormDialog.tsx` | Adicionar campo de input para Complemento |
+| `src/services/clientService.ts` | Incluir `complemento` no create e update |
+| `supabase/functions/parse-cnpj-card/index.ts` | Extrair complemento do PDF |
 
 ---
 
-## Critérios de Aceite
+## Criterios de Aceite
 
-1. Razão Social extraída aparece com capitalização correta
-2. Nome Fantasia extraído aparece com capitalização correta
-3. Campos de endereço (logradouro, bairro, cidade) aparecem com capitalização correta
-4. Siglas empresariais (LTDA, ME, EPP, SA, etc.) permanecem em maiúsculo
-5. Preposições (de, da, do, das, dos) ficam em minúsculo quando não são a primeira palavra
-6. O preenchimento manual continua funcionando normalmente (sem alteração)
+1. Campo "Complemento" aparece no formulario de novo cliente
+2. Campo "Complemento" aparece no formulario de edicao de cliente
+3. Valor do complemento e salvo corretamente no banco de dados
+4. Valor do complemento e carregado corretamente ao editar um cliente
+5. Extracao do PDF preenche o complemento automaticamente (quando disponivel)
 
