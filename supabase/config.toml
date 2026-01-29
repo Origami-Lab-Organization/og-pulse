@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.resend-employee-invite]
 verify_jwt = false
+
+[functions.parse-cnpj-card]
+verify_jwt = false
