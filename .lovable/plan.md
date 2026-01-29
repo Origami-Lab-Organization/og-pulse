@@ -1,205 +1,214 @@
 
 
-# Plano: Reformular Cadastro de Papeis com Linhas Dinamicas
+# Plano: Ciclo de Vida de Papeis com Status (Ativo/Inativo/Arquivado)
 
-## Problema Atual
+## Objetivo
 
-O toggle "Criar multiplas senioridades" adiciona fricção e não é intuitivo. O usuário precisa decidir antecipadamente se quer criar uma ou várias senioridades.
+Implementar um sistema de gerenciamento de status para papéis que:
+- Remove o controle de status do formulário de criação (sempre ativo)
+- Adiciona fluxo de ciclo de vida: Ativo -> Inativo -> Arquivado
+- Preserva a integridade dos valores em orçamentos existentes
 
 ---
 
-## Nova Experiência Proposta
-
-Um formulário mais simples e direto, onde o usuário sempre trabalha com linhas de senioridade/valor:
+## Fluxo de Ciclo de Vida
 
 ```text
-+--------------------------------------------------+
-|  Novo Papel                                      |
-+--------------------------------------------------+
-|  Nome do Papel *                                 |
-|  [Desenvolvedor                              ]   |
-|                                                  |
-|  Senioridades e Valores *                        |
-|  +--------------------------------------------+  |
-|  | [Junior  v]  [R$ 80,00     ]    [Remover] |  |
-|  +--------------------------------------------+  |
-|  | [Pleno   v]  [R$ 120,00    ]    [Remover] |  |
-|  +--------------------------------------------+  |
-|                                                  |
-|  [+ Adicionar senioridade]                       |
-|                                                  |
-|  Descricao (opcional)                            |
-|  [                                           ]   |
-|                                                  |
-|  [ ] Ativo                                       |
-|                                                  |
-|              [Cancelar]  [Cadastrar]             |
-+--------------------------------------------------+
++--------+     Inativar     +----------+     Arquivar     +------------+
+| ATIVO  | --------------> | INATIVO  | ---------------> | ARQUIVADO  |
++--------+                 +----------+                  +------------+
+    ^                           |
+    |         Reativar          |
+    +---------------------------+
+```
+
+| Status | Descrição | Visível em Orçamentos | Pode Editar | Pode Excluir |
+|--------|-----------|----------------------|-------------|--------------|
+| Ativo | Papel disponível para uso | Sim | Sim | Sim |
+| Inativo | Temporariamente indisponível | Não | Sim | Sim |
+| Arquivado | Preservado para histórico | Não | Não | Não |
+
+---
+
+## Alterações Necessárias
+
+### 1. Migração do Banco de Dados
+
+Adicionar coluna `status` para substituir `is_active`:
+
+```sql
+-- Adicionar nova coluna status
+ALTER TABLE role_rates 
+ADD COLUMN status TEXT NOT NULL DEFAULT 'active';
+
+-- Migrar dados existentes
+UPDATE role_rates SET status = 'active' WHERE is_active = true;
+UPDATE role_rates SET status = 'inactive' WHERE is_active = false;
+
+-- Remover coluna antiga (opcional, pode manter por compatibilidade)
+-- ALTER TABLE role_rates DROP COLUMN is_active;
 ```
 
 ---
 
-## Fluxo de Uso
+### 2. Atualizar Tipos (`src/types/roleRate.ts`)
 
-### Criar papel com uma senioridade:
-1. Digita "Tech Lead"
-2. Seleciona "Senior" na primeira linha
-3. Preenche valor R$ 200,00
-4. Clica "Cadastrar"
+```typescript
+export type RoleRateStatus = 'active' | 'inactive' | 'archived';
 
-### Criar papel com multiplas senioridades:
-1. Digita "Desenvolvedor"
-2. Seleciona "Junior" e preenche R$ 80,00
-3. Clica "+ Adicionar senioridade"
-4. Seleciona "Pleno" e preenche R$ 120,00
-5. Clica "+ Adicionar senioridade"
-6. Seleciona "Senior" e preenche R$ 180,00
-7. Clica "Cadastrar" (cria 3 registros)
+export const ROLE_RATE_STATUS_OPTIONS = [
+  { value: 'active', label: 'Ativo' },
+  { value: 'inactive', label: 'Inativo' },
+  { value: 'archived', label: 'Arquivado' },
+];
 
-### Editar papel existente:
-1. Abre formulário com uma linha pre-preenchida
-2. Edita o valor
-3. Clica "Salvar"
+export interface RoleRateDB {
+  // ... campos existentes
+  status: RoleRateStatus;  // substitui is_active
+}
+```
 
 ---
 
-## Regras de Negócio
-
-| Regra | Comportamento |
-|-------|---------------|
-| Minimo 1 linha | Sempre iniciar com uma linha |
-| Remover linha | So permitir se houver mais de 1 linha |
-| Senioridade unica | Nao permitir selecionar a mesma senioridade duas vezes |
-| Validacao | Cada linha deve ter senioridade e valor preenchidos |
-| Edicao | Exibir apenas 1 linha (sem botao de adicionar) |
-
----
-
-## Alteracoes Tecnicas
-
-### Arquivo: `src/components/pricing/RoleRateFormDialog.tsx`
+### 3. Atualizar Formulário (`src/components/pricing/RoleRateFormDialog.tsx`)
 
 **Remover:**
-- Estado `isMultipleMode`
-- Toggle de multiplas senioridades
-- Campos fixos para junior/pleno/senior com checkboxes
-- Schema atual com campos separados por senioridade
+- Campo `isActive` do schema
+- Switch de "Ativo" do formulário
+- Props relacionadas a isActive
 
-**Adicionar:**
-- Estado para array de linhas: `[{ seniority: '', hourlyRate: '' }]`
-- Componente de linha com Select + Input + Botao remover
-- Botao "+ Adicionar senioridade"
-- Logica para filtrar senioridades ja selecionadas no Select
-- Novo schema Zod com array de linhas
+**Resultado:** Formulário apenas com Nome do Papel + Senioridades/Valores
 
-### Estrutura do Estado
+---
 
-```typescript
-interface SeniorityLine {
-  id: string; // para key do React
-  seniority: string;
-  hourlyRate: string;
-}
+### 4. Atualizar Tabela (`src/components/pricing/RoleRatesTable.tsx`)
 
-// Estado inicial
-const [lines, setLines] = useState<SeniorityLine[]>([
-  { id: crypto.randomUUID(), seniority: '', hourlyRate: '' }
-]);
-```
+**Coluna Status:**
+- Badge com cores diferenciadas por status
+- Verde para Ativo, Amarelo para Inativo, Cinza para Arquivado
 
-### Novo Schema Zod
+**Menu de Ações:**
+```text
+Se Ativo:
+  - Editar
+  - Inativar
+  - Excluir
 
-```typescript
-const roleRateSchema = z.object({
-  roleName: z.string().min(2, 'Nome do papel deve ter no mínimo 2 caracteres'),
-  lines: z.array(z.object({
-    seniority: z.string().min(1, 'Selecione a senioridade'),
-    hourlyRate: z.string().min(1, 'Informe o valor hora'),
-  })).min(1, 'Adicione pelo menos uma senioridade'),
-  description: z.string().optional(),
-  isActive: z.boolean(),
-});
-```
+Se Inativo:
+  - Editar
+  - Reativar
+  - Arquivar
+  - Excluir
 
-### Logica de Submit
-
-```typescript
-const handleSubmit = (values) => {
-  if (values.lines.length === 1) {
-    // Criar unico registro
-    onSubmit({
-      roleName: values.roleName,
-      seniority: values.lines[0].seniority,
-      hourlyRate: parseCurrency(values.lines[0].hourlyRate),
-      description: values.description,
-      isActive: values.isActive,
-    });
-  } else {
-    // Criar multiplos registros
-    const inputs = values.lines.map(line => ({
-      roleName: values.roleName,
-      seniority: line.seniority,
-      hourlyRate: parseCurrency(line.hourlyRate),
-      description: values.description,
-      isActive: values.isActive,
-    }));
-    onSubmitMultiple(inputs);
-  }
-};
+Se Arquivado:
+  - (nenhuma ação disponível - apenas visualização)
 ```
 
 ---
 
-## Layout da Linha de Senioridade
+### 5. Atualizar Service (`src/services/roleRateService.ts`)
 
 ```typescript
-<div className="flex items-center gap-2">
-  <Select value={line.seniority} onValueChange={...}>
-    <SelectTrigger className="w-[120px]">
-      <SelectValue placeholder="Senioridade" />
-    </SelectTrigger>
-    <SelectContent>
-      {availableSeniorities.map(opt => (
-        <SelectItem key={opt.value} value={opt.value}>
-          {opt.label}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-  
-  <Input 
-    placeholder="R$ 0,00"
-    value={line.hourlyRate}
-    onChange={...}
-    className="flex-1"
-  />
-  
-  {lines.length > 1 && (
-    <Button variant="ghost" size="icon" onClick={() => removeLine(line.id)}>
-      <Trash2 className="h-4 w-4" />
-    </Button>
-  )}
-</div>
+// Novo método para alterar status
+async setStatus(id: string, status: RoleRateStatus): Promise<RoleRateDB> {
+  const { data, error } = await supabase
+    .from('role_rates')
+    .update({ status })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as RoleRateDB;
+}
+
+// Atualizar getActive para filtrar por status
+async getActive(tenantId: string): Promise<RoleRateDB[]> {
+  const { data, error } = await supabase
+    .from('role_rates')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('status', 'active')  // mudou de is_active = true
+    .order('role_name', { ascending: true });
+  // ...
+}
+```
+
+---
+
+### 6. Atualizar Hooks (`src/hooks/useRoleRates.ts`)
+
+```typescript
+// Renomear/substituir useToggleRoleRateActive
+export function useSetRoleRateStatus() {
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: RoleRateStatus }) =>
+      roleRateService.setStatus(id, status),
+    onSuccess: (data: RoleRateDB) => {
+      queryClient.invalidateQueries({ queryKey: ['role-rates'] });
+      const messages = {
+        active: 'Papel reativado!',
+        inactive: 'Papel inativado!',
+        archived: 'Papel arquivado!',
+      };
+      toast({ title: 'Sucesso', description: messages[data.status] });
+    },
+  });
+}
+```
+
+---
+
+### 7. Atualizar Página (`src/pages/Pricing.tsx`)
+
+**Filtros:**
+- Adicionar opção "Arquivados" no select de status
+
+**Cards de Estatísticas:**
+- Total de Papéis
+- Ativos
+- Inativos
+- Arquivados
+
+**Handlers:**
+```typescript
+const handleInactivate = (roleRate: RoleRateDB) => {
+  setStatusMutation.mutate({ id: roleRate.id, status: 'inactive' });
+};
+
+const handleReactivate = (roleRate: RoleRateDB) => {
+  setStatusMutation.mutate({ id: roleRate.id, status: 'active' });
+};
+
+const handleArchive = (roleRate: RoleRateDB) => {
+  setStatusMutation.mutate({ id: roleRate.id, status: 'archived' });
+};
 ```
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteracao |
+| Arquivo | Alteração |
 |---------|-----------|
-| `src/components/pricing/RoleRateFormDialog.tsx` | Refatorar para usar linhas dinamicas |
+| **Migração SQL** | Adicionar coluna `status` e migrar dados |
+| `src/types/roleRate.ts` | Adicionar tipo `RoleRateStatus` e constantes |
+| `src/components/pricing/RoleRateFormDialog.tsx` | Remover switch de ativo |
+| `src/components/pricing/RoleRatesTable.tsx` | Atualizar menu de ações por status |
+| `src/services/roleRateService.ts` | Adicionar `setStatus`, atualizar queries |
+| `src/hooks/useRoleRates.ts` | Substituir toggle por `useSetRoleRateStatus` |
+| `src/pages/Pricing.tsx` | Atualizar filtros e estatísticas |
 
 ---
 
-## Criterios de Aceite
+## Critérios de Aceite
 
-1. Formulário inicia com uma linha de senioridade/valor
-2. Botao "+ Adicionar senioridade" adiciona nova linha
-3. Cada linha tem Select de senioridade e Input de valor
-4. Botao de remover aparece quando ha mais de 1 linha
-5. Senioridades ja selecionadas nao aparecem nas outras linhas
-6. Ao cadastrar, cria 1 ou mais registros conforme linhas preenchidas
-7. Na edicao, exibe apenas 1 linha sem opcao de adicionar
-8. Validacao exige pelo menos 1 linha com senioridade e valor
+1. Novo papel é criado sempre com status "Ativo"
+2. Formulário de criação não exibe opção de status
+3. Menu de ações exibe opções conforme status atual
+4. Papel ativo pode ser inativado ou excluído
+5. Papel inativo pode ser reativado, arquivado ou excluído
+6. Papel arquivado não pode ser editado, reativado ou excluído
+7. Filtro de status inclui opção "Arquivados"
+8. Estatísticas exibem contagem por status
 
