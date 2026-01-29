@@ -1,323 +1,167 @@
 
-# Plano: Adicionar Foto e Data de Nascimento ao Cadastro de Funcionarios
+
+# Plano: Editor de Foto com Hover para Excluir e Exibicao na Listagem
 
 ## Resumo
 
-Adicionar dois novos campos ao formulario de funcionarios:
-1. **Foto do funcionario** (opcional) - upload de imagem
-2. **Data de nascimento** (obrigatoria) - campo de data
+Implementar tres melhorias relacionadas a foto do funcionario:
+1. **Hover para excluir**: Ao passar o mouse sobre a foto, exibir icone de lixeira para remover
+2. **Editor de foto**: Permitir zoom e reposicionamento da imagem antes de salvar
+3. **Exibir foto na listagem**: Mostrar a foto cadastrada na tabela de funcionarios (em vez das iniciais)
 
 ---
 
 ## Alteracoes Necessarias
 
-### 1. Banco de Dados
+### 1. Nova Dependencia
 
-Adicionar duas novas colunas na tabela `employees`:
+Instalar a biblioteca `react-easy-crop` para o editor de imagem.
 
-```sql
--- Adicionar campo de data de nascimento (obrigatorio para novos registros)
-ALTER TABLE employees ADD COLUMN data_nascimento date;
+Esta biblioteca oferece:
+- Zoom com slider ou scroll do mouse
+- Arrastar para reposicionar
+- Suporte para corte circular (perfeito para avatares)
+- Retorna coordenadas para gerar imagem recortada
 
--- Adicionar campo de URL da foto (opcional)
-ALTER TABLE employees ADD COLUMN foto_url text;
+---
 
--- Criar bucket de storage para fotos de funcionarios
-INSERT INTO storage.buckets (id, name, public) VALUES ('employee-photos', 'employee-photos', true);
+### 2. Novo Componente: ImageCropDialog
 
--- Politica para upload de fotos (admins do tenant)
-CREATE POLICY "Admins can upload employee photos"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'employee-photos' AND
-  EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = auth.uid()
-    AND role = 'admin'
-  )
-);
+Criar componente `src/components/ui/image-crop-dialog.tsx` com:
 
--- Politica para visualizar fotos (usuarios do tenant)
-CREATE POLICY "Users can view employee photos"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'employee-photos');
+- Area de corte circular
+- Slider de zoom (1x a 3x)
+- Arrastar para reposicionar
+- Botao para resetar posicao
+- Funcao auxiliar para gerar imagem recortada a partir das coordenadas
 
--- Politica para deletar fotos (admins)
-CREATE POLICY "Admins can delete employee photos"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'employee-photos' AND
-  EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = auth.uid()
-    AND role = 'admin'
-  )
-);
+---
+
+### 3. Atualizar EmployeeFormDialog
+
+**Secao de Foto com Hover para Excluir:**
+
+```text
++------------------------+
+|      +---------+       |
+|      |  Avatar |       |  <-- Foto ou icone de camera
+|      +---------+       |
+|                        |
+|   [Hover sobre foto]   |
+|      +---------+       |
+|      |  [X]    |       |  <-- Overlay escuro com lixeira
+|      +---------+       |
+|                        |
+|   [Adicionar Foto]     |  <-- Botao
++------------------------+
 ```
 
-### 2. Tipos e Interfaces
+**Novo Fluxo de Upload:**
 
-**Arquivo:** `src/types/employee.ts`
+1. Usuario seleciona imagem
+2. Valida tipo e tamanho (max 5MB)
+3. Abre editor de corte
+4. Usuario ajusta zoom e posicao
+5. Clica "Aplicar"
+6. Imagem recortada enviada para Storage
+7. Preview atualizado
 
-Adicionar campos ao interface Employee:
+---
+
+### 4. Atualizar EmployeesTable - Exibir Foto na Listagem
+
+Modificar a coluna "nome" para exibir a foto do funcionario quando disponivel:
+
+**Arquivo:** `src/components/employees/EmployeesTable.tsx`
+
+Alterar linhas 59-65 para usar AvatarImage quando fotoUrl existir:
 
 ```typescript
-export interface Employee {
-  // ... campos existentes ...
-  dataNascimento?: string;  // Data de nascimento
-  fotoUrl?: string;         // URL da foto
-}
+// DE:
+<Avatar className="h-9 w-9">
+  <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+    {initials}
+  </AvatarFallback>
+</Avatar>
+
+// PARA:
+<Avatar className="h-9 w-9">
+  {employee.fotoUrl ? (
+    <AvatarImage src={employee.fotoUrl} alt={employee.nome} />
+  ) : null}
+  <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+    {initials}
+  </AvatarFallback>
+</Avatar>
 ```
 
-**Arquivo:** `src/services/employeeService.ts`
-
-Adicionar campos ao EmployeeDB e CreateEmployeeInput:
-
+Adicionar import do AvatarImage:
 ```typescript
-export interface EmployeeDB {
-  // ... campos existentes ...
-  data_nascimento: string | null;
-  foto_url: string | null;
-}
-
-export interface CreateEmployeeInput {
-  // ... campos existentes ...
-  dataNascimento: string;
-  fotoUrl?: string;
-}
-```
-
-### 3. Schema de Validacao do Formulario
-
-**Arquivo:** `src/components/employees/EmployeeFormDialog.tsx`
-
-Adicionar validacao no schema:
-
-```typescript
-const baseFormSchema = z.object({
-  // ... campos existentes ...
-  dataNascimento: z.string().min(1, 'Data de nascimento e obrigatoria'),
-  fotoUrl: z.string().optional(),
-});
-```
-
-### 4. Interface do Formulario
-
-**Arquivo:** `src/components/employees/EmployeeFormDialog.tsx`
-
-Adicionar componente de upload de foto e campo de data de nascimento na etapa "Dados Pessoais":
-
-```typescript
-// Estado para preview da foto
-const [fotoPreview, setFotoPreview] = useState<string | null>(null);
-const [uploadingPhoto, setUploadingPhoto] = useState(false);
-
-// Handler para upload de foto
-const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  
-  // Validar tipo e tamanho
-  if (!file.type.startsWith('image/')) {
-    toast({ title: 'Erro', description: 'Apenas imagens sao permitidas', variant: 'destructive' });
-    return;
-  }
-  if (file.size > 5 * 1024 * 1024) { // 5MB
-    toast({ title: 'Erro', description: 'Imagem deve ter no maximo 5MB', variant: 'destructive' });
-    return;
-  }
-  
-  setUploadingPhoto(true);
-  
-  // Upload para storage
-  const fileName = `${Date.now()}-${file.name}`;
-  const { data, error } = await supabase.storage
-    .from('employee-photos')
-    .upload(fileName, file);
-  
-  if (error) {
-    toast({ title: 'Erro', description: 'Falha ao enviar foto', variant: 'destructive' });
-    setUploadingPhoto(false);
-    return;
-  }
-  
-  // Obter URL publica
-  const { data: urlData } = supabase.storage
-    .from('employee-photos')
-    .getPublicUrl(data.path);
-  
-  form.setValue('fotoUrl', urlData.publicUrl);
-  setFotoPreview(urlData.publicUrl);
-  setUploadingPhoto(false);
-};
-```
-
-Layout do formulario na etapa de Dados Pessoais:
-
-```typescript
-{/* Foto do Funcionario */}
-<div className="flex flex-col items-center gap-4 mb-6">
-  <Avatar className="h-24 w-24">
-    {fotoPreview ? (
-      <AvatarImage src={fotoPreview} alt="Foto do funcionario" />
-    ) : (
-      <AvatarFallback>
-        <Camera className="h-8 w-8 text-muted-foreground" />
-      </AvatarFallback>
-    )}
-  </Avatar>
-  
-  <div className="flex gap-2">
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={() => document.getElementById('photo-upload')?.click()}
-      disabled={uploadingPhoto}
-    >
-      {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-      {fotoPreview ? 'Alterar Foto' : 'Adicionar Foto'}
-    </Button>
-    {fotoPreview && (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          setFotoPreview(null);
-          form.setValue('fotoUrl', '');
-        }}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    )}
-  </div>
-  
-  <input
-    id="photo-upload"
-    type="file"
-    accept="image/*"
-    className="hidden"
-    onChange={handlePhotoUpload}
-  />
-</div>
-
-{/* Campo Data de Nascimento */}
-<FormField
-  control={form.control}
-  name="dataNascimento"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Data de Nascimento *</FormLabel>
-      <FormControl>
-        <Input type="date" {...field} />
-      </FormControl>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
-```
-
-### 5. Edge Function
-
-**Arquivo:** `supabase/functions/create-employee-user/index.ts`
-
-Adicionar campos ao request e insert:
-
-```typescript
-interface CreateEmployeeRequest {
-  // ... campos existentes ...
-  dataNascimento: string;
-  fotoUrl: string | null;
-}
-
-// No insert:
-const { data: employee, error: employeeError } = await adminClient
-  .from('employees')
-  .insert({
-    // ... campos existentes ...
-    data_nascimento: dataNascimento,
-    foto_url: fotoUrl || null,
-  })
-```
-
-### 6. Hook useEmployees
-
-**Arquivo:** `src/hooks/useEmployees.ts`
-
-Adicionar mapeamento dos novos campos:
-
-```typescript
-export const dbToEmployee = (db: EmployeeWithRelations) => {
-  return {
-    // ... campos existentes ...
-    dataNascimento: db.data_nascimento,
-    fotoUrl: db.foto_url,
-  };
-};
-```
-
-### 7. Service
-
-**Arquivo:** `src/services/employeeService.ts`
-
-Adicionar mapeamento no update:
-
-```typescript
-if (updates.dataNascimento !== undefined) dbUpdates.data_nascimento = updates.dataNascimento;
-if (updates.fotoUrl !== undefined) dbUpdates.foto_url = updates.fotoUrl;
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 ```
 
 ---
 
-## Arquivos a Modificar
+## Arquivos a Modificar/Criar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| Migracao SQL | Adicionar colunas `data_nascimento` e `foto_url`, criar bucket e politicas |
-| `src/types/employee.ts` | Adicionar campos `dataNascimento` e `fotoUrl` |
-| `src/services/employeeService.ts` | Adicionar campos no EmployeeDB, CreateEmployeeInput e update |
-| `src/hooks/useEmployees.ts` | Adicionar mapeamento dos novos campos |
-| `src/components/employees/EmployeeFormDialog.tsx` | Adicionar upload de foto e campo de data de nascimento |
-| `supabase/functions/create-employee-user/index.ts` | Adicionar campos no request e insert |
+| `package.json` | Adicionar dependencia `react-easy-crop` |
+| `src/components/ui/image-crop-dialog.tsx` | Criar componente do editor de imagem |
+| `src/components/employees/EmployeeFormDialog.tsx` | Integrar hover para excluir e abrir editor |
+| `src/components/employees/EmployeesTable.tsx` | Exibir foto no avatar da listagem |
 
 ---
 
-## Fluxo de Upload de Foto
+## Experiencia Visual
+
+### Hover na Foto (Formulario)
+- Avatar normal quando mouse nao esta sobre a foto
+- Ao passar mouse: overlay escuro (60% opacidade) com icone de lixeira branco
+- Transicao suave de opacidade
+
+### Editor de Corte
+- Area de corte circular (formato avatar)
+- Slider para controlar zoom (1x a 3x)
+- Arrastar imagem para reposicionar
+- Botao para resetar posicao
+- Botoes "Cancelar" e "Aplicar"
+
+### Listagem de Funcionarios
+- Se funcionario tem foto: exibe a foto no avatar
+- Se funcionario nao tem foto: exibe as iniciais (comportamento atual)
+
+---
+
+## Resultado Visual na Listagem
 
 ```text
-Usuario seleciona arquivo
-        |
-        v
-Validacao (tipo imagem, max 5MB)
-        |
-        v
-Upload para Storage (bucket: employee-photos)
-        |
-        v
-Obtem URL publica
-        |
-        v
-Salva URL no formulario
-        |
-        v
-Exibe preview no Avatar
++------------------------------------------------------------------+
+| Funcionario          | Contato           | Status | Custo | ...  |
+|----------------------|-------------------|--------|-------|------|
+| [FOTO] Joao Silva    | joao@email.com    | Ativo  | R$... | ...  |
+|   Desenvolvedor      |                   |        |       |      |
+|----------------------|-------------------|--------|-------|------|
+| [JS] Maria Santos    | maria@email.com   | Ativo  | R$... | ...  |
+|   Designer           |                   |        |       |      |
++------------------------------------------------------------------+
+
+[FOTO] = Avatar com foto real do funcionario
+[JS]   = Avatar com iniciais (fallback quando nao tem foto)
 ```
 
 ---
 
 ## Criterios de Aceite
 
-1. Campo de data de nascimento e obrigatorio e validado
-2. Foto e opcional com preview ao selecionar
-3. Fotos sao armazenadas no Storage (nao no banco de dados)
-4. Apenas imagens ate 5MB sao aceitas
-5. Na edicao, foto e data de nascimento existentes sao carregados
-6. Botao para remover foto selecionada
-7. Funcionarios existentes continuam funcionando (campos nullable para migracao)
+1. Ao passar mouse sobre foto existente no formulario, exibe overlay com lixeira
+2. Clicar na lixeira remove a foto
+3. Ao selecionar nova imagem, abre editor de corte
+4. Editor permite zoom com slider
+5. Editor permite arrastar para reposicionar
+6. Botao "Aplicar" salva a imagem recortada
+7. Botao "Cancelar" fecha editor sem alterar foto
+8. Foto final e circular e otimizada para avatar
+9. **Na listagem, funcionarios com foto exibem a foto no avatar**
+10. **Funcionarios sem foto continuam exibindo as iniciais**
 
----
-
-## Observacoes para Dados Existentes
-
-Como o campo `data_nascimento` e obrigatorio para novos funcionarios, mas ja existem registros, a coluna sera criada como nullable. Ao editar um funcionario existente sem data de nascimento, o sistema exigira o preenchimento.
