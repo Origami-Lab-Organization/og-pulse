@@ -1,3 +1,11 @@
+export type RoleRateStatus = 'active' | 'inactive' | 'archived';
+
+export const ROLE_RATE_STATUS_OPTIONS = [
+  { value: 'active', label: 'Ativo' },
+  { value: 'inactive', label: 'Inativo' },
+  { value: 'archived', label: 'Arquivado' },
+] as const;
+
 export interface RoleRateDB {
   id: string;
   tenant_id: string;
@@ -6,6 +14,7 @@ export interface RoleRateDB {
   hourly_rate: number;
   description: string | null;
   is_active: boolean;
+  status: RoleRateStatus;
   created_at: string;
   updated_at: string;
 }
@@ -15,7 +24,6 @@ export interface CreateRoleRateInput {
   seniority: string;
   hourlyRate: number;
   description?: string;
-  isActive?: boolean;
 }
 
 export interface UpdateRoleRateInput {
@@ -23,7 +31,6 @@ export interface UpdateRoleRateInput {
   seniority?: string;
   hourlyRate?: number;
   description?: string;
-  isActive?: boolean;
 }
 
 export const SENIORITY_OPTIONS = [
