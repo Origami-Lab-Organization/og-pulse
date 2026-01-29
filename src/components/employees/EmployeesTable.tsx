@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
 import { formatCurrency } from '@/lib/masks';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface EmployeeColumnsProps {
   onEdit: (employee: Employee) => void;
@@ -59,6 +59,9 @@ export const createEmployeeColumns = ({
       return (
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
+            {employee.fotoUrl ? (
+              <AvatarImage src={employee.fotoUrl} alt={employee.nome} />
+            ) : null}
             <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
               {initials}
             </AvatarFallback>
