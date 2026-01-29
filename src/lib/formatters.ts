@@ -1,5 +1,40 @@
 import { cn } from '@/lib/utils';
 
+/**
+ * Converte texto para Title Case, preservando siglas empresariais
+ * Ex: "PRUMO ENGENHARIA LTDA" -> "Prumo Engenharia LTDA"
+ */
+export function toTitleCase(text: string | null | undefined): string {
+  if (!text) return '';
+  
+  // Palavras que devem permanecer em MAIÚSCULO (siglas empresariais)
+  const upperCaseWords = ['LTDA', 'S/A', 'SA', 'ME', 'EPP', 'EIRELI', 'SS', 'CNPJ', 'CPF'];
+  
+  // Palavras que devem permanecer em minúsculo
+  const lowerCaseWords = ['de', 'da', 'do', 'das', 'dos', 'e', 'para', 'com'];
+  
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map((word, index) => {
+      const upperWord = word.toUpperCase();
+      
+      // Verificar se é uma sigla que deve ficar em maiúsculo
+      if (upperCaseWords.includes(upperWord)) {
+        return upperWord;
+      }
+      
+      // Verificar se é uma palavra que deve ficar em minúsculo (exceto primeira palavra)
+      if (index > 0 && lowerCaseWords.includes(word)) {
+        return word;
+      }
+      
+      // Capitalizar primeira letra
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
+}
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
