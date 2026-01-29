@@ -52,15 +52,21 @@ const navigationGroups = [
     items: [
       { title: 'Funcionários', url: '/', icon: Users, requiresAdmin: true },
       { title: 'Clientes', url: '/clients', icon: Building2, requiresAdmin: true },
-      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresAdmin: true },
+    ] as NavItem[],
+  },
+  {
+    label: 'Comercial',
+    requiresAdmin: true,
+    items: [
+      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresAdmin: true },
     ] as NavItem[],
   },
   {
     label: 'Operações',
     requiresAdmin: true,
     items: [
+      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresAdmin: true },
       { title: 'Timesheets', url: '/timesheets', icon: Clock, disabled: true, requiresAdmin: true },
-      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresAdmin: true },
       { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true, requiresAdmin: true },
     ] as NavItem[],
   },
