@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
+// Declare EdgeRuntime for background tasks
+declare const EdgeRuntime: {
+  waitUntil: (promise: Promise<unknown>) => void;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -296,58 +301,57 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("User role created");
 
-    // Send invite email only for new users
-    let emailSent = false;
-    let emailError = null;
-    
+    // Send invite email in background (non-blocking) for new users only
     if (!isExistingUser && tempPassword) {
-      try {
-        console.log("Attempting to send invite email to:", email);
-        const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: email,
-            nome,
-            tempPassword,
-            loginUrl,
-          }),
-        });
+      console.log("Scheduling invite email to be sent in background to:", email);
+      
+      // Background task - does not block the response
+      EdgeRuntime.waitUntil(
+        (async () => {
+          try {
+            console.log("Background: Starting to send invite email to:", email);
+            const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                to: email,
+                nome,
+                tempPassword,
+                loginUrl,
+              }),
+            });
 
-        const emailResult = await emailResponse.json();
-        console.log("Email response:", { status: emailResponse.status, result: emailResult });
-
-        if (!emailResponse.ok) {
-          emailError = emailResult.error || 'Erro ao enviar email';
-          console.error('Error sending invite email:', emailError);
-        } else {
-          emailSent = true;
-          console.log("Invite email sent successfully");
-        }
-      } catch (error: unknown) {
-        emailError = error instanceof Error ? error.message : 'Unknown error';
-        console.error('Error calling send-invite-email:', error);
-      }
+            const emailResult = await emailResponse.json();
+            
+            if (!emailResponse.ok) {
+              console.error('Background: Error sending invite email:', emailResult.error || 'Unknown error');
+              console.error('Background: User can use "Reenviar Convite" to retry');
+            } else {
+              console.log("Background: Invite email sent successfully to:", email);
+            }
+          } catch (error: unknown) {
+            console.error('Background: Error calling send-invite-email:', error instanceof Error ? error.message : error);
+            console.error('Background: User can use "Reenviar Convite" to retry');
+          }
+        })()
+      );
     } else if (isExistingUser) {
       console.log("Skipping invite email - user already exists and can use existing credentials");
     }
 
-    console.log('Employee created successfully:', employee.id, 'Email sent:', emailSent);
+    console.log('Employee created successfully:', employee.id);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         employee,
-        emailSent,
-        emailError,
+        emailSent: !isExistingUser, // Email scheduled for new users
         isExistingUser,
         message: isExistingUser
           ? 'Funcionário criado com sucesso. O usuário já possui acesso e pode usar suas credenciais existentes.'
-          : (emailSent 
-            ? 'Funcionário criado e convite enviado com sucesso' 
-            : `Funcionário criado. ${emailError ? `Erro no envio do email: ${emailError}` : 'Email não enviado.'}`)
+          : 'Funcionário criado com sucesso. O convite será enviado por email.'
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
