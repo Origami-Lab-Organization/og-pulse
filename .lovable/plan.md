@@ -1,104 +1,66 @@
 
-# Plano: Permitir Fechar Modal Sem Confirmacao Quando Nao Ha Alteracoes
+# Plano: Abrir Edicao de Funcionario ao Clicar na Linha da Tabela
 
-## Problema Atual
+## Situacao Atual
 
-Quando o usuario abre a modal de edicao de funcionario mas nao faz nenhuma alteracao, ao tentar fechar a modal ele recebe a pergunta "Deseja sair sem salvar?". Isso e desnecessario e prejudica a experiencia do usuario.
+O componente `DataTable` ja possui suporte para clique em linha atraves da prop `onRowClick`:
+- Linha 30: `onRowClick?: (row: TData) => void;`
+- Linha 99-101: Adiciona `cursor-pointer` e chama `onRowClick` quando a linha e clicada
 
-## Solucao Proposta
-
-Utilizar o estado `isDirty` do `react-hook-form` para detectar se houve alteracoes no formulario. Apenas mostrar o dialogo de confirmacao quando houver mudancas pendentes.
+Porem, na pagina de funcionarios (`src/pages/Index.tsx`), essa prop nao esta sendo passada para o DataTable.
 
 ---
 
-## Alteracoes Tecnicas
+## Solucao
 
-### Arquivo: `src/components/employees/EmployeeFormDialog.tsx`
+Passar a funcao `handleEditEmployee` como prop `onRowClick` para o DataTable.
 
-#### 1. Obter Estado isDirty do Form
+---
 
-Extrair `isDirty` do `formState` do react-hook-form:
+## Alteracao Tecnica
 
-```typescript
-// Linha ~171-196, adicionar isDirty na desestruturacao
-const form = useForm<FormData>({
-  resolver: zodResolver(formSchema),
-  defaultValues: { ... },
-});
+### Arquivo: `src/components/employees/EmployeesTable.tsx`
 
-const { formState: { isDirty } } = form;
-```
+Os botoes de acao no menu dropdown ja fazem `stopPropagation` para evitar conflito com o clique na linha (linhas 144-145 e 152), entao nao ha necessidade de alterar esse arquivo.
 
-#### 2. Considerar Mudancas Locais (Beneficios e Ferramentas)
+### Arquivo: `src/pages/Index.tsx`
 
-Para novos funcionarios, tambem considerar se foram adicionados beneficios ou ferramentas:
+Adicionar a prop `onRowClick` no componente DataTable:
 
 ```typescript
-// Verificar se ha mudancas nao salvas
-const hasUnsavedChanges = isDirty || 
-  (!isEditing && (localBenefits.length > 0 || localTools.length > 0));
-```
-
-#### 3. Atualizar Logica de Fechamento
-
-Modificar a funcao `handleClose` para verificar se ha alteracoes:
-
-```typescript
-// DE (linha 207-214):
-const handleClose = (openState: boolean) => {
-  if (!openState) {
-    setShowExitConfirm(true);
-  } else {
-    onOpenChange(openState);
-  }
-};
+// DE (linha 151-157):
+<DataTable
+  columns={columns}
+  data={employees}
+  searchKey="nome"
+  searchValue={searchQuery}
+/>
 
 // PARA:
-const handleClose = (openState: boolean) => {
-  if (!openState) {
-    // Apenas mostrar confirmacao se houver mudancas
-    if (hasUnsavedChanges) {
-      setShowExitConfirm(true);
-    } else {
-      onOpenChange(false);
-    }
-  } else {
-    onOpenChange(openState);
-  }
-};
+<DataTable
+  columns={columns}
+  data={employees}
+  searchKey="nome"
+  searchValue={searchQuery}
+  onRowClick={handleEditEmployee}
+/>
 ```
 
 ---
 
-## Fluxo de Decisao
+## Resultado Visual
 
 ```text
-Usuario tenta fechar modal
-        |
-        v
-  Ha alteracoes?
-   (isDirty || beneficios/ferramentas locais)
-        |
-    +---+---+
-    |       |
-   SIM     NAO
-    |       |
-    v       v
-Mostrar   Fechar
-dialogo   diretamente
++----------------------------------------------------------+
+| Funcionario      | Contato        | Status | Custo | ... |
+|------------------|----------------|--------|-------|-----|
+| [cursor pointer] |                |        |       |     |
+| Joao Silva       | joao@email.com | Ativo  | R$... | ... | <-- Clicavel!
+| Maria Santos     | maria@email.com| Ativo  | R$... | ... | <-- Clicavel!
++----------------------------------------------------------+
 ```
 
----
-
-## Cenarios de Teste
-
-| Cenario | Comportamento Esperado |
-|---------|------------------------|
-| Abrir modal de edicao, nao alterar nada, fechar | Fecha sem perguntar |
-| Abrir modal de edicao, alterar nome, fechar | Mostra confirmacao |
-| Abrir modal de criacao, nao preencher nada, fechar | Fecha sem perguntar |
-| Abrir modal de criacao, preencher dados, fechar | Mostra confirmacao |
-| Abrir modal de criacao, adicionar beneficio, fechar | Mostra confirmacao |
+Ao passar o mouse sobre a linha, o cursor muda para `pointer` indicando que e clicavel.
 
 ---
 
@@ -106,13 +68,12 @@ dialogo   diretamente
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/employees/EmployeeFormDialog.tsx` | Adicionar verificacao de `isDirty` e mudancas locais antes de mostrar confirmacao |
+| `src/pages/Index.tsx` | Adicionar prop `onRowClick={handleEditEmployee}` no DataTable |
 
 ---
 
 ## Criterios de Aceite
 
-1. Ao abrir modal de edicao sem fazer alteracoes, pode fechar sem confirmacao
-2. Ao alterar qualquer campo do formulario, mostra confirmacao ao tentar fechar
-3. Ao adicionar beneficio ou ferramenta em novo funcionario, mostra confirmacao
-4. O dialogo de confirmacao continua funcionando normalmente quando ha alteracoes
+1. Ao clicar em qualquer lugar da linha do funcionario, abre a modal de edicao
+2. Cursor muda para pointer ao passar sobre a linha
+3. Clicar no menu de acoes (tres pontinhos) continua funcionando normalmente sem abrir a modal
