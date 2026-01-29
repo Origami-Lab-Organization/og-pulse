@@ -266,25 +266,6 @@ export function RoleRateFormDialog({
 
             <FormField
               control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descrição</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Descrição opcional do papel..."
-                      className="resize-none"
-                      rows={3}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="isActive"
               render={({ field }) => (
                 <FormItem className="flex items-center justify-between rounded-lg border p-3">
