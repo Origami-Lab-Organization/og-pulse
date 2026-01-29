@@ -192,7 +192,7 @@ const EmployeeFormDialog = ({
       dataNascimento: '',
       fotoUrl: '',
       isGerente: false,
-      status: 'ativo',
+        status: 'aguardando_confirmacao',
       tipoContratacao: 'CLT',
       jornadaMensal: 168,
       salarioMensal: 0,
@@ -327,7 +327,7 @@ const EmployeeFormDialog = ({
         dataNascimento: '',
         fotoUrl: '',
         isGerente: false,
-        status: 'ativo',
+        status: 'aguardando_confirmacao',
         tipoContratacao: 'CLT',
         jornadaMensal: 168,
         salarioMensal: 0,
@@ -528,8 +528,13 @@ const EmployeeFormDialog = ({
       }
     }
 
+    // Destructure to exclude status from submission (status is managed by actions only)
+    const { status: _status, ...dataWithoutStatus } = data;
+    
     onSubmit({
-      ...data,
+      ...dataWithoutStatus,
+      // Keep existing status for new employees (aguardando_confirmacao) or preserve current for edits
+      status: isEditing ? employee!.status : 'aguardando_confirmacao',
       // Include calculated cost fields
       provisao13: costBreakdown?.details.provisao13 || 0,
       provisaoFerias: costBreakdown?.details.provisaoFerias || 0,
@@ -754,27 +759,6 @@ const EmployeeFormDialog = ({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="inativo">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         <FormField
           control={form.control}
