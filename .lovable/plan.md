@@ -1,95 +1,140 @@
 
 
-# Plano: Adicionar Campo Complemento no Endereço de Clientes
+# Plano: Reorganizar Menu Lateral com Nova Seção Comercial
 
 ## Resumo
 
-Adicionar o campo "Complemento" no cadastro e edição de clientes, permitindo informar dados adicionais do endereço como sala, andar, bloco, etc.
+Reorganizar a navegação do menu lateral para:
+1. Criar uma nova seção "Comercial" contendo "Orçamentos"
+2. Mover "Projetos" da seção "Gestão" para a seção "Operações" (acima de Timesheets)
 
 ---
 
-## Alteracoes Necessarias
-
-### 1. Banco de Dados
-
-Criar uma migration para adicionar a coluna `complemento` na tabela `clients`:
-
-```sql
-ALTER TABLE public.clients 
-ADD COLUMN complemento text;
-```
-
----
-
-### 2. Tipos TypeScript
-
-**Arquivo: `src/types/client.ts`**
-
-Adicionar o campo `complemento` nas interfaces e na funcao de conversao:
-
-| Interface | Campo a Adicionar |
-|-----------|-------------------|
-| `ClientDB` | `complemento: string \| null;` |
-| `Client` | `complemento: string \| null;` |
-| `CreateClientInput` | `complemento?: string;` |
-| `dbToClient` | `complemento: db.complemento,` |
-
----
-
-### 3. Formulario de Cliente
-
-**Arquivo: `src/components/clients/ClientFormDialog.tsx`**
-
-- Adicionar `complemento` no schema Zod
-- Adicionar `complemento` nos valores default do formulario
-- Adicionar `complemento` no reset do formulario (edicao e novo)
-- Adicionar campo de input para Complemento entre Numero e Bairro
-
-Layout proposto da secao de endereco:
+## Estrutura Atual do Menu
 
 ```text
-|  CEP  |     Logradouro      |
-|Numero |    Complemento      |
-|Bairro |  Cidade  |  Estado  |
+Dashboard
+  └─ Visão Geral
+
+Gestão
+  ├─ Funcionários
+  ├─ Clientes
+  └─ Projetos          <-- será movido
+
+Operações
+  ├─ Timesheets
+  ├─ Orçamentos        <-- será movido
+  └─ Analytics
+
+Configurações
+  ├─ Tabela de Preços
+  └─ Configurações
 ```
 
 ---
 
-### 4. Servico de Cliente
+## Nova Estrutura Proposta
 
-**Arquivo: `src/services/clientService.ts`**
+```text
+Dashboard
+  └─ Visão Geral
 
-Adicionar `complemento` nas funcoes:
-- `create`: incluir `complemento: input.complemento || null`
-- `update`: incluir tratamento para `complemento`
+Gestão
+  ├─ Funcionários
+  └─ Clientes
+
+Comercial              <-- nova seção
+  └─ Orçamentos
+
+Operações
+  ├─ Projetos          <-- movido para cá
+  ├─ Timesheets
+  └─ Analytics
+
+Configurações
+  ├─ Tabela de Preços
+  └─ Configurações
+```
 
 ---
 
-### 5. Edge Function (Extracao PDF)
+## Alterações Necessárias
 
-**Arquivo: `supabase/functions/parse-cnpj-card/index.ts`**
+### Arquivo: `src/components/layout/AppSidebar.tsx`
 
-Atualizar o prompt da IA para extrair tambem o complemento do Cartao CNPJ (se houver).
+Atualizar o array `navigationGroups` com a nova organização:
+
+| Seção | Alteração |
+|-------|-----------|
+| Gestão | Remover "Projetos" |
+| Comercial | Nova seção com "Orçamentos" |
+| Operações | Adicionar "Projetos" no início, remover "Orçamentos" |
+
+---
+
+## Detalhes Técnicos
+
+A estrutura do `navigationGroups` será atualizada para:
+
+```typescript
+const navigationGroups = [
+  {
+    label: 'Dashboard',
+    items: [
+      { title: 'Visão Geral', url: '/dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: 'Gestão',
+    requiresAdmin: true,
+    items: [
+      { title: 'Funcionários', url: '/', icon: Users, requiresAdmin: true },
+      { title: 'Clientes', url: '/clients', icon: Building2, requiresAdmin: true },
+    ],
+  },
+  {
+    label: 'Comercial',
+    requiresAdmin: true,
+    items: [
+      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresAdmin: true },
+    ],
+  },
+  {
+    label: 'Operações',
+    requiresAdmin: true,
+    items: [
+      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresAdmin: true },
+      { title: 'Timesheets', url: '/timesheets', icon: Clock, disabled: true, requiresAdmin: true },
+      { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true, requiresAdmin: true },
+    ],
+  },
+  {
+    label: 'Configurações',
+    requiresAdmin: true,
+    items: [
+      { title: 'Tabela de Preços', url: '/pricing', icon: DollarSign, requiresAdmin: true },
+      { title: 'Configurações', url: '/settings', icon: Settings, requiresAdmin: true },
+    ],
+  },
+];
+```
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteracao |
+| Arquivo | Alteração |
 |---------|-----------|
-| Migracao SQL | Adicionar coluna `complemento` na tabela `clients` |
-| `src/types/client.ts` | Adicionar campo `complemento` nas interfaces |
-| `src/components/clients/ClientFormDialog.tsx` | Adicionar campo de input para Complemento |
-| `src/services/clientService.ts` | Incluir `complemento` no create e update |
-| `supabase/functions/parse-cnpj-card/index.ts` | Extrair complemento do PDF |
+| `src/components/layout/AppSidebar.tsx` | Reorganizar `navigationGroups` conforme nova estrutura |
 
 ---
 
-## Criterios de Aceite
+## Critérios de Aceite
 
-1. Campo "Complemento" aparece no formulario de novo cliente
-2. Campo "Complemento" aparece no formulario de edicao de cliente
-3. Valor do complemento e salvo corretamente no banco de dados
-4. Valor do complemento e carregado corretamente ao editar um cliente
-5. Extracao do PDF preenche o complemento automaticamente (quando disponivel)
+1. Nova seção "Comercial" aparece no menu lateral
+2. "Orçamentos" está dentro da seção "Comercial"
+3. "Projetos" aparece na seção "Operações" acima de "Timesheets"
+4. A seção "Gestão" contém apenas "Funcionários" e "Clientes"
+5. Todas as permissões de acesso (requiresAdmin) são mantidas
+6. A navegação funciona corretamente para todos os itens
 
