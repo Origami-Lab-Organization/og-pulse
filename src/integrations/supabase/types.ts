@@ -224,6 +224,7 @@ export type Database = {
           cidade: string | null
           cnpj: string | null
           company_name: string
+          complemento: string | null
           created_at: string
           estado: string | null
           id: string
@@ -240,6 +241,7 @@ export type Database = {
           cidade?: string | null
           cnpj?: string | null
           company_name: string
+          complemento?: string | null
           created_at?: string
           estado?: string | null
           id?: string
@@ -256,6 +258,7 @@ export type Database = {
           cidade?: string | null
           cnpj?: string | null
           company_name?: string
+          complemento?: string | null
           created_at?: string
           estado?: string | null
           id?: string

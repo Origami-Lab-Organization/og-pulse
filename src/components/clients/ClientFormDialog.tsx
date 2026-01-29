@@ -40,6 +40,7 @@ const formSchema = z.object({
   cep: z.string().optional(),
   logradouro: z.string().optional(),
   numero: z.string().optional(),
+  complemento: z.string().optional(),
   bairro: z.string().optional(),
   cidade: z.string().optional(),
   estado: z.string().max(2, 'Estado deve ter 2 caracteres').optional(),
@@ -79,6 +80,7 @@ const ClientFormDialog = ({
       cep: '',
       logradouro: '',
       numero: '',
+      complemento: '',
       bairro: '',
       cidade: '',
       estado: '',
@@ -97,6 +99,7 @@ const ClientFormDialog = ({
           cep: client.cep || '',
           logradouro: client.logradouro || '',
           numero: client.numero || '',
+          complemento: client.complemento || '',
           bairro: client.bairro || '',
           cidade: client.cidade || '',
           estado: client.estado || '',
@@ -112,6 +115,7 @@ const ClientFormDialog = ({
           cep: '',
           logradouro: '',
           numero: '',
+          complemento: '',
           bairro: '',
           cidade: '',
           estado: '',
@@ -188,6 +192,9 @@ const ClientFormDialog = ({
         }
         if (data.numero) {
           form.setValue('numero', data.numero);
+        }
+        if (data.complemento) {
+          form.setValue('complemento', toTitleCase(data.complemento));
         }
         if (data.bairro) {
           form.setValue('bairro', toTitleCase(data.bairro));
@@ -456,6 +463,20 @@ const ClientFormDialog = ({
                       <FormLabel>Número</FormLabel>
                       <FormControl>
                         <Input placeholder="123" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="complemento"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Complemento</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Sala, Andar, Bloco, etc." {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

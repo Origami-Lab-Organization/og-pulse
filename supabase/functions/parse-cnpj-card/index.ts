@@ -55,6 +55,7 @@ O JSON deve ter exatamente esta estrutura:
   "cep": "string com apenas números (8 dígitos)",
   "logradouro": "string",
   "numero": "string",
+  "complemento": "string ou null se não houver (ex: SALA 101, ANDAR 5, BLOCO A)",
   "bairro": "string",
   "cidade": "string",
   "estado": "string com 2 letras maiúsculas"
