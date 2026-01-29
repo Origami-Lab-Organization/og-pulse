@@ -12,6 +12,7 @@ import {
   useUpdateRoleRate,
   useDeleteRoleRate,
   useToggleRoleRateActive,
+  useCreateMultipleRoleRates,
 } from '@/hooks/useRoleRates';
 import { RoleRateDB, CreateRoleRateInput } from '@/types/roleRate';
 import {
@@ -31,6 +32,7 @@ export default function Pricing() {
 
   const { data: roleRates = [], isLoading } = useRoleRates();
   const createMutation = useCreateRoleRate();
+  const createMultipleMutation = useCreateMultipleRoleRates();
   const updateMutation = useUpdateRoleRate();
   const deleteMutation = useDeleteRoleRate();
   const toggleActiveMutation = useToggleRoleRateActive();
@@ -85,6 +87,12 @@ export default function Pricing() {
         onSuccess: () => setFormOpen(false),
       });
     }
+  };
+
+  const handleFormSubmitMultiple = (data: CreateRoleRateInput[]) => {
+    createMultipleMutation.mutate(data, {
+      onSuccess: () => setFormOpen(false),
+    });
   };
 
   const handleConfirmDelete = () => {
@@ -172,7 +180,8 @@ export default function Pricing() {
         onOpenChange={setFormOpen}
         roleRate={selectedRoleRate}
         onSubmit={handleFormSubmit}
-        isSubmitting={createMutation.isPending || updateMutation.isPending}
+        onSubmitMultiple={handleFormSubmitMultiple}
+        isSubmitting={createMutation.isPending || updateMutation.isPending || createMultipleMutation.isPending}
       />
 
       <DeleteRoleRateDialog
