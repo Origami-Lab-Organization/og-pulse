@@ -19,8 +19,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -40,8 +38,6 @@ interface SeniorityLine {
 
 const roleRateSchema = z.object({
   roleName: z.string().min(2, 'Nome do papel deve ter no mínimo 2 caracteres'),
-  description: z.string().optional(),
-  isActive: z.boolean(),
 });
 
 type RoleRateFormValues = z.infer<typeof roleRateSchema>;
@@ -73,8 +69,6 @@ export function RoleRateFormDialog({
     resolver: zodResolver(roleRateSchema),
     defaultValues: {
       roleName: '',
-      description: '',
-      isActive: true,
     },
   });
 
@@ -83,8 +77,6 @@ export function RoleRateFormDialog({
       if (roleRate) {
         form.reset({
           roleName: roleRate.role_name,
-          description: roleRate.description || '',
-          isActive: roleRate.is_active,
         });
         setLines([{
           id: crypto.randomUUID(),
@@ -94,8 +86,6 @@ export function RoleRateFormDialog({
       } else {
         form.reset({
           roleName: '',
-          description: '',
-          isActive: true,
         });
         setLines([{ id: crypto.randomUUID(), seniority: '', hourlyRate: '' }]);
       }
@@ -139,16 +129,12 @@ export function RoleRateFormDialog({
         roleName: values.roleName,
         seniority: lines[0].seniority,
         hourlyRate: parseCurrency(lines[0].hourlyRate),
-        description: values.description || undefined,
-        isActive: values.isActive,
       });
     } else if (onSubmitMultiple) {
       const inputs: CreateRoleRateInput[] = lines.map(line => ({
         roleName: values.roleName,
         seniority: line.seniority,
         hourlyRate: parseCurrency(line.hourlyRate),
-        description: values.description || undefined,
-        isActive: values.isActive,
       }));
       onSubmitMultiple(inputs);
     }
@@ -263,27 +249,6 @@ export function RoleRateFormDialog({
                 </p>
               )}
             </div>
-
-            <FormField
-              control={form.control}
-              name="isActive"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel>Ativo</FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Papéis inativos não aparecem em orçamentos
-                    </p>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
 
             <DialogFooter>
               <Button

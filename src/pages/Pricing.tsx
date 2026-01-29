@@ -11,10 +11,10 @@ import {
   useCreateRoleRate,
   useUpdateRoleRate,
   useDeleteRoleRate,
-  useToggleRoleRateActive,
+  useSetRoleRateStatus,
   useCreateMultipleRoleRates,
 } from '@/hooks/useRoleRates';
-import { RoleRateDB, CreateRoleRateInput } from '@/types/roleRate';
+import { RoleRateDB, CreateRoleRateInput, RoleRateStatus } from '@/types/roleRate';
 import {
   Select,
   SelectContent,
@@ -23,9 +23,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+type StatusFilter = 'all' | 'active' | 'inactive' | 'archived';
+
 export default function Pricing() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedRoleRate, setSelectedRoleRate] = useState<RoleRateDB | null>(null);
@@ -35,7 +37,7 @@ export default function Pricing() {
   const createMultipleMutation = useCreateMultipleRoleRates();
   const updateMutation = useUpdateRoleRate();
   const deleteMutation = useDeleteRoleRate();
-  const toggleActiveMutation = useToggleRoleRateActive();
+  const setStatusMutation = useSetRoleRateStatus();
 
   const filteredRoleRates = useMemo(() => {
     return roleRates.filter((rate) => {
@@ -44,13 +46,18 @@ export default function Pricing() {
         (rate.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
 
       const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && rate.is_active) ||
-        (statusFilter === 'inactive' && !rate.is_active);
+        statusFilter === 'all' || rate.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [roleRates, searchQuery, statusFilter]);
+
+  const stats = useMemo(() => ({
+    total: roleRates.length,
+    active: roleRates.filter((r) => r.status === 'active').length,
+    inactive: roleRates.filter((r) => r.status === 'inactive').length,
+    archived: roleRates.filter((r) => r.status === 'archived').length,
+  }), [roleRates]);
 
   const handleOpenCreate = () => {
     setSelectedRoleRate(null);
@@ -67,11 +74,8 @@ export default function Pricing() {
     setDeleteOpen(true);
   };
 
-  const handleToggleActive = (roleRate: RoleRateDB) => {
-    toggleActiveMutation.mutate({
-      id: roleRate.id,
-      isActive: !roleRate.is_active,
-    });
+  const handleSetStatus = (roleRate: RoleRateDB, status: RoleRateStatus) => {
+    setStatusMutation.mutate({ id: roleRate.id, status });
   };
 
   const handleFormSubmit = (data: CreateRoleRateInput) => {
@@ -131,7 +135,7 @@ export default function Pricing() {
           </div>
           <Select
             value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as 'all' | 'active' | 'inactive')}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
           >
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filtrar por status" />
@@ -140,27 +144,28 @@ export default function Pricing() {
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="active">Ativos</SelectItem>
               <SelectItem value="inactive">Inativos</SelectItem>
+              <SelectItem value="archived">Arquivados</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <div className="rounded-lg border bg-card p-4">
             <p className="text-sm text-muted-foreground">Total de Papéis</p>
-            <p className="text-2xl font-bold">{roleRates.length}</p>
+            <p className="text-2xl font-bold">{stats.total}</p>
           </div>
           <div className="rounded-lg border bg-card p-4">
-            <p className="text-sm text-muted-foreground">Papéis Ativos</p>
-            <p className="text-2xl font-bold">
-              {roleRates.filter((r) => r.is_active).length}
-            </p>
+            <p className="text-sm text-muted-foreground">Ativos</p>
+            <p className="text-2xl font-bold text-primary">{stats.active}</p>
           </div>
           <div className="rounded-lg border bg-card p-4">
-            <p className="text-sm text-muted-foreground">Papéis Inativos</p>
-            <p className="text-2xl font-bold">
-              {roleRates.filter((r) => !r.is_active).length}
-            </p>
+            <p className="text-sm text-muted-foreground">Inativos</p>
+            <p className="text-2xl font-bold text-secondary-foreground">{stats.inactive}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <p className="text-sm text-muted-foreground">Arquivados</p>
+            <p className="text-2xl font-bold text-muted-foreground">{stats.archived}</p>
           </div>
         </div>
 
@@ -169,7 +174,7 @@ export default function Pricing() {
           roleRates={filteredRoleRates}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          onToggleActive={handleToggleActive}
+          onSetStatus={handleSetStatus}
           isLoading={isLoading}
         />
       </div>

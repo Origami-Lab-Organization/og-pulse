@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { roleRateService } from '@/services/roleRateService';
-import { CreateRoleRateInput, UpdateRoleRateInput, RoleRateDB } from '@/types/roleRate';
+import { CreateRoleRateInput, UpdateRoleRateInput, RoleRateDB, RoleRateStatus } from '@/types/roleRate';
 import { useToast } from '@/hooks/use-toast';
 
 export function useRoleRates() {
@@ -113,18 +113,24 @@ export function useDeleteRoleRate() {
   });
 }
 
-export function useToggleRoleRateActive() {
+export function useSetRoleRateStatus() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const statusMessages: Record<RoleRateStatus, string> = {
+    active: 'Papel reativado!',
+    inactive: 'Papel inativado!',
+    archived: 'Papel arquivado!',
+  };
+
   return useMutation({
-    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      roleRateService.toggleActive(id, isActive),
+    mutationFn: ({ id, status }: { id: string; status: RoleRateStatus }) =>
+      roleRateService.setStatus(id, status),
     onSuccess: (data: RoleRateDB) => {
       queryClient.invalidateQueries({ queryKey: ['role-rates'] });
       toast({
         title: 'Sucesso',
-        description: data.is_active ? 'Papel ativado!' : 'Papel desativado!',
+        description: statusMessages[data.status],
       });
     },
     onError: () => {

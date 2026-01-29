@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { RoleRateDB, CreateRoleRateInput, UpdateRoleRateInput } from '@/types/roleRate';
+import { RoleRateDB, CreateRoleRateInput, UpdateRoleRateInput, RoleRateStatus } from '@/types/roleRate';
 
 export const roleRateService = {
   async getAll(tenantId: string): Promise<RoleRateDB[]> {
@@ -19,7 +19,7 @@ export const roleRateService = {
       .from('role_rates')
       .select('*')
       .eq('tenant_id', tenantId)
-      .eq('is_active', true)
+      .eq('status', 'active')
       .order('role_name', { ascending: true })
       .order('seniority', { ascending: true });
 
@@ -50,7 +50,7 @@ export const roleRateService = {
         seniority: input.seniority,
         hourly_rate: input.hourlyRate,
         description: input.description || null,
-        is_active: input.isActive ?? true,
+        status: 'active',
       })
       .select()
       .single();
@@ -66,7 +66,6 @@ export const roleRateService = {
     if (input.seniority !== undefined) updates.seniority = input.seniority;
     if (input.hourlyRate !== undefined) updates.hourly_rate = input.hourlyRate;
     if (input.description !== undefined) updates.description = input.description;
-    if (input.isActive !== undefined) updates.is_active = input.isActive;
 
     const { data, error } = await supabase
       .from('role_rates')
@@ -88,8 +87,16 @@ export const roleRateService = {
     if (error) throw error;
   },
 
-  async toggleActive(id: string, isActive: boolean): Promise<RoleRateDB> {
-    return this.update(id, { isActive });
+  async setStatus(id: string, status: RoleRateStatus): Promise<RoleRateDB> {
+    const { data, error } = await supabase
+      .from('role_rates')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as RoleRateDB;
   },
 
   async createMultiple(inputs: CreateRoleRateInput[], tenantId: string): Promise<RoleRateDB[]> {
@@ -99,7 +106,7 @@ export const roleRateService = {
       seniority: input.seniority,
       hourly_rate: input.hourlyRate,
       description: input.description || null,
-      is_active: input.isActive ?? true,
+      status: 'active' as const,
     }));
 
     const { data, error } = await supabase

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -15,15 +14,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, Power, PowerOff } from 'lucide-react';
-import { RoleRateDB, SENIORITY_OPTIONS } from '@/types/roleRate';
+import { MoreHorizontal, Pencil, Trash2, Power, PowerOff, Archive } from 'lucide-react';
+import { RoleRateDB, SENIORITY_OPTIONS, RoleRateStatus } from '@/types/roleRate';
 import { formatCurrency } from '@/lib/formatters';
 
 interface RoleRatesTableProps {
   roleRates: RoleRateDB[];
   onEdit: (roleRate: RoleRateDB) => void;
   onDelete: (roleRate: RoleRateDB) => void;
-  onToggleActive: (roleRate: RoleRateDB) => void;
+  onSetStatus: (roleRate: RoleRateDB, status: RoleRateStatus) => void;
   isLoading?: boolean;
 }
 
@@ -31,7 +30,7 @@ export function RoleRatesTable({
   roleRates,
   onEdit,
   onDelete,
-  onToggleActive,
+  onSetStatus,
   isLoading,
 }: RoleRatesTableProps) {
   const getSeniorityLabel = (seniority: string) => {
@@ -48,6 +47,17 @@ export function RoleRatesTable({
         return 'outline';
       default:
         return 'outline';
+    }
+  };
+
+  const getStatusBadge = (status: RoleRateStatus) => {
+    switch (status) {
+      case 'active':
+        return <Badge className="bg-primary text-primary-foreground">Ativo</Badge>;
+      case 'inactive':
+        return <Badge variant="secondary">Inativo</Badge>;
+      case 'archived':
+        return <Badge variant="outline" className="text-muted-foreground">Arquivado</Badge>;
     }
   };
 
@@ -88,7 +98,7 @@ export function RoleRatesTable({
           {roleRates.map((roleRate) => (
             <TableRow
               key={roleRate.id}
-              className={!roleRate.is_active ? 'opacity-60' : undefined}
+              className={roleRate.status !== 'active' ? 'opacity-60' : undefined}
             >
               <TableCell>
                 <div>
@@ -109,45 +119,53 @@ export function RoleRatesTable({
                 {formatCurrency(roleRate.hourly_rate)}
               </TableCell>
               <TableCell>
-                <Badge variant={roleRate.is_active ? 'default' : 'secondary'}>
-                  {roleRate.is_active ? 'Ativo' : 'Inativo'}
-                </Badge>
+                {getStatusBadge(roleRate.status)}
               </TableCell>
               <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Ações</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onEdit(roleRate)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onToggleActive(roleRate)}>
-                      {roleRate.is_active ? (
-                        <>
+                {roleRate.status !== 'archived' && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Ações</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(roleRate)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Editar
+                      </DropdownMenuItem>
+                      
+                      {roleRate.status === 'active' && (
+                        <DropdownMenuItem onClick={() => onSetStatus(roleRate, 'inactive')}>
                           <PowerOff className="mr-2 h-4 w-4" />
-                          Desativar
-                        </>
-                      ) : (
+                          Inativar
+                        </DropdownMenuItem>
+                      )}
+                      
+                      {roleRate.status === 'inactive' && (
                         <>
-                          <Power className="mr-2 h-4 w-4" />
-                          Ativar
+                          <DropdownMenuItem onClick={() => onSetStatus(roleRate, 'active')}>
+                            <Power className="mr-2 h-4 w-4" />
+                            Reativar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onSetStatus(roleRate, 'archived')}>
+                            <Archive className="mr-2 h-4 w-4" />
+                            Arquivar
+                          </DropdownMenuItem>
                         </>
                       )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onDelete(roleRate)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      
+                      <DropdownMenuItem
+                        onClick={() => onDelete(roleRate)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </TableCell>
             </TableRow>
           ))}
