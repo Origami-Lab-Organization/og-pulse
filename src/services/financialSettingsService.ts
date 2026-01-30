@@ -29,6 +29,7 @@ export const financialSettingsService = {
           admin_expenses_percent: formData.admin_expenses_percent,
           taxes_percent: formData.taxes_percent,
           commission_percent: formData.commission_percent,
+          net_margin_percent: formData.net_margin_percent,
         })
         .eq('tenant_id', tenantId)
         .select()
@@ -49,6 +50,7 @@ export const financialSettingsService = {
           admin_expenses_percent: formData.admin_expenses_percent,
           taxes_percent: formData.taxes_percent,
           commission_percent: formData.commission_percent,
+          net_margin_percent: formData.net_margin_percent,
         })
         .select()
         .single();

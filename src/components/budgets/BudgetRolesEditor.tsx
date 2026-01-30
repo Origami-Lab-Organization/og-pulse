@@ -221,6 +221,29 @@ export function BudgetRolesEditor({
                   </TableRow>
                 ))}
               </TableBody>
+              {roles.length > 0 && (
+                <tfoot className="bg-muted/50 font-medium">
+                  <tr>
+                    <td className="sticky left-0 bg-muted/50 z-10 p-2 font-semibold">Total Mão de Obra</td>
+                    <td className="p-2 text-right">-</td>
+                    {months.map((m) => (
+                      <td key={m} className="p-2 text-center">
+                        {roles.reduce((sum, r) => {
+                          const month = r.months.find((rm) => rm.monthNumber === m);
+                          return sum + (month?.hours || 0);
+                        }, 0)}h
+                      </td>
+                    ))}
+                    <td className="p-2 text-center font-semibold">
+                      {roles.reduce((sum, role) => sum + getRoleTotalHours(role), 0)}h
+                    </td>
+                    <td className="p-2 text-right font-semibold">
+                      {formatCurrency(roles.reduce((sum, role) => sum + getRoleTotalValue(role), 0))}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              )}
           </Table>
         </div>
       )}
