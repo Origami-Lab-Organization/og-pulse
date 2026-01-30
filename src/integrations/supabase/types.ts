@@ -169,6 +169,7 @@ export type Database = {
           id: string
           lead_contact: string | null
           lead_name: string | null
+          net_margin_percent: number
           notes: string | null
           start_date: string
           status: Database["public"]["Enums"]["budget_status"]
@@ -193,6 +194,7 @@ export type Database = {
           id?: string
           lead_contact?: string | null
           lead_name?: string | null
+          net_margin_percent?: number
           notes?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["budget_status"]
@@ -217,6 +219,7 @@ export type Database = {
           id?: string
           lead_contact?: string | null
           lead_name?: string | null
+          net_margin_percent?: number
           notes?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["budget_status"]

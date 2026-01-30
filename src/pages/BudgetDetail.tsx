@@ -64,7 +64,7 @@ export default function BudgetDetail() {
       budget.admin_expenses_percent,
       budget.taxes_percent,
       budget.commission_percent,
-      0, // net_margin_percent not stored on budget
+      (budget as any).net_margin_percent ?? 0, // Use stored net_margin_percent from budget
       budget.discount_percent
     );
   }, [budget]);
@@ -404,7 +404,7 @@ export default function BudgetDetail() {
               </div>
               {(calculation?.netMargin || 0) > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Margem Líquida</span>
+                  <span className="text-muted-foreground">Margem Líquida ({(budget as any).net_margin_percent ?? 0}%)</span>
                   <span>{formatCurrency(calculation?.netMargin || 0)}</span>
                 </div>
               )}

@@ -12,6 +12,7 @@ interface BudgetFinancialSummaryProps {
   commissionPercent: number;
   maxCommissionPercent: number;
   netMarginPercent: number;
+  minNetMarginPercent: number;
   discountPercent: number;
   onCommissionChange: (value: number) => void;
   onNetMarginChange: (value: number) => void;
@@ -25,6 +26,7 @@ export function BudgetFinancialSummary({
   commissionPercent,
   maxCommissionPercent,
   netMarginPercent,
+  minNetMarginPercent,
   discountPercent,
   onCommissionChange,
   onNetMarginChange,
@@ -110,7 +112,7 @@ export function BudgetFinancialSummary({
             </div>
           </div>
 
-          {/* Net Margin - editable */}
+          {/* Net Margin - editable with minimum */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="netMargin" className="text-muted-foreground">Margem Líquida</Label>
@@ -118,20 +120,21 @@ export function BudgetFinancialSummary({
                 <Input
                   id="netMargin"
                   type="number"
-                  min={0}
+                  min={minNetMarginPercent}
                   max={100}
                   step={0.1}
                   className="h-8 w-20 text-right"
                   value={netMarginPercent}
                   onChange={(e) => {
                     const value = parseFloat(e.target.value) || 0;
-                    onNetMarginChange(Math.min(value, 100));
+                    onNetMarginChange(Math.max(minNetMarginPercent, Math.min(value, 100)));
                   }}
                 />
                 <span className="text-sm text-muted-foreground">%</span>
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Mínimo: {minNetMarginPercent}%</span>
               <span>{formatCurrency(calculation.netMargin)}</span>
             </div>
           </div>

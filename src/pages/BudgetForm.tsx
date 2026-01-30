@@ -70,10 +70,18 @@ export default function BudgetForm() {
   const [commissionPercent, setCommissionPercent] = useState(0);
   const [netMarginPercent, setNetMarginPercent] = useState(0);
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [snapshotAdminExpenses, setSnapshotAdminExpenses] = useState(0);
+  const [snapshotTaxes, setSnapshotTaxes] = useState(0);
+  const [snapshotMaxCommission, setSnapshotMaxCommission] = useState(0);
+  const [snapshotMinNetMargin, setSnapshotMinNetMargin] = useState(0);
 
-  const adminExpensesPercent = financialSettings?.admin_expenses_percent || 0;
-  const taxesPercent = financialSettings?.taxes_percent || 0;
-  const maxCommissionPercent = financialSettings?.commission_percent || 0;
+  // For new budgets, use financial settings. For editing, use budget snapshot.
+  const adminExpensesPercent = isEditing && budget ? budget.admin_expenses_percent : (financialSettings?.admin_expenses_percent || 0);
+  const taxesPercent = isEditing && budget ? budget.taxes_percent : (financialSettings?.taxes_percent || 0);
+  // Max commission: for new budgets use settings, for editing use the stored value as max
+  const maxCommissionPercent = isEditing ? snapshotMaxCommission : (financialSettings?.commission_percent || 0);
+  // Min net margin: for new budgets use settings, for editing use the stored value as min
+  const minNetMarginPercent = isEditing ? snapshotMinNetMargin : (financialSettings?.net_margin_percent || 0);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -132,8 +140,15 @@ export default function BudgetForm() {
       });
       setCommissionPercent(budget.commission_percent);
       setDiscountPercent(budget.discount_percent);
-      // For backwards compatibility, use 0 for net margin if not stored in budget
-      setNetMarginPercent(financialSettings?.net_margin_percent || 0);
+      // Use net_margin_percent from budget snapshot (with fallback for old budgets)
+      const storedNetMargin = (budget as any).net_margin_percent ?? financialSettings?.net_margin_percent ?? 0;
+      setNetMarginPercent(storedNetMargin);
+      // Store snapshot limits for editing
+      setSnapshotAdminExpenses(budget.admin_expenses_percent);
+      setSnapshotTaxes(budget.taxes_percent);
+      setSnapshotMaxCommission(budget.commission_percent);
+      setSnapshotMinNetMargin(storedNetMargin);
+      
       setRoles(budget.roles.map((r) => ({
         tempId: crypto.randomUUID(),
         roleRateId: r.role_rate_id || '',
@@ -153,6 +168,9 @@ export default function BudgetForm() {
         description: s.description || '',
         monthlyValue: s.monthly_value,
       })));
+    } else if (financialSettings) {
+      // For new budgets, initialize with settings values
+      setNetMarginPercent(financialSettings.net_margin_percent);
     }
   }, [budget, financialSettings]);
 
@@ -357,9 +375,10 @@ export default function BudgetForm() {
             commissionPercent={commissionPercent}
             maxCommissionPercent={maxCommissionPercent}
             netMarginPercent={netMarginPercent}
+            minNetMarginPercent={minNetMarginPercent}
             discountPercent={discountPercent}
-            onCommissionChange={setCommissionPercent}
-            onNetMarginChange={setNetMarginPercent}
+            onCommissionChange={(val) => setCommissionPercent(Math.max(0, Math.min(val, maxCommissionPercent)))}
+            onNetMarginChange={(val) => setNetMarginPercent(Math.max(minNetMarginPercent, Math.min(val, 100)))}
             onDiscountChange={setDiscountPercent}
           />
         );

@@ -15,6 +15,7 @@ export interface BudgetDB {
   admin_expenses_percent: number;
   taxes_percent: number;
   commission_percent: number;
+  net_margin_percent: number;
   discount_percent: number;
   subtotal: number;
   total_with_fees: number;
