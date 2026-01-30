@@ -21,6 +21,7 @@ import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import LandingPage from "./pages/LandingPage";
 import UnderConstruction from "./pages/UnderConstruction";
+import Suppliers from "./pages/Suppliers";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireAdmin>
                     <Clients />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/suppliers" 
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <Suppliers />
                   </RoleProtectedRoute>
                 } 
               />

@@ -953,6 +953,83 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          bairro: string | null
+          category: string | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string | null
+          company_name: string
+          complemento: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          estado: string | null
+          id: string
+          logradouro: string | null
+          notes: string | null
+          numero: string | null
+          status: string
+          tenant_id: string
+          trading_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          bairro?: string | null
+          category?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          company_name: string
+          complemento?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          notes?: string | null
+          numero?: string | null
+          status?: string
+          tenant_id: string
+          trading_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bairro?: string | null
+          category?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          company_name?: string
+          complemento?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          notes?: string | null
+          numero?: string | null
+          status?: string
+          tenant_id?: string
+          trading_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           created_at: string
