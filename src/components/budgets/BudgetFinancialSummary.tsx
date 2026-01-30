@@ -104,6 +104,7 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
                     step={0.1}
                     className="h-8 w-20 text-right"
                     value={commissionPercent}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                     onChange={(e) => {
                       const value = parseFloat(e.target.value) || 0;
                       onCommissionChange(Math.min(value, maxCommissionPercent));
@@ -131,6 +132,7 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
                     step={0.1}
                     className="h-8 w-20 text-right"
                     value={netMarginPercent}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                     onChange={(e) => {
                       const value = parseFloat(e.target.value) || 0;
                       onNetMarginChange(Math.max(minNetMarginPercent, Math.min(value, 100)));
@@ -169,6 +171,7 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
                   step={0.1}
                   className="h-8 w-20 text-right"
                   value={discountPercent}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                   onChange={(e) => {
                     const value = parseFloat(e.target.value) || 0;
                     onDiscountChange(Math.min(value, 100));

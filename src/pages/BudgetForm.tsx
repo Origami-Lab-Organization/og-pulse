@@ -247,14 +247,6 @@ export default function BudgetForm() {
               <CardTitle>Informações do Orçamento</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField control={form.control} name="title" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Título do Orçamento</FormLabel>
-                  <FormControl><Input placeholder="Ex: Projeto Website Corporativo" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
               <FormField control={form.control} name="clientType" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipo de Cliente</FormLabel>
@@ -270,6 +262,14 @@ export default function BudgetForm() {
                       </div>
                     </RadioGroup>
                   </FormControl>
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="title" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Título do Orçamento</FormLabel>
+                  <FormControl><Input placeholder="Ex: Projeto Website Corporativo" {...field} /></FormControl>
+                  <FormMessage />
                 </FormItem>
               )} />
 
