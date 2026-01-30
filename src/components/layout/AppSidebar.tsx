@@ -8,7 +8,8 @@ import {
   FileText, 
   BarChart3, 
   Settings,
-  DollarSign
+  DollarSign,
+  Truck
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +53,7 @@ const navigationGroups = [
     items: [
       { title: 'Funcionários', url: '/', icon: Users, requiresAdmin: true },
       { title: 'Clientes', url: '/clients', icon: Building2, requiresAdmin: true },
+      { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresAdmin: true },
     ] as NavItem[],
   },
   {
