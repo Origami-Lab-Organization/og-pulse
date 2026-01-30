@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useFinancialSettings, useUpsertFinancialSettings } from '@/hooks/useFinancialSettings';
-import { Loader2, Save, Percent, Building2, Receipt, Users } from 'lucide-react';
+import { Loader2, Save, Percent, Building2, Receipt, Users, TrendingUp } from 'lucide-react';
 
 const formSchema = z.object({
   admin_expenses_percent: z.coerce
@@ -27,6 +27,10 @@ const formSchema = z.object({
     .min(0, 'Valor mínimo é 0%')
     .max(100, 'Valor máximo é 100%'),
   commission_percent: z.coerce
+    .number()
+    .min(0, 'Valor mínimo é 0%')
+    .max(100, 'Valor máximo é 100%'),
+  net_margin_percent: z.coerce
     .number()
     .min(0, 'Valor mínimo é 0%')
     .max(100, 'Valor máximo é 100%'),
@@ -44,6 +48,7 @@ export function FinancialSettingsForm() {
       admin_expenses_percent: 0,
       taxes_percent: 0,
       commission_percent: 0,
+      net_margin_percent: 0,
     },
   });
 
@@ -53,6 +58,7 @@ export function FinancialSettingsForm() {
         admin_expenses_percent: settings.admin_expenses_percent,
         taxes_percent: settings.taxes_percent,
         commission_percent: settings.commission_percent,
+        net_margin_percent: settings.net_margin_percent ?? 0,
       });
     }
   }, [settings, form]);
@@ -62,6 +68,7 @@ export function FinancialSettingsForm() {
       admin_expenses_percent: data.admin_expenses_percent,
       taxes_percent: data.taxes_percent,
       commission_percent: data.commission_percent,
+      net_margin_percent: data.net_margin_percent,
     });
   };
 
@@ -83,11 +90,12 @@ export function FinancialSettingsForm() {
               Percentuais para Orçamentos
             </CardTitle>
             <CardDescription>
-              Configure os percentuais padrão que serão aplicados nos cálculos de orçamentos e projetos.
+              Configure os percentuais padrão usados na fórmula de markup dos orçamentos.
+              O preço de venda é calculado como: Custo Total / (1 - soma dos percentuais)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <FormField
                 control={form.control}
                 name="admin_expenses_percent"
@@ -161,7 +169,7 @@ export function FinancialSettingsForm() {
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-muted-foreground" />
-                      Comissão
+                      Comissão Máxima
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
@@ -180,7 +188,40 @@ export function FinancialSettingsForm() {
                       </div>
                     </FormControl>
                     <FormDescription>
-                      Percentual de comissão de vendas
+                      Percentual máximo de comissão de vendas
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="net_margin_percent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      Margem Líquida
+                    </FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          placeholder="0.00"
+                          className="pr-8"
+                          {...field}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          %
+                        </span>
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      Percentual de margem líquida desejada
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

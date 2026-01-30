@@ -120,6 +120,41 @@ export type Database = {
           },
         ]
       }
+      budget_suppliers: {
+        Row: {
+          budget_id: string
+          created_at: string
+          description: string | null
+          id: string
+          monthly_value: number
+          name: string
+        }
+        Insert: {
+          budget_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          monthly_value?: number
+          name: string
+        }
+        Update: {
+          budget_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          monthly_value?: number
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_suppliers_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budgets: {
         Row: {
           admin_expenses_percent: number
@@ -575,6 +610,7 @@ export type Database = {
           commission_percent: number
           created_at: string
           id: string
+          net_margin_percent: number
           taxes_percent: number
           tenant_id: string
           updated_at: string
@@ -584,6 +620,7 @@ export type Database = {
           commission_percent?: number
           created_at?: string
           id?: string
+          net_margin_percent?: number
           taxes_percent?: number
           tenant_id: string
           updated_at?: string
@@ -593,6 +630,7 @@ export type Database = {
           commission_percent?: number
           created_at?: string
           id?: string
+          net_margin_percent?: number
           taxes_percent?: number
           tenant_id?: string
           updated_at?: string

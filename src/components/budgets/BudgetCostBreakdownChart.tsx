@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
+import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
+import { PieChart, Pie, Cell, Legend } from 'recharts';
 import { BudgetWithDetails, BudgetCalculation } from '@/types/budget';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -11,30 +11,39 @@ interface BudgetCostBreakdownChartProps {
 }
 
 const COLORS = {
-  subtotal: 'hsl(var(--primary))',
-  adminExpenses: 'hsl(var(--chart-2))',
-  taxes: 'hsl(var(--chart-3))',
-  commission: 'hsl(var(--chart-4))',
+  laborCost: 'hsl(var(--primary))',
+  suppliers: 'hsl(var(--chart-1))',
+  materials: 'hsl(var(--chart-2))',
+  adminExpenses: 'hsl(var(--chart-3))',
+  taxes: 'hsl(var(--chart-4))',
+  commission: 'hsl(var(--chart-5))',
+  netMargin: 'hsl(var(--accent))',
   discount: 'hsl(var(--destructive))',
 };
 
 export function BudgetCostBreakdownChart({ budget, calculation }: BudgetCostBreakdownChartProps) {
   const chartData = useMemo(() => {
     const data = [
-      { name: 'Subtotal (Horas)', value: calculation.subtotal, color: COLORS.subtotal },
-      { name: 'Despesas Administrativas', value: calculation.adminExpenses, color: COLORS.adminExpenses },
+      { name: 'Mão de Obra', value: calculation.laborCost, color: COLORS.laborCost },
+      { name: 'Fornecedores', value: calculation.suppliersTotal, color: COLORS.suppliers },
+      { name: 'Materiais', value: calculation.materialsTotal, color: COLORS.materials },
+      { name: 'Despesas Adm.', value: calculation.adminExpenses, color: COLORS.adminExpenses },
       { name: 'Impostos', value: calculation.taxes, color: COLORS.taxes },
       { name: 'Comissão', value: calculation.commission, color: COLORS.commission },
+      { name: 'Margem Líquida', value: calculation.netMargin, color: COLORS.netMargin },
     ];
 
     return data.filter((d) => d.value > 0);
   }, [calculation]);
 
   const chartConfig = useMemo(() => ({
-    subtotal: { label: 'Subtotal (Horas)', color: COLORS.subtotal },
+    laborCost: { label: 'Mão de Obra', color: COLORS.laborCost },
+    suppliers: { label: 'Fornecedores', color: COLORS.suppliers },
+    materials: { label: 'Materiais', color: COLORS.materials },
     adminExpenses: { label: 'Despesas Administrativas', color: COLORS.adminExpenses },
     taxes: { label: 'Impostos', color: COLORS.taxes },
     commission: { label: 'Comissão', color: COLORS.commission },
+    netMargin: { label: 'Margem Líquida', color: COLORS.netMargin },
   }), []);
 
   if (chartData.length === 0) {
@@ -51,7 +60,7 @@ export function BudgetCostBreakdownChart({ budget, calculation }: BudgetCostBrea
     );
   }
 
-  const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
+  const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);

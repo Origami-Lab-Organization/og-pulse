@@ -65,6 +65,15 @@ type BudgetMaterialRow = {
   created_at: string;
 };
 
+type BudgetSupplierRow = {
+  id: string;
+  budget_id: string;
+  name: string;
+  description: string | null;
+  monthly_value: number;
+  created_at: string;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const fromTable = (table: string) => supabase.from(table as any);
 
@@ -128,6 +137,18 @@ export const budgetService = {
 
     const materials = materialsData as unknown as BudgetMaterialRow[];
 
+    // Fetch suppliers for all budgets
+    const { data: suppliersData, error: suppliersError } = await fromTable('budget_suppliers')
+      .select('*')
+      .in('budget_id', budgetIds);
+
+    if (suppliersError) {
+      console.error('Error fetching budget suppliers:', suppliersError);
+      throw suppliersError;
+    }
+
+    const suppliers = suppliersData as unknown as BudgetSupplierRow[];
+
     // Build the complete structure
     return budgets.map((budget) => {
       const budgetRoles = roles.filter((r) => r.budget_id === budget.id);
@@ -137,11 +158,13 @@ export const budgetService = {
       }));
 
       const budgetMaterials = materials.filter((m) => m.budget_id === budget.id);
+      const budgetSuppliers = suppliers.filter((s) => s.budget_id === budget.id);
 
       return {
         ...budget,
         roles: rolesWithMonths,
         materials: budgetMaterials,
+        suppliers: budgetSuppliers,
       } as BudgetWithDetails;
     });
   },
@@ -209,10 +232,23 @@ export const budgetService = {
 
     const materials = materialsData as unknown as BudgetMaterialRow[];
 
+    // Fetch suppliers
+    const { data: suppliersData, error: suppliersError } = await fromTable('budget_suppliers')
+      .select('*')
+      .eq('budget_id', id);
+
+    if (suppliersError) {
+      console.error('Error fetching budget suppliers:', suppliersError);
+      throw suppliersError;
+    }
+
+    const suppliers = suppliersData as unknown as BudgetSupplierRow[];
+
     return {
       ...budget,
       roles: rolesWithMonths,
       materials,
+      suppliers,
     } as BudgetWithDetails;
   },
 
@@ -242,9 +278,12 @@ export const budgetService = {
     const totals = calculateBudgetTotals(
       input.roles,
       input.materials || [],
+      input.suppliers || [],
+      input.durationMonths,
       input.adminExpensesPercent,
       input.taxesPercent,
       input.commissionPercent,
+      input.netMarginPercent,
       input.discountPercent
     );
 
@@ -264,8 +303,8 @@ export const budgetService = {
         taxes_percent: input.taxesPercent,
         commission_percent: input.commissionPercent,
         discount_percent: input.discountPercent,
-        subtotal: totals.subtotal,
-        total_with_fees: totals.totalWithFees,
+        subtotal: totals.laborCost,
+        total_with_fees: totals.sellingPrice,
         final_total: totals.finalTotal,
         notes: input.notes || null,
         created_by: createdBy,
@@ -341,19 +380,48 @@ export const budgetService = {
       }
     }
 
+    // Insert suppliers
+    if (input.suppliers && input.suppliers.length > 0) {
+      const suppliersToInsert = input.suppliers
+        .filter((s) => s.name.trim() !== '')
+        .map((s) => ({
+          budget_id: createdBudget.id,
+          name: s.name,
+          description: s.description || null,
+          monthly_value: s.monthlyValue || 0,
+        }));
+
+      if (suppliersToInsert.length > 0) {
+        const { error: suppliersError } = await fromTable('budget_suppliers')
+          .insert(suppliersToInsert);
+
+        if (suppliersError) {
+          console.error('Error creating budget suppliers:', suppliersError);
+          throw suppliersError;
+        }
+      }
+    }
+
     return createdBudget;
   },
 
   async update(id: string, input: UpdateBudgetInput): Promise<BudgetDB> {
+    // First get the existing budget to get duration_months for calculation
+    const existing = await this.getById(id);
+    const durationMonths = input.durationMonths ?? existing?.duration_months ?? 1;
+
     // If roles are being updated, recalculate totals
     let totals = null;
     if (input.roles && input.adminExpensesPercent !== undefined) {
       totals = calculateBudgetTotals(
         input.roles,
         input.materials || [],
+        input.suppliers || [],
+        durationMonths,
         input.adminExpensesPercent,
         input.taxesPercent || 0,
         input.commissionPercent || 0,
+        input.netMarginPercent || 0,
         input.discountPercent || 0
       );
     }
@@ -375,8 +443,8 @@ export const budgetService = {
     if (input.notes !== undefined) updateData.notes = input.notes || null;
 
     if (totals) {
-      updateData.subtotal = totals.subtotal;
-      updateData.total_with_fees = totals.totalWithFees;
+      updateData.subtotal = totals.laborCost;
+      updateData.total_with_fees = totals.sellingPrice;
       updateData.final_total = totals.finalTotal;
     }
 
@@ -479,6 +547,41 @@ export const budgetService = {
       }
     }
 
+    // If suppliers are being updated, delete old and insert new
+    if (input.suppliers !== undefined) {
+      // Delete existing suppliers
+      const { error: deleteSuppliersError } = await fromTable('budget_suppliers')
+        .delete()
+        .eq('budget_id', id);
+
+      if (deleteSuppliersError) {
+        console.error('Error deleting budget suppliers:', deleteSuppliersError);
+        throw deleteSuppliersError;
+      }
+
+      // Insert new suppliers
+      if (input.suppliers.length > 0) {
+        const suppliersToInsert = input.suppliers
+          .filter((s) => s.name.trim() !== '')
+          .map((s) => ({
+            budget_id: id,
+            name: s.name,
+            description: s.description || null,
+            monthly_value: s.monthlyValue || 0,
+          }));
+
+        if (suppliersToInsert.length > 0) {
+          const { error: insertSuppliersError } = await fromTable('budget_suppliers')
+            .insert(suppliersToInsert);
+
+          if (insertSuppliersError) {
+            console.error('Error creating budget suppliers:', insertSuppliersError);
+            throw insertSuppliersError;
+          }
+        }
+      }
+    }
+
     return updatedBudget;
   },
 
@@ -527,6 +630,7 @@ export const budgetService = {
       adminExpensesPercent: original.admin_expenses_percent,
       taxesPercent: original.taxes_percent,
       commissionPercent: original.commission_percent,
+      netMarginPercent: 0,
       discountPercent: original.discount_percent,
       notes: original.notes || undefined,
       roles: original.roles.map((role) => ({
@@ -544,6 +648,12 @@ export const budgetService = {
         tempId: crypto.randomUUID(),
         description: m.description,
         value: m.value,
+      })),
+      suppliers: (original.suppliers || []).map((s) => ({
+        tempId: crypto.randomUUID(),
+        name: s.name,
+        description: s.description || '',
+        monthlyValue: s.monthly_value,
       })),
     };
 

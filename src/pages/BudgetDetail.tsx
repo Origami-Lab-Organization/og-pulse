@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Users,
   Loader2,
-  Package
+  Package,
+  Truck
 } from 'lucide-react';
 import { useBudget, useDuplicateBudget } from '@/hooks/useBudgets';
 import { BudgetStatusBadge } from '@/components/budgets/BudgetStatusBadge';
@@ -49,12 +50,21 @@ export default function BudgetDetail() {
       description: m.description,
       value: m.value,
     }));
+    const suppliers = (budget.suppliers || []).map((s) => ({
+      tempId: s.id,
+      name: s.name,
+      description: s.description || '',
+      monthlyValue: s.monthly_value,
+    }));
     return calculateBudgetTotals(
       roles,
       materials,
+      suppliers,
+      budget.duration_months,
       budget.admin_expenses_percent,
       budget.taxes_percent,
       budget.commission_percent,
+      0, // net_margin_percent not stored on budget
       budget.discount_percent
     );
   }, [budget]);
@@ -267,6 +277,50 @@ export default function BudgetDetail() {
           </CardContent>
         </Card>
 
+        {/* Suppliers table */}
+        {budget.suppliers && budget.suppliers.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Fornecedores
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2 font-medium">Fornecedor</th>
+                      <th className="text-left p-2 font-medium">Descrição</th>
+                      <th className="text-right p-2 font-medium">Valor Mensal</th>
+                      <th className="text-right p-2 font-medium">Total ({budget.duration_months} meses)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {budget.suppliers.map((supplier) => (
+                      <tr key={supplier.id} className="border-b hover:bg-muted/50">
+                        <td className="p-2">{supplier.name}</td>
+                        <td className="p-2 text-muted-foreground">{supplier.description || '-'}</td>
+                        <td className="p-2 text-right">{formatCurrency(supplier.monthly_value)}</td>
+                        <td className="p-2 text-right font-medium">
+                          {formatCurrency(supplier.monthly_value * budget.duration_months)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-muted/50">
+                      <td className="p-2 font-semibold" colSpan={3}>Total Fornecedores</td>
+                      <td className="p-2 text-right font-semibold">
+                        {formatCurrency(calculation?.suppliersTotal || 0)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Materials table */}
         {budget.materials && budget.materials.length > 0 && (
           <Card>
@@ -316,23 +370,25 @@ export default function BudgetDetail() {
           <CardContent>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal (horas × valor)</span>
-                <span className="font-medium">{formatCurrency(calculation?.subtotal || 0)}</span>
+                <span className="text-muted-foreground">Mão de Obra</span>
+                <span className="font-medium">{formatCurrency(calculation?.laborCost || 0)}</span>
               </div>
-              {(calculation?.materialsTotal || 0) > 0 && (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Materiais</span>
-                    <span className="font-medium">{formatCurrency(calculation?.materialsTotal || 0)}</span>
-                  </div>
-                  <div className="flex justify-between bg-muted/50 rounded-md p-2 -mx-2">
-                    <span className="font-medium">Base para cálculo</span>
-                    <span className="font-semibold">
-                      {formatCurrency((calculation?.subtotal || 0) + (calculation?.materialsTotal || 0))}
-                    </span>
-                  </div>
-                </>
+              {(calculation?.suppliersTotal || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fornecedores</span>
+                  <span className="font-medium">{formatCurrency(calculation?.suppliersTotal || 0)}</span>
+                </div>
               )}
+              {(calculation?.materialsTotal || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Materiais</span>
+                  <span className="font-medium">{formatCurrency(calculation?.materialsTotal || 0)}</span>
+                </div>
+              )}
+              <div className="flex justify-between bg-muted/50 rounded-md p-2 -mx-2">
+                <span className="font-medium">Custo Total</span>
+                <span className="font-semibold">{formatCurrency(calculation?.totalCost || 0)}</span>
+              </div>
               <Separator />
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Despesas Administrativas ({budget.admin_expenses_percent}%)</span>
@@ -346,10 +402,16 @@ export default function BudgetDetail() {
                 <span className="text-muted-foreground">Comissão ({budget.commission_percent}%)</span>
                 <span>{formatCurrency(calculation?.commission || 0)}</span>
               </div>
+              {(calculation?.netMargin || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Margem Líquida</span>
+                  <span>{formatCurrency(calculation?.netMargin || 0)}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex justify-between">
-                <span className="font-medium">Total com Taxas</span>
-                <span className="font-medium">{formatCurrency(calculation?.totalWithFees || 0)}</span>
+                <span className="font-medium">Preço de Venda</span>
+                <span className="font-medium">{formatCurrency(calculation?.sellingPrice || 0)}</span>
               </div>
               {budget.discount_percent > 0 && (
                 <div className="flex justify-between text-destructive">

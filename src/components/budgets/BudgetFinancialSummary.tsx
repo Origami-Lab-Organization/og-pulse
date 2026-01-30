@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { BudgetCalculation } from '@/types/budget';
 import { formatCurrency } from '@/lib/formatters';
@@ -12,8 +11,10 @@ interface BudgetFinancialSummaryProps {
   taxesPercent: number;
   commissionPercent: number;
   maxCommissionPercent: number;
+  netMarginPercent: number;
   discountPercent: number;
   onCommissionChange: (value: number) => void;
+  onNetMarginChange: (value: number) => void;
   onDiscountChange: (value: number) => void;
 }
 
@@ -23,46 +24,49 @@ export function BudgetFinancialSummary({
   taxesPercent,
   commissionPercent,
   maxCommissionPercent,
+  netMarginPercent,
   discountPercent,
   onCommissionChange,
+  onNetMarginChange,
   onDiscountChange,
 }: BudgetFinancialSummaryProps) {
-  const commissionPercentage = maxCommissionPercent > 0 
-    ? (commissionPercent / maxCommissionPercent) * 100 
-    : 0;
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Resumo Financeiro</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Subtotal (horas) */}
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Subtotal (Horas × Valores)</span>
-          <span className="text-lg font-semibold">{formatCurrency(calculation.subtotal)}</span>
-        </div>
-
-        {/* Materials total */}
-        {calculation.materialsTotal > 0 && (
+        {/* Cost breakdown */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Custos</h4>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Materiais</span>
-            <span className="text-lg font-semibold">{formatCurrency(calculation.materialsTotal)}</span>
+            <span className="text-muted-foreground">Mão de Obra</span>
+            <span className="font-medium">{formatCurrency(calculation.laborCost)}</span>
           </div>
-        )}
-
-        {/* Base total */}
-        {calculation.materialsTotal > 0 && (
+          {calculation.suppliersTotal > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Fornecedores</span>
+              <span className="font-medium">{formatCurrency(calculation.suppliersTotal)}</span>
+            </div>
+          )}
+          {calculation.materialsTotal > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Materiais</span>
+              <span className="font-medium">{formatCurrency(calculation.materialsTotal)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between bg-muted/50 rounded-md p-2 -mx-2">
-            <span className="font-medium">Base para cálculo</span>
-            <span className="font-semibold">{formatCurrency(calculation.subtotal + calculation.materialsTotal)}</span>
+            <span className="font-medium">Custo Total</span>
+            <span className="font-semibold">{formatCurrency(calculation.totalCost)}</span>
           </div>
-        )}
+        </div>
 
         <Separator />
 
-        {/* Fixed percentages */}
+        {/* Markup components (calculated from selling price) */}
         <div className="space-y-3">
+          <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Composição do Preço</h4>
+          
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">Despesas Adm.</span>
@@ -78,48 +82,67 @@ export function BudgetFinancialSummary({
             </div>
             <span>{formatCurrency(calculation.taxes)}</span>
           </div>
-        </div>
 
-        <Separator />
-
-        {/* Commission - editable */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="commission">Comissão</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="commission"
-                type="number"
-                min={0}
-                max={maxCommissionPercent}
-                step={0.1}
-                className="h-8 w-20 text-right"
-                value={commissionPercent}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onCommissionChange(Math.min(value, maxCommissionPercent));
-                }}
-              />
-              <span className="text-sm text-muted-foreground">%</span>
+          {/* Commission - editable */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="commission" className="text-muted-foreground">Comissão</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="commission"
+                  type="number"
+                  min={0}
+                  max={maxCommissionPercent}
+                  step={0.1}
+                  className="h-8 w-20 text-right"
+                  value={commissionPercent}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    onCommissionChange(Math.min(value, maxCommissionPercent));
+                  }}
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Máximo: {maxCommissionPercent}%</span>
+              <span>{formatCurrency(calculation.commission)}</span>
             </div>
           </div>
-          <div className="space-y-1">
-            <Progress value={commissionPercentage} className="h-2" />
-            <p className="text-xs text-muted-foreground text-right">
-              Máximo: {maxCommissionPercent}%
-            </p>
-          </div>
-          <div className="flex justify-end">
-            <span>{formatCurrency(calculation.commission)}</span>
+
+          {/* Net Margin - editable */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="netMargin" className="text-muted-foreground">Margem Líquida</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="netMargin"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  className="h-8 w-20 text-right"
+                  value={netMarginPercent}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    onNetMarginChange(Math.min(value, 100));
+                  }}
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <span>{formatCurrency(calculation.netMargin)}</span>
+            </div>
           </div>
         </div>
 
         <Separator />
 
-        {/* Total with fees */}
+        {/* Selling price */}
         <div className="flex items-center justify-between">
-          <span className="font-medium">Total com Acréscimos</span>
-          <span className="text-lg font-semibold">{formatCurrency(calculation.totalWithFees)}</span>
+          <span className="font-medium">Preço de Venda</span>
+          <span className="text-lg font-semibold">{formatCurrency(calculation.sellingPrice)}</span>
         </div>
 
         <Separator />
@@ -145,9 +168,11 @@ export function BudgetFinancialSummary({
               <span className="text-sm text-muted-foreground">%</span>
             </div>
           </div>
-          <div className="flex justify-end text-destructive">
-            <span>-{formatCurrency(calculation.discount)}</span>
-          </div>
+          {discountPercent > 0 && (
+            <div className="flex justify-end text-destructive">
+              <span>-{formatCurrency(calculation.discount)}</span>
+            </div>
+          )}
         </div>
 
         <Separator />

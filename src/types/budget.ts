@@ -50,6 +50,15 @@ export interface BudgetMaterialDB {
   created_at: string;
 }
 
+export interface BudgetSupplierDB {
+  id: string;
+  budget_id: string;
+  name: string;
+  description: string | null;
+  monthly_value: number;
+  created_at: string;
+}
+
 export interface BudgetWithDetails extends BudgetDB {
   client?: {
     id: string;
@@ -58,6 +67,7 @@ export interface BudgetWithDetails extends BudgetDB {
   } | null;
   roles: BudgetRoleWithMonths[];
   materials: BudgetMaterialDB[];
+  suppliers: BudgetSupplierDB[];
 }
 
 export interface BudgetRoleWithMonths extends BudgetRoleDB {
@@ -70,6 +80,14 @@ export interface BudgetMaterialInput {
   description: string;
   value: number;
 }
+
+export interface BudgetSupplierInput {
+  tempId: string;
+  name: string;
+  description: string;
+  monthlyValue: number;
+}
+
 export interface BudgetRoleInput {
   tempId: string;
   roleRateId: string;
@@ -90,10 +108,12 @@ export interface CreateBudgetInput {
   adminExpensesPercent: number;
   taxesPercent: number;
   commissionPercent: number;
+  netMarginPercent: number;
   discountPercent: number;
   notes?: string;
   roles: BudgetRoleInput[];
   materials: BudgetMaterialInput[];
+  suppliers: BudgetSupplierInput[];
 }
 
 export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {
@@ -102,54 +122,76 @@ export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {
 
 // Calculation helpers
 export interface BudgetCalculation {
-  subtotal: number;
+  laborCost: number;
+  suppliersTotal: number;
   materialsTotal: number;
-  adminExpenses: number;
+  totalCost: number;
   taxes: number;
+  adminExpenses: number;
   commission: number;
-  totalWithFees: number;
+  netMargin: number;
+  sellingPrice: number;
   discount: number;
   finalTotal: number;
 }
 
+/**
+ * Calcula os totais do orçamento usando fórmula de markup divisor.
+ * Preço de Venda = Custo Total / (1 - soma_percentuais)
+ */
 export function calculateBudgetTotals(
   roles: BudgetRoleInput[],
   materials: BudgetMaterialInput[],
+  suppliers: BudgetSupplierInput[],
+  durationMonths: number,
   adminExpensesPercent: number,
   taxesPercent: number,
   commissionPercent: number,
+  netMarginPercent: number,
   discountPercent: number
 ): BudgetCalculation {
-  // Calculate subtotal from all roles and their hours
-  const subtotal = roles.reduce((acc, role) => {
+  // Calculate labor cost from all roles and their hours
+  const laborCost = roles.reduce((acc, role) => {
     const roleHours = role.months.reduce((h, m) => h + m.hours, 0);
     return acc + roleHours * role.hourlyRate;
   }, 0);
 
+  // Calculate suppliers total (monthly value * duration)
+  const suppliersTotal = suppliers.reduce((acc, s) => acc + (s.monthlyValue || 0) * durationMonths, 0);
+
   // Calculate materials total
   const materialsTotal = materials.reduce((acc, m) => acc + (m.value || 0), 0);
 
-  // Base for percentages is subtotal + materials
-  const base = subtotal + materialsTotal;
+  // Total cost
+  const totalCost = laborCost + suppliersTotal + materialsTotal;
 
-  // Apply percentages
-  const adminExpenses = base * (adminExpensesPercent / 100);
-  const taxes = base * (taxesPercent / 100);
-  const commission = base * (commissionPercent / 100);
+  // Sum of all percentage fees
+  const totalPercentages = (taxesPercent + adminExpensesPercent + commissionPercent + netMarginPercent) / 100;
 
-  const totalWithFees = base + adminExpenses + taxes + commission;
+  // Markup formula: Selling Price = Cost / (1 - sum_percentages)
+  const markupDivisor = 1 - totalPercentages;
+  const sellingPrice = markupDivisor > 0 ? totalCost / markupDivisor : totalCost;
 
-  // Apply discount
-  const discount = totalWithFees * (discountPercent / 100);
-  const finalTotal = totalWithFees - discount;
+  // Calculate each component based on selling price
+  const taxes = sellingPrice * (taxesPercent / 100);
+  const adminExpenses = sellingPrice * (adminExpensesPercent / 100);
+  const commission = sellingPrice * (commissionPercent / 100);
+  const netMargin = sellingPrice * (netMarginPercent / 100);
+
+  // Discount applies to selling price
+  const discount = sellingPrice * (discountPercent / 100);
+  const finalTotal = sellingPrice - discount;
 
   return {
-    subtotal,
+    laborCost,
+    suppliersTotal,
     materialsTotal,
-    adminExpenses,
+    totalCost,
     taxes,
+    adminExpenses,
     commission,
-    totalWithFees,
+    netMargin,
+    sellingPrice,
     discount,
     finalTotal,
   };
