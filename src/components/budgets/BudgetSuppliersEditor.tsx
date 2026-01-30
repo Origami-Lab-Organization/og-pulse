@@ -61,7 +61,7 @@ export function BudgetSuppliersEditor({
               Adicione custos recorrentes de fornecedores externos (valor mensal × duração)
             </CardDescription>
           </div>
-          <Button onClick={handleAddSupplier} size="sm">
+          <Button type="button" onClick={handleAddSupplier} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Fornecedor
           </Button>
@@ -129,6 +129,7 @@ export function BudgetSuppliersEditor({
                     </TableCell>
                     <TableCell>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => handleRemoveSupplier(supplier.tempId)}

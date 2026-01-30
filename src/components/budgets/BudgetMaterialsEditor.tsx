@@ -55,7 +55,7 @@ export function BudgetMaterialsEditor({
               Adicione custos de materiais ou outros itens ao orçamento
             </CardDescription>
           </div>
-          <Button onClick={handleAddMaterial} size="sm">
+          <Button type="button" onClick={handleAddMaterial} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Material
           </Button>
@@ -109,6 +109,7 @@ export function BudgetMaterialsEditor({
                     </TableCell>
                     <TableCell>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => handleRemoveMaterial(material.tempId)}
