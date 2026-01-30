@@ -38,7 +38,8 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
     ref
   ) {
     return (
-      <Card ref={ref}>
+      <div ref={ref}>
+        <Card>
         <CardHeader>
           <CardTitle className="text-lg">Resumo Financeiro</CardTitle>
         </CardHeader>
@@ -193,7 +194,8 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
             </span>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     );
   }
 );
