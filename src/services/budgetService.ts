@@ -25,6 +25,7 @@ type BudgetRow = {
   admin_expenses_percent: number;
   taxes_percent: number;
   commission_percent: number;
+  net_margin_percent: number;
   discount_percent: number;
   subtotal: number;
   total_with_fees: number;
@@ -302,6 +303,7 @@ export const budgetService = {
         admin_expenses_percent: input.adminExpensesPercent,
         taxes_percent: input.taxesPercent,
         commission_percent: input.commissionPercent,
+        net_margin_percent: input.netMarginPercent,
         discount_percent: input.discountPercent,
         subtotal: totals.laborCost,
         total_with_fees: totals.sellingPrice,
@@ -439,6 +441,7 @@ export const budgetService = {
     if (input.adminExpensesPercent !== undefined) updateData.admin_expenses_percent = input.adminExpensesPercent;
     if (input.taxesPercent !== undefined) updateData.taxes_percent = input.taxesPercent;
     if (input.commissionPercent !== undefined) updateData.commission_percent = input.commissionPercent;
+    if (input.netMarginPercent !== undefined) updateData.net_margin_percent = input.netMarginPercent;
     if (input.discountPercent !== undefined) updateData.discount_percent = input.discountPercent;
     if (input.notes !== undefined) updateData.notes = input.notes || null;
 
