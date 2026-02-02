@@ -93,6 +93,7 @@ export function BudgetSuppliersEditor({
                       <Input
                         placeholder="Nome do fornecedor..."
                         value={supplier.name}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                         onChange={(e) =>
                           handleUpdateSupplier(supplier.tempId, 'name', e.target.value)
                         }
@@ -102,6 +103,7 @@ export function BudgetSuppliersEditor({
                       <Input
                         placeholder="Descrição do serviço..."
                         value={supplier.description}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                         onChange={(e) =>
                           handleUpdateSupplier(supplier.tempId, 'description', e.target.value)
                         }
@@ -114,6 +116,7 @@ export function BudgetSuppliersEditor({
                         step={0.01}
                         placeholder="0,00"
                         value={supplier.monthlyValue || ''}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                         onChange={(e) =>
                           handleUpdateSupplier(
                             supplier.tempId,

@@ -411,32 +411,17 @@ export default function BudgetForm() {
           {isEditing ? (
             // Editing mode: Use tabs
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
-                <TabsTrigger value="roles">Mão de Obra</TabsTrigger>
-                <TabsTrigger value="suppliers">Fornecedores</TabsTrigger>
-                <TabsTrigger value="materials">Materiais</TabsTrigger>
-                <TabsTrigger value="financial">Financeiro</TabsTrigger>
+                <TabsTrigger value="composition">Composição</TabsTrigger>
               </TabsList>
 
               <TabsContent value="basic" className="mt-6">
                 {renderStepContent(1)}
               </TabsContent>
 
-              <TabsContent value="roles" className="mt-6">
+              <TabsContent value="composition" className="mt-6">
                 {renderStepContent(2)}
-              </TabsContent>
-
-              <TabsContent value="suppliers" className="mt-6">
-                {renderStepContent(3)}
-              </TabsContent>
-
-              <TabsContent value="materials" className="mt-6">
-                {renderStepContent(4)}
-              </TabsContent>
-
-              <TabsContent value="financial" className="mt-6">
-                {renderStepContent(5)}
               </TabsContent>
             </Tabs>
           ) : (
