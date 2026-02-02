@@ -1133,7 +1133,15 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "manager"
-      budget_status: "draft" | "sent" | "approved" | "rejected" | "expired"
+      budget_status:
+        | "draft"
+        | "sent"
+        | "approved"
+        | "rejected"
+        | "expired"
+        | "proposal"
+        | "negotiation"
+        | "active"
       installment_status: "pending" | "invoiced" | "received" | "overdue"
       project_status:
         | "planning"
@@ -1269,7 +1277,16 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "manager"],
-      budget_status: ["draft", "sent", "approved", "rejected", "expired"],
+      budget_status: [
+        "draft",
+        "sent",
+        "approved",
+        "rejected",
+        "expired",
+        "proposal",
+        "negotiation",
+        "active",
+      ],
       installment_status: ["pending", "invoiced", "received", "overdue"],
       project_status: [
         "planning",
