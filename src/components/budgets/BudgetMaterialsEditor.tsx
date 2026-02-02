@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, Package } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
@@ -43,24 +43,19 @@ export const BudgetMaterialsEditor = forwardRef<HTMLDivElement, BudgetMaterialsE
 
     return (
       <div ref={ref}>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Materiais
-                </CardTitle>
-                <CardDescription>
-                  Adicione custos de materiais ou outros itens ao orçamento
-                </CardDescription>
-              </div>
-              <Button type="button" onClick={handleAddMaterial} size="sm">
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Material
-              </Button>
-            </div>
-          </CardHeader>
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Materiais
+            </CardTitle>
+            <Button type="button" onClick={handleAddMaterial} size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Material
+            </Button>
+          </div>
+        </CardHeader>
           <CardContent>
             {materials.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">

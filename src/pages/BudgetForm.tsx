@@ -349,52 +349,50 @@ export default function BudgetForm() {
         );
       case 2:
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Coluna principal: Seções de custos */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Mão de Obra */}
-              <Card>
-                <CardContent className="pt-6">
-                  <BudgetRolesEditor
-                    roles={roles}
-                    durationMonths={durationMonths}
-                    availableRoles={roleRates}
-                    onRolesChange={setRoles}
-                  />
-                </CardContent>
-              </Card>
+          <div className="flex flex-col pb-32">
+            {/* Mão de Obra - largura total */}
+            <Card className="mb-6">
+              <CardContent className="pt-6">
+                <BudgetRolesEditor
+                  roles={roles}
+                  durationMonths={durationMonths}
+                  availableRoles={roleRates}
+                  onRolesChange={setRoles}
+                />
+              </CardContent>
+            </Card>
 
-              {/* Fornecedores */}
+            {/* Fornecedores - largura total */}
+            <div className="mb-6">
               <BudgetSuppliersEditor
                 suppliers={suppliers}
                 durationMonths={durationMonths}
                 onSuppliersChange={setSuppliers}
               />
-
-              {/* Materiais */}
-              <BudgetMaterialsEditor
-                materials={materials}
-                onMaterialsChange={setMaterials}
-              />
             </div>
 
-            {/* Coluna lateral: Resumo sempre visível */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-6">
-                <BudgetFinancialSummary
-                  calculation={calculation}
-                  adminExpensesPercent={adminExpensesPercent}
-                  taxesPercent={taxesPercent}
-                  commissionPercent={commissionPercent}
-                  maxCommissionPercent={maxCommissionPercent}
-                  netMarginPercent={netMarginPercent}
-                  minNetMarginPercent={minNetMarginPercent}
-                  discountValue={discountValue}
-                  onCommissionChange={(val) => setCommissionPercent(Math.max(0, Math.min(val, maxCommissionPercent)))}
-                  onNetMarginChange={setNetMarginPercent}
-                  onDiscountChange={setDiscountValue}
-                />
-              </div>
+            {/* Materiais - largura total */}
+            <BudgetMaterialsEditor
+              materials={materials}
+              onMaterialsChange={setMaterials}
+            />
+
+            {/* Rodapé Fixo com Resumo Financeiro */}
+            <div className="fixed bottom-0 left-0 right-0 z-50">
+              <BudgetFinancialSummary
+                layout="footer"
+                calculation={calculation}
+                adminExpensesPercent={adminExpensesPercent}
+                taxesPercent={taxesPercent}
+                commissionPercent={commissionPercent}
+                maxCommissionPercent={maxCommissionPercent}
+                netMarginPercent={netMarginPercent}
+                minNetMarginPercent={minNetMarginPercent}
+                discountValue={discountValue}
+                onCommissionChange={(val) => setCommissionPercent(Math.max(0, Math.min(val, maxCommissionPercent)))}
+                onNetMarginChange={setNetMarginPercent}
+                onDiscountChange={setDiscountValue}
+              />
             </div>
           </div>
         );
