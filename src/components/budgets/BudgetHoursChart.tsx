@@ -9,14 +9,11 @@ interface BudgetHoursChartProps {
 }
 
 const COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(210, 70%, 55%)',
-  'hsl(280, 70%, 55%)',
-  'hsl(340, 70%, 55%)',
+  'hsl(var(--chart-1))',  // Pine Teal
+  'hsl(var(--chart-2))',  // Celadon
+  'hsl(var(--chart-3))',  // Amber Gold
+  'hsl(var(--chart-4))',  // Magenta Bloom
+  'hsl(var(--chart-5))',  // Rich Cerulean
 ];
 
 export function BudgetHoursChart({ budget }: BudgetHoursChartProps) {

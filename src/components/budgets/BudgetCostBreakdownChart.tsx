@@ -11,14 +11,14 @@ interface BudgetCostBreakdownChartProps {
 }
 
 const COLORS = {
-  laborCost: 'hsl(var(--primary))',
-  suppliers: 'hsl(var(--chart-1))',
-  materials: 'hsl(var(--chart-2))',
-  adminExpenses: 'hsl(var(--chart-3))',
-  taxes: 'hsl(var(--chart-4))',
-  commission: 'hsl(var(--chart-5))',
-  netMargin: 'hsl(var(--accent))',
-  discount: 'hsl(var(--destructive))',
+  laborCost: 'hsl(var(--chart-1))',     // Pine Teal
+  suppliers: 'hsl(var(--chart-2))',     // Celadon
+  materials: 'hsl(var(--chart-3))',     // Amber Gold
+  adminExpenses: 'hsl(var(--chart-4))', // Magenta Bloom
+  taxes: 'hsl(var(--chart-5))',         // Rich Cerulean
+  commission: 'hsl(160 47% 30%)',       // Variação Pine Teal
+  netMargin: 'hsl(145 55% 55%)',        // Variação Celadon
+  discount: 'hsl(var(--destructive))',  // Vermelho para desconto
 };
 
 export function BudgetCostBreakdownChart({ budget, calculation }: BudgetCostBreakdownChartProps) {
