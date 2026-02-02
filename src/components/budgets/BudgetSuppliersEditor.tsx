@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, Truck } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
@@ -50,17 +50,12 @@ export function BudgetSuppliersEditor({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5" />
-              Fornecedores
-            </CardTitle>
-            <CardDescription>
-              Adicione custos recorrentes de fornecedores externos (valor mensal × duração)
-            </CardDescription>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Truck className="h-5 w-5" />
+            Fornecedores
+          </CardTitle>
           <Button type="button" onClick={handleAddSupplier} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Fornecedor
