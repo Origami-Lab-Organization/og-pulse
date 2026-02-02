@@ -22,6 +22,7 @@ import BudgetDetail from "./pages/BudgetDetail";
 import LandingPage from "./pages/LandingPage";
 import UnderConstruction from "./pages/UnderConstruction";
 import Suppliers from "./pages/Suppliers";
+import CRM from "./pages/CRM";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +85,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireAdmin>
                     <Projects />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/crm" 
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <CRM />
                   </RoleProtectedRoute>
                 } 
               />

@@ -9,7 +9,8 @@ import {
   BarChart3, 
   Settings,
   DollarSign,
-  Truck
+  Truck,
+  Kanban
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -60,6 +61,7 @@ const navigationGroups = [
     label: 'Comercial',
     requiresAdmin: true,
     items: [
+      { title: 'CRM', url: '/crm', icon: Kanban, requiresAdmin: true },
       { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresAdmin: true },
     ] as NavItem[],
   },

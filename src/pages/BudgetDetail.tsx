@@ -96,10 +96,16 @@ export default function BudgetDetail() {
         { label: budget.budget_number },
       ]}
       actions={
-        <Button onClick={() => navigate(`/budgets/${id}/edit`)}>
-          <Edit className="mr-2 h-4 w-4" />
-          Editar
-        </Button>
+        budget.status === 'active' ? (
+          <Badge variant="secondary" className="text-sm">
+            Orçamento fechado - não pode ser editado
+          </Badge>
+        ) : (
+          <Button onClick={() => navigate(`/budgets/${id}/edit`)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar
+          </Button>
+        )
       }
     >
       <div className="space-y-6">
