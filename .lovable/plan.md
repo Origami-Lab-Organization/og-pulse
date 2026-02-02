@@ -1,144 +1,156 @@
 
-# Plano: Corrigir Bug de Duplicacao de Orcamentos
 
-## Problema Identificado
+# Plano Definitivo: Corrigir Bug de Duplicacao de Orcamentos
 
-Apos investigacao detalhada do codigo, o problema NAO e a tecla Enter (que ja foi tratada). O problema e que **o formulario esta sendo submetido prematuramente quando o usuario clica no botao "Proximo"**, mesmo que este botao tenha `type="button"`.
+## Problema Real Identificado
 
-### Causa Raiz
+Apos analise detalhada do codigo, encontrei **DOIS BUGS CRITICOS**:
 
-Analisando o codigo do `BudgetForm.tsx`, identifiquei que o problema esta na funcao `handleSubmit`:
+### Bug 1: Ordem de Declaracao (Hoisting)
+```tsx
+// Linha 176 - USA a variavel
+if (isSubmitting) { ... }
+
+// Linha 213 - DECLARA a variavel (DEPOIS de usar!)
+const isSubmitting = createMutation.isPending || updateMutation.isPending;
+```
+
+A variavel `isSubmitting` e usada ANTES de ser declarada, entao a verificacao sempre ve `undefined` (falsy) e nao bloqueia nada.
+
+### Bug 2: Arquitetura do Form
+
+O `form.handleSubmit(handleSubmit)` esta no elemento `<form>`, e qualquer submissao do formulario (Enter em inputs, comportamento do navegador) chama a funcao `handleSubmit`. A protecao dentro da funcao nao e suficiente - precisamos **remover o onSubmit do form** e controlar manualmente.
+
+## Solucao Definitiva
+
+### Mudanca 1: Mover Declaracao de isSubmitting
+
+Mover a linha 213 para ANTES da funcao `handleSubmit` (apos linha 173):
 
 ```tsx
-// Linha 174-199
+// ANTES de handleSubmit
+const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
 const handleSubmit = (values: FormValues) => {
-  // Cria o input e chama a mutation DIRETAMENTE
-  // SEM verificar se estamos na ultima etapa!
-  createMutation.mutate(input, { onSuccess: ... });
+  // Agora isSubmitting esta definido
+  if (isSubmitting) return;
+  // ...
 };
 ```
 
-O `form.handleSubmit(handleSubmit)` esta no form (linha 410), e quando **qualquer submissao do form acontece** (seja por Enter, click em submit, ou comportamento inesperado do navegador), a funcao `handleSubmit` executa a criacao do orcamento.
+### Mudanca 2: Remover onSubmit do Form
 
-### Problema com a Logica Atual
-
-- O botao "Proximo" tem `type="button"` (linha 490), entao **nao deveria** disparar o submit
-- POREM, se houver qualquer outro comportamento (ex: navegador interpretando Enter em input, propagacao de evento, etc.), o form pode ser submetido
-- A funcao `handleSubmit` NAO verifica se o usuario esta na ultima etapa antes de salvar
-
-## Solucao
-
-### 1. Proteger a Funcao handleSubmit
-
-Adicionar verificacao no inicio da funcao para **bloquear submissao se nao estiver na ultima etapa**:
-
+Trocar de:
 ```tsx
-const handleSubmit = (values: FormValues) => {
-  // PROTECAO: So permite salvar se estiver na ultima etapa (modo wizard)
-  // ou se estiver em modo de edicao
-  if (!isEditing && currentStep < WIZARD_STEPS.length) {
-    console.warn('Form submission blocked: not on final step');
-    return;
-  }
-  
-  // Resto do codigo...
-};
+<form onSubmit={form.handleSubmit(handleSubmit)}>
 ```
 
-### 2. Prevenir Dupla Submissao
+Para:
+```tsx
+<form onSubmit={(e) => e.preventDefault()}>
+```
 
-Adicionar verificacao para nao submeter se ja houver uma mutation em andamento:
+### Mudanca 3: Chamar Submit Manualmente Apenas no Botao Final
+
+Modificar o botao "Criar Orcamento" (linha 507) para chamar o submit manualmente:
 
 ```tsx
-const handleSubmit = (values: FormValues) => {
-  // PROTECAO: Bloquear se ja estiver submetendo
-  if (isSubmitting) {
-    return;
-  }
-  
-  // PROTECAO: So permite salvar na ultima etapa
-  if (!isEditing && currentStep < WIZARD_STEPS.length) {
-    return;
-  }
-  
-  // Resto do codigo...
-};
+<Button 
+  type="button"  // Mudar de "submit" para "button"
+  onClick={() => form.handleSubmit(handleSubmit)()}
+  disabled={isSubmitting}
+>
+  Criar Orcamento
+</Button>
+```
+
+E o botao "Salvar" no modo de edicao (linha 523):
+
+```tsx
+<Button 
+  type="button"
+  onClick={() => form.handleSubmit(handleSubmit)()}
+  disabled={isSubmitting}
+>
+  Salvar
+</Button>
 ```
 
 ## Arquivo a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/BudgetForm.tsx` | Adicionar guards na funcao `handleSubmit` (linhas 174-199) |
+| `src/pages/BudgetForm.tsx` | 4 alteracoes pontuais |
 
-## Implementacao Detalhada
+## Alteracoes Detalhadas
 
-### BudgetForm.tsx - Funcao handleSubmit (linhas 174-199)
+### 1. Mover isSubmitting (linha 213 -> linha 173)
 
-**Antes:**
+Mover a declaracao para antes de `handleSubmit`:
+
 ```tsx
-const handleSubmit = (values: FormValues) => {
-  const input: CreateBudgetInput = {
-    title: values.title,
-    // ... resto do input
-  };
+// Linha 173 (depois do useEffect)
+const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  if (isEditing && id) {
-    updateMutation.mutate({ id, input }, { onSuccess: () => navigate('/budgets') });
-  } else {
-    createMutation.mutate(input, { onSuccess: () => navigate('/budgets') });
-  }
+const handleSubmit = (values: FormValues) => {
+  // ...
 };
+
+// Remover a linha 213 antiga
 ```
 
-**Depois:**
+### 2. Remover onSubmit do Form (linha 422)
+
+Antes:
 ```tsx
-const handleSubmit = (values: FormValues) => {
-  // PROTECAO 1: Bloquear se ja estiver submetendo
-  if (isSubmitting) {
-    return;
-  }
-  
-  // PROTECAO 2: No modo wizard, so permite salvar na ultima etapa
-  if (!isEditing && currentStep < WIZARD_STEPS.length) {
-    return;
-  }
+<form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+```
 
-  const input: CreateBudgetInput = {
-    title: values.title,
-    // ... resto do input
-  };
+Depois:
+```tsx
+<form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+```
 
-  if (isEditing && id) {
-    updateMutation.mutate({ id, input }, { onSuccess: () => navigate('/budgets') });
-  } else {
-    createMutation.mutate(input, { onSuccess: () => navigate('/budgets') });
-  }
-};
+### 3. Botao Criar Orcamento (linha 507)
+
+Antes:
+```tsx
+<Button type="submit" disabled={isSubmitting}>
+```
+
+Depois:
+```tsx
+<Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
+```
+
+### 4. Botao Salvar no Modo Edicao (linha 523)
+
+Antes:
+```tsx
+<Button type="submit" disabled={isSubmitting}>
+```
+
+Depois:
+```tsx
+<Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
 ```
 
 ## Por Que Esta Solucao Funciona
 
-1. **Defesa em Profundidade**: Mesmo que algum comportamento inesperado dispare o submit do form, a funcao `handleSubmit` vai bloquear a criacao se nao estiver na ultima etapa.
+1. **Previne TODA submissao automatica**: O `onSubmit={(e) => e.preventDefault()}` bloqueia qualquer tentativa de submit do navegador (Enter em inputs, etc.)
 
-2. **Previne Dupla Submissao**: Se o usuario clicar duas vezes rapido no botao "Criar Orcamento", a segunda chamada sera bloqueada porque `isSubmitting` ja sera `true`.
+2. **Controle total**: A criacao/atualizacao SO acontece quando o usuario clica explicitamente no botao correto
 
-3. **Nao Afeta Modo de Edicao**: A verificacao de `currentStep` so se aplica ao modo de criacao (`!isEditing`).
+3. **isSubmitting funciona**: Movendo a declaracao para antes do uso, a verificacao de duplo-click funciona corretamente
 
-## Validacao Apos Implementacao
+4. **Validacao preservada**: O `form.handleSubmit(handleSubmit)` ainda valida os campos antes de executar
 
-1. **Teste de Criacao**:
-   - Ir para Orcamentos > Novo Orcamento
-   - Preencher os campos da Etapa 1
-   - Clicar em "Proximo" -> Deve ir para Etapa 2, NAO deve salvar
-   - Pressionar Enter em qualquer campo -> NAO deve salvar
-   - Na Etapa 2, clicar em "Criar Orcamento" -> Deve salvar
-   - Verificar que APENAS UM orcamento foi criado
+## Validacao
 
-2. **Teste de Edicao**:
-   - Editar um orcamento existente
-   - Alternar entre as abas
-   - Clicar em "Salvar" -> Deve atualizar o orcamento
+1. Criar novo orcamento
+2. Preencher campos da Etapa 1
+3. Clicar em "Proximo" -> Deve ir para Etapa 2, NAO deve salvar
+4. Pressionar Enter em qualquer campo -> NAO deve salvar
+5. Clicar em "Criar Orcamento" -> Deve salvar
+6. Verificar que APENAS UM orcamento foi criado
 
-3. **Console**:
-   - Se o submit for bloqueado prematuramente, deve aparecer um log de warning
