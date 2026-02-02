@@ -53,13 +53,16 @@ export function useCreateBudget() {
 
 export function useUpdateBudget() {
   const queryClient = useQueryClient();
+  const { employee } = useAuth();
   const { toast } = useToast();
+  const createdBy = employee?.id;
 
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateBudgetInput }) =>
-      budgetService.update(id, input),
+      budgetService.update(id, input, createdBy),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-versions'] });
       toast({
         title: 'Sucesso',
         description: 'Orçamento atualizado com sucesso!',

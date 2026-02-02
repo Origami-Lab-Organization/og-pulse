@@ -155,6 +155,51 @@ export type Database = {
           },
         ]
       }
+      budget_versions: {
+        Row: {
+          budget_id: string
+          change_summary: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          snapshot_data: Json
+          version_number: number
+        }
+        Insert: {
+          budget_id: string
+          change_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          snapshot_data: Json
+          version_number: number
+        }
+        Update: {
+          budget_id?: string
+          change_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          snapshot_data?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_versions_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budgets: {
         Row: {
           admin_expenses_percent: number
