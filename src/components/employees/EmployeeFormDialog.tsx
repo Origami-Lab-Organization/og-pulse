@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Employee, useEmployeeVersions } from '@/hooks/useEmployees';
 import { CreateEmployeeInput } from '@/services/employeeService';
-import { ContractType, CONTRACT_TYPE_LABELS, SystemRole, SYSTEM_ROLE_LABELS, SYSTEM_ROLE_DESCRIPTIONS } from '@/types/employee';
+import { ContractType, CONTRACT_TYPE_LABELS, SystemRole, SYSTEM_ROLE_LABELS } from '@/types/employee';
 import { usePayrollProfile } from '@/hooks/usePayrollProfile';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -780,12 +780,7 @@ const EmployeeFormDialog = ({
                 <SelectContent>
                   {(Object.keys(SYSTEM_ROLE_LABELS) as SystemRole[]).map((role) => (
                     <SelectItem key={role} value={role}>
-                      <div className="flex flex-col">
-                        <span>{SYSTEM_ROLE_LABELS[role]}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {SYSTEM_ROLE_DESCRIPTIONS[role]}
-                        </span>
-                      </div>
+                      {SYSTEM_ROLE_LABELS[role]}
                     </SelectItem>
                   ))}
                 </SelectContent>
