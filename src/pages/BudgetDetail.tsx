@@ -209,6 +209,75 @@ export default function BudgetDetail() {
           </Card>
         </div>
 
+        {/* Financial breakdown */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Resumo Financeiro
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Mão de Obra</span>
+                <span className="font-medium">{formatCurrency(calculation?.laborCost || 0)}</span>
+              </div>
+              {(calculation?.suppliersTotal || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fornecedores</span>
+                  <span className="font-medium">{formatCurrency(calculation?.suppliersTotal || 0)}</span>
+                </div>
+              )}
+              {(calculation?.materialsTotal || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Materiais</span>
+                  <span className="font-medium">{formatCurrency(calculation?.materialsTotal || 0)}</span>
+                </div>
+              )}
+              <div className="flex justify-between bg-muted/50 rounded-md p-2 -mx-2">
+                <span className="font-medium">Custo Total</span>
+                <span className="font-semibold">{formatCurrency(calculation?.totalCost || 0)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Despesas Administrativas ({budget.admin_expenses_percent}%)</span>
+                <span>{formatCurrency(calculation?.adminExpenses || 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Impostos ({budget.taxes_percent}%)</span>
+                <span>{formatCurrency(calculation?.taxes || 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Comissão ({budget.commission_percent}%)</span>
+                <span>{formatCurrency(calculation?.commission || 0)}</span>
+              </div>
+              {(calculation?.netMargin || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Margem Líquida ({(budget as any).net_margin_percent ?? 0}%)</span>
+                  <span>{formatCurrency(calculation?.netMargin || 0)}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between">
+                <span className="font-medium">Preço de Venda</span>
+                <span className="font-medium">{formatCurrency(calculation?.sellingPrice || 0)}</span>
+              </div>
+              {(calculation?.discount ?? 0) > 0 && (
+                <div className="flex justify-between text-destructive">
+                  <span>Desconto</span>
+                  <span>-{formatCurrency(calculation?.discount || 0)}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between text-lg">
+                <span className="font-bold">Valor Final</span>
+                <span className="font-bold text-primary">{formatCurrency(calculation?.finalTotal || 0)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BudgetHoursChart budget={budget} />
@@ -348,89 +417,9 @@ export default function BudgetDetail() {
           </Card>
         )}
 
-        {/* Financial breakdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Resumo Financeiro
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Mão de Obra</span>
-                <span className="font-medium">{formatCurrency(calculation?.laborCost || 0)}</span>
-              </div>
-              {(calculation?.suppliersTotal || 0) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fornecedores</span>
-                  <span className="font-medium">{formatCurrency(calculation?.suppliersTotal || 0)}</span>
-                </div>
-              )}
-              {(calculation?.materialsTotal || 0) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Materiais</span>
-                  <span className="font-medium">{formatCurrency(calculation?.materialsTotal || 0)}</span>
-                </div>
-              )}
-              <div className="flex justify-between bg-muted/50 rounded-md p-2 -mx-2">
-                <span className="font-medium">Custo Total</span>
-                <span className="font-semibold">{formatCurrency(calculation?.totalCost || 0)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Despesas Administrativas ({budget.admin_expenses_percent}%)</span>
-                <span>{formatCurrency(calculation?.adminExpenses || 0)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Impostos ({budget.taxes_percent}%)</span>
-                <span>{formatCurrency(calculation?.taxes || 0)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Comissão ({budget.commission_percent}%)</span>
-                <span>{formatCurrency(calculation?.commission || 0)}</span>
-              </div>
-              {(calculation?.netMargin || 0) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Margem Líquida ({(budget as any).net_margin_percent ?? 0}%)</span>
-                  <span>{formatCurrency(calculation?.netMargin || 0)}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex justify-between">
-                <span className="font-medium">Preço de Venda</span>
-                <span className="font-medium">{formatCurrency(calculation?.sellingPrice || 0)}</span>
-              </div>
-              {(calculation?.discount ?? 0) > 0 && (
-                <div className="flex justify-between text-destructive">
-                  <span>Desconto</span>
-                  <span>-{formatCurrency(calculation?.discount || 0)}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex justify-between text-lg">
-                <span className="font-bold">Valor Final</span>
-                <span className="font-bold text-primary">{formatCurrency(calculation?.finalTotal || 0)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Version history */}
         <BudgetVersionsSection budgetId={budget.id} />
 
-        {/* Notes */}
-        {budget.notes && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Observações</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground whitespace-pre-wrap">{budget.notes}</p>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </AppLayout>
   );
