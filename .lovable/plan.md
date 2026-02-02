@@ -1,185 +1,279 @@
 
 
-# Plano: Redesign da Barra de Resumo Financeiro
+# Plano: Wizard de 3 Etapas com Seção de Precificação
 
-## Problemas de UX Identificados
+## Objetivo
 
-### 1. Posicionamento Incorreto
-A barra atual usa `fixed bottom-0 left-0 right-0`, ocupando **toda a largura da tela**, invadindo o espaco da sidebar. Isso cria desalinhamento visual.
+Reorganizar o wizard de orçamentos para ter 3 etapas claras:
+1. **Dados Básicos** - informações do cliente e projeto
+2. **Composição** - Mão de Obra, Fornecedores e Materiais com resumo simples de totais
+3. **Precificação** - Custos, markup (comissão/margem) e valor final com desconto
 
-### 2. Densidade Excessiva
-Todos os elementos estao em uma unica linha horizontal com espacamento uniforme, sem hierarquia visual. O usuario nao consegue distinguir rapidamente:
-- O que e informacao (somente leitura)
-- O que e editavel (inputs)
-- O que e o resultado final (destaque)
-
-### 3. Falta de Agrupamento Visual
-Os separadores verticais nao sao suficientes para criar grupos logicos claros. A informacao parece "jogada" na tela.
-
-### 4. Inputs Perdidos no Contexto
-Os inputs de Comissao, Margem e Desconto estao misturados com textos, dificultando identificar onde o usuario pode interagir.
-
-## Solucao: Layout em 2 Linhas com Cards Agrupados
-
-Reorganizar o rodape em **duas linhas** com agrupamentos visuais claros:
+## Layout Proposto
 
 ```text
-LINHA 1: Custos e Composicao (informacional + inputs)
+ETAPA 2: COMPOSIÇÃO
 +--------------------------------------------------+
-| [Custos]         | [Composicao]      | [Markup]  |
-| MO: R$ X         | Desp.Adm: R$ X    | Comissao  |
-| Forn: R$ X       | Impostos: R$ X    |  [input]  |
-| Mat: R$ X        |                   | Margem    |
-| ─────────────    |                   |  [input]  |
-| Total: R$ X      |                   |           |
+| Mão de Obra                    [+ Adicionar]     |
+| [tabela de papéis e horas]                       |
 +--------------------------------------------------+
+| Fornecedores                   [+ Adicionar]     |
+| [tabela de fornecedores]                         |
++--------------------------------------------------+
+| Materiais                      [+ Adicionar]     |
+| [tabela de materiais]                            |
++--------------------------------------------------+
+| MO: R$ X.XXX | Fornec: R$ X.XXX | Mat: R$ X.XXX  |  <-- rodapé simples
++--------------------------------------------------+
+       [Anterior]               [Próximo ->]
 
-LINHA 2: Preco Final (destaque no resultado)
+ETAPA 3: PRECIFICAÇÃO
 +--------------------------------------------------+
-|   Preco Venda: R$ X   |  Desconto: R$ [input]  |  VALOR FINAL: R$ X  |
+|  CUSTOS                                          |
+|  +---------------------------------------------+ |
+|  | Mão de Obra       | Fornecedores | Materiais| |
+|  |   R$ X.XXX        |    R$ X.XXX  | R$ X.XXX | |
+|  |         CUSTO TOTAL: R$ X.XXX               | |
+|  +---------------------------------------------+ |
+|                                                  |
+|  COMPOSIÇÃO DO PREÇO                             |
+|  +---------------------------------------------+ |
+|  | Desp. Adm (12%)     R$ X.XXX    (somente leitura)
+|  | Impostos (13%)      R$ X.XXX    (somente leitura)
+|  | Comissão        [__%]  R$ X.XXX (editável)
+|  | Margem          [__%]  R$ X.XXX (editável)
+|  +---------------------------------------------+ |
+|                                                  |
+|  VALOR FINAL                                     |
+|  +---------------------------------------------+ |
+|  | Preço de Venda: R$ X.XXX                    | |
+|  | Desconto: R$ [____]                         | |
+|  |         VALOR FINAL: R$ X.XXX (destaque)    | |
+|  +---------------------------------------------+ |
 +--------------------------------------------------+
+       [Anterior]           [Criar Orçamento]
 ```
 
-## Mudancas Detalhadas
+## Alterações Técnicas
 
-### 1. Posicionamento Respeitando a Sidebar
+### 1. Atualizar Wizard Steps
 
-Mudar de:
+**Arquivo**: `src/pages/BudgetForm.tsx`
+
 ```tsx
-<div className="fixed bottom-0 left-0 right-0 z-50">
+const WIZARD_STEPS = [
+  { id: 1, title: 'Dados Básicos' },
+  { id: 2, title: 'Composição' },
+  { id: 3, title: 'Precificação' },
+];
 ```
 
-Para um posicionamento que considera o layout da sidebar. Como o rodape esta DENTRO do `SidebarInset`, podemos usar `sticky` em vez de `fixed`:
+### 2. Nova Etapa 2 - Composição Simplificada
+
+Remover o `BudgetFinancialSummary` da etapa 2 e adicionar um rodapé simples apenas com os totais:
 
 ```tsx
-// No BudgetForm.tsx - trocar o wrapper
-<div className="sticky bottom-0 z-40 -mx-6 -mb-6">
-  <BudgetFinancialSummary layout="footer" ... />
-</div>
-```
-
-### 2. Novo Layout do Componente Footer
-
-Estrutura visual em 2 partes:
-- **Parte superior**: Custos + Composicao + Inputs de ajuste
-- **Parte inferior**: Preco de Venda → Desconto → Valor Final
-
-```tsx
-<div className="border-t bg-card shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]">
-  {/* Linha superior - informacoes detalhadas */}
-  <div className="border-b border-border/50 px-6 py-3">
-    <div className="flex items-start gap-8">
-      {/* Grupo: Custos */}
-      <div className="space-y-1">
-        <span className="text-xs font-medium text-muted-foreground uppercase">Custos</span>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm">
-          <span className="text-muted-foreground">Mao de Obra</span>
-          <span className="text-right font-medium">R$ X</span>
-          ...
-        </div>
+case 2:
+  return (
+    <>
+      <div className="flex flex-col space-y-6">
+        {/* Mão de Obra */}
+        <Card>
+          <CardContent className="pt-6">
+            <BudgetRolesEditor ... />
+          </CardContent>
+        </Card>
+        
+        {/* Fornecedores */}
+        <BudgetSuppliersEditor ... />
+        
+        {/* Materiais */}
+        <BudgetMaterialsEditor ... />
       </div>
       
-      {/* Grupo: Composicao */}
-      <div className="space-y-1">
-        <span className="text-xs font-medium text-muted-foreground uppercase">Composicao</span>
-        ...
-      </div>
-      
-      {/* Grupo: Markup Editavel */}
-      <div className="space-y-2 ml-auto">
-        <div className="flex items-center gap-3">
-          <Label>Comissao</Label>
-          <Input ... />
-        </div>
-        <div className="flex items-center gap-3">
-          <Label>Margem</Label>
-          <Input ... />
+      {/* Rodapé simples com totais */}
+      <div className="sticky bottom-0 z-40 -mx-6 -mb-6 border-t bg-muted/50 px-6 py-3">
+        <div className="flex items-center justify-center gap-8 text-sm">
+          <span>Mão de Obra: <strong>R$ X.XXX</strong></span>
+          <span>Fornecedores: <strong>R$ X.XXX</strong></span>
+          <span>Materiais: <strong>R$ X.XXX</strong></span>
         </div>
       </div>
-    </div>
-  </div>
-  
-  {/* Linha inferior - resultado final em destaque */}
-  <div className="px-6 py-4 flex items-center justify-between">
-    <div className="flex items-center gap-8">
-      <div>
-        <span className="text-muted-foreground text-sm">Preco de Venda</span>
-        <span className="font-semibold text-lg ml-2">R$ X</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground text-sm">Desconto</span>
-        <Input className="w-28" ... />
-      </div>
-    </div>
-    
-    {/* Destaque do valor final */}
-    <div className="flex items-center gap-3 bg-primary/10 rounded-xl px-6 py-3">
-      <span className="font-semibold">Valor Final</span>
-      <span className="text-2xl font-bold text-primary">R$ X</span>
-    </div>
-  </div>
-</div>
+    </>
+  );
 ```
 
-### 3. Hierarquia Visual Melhorada
+### 3. Nova Etapa 3 - Precificação
 
-| Elemento | Tratamento |
-|----------|-----------|
-| Labels de grupo | `text-xs uppercase text-muted-foreground font-medium` |
-| Valores informativos | `text-sm text-foreground` |
-| Totais parciais | `font-semibold` |
-| Inputs | Fundo branco, borda sutil, agrupados visualmente |
-| Valor Final | `bg-primary/10 rounded-xl px-6 py-3 text-2xl font-bold text-primary` |
+Criar um novo componente `BudgetPricingStep` ou renderizar inline:
 
-### 4. Sombra Invertida (Efeito Elevacao)
-
-Adicionar sombra "para cima" para dar sensacao de elevacao:
 ```tsx
-shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)]
+case 3:
+  return (
+    <div className="space-y-6">
+      {/* Card: Custos */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calculator className="h-5 w-5" />
+            Custos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <span className="text-sm text-muted-foreground">Mão de Obra</span>
+              <p className="text-lg font-semibold">{formatCurrency(laborCost)}</p>
+            </div>
+            <div>
+              <span className="text-sm text-muted-foreground">Fornecedores</span>
+              <p className="text-lg font-semibold">{formatCurrency(suppliersTotal)}</p>
+            </div>
+            <div>
+              <span className="text-sm text-muted-foreground">Materiais</span>
+              <p className="text-lg font-semibold">{formatCurrency(materialsTotal)}</p>
+            </div>
+          </div>
+          <Separator className="my-4" />
+          <div className="flex justify-between items-center">
+            <span className="font-medium">Custo Total</span>
+            <span className="text-xl font-bold">{formatCurrency(totalCost)}</span>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Card: Composição do Preço */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Percent className="h-5 w-5" />
+            Composição do Preço
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Despesas Adm - somente leitura */}
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Despesas Administrativas ({adminExpensesPercent}%)</span>
+            <span>{formatCurrency(adminExpenses)}</span>
+          </div>
+          
+          {/* Impostos - somente leitura */}
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Impostos ({taxesPercent}%)</span>
+            <span>{formatCurrency(taxes)}</span>
+          </div>
+          
+          <Separator />
+          
+          {/* Comissão - editável */}
+          <div className="flex justify-between items-center">
+            <Label>Comissão (máx. {maxCommissionPercent}%)</Label>
+            <div className="flex items-center gap-2">
+              <Input type="number" value={commissionPercent} ... className="w-20" />
+              <span>%</span>
+              <span className="text-muted-foreground">= {formatCurrency(commission)}</span>
+            </div>
+          </div>
+          
+          {/* Margem - editável */}
+          <div className="flex justify-between items-center">
+            <Label>Margem Líquida (mín. {minNetMarginPercent}%)</Label>
+            <div className="flex items-center gap-2">
+              <Input type="number" value={netMarginPercent} ... className="w-20" />
+              <span>%</span>
+              <span className="text-muted-foreground">= {formatCurrency(netMargin)}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Card: Valor Final */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Valor Final
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span>Preço de Venda</span>
+            <span className="text-xl font-semibold">{formatCurrency(sellingPrice)}</span>
+          </div>
+          
+          <div className="flex justify-between items-center">
+            <Label>Desconto</Label>
+            <div className="flex items-center gap-2">
+              <span>R$</span>
+              <Input type="number" value={discountValue} ... className="w-32" />
+            </div>
+          </div>
+          
+          <Separator />
+          
+          <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4">
+            <span className="text-lg font-bold">Valor Final</span>
+            <span className="text-2xl font-bold text-primary">{formatCurrency(finalTotal)}</span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+```
+
+### 4. Atualizar Navegação
+
+O botão "Criar Orçamento" só aparece quando `currentStep === 3`:
+
+```tsx
+{currentStep < WIZARD_STEPS.length ? (
+  <Button type="button" onClick={handleNext}>
+    Próximo
+    <ArrowRight className="ml-2 h-4 w-4" />
+  </Button>
+) : (
+  <Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
+    <Save className="mr-2 h-4 w-4" />
+    Criar Orçamento
+  </Button>
+)}
+```
+
+Esta lógica já existe e funciona corretamente - apenas mudará de step 2 para step 3.
+
+### 5. Modo Edição (Tabs)
+
+Atualizar as tabs para incluir a terceira aba:
+
+```tsx
+<TabsList className="grid w-full grid-cols-3">
+  <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
+  <TabsTrigger value="composition">Composição</TabsTrigger>
+  <TabsTrigger value="pricing">Precificação</TabsTrigger>
+</TabsList>
 ```
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteracao |
+| Arquivo | Alteração |
 |---------|-----------|
-| `src/components/budgets/BudgetFinancialSummary.tsx` | Redesenhar layout footer completo |
-| `src/pages/BudgetForm.tsx` | Trocar `fixed` por `sticky` com margens negativas |
+| `src/pages/BudgetForm.tsx` | Adicionar terceira etapa, simplificar etapa 2, atualizar tabs |
+| `src/components/budgets/BudgetFinancialSummary.tsx` | Pode ser mantido para o modo sidebar (edição) ou removido |
 
-## Beneficios da Nova Abordagem
+## Benefícios
 
-1. **Hierarquia clara**: Usuario sabe instantaneamente o que e info vs. input vs. resultado
-2. **Grupos visuais**: Custos, Composicao e Markup estao claramente separados
-3. **Destaque no resultado**: Valor Final tem prominencia visual adequada
-4. **Respeita sidebar**: Usa sticky em vez de fixed, funcionando dentro do layout
-5. **Menos dense**: Duas linhas em vez de uma, com espacamento adequado
-6. **Sombra elegante**: Efeito de elevacao sutil que separa do conteudo
-7. **Responsivo**: Facil adaptar para telas menores empilhando grupos
+1. **Clareza visual**: Cada etapa tem um propósito específico
+2. **Fluxo lógico**: Primeiro define o que será feito, depois precifica
+3. **Menos sobrecarga**: A etapa de composição fica limpa, focada nos itens
+4. **Controle de preço**: O usuário vê claramente como o preço é formado na etapa final
+5. **Segurança de navegação**: Botão de salvar só aparece na última etapa
 
-## Detalhes Tecnicos
+## Proteção Contra Submissão Acidental
 
-### CSS do Container Principal
+O código atual já implementa proteções:
+- `form onSubmit={(e) => e.preventDefault()` - impede submit por Enter
+- `type="button"` em todos os botões
+- Verificação `currentStep < WIZARD_STEPS.length` no handleSubmit
 
-```css
-.footer-summary {
-  background: hsl(var(--card));
-  border-top: 1px solid hsl(var(--border));
-  box-shadow: 0 -4px 20px -4px rgba(0,0,0,0.08);
-}
-```
-
-### Sticky vs Fixed
-
-- `fixed`: Elemento sai do fluxo, posicionado relativo a viewport
-- `sticky`: Elemento permanece no fluxo, "gruda" quando atinge a posicao
-
-Usar `sticky bottom-0` faz o rodape "grudar" no final do scroll, mas respeitando os limites do container pai (que ja considera a sidebar).
-
-### Margens Negativas
-
-Para que o rodape sticky ocupe toda a largura do container de conteudo:
-```tsx
-<div className="sticky bottom-0 z-40 -mx-6 -mb-6">
-```
-
-Isso compensa o padding do container pai (`px-6 py-6`).
+Com 3 etapas, estas proteções continuam funcionando automaticamente.
 
