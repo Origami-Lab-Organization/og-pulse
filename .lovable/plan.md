@@ -1,89 +1,93 @@
 
 
-# Plano: Rodapé Fixo com Tamanho Igual ao Footer da Sidebar
+# Plano: Ajustes na Visualizacao de Orcamento
 
-## Análise
+## Problemas Identificados
 
-Ao analisar o `SidebarFooter` e `SidebarHeader` do menu lateral:
+### 1. Cores Pretas nos Graficos
+As variaveis CSS `--chart-1`, `--chart-2`, `--chart-3`, `--chart-4`, `--chart-5` nao estao definidas no arquivo `src/index.css`. Quando uma variavel CSS nao existe, o `hsl(var(--chart-1))` resulta em preto.
 
-**SidebarHeader (topo):**
-- Classes: `border-b border-sidebar-border`
-- Conteúdo interno: `px-2 py-3` com logo `h-8 w-8`
-- Altura aproximada: ~56px (32px logo + 24px padding vertical)
+### 2. Botoes Desnecessarios
+Os botoes "Voltar" e "Duplicar" devem ser removidos da pagina de detalhes do orcamento.
 
-**SidebarFooter (rodapé):**
-- Classes base: `flex flex-col gap-2 p-2`
-- Classes adicionais: `border-t border-sidebar-border`
-- Conteúdo: `px-3 py-2` com duas linhas de texto
+## Solucao
 
-Ambos compartilham:
-- Borda (`border-t` ou `border-b`)
-- Padding similar (`p-2` base)
+### Parte 1: Definir Variaveis de Cores para Graficos
 
-## Solução
+Adicionar as variaveis de cores no `src/index.css` tanto para o tema claro quanto para o escuro:
 
-Ajustar o rodapé fixo dos botões para ter a mesma aparência visual do footer da sidebar, usando:
+```css
+:root {
+  /* ... variaveis existentes ... */
+  
+  /* Chart colors - Paleta distinta para graficos */
+  --chart-1: 152 60% 45%;   /* Verde vibrante */
+  --chart-2: 200 70% 50%;   /* Azul */
+  --chart-3: 280 65% 55%;   /* Roxo */
+  --chart-4: 35 85% 55%;    /* Laranja */
+  --chart-5: 340 70% 50%;   /* Rosa */
+}
 
-1. **Posicionamento fixo** com `left` dinâmico baseado no estado da sidebar
-2. **Altura e padding** similares ao `SidebarFooter`: usando `py-3` para alinhar com o header que tem `py-3`
-3. **Transição suave** ao colapsar/expandir a sidebar
-
-### Mudanças Técnicas
-
-**1. Importar `useSidebar` e `cn`:**
-
-```tsx
-import { useSidebar } from '@/components/ui/sidebar';
-import { cn } from '@/lib/utils';
+.dark {
+  /* ... variaveis existentes ... */
+  
+  /* Chart colors - Paleta distinta para graficos (dark mode) */
+  --chart-1: 152 55% 50%;
+  --chart-2: 200 65% 55%;
+  --chart-3: 280 60% 60%;
+  --chart-4: 35 80% 55%;
+  --chart-5: 340 65% 55%;
+}
 ```
 
-**2. Usar o hook no componente:**
+### Parte 2: Remover Botoes "Voltar" e "Duplicar"
 
+No arquivo `src/pages/BudgetDetail.tsx`, remover:
+- Botao "Voltar" (linhas 108-111)
+- Botao "Duplicar" (linhas 112-115)
+- Import do `useDuplicateBudget` e `ArrowLeft`
+- A funcao `handleDuplicate` (linhas 79-83)
+
+Codigo atual (linhas 106-121):
 ```tsx
-const { state: sidebarState } = useSidebar();
-const isCollapsed = sidebarState === 'collapsed';
+actions={
+  <div className="flex gap-2">
+    <Button variant="outline" onClick={() => navigate('/budgets')}>
+      <ArrowLeft className="mr-2 h-4 w-4" />
+      Voltar
+    </Button>
+    <Button variant="outline" onClick={handleDuplicate} disabled={duplicateMutation.isPending}>
+      <Copy className="mr-2 h-4 w-4" />
+      Duplicar
+    </Button>
+    <Button onClick={() => navigate(`/budgets/${id}/edit`)}>
+      <Edit className="mr-2 h-4 w-4" />
+      Editar
+    </Button>
+  </div>
+}
 ```
 
-**3. Alterar o footer para fixed com dimensões corretas:**
-
+Codigo novo:
 ```tsx
-<div 
-  className={cn(
-    "fixed bottom-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 transition-[left] duration-200 ease-linear",
-    isCollapsed ? "left-[3rem]" : "left-[16rem]"
-  )}
->
+actions={
+  <Button onClick={() => navigate(`/budgets/${id}/edit`)}>
+    <Edit className="mr-2 h-4 w-4" />
+    Editar
+  </Button>
+}
 ```
 
-**4. Ajustar estrutura para remover wrapper desnecessário e adicionar padding:**
+## Arquivos a Modificar
 
-```tsx
-{/* Current step content */}
-<div className="mt-6 pb-16">
-  {renderStepContent(currentStep)}
-</div>
-
-{/* Fixed footer outside the flex wrapper */}
-```
-
-## Resumo das Alterações
-
-| Local | Alteração |
-|-------|-----------|
-| Imports | Adicionar `useSidebar` de `@/components/ui/sidebar` |
-| Componente | Adicionar `const { state: sidebarState } = useSidebar()` |
-| Wrapper (linha 637-638) | Remover `flex flex-col min-h-[calc(100vh-200px)]` |
-| Conteúdo (linha 640) | Mudar para `mt-6 pb-16` |
-| Footer (linha 644-679) | Mudar para `fixed` com `left` dinâmico e `py-3` |
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/index.css` | Adicionar variaveis `--chart-1` a `--chart-5` nos temas claro e escuro |
+| `src/pages/BudgetDetail.tsx` | Remover botoes "Voltar" e "Duplicar", imports e funcao relacionada |
 
 ## Resultado Esperado
 
-- Rodapé fixo que permanece visível durante o scroll
-- Alinhamento correto com a sidebar (respeitando largura expandida/colapsada)
-- Altura visual igual ao header da sidebar (~56px)
-- Transição suave ao colapsar/expandir a sidebar
-
-## Arquivo a Modificar
-
-- `src/pages/BudgetForm.tsx`
+- Graficos exibindo cores distintas e vibrantes (verde, azul, roxo, laranja, rosa)
+- Nenhuma cor preta nos graficos
+- Apenas o botao "Editar" visivel na pagina de detalhes do orcamento
 
