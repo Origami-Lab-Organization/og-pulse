@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -7,27 +8,23 @@ import { DataTable } from '@/components/data-table/DataTable';
 import { ProjectStats } from '@/components/projects/ProjectStats';
 import { createProjectColumns } from '@/components/projects/ProjectsTable';
 import { ProjectFormDialog } from '@/components/projects/ProjectFormDialog';
-import { ProjectDetailDialog } from '@/components/projects/ProjectDetailDialog';
 import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
 import {
   useProjects,
   useCreateProject,
   useUpdateProject,
   useDeleteProject,
-  useProject,
 } from '@/hooks/useProjects';
 import { ProjectWithRelations, CreateProjectInput } from '@/types/project';
 
 export default function Projects() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [formDialogOpen, setFormDialogOpen] = useState(false);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ProjectWithRelations | null>(null);
-  const [viewingProjectId, setViewingProjectId] = useState<string | undefined>(undefined);
 
   const { data: projects = [], isLoading } = useProjects();
-  const { data: projectDetail } = useProject(viewingProjectId);
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -50,8 +47,7 @@ export default function Projects() {
   }, [projects]);
 
   const handleView = (project: ProjectWithRelations) => {
-    setViewingProjectId(project.id);
-    setDetailDialogOpen(true);
+    navigate(`/projects/${project.id}`);
   };
 
   const handleEdit = (project: ProjectWithRelations) => {
@@ -155,15 +151,6 @@ export default function Projects() {
         project={selectedProject}
         onSubmit={handleFormSubmit}
         isSubmitting={createProject.isPending || updateProject.isPending}
-      />
-
-      <ProjectDetailDialog
-        open={detailDialogOpen}
-        onOpenChange={(open) => {
-          setDetailDialogOpen(open);
-          if (!open) setViewingProjectId(undefined);
-        }}
-        project={projectDetail || null}
       />
 
       <DeleteProjectDialog

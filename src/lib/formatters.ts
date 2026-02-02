@@ -42,6 +42,10 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+export function formatPercent(value: number, decimals: number = 1): string {
+  return `${value.toFixed(decimals)}%`;
+}
+
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return '-';
   

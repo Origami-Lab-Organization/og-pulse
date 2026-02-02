@@ -48,6 +48,30 @@ export interface ProjectInstallmentDB {
   updated_at: string;
 }
 
+// Project Suppliers (recurring external service costs)
+export interface ProjectSupplierDB {
+  id: string;
+  project_id: string;
+  supplier_id: string | null;
+  name: string;
+  description: string | null;
+  monthly_value: number;
+  start_month: number;
+  end_month: number | null;
+  created_at: string;
+}
+
+// Project Materials (one-off costs)
+export interface ProjectMaterialDB {
+  id: string;
+  project_id: string;
+  description: string;
+  value: number;
+  purchase_date: string | null;
+  is_realized: boolean;
+  created_at: string;
+}
+
 export interface CreateProjectInput {
   clientId: string;
   managerId: string;
@@ -72,6 +96,24 @@ export interface CreateProjectMemberInput {
   role: string;
   seniority: string;
   hoursPerMonth: number;
+}
+
+export interface CreateProjectSupplierInput {
+  projectId: string;
+  supplierId?: string;
+  name: string;
+  description?: string;
+  monthlyValue: number;
+  startMonth: number;
+  endMonth?: number;
+}
+
+export interface CreateProjectMaterialInput {
+  projectId: string;
+  description: string;
+  value: number;
+  purchaseDate?: string;
+  isRealized?: boolean;
 }
 
 export interface UpdateInstallmentInput {
@@ -106,6 +148,8 @@ export interface ProjectWithRelations extends ProjectDB {
     };
   })[];
   installments?: ProjectInstallmentDB[];
+  suppliers?: ProjectSupplierDB[];
+  materials?: ProjectMaterialDB[];
 }
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
