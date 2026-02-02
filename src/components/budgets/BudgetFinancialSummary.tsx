@@ -14,7 +14,7 @@ interface BudgetFinancialSummaryProps {
   maxCommissionPercent: number;
   netMarginPercent: number;
   minNetMarginPercent: number;
-  discountPercent: number;
+  discountValue: number;
   onCommissionChange: (value: number) => void;
   onNetMarginChange: (value: number) => void;
   onDiscountChange: (value: number) => void;
@@ -30,7 +30,7 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
       maxCommissionPercent,
       netMarginPercent,
       minNetMarginPercent,
-      discountPercent,
+      discountValue,
       onCommissionChange,
       onNetMarginChange,
       onDiscountChange,
@@ -119,7 +119,7 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
               </div>
             </div>
 
-            {/* Net Margin - editable with minimum */}
+            {/* Net Margin - editable with minimum (validation on blur) */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="netMargin" className="text-muted-foreground">Margem Líquida</Label>
@@ -134,7 +134,13 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
                     value={netMarginPercent}
                     onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                     onChange={(e) => {
-                      const value = parseFloat(e.target.value) || 0;
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) {
+                        onNetMarginChange(value);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const value = parseFloat(e.target.value) || minNetMarginPercent;
                       onNetMarginChange(Math.max(minNetMarginPercent, Math.min(value, 100)));
                     }}
                   />
@@ -158,29 +164,34 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
 
           <Separator />
 
-          {/* Discount - editable */}
+          {/* Discount - editable (absolute value in BRL) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="discount">Desconto</Label>
               <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">R$</span>
                 <Input
                   id="discount"
                   type="number"
                   min={0}
-                  max={100}
-                  step={0.1}
-                  className="h-8 w-20 text-right"
-                  value={discountPercent}
+                  step={100}
+                  className="h-8 w-28 text-right"
+                  value={discountValue}
                   onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                   onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (!isNaN(value)) {
+                      onDiscountChange(value);
+                    }
+                  }}
+                  onBlur={(e) => {
                     const value = parseFloat(e.target.value) || 0;
-                    onDiscountChange(Math.min(value, 100));
+                    onDiscountChange(Math.max(0, Math.min(value, calculation.sellingPrice)));
                   }}
                 />
-                <span className="text-sm text-muted-foreground">%</span>
               </div>
             </div>
-            {discountPercent > 0 && (
+            {discountValue > 0 && (
               <div className="flex justify-end text-destructive">
                 <span>-{formatCurrency(calculation.discount)}</span>
               </div>

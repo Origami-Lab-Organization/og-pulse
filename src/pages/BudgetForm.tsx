@@ -66,7 +66,7 @@ export default function BudgetForm() {
   const [suppliers, setSuppliers] = useState<BudgetSupplierInput[]>([]);
   const [commissionPercent, setCommissionPercent] = useState(0);
   const [netMarginPercent, setNetMarginPercent] = useState(0);
-  const [discountPercent, setDiscountPercent] = useState(0);
+  const [discountValue, setDiscountValue] = useState(0);
   const [snapshotAdminExpenses, setSnapshotAdminExpenses] = useState(0);
   const [snapshotTaxes, setSnapshotTaxes] = useState(0);
   const [snapshotMaxCommission, setSnapshotMaxCommission] = useState(0);
@@ -117,9 +117,9 @@ export default function BudgetForm() {
       taxesPercent,
       commissionPercent,
       netMarginPercent,
-      discountPercent
+      discountValue
     ),
-    [roles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountPercent]
+    [roles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue]
   );
 
   useEffect(() => {
@@ -136,7 +136,7 @@ export default function BudgetForm() {
         notes: budget.notes || '',
       });
       setCommissionPercent(budget.commission_percent);
-      setDiscountPercent(budget.discount_percent);
+      setDiscountValue((budget as any).discount_value ?? 0);
       // Use net_margin_percent from budget snapshot (with fallback for old budgets)
       const storedNetMargin = (budget as any).net_margin_percent ?? financialSettings?.net_margin_percent ?? 0;
       setNetMarginPercent(storedNetMargin);
@@ -198,7 +198,7 @@ export default function BudgetForm() {
       taxesPercent,
       commissionPercent,
       netMarginPercent,
-      discountPercent,
+      discountValue,
       notes: values.notes,
       roles,
       materials,
@@ -389,10 +389,10 @@ export default function BudgetForm() {
                   maxCommissionPercent={maxCommissionPercent}
                   netMarginPercent={netMarginPercent}
                   minNetMarginPercent={minNetMarginPercent}
-                  discountPercent={discountPercent}
+                  discountValue={discountValue}
                   onCommissionChange={(val) => setCommissionPercent(Math.max(0, Math.min(val, maxCommissionPercent)))}
-                  onNetMarginChange={(val) => setNetMarginPercent(Math.max(minNetMarginPercent, Math.min(val, 100)))}
-                  onDiscountChange={setDiscountPercent}
+                  onNetMarginChange={setNetMarginPercent}
+                  onDiscountChange={setDiscountValue}
                 />
               </div>
             </div>

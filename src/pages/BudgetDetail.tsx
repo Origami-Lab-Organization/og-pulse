@@ -65,7 +65,7 @@ export default function BudgetDetail() {
       budget.taxes_percent,
       budget.commission_percent,
       (budget as any).net_margin_percent ?? 0, // Use stored net_margin_percent from budget
-      budget.discount_percent
+      (budget as any).discount_value ?? 0
     );
   }, [budget]);
 
@@ -413,9 +413,9 @@ export default function BudgetDetail() {
                 <span className="font-medium">Preço de Venda</span>
                 <span className="font-medium">{formatCurrency(calculation?.sellingPrice || 0)}</span>
               </div>
-              {budget.discount_percent > 0 && (
+              {(calculation?.discount ?? 0) > 0 && (
                 <div className="flex justify-between text-destructive">
-                  <span>Desconto ({budget.discount_percent}%)</span>
+                  <span>Desconto</span>
                   <span>-{formatCurrency(calculation?.discount || 0)}</span>
                 </div>
               )}
