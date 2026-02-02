@@ -86,11 +86,11 @@ export const useEmployees = () => {
   });
 };
 
-// Hook to get only project managers (employees with systemRole = 'manager')
+// Hook to get project managers (employees with manager or admin role)
 export const useProjectManagers = () => {
   const { data: employees = [], ...rest } = useEmployees();
   
-  const managers = employees.filter((e) => e.systemRole === 'manager');
+  const managers = employees.filter((e) => e.systemRole === 'manager' || e.systemRole === 'admin');
   
   return {
     ...rest,
