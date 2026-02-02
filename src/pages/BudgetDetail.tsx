@@ -8,9 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
-  ArrowLeft, 
   Edit, 
-  Copy, 
   Calendar, 
   Building2, 
   User, 
@@ -22,7 +20,7 @@ import {
   Package,
   Truck
 } from 'lucide-react';
-import { useBudget, useDuplicateBudget } from '@/hooks/useBudgets';
+import { useBudget } from '@/hooks/useBudgets';
 import { BudgetStatusBadge } from '@/components/budgets/BudgetStatusBadge';
 import { BudgetHoursChart } from '@/components/budgets/BudgetHoursChart';
 import { BudgetCostBreakdownChart } from '@/components/budgets/BudgetCostBreakdownChart';
@@ -33,7 +31,6 @@ export default function BudgetDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: budget, isLoading } = useBudget(id || null);
-  const duplicateMutation = useDuplicateBudget();
 
   const calculation = useMemo(() => {
     if (!budget) return null;
@@ -76,11 +73,6 @@ export default function BudgetDetail() {
     );
   }, [budget]);
 
-  const handleDuplicate = () => {
-    if (id) {
-      duplicateMutation.mutate(id, { onSuccess: () => navigate('/budgets') });
-    }
-  };
 
   if (isLoading || !budget) {
     return (
@@ -104,20 +96,10 @@ export default function BudgetDetail() {
         { label: budget.budget_number },
       ]}
       actions={
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/budgets')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
-          </Button>
-          <Button variant="outline" onClick={handleDuplicate} disabled={duplicateMutation.isPending}>
-            <Copy className="mr-2 h-4 w-4" />
-            Duplicar
-          </Button>
-          <Button onClick={() => navigate(`/budgets/${id}/edit`)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </Button>
-        </div>
+        <Button onClick={() => navigate(`/budgets/${id}/edit`)}>
+          <Edit className="mr-2 h-4 w-4" />
+          Editar
+        </Button>
       }
     >
       <div className="space-y-6">
