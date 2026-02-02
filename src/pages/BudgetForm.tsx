@@ -171,6 +171,8 @@ export default function BudgetForm() {
     }
   }, [budget, financialSettings]);
 
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
   const handleSubmit = (values: FormValues) => {
     // PROTEÇÃO 1: Bloquear se já estiver submetendo
     if (isSubmitting) {
@@ -209,8 +211,6 @@ export default function BudgetForm() {
       createMutation.mutate(input, { onSuccess: () => navigate('/budgets') });
     }
   };
-
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const validateCurrentStep = async (): Promise<boolean> => {
     if (currentStep === 1) {
@@ -419,7 +419,7 @@ export default function BudgetForm() {
       }
     >
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
           {isEditing ? (
             // Editing mode: Use tabs
             <Tabs defaultValue="basic" className="w-full">
@@ -504,7 +504,7 @@ export default function BudgetForm() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     <Save className="mr-2 h-4 w-4" />
                     Criar Orçamento
@@ -520,7 +520,7 @@ export default function BudgetForm() {
               <Button type="button" variant="outline" onClick={() => navigate('/budgets')}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Save className="mr-2 h-4 w-4" />
                 Salvar
