@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { EmployeeTool, CreateEmployeeToolInput, EmployeeBenefit, CreateEmployeeBenefitInput, ContractType } from '@/types/employee';
+import { EmployeeTool, CreateEmployeeToolInput, EmployeeBenefit, CreateEmployeeBenefitInput, ContractType, SystemRole } from '@/types/employee';
 import { employeeVersionService } from './employeeVersionService';
 import { CostBreakdown } from '@/lib/employeeCostCalculator';
 import { Json } from '@/integrations/supabase/types';
@@ -13,6 +13,7 @@ export interface EmployeeDB {
   cpf: string;
   data_admissao: string;
   is_gerente: boolean;
+  system_role: string;
   status: string;
   salario_mensal: number;
   beneficios: number;
@@ -53,6 +54,7 @@ export interface CreateEmployeeInput {
   cpf: string;
   dataAdmissao: string;
   isGerente: boolean;
+  systemRole: SystemRole;
   status: string;
   salarioMensal: number;
   beneficios: number;
@@ -152,6 +154,7 @@ export const employeeService = {
     if (updates.cpf !== undefined) dbUpdates.cpf = updates.cpf;
     if (updates.dataAdmissao !== undefined) dbUpdates.data_admissao = updates.dataAdmissao;
     if (updates.isGerente !== undefined) dbUpdates.is_gerente = updates.isGerente;
+    if (updates.systemRole !== undefined) dbUpdates.system_role = updates.systemRole;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
     if (updates.salarioMensal !== undefined) dbUpdates.salario_mensal = updates.salarioMensal;
     if (updates.beneficios !== undefined) dbUpdates.beneficios = updates.beneficios;

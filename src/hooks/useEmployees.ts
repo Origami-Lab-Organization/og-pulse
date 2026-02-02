@@ -3,7 +3,7 @@ import { employeeService, CreateEmployeeInput, EmployeeDB } from '@/services/emp
 import { employeeVersionService, EmployeeVersionDB } from '@/services/employeeVersionService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CreateEmployeeToolInput, CreateEmployeeBenefitInput, ContractType } from '@/types/employee';
+import { CreateEmployeeToolInput, CreateEmployeeBenefitInput, ContractType, SystemRole } from '@/types/employee';
 import { CostBreakdown } from '@/lib/employeeCostCalculator';
 
 // Type for employee with tools and benefits from DB
@@ -33,6 +33,7 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     cpf: db.cpf || '',
     dataAdmissao: db.data_admissao,
     isGerente: db.is_gerente,
+    systemRole: (db.system_role || 'user') as SystemRole,
     status: db.status as 'ativo' | 'aguardando_confirmacao' | 'bloqueado' | 'arquivado',
     salarioMensal: Number(db.salario_mensal),
     beneficios: Number(db.beneficios),
@@ -83,6 +84,18 @@ export const useEmployees = () => {
     },
     enabled: !!tenantId,
   });
+};
+
+// Hook to get only project managers (employees with systemRole = 'manager')
+export const useProjectManagers = () => {
+  const { data: employees = [], ...rest } = useEmployees();
+  
+  const managers = employees.filter((e) => e.systemRole === 'manager');
+  
+  return {
+    ...rest,
+    data: managers,
+  };
 };
 
 export const useSearchEmployees = (query: string) => {
