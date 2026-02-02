@@ -45,10 +45,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const WIZARD_STEPS = [
   { id: 1, title: 'Dados Básicos' },
-  { id: 2, title: 'Mão de Obra' },
-  { id: 3, title: 'Fornecedores' },
-  { id: 4, title: 'Materiais' },
-  { id: 5, title: 'Resumo' },
+  { id: 2, title: 'Composição' },
 ];
 
 export default function BudgetForm() {
@@ -340,47 +337,54 @@ export default function BudgetForm() {
         );
       case 2:
         return (
-          <Card>
-            <CardContent className="pt-6">
-              <BudgetRolesEditor
-                roles={roles}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Coluna principal: Seções de custos */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Mão de Obra */}
+              <Card>
+                <CardContent className="pt-6">
+                  <BudgetRolesEditor
+                    roles={roles}
+                    durationMonths={durationMonths}
+                    availableRoles={roleRates}
+                    onRolesChange={setRoles}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Fornecedores */}
+              <BudgetSuppliersEditor
+                suppliers={suppliers}
                 durationMonths={durationMonths}
-                availableRoles={roleRates}
-                onRolesChange={setRoles}
+                onSuppliersChange={setSuppliers}
               />
-            </CardContent>
-          </Card>
-        );
-      case 3:
-        return (
-          <BudgetSuppliersEditor
-            suppliers={suppliers}
-            durationMonths={durationMonths}
-            onSuppliersChange={setSuppliers}
-          />
-        );
-      case 4:
-        return (
-          <BudgetMaterialsEditor
-            materials={materials}
-            onMaterialsChange={setMaterials}
-          />
-        );
-      case 5:
-        return (
-          <BudgetFinancialSummary
-            calculation={calculation}
-            adminExpensesPercent={adminExpensesPercent}
-            taxesPercent={taxesPercent}
-            commissionPercent={commissionPercent}
-            maxCommissionPercent={maxCommissionPercent}
-            netMarginPercent={netMarginPercent}
-            minNetMarginPercent={minNetMarginPercent}
-            discountPercent={discountPercent}
-            onCommissionChange={(val) => setCommissionPercent(Math.max(0, Math.min(val, maxCommissionPercent)))}
-            onNetMarginChange={(val) => setNetMarginPercent(Math.max(minNetMarginPercent, Math.min(val, 100)))}
-            onDiscountChange={setDiscountPercent}
-          />
+
+              {/* Materiais */}
+              <BudgetMaterialsEditor
+                materials={materials}
+                onMaterialsChange={setMaterials}
+              />
+            </div>
+
+            {/* Coluna lateral: Resumo sempre visível */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-6">
+                <BudgetFinancialSummary
+                  calculation={calculation}
+                  adminExpensesPercent={adminExpensesPercent}
+                  taxesPercent={taxesPercent}
+                  commissionPercent={commissionPercent}
+                  maxCommissionPercent={maxCommissionPercent}
+                  netMarginPercent={netMarginPercent}
+                  minNetMarginPercent={minNetMarginPercent}
+                  discountPercent={discountPercent}
+                  onCommissionChange={(val) => setCommissionPercent(Math.max(0, Math.min(val, maxCommissionPercent)))}
+                  onNetMarginChange={(val) => setNetMarginPercent(Math.max(minNetMarginPercent, Math.min(val, 100)))}
+                  onDiscountChange={setDiscountPercent}
+                />
+              </div>
+            </div>
+          </div>
         );
       default:
         return null;
