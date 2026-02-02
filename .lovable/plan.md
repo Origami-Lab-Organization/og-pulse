@@ -1,135 +1,73 @@
 
 
-# Plano: Ajustes Finais na Navegação do Orçamento
+# Plano: Corrigir Rodape Fixo para Nao Sobrepor Menu Lateral
 
-## Problemas Identificados
+## Problema Identificado
 
-1. **Botão "Voltar" no topo desnecessário**: Atualmente existe um botão "Voltar" no header (linha 566-571) que deve ser removido.
+O rodape fixo com os botoes de navegacao esta usando `left-0`, fazendo com que ele comece da borda esquerda da tela e sobreponha o menu lateral (sidebar).
 
-2. **Botões de navegação não fixos**: Os botões "Anterior/Cancelar" e "Próximo/Salvar" estão dentro do fluxo do conteúdo e não fixos no rodapé.
-
-3. **Scroll não reseta ao mudar de etapa**: Quando o usuário muda de etapa, o scroll permanece na posição anterior.
-
-## Alterações Propostas
-
-### 1. Remover botão "Voltar" do header
-
-Na linha 566-571, remover o prop `actions` do `AppLayout`:
+### Codigo Atual (linha 638 do BudgetForm.tsx)
 
 ```tsx
-// De:
-<AppLayout
-  title={...}
-  description={...}
-  breadcrumbs={...}
-  actions={
-    <Button variant="outline" onClick={() => navigate('/budgets')}>
-      <ArrowLeft className="mr-2 h-4 w-4" />
-      Voltar
-    </Button>
-  }
->
-
-// Para:
-<AppLayout
-  title={...}
-  description={...}
-  breadcrumbs={...}
->
+<div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur ...">
 ```
 
-### 2. Scroll para o topo ao mudar de etapa
+## Analise da Estrutura
 
-Adicionar `window.scrollTo(0, 0)` nas funções `handleNext` e `handlePrevious`:
+A sidebar usa CSS custom properties:
+- `--sidebar-width: 16rem` (256px) quando expandida
+- `--sidebar-width-icon: 3rem` (48px) quando colapsada
 
-```tsx
-const handleNext = async () => {
-  const isValid = await validateCurrentStep();
-  if (isValid && currentStep < WIZARD_STEPS.length) {
-    setCurrentStep(currentStep + 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-};
+O componente `SidebarInset` eh onde o conteudo principal eh renderizado, e ele fica ao lado da sidebar automaticamente. Entretanto, elementos `fixed` saem do fluxo do documento e nao respeitam essa estrutura.
 
-const handlePrevious = () => {
-  if (currentStep > 1) {
-    setCurrentStep(currentStep - 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-};
-```
+## Solucao
 
-### 3. Botões fixos no rodapé
+Em vez de usar `fixed`, a melhor abordagem eh usar `sticky` no rodape, que mantém o elemento posicionado na parte inferior da tela mas dentro do fluxo do container pai (que ja respeita a sidebar).
 
-Reestruturar o layout para ter um rodapé fixo. Alterar a estrutura do wizard (linhas 646-670):
+### Mudanca 1 - Alterar estrutura do layout do formulário
+
+Envolver o conteúdo em uma estrutura flex que permita o footer sticky funcionar corretamente:
 
 ```tsx
-{/* Wizard navigation - fixed footer */}
-<div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-4 ml-[var(--sidebar-width,0px)]">
-  <div className="max-w-5xl mx-auto flex justify-between gap-2">
-    {currentStep === 1 ? (
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => navigate('/budgets')}
-      >
-        Cancelar
-      </Button>
-    ) : (
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handlePrevious}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Anterior
-      </Button>
-    )}
+{/* Wizard content */}
+<div className="flex flex-col min-h-[calc(100vh-200px)]">
+  {/* Current step content */}
+  <div className="flex-1 mt-6">
+    {renderStepContent(currentStep)}
+  </div>
 
-    {currentStep < WIZARD_STEPS.length ? (
-      <Button type="button" onClick={handleNext}>
-        Próximo
-        <ArrowRight className="ml-2 h-4 w-4" />
-      </Button>
-    ) : (
-      <Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
-        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        <Save className="mr-2 h-4 w-4" />
-        Criar Orçamento
-      </Button>
-    )}
+  {/* Wizard navigation - sticky footer */}
+  <div className="sticky bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-4 -mx-6 mt-6">
+    ...
   </div>
 </div>
 ```
 
-### 4. Adicionar padding inferior no conteúdo
+A abordagem com `sticky` eh preferivel porque:
+1. O elemento fica dentro do fluxo do documento
+2. Respeita automaticamente os limites do container pai
+3. Nao precisa de calculo de largura da sidebar
+4. Funciona corretamente quando a sidebar esta expandida ou colapsada
 
-Para compensar o rodapé fixo, adicionar espaço no final do conteúdo:
+### Mudanca 2 - Remover padding bottom extra
+
+Como o sticky esta dentro do fluxo, nao precisamos mais do `pb-24`:
 
 ```tsx
-{/* Current step content */}
+// De:
 <div className="mt-6 pb-24">
-  {renderStepContent(currentStep)}
-</div>
+
+// Para:
+<div className="flex-1 mt-6">
 ```
 
-## Resumo das Mudanças
+## Resumo das Alteracoes
 
-| Local | Alteração |
-|-------|-----------|
-| Linha 566-571 | Remover prop `actions` do AppLayout |
-| Função `handleNext` (linha 226-231) | Adicionar scroll to top |
-| Função `handlePrevious` (linha 233-237) | Adicionar scroll to top |
-| Linha 642-644 | Adicionar `pb-24` para padding inferior |
-| Linha 646-670 | Reestruturar navegação com rodapé fixo e lógica Cancelar/Anterior |
-
-## Comportamento Esperado
-
-| Etapa | Botão Esquerdo | Botão Direito |
-|-------|----------------|---------------|
-| 1 | Cancelar → vai para /budgets | Próximo |
-| 2 | Anterior | Próximo |
-| 3 | Anterior | Criar Orçamento |
+| Local | De | Para |
+|-------|-----|------|
+| Linha 637-638 | `<div className="mt-6 pb-24">` | `<div className="flex flex-col min-h-[calc(100vh-200px)]"><div className="flex-1 mt-6">` |
+| Linha 642 | `fixed bottom-0 left-0 right-0 z-50` | `sticky bottom-0 z-40 -mx-6 mt-6` |
+| Apos conteudo | - | Fechar div wrapper |
 
 ## Arquivo a Modificar
 
