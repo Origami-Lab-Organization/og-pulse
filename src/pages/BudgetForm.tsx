@@ -26,6 +26,7 @@ import { useClients } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets';
+import { useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
@@ -55,6 +56,8 @@ export default function BudgetForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditing = !!id;
+  const { state: sidebarState } = useSidebar();
+  const isCollapsed = sidebarState === 'collapsed';
 
   const { data: budget, isLoading: budgetLoading } = useBudget(id || null);
   const { data: clients = [] } = useClients();
@@ -634,48 +637,50 @@ export default function BudgetForm() {
                 ))}
               </div>
 
-              {/* Wizard content with sticky footer */}
-              <div className="flex flex-col min-h-[calc(100vh-200px)]">
-                {/* Current step content */}
-                <div className="flex-1 mt-6">
-                  {renderStepContent(currentStep)}
-                </div>
+              {/* Current step content */}
+              <div className="mt-6 pb-16">
+                {renderStepContent(currentStep)}
+              </div>
 
-                {/* Wizard navigation - sticky footer */}
-                <div className="sticky bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-4 -mx-6 mt-6">
-                  <div className="max-w-5xl mx-auto flex justify-between gap-2">
-                    {currentStep === 1 ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => navigate('/budgets')}
-                      >
-                        Cancelar
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handlePrevious}
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Anterior
-                      </Button>
-                    )}
+              {/* Wizard navigation - fixed footer */}
+              <div 
+                className={cn(
+                  "fixed bottom-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 transition-[left] duration-200 ease-linear",
+                  isCollapsed ? "left-[3rem]" : "left-[16rem]"
+                )}
+              >
+                <div className="max-w-5xl mx-auto flex justify-between gap-2">
+                  {currentStep === 1 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/budgets')}
+                    >
+                      Cancelar
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handlePrevious}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Anterior
+                    </Button>
+                  )}
 
-                    {currentStep < WIZARD_STEPS.length ? (
-                      <Button type="button" onClick={handleNext}>
-                        Próximo
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        <Save className="mr-2 h-4 w-4" />
-                        Criar Orçamento
-                      </Button>
-                    )}
-                  </div>
+                  {currentStep < WIZARD_STEPS.length ? (
+                    <Button type="button" onClick={handleNext}>
+                      Próximo
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Save className="mr-2 h-4 w-4" />
+                      Criar Orçamento
+                    </Button>
+                  )}
                 </div>
               </div>
             </>
