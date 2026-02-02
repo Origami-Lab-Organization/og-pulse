@@ -1,81 +1,85 @@
 
 
-# Plano: Padronizar Visual do Editor de Mão de Obra
+# Plano: Corrigir Alinhamento dos Campos de Horas
 
-## Problemas Identificados
+## Problema Identificado
 
-1. **Título com estilo diferente**: O componente `BudgetRolesEditor` usa `<h3 className="text-lg font-medium">` enquanto `BudgetSuppliersEditor` e `BudgetMaterialsEditor` usam `<CardTitle>` com ícone.
+Na tabela de Mao de Obra, os campos de input para horas de cada mes estao desalinhados em relacao aos cabecalhos "Mes 1", "Mes 2", etc.
 
-2. **Botão com estilo diferente**: O botão "Adicionar Papel" usa `variant="outline"` (borda) enquanto os outros usam o variant padrão (fundo verde/primary).
+### Causa Raiz
 
-3. **Texto do botão**: O botão diz "Adicionar Papel" mas deveria dizer "Adicionar Mão de Obra" para manter consistência.
-
-## Alterações Necessárias
-
-### Arquivo: `src/components/budgets/BudgetRolesEditor.tsx`
-
-#### Mudança 1 - Importar ícone (linha 2)
+O `TableCell` que contem o input usa apenas `className="p-1"`, sem nenhum mecanismo de centralizacao. O input tem largura fixa `w-20` (80px), mas nao esta centralizado dentro da celula.
 
 ```tsx
-// De:
-import { Plus, Trash2 } from 'lucide-react';
-
-// Para:
-import { Plus, Trash2, Users } from 'lucide-react';
+// Codigo atual (linha 189)
+<TableCell key={m} className="p-1">
+  <Input ... className="h-8 w-20 text-center ..." />
+</TableCell>
 ```
 
-#### Mudança 2 - Atualizar título e botão (linhas 129-135)
+### Comparacao com Cabecalho
+
+O cabecalho usa `text-center`:
+```tsx
+<TableHead key={m} className="min-w-[80px] text-center">
+  Mes {m}
+</TableHead>
+```
+
+## Solucao
+
+Adicionar centralizacao no `TableCell` usando flexbox para garantir que o input fique centralizado:
 
 ```tsx
-// De:
-<div className="flex items-center justify-between">
-  <h3 className="text-lg font-medium">Mão de Obra</h3>
-  <Button type="button" variant="outline" size="sm" onClick={handleAddRole}>
-    <Plus className="mr-2 h-4 w-4" />
-    Adicionar Papel
-  </Button>
-</div>
-
-// Para:
-<div className="flex items-center justify-between">
-  <h3 className="text-2xl font-semibold leading-none tracking-tight flex items-center gap-2">
-    <Users className="h-5 w-5" />
-    Mão de Obra
-  </h3>
-  <Button type="button" size="sm" onClick={handleAddRole}>
-    <Plus className="mr-2 h-4 w-4" />
-    Adicionar Mão de Obra
-  </Button>
-</div>
+// Corrigido
+<TableCell key={m} className="p-1">
+  <div className="flex justify-center">
+    <Input ... className="h-8 w-20 text-center ..." />
+  </div>
+</TableCell>
 ```
 
-O estilo `text-2xl font-semibold leading-none tracking-tight` corresponde exatamente ao estilo do `CardTitle` do shadcn/ui, garantindo consistência visual.
-
-#### Mudança 3 - Atualizar texto do estado vazio (linhas 139-140)
+Ou alternativamente, usar classes de alinhamento diretamente na celula:
 
 ```tsx
-// De:
-<p className="text-muted-foreground">
-  Nenhum papel alocado. Clique em "Adicionar Papel" para começar.
-</p>
-
-// Para:
-<p className="text-muted-foreground">
-  Nenhum profissional alocado. Clique em "Adicionar Mão de Obra" para começar.
-</p>
+<TableCell key={m} className="p-1 text-center">
+  <Input ... className="h-8 w-20 text-center mx-auto ..." />
+</TableCell>
 ```
-
-## Resultado Esperado
-
-| Elemento | Antes | Depois |
-|----------|-------|--------|
-| Título | `text-lg font-medium` sem ícone | `text-2xl font-semibold` com ícone Users |
-| Botão | `variant="outline"` (borda) | `variant="default"` (fundo verde) |
-| Texto do botão | "Adicionar Papel" | "Adicionar Mão de Obra" |
 
 ## Arquivo a Modificar
 
-| Arquivo | Alteração |
+| Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/budgets/BudgetRolesEditor.tsx` | Atualizar estilo do título, adicionar ícone, remover variant do botão, renomear texto |
+| `src/components/budgets/BudgetRolesEditor.tsx` | Adicionar centralizacao no TableCell dos inputs de horas (linha 189) |
+
+## Alteracao Tecnica
+
+Na linha 189, mudar de:
+
+```tsx
+<TableCell key={m} className="p-1">
+  <Input
+    type="number"
+    min={0}
+    className="h-8 w-20 text-center [appearance:textfield] ..."
+```
+
+Para:
+
+```tsx
+<TableCell key={m} className="p-1 text-center">
+  <Input
+    type="number"
+    min={0}
+    className="h-8 w-20 text-center mx-auto [appearance:textfield] ..."
+```
+
+A adicao de `text-center` na celula e `mx-auto` no input garantira que o campo fique perfeitamente centralizado abaixo do cabecalho "Mes X".
+
+## Resultado Visual Esperado
+
+| Antes | Depois |
+|-------|--------|
+| Input alinhado a esquerda da celula | Input centralizado sob o cabecalho |
 
