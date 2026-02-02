@@ -227,12 +227,14 @@ export default function BudgetForm() {
     const isValid = await validateCurrentStep();
     if (isValid && currentStep < WIZARD_STEPS.length) {
       setCurrentStep(currentStep + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handlePrevious = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -563,12 +565,6 @@ export default function BudgetForm() {
         { label: 'Orçamentos', href: '/budgets' },
         { label: isEditing ? 'Editar' : 'Novo' },
       ]}
-      actions={
-        <Button variant="outline" onClick={() => navigate('/budgets')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar
-        </Button>
-      }
     >
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
@@ -639,34 +635,45 @@ export default function BudgetForm() {
               </div>
 
               {/* Current step content */}
-              <div className="mt-6">
+              <div className="mt-6 pb-24">
                 {renderStepContent(currentStep)}
               </div>
 
-              {/* Wizard navigation */}
-              <div className="flex justify-between gap-2 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handlePrevious}
-                  disabled={currentStep === 1}
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Anterior
-                </Button>
+              {/* Wizard navigation - fixed footer */}
+              <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-4">
+                <div className="max-w-5xl mx-auto flex justify-between gap-2">
+                  {currentStep === 1 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/budgets')}
+                    >
+                      Cancelar
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handlePrevious}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Anterior
+                    </Button>
+                  )}
 
-                {currentStep < WIZARD_STEPS.length ? (
-                  <Button type="button" onClick={handleNext}>
-                    Próximo
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Save className="mr-2 h-4 w-4" />
-                    Criar Orçamento
-                  </Button>
-                )}
+                  {currentStep < WIZARD_STEPS.length ? (
+                    <Button type="button" onClick={handleNext}>
+                      Próximo
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Save className="mr-2 h-4 w-4" />
+                      Criar Orçamento
+                    </Button>
+                  )}
+                </div>
               </div>
             </>
           )}
