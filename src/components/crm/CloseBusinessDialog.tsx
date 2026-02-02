@@ -63,12 +63,11 @@ export function CloseBusinessDialog({
 }: CloseBusinessDialogProps) {
   const { data: employees = [] } = useEmployees();
 
-  // Filter managers - employees who are managers or have manager role
+  // Filter managers - employees who have manager role
   const managers = useMemo(() => {
-    const managerList = employees.filter(
-      (e) => e.isGerente || e.cargo.toLowerCase().includes('gerente')
-    );
-    return managerList.length > 0 ? managerList : employees;
+    const managerList = employees.filter((e) => e.systemRole === 'manager');
+    // If no managers found, show empty list (user needs to assign manager role first)
+    return managerList;
   }, [employees]);
 
   const form = useForm<CloseBusinessFormValues>({
@@ -176,11 +175,19 @@ export function CloseBusinessDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {managers.map((emp) => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          {emp.nome}
-                        </SelectItem>
-                      ))}
+                      {managers.length > 0 ? (
+                        managers.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.nome}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="p-2 text-sm text-muted-foreground text-center">
+                          Nenhum gerente de projetos cadastrado.
+                          <br />
+                          Atribua o perfil "Gerente de Projetos" a um funcionário.
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

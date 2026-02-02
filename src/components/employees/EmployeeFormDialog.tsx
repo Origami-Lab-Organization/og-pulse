@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Employee, useEmployeeVersions } from '@/hooks/useEmployees';
 import { CreateEmployeeInput } from '@/services/employeeService';
-import { ContractType, CONTRACT_TYPE_LABELS } from '@/types/employee';
+import { ContractType, CONTRACT_TYPE_LABELS, SystemRole, SYSTEM_ROLE_LABELS, SYSTEM_ROLE_DESCRIPTIONS } from '@/types/employee';
 import { usePayrollProfile } from '@/hooks/usePayrollProfile';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,6 +75,7 @@ const baseFormSchema = z.object({
   dataNascimento: z.string().min(1, 'Data de nascimento é obrigatória'),
   fotoUrl: z.string().optional(),
   isGerente: z.boolean(),
+  systemRole: z.enum(['admin', 'manager', 'user'] as const),
   status: z.enum(['ativo', 'aguardando_confirmacao', 'bloqueado', 'arquivado']),
   tipoContratacao: z.enum(['SOCIO', 'CLT', 'PJ', 'MENOR_APRENDIZ', 'ESTAGIO'] as const),
   jornadaMensal: z.number().min(1, 'Jornada deve ser maior que 0'),
@@ -193,7 +194,8 @@ const EmployeeFormDialog = ({
       dataNascimento: '',
       fotoUrl: '',
       isGerente: false,
-        status: 'aguardando_confirmacao',
+      systemRole: 'user',
+      status: 'aguardando_confirmacao',
       tipoContratacao: 'CLT',
       jornadaMensal: 168,
       salarioMensal: 0,
@@ -290,6 +292,7 @@ const EmployeeFormDialog = ({
         dataNascimento: employee.dataNascimento || '',
         fotoUrl: employee.fotoUrl || '',
         isGerente: employee.isGerente,
+        systemRole: employee.systemRole || 'user',
         status: employee.status,
         tipoContratacao: employee.tipoContratacao || 'CLT',
         jornadaMensal: employee.jornadaMensal || 168,
@@ -328,6 +331,7 @@ const EmployeeFormDialog = ({
         dataNascimento: '',
         fotoUrl: '',
         isGerente: false,
+        systemRole: 'user',
         status: 'aguardando_confirmacao',
         tipoContratacao: 'CLT',
         jornadaMensal: 168,
@@ -470,7 +474,7 @@ const EmployeeFormDialog = ({
 
   const validateCurrentStep = async () => {
     if (currentStep === 0) {
-      return await form.trigger(['nome', 'email', 'telefone', 'cpf', 'cargo', 'dataAdmissao', 'dataNascimento', 'status', 'isGerente']);
+      return await form.trigger(['nome', 'email', 'telefone', 'cpf', 'cargo', 'dataAdmissao', 'dataNascimento', 'status', 'systemRole']);
     }
     if (currentStep === 1) {
       // Validate based on contract type
@@ -763,18 +767,30 @@ const EmployeeFormDialog = ({
 
         <FormField
           control={form.control}
-          name="isGerente"
+          name="systemRole"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <FormLabel>Administrador?</FormLabel>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
+            <FormItem>
+              <FormLabel>Perfil no Sistema *</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o perfil" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {(Object.keys(SYSTEM_ROLE_LABELS) as SystemRole[]).map((role) => (
+                    <SelectItem key={role} value={role}>
+                      <div className="flex flex-col">
+                        <span>{SYSTEM_ROLE_LABELS[role]}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {SYSTEM_ROLE_DESCRIPTIONS[role]}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
             </FormItem>
           )}
         />

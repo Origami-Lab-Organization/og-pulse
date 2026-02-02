@@ -19,6 +19,7 @@ interface CreateEmployeeRequest {
   cpf: string;
   dataAdmissao: string;
   isGerente: boolean;
+  systemRole: 'admin' | 'manager' | 'user';
   status: string;
   salarioMensal: number;
   beneficios: number;
@@ -118,6 +119,7 @@ const handler = async (req: Request): Promise<Response> => {
       cpf,
       dataAdmissao,
       isGerente,
+      systemRole,
       status,
       salarioMensal,
       beneficios,
@@ -241,6 +243,7 @@ const handler = async (req: Request): Promise<Response> => {
         is_gerente: isGerente,
         status: 'aguardando_confirmacao', // Always start as pending until first login
         salario_mensal: salarioMensal,
+        system_role: systemRole || 'user',
         beneficios,
         encargos,
         tipo_contratacao: tipoContratacao || 'CLT',
@@ -285,13 +288,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Employee created:", employee.id);
 
-    // Create user role for this tenant
+    // Create user role for this tenant based on systemRole
     const { error: roleError } = await adminClient
       .from('user_roles')
       .insert({
         user_id: authUserId,
         tenant_id: tenantId,
-        role: isGerente ? 'admin' : 'user',
+        role: systemRole || 'user', // Use systemRole directly
       });
 
     if (roleError) {

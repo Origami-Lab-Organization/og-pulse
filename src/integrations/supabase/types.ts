@@ -555,6 +555,7 @@ export type Database = {
           salario_liquido: number
           salario_mensal: number
           status: string
+          system_role: string
           telefone: string
           temp_password: string | null
           tenant_id: string
@@ -594,6 +595,7 @@ export type Database = {
           salario_liquido?: number
           salario_mensal?: number
           status?: string
+          system_role?: string
           telefone: string
           temp_password?: string | null
           tenant_id: string
@@ -633,6 +635,7 @@ export type Database = {
           salario_liquido?: number
           salario_mensal?: number
           status?: string
+          system_role?: string
           telefone?: string
           temp_password?: string | null
           tenant_id?: string

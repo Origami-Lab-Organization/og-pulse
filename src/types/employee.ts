@@ -17,6 +17,20 @@ export const EMPLOYEE_STATUS_LABELS: Record<EmployeeStatus, string> = {
   arquivado: 'Arquivado',
 };
 
+export type SystemRole = 'admin' | 'manager' | 'user';
+
+export const SYSTEM_ROLE_LABELS: Record<SystemRole, string> = {
+  admin: 'Administrador',
+  manager: 'Gerente de Projetos',
+  user: 'Usuário',
+};
+
+export const SYSTEM_ROLE_DESCRIPTIONS: Record<SystemRole, string> = {
+  admin: 'Acesso total ao sistema, gerencia usuários e configurações',
+  manager: 'Pode gerenciar projetos, não tem acesso a configurações',
+  user: 'Acesso básico, apenas visualização e funções limitadas',
+};
+
 export interface Employee {
   id: string;
   nome: string;
@@ -26,6 +40,7 @@ export interface Employee {
   cpf: string;
   dataAdmissao: string;
   isGerente: boolean;
+  systemRole: SystemRole;
   status: 'ativo' | 'inativo' | 'aguardando_confirmacao';
   salarioMensal: number;
   beneficios: number;
