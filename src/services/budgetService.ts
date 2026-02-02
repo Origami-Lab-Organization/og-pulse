@@ -407,9 +407,17 @@ export const budgetService = {
     return createdBudget;
   },
 
-  async update(id: string, input: UpdateBudgetInput): Promise<BudgetDB> {
+  async update(id: string, input: UpdateBudgetInput, createdBy?: string | null): Promise<BudgetDB> {
     // First get the existing budget to get duration_months for calculation
+    // and to create a version snapshot before updating
     const existing = await this.getById(id);
+    
+    // Import version service dynamically to avoid circular dependency
+    if (existing) {
+      const { budgetVersionService } = await import('./budgetVersionService');
+      await budgetVersionService.createVersion(existing, createdBy || null);
+    }
+    
     const durationMonths = input.durationMonths ?? existing?.duration_months ?? 1;
 
     // If roles are being updated, recalculate totals

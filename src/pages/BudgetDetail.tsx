@@ -24,6 +24,7 @@ import { useBudget } from '@/hooks/useBudgets';
 import { BudgetStatusBadge } from '@/components/budgets/BudgetStatusBadge';
 import { BudgetHoursChart } from '@/components/budgets/BudgetHoursChart';
 import { BudgetCostBreakdownChart } from '@/components/budgets/BudgetCostBreakdownChart';
+import { BudgetVersionsSection } from '@/components/budgets/BudgetVersionsSection';
 import { formatCurrency, parseDateString } from '@/lib/formatters';
 import { calculateBudgetTotals } from '@/types/budget';
 
@@ -415,6 +416,9 @@ export default function BudgetDetail() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Version history */}
+        <BudgetVersionsSection budgetId={budget.id} />
 
         {/* Notes */}
         {budget.notes && (
