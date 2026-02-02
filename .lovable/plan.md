@@ -1,85 +1,62 @@
 
-# Plano: Exibir Datas de Validade do Orçamento
+# Plano: Renomear Seção "Datas" para "Validade"
 
 ## Problema Identificado
 
-Atualmente a tabela de orçamentos exibe apenas a "Duração" (em meses), mas não mostra as **datas de validade do orçamento** (`start_date` e `valid_until`) que foram preenchidas.
+Na página de detalhes do orçamento (`BudgetDetail.tsx`), a seção "Datas" ainda mostra:
+- **Título**: "Datas"
+- **Campo 1**: "Início do Projeto" (usando `start_date`)
+- **Campo 2**: "Válido até" (usando `valid_until`)
 
-Os dados estão salvos corretamente no banco de dados, mas não estão sendo exibidos na interface.
+Conforme o contexto comercial, essa seção deve exibir a **validade do orçamento**, não datas do projeto.
 
 ## Alterações Propostas
 
-### 1. Atualizar BudgetsTable.tsx
+### Arquivo: src/pages/BudgetDetail.tsx (linhas 183-208)
 
-Substituir a coluna "Duração" por "Validade" exibindo o período:
-
-**Antes:**
-| Número | Título | Cliente/Lead | Duração | Valor Final | Status | Criado em |
-
-**Depois:**
-| Número | Título | Cliente/Lead | Validade | Valor Final | Status | Criado em |
-
-Onde "Validade" exibirá: `01/10 - 30/10/2025` (formato resumido)
-
-### 2. Atualizar KanbanCard.tsx
-
-O card já exibe `valid_until`, mas pode mostrar o período completo no tooltip ou de forma mais clara.
-
-### 3. Atualizar Labels no Formulário (BudgetForm.tsx)
-
-Renomear os labels para deixar claro que são datas de validade do orçamento:
-
-| Campo Atual | Novo Label |
-|-------------|------------|
-| Data de Início | Válido de |
-| Duração (meses) | Duração do Projeto (meses) |
-| Válido até | Válido até |
+| Elemento Atual | Novo Valor |
+|----------------|------------|
+| Título da seção: "Datas" | **"Validade"** |
+| Label: "Início do Projeto" | **"Criação do Orçamento"** |
+| Label: "Válido até" | Manter como está |
 
 ## Detalhes Técnicos
 
-### Arquivo: src/components/budgets/BudgetsTable.tsx
+### Código Atual (linhas 183-208):
+```tsx
+<CardTitle className="flex items-center gap-2">
+  <Calendar className="h-5 w-5" />
+  Datas
+</CardTitle>
+...
+<p className="text-sm text-muted-foreground">Início do Projeto</p>
+```
+
+### Código Novo:
+```tsx
+<CardTitle className="flex items-center gap-2">
+  <Calendar className="h-5 w-5" />
+  Validade
+</CardTitle>
+...
+<p className="text-sm text-muted-foreground">Criação do Orçamento</p>
+```
+
+## Resultado Esperado
+
+A seção na página de detalhes do orçamento exibirá:
 
 ```text
-Linha 59: Alterar de "Duração" para "Validade"
-Linha 86: Substituir exibição de duration_months por formatação do período start_date - valid_until
+┌─────────────────────────────────────────┐
+│ 📅 Validade                             │
+├─────────────────────────────────────────┤
+│ Criação do Orçamento    Válido até      │
+│ 30 de setembro de 2025  29 de outubro   │
+└─────────────────────────────────────────┘
 ```
-
-**Código da nova célula:**
-```tsx
-<TableCell>
-  {budget.valid_until ? (
-    <span className="text-sm">
-      {formatShortDate(budget.start_date)} - {formatShortDate(budget.valid_until)}
-    </span>
-  ) : (
-    <span className="text-sm text-muted-foreground">
-      A partir de {formatShortDate(budget.start_date)}
-    </span>
-  )}
-</TableCell>
-```
-
-### Arquivo: src/components/crm/KanbanCard.tsx
-
-Manter exibição de `valid_until` como data final de validade, que já está implementada.
-
-### Arquivo: src/pages/BudgetForm.tsx
-
-Atualizar labels nos campos da Step 1:
-- Linha 333: "Válido de" ao invés de "Data de Início"
-- Linha 338: "Duração do Projeto (meses)" para clareza
-- Linha 345: Manter "Válido até"
 
 ## Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/budgets/BudgetsTable.tsx` | Trocar coluna Duração por Validade com período formatado |
-| `src/pages/BudgetForm.tsx` | Atualizar labels dos campos de data para clareza |
-| `src/lib/formatters.ts` | Verificar se `formatShortDate` já existe (opcional) |
-
-## Resultado Esperado
-
-Na tabela de orçamentos, ao invés de ver "2 meses", o usuário verá:
-- **Validade: 01/10 - 30/10** (formato curto)
-- Ou **Validade: 01 out - 30 out** (usando formatShortDate)
+| `src/pages/BudgetDetail.tsx` | Linha 187: "Datas" → "Validade", Linha 193: "Início do Projeto" → "Criação do Orçamento" |
