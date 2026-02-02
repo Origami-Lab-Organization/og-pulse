@@ -184,13 +184,13 @@ export default function BudgetDetail() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Datas
+                Validade
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Início do Projeto</p>
+                  <p className="text-sm text-muted-foreground">Criação do Orçamento</p>
                   <p className="font-medium">
                     {format(new Date(budget.start_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                   </p>
