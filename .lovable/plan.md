@@ -1,156 +1,185 @@
 
 
-# Plano Definitivo: Corrigir Bug de Duplicacao de Orcamentos
+# Plano: Ajustes no Formulario de Orcamentos
 
-## Problema Real Identificado
+## Problemas Identificados
 
-Apos analise detalhada do codigo, encontrei **DOIS BUGS CRITICOS**:
+### Problema 1: Margem Liquida Saltando para 100%
 
-### Bug 1: Ordem de Declaracao (Hoisting)
-```tsx
-// Linha 176 - USA a variavel
-if (isSubmitting) { ... }
-
-// Linha 213 - DECLARA a variavel (DEPOIS de usar!)
-const isSubmitting = createMutation.isPending || updateMutation.isPending;
-```
-
-A variavel `isSubmitting` e usada ANTES de ser declarada, entao a verificacao sempre ve `undefined` (falsy) e nao bloqueia nada.
-
-### Bug 2: Arquitetura do Form
-
-O `form.handleSubmit(handleSubmit)` esta no elemento `<form>`, e qualquer submissao do formulario (Enter em inputs, comportamento do navegador) chama a funcao `handleSubmit`. A protecao dentro da funcao nao e suficiente - precisamos **remover o onSubmit do form** e controlar manualmente.
-
-## Solucao Definitiva
-
-### Mudanca 1: Mover Declaracao de isSubmitting
-
-Mover a linha 213 para ANTES da funcao `handleSubmit` (apos linha 173):
+Ao analisar o codigo em `BudgetFinancialSummary.tsx` (linha 136-138):
 
 ```tsx
-// ANTES de handleSubmit
-const isSubmitting = createMutation.isPending || updateMutation.isPending;
-
-const handleSubmit = (values: FormValues) => {
-  // Agora isSubmitting esta definido
-  if (isSubmitting) return;
-  // ...
-};
+onChange={(e) => {
+  const value = parseFloat(e.target.value) || 0;
+  onNetMarginChange(Math.max(minNetMarginPercent, Math.min(value, 100)));
+}}
 ```
 
-### Mudanca 2: Remover onSubmit do Form
+O bug ocorre porque:
+1. Quando o usuario apaga o campo ou digita algo invalido, `parseFloat` retorna `NaN`
+2. `NaN || 0` vira `0`
+3. `Math.max(20, Math.min(0, 100))` = `Math.max(20, 0)` = `20` (correto)
+4. POREM, quando o usuario digita um numero como "2" (querendo digitar "25"), o valor vai imediatamente para `max(20, 2)` = `20`
 
-Trocar de:
-```tsx
-<form onSubmit={form.handleSubmit(handleSubmit)}>
-```
+O problema real e que o input nao permite digitacao intermediaria. O usuario precisa poder digitar valores livremente e a validacao deve ocorrer apenas no `onBlur`.
 
-Para:
-```tsx
-<form onSubmit={(e) => e.preventDefault()}>
-```
+### Problema 2: Desconto em Valor Absoluto (R$)
 
-### Mudanca 3: Chamar Submit Manualmente Apenas no Botao Final
+Atualmente o desconto e armazenado como percentual (`discount_percent`). Precisa ser alterado para valor em Reais.
 
-Modificar o botao "Criar Orcamento" (linha 507) para chamar o submit manualmente:
+**Impacto**:
+- Banco de dados: Renomear coluna `discount_percent` para `discount_value`
+- Tipos: Alterar `discountPercent` para `discountValue`
+- Calculo: `finalTotal = sellingPrice - discountValue` (valor direto)
+- Interface: Mostrar campo em R$ em vez de %
 
-```tsx
-<Button 
-  type="button"  // Mudar de "submit" para "button"
-  onClick={() => form.handleSubmit(handleSubmit)()}
-  disabled={isSubmitting}
->
-  Criar Orcamento
-</Button>
-```
+## Solucao
 
-E o botao "Salvar" no modo de edicao (linha 523):
+### Parte 1: Corrigir Input da Margem Liquida
+
+**Arquivos**: `BudgetFinancialSummary.tsx`
+
+Trocar a estrategia de validacao:
+- Permitir digitacao livre (sem clamp no onChange)
+- Validar e aplicar minimo apenas no `onBlur`
+- Mostrar feedback visual se valor estiver abaixo do minimo
 
 ```tsx
-<Button 
-  type="button"
-  onClick={() => form.handleSubmit(handleSubmit)()}
-  disabled={isSubmitting}
->
-  Salvar
-</Button>
+// Antes (onChange com clamp imediato)
+onChange={(e) => {
+  const value = parseFloat(e.target.value) || 0;
+  onNetMarginChange(Math.max(minNetMarginPercent, Math.min(value, 100)));
+}}
+
+// Depois (onChange livre + onBlur com validacao)
+onChange={(e) => {
+  const value = parseFloat(e.target.value);
+  if (!isNaN(value)) {
+    onNetMarginChange(value);
+  }
+}}
+onBlur={(e) => {
+  const value = parseFloat(e.target.value) || minNetMarginPercent;
+  onNetMarginChange(Math.max(minNetMarginPercent, Math.min(value, 100)));
+}}
 ```
 
-## Arquivo a Modificar
+### Parte 2: Desconto em Valor Absoluto
+
+#### 2.1 Migracao do Banco de Dados
+
+```sql
+-- Renomear coluna de discount_percent para discount_value
+ALTER TABLE budgets RENAME COLUMN discount_percent TO discount_value;
+
+-- Alterar valores existentes: converter percentual para valor absoluto
+-- Para orcamentos existentes, calcular: discount_value = total_with_fees * (old_percent / 100)
+UPDATE budgets 
+SET discount_value = total_with_fees * (discount_value / 100)
+WHERE discount_value > 0;
+```
+
+#### 2.2 Alteracoes nos Tipos
+
+**Arquivo**: `src/types/budget.ts`
+
+| Interface | Campo Antigo | Campo Novo |
+|-----------|--------------|------------|
+| BudgetDB | discount_percent | discount_value |
+| CreateBudgetInput | discountPercent | discountValue |
+| calculateBudgetTotals | discountPercent param | discountValue param |
+| BudgetCalculation | (sem mudanca - ja tem `discount: number`) |
+
+#### 2.3 Alteracao na Funcao de Calculo
+
+**Arquivo**: `src/types/budget.ts` - funcao `calculateBudgetTotals`
+
+```tsx
+// Antes
+const discount = sellingPrice * (discountPercent / 100);
+const finalTotal = sellingPrice - discount;
+
+// Depois
+const discount = discountValue;
+const finalTotal = sellingPrice - discount;
+```
+
+#### 2.4 Alteracoes no Componente
+
+**Arquivo**: `BudgetFinancialSummary.tsx`
+
+| Antes | Depois |
+|-------|--------|
+| `discountPercent: number` | `discountValue: number` |
+| `onDiscountChange: (value: number) => void` | (mantido, mas agora recebe R$) |
+| Input com `%` no final | Input com `R$` no inicio |
+| `max={100}` | Remover max (ou colocar max = sellingPrice) |
+
+```tsx
+// Antes
+<Input ... value={discountPercent} />
+<span className="text-sm text-muted-foreground">%</span>
+
+// Depois
+<span className="text-sm text-muted-foreground">R$</span>
+<Input ... value={discountValue} />
+```
+
+#### 2.5 Alteracoes no Formulario
+
+**Arquivo**: `BudgetForm.tsx`
+
+| Antes | Depois |
+|-------|--------|
+| `discountPercent` state | `discountValue` state |
+| `setDiscountPercent` | `setDiscountValue` |
+| Inicializar com 0 | Inicializar com 0 |
+
+#### 2.6 Alteracoes no Servico
+
+**Arquivo**: `budgetService.ts`
+
+| Antes | Depois |
+|-------|--------|
+| `discount_percent: input.discountPercent` | `discount_value: input.discountValue` |
+| (em todas as queries de insert/update) | |
+
+## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/BudgetForm.tsx` | 4 alteracoes pontuais |
+| `src/components/budgets/BudgetFinancialSummary.tsx` | Corrigir input margem + mudar desconto para R$ |
+| `src/types/budget.ts` | Alterar tipos e funcao de calculo |
+| `src/pages/BudgetForm.tsx` | Alterar state de desconto |
+| `src/services/budgetService.ts` | Alterar campos de insert/update |
+| Migracao SQL | Renomear coluna no banco |
 
-## Alteracoes Detalhadas
+## Secao Tecnica Detalhada
 
-### 1. Mover isSubmitting (linha 213 -> linha 173)
+### Por que o input da margem "salta"?
 
-Mover a declaracao para antes de `handleSubmit`:
+Inputs HTML `type="number"` com validacao no `onChange` interferem na experiencia de digitacao. Quando o usuario digita "2" querendo escrever "25", o sistema imediatamente aplica `Math.max(20, 2)` = 20, sobrescrevendo o valor antes do usuario terminar.
+
+A solucao e:
+1. Permitir qualquer valor durante digitacao (`onChange` sem clamp)
+2. Aplicar validacao apenas quando o usuario sair do campo (`onBlur`)
+3. Opcionalmente, mostrar indicador visual de "valor invalido" durante digitacao
+
+### Impacto da Mudanca de Desconto
+
+A mudanca de percentual para valor absoluto requer:
+1. **Migracao de dados**: Converter valores existentes no banco
+2. **Compatibilidade**: Orcamentos antigos serao convertidos automaticamente
+3. **UX**: Input mais intuitivo para usuarios que pensam em "dar R$ 500 de desconto"
+
+### Validacao do Desconto
+
+O desconto maximo deveria ser o proprio preco de venda (`sellingPrice`), para evitar valores finais negativos:
 
 ```tsx
-// Linha 173 (depois do useEffect)
-const isSubmitting = createMutation.isPending || updateMutation.isPending;
-
-const handleSubmit = (values: FormValues) => {
-  // ...
-};
-
-// Remover a linha 213 antiga
+onBlur={(e) => {
+  const value = parseFloat(e.target.value) || 0;
+  onDiscountChange(Math.max(0, Math.min(value, calculation.sellingPrice)));
+}}
 ```
-
-### 2. Remover onSubmit do Form (linha 422)
-
-Antes:
-```tsx
-<form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-```
-
-Depois:
-```tsx
-<form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-```
-
-### 3. Botao Criar Orcamento (linha 507)
-
-Antes:
-```tsx
-<Button type="submit" disabled={isSubmitting}>
-```
-
-Depois:
-```tsx
-<Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
-```
-
-### 4. Botao Salvar no Modo Edicao (linha 523)
-
-Antes:
-```tsx
-<Button type="submit" disabled={isSubmitting}>
-```
-
-Depois:
-```tsx
-<Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
-```
-
-## Por Que Esta Solucao Funciona
-
-1. **Previne TODA submissao automatica**: O `onSubmit={(e) => e.preventDefault()}` bloqueia qualquer tentativa de submit do navegador (Enter em inputs, etc.)
-
-2. **Controle total**: A criacao/atualizacao SO acontece quando o usuario clica explicitamente no botao correto
-
-3. **isSubmitting funciona**: Movendo a declaracao para antes do uso, a verificacao de duplo-click funciona corretamente
-
-4. **Validacao preservada**: O `form.handleSubmit(handleSubmit)` ainda valida os campos antes de executar
-
-## Validacao
-
-1. Criar novo orcamento
-2. Preencher campos da Etapa 1
-3. Clicar em "Proximo" -> Deve ir para Etapa 2, NAO deve salvar
-4. Pressionar Enter em qualquer campo -> NAO deve salvar
-5. Clicar em "Criar Orcamento" -> Deve salvar
-6. Verificar que APENAS UM orcamento foi criado
 
