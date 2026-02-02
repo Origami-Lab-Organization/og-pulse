@@ -14,11 +14,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, ArrowLeft, ArrowRight, Save, Check } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight, Save, Check, Calculator, Percent, DollarSign } from 'lucide-react';
 import { BudgetRolesEditor } from '@/components/budgets/BudgetRolesEditor';
 import { BudgetSuppliersEditor } from '@/components/budgets/BudgetSuppliersEditor';
 import { BudgetMaterialsEditor } from '@/components/budgets/BudgetMaterialsEditor';
 import { BudgetFinancialSummary } from '@/components/budgets/BudgetFinancialSummary';
+import { Separator } from '@/components/ui/separator';
+import { formatCurrency } from '@/lib/formatters';
 import { CreateBudgetInput, BudgetRoleInput, BudgetMaterialInput, BudgetSupplierInput, calculateBudgetTotals } from '@/types/budget';
 import { useClients } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
@@ -46,6 +48,7 @@ type FormValues = z.infer<typeof formSchema>;
 const WIZARD_STEPS = [
   { id: 1, title: 'Dados Básicos' },
   { id: 2, title: 'Composição' },
+  { id: 3, title: 'Precificação' },
 ];
 
 export default function BudgetForm() {
@@ -350,9 +353,9 @@ export default function BudgetForm() {
       case 2:
         return (
           <>
-            <div className="flex flex-col pb-48">
-              {/* Mão de Obra - largura total */}
-              <Card className="mb-6">
+            <div className="flex flex-col space-y-6">
+              {/* Mão de Obra */}
+              <Card>
                 <CardContent className="pt-6">
                   <BudgetRolesEditor
                     roles={roles}
@@ -363,40 +366,189 @@ export default function BudgetForm() {
                 </CardContent>
               </Card>
 
-              {/* Fornecedores - largura total */}
-              <div className="mb-6">
-                <BudgetSuppliersEditor
-                  suppliers={suppliers}
-                  durationMonths={durationMonths}
-                  onSuppliersChange={setSuppliers}
-                />
-              </div>
+              {/* Fornecedores */}
+              <BudgetSuppliersEditor
+                suppliers={suppliers}
+                durationMonths={durationMonths}
+                onSuppliersChange={setSuppliers}
+              />
 
-              {/* Materiais - largura total */}
+              {/* Materiais */}
               <BudgetMaterialsEditor
                 materials={materials}
                 onMaterialsChange={setMaterials}
               />
             </div>
 
-            {/* Rodapé Sticky com Resumo Financeiro - respeita sidebar */}
-            <div className="sticky bottom-0 z-40 -mx-6 -mb-6">
-              <BudgetFinancialSummary
-                layout="footer"
-                calculation={calculation}
-                adminExpensesPercent={adminExpensesPercent}
-                taxesPercent={taxesPercent}
-                commissionPercent={commissionPercent}
-                maxCommissionPercent={maxCommissionPercent}
-                netMarginPercent={netMarginPercent}
-                minNetMarginPercent={minNetMarginPercent}
-                discountValue={discountValue}
-                onCommissionChange={(val) => setCommissionPercent(Math.max(0, Math.min(val, maxCommissionPercent)))}
-                onNetMarginChange={setNetMarginPercent}
-                onDiscountChange={setDiscountValue}
-              />
+            {/* Rodapé simples com totais */}
+            <div className="sticky bottom-0 z-40 -mx-6 -mb-6 border-t bg-muted/50 px-6 py-3 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.05)]">
+              <div className="flex items-center justify-center gap-8 text-sm">
+                <span>Mão de Obra: <strong>{formatCurrency(calculation.laborCost)}</strong></span>
+                <span className="text-border">|</span>
+                <span>Fornecedores: <strong>{formatCurrency(calculation.suppliersTotal)}</strong></span>
+                <span className="text-border">|</span>
+                <span>Materiais: <strong>{formatCurrency(calculation.materialsTotal)}</strong></span>
+              </div>
             </div>
           </>
+        );
+      case 3:
+        return (
+          <div className="space-y-6">
+            {/* Card: Custos */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  Custos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <span className="text-sm text-muted-foreground">Mão de Obra</span>
+                    <p className="text-lg font-semibold">{formatCurrency(calculation.laborCost)}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Fornecedores</span>
+                    <p className="text-lg font-semibold">{formatCurrency(calculation.suppliersTotal)}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Materiais</span>
+                    <p className="text-lg font-semibold">{formatCurrency(calculation.materialsTotal)}</p>
+                  </div>
+                </div>
+                <Separator className="my-4" />
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Custo Total</span>
+                  <span className="text-xl font-bold">{formatCurrency(calculation.totalCost)}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card: Composição do Preço */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Percent className="h-5 w-5" />
+                  Composição do Preço
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Despesas Adm - somente leitura */}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Despesas Administrativas ({adminExpensesPercent}%)</span>
+                  <span>{formatCurrency(calculation.adminExpenses)}</span>
+                </div>
+
+                {/* Impostos - somente leitura */}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Impostos ({taxesPercent}%)</span>
+                  <span>{formatCurrency(calculation.taxes)}</span>
+                </div>
+
+                <Separator />
+
+                {/* Comissão - editável */}
+                <div className="flex justify-between items-center">
+                  <Label>Comissão (máx. {maxCommissionPercent}%)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={maxCommissionPercent}
+                      step={0.1}
+                      className="w-20 text-right"
+                      value={commissionPercent}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        setCommissionPercent(Math.min(value, maxCommissionPercent));
+                      }}
+                    />
+                    <span className="text-muted-foreground">%</span>
+                    <span className="text-muted-foreground w-28 text-right">= {formatCurrency(calculation.commission)}</span>
+                  </div>
+                </div>
+
+                {/* Margem - editável */}
+                <div className="flex justify-between items-center">
+                  <Label>Margem Líquida (mín. {minNetMarginPercent}%)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={minNetMarginPercent}
+                      max={100}
+                      step={0.1}
+                      className="w-20 text-right"
+                      value={netMarginPercent}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          setNetMarginPercent(value);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const value = parseFloat(e.target.value) || minNetMarginPercent;
+                        setNetMarginPercent(Math.max(minNetMarginPercent, Math.min(value, 100)));
+                      }}
+                    />
+                    <span className="text-muted-foreground">%</span>
+                    <span className="text-muted-foreground w-28 text-right">= {formatCurrency(calculation.netMargin)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card: Valor Final */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Valor Final
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span>Preço de Venda</span>
+                  <span className="text-xl font-semibold">{formatCurrency(calculation.sellingPrice)}</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <Label>Desconto</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">R$</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={100}
+                      className="w-32 text-right"
+                      value={discountValue}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          setDiscountValue(value);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        setDiscountValue(Math.max(0, Math.min(value, calculation.sellingPrice)));
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4">
+                  <span className="text-lg font-bold">Valor Final</span>
+                  <span className="text-2xl font-bold text-primary">{formatCurrency(calculation.finalTotal)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         );
       default:
         return null;
@@ -423,9 +575,10 @@ export default function BudgetForm() {
           {isEditing ? (
             // Editing mode: Use tabs
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
                 <TabsTrigger value="composition">Composição</TabsTrigger>
+                <TabsTrigger value="pricing">Precificação</TabsTrigger>
               </TabsList>
 
               <TabsContent value="basic" className="mt-6">
@@ -434,6 +587,10 @@ export default function BudgetForm() {
 
               <TabsContent value="composition" className="mt-6">
                 {renderStepContent(2)}
+              </TabsContent>
+
+              <TabsContent value="pricing" className="mt-6">
+                {renderStepContent(3)}
               </TabsContent>
             </Tabs>
           ) : (
