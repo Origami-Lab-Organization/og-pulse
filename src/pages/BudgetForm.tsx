@@ -330,14 +330,14 @@ export default function BudgetForm() {
               <div className="grid grid-cols-3 gap-4">
                 <FormField control={form.control} name="startDate" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data de Início</FormLabel>
+                    <FormLabel>Válido de</FormLabel>
                     <FormControl><Input type="date" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="durationMonths" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Duração (meses)</FormLabel>
+                    <FormLabel>Duração do Projeto (meses)</FormLabel>
                     <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
