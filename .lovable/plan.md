@@ -1,219 +1,85 @@
 
-# Plano: CRM Kanban Board
+# Plano: Exibir Datas de Validade do Orçamento
 
-## Visao Geral
+## Problema Identificado
 
-Criar uma nova secao CRM com um Kanban board de 3 colunas para gerenciar o funil comercial de orcamentos. Os orcamentos poderao ser arrastados entre colunas, atualizando automaticamente seu status.
+Atualmente a tabela de orçamentos exibe apenas a "Duração" (em meses), mas não mostra as **datas de validade do orçamento** (`start_date` e `valid_until`) que foram preenchidas.
 
-## Estrutura das Colunas
+Os dados estão salvos corretamente no banco de dados, mas não estão sendo exibidos na interface.
 
-| Coluna | Status no DB | Cor do Badge |
-|--------|--------------|--------------|
-| Proposta | `proposal` | Azul |
-| Negociacao | `negotiation` | Amarelo/Laranja |
-| Negocio Fechado | `active` | Verde |
+## Alterações Propostas
 
-## Alteracoes Necessarias
+### 1. Atualizar BudgetsTable.tsx
 
-### 1. Migracao do Banco de Dados
+Substituir a coluna "Duração" por "Validade" exibindo o período:
 
-Atualizar o enum `budget_status` para incluir os novos status e remover/ajustar os antigos:
+**Antes:**
+| Número | Título | Cliente/Lead | Duração | Valor Final | Status | Criado em |
 
-```sql
--- Adicionar novos valores ao enum
-ALTER TYPE budget_status ADD VALUE IF NOT EXISTS 'proposal';
-ALTER TYPE budget_status ADD VALUE IF NOT EXISTS 'negotiation';
-ALTER TYPE budget_status ADD VALUE IF NOT EXISTS 'active';
+**Depois:**
+| Número | Título | Cliente/Lead | Validade | Valor Final | Status | Criado em |
 
--- Migrar dados existentes
-UPDATE budgets SET status = 'proposal' WHERE status = 'draft';
-UPDATE budgets SET status = 'proposal' WHERE status = 'sent';
-UPDATE budgets SET status = 'active' WHERE status = 'approved';
+Onde "Validade" exibirá: `01/10 - 30/10/2025` (formato resumido)
 
--- O status default muda de 'draft' para 'proposal'
-ALTER TABLE budgets ALTER COLUMN status SET DEFAULT 'proposal';
+### 2. Atualizar KanbanCard.tsx
+
+O card já exibe `valid_until`, mas pode mostrar o período completo no tooltip ou de forma mais clara.
+
+### 3. Atualizar Labels no Formulário (BudgetForm.tsx)
+
+Renomear os labels para deixar claro que são datas de validade do orçamento:
+
+| Campo Atual | Novo Label |
+|-------------|------------|
+| Data de Início | Válido de |
+| Duração (meses) | Duração do Projeto (meses) |
+| Válido até | Válido até |
+
+## Detalhes Técnicos
+
+### Arquivo: src/components/budgets/BudgetsTable.tsx
+
+```text
+Linha 59: Alterar de "Duração" para "Validade"
+Linha 86: Substituir exibição de duration_months por formatação do período start_date - valid_until
 ```
 
-**Nota:** Os status antigos (draft, sent, approved, rejected, expired) serao mantidos no enum por compatibilidade, mas nao serao mais utilizados na interface.
-
-### 2. Atualizar Tipos TypeScript
-
-**Arquivo:** `src/types/budget.ts`
-
-```typescript
-// Status CRM do funil comercial
-export type BudgetStatus = 'proposal' | 'negotiation' | 'active' | 'draft' | 'sent' | 'approved' | 'rejected' | 'expired';
-
-// Colunas do Kanban CRM
-export const CRM_COLUMNS = [
-  { id: 'proposal', label: 'Proposta', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-  { id: 'negotiation', label: 'Negociação', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
-  { id: 'active', label: 'Negócio Fechado', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
-] as const;
-
-export const BUDGET_STATUS_OPTIONS = [
-  { value: 'proposal', label: 'Proposta', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-  { value: 'negotiation', label: 'Negociação', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
-  { value: 'active', label: 'Ativo', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
-  // Status legados (para compatibilidade)
-  { value: 'draft', label: 'Rascunho', color: 'bg-muted text-muted-foreground' },
-  { value: 'sent', label: 'Enviado', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-  { value: 'approved', label: 'Aprovado', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
-  { value: 'rejected', label: 'Rejeitado', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
-  { value: 'expired', label: 'Expirado', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' },
-] as const;
-```
-
-### 3. Instalar Biblioteca de Drag and Drop
-
-```bash
-npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
-```
-
-A biblioteca `@dnd-kit` e moderna, leve e bem mantida para React.
-
-### 4. Criar Componentes do Kanban
-
-**Novos arquivos:**
-
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/components/crm/KanbanBoard.tsx` | Container principal com DndContext |
-| `src/components/crm/KanbanColumn.tsx` | Coluna do Kanban (droppable) |
-| `src/components/crm/KanbanCard.tsx` | Card de orcamento (draggable) |
-
-**Estrutura do KanbanBoard:**
-
-```
-+------------------+------------------+------------------+
-|     PROPOSTA     |   NEGOCIACAO     | NEGOCIO FECHADO  |
-|   (proposal)     |  (negotiation)   |    (active)      |
-+------------------+------------------+------------------+
-|  [Card ORC-001]  |  [Card ORC-003]  |  [Card ORC-005]  |
-|  [Card ORC-002]  |  [Card ORC-004]  |                  |
-|                  |                  |                  |
-+------------------+------------------+------------------+
-```
-
-**Informacoes exibidas no Card:**
-- Numero do orcamento (ex: ORC-2026-0001)
-- Titulo
-- Cliente/Lead
-- Valor final
-- Data de validade (se houver)
-
-### 5. Criar Pagina CRM
-
-**Arquivo:** `src/pages/CRM.tsx`
-
-- Titulo: "CRM"
-- Descricao: "Funil de vendas"
-- Conteudo: KanbanBoard com os orcamentos
-- Busca: Campo de busca para filtrar cards
-- Acao: Botao "Novo Orcamento" que redireciona para `/budgets/new`
-
-### 6. Atualizar Navegacao
-
-**Arquivo:** `src/components/layout/AppSidebar.tsx`
-
-Adicionar item CRM na secao Comercial:
-
-```typescript
-{
-  label: 'Comercial',
-  requiresAdmin: true,
-  items: [
-    { title: 'CRM', url: '/crm', icon: Kanban, requiresAdmin: true },
-    { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresAdmin: true },
-  ] as NavItem[],
-},
-```
-
-### 7. Adicionar Rota
-
-**Arquivo:** `src/App.tsx`
-
+**Código da nova célula:**
 ```tsx
-<Route 
-  path="/crm" 
-  element={
-    <RoleProtectedRoute requireAdmin>
-      <CRM />
-    </RoleProtectedRoute>
-  } 
-/>
+<TableCell>
+  {budget.valid_until ? (
+    <span className="text-sm">
+      {formatShortDate(budget.start_date)} - {formatShortDate(budget.valid_until)}
+    </span>
+  ) : (
+    <span className="text-sm text-muted-foreground">
+      A partir de {formatShortDate(budget.start_date)}
+    </span>
+  )}
+</TableCell>
 ```
 
-### 8. Logica de Edicao Bloqueada
+### Arquivo: src/components/crm/KanbanCard.tsx
 
-**Arquivos a modificar:**
-- `src/pages/BudgetDetail.tsx` - Esconder botao Editar se status = 'active'
-- `src/pages/BudgetForm.tsx` - Redirecionar se tentar editar orcamento ativo
+Manter exibição de `valid_until` como data final de validade, que já está implementada.
 
-```tsx
-// BudgetDetail.tsx
-{budget.status !== 'active' && (
-  <Button onClick={() => navigate(`/budgets/${id}/edit`)}>
-    <Edit className="mr-2 h-4 w-4" />
-    Editar
-  </Button>
-)}
+### Arquivo: src/pages/BudgetForm.tsx
 
-// Se ativo, mostrar aviso
-{budget.status === 'active' && (
-  <Badge variant="secondary" className="text-sm">
-    Orçamento fechado - não pode ser editado
-  </Badge>
-)}
-```
-
-### 9. Atualizar Servico de Orcamentos
-
-**Arquivo:** `src/services/budgetService.ts`
-
-O metodo `create` ja usa status default do banco, que sera atualizado para 'proposal'.
-
-## Fluxo do Usuario
-
-```
-1. Usuario clica em "Novo Orcamento"
-2. Cria o orcamento (status = 'proposal')
-3. Card aparece na coluna "Proposta"
-4. Usuario arrasta para "Negociacao" -> status atualiza
-5. Usuario arrasta para "Negocio Fechado" -> status = 'active'
-6. Orcamento ativo nao pode mais ser editado
-```
-
-## Arquivos a Criar
-
-| Arquivo | Tipo |
-|---------|------|
-| `src/pages/CRM.tsx` | Pagina |
-| `src/components/crm/KanbanBoard.tsx` | Componente |
-| `src/components/crm/KanbanColumn.tsx` | Componente |
-| `src/components/crm/KanbanCard.tsx` | Componente |
+Atualizar labels nos campos da Step 1:
+- Linha 333: "Válido de" ao invés de "Data de Início"
+- Linha 338: "Duração do Projeto (meses)" para clareza
+- Linha 345: Manter "Válido até"
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteracao |
+| Arquivo | Alteração |
 |---------|-----------|
-| `src/types/budget.ts` | Adicionar novos status e CRM_COLUMNS |
-| `src/components/layout/AppSidebar.tsx` | Adicionar item CRM |
-| `src/App.tsx` | Adicionar rota /crm |
-| `src/pages/BudgetDetail.tsx` | Bloquear edicao se ativo |
-| `src/pages/BudgetForm.tsx` | Redirecionar se tentar editar ativo |
-
-## Migracao de Banco de Dados
-
-Uma migracao SQL sera necessaria para:
-1. Adicionar novos valores ao enum `budget_status`
-2. Migrar orcamentos existentes para os novos status
-3. Atualizar o default de 'draft' para 'proposal'
+| `src/components/budgets/BudgetsTable.tsx` | Trocar coluna Duração por Validade com período formatado |
+| `src/pages/BudgetForm.tsx` | Atualizar labels dos campos de data para clareza |
+| `src/lib/formatters.ts` | Verificar se `formatShortDate` já existe (opcional) |
 
 ## Resultado Esperado
 
-- Nova pagina CRM acessivel via sidebar
-- Kanban com 3 colunas e drag-and-drop funcional
-- Orcamentos criados com status "Proposta"
-- Mudanca de status ao arrastar entre colunas
-- Orcamentos ativos (Negocio Fechado) nao podem ser editados
+Na tabela de orçamentos, ao invés de ver "2 meses", o usuário verá:
+- **Validade: 01/10 - 30/10** (formato curto)
+- Ou **Validade: 01 out - 30 out** (usando formatShortDate)
