@@ -1,194 +1,190 @@
 
-# Plano: Criacao Automatica de Projeto ao Fechar Negocio
+# Plano: Sistema de Perfis de Funcionarios (Admin, Gerente de Projetos, Usuario)
 
 ## Contexto Atual
 
-### Fluxo Existente
-1. Usuario arrasta orcamento no CRM para coluna "Negocio Fechado"
-2. `useUpdateBudgetStatus` chama `budgetService.updateStatus(id, 'active')`
-3. Status e atualizado no banco, mas **nenhum projeto e criado**
+### Como Funciona Hoje
+1. O campo `isGerente` (boolean) na tabela `employees` indica se o funcionario e administrador
+2. No formulario de cadastro, existe um Switch "Administrador?" que define esse campo
+3. A tabela `user_roles` ja possui o enum `app_role` com 3 valores: `admin`, `user`, `manager`
+4. Na criacao do funcionario, o edge function `create-employee-user` atribui:
+   - `role: 'admin'` se `isGerente = true`
+   - `role: 'user'` se `isGerente = false`
+5. A selecao de gerentes de projeto filtra por `isGerente = true` OU cargo contendo "gerente"
 
-### Dados Disponiveis no Orcamento
-| Campo Orcamento | Pode Mapear Para Projeto |
-|-----------------|-------------------------|
-| `title` | `name` |
-| `client_id` | `client_id` |
-| `start_date` | `start_date` |
-| `duration_months` | Calcular `end_date` |
-| `final_total` | `total_value` |
-| `id` | `budget_id` (vinculo) |
-
-### Orcamento Existente em "Negocio Fechado"
-Existe 1 orcamento com status `active` que precisa ter projeto criado:
-- **Titulo**: Plataforma Bry - Discovery
-- **Valor**: R$ 40.800
-- **Cliente**: ID 150a61d9-f322-4b29-bf99-ed526e17c23d
+### Problemas Identificados
+1. O campo `isGerente` confunde "gerente de projetos" com "administrador do sistema"
+2. Nao existe distincao clara entre os 3 niveis de perfil
+3. O role `manager` no banco nao e utilizado
+4. A logica de filtro de gerentes e imprecisa (depende do nome do cargo)
 
 ---
 
 ## Solucao Proposta
 
-### Abordagem UX: Modal de Confirmacao
+### Novo Campo: `system_role`
 
-Quando o usuario arrastar um orcamento para "Negocio Fechado", exibir um **modal de confirmacao** que:
+Substituir o boolean `isGerente` por um campo de texto com 3 valores possiveis:
 
-1. Mostra resumo do orcamento que sera fechado
-2. Solicita dados faltantes para criar o projeto:
-   - **Gerente do Projeto** (obrigatorio - nao existe no orcamento)
-   - **Forma de Pagamento** (sugerir mensal)
-   - **Quantidade de Parcelas** (sugerir baseado em duration_months)
-   - **Dia de Vencimento** (sugerir 10)
-3. Permite confirmar ou cancelar a acao
+| Perfil | Valor | Descricao |
+|--------|-------|-----------|
+| Administrador | `admin` | Acesso total ao sistema, gerencia usuarios e configuracoes |
+| Gerente de Projetos | `manager` | Pode gerenciar projetos, nao tem acesso a configuracoes |
+| Usuario | `user` | Acesso basico, apenas visualizacao e funcoes limitadas |
 
-### Fluxo Visual
+### UX do Formulario
+
+Substituir o Switch por um Select com as 3 opcoes:
 
 ```text
-[Usuario arrasta card para "Negocio Fechado"]
-              |
-              v
-┌─────────────────────────────────────────────────────────────┐
-│              Fechar Negocio                                  │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Orcamento: Plataforma Bry - Discovery                      │
-│  Cliente: Empresa XYZ                                       │
-│  Valor: R$ 40.800,00                                        │
-│                                                             │
-│  ─────────────────────────────────────────────────────────  │
-│                                                             │
-│  Um projeto sera criado automaticamente com os dados        │
-│  do orcamento. Complete as informacoes abaixo:              │
-│                                                             │
-│  Gerente do Projeto *     [Selecionar gerente     ▼]        │
-│  Forma de Pagamento       [Mensal                 ▼]        │
-│  Parcelas                 [3                      ]         │
-│  Dia de Vencimento        [10                     ]         │
-│  Data Primeira NF         [____/____/________     ]         │
-│                                                             │
-│               [Cancelar]    [Confirmar e Criar Projeto]     │
-└─────────────────────────────────────────────────────────────┘
+Perfil no Sistema *
+┌─────────────────────────────────────────┐
+│ Selecione o perfil               ▼      │
+├─────────────────────────────────────────┤
+│ ○ Administrador                         │
+│     Acesso total ao sistema             │
+│ ○ Gerente de Projetos                   │
+│     Pode gerenciar projetos             │
+│ ● Usuario                               │
+│     Acesso basico (padrao)              │
+└─────────────────────────────────────────┘
 ```
-
-### Pre-preenchimento Inteligente
-- **Nome do Projeto**: Titulo do orcamento
-- **Cliente**: Cliente do orcamento (se existir)
-- **Data Inicio**: Data de inicio do orcamento
-- **Data Fim**: start_date + duration_months
-- **Valor Total**: final_total do orcamento
-- **Parcelas**: Sugerir duration_months
-- **Status**: `planning` (conforme solicitado)
 
 ---
 
-## Implementacao Tecnica
+## Alteracoes Tecnicas
 
-### 1. Novo Componente: `CloseBusinessDialog.tsx`
+### 1. Banco de Dados
 
-Modal que:
-- Recebe o orcamento sendo fechado
-- Exibe resumo do orcamento
-- Coleta dados faltantes (gerente, forma de pagamento, parcelas)
-- Ao confirmar:
-  1. Atualiza status do orcamento para `active`
-  2. Cria projeto vinculado ao orcamento
+**Adicionar coluna `system_role` na tabela `employees`:**
+- Tipo: `text`
+- Valores permitidos: `'admin'`, `'manager'`, `'user'`
+- Default: `'user'`
+- Manter `is_gerente` temporariamente para retrocompatibilidade
 
-### 2. Modificar `KanbanBoard.tsx`
+**Migracao de dados existentes:**
+```sql
+-- Migrar dados existentes
+UPDATE employees SET system_role = 
+  CASE WHEN is_gerente = true THEN 'admin' ELSE 'user' END
+WHERE system_role IS NULL;
+```
 
-- Ao detectar drop na coluna `active`, abrir `CloseBusinessDialog` ao inves de chamar diretamente `updateStatus`
-- Somente apos confirmacao do modal, executar a acao
+### 2. Edge Function `create-employee-user/index.ts`
 
-### 3. Novo Servico: `projectService.createFromBudget()`
+| Antes | Depois |
+|-------|--------|
+| `isGerente: boolean` | `systemRole: 'admin' \| 'manager' \| 'user'` |
+| `role: isGerente ? 'admin' : 'user'` | `role: systemRole` |
 
-Metodo que:
-- Recebe `budget: BudgetWithDetails` + dados complementares
-- Cria projeto com `budget_id` preenchido
-- Retorna o projeto criado
+### 3. Formulario de Funcionarios
 
-### 4. Hook: `useCloseBusinessDeal()`
+**Arquivo: `src/components/employees/EmployeeFormDialog.tsx`**
 
-Hook que combina:
-- Atualizar status do orcamento
-- Criar projeto
-- Invalidar queries de ambas as listas
+| Antes | Depois |
+|-------|--------|
+| Campo `isGerente` (Switch boolean) | Campo `systemRole` (Select com 3 opcoes) |
+| Default: `false` | Default: `'user'` |
 
-### 5. Migracao de Orcamentos Existentes
+### 4. Tipos e Interfaces
 
-Criar projeto para o orcamento "Plataforma Bry - Discovery" que ja esta em `active` mas sem projeto associado.
+**Arquivo: `src/types/employee.ts`**
+```typescript
+export type SystemRole = 'admin' | 'manager' | 'user';
+
+export const SYSTEM_ROLE_LABELS: Record<SystemRole, string> = {
+  admin: 'Administrador',
+  manager: 'Gerente de Projetos',
+  user: 'Usuario',
+};
+```
+
+### 5. Servico de Funcionarios
+
+**Arquivo: `src/services/employeeService.ts`**
+- Adicionar campo `systemRole` no `CreateEmployeeInput`
+- Mapear `system_role` do banco para `systemRole` no frontend
+
+### 6. Hooks de Funcionarios
+
+**Arquivo: `src/hooks/useEmployees.ts`**
+- Adicionar `systemRole` no mapeamento `dbToEmployee()`
+- Criar hook `useProjectManagers()` para filtrar apenas funcionarios com `systemRole = 'manager'`
+
+### 7. Selecao de Gerentes de Projeto
+
+**Arquivos afetados:**
+- `src/components/projects/ProjectFormDialog.tsx`
+- `src/components/crm/CloseBusinessDialog.tsx`
+
+| Antes | Depois |
+|-------|--------|
+| `filter(e => e.isGerente \|\| e.cargo.includes('gerente'))` | `filter(e => e.systemRole === 'manager')` |
+
+### 8. Contexto de Autenticacao
+
+**Arquivo: `src/contexts/AuthContext.tsx`**
+- Buscar `system_role` junto com dados do funcionario
+- Manter verificacao de `isAdmin` baseada em `user_roles.role = 'admin'`
+
+---
+
+## Fluxo de Dados
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    Formulario de Funcionario                │
+│                                                             │
+│  Perfil no Sistema: [Gerente de Projetos ▼]                │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Edge Function: create-employee-user            │
+│                                                             │
+│  1. Cria registro em employees com system_role = 'manager'  │
+│  2. Cria registro em user_roles com role = 'manager'        │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Selecao de Gerente de Projeto              │
+│                                                             │
+│  Mostra apenas: employees WHERE system_role = 'manager'     │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Arquivos a Criar/Modificar
 
-| Arquivo | Acao |
-|---------|------|
-| `src/components/crm/CloseBusinessDialog.tsx` | Criar - Modal de confirmacao |
-| `src/components/crm/KanbanBoard.tsx` | Modificar - Interceptar drop em "active" |
-| `src/services/projectService.ts` | Modificar - Adicionar `createFromBudget()` |
-| `src/hooks/useBudgets.ts` | Modificar - Adicionar `useCloseBusinessDeal()` |
+| Arquivo | Acao | Descricao |
+|---------|------|-----------|
+| `migration_add_system_role.sql` | Criar | Adicionar coluna e migrar dados |
+| `src/types/employee.ts` | Modificar | Adicionar `SystemRole` type e labels |
+| `src/services/employeeService.ts` | Modificar | Adicionar `systemRole` no input e mapeamento |
+| `src/hooks/useEmployees.ts` | Modificar | Mapear `systemRole`, criar `useProjectManagers` |
+| `src/components/employees/EmployeeFormDialog.tsx` | Modificar | Substituir Switch por Select |
+| `src/components/projects/ProjectFormDialog.tsx` | Modificar | Usar `useProjectManagers()` |
+| `src/components/crm/CloseBusinessDialog.tsx` | Modificar | Usar `useProjectManagers()` |
+| `supabase/functions/create-employee-user/index.ts` | Modificar | Aceitar `systemRole` e usar no role |
+| `src/contexts/AuthContext.tsx` | Modificar | Buscar e expor `systemRole` |
 
 ---
 
-## Melhoria no Formulario de Projetos
+## Compatibilidade
 
-Para melhorar a experiencia, adicionar ao `ProjectFormDialog`:
+### Funcionarios Existentes
+- Os funcionarios atuais serao migrados automaticamente:
+  - `is_gerente = true` -> `system_role = 'admin'`
+  - `is_gerente = false` -> `system_role = 'user'`
+- Nenhum funcionario existente tera perfil `manager` (precisa ser atribuido manualmente)
 
-1. **Campo Orcamento Vinculado** (opcional): Select para escolher orcamento
-2. **Auto-preenchimento**: Ao selecionar orcamento, preencher automaticamente:
-   - Nome do projeto
-   - Cliente
-   - Data de inicio
-   - Data de fim
-   - Valor total
+### Admin do Tenant
+- O admin que criou o tenant continuara sendo admin
+- Novos funcionarios terao default `user` conforme solicitado
 
-Isso permite criar projetos manualmente a partir de orcamentos, alem do fluxo automatico do CRM.
+### RLS Policies
+- As policies existentes usam `has_role()` e `is_admin_or_manager()` que ja consultam `user_roles`
+- A nova coluna `system_role` sera sincronizada com `user_roles.role`
 
----
-
-## Diagrama de Fluxo
-
-```text
-                    CRM Kanban
-                        |
-        [Arrasta card para "Negocio Fechado"]
-                        |
-                        v
-         ┌──────────────────────────────┐
-         │   E transicao para 'active'? │
-         └──────────────┬───────────────┘
-                       Sim
-                        |
-                        v
-         ┌──────────────────────────────┐
-         │   Abre CloseBusinessDialog   │
-         │   (coleta gerente, parcelas) │
-         └──────────────┬───────────────┘
-                        |
-              [Usuario confirma]
-                        |
-                        v
-         ┌──────────────────────────────┐
-         │ 1. updateStatus(id, 'active')│
-         │ 2. createProject(budgetData) │
-         │ 3. Toast de sucesso          │
-         │ 4. Redirecionar p/ projeto?  │
-         └──────────────────────────────┘
-```
-
----
-
-## Opcao de Redirecionamento
-
-Apos criar o projeto, oferecer ao usuario:
-- **Ir para o Projeto**: Navega para `/projects` com o projeto aberto
-- **Continuar no CRM**: Permanece na tela do CRM
-
----
-
-## Tratamento do Orcamento Existente
-
-Para o orcamento "Plataforma Bry - Discovery" que ja esta em `active`:
-1. Ao carregar a lista de projetos, verificar se existe orcamento `active` sem projeto vinculado
-2. Exibir banner sugerindo criar projeto para esses orcamentos
-3. Ou: criar script de migracao one-time
-
-**Recomendacao**: Adicionar botao na lista de projetos "Sincronizar Orcamentos" que abre dialogo para criar projetos para orcamentos fechados pendentes.
