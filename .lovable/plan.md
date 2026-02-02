@@ -3,145 +3,142 @@
 
 ## Problema Identificado
 
-Ao criar um orcamento, o usuario pode pressionar Enter em qualquer input de texto ou numero dentro do formulario. Isso dispara o `onSubmit` do form, salvando o orcamento prematuramente. Se isso acontecer duas vezes (por exemplo, o usuario pressiona Enter e depois clica em "Criar Orcamento"), o sistema cria dois orcamentos.
+Apos investigacao detalhada do codigo, o problema NAO e a tecla Enter (que ja foi tratada). O problema e que **o formulario esta sendo submetido prematuramente quando o usuario clica no botao "Proximo"**, mesmo que este botao tenha `type="button"`.
 
-### Componentes Afetados
+### Causa Raiz
 
-| Componente | Inputs Sem Prevencao | Linhas |
-|------------|---------------------|--------|
-| `BudgetRolesEditor.tsx` | Inputs de horas por mes | 187-200 |
-| `BudgetSuppliersEditor.tsx` | Nome do fornecedor | 93-98 |
-| `BudgetSuppliersEditor.tsx` | Descricao do servico | 102-107 |
-| `BudgetSuppliersEditor.tsx` | Valor mensal | 111-125 |
-| `BudgetMaterialsEditor.tsx` | Descricao do material | 85-91 |
-| `BudgetMaterialsEditor.tsx` | Valor | 94-108 |
+Analisando o codigo do `BudgetForm.tsx`, identifiquei que o problema esta na funcao `handleSubmit`:
 
-### Problema Secundario
+```tsx
+// Linha 174-199
+const handleSubmit = (values: FormValues) => {
+  // Cria o input e chama a mutation DIRETAMENTE
+  // SEM verificar se estamos na ultima etapa!
+  createMutation.mutate(input, { onSuccess: ... });
+};
+```
 
-O modo de edicao (Tabs) referencia `renderStepContent(3)`, `renderStepContent(4)` e `renderStepContent(5)` que retornam `null`, causando tabs vazias.
+O `form.handleSubmit(handleSubmit)` esta no form (linha 410), e quando **qualquer submissao do form acontece** (seja por Enter, click em submit, ou comportamento inesperado do navegador), a funcao `handleSubmit` executa a criacao do orcamento.
+
+### Problema com a Logica Atual
+
+- O botao "Proximo" tem `type="button"` (linha 490), entao **nao deveria** disparar o submit
+- POREM, se houver qualquer outro comportamento (ex: navegador interpretando Enter em input, propagacao de evento, etc.), o form pode ser submetido
+- A funcao `handleSubmit` NAO verifica se o usuario esta na ultima etapa antes de salvar
 
 ## Solucao
 
-### 1. Adicionar Prevencao do Enter em Todos os Inputs
+### 1. Proteger a Funcao handleSubmit
 
-Adicionar o handler `onKeyDown` em todos os inputs editaveis:
+Adicionar verificacao no inicio da funcao para **bloquear submissao se nao estiver na ultima etapa**:
 
 ```tsx
-onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+const handleSubmit = (values: FormValues) => {
+  // PROTECAO: So permite salvar se estiver na ultima etapa (modo wizard)
+  // ou se estiver em modo de edicao
+  if (!isEditing && currentStep < WIZARD_STEPS.length) {
+    console.warn('Form submission blocked: not on final step');
+    return;
+  }
+  
+  // Resto do codigo...
+};
 ```
 
-### 2. Corrigir Modo de Edicao
+### 2. Prevenir Dupla Submissao
 
-Simplificar as tabs de edicao para 2 abas (consistente com o wizard):
-- Aba "Dados Basicos" -> `renderStepContent(1)`
-- Aba "Composicao" -> `renderStepContent(2)` (ja inclui editores + resumo)
+Adicionar verificacao para nao submeter se ja houver uma mutation em andamento:
 
-## Arquivos a Modificar
+```tsx
+const handleSubmit = (values: FormValues) => {
+  // PROTECAO: Bloquear se ja estiver submetendo
+  if (isSubmitting) {
+    return;
+  }
+  
+  // PROTECAO: So permite salvar na ultima etapa
+  if (!isEditing && currentStep < WIZARD_STEPS.length) {
+    return;
+  }
+  
+  // Resto do codigo...
+};
+```
+
+## Arquivo a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/budgets/BudgetRolesEditor.tsx` | Adicionar `onKeyDown` nos inputs de horas (linha 187-200) |
-| `src/components/budgets/BudgetSuppliersEditor.tsx` | Adicionar `onKeyDown` nos 3 inputs (linhas 93, 102, 111) |
-| `src/components/budgets/BudgetMaterialsEditor.tsx` | Adicionar `onKeyDown` nos 2 inputs (linhas 85, 94) |
-| `src/pages/BudgetForm.tsx` | Simplificar TabsList de 5 para 2 abas (linhas 413-441) |
+| `src/pages/BudgetForm.tsx` | Adicionar guards na funcao `handleSubmit` (linhas 174-199) |
 
-## Alteracoes Detalhadas
+## Implementacao Detalhada
 
-### BudgetRolesEditor.tsx (linha 187-200)
+### BudgetForm.tsx - Funcao handleSubmit (linhas 174-199)
 
-Antes:
+**Antes:**
 ```tsx
-<Input
-  type="number"
-  min={0}
-  className="h-8 w-20 text-center ..."
-  value={monthData?.hours || ''}
-  onChange={(e) => handleHoursChange(...)}
-  placeholder="0"
-/>
+const handleSubmit = (values: FormValues) => {
+  const input: CreateBudgetInput = {
+    title: values.title,
+    // ... resto do input
+  };
+
+  if (isEditing && id) {
+    updateMutation.mutate({ id, input }, { onSuccess: () => navigate('/budgets') });
+  } else {
+    createMutation.mutate(input, { onSuccess: () => navigate('/budgets') });
+  }
+};
 ```
 
-Depois:
+**Depois:**
 ```tsx
-<Input
-  type="number"
-  min={0}
-  className="h-8 w-20 text-center ..."
-  value={monthData?.hours || ''}
-  onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-  onChange={(e) => handleHoursChange(...)}
-  placeholder="0"
-/>
+const handleSubmit = (values: FormValues) => {
+  // PROTECAO 1: Bloquear se ja estiver submetendo
+  if (isSubmitting) {
+    return;
+  }
+  
+  // PROTECAO 2: No modo wizard, so permite salvar na ultima etapa
+  if (!isEditing && currentStep < WIZARD_STEPS.length) {
+    return;
+  }
+
+  const input: CreateBudgetInput = {
+    title: values.title,
+    // ... resto do input
+  };
+
+  if (isEditing && id) {
+    updateMutation.mutate({ id, input }, { onSuccess: () => navigate('/budgets') });
+  } else {
+    createMutation.mutate(input, { onSuccess: () => navigate('/budgets') });
+  }
+};
 ```
 
-### BudgetSuppliersEditor.tsx (linhas 93, 102, 111)
+## Por Que Esta Solucao Funciona
 
-Adicionar `onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}` em:
-- Input de nome do fornecedor (linha 93)
-- Input de descricao (linha 102)
-- Input de valor mensal (linha 111)
+1. **Defesa em Profundidade**: Mesmo que algum comportamento inesperado dispare o submit do form, a funcao `handleSubmit` vai bloquear a criacao se nao estiver na ultima etapa.
 
-### BudgetMaterialsEditor.tsx (linhas 85, 94)
+2. **Previne Dupla Submissao**: Se o usuario clicar duas vezes rapido no botao "Criar Orcamento", a segunda chamada sera bloqueada porque `isSubmitting` ja sera `true`.
 
-Adicionar `onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}` em:
-- Input de descricao (linha 85)
-- Input de valor (linha 94)
-
-### BudgetForm.tsx (linhas 413-441)
-
-Antes (5 abas):
-```tsx
-<TabsList className="grid w-full grid-cols-5">
-  <TabsTrigger value="basic">Dados Basicos</TabsTrigger>
-  <TabsTrigger value="roles">Mao de Obra</TabsTrigger>
-  <TabsTrigger value="suppliers">Fornecedores</TabsTrigger>
-  <TabsTrigger value="materials">Materiais</TabsTrigger>
-  <TabsTrigger value="financial">Financeiro</TabsTrigger>
-</TabsList>
-// ... TabsContent para cada uma (algumas renderizam null)
-```
-
-Depois (2 abas):
-```tsx
-<TabsList className="grid w-full grid-cols-2">
-  <TabsTrigger value="basic">Dados Basicos</TabsTrigger>
-  <TabsTrigger value="composition">Composicao</TabsTrigger>
-</TabsList>
-
-<TabsContent value="basic" className="mt-6">
-  {renderStepContent(1)}
-</TabsContent>
-
-<TabsContent value="composition" className="mt-6">
-  {renderStepContent(2)}
-</TabsContent>
-```
-
-## Secao Tecnica
-
-### Por Que o Enter Causa Submissao
-
-Em formularios HTML, pressionar Enter em um input de texto dispara o `onSubmit` do form pai. Isso e comportamento padrao do navegador. Para prevenir, precisamos interceptar o evento `keydown` e chamar `preventDefault()` quando a tecla for Enter.
-
-### Por Que as Tabs Estavam Vazias
-
-A funcao `renderStepContent()` so tem cases para step 1 e 2. Os steps 3, 4 e 5 caem no `default: return null`. As tabs de edicao referenciavam esses steps inexistentes.
+3. **Nao Afeta Modo de Edicao**: A verificacao de `currentStep` so se aplica ao modo de criacao (`!isEditing`).
 
 ## Validacao Apos Implementacao
 
-1. **Modo Criacao**:
-   - Preencher campos na etapa 1 e pressionar Enter -> NAO deve submeter
-   - Clicar em "Proximo" -> deve ir para etapa 2
-   - Na etapa 2, preencher horas/valores e pressionar Enter -> NAO deve submeter
-   - Adicionar/remover fornecedores e materiais -> NAO deve submeter
-   - Clicar em "Criar Orcamento" -> so entao deve salvar
-   - Verificar que apenas UM orcamento foi criado
+1. **Teste de Criacao**:
+   - Ir para Orcamentos > Novo Orcamento
+   - Preencher os campos da Etapa 1
+   - Clicar em "Proximo" -> Deve ir para Etapa 2, NAO deve salvar
+   - Pressionar Enter em qualquer campo -> NAO deve salvar
+   - Na Etapa 2, clicar em "Criar Orcamento" -> Deve salvar
+   - Verificar que APENAS UM orcamento foi criado
 
-2. **Modo Edicao**:
-   - Navegar entre as 2 abas
-   - Verificar que todas as secoes estao visiveis e funcionais
-   - Salvar alteracoes clicando em "Salvar"
+2. **Teste de Edicao**:
+   - Editar um orcamento existente
+   - Alternar entre as abas
+   - Clicar em "Salvar" -> Deve atualizar o orcamento
 
 3. **Console**:
-   - Sem warnings de refs
-   - Sem erros de rendering
+   - Se o submit for bloqueado prematuramente, deve aparecer um log de warning
