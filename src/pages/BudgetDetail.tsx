@@ -24,7 +24,7 @@ import { useBudget } from '@/hooks/useBudgets';
 import { BudgetStatusBadge } from '@/components/budgets/BudgetStatusBadge';
 import { BudgetHoursChart } from '@/components/budgets/BudgetHoursChart';
 import { BudgetCostBreakdownChart } from '@/components/budgets/BudgetCostBreakdownChart';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, parseDateString } from '@/lib/formatters';
 import { calculateBudgetTotals } from '@/types/budget';
 
 export default function BudgetDetail() {
@@ -192,14 +192,14 @@ export default function BudgetDetail() {
                 <div>
                   <p className="text-sm text-muted-foreground">Criação do Orçamento</p>
                   <p className="font-medium">
-                    {format(new Date(budget.start_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    {format(parseDateString(budget.start_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                   </p>
                 </div>
                 {budget.valid_until && (
                   <div>
                     <p className="text-sm text-muted-foreground">Válido até</p>
                     <p className="font-medium">
-                      {format(new Date(budget.valid_until), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      {format(parseDateString(budget.valid_until), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </p>
                   </div>
                 )}
