@@ -1,305 +1,209 @@
 
-# Plano: Tela de Gestao de Projeto em Tela Cheia
+# Plano: Dashboard Profissional de Projeto
 
-## Visao Geral
+## Resumo das Alteracoes
 
-Criar uma experiencia completa de gestao de projetos em tela cheia (mantendo sidebar) com navegacao por abas, substituindo o modal atual. Esta primeira fase foca na **Visao Geral** e **Dados Financeiros**.
+Transformar a aba "Visao Geral" em um dashboard profissional de gestao de projeto com layout otimizado e graficos de resumo.
 
-## Arquitetura da Solucao
+## 1. Remover Botao Voltar e Excluir
 
-```text
-/projects/:id
-    │
-    ├── Visao Geral (Tab 1) ─────────────────────────────────────────────────────
-    │   ├── Header com status, cliente, gerente
-    │   ├── Cards de resumo (duracao, valor, progresso)
-    │   └── Descricao e informacoes basicas
-    │
-    ├── Custos (Tab 2) ──────────────────────────────────────────────────────────
-    │   ├── Mao de Obra (horas alocadas por membro)
-    │   ├── Fornecedores (custos de servico externo)
-    │   └── Materiais (custos avulsos)
-    │
-    ├── Financeiro (Tab 3) ──────────────────────────────────────────────────────
-    │   ├── Planejado vs Realizado
-    │   ├── Analise de margem
-    │   └── Curva de tendencia (grafico temporal)
-    │
-    ├── Stakeholders (Tab 4) - Futuro ───────────────────────────────────────────
-    │   └── Gestao de partes interessadas e nivel de apoio
-    │
-    └── Cronograma (Tab 5) - Futuro ─────────────────────────────────────────────
-        └── Marcos e entregas principais
-```
+**Arquivo: `src/pages/ProjectDetail.tsx`**
 
-## Novas Tabelas no Banco de Dados
-
-### 1. `project_suppliers` - Fornecedores do Projeto
-
-Custos recorrentes mensais com fornecedores externos durante a execucao.
-
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid | PK |
-| project_id | uuid | FK para projects |
-| supplier_id | uuid | FK para suppliers (opcional) |
-| name | text | Nome do fornecedor |
-| description | text | Descricao do servico |
-| monthly_value | numeric | Valor mensal |
-| start_month | integer | Mes de inicio (1-based) |
-| end_month | integer | Mes de fim (1-based) |
-| created_at | timestamp | Data criacao |
-
-### 2. `project_materials` - Materiais do Projeto
-
-Custos avulsos com materiais e insumos.
-
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid | PK |
-| project_id | uuid | FK para projects |
-| description | text | Descricao do material |
-| value | numeric | Valor total |
-| purchase_date | date | Data prevista/realizada |
-| is_realized | boolean | Se ja foi realizado |
-| created_at | timestamp | Data criacao |
-
-### 3. `project_costs_actual` - Custos Realizados
-
-Lancamentos de custos realizados para comparar com planejado.
-
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid | PK |
-| project_id | uuid | FK para projects |
-| category | text | 'labor', 'supplier', 'material' |
-| reference_id | uuid | ID do item relacionado (opcional) |
-| description | text | Descricao |
-| value | numeric | Valor realizado |
-| period_month | integer | Mes do custo |
-| created_at | timestamp | Data criacao |
-
-## Estrutura de Arquivos
-
-### Novos Arquivos
+Manter apenas o botao "Editar" na area de acoes:
 
 ```text
-src/
-├── pages/
-│   └── ProjectDetail.tsx                    # Pagina principal do projeto
-│
-├── components/projects/
-│   ├── detail/
-│   │   ├── ProjectHeader.tsx                # Header com status e acoes
-│   │   ├── ProjectOverviewTab.tsx           # Aba Visao Geral
-│   │   ├── ProjectCostsTab.tsx              # Aba Custos
-│   │   ├── ProjectFinancialTab.tsx          # Aba Financeiro
-│   │   ├── ProjectSuppliersSection.tsx      # Tabela de fornecedores
-│   │   ├── ProjectMaterialsSection.tsx      # Tabela de materiais
-│   │   ├── ProjectFinancialChart.tsx        # Grafico planejado vs realizado
-│   │   └── ProjectTrendChart.tsx            # Curva de tendencia
-│   │
-│   └── (arquivos existentes)
-│
-├── types/
-│   └── project.ts                           # Adicionar novos tipos
-│
-├── services/
-│   └── projectService.ts                    # Adicionar novos metodos
-│
-└── hooks/
-    └── useProjects.ts                       # Adicionar novos hooks
+Antes:
+┌──────────┐  ┌──────────┐  ┌──────────┐
+│  Voltar  │  │  Editar  │  │  Excluir │
+└──────────┘  └──────────┘  └──────────┘
+
+Depois:
+┌──────────┐
+│  Editar  │
+└──────────┘
 ```
 
-### Arquivos Modificados
+O breadcrumb "Projetos" ja serve como navegacao de retorno.
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/App.tsx` | Adicionar rota `/projects/:id` |
-| `src/pages/Projects.tsx` | Navegar para `/projects/:id` ao clicar |
-| `src/types/project.ts` | Adicionar tipos para suppliers, materials, costs |
-| `src/services/projectService.ts` | CRUD para novas entidades |
-| `src/hooks/useProjects.ts` | Hooks para novas entidades |
+## 2. Permitir Adicionar Membros na Visao Geral
 
-## Implementacao Fase 1: Visao Geral e Financeiro
+A funcionalidade de adicionar membros ja existe em `ProjectMembersTable`. Precisamos:
+- Importar o botao de adicionar membro na secao de equipe do `ProjectOverviewTab`
+- Exibir o botao apenas quando o projeto estiver em modo de planejamento OU quando o usuario quiser alocar mais pessoas
 
-### 1. Migracoes SQL
+## 3. Layout em Duas Colunas: Descricao e Equipe
 
-```sql
--- Tabela: project_suppliers
-CREATE TABLE public.project_suppliers (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  supplier_id uuid REFERENCES suppliers(id) ON DELETE SET NULL,
-  name text NOT NULL,
-  description text,
-  monthly_value numeric NOT NULL DEFAULT 0,
-  start_month integer NOT NULL DEFAULT 1,
-  end_month integer,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
+**Arquivo: `src/components/projects/detail/ProjectOverviewTab.tsx`**
 
--- Tabela: project_materials
-CREATE TABLE public.project_materials (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  description text NOT NULL,
-  value numeric NOT NULL DEFAULT 0,
-  purchase_date date,
-  is_realized boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
+```text
+Antes:
+┌─────────────────────────────────────────┐
+│ Descricao do Projeto                    │
+└─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ Equipe do Projeto                       │
+└─────────────────────────────────────────┘
 
--- RLS para ambas as tabelas
--- (Policies seguindo padrao existente de projects)
+Depois:
+┌────────────────────┐  ┌────────────────────┐
+│ Descricao          │  │ Equipe             │
+│ do Projeto         │  │ do Projeto         │
+│                    │  │ + Adicionar Membro │
+└────────────────────┘  └────────────────────┘
 ```
 
-### 2. Pagina ProjectDetail.tsx
+## 4. Dashboard Profissional - Nova Estrutura
 
-```tsx
-// Estrutura principal
-export default function ProjectDetail() {
-  const { id } = useParams();
-  const { data: project } = useProject(id);
-  
-  return (
-    <AppLayout
-      title={project.name}
-      breadcrumbs={[
-        { label: 'Projetos', href: '/projects' },
-        { label: project.name }
-      ]}
-      actions={<ProjectActions project={project} />}
-    >
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Visao Geral</TabsTrigger>
-          <TabsTrigger value="costs">Custos</TabsTrigger>
-          <TabsTrigger value="financial">Financeiro</TabsTrigger>
-          <TabsTrigger value="stakeholders" disabled>Stakeholders</TabsTrigger>
-          <TabsTrigger value="schedule" disabled>Cronograma</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="overview">
-          <ProjectOverviewTab project={project} />
-        </TabsContent>
-        
-        <TabsContent value="costs">
-          <ProjectCostsTab project={project} />
-        </TabsContent>
-        
-        <TabsContent value="financial">
-          <ProjectFinancialTab project={project} />
-        </TabsContent>
-      </Tabs>
-    </AppLayout>
-  );
-}
-```
-
-### 3. Aba Visao Geral
-
-Conteudo:
-- Cards de resumo: Status, Cliente, Gerente, Duracao
-- Valores: Total do Contrato, Recebido, Pendente
-- Descricao do projeto
-- Tabela de parcelas (resumo)
-
-### 4. Aba Custos
-
-Subsecoes com tabelas editaveis:
-- **Mao de Obra**: Reutiliza `ProjectMembersTable` existente
-- **Fornecedores**: Nova tabela com CRUD inline
-- **Materiais**: Nova tabela com CRUD inline
-
-Cada secao mostra subtotal e o total geral de custos.
-
-### 5. Aba Financeiro
-
-Componentes:
-- **Cards de Resultado**: Custo Planejado, Custo Realizado, Variacao
-- **Analise de Margem**: Valor Contrato vs Custo Total, % margem
-- **Grafico Planejado vs Realizado**: Barras agrupadas por mes
-- **Curva de Tendencia**: Linha temporal com projecao
+Transformar a pagina em um dashboard de gestao agil:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Resultado Financeiro                                                       │
-│                                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │ Planejado    │  │ Realizado    │  │ Variacao     │  │ Margem       │    │
-│  │ R$ 50.000    │  │ R$ 45.000    │  │ -R$ 5.000    │  │ 32%          │    │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  Grafico: Planejado vs Realizado por Mes                            │   │
-│  │  [=======] Planejado                                                │   │
-│  │  [=====  ] Realizado                                                │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  Curva de Tendencia                                                  │   │
-│  │  ────────────────                                                    │   │
-│  │  Custos acumulados com projecao de tendencia                         │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
+│  [Status] Em Planejamento         Nome do Projeto                  [Editar]│
+│  Cliente: ABC Ltda • Gerente: Joao Silva • Jan/2026 - Jun/2026              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ METRICAS PRINCIPAIS ───────────────────────────────────────────────────────┐
+│ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ │
+│ │ Contrato   │ │ Custo Plan.│ │ Margem     │ │ Recebido   │ │ Pendente   │ │
+│ │ R$ 100.000 │ │ R$ 68.000  │ │ 32%        │ │ R$ 25.000  │ │ R$ 75.000  │ │
+│ └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ GRAFICOS DE RESUMO ────────────────────────────────────────────────────────┐
+│ ┌─────────────────────────────┐  ┌─────────────────────────────┐            │
+│ │ Composicao de Custos        │  │ Recebimentos                │            │
+│ │ [Grafico de pizza ou donut] │  │ [Grafico de barras]         │            │
+│ │  Mao de Obra: 60%           │  │  Recebido vs Pendente       │            │
+│ │  Fornecedores: 25%          │  │                             │            │
+│ │  Materiais: 15%             │  │                             │            │
+│ └─────────────────────────────┘  └─────────────────────────────┘            │
+│                                                                              │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ Curva de Custos (mini)                                                   │ │
+│ │ [Linha de tendencia simplificada - Planejado vs Budget]                  │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ DESCRICAO E EQUIPE ────────────────────────────────────────────────────────┐
+│ ┌────────────────────────────┐  ┌─────────────────────────────────────────┐ │
+│ │ Descricao do Projeto       │  │ Equipe do Projeto (4 membros)           │ │
+│ │                            │  │                                         │ │
+│ │ Lorem ipsum dolor sit amet │  │ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐        │ │
+│ │ consectetur adipiscing     │  │ │ JS  │ │ MC  │ │ AP  │ │ RF  │        │ │
+│ │ elit. Sed do eiusmod...    │  │ │     │ │     │ │     │ │     │        │ │
+│ │                            │  │ └─────┘ └─────┘ └─────┘ └─────┘        │ │
+│ │                            │  │ Joao   Maria   Ana    Roberto          │ │
+│ │                            │  │                                         │ │
+│ │                            │  │            [+ Adicionar Membro]        │ │
+│ └────────────────────────────┘  └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ PARCELAS ──────────────────────────────────────────────────────────────────┐
+│ Tabela de parcelas existente                                                │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Restricoes por Status
+## 5. Novos Componentes
 
-Quando `status === 'planning'`:
-- Todas as edicoes habilitadas
-- Mensagem: "Configure os custos planejados antes de iniciar o projeto"
+### 5.1 Grafico de Composicao de Custos (Donut Chart)
 
-Quando `status !== 'planning'`:
-- Custos planejados: somente leitura
-- Custos realizados: editaveis
-- Exibe comparativo planejado vs realizado
+**Novo arquivo: `src/components/projects/detail/ProjectCostBreakdownChart.tsx`**
 
-## Navegacao
+Grafico de rosca mostrando a distribuicao percentual:
+- Mao de Obra (azul)
+- Fornecedores (roxo)
+- Materiais (amarelo)
 
-### Fluxo de Navegacao
+### 5.2 Grafico de Recebimentos
 
-1. Usuario acessa `/projects`
-2. Clica em uma linha da tabela
-3. Navega para `/projects/:id`
-4. Visualiza projeto em tela cheia com abas
+**Novo arquivo: `src/components/projects/detail/ProjectPaymentsChart.tsx`**
 
-### Alteracao em Projects.tsx
+Grafico de barras horizontais:
+- Recebido (verde)
+- Pendente (amarelo)
+- Atrasado (vermelho)
 
+### 5.3 Mini Curva de Tendencia
+
+Reutilizar `ProjectTrendChart` em formato compacto para o dashboard.
+
+### 5.4 Componente de Equipe Compacto
+
+**Novo arquivo: `src/components/projects/detail/ProjectTeamSection.tsx`**
+
+Exibir equipe com avatares visuais e botao de adicionar:
+- Avatares circulares com iniciais
+- Nome e papel abaixo
+- Botao de adicionar membro (abre dialog)
+- Reutiliza logica do `ProjectMembersTable` para adicionar
+
+## 6. Arquivos a Modificar
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/ProjectDetail.tsx` | Remover botoes Voltar e Excluir |
+| `src/components/projects/detail/ProjectOverviewTab.tsx` | Transformar em dashboard completo |
+| `src/components/projects/detail/ProjectHeader.tsx` | Simplificar para linha unica no topo |
+
+## 7. Novos Arquivos
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/components/projects/detail/ProjectCostBreakdownChart.tsx` | Donut chart de custos |
+| `src/components/projects/detail/ProjectPaymentsChart.tsx` | Barras de recebimentos |
+| `src/components/projects/detail/ProjectTeamSection.tsx` | Secao de equipe com adicionar |
+
+## 8. Detalhes Tecnicos
+
+### Grafico de Composicao de Custos
 ```tsx
-// Antes: abre modal
-const handleView = (project) => {
-  setViewingProjectId(project.id);
-  setDetailDialogOpen(true);
-};
-
-// Depois: navega para pagina
-const handleView = (project) => {
-  navigate(`/projects/${project.id}`);
-};
+// Usando Recharts PieChart com innerRadius para efeito donut
+<PieChart>
+  <Pie
+    data={[
+      { name: 'Mao de Obra', value: laborCost, fill: 'hsl(var(--chart-1))' },
+      { name: 'Fornecedores', value: supplierCost, fill: 'hsl(var(--chart-4))' },
+      { name: 'Materiais', value: materialCost, fill: 'hsl(var(--chart-3))' },
+    ]}
+    innerRadius={60}
+    outerRadius={80}
+  />
+</PieChart>
 ```
 
-## Proximos Passos (Fases Futuras)
+### Secao de Equipe
+```tsx
+// Avatares em grid responsivo
+<div className="grid grid-cols-4 sm:grid-cols-6 gap-4">
+  {members.map((member) => (
+    <div className="flex flex-col items-center gap-1">
+      <Avatar className="h-12 w-12">
+        <AvatarFallback>{getInitials(member.employee.nome)}</AvatarFallback>
+      </Avatar>
+      <span className="text-sm font-medium">{member.employee.nome.split(' ')[0]}</span>
+      <span className="text-xs text-muted-foreground">{member.role}</span>
+    </div>
+  ))}
+</div>
+```
 
-### Fase 2: Stakeholders
-- Tabela `project_stakeholders`
-- Campos: nome, organizacao, papel, nivel_apoio, influencia
-- Matriz de poder vs interesse
+## 9. Resultado Visual Final
 
-### Fase 3: Cronograma
-- Tabela `project_milestones`
-- Campos: titulo, data_prevista, data_realizada, status
-- Visualizacao tipo timeline
+O dashboard tera aspecto profissional similar a ferramentas como Jira, Monday.com ou Azure DevOps, com:
 
-## Resumo de Alteracoes
+- Header compacto com informacoes essenciais
+- Metricas financeiras em destaque
+- Graficos visuais de composicao e status
+- Layout em grid responsivo (2 colunas em desktop, 1 em mobile)
+- Cores consistentes com a paleta do sistema
+- Interatividade para adicionar membros diretamente
 
-| Categoria | Item |
-|-----------|------|
-| Migracoes | 2 novas tabelas + RLS policies |
-| Paginas | 1 nova (`ProjectDetail.tsx`) |
-| Componentes | 8 novos componentes |
-| Services | Adicoes ao `projectService.ts` |
-| Hooks | Adicoes ao `useProjects.ts` |
-| Tipos | Adicoes ao `project.ts` |
-| Rotas | 1 nova rota em `App.tsx` |
+## 10. Responsividade
+
+```text
+Desktop (>1024px):      Tablet (768-1024px):    Mobile (<768px):
+┌─────┐ ┌─────┐         ┌─────┐ ┌─────┐        ┌─────────────┐
+│     │ │     │         │     │ │     │        │             │
+└─────┘ └─────┘         └─────┘ └─────┘        └─────────────┘
+2 colunas               2 colunas               1 coluna
+```
