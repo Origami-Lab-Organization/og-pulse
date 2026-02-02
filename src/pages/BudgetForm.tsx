@@ -349,36 +349,38 @@ export default function BudgetForm() {
         );
       case 2:
         return (
-          <div className="flex flex-col pb-32">
-            {/* Mão de Obra - largura total */}
-            <Card className="mb-6">
-              <CardContent className="pt-6">
-                <BudgetRolesEditor
-                  roles={roles}
-                  durationMonths={durationMonths}
-                  availableRoles={roleRates}
-                  onRolesChange={setRoles}
-                />
-              </CardContent>
-            </Card>
+          <>
+            <div className="flex flex-col pb-48">
+              {/* Mão de Obra - largura total */}
+              <Card className="mb-6">
+                <CardContent className="pt-6">
+                  <BudgetRolesEditor
+                    roles={roles}
+                    durationMonths={durationMonths}
+                    availableRoles={roleRates}
+                    onRolesChange={setRoles}
+                  />
+                </CardContent>
+              </Card>
 
-            {/* Fornecedores - largura total */}
-            <div className="mb-6">
-              <BudgetSuppliersEditor
-                suppliers={suppliers}
-                durationMonths={durationMonths}
-                onSuppliersChange={setSuppliers}
+              {/* Fornecedores - largura total */}
+              <div className="mb-6">
+                <BudgetSuppliersEditor
+                  suppliers={suppliers}
+                  durationMonths={durationMonths}
+                  onSuppliersChange={setSuppliers}
+                />
+              </div>
+
+              {/* Materiais - largura total */}
+              <BudgetMaterialsEditor
+                materials={materials}
+                onMaterialsChange={setMaterials}
               />
             </div>
 
-            {/* Materiais - largura total */}
-            <BudgetMaterialsEditor
-              materials={materials}
-              onMaterialsChange={setMaterials}
-            />
-
-            {/* Rodapé Fixo com Resumo Financeiro */}
-            <div className="fixed bottom-0 left-0 right-0 z-50">
+            {/* Rodapé Sticky com Resumo Financeiro - respeita sidebar */}
+            <div className="sticky bottom-0 z-40 -mx-6 -mb-6">
               <BudgetFinancialSummary
                 layout="footer"
                 calculation={calculation}
@@ -394,7 +396,7 @@ export default function BudgetForm() {
                 onDiscountChange={setDiscountValue}
               />
             </div>
-          </div>
+          </>
         );
       default:
         return null;
