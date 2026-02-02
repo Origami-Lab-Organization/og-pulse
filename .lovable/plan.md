@@ -1,92 +1,124 @@
 
 
-# Plano: Corrigir Fluxo do Wizard de Criacao de Orcamentos
+# Plano: Simplificar Wizard de Orcamento para 2 Telas
 
-## Problemas Identificados
+## Objetivo
 
-### 1. Submit Prematuro na Etapa de Resumo
-Ao pressionar Enter nos campos editaveis do `BudgetFinancialSummary` (comissao, margem liquida, desconto), o formulario e submetido automaticamente. Isso ocorre porque:
-- Os `<Input>` nao previnem o comportamento padrao do Enter
-- Como estao dentro de um `<form>`, o Enter em um input dispara `onSubmit`
+Transformar o wizard de 5 etapas em apenas 2 telas:
 
-### 2. Ordem dos Campos Incorreta
-Na primeira etapa "Dados Basicos", a ordem atual e:
-1. Titulo do Orcamento
-2. Tipo de Cliente  
+1. **Tela 1 - Dados Basicos**: Tipo de cliente, titulo, datas, duracao, observacoes
+2. **Tela 2 - Composicao do Orcamento**: Mao de Obra, Fornecedores, Materiais em secoes + Resumo Financeiro **sempre visivel**
 
-A ordem correta deveria ser:
-1. Tipo de Cliente (Cliente Existente ou Lead)
-2. Titulo do Orcamento
+---
 
-### 3. Warning de Refs no Console
-O componente `BudgetMaterialsEditor` esta gerando warning:
-```
-Warning: Function components cannot be given refs...
-Check the render method of BudgetForm.
-at BudgetMaterialsEditor
+## Arquitetura da Nova Interface
+
+```text
++-----------------------------------------------+
+|              TELA 2 - COMPOSICAO              |
++---------------------------+-------------------+
+|                           |                   |
+|  [Mao de Obra]            |                   |
+|  - Tabela de papeis       |    RESUMO         |
+|  - Adicionar papel        |    FINANCEIRO     |
+|                           |                   |
+|  [Fornecedores]           |    (sempre        |
+|  - Lista de fornecedores  |     visivel)      |
+|  - Adicionar fornecedor   |                   |
+|                           |    - Custos       |
+|  [Materiais]              |    - Taxas        |
+|  - Lista de materiais     |    - Comissao     |
+|  - Adicionar material     |    - Margem       |
+|                           |    - Desconto     |
+|                           |    - VALOR FINAL  |
++---------------------------+-------------------+
 ```
 
 ---
 
-## Solucao
+## Mudancas Detalhadas
 
-### 1. Prevenir Submit ao Pressionar Enter nos Inputs
-
-No `BudgetFinancialSummary.tsx`, adicionar `onKeyDown` em todos os inputs numericos para prevenir o comportamento padrao do Enter:
+### 1. Atualizar Constantes do Wizard
 
 ```tsx
-<Input
-  type="number"
-  onKeyDown={(e) => {
-    if (e.key === 'Enter') e.preventDefault();
-  }}
-  // ... outras props
-/>
+// Antes: 5 etapas
+const WIZARD_STEPS = [
+  { id: 1, title: 'Dados Basicos' },
+  { id: 2, title: 'Mao de Obra' },
+  { id: 3, title: 'Fornecedores' },
+  { id: 4, title: 'Materiais' },
+  { id: 5, title: 'Resumo' },
+];
+
+// Depois: 2 etapas
+const WIZARD_STEPS = [
+  { id: 1, title: 'Dados Basicos' },
+  { id: 2, title: 'Composicao' },
+];
 ```
 
-Isso se aplica a:
-- Input de Comissao (linha 99-111)
-- Input de Margem Liquida (linha 126-138)
-- Input de Desconto (linha 164-176)
+### 2. Reestruturar `renderStepContent`
 
-### 2. Reordenar Campos na Etapa 1
+**Tela 1 (Dados Basicos)**: Mantem igual - formulario com tipo de cliente, titulo, datas, etc.
 
-No `BudgetForm.tsx`, dentro do `renderStepContent(1)` (linhas 243-340), mover o bloco do FormField de "clientType" para **antes** do FormField de "title":
+**Tela 2 (Composicao)**: Layout em 2 colunas:
+- **Coluna Esquerda (2/3)**: Secoes empilhadas verticalmente
+  - Mao de Obra (BudgetRolesEditor)
+  - Fornecedores (BudgetSuppliersEditor)
+  - Materiais (BudgetMaterialsEditor)
+- **Coluna Direita (1/3)**: Resumo Financeiro (sticky/fixo ao rolar)
+  - BudgetFinancialSummary sempre visivel
 
-Ordem atual:
-```
-1. FormField name="title"
-2. FormField name="clientType"
-3. FormField name="clientId" ou leadName/leadContact
-```
-
-Nova ordem:
-```
-1. FormField name="clientType"
-2. FormField name="title"
-3. FormField name="clientId" ou leadName/leadContact
-```
-
-### 3. Adicionar forwardRef ao BudgetMaterialsEditor
-
-O `BudgetMaterialsEditor` precisa ser envolvido com `forwardRef` para resolver o warning de refs:
+### 3. Implementar Layout Responsivo
 
 ```tsx
-import { forwardRef } from 'react';
-
-export const BudgetMaterialsEditor = forwardRef<HTMLDivElement, BudgetMaterialsEditorProps>(
-  function BudgetMaterialsEditor({ materials, onMaterialsChange }, ref) {
-    // ... conteudo existente
-    return (
-      <div ref={ref}>
-        <Card>
-          {/* ... */}
-        </Card>
-      </div>
-    );
-  }
-);
+// Tela 2: Grid com 2 colunas
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  {/* Coluna principal: Secoes de custos */}
+  <div className="lg:col-span-2 space-y-6">
+    {/* Mao de Obra */}
+    <Card>
+      <CardContent className="pt-6">
+        <BudgetRolesEditor ... />
+      </CardContent>
+    </Card>
+    
+    {/* Fornecedores */}
+    <BudgetSuppliersEditor ... />
+    
+    {/* Materiais */}
+    <BudgetMaterialsEditor ... />
+  </div>
+  
+  {/* Coluna lateral: Resumo sempre visivel */}
+  <div className="lg:col-span-1">
+    <div className="sticky top-6">
+      <BudgetFinancialSummary ... />
+    </div>
+  </div>
+</div>
 ```
+
+### 4. Atualizar Indicador de Passos
+
+Simplificar o indicador visual para mostrar apenas 2 passos em vez de 5.
+
+### 5. Atualizar Logica de Navegacao
+
+- `handleNext`: Agora so tem 1 transicao (etapa 1 -> etapa 2)
+- `validateCurrentStep`: Mantem validacao apenas para etapa 1
+- Botao "Criar Orcamento" aparece na etapa 2
+
+---
+
+## Beneficios da Nova Estrutura
+
+| Aspecto | Antes | Depois |
+|---------|-------|--------|
+| Etapas | 5 cliques | 2 cliques |
+| Visibilidade do preco | So na etapa 5 | Sempre visivel na etapa 2 |
+| UX | Fragmentado | Fluido e contextualizado |
+| Feedback visual | Tardio | Imediato ao editar valores |
 
 ---
 
@@ -94,17 +126,24 @@ export const BudgetMaterialsEditor = forwardRef<HTMLDivElement, BudgetMaterialsE
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/budgets/BudgetFinancialSummary.tsx` | Adicionar `onKeyDown` para prevenir Enter em 3 inputs |
-| `src/pages/BudgetForm.tsx` | Reordenar campos: clientType antes de title |
-| `src/components/budgets/BudgetMaterialsEditor.tsx` | Adicionar `forwardRef` |
+| `src/pages/BudgetForm.tsx` | Reestruturar wizard de 5 para 2 etapas, novo layout em grid |
 
 ---
 
-## Validacao Apos Correcao
+## Consideracoes Tecnicas
 
-1. Navegar pelo wizard completo (5 etapas) sem submits prematuros
-2. Verificar que o campo "Tipo de Cliente" aparece antes do "Titulo" na etapa 1
-3. Preencher campos numericos no resumo e pressionar Enter - nao deve salvar
-4. Clicar em "Criar Orcamento" na etapa 5 - so entao deve salvar
-5. Console sem warnings de refs
+1. **Responsividade**: Em mobile, o resumo aparece acima ou abaixo das secoes (stack vertical)
+2. **Sticky**: O resumo usa `sticky top-6` para ficar fixo durante scroll em desktop
+3. **Scroll**: A coluna esquerda pode ter scroll independente enquanto o resumo permanece visivel
+4. **Atualizacao em tempo real**: O resumo ja atualiza automaticamente conforme os valores mudam
+
+---
+
+## Validacao Apos Implementacao
+
+1. Criar novo orcamento: navegar pelas 2 etapas
+2. Verificar que o resumo atualiza em tempo real ao adicionar mao de obra
+3. Verificar que o resumo permanece visivel ao rolar a pagina
+4. Testar responsividade em mobile
+5. Confirmar que "Criar Orcamento" funciona na etapa 2
 
