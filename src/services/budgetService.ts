@@ -26,7 +26,7 @@ type BudgetRow = {
   taxes_percent: number;
   commission_percent: number;
   net_margin_percent: number;
-  discount_percent: number;
+  discount_value: number;
   subtotal: number;
   total_with_fees: number;
   final_total: number;
@@ -285,7 +285,7 @@ export const budgetService = {
       input.taxesPercent,
       input.commissionPercent,
       input.netMarginPercent,
-      input.discountPercent
+        input.discountValue
     );
 
     // Insert budget
@@ -304,7 +304,7 @@ export const budgetService = {
         taxes_percent: input.taxesPercent,
         commission_percent: input.commissionPercent,
         net_margin_percent: input.netMarginPercent,
-        discount_percent: input.discountPercent,
+        discount_value: input.discountValue,
         subtotal: totals.laborCost,
         total_with_fees: totals.sellingPrice,
         final_total: totals.finalTotal,
@@ -424,7 +424,7 @@ export const budgetService = {
         input.taxesPercent || 0,
         input.commissionPercent || 0,
         input.netMarginPercent || 0,
-        input.discountPercent || 0
+        input.discountValue || 0
       );
     }
 
@@ -442,7 +442,7 @@ export const budgetService = {
     if (input.taxesPercent !== undefined) updateData.taxes_percent = input.taxesPercent;
     if (input.commissionPercent !== undefined) updateData.commission_percent = input.commissionPercent;
     if (input.netMarginPercent !== undefined) updateData.net_margin_percent = input.netMarginPercent;
-    if (input.discountPercent !== undefined) updateData.discount_percent = input.discountPercent;
+    if (input.discountValue !== undefined) updateData.discount_value = input.discountValue;
     if (input.notes !== undefined) updateData.notes = input.notes || null;
 
     if (totals) {
@@ -634,7 +634,7 @@ export const budgetService = {
       taxesPercent: original.taxes_percent,
       commissionPercent: original.commission_percent,
       netMarginPercent: 0,
-      discountPercent: original.discount_percent,
+      discountValue: (original as any).discount_value ?? 0,
       notes: original.notes || undefined,
       roles: original.roles.map((role) => ({
         tempId: crypto.randomUUID(),

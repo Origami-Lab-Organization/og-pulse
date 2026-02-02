@@ -16,7 +16,7 @@ export interface BudgetDB {
   taxes_percent: number;
   commission_percent: number;
   net_margin_percent: number;
-  discount_percent: number;
+  discount_value: number;
   subtotal: number;
   total_with_fees: number;
   final_total: number;
@@ -110,7 +110,7 @@ export interface CreateBudgetInput {
   taxesPercent: number;
   commissionPercent: number;
   netMarginPercent: number;
-  discountPercent: number;
+  discountValue: number;
   notes?: string;
   roles: BudgetRoleInput[];
   materials: BudgetMaterialInput[];
@@ -149,7 +149,7 @@ export function calculateBudgetTotals(
   taxesPercent: number,
   commissionPercent: number,
   netMarginPercent: number,
-  discountPercent: number
+  discountValue: number
 ): BudgetCalculation {
   // Calculate labor cost from all roles and their hours
   const laborCost = roles.reduce((acc, role) => {
@@ -179,8 +179,8 @@ export function calculateBudgetTotals(
   const commission = sellingPrice * (commissionPercent / 100);
   const netMargin = sellingPrice * (netMarginPercent / 100);
 
-  // Discount applies to selling price
-  const discount = sellingPrice * (discountPercent / 100);
+  // Discount is now an absolute value in BRL
+  const discount = discountValue;
   const finalTotal = sellingPrice - discount;
 
   return {

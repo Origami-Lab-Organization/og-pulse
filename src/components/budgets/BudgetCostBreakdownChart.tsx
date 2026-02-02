@@ -131,7 +131,7 @@ export function BudgetCostBreakdownChart({ budget, calculation }: BudgetCostBrea
         {calculation.discount > 0 && (
           <div className="mt-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-destructive">Desconto aplicado ({budget.discount_percent}%)</span>
+              <span className="text-sm text-destructive">Desconto aplicado</span>
               <span className="font-medium text-destructive">-{formatCurrency(calculation.discount)}</span>
             </div>
           </div>

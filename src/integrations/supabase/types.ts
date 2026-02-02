@@ -163,7 +163,7 @@ export type Database = {
           commission_percent: number
           created_at: string
           created_by: string | null
-          discount_percent: number
+          discount_value: number
           duration_months: number
           final_total: number
           id: string
@@ -188,7 +188,7 @@ export type Database = {
           commission_percent?: number
           created_at?: string
           created_by?: string | null
-          discount_percent?: number
+          discount_value?: number
           duration_months?: number
           final_total?: number
           id?: string
@@ -213,7 +213,7 @@ export type Database = {
           commission_percent?: number
           created_at?: string
           created_by?: string | null
-          discount_percent?: number
+          discount_value?: number
           duration_months?: number
           final_total?: number
           id?: string
