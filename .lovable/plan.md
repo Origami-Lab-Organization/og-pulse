@@ -1,73 +1,87 @@
 
 
-# Plano: Corrigir Rodape Fixo para Nao Sobrepor Menu Lateral
+# Plano: Rodapé Fixo com Tamanho Igual ao Footer da Sidebar
 
-## Problema Identificado
+## Análise
 
-O rodape fixo com os botoes de navegacao esta usando `left-0`, fazendo com que ele comece da borda esquerda da tela e sobreponha o menu lateral (sidebar).
+Ao analisar o `SidebarFooter` e `SidebarHeader` do menu lateral:
 
-### Codigo Atual (linha 638 do BudgetForm.tsx)
+**SidebarHeader (topo):**
+- Classes: `border-b border-sidebar-border`
+- Conteúdo interno: `px-2 py-3` com logo `h-8 w-8`
+- Altura aproximada: ~56px (32px logo + 24px padding vertical)
+
+**SidebarFooter (rodapé):**
+- Classes base: `flex flex-col gap-2 p-2`
+- Classes adicionais: `border-t border-sidebar-border`
+- Conteúdo: `px-3 py-2` com duas linhas de texto
+
+Ambos compartilham:
+- Borda (`border-t` ou `border-b`)
+- Padding similar (`p-2` base)
+
+## Solução
+
+Ajustar o rodapé fixo dos botões para ter a mesma aparência visual do footer da sidebar, usando:
+
+1. **Posicionamento fixo** com `left` dinâmico baseado no estado da sidebar
+2. **Altura e padding** similares ao `SidebarFooter`: usando `py-3` para alinhar com o header que tem `py-3`
+3. **Transição suave** ao colapsar/expandir a sidebar
+
+### Mudanças Técnicas
+
+**1. Importar `useSidebar` e `cn`:**
 
 ```tsx
-<div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur ...">
+import { useSidebar } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 ```
 
-## Analise da Estrutura
-
-A sidebar usa CSS custom properties:
-- `--sidebar-width: 16rem` (256px) quando expandida
-- `--sidebar-width-icon: 3rem` (48px) quando colapsada
-
-O componente `SidebarInset` eh onde o conteudo principal eh renderizado, e ele fica ao lado da sidebar automaticamente. Entretanto, elementos `fixed` saem do fluxo do documento e nao respeitam essa estrutura.
-
-## Solucao
-
-Em vez de usar `fixed`, a melhor abordagem eh usar `sticky` no rodape, que mantém o elemento posicionado na parte inferior da tela mas dentro do fluxo do container pai (que ja respeita a sidebar).
-
-### Mudanca 1 - Alterar estrutura do layout do formulário
-
-Envolver o conteúdo em uma estrutura flex que permita o footer sticky funcionar corretamente:
+**2. Usar o hook no componente:**
 
 ```tsx
-{/* Wizard content */}
-<div className="flex flex-col min-h-[calc(100vh-200px)]">
-  {/* Current step content */}
-  <div className="flex-1 mt-6">
-    {renderStepContent(currentStep)}
-  </div>
+const { state: sidebarState } = useSidebar();
+const isCollapsed = sidebarState === 'collapsed';
+```
 
-  {/* Wizard navigation - sticky footer */}
-  <div className="sticky bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-4 -mx-6 mt-6">
-    ...
-  </div>
+**3. Alterar o footer para fixed com dimensões corretas:**
+
+```tsx
+<div 
+  className={cn(
+    "fixed bottom-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 transition-[left] duration-200 ease-linear",
+    isCollapsed ? "left-[3rem]" : "left-[16rem]"
+  )}
+>
+```
+
+**4. Ajustar estrutura para remover wrapper desnecessário e adicionar padding:**
+
+```tsx
+{/* Current step content */}
+<div className="mt-6 pb-16">
+  {renderStepContent(currentStep)}
 </div>
+
+{/* Fixed footer outside the flex wrapper */}
 ```
 
-A abordagem com `sticky` eh preferivel porque:
-1. O elemento fica dentro do fluxo do documento
-2. Respeita automaticamente os limites do container pai
-3. Nao precisa de calculo de largura da sidebar
-4. Funciona corretamente quando a sidebar esta expandida ou colapsada
+## Resumo das Alterações
 
-### Mudanca 2 - Remover padding bottom extra
+| Local | Alteração |
+|-------|-----------|
+| Imports | Adicionar `useSidebar` de `@/components/ui/sidebar` |
+| Componente | Adicionar `const { state: sidebarState } = useSidebar()` |
+| Wrapper (linha 637-638) | Remover `flex flex-col min-h-[calc(100vh-200px)]` |
+| Conteúdo (linha 640) | Mudar para `mt-6 pb-16` |
+| Footer (linha 644-679) | Mudar para `fixed` com `left` dinâmico e `py-3` |
 
-Como o sticky esta dentro do fluxo, nao precisamos mais do `pb-24`:
+## Resultado Esperado
 
-```tsx
-// De:
-<div className="mt-6 pb-24">
-
-// Para:
-<div className="flex-1 mt-6">
-```
-
-## Resumo das Alteracoes
-
-| Local | De | Para |
-|-------|-----|------|
-| Linha 637-638 | `<div className="mt-6 pb-24">` | `<div className="flex flex-col min-h-[calc(100vh-200px)]"><div className="flex-1 mt-6">` |
-| Linha 642 | `fixed bottom-0 left-0 right-0 z-50` | `sticky bottom-0 z-40 -mx-6 mt-6` |
-| Apos conteudo | - | Fechar div wrapper |
+- Rodapé fixo que permanece visível durante o scroll
+- Alinhamento correto com a sidebar (respeitando largura expandida/colapsada)
+- Altura visual igual ao header da sidebar (~56px)
+- Transição suave ao colapsar/expandir a sidebar
 
 ## Arquivo a Modificar
 
