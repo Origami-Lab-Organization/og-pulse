@@ -1,124 +1,69 @@
 
+# Plano: Corrigir Submit Prematuro no Wizard de Orcamento
 
-# Plano: Simplificar Wizard de Orcamento para 2 Telas
+## Problemas Identificados
 
-## Objetivo
+### 1. Inputs Sem Prevencao do Enter
+Quando o usuario pressiona Enter em qualquer input de texto ou numero dentro do formulario, o comportamento padrao do navegador e disparar o `onSubmit` do form. Isso esta acontecendo nos seguintes componentes:
 
-Transformar o wizard de 5 etapas em apenas 2 telas:
+| Componente | Inputs Afetados | Linhas |
+|------------|-----------------|--------|
+| `BudgetRolesEditor` | Horas por mes | 187-200 |
+| `BudgetSuppliersEditor` | Nome, Descricao, Valor Mensal | 93-99, 102-108, 111-125 |
+| `BudgetMaterialsEditor` | Descricao, Valor | 85-91, 94-108 |
 
-1. **Tela 1 - Dados Basicos**: Tipo de cliente, titulo, datas, duracao, observacoes
-2. **Tela 2 - Composicao do Orcamento**: Mao de Obra, Fornecedores, Materiais em secoes + Resumo Financeiro **sempre visivel**
-
----
-
-## Arquitetura da Nova Interface
-
-```text
-+-----------------------------------------------+
-|              TELA 2 - COMPOSICAO              |
-+---------------------------+-------------------+
-|                           |                   |
-|  [Mao de Obra]            |                   |
-|  - Tabela de papeis       |    RESUMO         |
-|  - Adicionar papel        |    FINANCEIRO     |
-|                           |                   |
-|  [Fornecedores]           |    (sempre        |
-|  - Lista de fornecedores  |     visivel)      |
-|  - Adicionar fornecedor   |                   |
-|                           |    - Custos       |
-|  [Materiais]              |    - Taxas        |
-|  - Lista de materiais     |    - Comissao     |
-|  - Adicionar material     |    - Margem       |
-|                           |    - Desconto     |
-|                           |    - VALOR FINAL  |
-+---------------------------+-------------------+
-```
+### 2. Modo de Edicao Quebrado
+O modo de edicao (Tabs) referencia etapas que nao existem mais:
+- `renderStepContent(3)` para Fornecedores -> retorna `null`
+- `renderStepContent(4)` para Materiais -> retorna `null`
+- `renderStepContent(5)` para Financeiro -> retorna `null`
 
 ---
 
-## Mudancas Detalhadas
+## Solucao
 
-### 1. Atualizar Constantes do Wizard
+### 1. Adicionar `onKeyDown` em Todos os Inputs
+
+Adicionar a prevencao de Enter em todos os inputs editaveis:
 
 ```tsx
-// Antes: 5 etapas
-const WIZARD_STEPS = [
-  { id: 1, title: 'Dados Basicos' },
-  { id: 2, title: 'Mao de Obra' },
-  { id: 3, title: 'Fornecedores' },
-  { id: 4, title: 'Materiais' },
-  { id: 5, title: 'Resumo' },
-];
-
-// Depois: 2 etapas
-const WIZARD_STEPS = [
-  { id: 1, title: 'Dados Basicos' },
-  { id: 2, title: 'Composicao' },
-];
+onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
 ```
 
-### 2. Reestruturar `renderStepContent`
-
-**Tela 1 (Dados Basicos)**: Mantem igual - formulario com tipo de cliente, titulo, datas, etc.
-
-**Tela 2 (Composicao)**: Layout em 2 colunas:
-- **Coluna Esquerda (2/3)**: Secoes empilhadas verticalmente
-  - Mao de Obra (BudgetRolesEditor)
-  - Fornecedores (BudgetSuppliersEditor)
-  - Materiais (BudgetMaterialsEditor)
-- **Coluna Direita (1/3)**: Resumo Financeiro (sticky/fixo ao rolar)
-  - BudgetFinancialSummary sempre visivel
-
-### 3. Implementar Layout Responsivo
-
+**BudgetRolesEditor.tsx** (linha 190):
 ```tsx
-// Tela 2: Grid com 2 colunas
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  {/* Coluna principal: Secoes de custos */}
-  <div className="lg:col-span-2 space-y-6">
-    {/* Mao de Obra */}
-    <Card>
-      <CardContent className="pt-6">
-        <BudgetRolesEditor ... />
-      </CardContent>
-    </Card>
-    
-    {/* Fornecedores */}
-    <BudgetSuppliersEditor ... />
-    
-    {/* Materiais */}
-    <BudgetMaterialsEditor ... />
-  </div>
-  
-  {/* Coluna lateral: Resumo sempre visivel */}
-  <div className="lg:col-span-1">
-    <div className="sticky top-6">
-      <BudgetFinancialSummary ... />
-    </div>
-  </div>
-</div>
+<Input
+  type="number"
+  min={0}
+  className="h-8 w-20 text-center ..."
+  value={monthData?.hours || ''}
+  onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+  onChange={(e) => handleHoursChange(...)}
+  placeholder="0"
+/>
 ```
 
-### 4. Atualizar Indicador de Passos
+**BudgetSuppliersEditor.tsx** (linhas 93, 102, 111):
+- Input de nome do fornecedor
+- Input de descricao
+- Input de valor mensal
 
-Simplificar o indicador visual para mostrar apenas 2 passos em vez de 5.
+**BudgetMaterialsEditor.tsx** (linhas 85, 94):
+- Input de descricao do material
+- Input de valor
 
-### 5. Atualizar Logica de Navegacao
+### 2. Corrigir Modo de Edicao
 
-- `handleNext`: Agora so tem 1 transicao (etapa 1 -> etapa 2)
-- `validateCurrentStep`: Mantem validacao apenas para etapa 1
-- Botao "Criar Orcamento" aparece na etapa 2
+Atualizar as abas do modo de edicao para funcionar com o novo layout de 2 etapas:
 
----
+**Opcao 1 - Simplificar abas para 2**: 
+- Aba "Dados Basicos" -> `renderStepContent(1)`
+- Aba "Composicao" -> `renderStepContent(2)` (com grid: editores + resumo)
 
-## Beneficios da Nova Estrutura
+**Opcao 2 - Manter 5 abas e corrigir referencias**:
+As abas de edicao podem manter o layout separado renderizando os componentes diretamente.
 
-| Aspecto | Antes | Depois |
-|---------|-------|--------|
-| Etapas | 5 cliques | 2 cliques |
-| Visibilidade do preco | So na etapa 5 | Sempre visivel na etapa 2 |
-| UX | Fragmentado | Fluido e contextualizado |
-| Feedback visual | Tardio | Imediato ao editar valores |
+Vou implementar a **Opcao 1** para manter consistencia entre criacao e edicao.
 
 ---
 
@@ -126,24 +71,76 @@ Simplificar o indicador visual para mostrar apenas 2 passos em vez de 5.
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/BudgetForm.tsx` | Reestruturar wizard de 5 para 2 etapas, novo layout em grid |
+| `src/components/budgets/BudgetRolesEditor.tsx` | Adicionar `onKeyDown` nos inputs de horas |
+| `src/components/budgets/BudgetSuppliersEditor.tsx` | Adicionar `onKeyDown` nos 3 inputs |
+| `src/components/budgets/BudgetMaterialsEditor.tsx` | Adicionar `onKeyDown` nos 2 inputs |
+| `src/pages/BudgetForm.tsx` | Simplificar TabsList para 2 abas no modo edicao |
 
 ---
 
-## Consideracoes Tecnicas
+## Alteracoes Detalhadas
 
-1. **Responsividade**: Em mobile, o resumo aparece acima ou abaixo das secoes (stack vertical)
-2. **Sticky**: O resumo usa `sticky top-6` para ficar fixo durante scroll em desktop
-3. **Scroll**: A coluna esquerda pode ter scroll independente enquanto o resumo permanece visivel
-4. **Atualizacao em tempo real**: O resumo ja atualiza automaticamente conforme os valores mudam
+### BudgetRolesEditor.tsx
+
+No input de horas (linha ~190), adicionar:
+```tsx
+onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+```
+
+### BudgetSuppliersEditor.tsx
+
+Adicionar `onKeyDown` nos 3 inputs:
+- Input nome (linha 93-99)
+- Input descricao (linha 102-108)
+- Input valor (linha 111-125)
+
+### BudgetMaterialsEditor.tsx
+
+Adicionar `onKeyDown` nos 2 inputs:
+- Input descricao (linha 85-91)
+- Input valor (linha 94-108)
+
+### BudgetForm.tsx
+
+Alterar modo de edicao de 5 abas para 2:
+
+```tsx
+{isEditing ? (
+  <Tabs defaultValue="basic" className="w-full">
+    <TabsList className="grid w-full grid-cols-2">
+      <TabsTrigger value="basic">Dados Basicos</TabsTrigger>
+      <TabsTrigger value="composition">Composicao</TabsTrigger>
+    </TabsList>
+
+    <TabsContent value="basic" className="mt-6">
+      {renderStepContent(1)}
+    </TabsContent>
+
+    <TabsContent value="composition" className="mt-6">
+      {renderStepContent(2)}
+    </TabsContent>
+  </Tabs>
+) : (
+  // Wizard mode (unchanged)
+)}
+```
 
 ---
 
 ## Validacao Apos Implementacao
 
-1. Criar novo orcamento: navegar pelas 2 etapas
-2. Verificar que o resumo atualiza em tempo real ao adicionar mao de obra
-3. Verificar que o resumo permanece visivel ao rolar a pagina
-4. Testar responsividade em mobile
-5. Confirmar que "Criar Orcamento" funciona na etapa 2
+1. **Modo Criacao**:
+   - Preencher campos na etapa 1 e pressionar Enter - nao deve submeter
+   - Clicar em "Proximo" - deve ir para etapa 2
+   - Na etapa 2, preencher horas/valores e pressionar Enter - nao deve submeter
+   - Adicionar/remover fornecedores e materiais - nao deve submeter
+   - Clicar em "Criar Orcamento" - so entao deve salvar
 
+2. **Modo Edicao**:
+   - Navegar entre as 2 abas
+   - Verificar que todas as secoes estao visiveis e funcionais
+   - Salvar alteracoes clicando em "Salvar"
+
+3. **Console**:
+   - Sem warnings de refs
+   - Sem erros de rendering
