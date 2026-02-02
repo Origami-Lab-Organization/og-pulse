@@ -172,6 +172,18 @@ export default function BudgetForm() {
   }, [budget, financialSettings]);
 
   const handleSubmit = (values: FormValues) => {
+    // PROTEÇÃO 1: Bloquear se já estiver submetendo
+    if (isSubmitting) {
+      console.warn('Form submission blocked: already submitting');
+      return;
+    }
+    
+    // PROTEÇÃO 2: No modo wizard (criação), só permite salvar na última etapa
+    if (!isEditing && currentStep < WIZARD_STEPS.length) {
+      console.warn('Form submission blocked: not on final step');
+      return;
+    }
+
     const input: CreateBudgetInput = {
       title: values.title,
       validUntil: values.validUntil || undefined,
