@@ -186,11 +186,11 @@ export function BudgetRolesEditor({
                     {months.map((m) => {
                       const monthData = role.months.find((rm) => rm.monthNumber === m);
                       return (
-                        <TableCell key={m} className="p-1">
+                      <TableCell key={m} className="p-1 text-center">
                           <Input
                             type="number"
                             min={0}
-                            className="h-8 w-20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="h-8 w-20 text-center mx-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             value={monthData?.hours || ''}
                             onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                             onChange={(e) =>
