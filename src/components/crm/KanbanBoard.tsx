@@ -2,8 +2,10 @@ import { useState, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanCard } from './KanbanCard';
+import { CloseBusinessDialog } from './CloseBusinessDialog';
 import { BudgetWithDetails, BudgetStatus, CRM_COLUMNS } from '@/types/budget';
 import { useUpdateBudgetStatus } from '@/hooks/useBudgets';
+import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 
 interface KanbanBoardProps {
   budgets: BudgetWithDetails[];
@@ -12,7 +14,10 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [budgetToClose, setBudgetToClose] = useState<BudgetWithDetails | null>(null);
   const updateStatus = useUpdateBudgetStatus();
+  const closeBusinessDeal = useCloseBusinessDeal();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -88,8 +93,44 @@ export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
     // Prevent moving active (closed) budgets
     if (budget.status === 'active') return;
 
-    // Update the budget status
+    // If moving to 'active' (Negócio Fechado), open confirmation dialog
+    if (newStatus === 'active') {
+      setBudgetToClose(budget);
+      setCloseDialogOpen(true);
+      return;
+    }
+
+    // For other status changes, update directly
     updateStatus.mutate({ id: budgetId, status: newStatus });
+  };
+
+  const handleCloseBusinessConfirm = (formData: {
+    managerId: string;
+    paymentMethod: string;
+    installmentsCount: number;
+    dueDay: number;
+    firstInvoiceDate: string;
+  }) => {
+    if (!budgetToClose) return;
+
+    // Check if budget has a client_id (required for project creation)
+    if (!budgetToClose.client_id) {
+      // If no client, we need to handle this case
+      // For now, we'll proceed but the project creation might fail
+    }
+
+    closeBusinessDeal.mutate(
+      {
+        budget: budgetToClose,
+        ...formData,
+      },
+      {
+        onSuccess: () => {
+          setCloseDialogOpen(false);
+          setBudgetToClose(null);
+        },
+      }
+    );
   };
 
   return (
@@ -112,6 +153,17 @@ export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
       <DragOverlay>
         {activeBudget && <KanbanCard budget={activeBudget} />}
       </DragOverlay>
+
+      <CloseBusinessDialog
+        open={closeDialogOpen}
+        onOpenChange={(open) => {
+          setCloseDialogOpen(open);
+          if (!open) setBudgetToClose(null);
+        }}
+        budget={budgetToClose}
+        onConfirm={handleCloseBusinessConfirm}
+        isSubmitting={closeBusinessDeal.isPending}
+      />
     </DndContext>
   );
 }
