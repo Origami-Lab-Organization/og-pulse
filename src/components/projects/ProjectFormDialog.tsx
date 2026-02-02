@@ -80,8 +80,8 @@ export function ProjectFormDialog({
   const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
 
-  // Filter managers - employees with manager role only
-  const managers = employees.filter((e) => e.systemRole === 'manager');
+  // Filter managers - employees with manager or admin role
+  const managers = employees.filter((e) => e.systemRole === 'manager' || e.systemRole === 'admin');
 
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
@@ -244,9 +244,9 @@ export function ProjectFormDialog({
                               ))
                             ) : (
                               <div className="p-2 text-sm text-muted-foreground text-center">
-                                Nenhum gerente de projetos cadastrado.
+                                Nenhum gerente disponível.
                                 <br />
-                                Atribua o perfil "Gerente de Projetos" a um funcionário.
+                                Atribua o perfil "Gerente de Projetos" ou "Administrador" a um funcionário.
                               </div>
                             )}
                           </SelectContent>
