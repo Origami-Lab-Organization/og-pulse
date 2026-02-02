@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -127,17 +127,20 @@ export function BudgetRolesEditor({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Mão de Obra</h3>
-        <Button type="button" variant="outline" size="sm" onClick={handleAddRole}>
+        <h3 className="text-2xl font-semibold leading-none tracking-tight flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          Mão de Obra
+        </h3>
+        <Button type="button" size="sm" onClick={handleAddRole}>
           <Plus className="mr-2 h-4 w-4" />
-          Adicionar Papel
+          Adicionar Mão de Obra
         </Button>
       </div>
 
       {roles.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center">
           <p className="text-muted-foreground">
-            Nenhum papel alocado. Clique em "Adicionar Papel" para começar.
+            Nenhum profissional alocado. Clique em "Adicionar Mão de Obra" para começar.
           </p>
         </div>
       ) : (
