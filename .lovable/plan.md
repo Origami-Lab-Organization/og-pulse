@@ -1,185 +1,224 @@
 
 
-# Plano: Ajustes no Formulario de Orcamentos
+# Plano: Resumo Financeiro Fixo no Rodape
 
-## Problemas Identificados
+## Objetivo
 
-### Problema 1: Margem Liquida Saltando para 100%
+Reorganizar o layout da etapa de Composicao do orcamento para:
+1. Mover o Resumo Financeiro para um rodape fixo na parte inferior
+2. Utilizar toda a largura disponivel para as secoes de Mao de Obra, Fornecedores e Materiais
+3. Simplificar os cabecalhos das secoes (apenas icone + titulo, sem subtitulos)
 
-Ao analisar o codigo em `BudgetFinancialSummary.tsx` (linha 136-138):
+## Layout Atual vs. Proposto
 
+```text
+LAYOUT ATUAL                          LAYOUT PROPOSTO
++---------------------------+         +--------------------------------+
+|  Mao de Obra      |       |         |  Mao de Obra      [+ Adicionar]|
+|  [tabela]         | Resu- |         |  [tabela largura total]        |
+|-------------------|  mo   |         |--------------------------------|
+|  Fornecedores     | Finan-|         |  Fornecedores     [+ Adicionar]|
+|  [tabela]         | ceiro |         |  [tabela]                      |
+|-------------------|       |         |--------------------------------|
+|  Materiais        |       |         |  Materiais        [+ Adicionar]|
+|  [tabela]         |       |         |  [tabela]                      |
++---------------------------+         +================================+
+                                      | RESUMO FINANCEIRO (sticky)     |
+                                      | Custos | Composicao | Total    |
+                                      +--------------------------------+
+```
+
+## Alteracoes por Arquivo
+
+### 1. BudgetForm.tsx - Layout da Etapa 2 (linhas 350-400)
+
+Trocar o grid de 2 colunas para layout de coluna unica + rodape fixo:
+
+**Antes:**
 ```tsx
-onChange={(e) => {
-  const value = parseFloat(e.target.value) || 0;
-  onNetMarginChange(Math.max(minNetMarginPercent, Math.min(value, 100)));
-}}
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div className="lg:col-span-2 space-y-6">
+    {/* Mao de Obra, Fornecedores, Materiais */}
+  </div>
+  <div className="lg:col-span-1">
+    <div className="sticky top-6">
+      <BudgetFinancialSummary ... />
+    </div>
+  </div>
+</div>
 ```
 
-O bug ocorre porque:
-1. Quando o usuario apaga o campo ou digita algo invalido, `parseFloat` retorna `NaN`
-2. `NaN || 0` vira `0`
-3. `Math.max(20, Math.min(0, 100))` = `Math.max(20, 0)` = `20` (correto)
-4. POREM, quando o usuario digita um numero como "2" (querendo digitar "25"), o valor vai imediatamente para `max(20, 2)` = `20`
-
-O problema real e que o input nao permite digitacao intermediaria. O usuario precisa poder digitar valores livremente e a validacao deve ocorrer apenas no `onBlur`.
-
-### Problema 2: Desconto em Valor Absoluto (R$)
-
-Atualmente o desconto e armazenado como percentual (`discount_percent`). Precisa ser alterado para valor em Reais.
-
-**Impacto**:
-- Banco de dados: Renomear coluna `discount_percent` para `discount_value`
-- Tipos: Alterar `discountPercent` para `discountValue`
-- Calculo: `finalTotal = sellingPrice - discountValue` (valor direto)
-- Interface: Mostrar campo em R$ em vez de %
-
-## Solucao
-
-### Parte 1: Corrigir Input da Margem Liquida
-
-**Arquivos**: `BudgetFinancialSummary.tsx`
-
-Trocar a estrategia de validacao:
-- Permitir digitacao livre (sem clamp no onChange)
-- Validar e aplicar minimo apenas no `onBlur`
-- Mostrar feedback visual se valor estiver abaixo do minimo
-
+**Depois:**
 ```tsx
-// Antes (onChange com clamp imediato)
-onChange={(e) => {
-  const value = parseFloat(e.target.value) || 0;
-  onNetMarginChange(Math.max(minNetMarginPercent, Math.min(value, 100)));
-}}
+<div className="flex flex-col pb-48"> {/* Espaco para o rodape fixo */}
+  {/* Mao de Obra - largura total */}
+  <Card className="mb-6">
+    <BudgetRolesEditor ... />
+  </Card>
 
-// Depois (onChange livre + onBlur com validacao)
-onChange={(e) => {
-  const value = parseFloat(e.target.value);
-  if (!isNaN(value)) {
-    onNetMarginChange(value);
-  }
-}}
-onBlur={(e) => {
-  const value = parseFloat(e.target.value) || minNetMarginPercent;
-  onNetMarginChange(Math.max(minNetMarginPercent, Math.min(value, 100)));
-}}
+  {/* Fornecedores - largura total, sem subtitulo */}
+  <BudgetSuppliersEditor ... />
+
+  {/* Materiais - largura total, sem subtitulo */}
+  <BudgetMaterialsEditor ... />
+
+  {/* Rodape Fixo */}
+  <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-lg">
+    <BudgetFinancialSummary layout="footer" ... />
+  </div>
+</div>
 ```
 
-### Parte 2: Desconto em Valor Absoluto
+### 2. BudgetFinancialSummary.tsx - Layout Horizontal para Rodape
 
-#### 2.1 Migracao do Banco de Dados
+Criar uma variante horizontal do componente para exibicao no rodape:
 
-```sql
--- Renomear coluna de discount_percent para discount_value
-ALTER TABLE budgets RENAME COLUMN discount_percent TO discount_value;
+**Mudancas:**
+- Adicionar prop `layout?: 'sidebar' | 'footer'` (default: 'sidebar')
+- Quando `layout="footer"`, renderizar em formato horizontal:
+  - Container com `flex` horizontal
+  - Secoes lado a lado: Custos | Composicao do Preco | Preco Final
+  - Inputs menores e mais compactos
+  - Altura fixa (~120px)
 
--- Alterar valores existentes: converter percentual para valor absoluto
--- Para orcamentos existentes, calcular: discount_value = total_with_fees * (old_percent / 100)
-UPDATE budgets 
-SET discount_value = total_with_fees * (discount_value / 100)
-WHERE discount_value > 0;
-```
-
-#### 2.2 Alteracoes nos Tipos
-
-**Arquivo**: `src/types/budget.ts`
-
-| Interface | Campo Antigo | Campo Novo |
-|-----------|--------------|------------|
-| BudgetDB | discount_percent | discount_value |
-| CreateBudgetInput | discountPercent | discountValue |
-| calculateBudgetTotals | discountPercent param | discountValue param |
-| BudgetCalculation | (sem mudanca - ja tem `discount: number`) |
-
-#### 2.3 Alteracao na Funcao de Calculo
-
-**Arquivo**: `src/types/budget.ts` - funcao `calculateBudgetTotals`
-
+**Estrutura do Layout Footer:**
 ```tsx
-// Antes
-const discount = sellingPrice * (discountPercent / 100);
-const finalTotal = sellingPrice - discount;
-
-// Depois
-const discount = discountValue;
-const finalTotal = sellingPrice - discount;
+// layout="footer"
+<div className="border-t bg-background shadow-lg py-4 px-6">
+  <div className="max-w-screen-2xl mx-auto flex items-center gap-8">
+    {/* Custos */}
+    <div className="flex gap-4">
+      <span>Mao de Obra: R$ X</span>
+      <span>Fornecedores: R$ X</span>
+      <span>Materiais: R$ X</span>
+      <span className="font-bold">Custo Total: R$ X</span>
+    </div>
+    
+    <Separator orientation="vertical" />
+    
+    {/* Composicao */}
+    <div className="flex gap-4">
+      <span>Desp. Adm. (12%): R$ X</span>
+      <span>Impostos (13%): R$ X</span>
+      <Input ... /> {/* Comissao */}
+      <Input ... /> {/* Margem */}
+    </div>
+    
+    <Separator orientation="vertical" />
+    
+    {/* Preco Final */}
+    <div className="flex items-center gap-4">
+      <span>Preco Venda: R$ X</span>
+      <Input ... /> {/* Desconto */}
+      <span className="text-xl font-bold text-primary">Valor Final: R$ X</span>
+    </div>
+  </div>
+</div>
 ```
 
-#### 2.4 Alteracoes no Componente
+### 3. BudgetRolesEditor.tsx - Simplificar Cabecalho
 
-**Arquivo**: `BudgetFinancialSummary.tsx`
+Manter apenas icone + titulo, remover descricao (ja nao tem descricao, apenas ajustar estrutura se necessario):
 
-| Antes | Depois |
-|-------|--------|
-| `discountPercent: number` | `discountValue: number` |
-| `onDiscountChange: (value: number) => void` | (mantido, mas agora recebe R$) |
-| Input com `%` no final | Input com `R$` no inicio |
-| `max={100}` | Remover max (ou colocar max = sellingPrice) |
+**Cabecalho atual ja esta correto** - apenas `<h3>Mao de Obra</h3>` + botao
 
+### 4. BudgetSuppliersEditor.tsx - Remover Subtitulo
+
+**Antes (linhas 54-62):**
 ```tsx
-// Antes
-<Input ... value={discountPercent} />
-<span className="text-sm text-muted-foreground">%</span>
-
-// Depois
-<span className="text-sm text-muted-foreground">R$</span>
-<Input ... value={discountValue} />
+<CardHeader>
+  <div className="flex items-center justify-between">
+    <div>
+      <CardTitle className="flex items-center gap-2">
+        <Truck className="h-5 w-5" />
+        Fornecedores
+      </CardTitle>
+      <CardDescription>
+        Adicione custos recorrentes de fornecedores externos...
+      </CardDescription>
+    </div>
+    <Button ...>Adicionar Fornecedor</Button>
+  </div>
+</CardHeader>
 ```
 
-#### 2.5 Alteracoes no Formulario
+**Depois:**
+```tsx
+<CardHeader className="pb-4">
+  <div className="flex items-center justify-between">
+    <CardTitle className="flex items-center gap-2">
+      <Truck className="h-5 w-5" />
+      Fornecedores
+    </CardTitle>
+    <Button ...>Adicionar Fornecedor</Button>
+  </div>
+</CardHeader>
+```
 
-**Arquivo**: `BudgetForm.tsx`
+### 5. BudgetMaterialsEditor.tsx - Remover Subtitulo
 
-| Antes | Depois |
-|-------|--------|
-| `discountPercent` state | `discountValue` state |
-| `setDiscountPercent` | `setDiscountValue` |
-| Inicializar com 0 | Inicializar com 0 |
+Similar ao Fornecedores:
 
-#### 2.6 Alteracoes no Servico
+**Antes (linhas 48-57):**
+```tsx
+<CardHeader>
+  <div className="flex items-center justify-between">
+    <div>
+      <CardTitle className="flex items-center gap-2">
+        <Package className="h-5 w-5" />
+        Materiais
+      </CardTitle>
+      <CardDescription>
+        Adicione custos de materiais ou outros itens ao orcamento
+      </CardDescription>
+    </div>
+    <Button ...>Adicionar Material</Button>
+  </div>
+</CardHeader>
+```
 
-**Arquivo**: `budgetService.ts`
-
-| Antes | Depois |
-|-------|--------|
-| `discount_percent: input.discountPercent` | `discount_value: input.discountValue` |
-| (em todas as queries de insert/update) | |
+**Depois:**
+```tsx
+<CardHeader className="pb-4">
+  <div className="flex items-center justify-between">
+    <CardTitle className="flex items-center gap-2">
+      <Package className="h-5 w-5" />
+      Materiais
+    </CardTitle>
+    <Button ...>Adicionar Material</Button>
+  </div>
+</CardHeader>
+```
 
 ## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/budgets/BudgetFinancialSummary.tsx` | Corrigir input margem + mudar desconto para R$ |
-| `src/types/budget.ts` | Alterar tipos e funcao de calculo |
-| `src/pages/BudgetForm.tsx` | Alterar state de desconto |
-| `src/services/budgetService.ts` | Alterar campos de insert/update |
-| Migracao SQL | Renomear coluna no banco |
+| `src/pages/BudgetForm.tsx` | Mudar layout da etapa 2 para coluna unica + rodape fixo |
+| `src/components/budgets/BudgetFinancialSummary.tsx` | Adicionar layout horizontal para modo "footer" |
+| `src/components/budgets/BudgetSuppliersEditor.tsx` | Remover CardDescription |
+| `src/components/budgets/BudgetMaterialsEditor.tsx` | Remover CardDescription |
 
-## Secao Tecnica Detalhada
+## Consideracoes Tecnicas
 
-### Por que o input da margem "salta"?
+### Responsividade do Rodape
 
-Inputs HTML `type="number"` com validacao no `onChange` interferem na experiencia de digitacao. Quando o usuario digita "2" querendo escrever "25", o sistema imediatamente aplica `Math.max(20, 2)` = 20, sobrescrevendo o valor antes do usuario terminar.
+- Em telas menores, o rodape pode empilhar os grupos verticalmente
+- Usar `flex-wrap` e ajustar gaps
+- Em mobile, considerar um botao que expande/colapsa o resumo
 
-A solucao e:
-1. Permitir qualquer valor durante digitacao (`onChange` sem clamp)
-2. Aplicar validacao apenas quando o usuario sair do campo (`onBlur`)
-3. Opcionalmente, mostrar indicador visual de "valor invalido" durante digitacao
+### Espaco para Scroll
 
-### Impacto da Mudanca de Desconto
+- Adicionar `padding-bottom` no container principal para que o conteudo nao fique oculto atras do rodape fixo
+- O rodape tera altura aproximada de 100-120px
 
-A mudanca de percentual para valor absoluto requer:
-1. **Migracao de dados**: Converter valores existentes no banco
-2. **Compatibilidade**: Orcamentos antigos serao convertidos automaticamente
-3. **UX**: Input mais intuitivo para usuarios que pensam em "dar R$ 500 de desconto"
+### Consideracao para Sidebar
 
-### Validacao do Desconto
+- O rodape fixo deve respeitar a largura da sidebar
+- Usar `left` dinamico ou `ml-[var(--sidebar-width)]` quando sidebar estiver aberta
 
-O desconto maximo deveria ser o proprio preco de venda (`sellingPrice`), para evitar valores finais negativos:
+### Modo Edicao (Tabs)
 
-```tsx
-onBlur={(e) => {
-  const value = parseFloat(e.target.value) || 0;
-  onDiscountChange(Math.max(0, Math.min(value, calculation.sellingPrice)));
-}}
-```
+- Aplicar a mesma mudanca de layout na aba "Composicao" do modo de edicao
+- O rodape fixo funciona igual nos dois modos
 
