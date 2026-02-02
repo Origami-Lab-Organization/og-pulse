@@ -85,6 +85,7 @@ export const BudgetMaterialsEditor = forwardRef<HTMLDivElement, BudgetMaterialsE
                           <Input
                             placeholder="Descrição do material..."
                             value={material.description}
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                             onChange={(e) =>
                               handleUpdateMaterial(material.tempId, 'description', e.target.value)
                             }
@@ -97,6 +98,7 @@ export const BudgetMaterialsEditor = forwardRef<HTMLDivElement, BudgetMaterialsE
                             step={0.01}
                             placeholder="0,00"
                             value={material.value || ''}
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                             onChange={(e) =>
                               handleUpdateMaterial(
                                 material.tempId,

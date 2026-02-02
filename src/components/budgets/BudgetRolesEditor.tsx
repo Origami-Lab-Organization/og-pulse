@@ -189,6 +189,7 @@ export function BudgetRolesEditor({
                             min={0}
                             className="h-8 w-20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             value={monthData?.hours || ''}
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                             onChange={(e) =>
                               handleHoursChange(
                                 role.tempId,
