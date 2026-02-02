@@ -1,4 +1,12 @@
-export type BudgetStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired';
+// CRM Status Types
+export type BudgetStatus = 'proposal' | 'negotiation' | 'active' | 'draft' | 'sent' | 'approved' | 'rejected' | 'expired';
+
+// CRM Kanban Columns
+export const CRM_COLUMNS = [
+  { id: 'proposal' as const, label: 'Proposta', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  { id: 'negotiation' as const, label: 'Negociação', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+  { id: 'active' as const, label: 'Negócio Fechado', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+] as const;
 
 export interface BudgetDB {
   id: string;
@@ -199,6 +207,10 @@ export function calculateBudgetTotals(
 }
 
 export const BUDGET_STATUS_OPTIONS = [
+  { value: 'proposal', label: 'Proposta', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  { value: 'negotiation', label: 'Negociação', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+  { value: 'active', label: 'Ativo', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  // Legacy statuses (for compatibility)
   { value: 'draft', label: 'Rascunho', color: 'bg-muted text-muted-foreground' },
   { value: 'sent', label: 'Enviado', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
   { value: 'approved', label: 'Aprovado', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },

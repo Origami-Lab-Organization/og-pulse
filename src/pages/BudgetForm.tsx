@@ -252,6 +252,12 @@ export default function BudgetForm() {
     );
   }
 
+  // Block editing of active (closed) budgets
+  if (isEditing && budget && budget.status === 'active') {
+    navigate(`/budgets/${id}`);
+    return null;
+  }
+
   // Render wizard step content
   const renderStepContent = (step: number) => {
     switch (step) {
