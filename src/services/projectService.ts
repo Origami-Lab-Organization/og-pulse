@@ -101,10 +101,26 @@ export const projectService = {
       .eq('project_id', id)
       .order('installment_number', { ascending: true });
 
+    // Fetch suppliers
+    const { data: suppliers } = await supabase
+      .from('project_suppliers')
+      .select('*')
+      .eq('project_id', id)
+      .order('created_at', { ascending: true });
+
+    // Fetch materials
+    const { data: materials } = await supabase
+      .from('project_materials')
+      .select('*')
+      .eq('project_id', id)
+      .order('created_at', { ascending: true });
+
     return {
       ...data,
       members: members || [],
       installments: installments || [],
+      suppliers: suppliers || [],
+      materials: materials || [],
     } as unknown as ProjectWithRelations;
   },
 

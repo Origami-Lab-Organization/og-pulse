@@ -832,6 +832,44 @@ export type Database = {
           },
         ]
       }
+      project_materials: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_realized: boolean
+          project_id: string
+          purchase_date: string | null
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          is_realized?: boolean
+          project_id: string
+          purchase_date?: string | null
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_realized?: boolean
+          project_id?: string
+          purchase_date?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_materials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_members: {
         Row: {
           created_at: string
@@ -873,6 +911,57 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_suppliers: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_month: number | null
+          id: string
+          monthly_value: number
+          name: string
+          project_id: string
+          start_month: number
+          supplier_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_month?: number | null
+          id?: string
+          monthly_value?: number
+          name: string
+          project_id: string
+          start_month?: number
+          supplier_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_month?: number | null
+          id?: string
+          monthly_value?: number
+          name?: string
+          project_id?: string
+          start_month?: number
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_suppliers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_suppliers_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]

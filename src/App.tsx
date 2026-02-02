@@ -14,6 +14,7 @@ import ChangePassword from "./pages/ChangePassword";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 import Projects from "./pages/Projects";
+import ProjectDetail from "./pages/ProjectDetail";
 import Pricing from "./pages/Pricing";
 import Settings from "./pages/Settings";
 import Budgets from "./pages/Budgets";
@@ -85,6 +86,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireAdmin>
                     <Projects />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/projects/:id" 
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <ProjectDetail />
                   </RoleProtectedRoute>
                 } 
               />
