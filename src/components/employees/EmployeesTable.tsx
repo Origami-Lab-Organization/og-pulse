@@ -231,8 +231,8 @@ export const createEmployeeColumns = ({
               </DropdownMenuItem>
             )}
             
-            {/* Archive - only for blocked */}
-            {isBlocked && (
+            {/* Archive - for blocked or awaiting */}
+            {(isBlocked || isAwaiting) && (
               <DropdownMenuItem
                 onClick={() => onArchive(employee)}
                 className="text-muted-foreground focus:text-muted-foreground"
