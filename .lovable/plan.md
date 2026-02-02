@@ -1,77 +1,78 @@
 
-# Plano: Simplificar Dropdown de Perfil no Sistema
+# Plano: Incluir Administradores na Seleção de Gerente de Projeto
 
-## Problema Atual
+## Situação Atual
 
-O Select de "Perfil no Sistema" exibe tanto o nome do perfil quanto a descricao dentro de cada item, causando:
-- Trigger do Select muito longo
-- Layout confuso com texto em multiplas linhas
-- Experiencia visual poluida
+A seleção de "Gerente do Projeto" filtra apenas funcionários com perfil `manager`:
 
-## Solucao
-
-Simplificar para um dropdown padrao mostrando apenas os nomes dos perfis:
-- Usuario
-- Gerente de Projetos
-- Administrador
-
-## Alteracao
-
-**Arquivo: `src/components/employees/EmployeeFormDialog.tsx`**
-
-Remover a estrutura `flex-col` e exibir apenas o label simples:
-
-```tsx
-<FormField
-  control={form.control}
-  name="systemRole"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Perfil no Sistema *</FormLabel>
-      <Select onValueChange={field.onChange} value={field.value}>
-        <FormControl>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione o perfil" />
-          </SelectTrigger>
-        </FormControl>
-        <SelectContent>
-          {(Object.keys(SYSTEM_ROLE_LABELS) as SystemRole[]).map((role) => (
-            <SelectItem key={role} value={role}>
-              {SYSTEM_ROLE_LABELS[role]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
+**ProjectFormDialog.tsx (linha 84):**
+```typescript
+const managers = employees.filter((e) => e.systemRole === 'manager');
 ```
 
-## Resultado Visual
+**CloseBusinessDialog.tsx (linha 68):**
+```typescript
+const managerList = employees.filter((e) => e.systemRole === 'manager');
+```
 
-O dropdown ficara assim:
+## Alteração Proposta
 
-```text
-Perfil no Sistema *
-┌────────────────────────────────┐
-│ Usuario                      ▼ │
-└────────────────────────────────┘
+Modificar o filtro para incluir tanto `manager` quanto `admin`:
 
-Ao abrir:
-┌────────────────────────────────┐
-│ Administrador                  │
-│ Gerente de Projetos            │
-│ Usuario               ✓        │
-└────────────────────────────────┘
+```typescript
+const managers = employees.filter(
+  (e) => e.systemRole === 'manager' || e.systemRole === 'admin'
+);
 ```
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/components/employees/EmployeeFormDialog.tsx` | Simplificar SelectItem para exibir apenas o label |
+| Arquivo | Linha | Alteração |
+|---------|-------|-----------|
+| `src/components/projects/ProjectFormDialog.tsx` | 84 | Adicionar `|| e.systemRole === 'admin'` |
+| `src/components/crm/CloseBusinessDialog.tsx` | 68 | Adicionar `|| e.systemRole === 'admin'` |
+| `src/hooks/useEmployees.ts` | 93 | Atualizar hook `useProjectManagers` |
 
-## Observacao
+## Atualização do Hook useProjectManagers
 
-O import de `SYSTEM_ROLE_DESCRIPTIONS` pode ser removido do arquivo se nao for usado em outro lugar, mas mantemos disponivel em `src/types/employee.ts` para uso futuro na area de configuracoes.
+Também atualizaremos o hook `useProjectManagers` para manter consistência:
+
+```typescript
+// Hook to get project managers (employees with manager or admin role)
+export const useProjectManagers = () => {
+  const { data: employees = [], ...rest } = useEmployees();
+  
+  const managers = employees.filter(
+    (e) => e.systemRole === 'manager' || e.systemRole === 'admin'
+  );
+  
+  return {
+    ...rest,
+    data: managers,
+  };
+};
+```
+
+## Atualização da Mensagem de Estado Vazio
+
+Atualizar as mensagens quando não houver gerentes disponíveis:
+
+**Antes:**
+```text
+Nenhum gerente de projetos cadastrado.
+Atribua o perfil "Gerente de Projetos" a um funcionário.
+```
+
+**Depois:**
+```text
+Nenhum gerente disponível.
+Atribua o perfil "Gerente de Projetos" ou "Administrador" a um funcionário.
+```
+
+## Resultado
+
+A lista de seleção de gerente de projeto exibirá:
+- Funcionários com perfil **Gerente de Projetos**
+- Funcionários com perfil **Administrador**
+
+Isso faz sentido porque administradores têm acesso completo ao sistema e naturalmente podem gerenciar projetos.
