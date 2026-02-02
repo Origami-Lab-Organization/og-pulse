@@ -18,7 +18,7 @@ import {
 import { MoreHorizontal, Eye, Edit, Copy, Trash2, Send, CheckCircle, XCircle } from 'lucide-react';
 import { BudgetWithDetails, BudgetStatus } from '@/types/budget';
 import { BudgetStatusBadge } from './BudgetStatusBadge';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, formatShortDate } from '@/lib/formatters';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -56,7 +56,7 @@ export function BudgetsTable({
             <TableHead>Número</TableHead>
             <TableHead>Título</TableHead>
             <TableHead>Cliente/Lead</TableHead>
-            <TableHead>Duração</TableHead>
+            <TableHead>Validade</TableHead>
             <TableHead className="text-right">Valor Final</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Criado em</TableHead>
@@ -83,7 +83,17 @@ export function BudgetsTable({
                     )}
                   </div>
                 </TableCell>
-                <TableCell>{budget.duration_months} {budget.duration_months === 1 ? 'mês' : 'meses'}</TableCell>
+                <TableCell>
+                  {budget.valid_until ? (
+                    <span className="text-sm">
+                      {formatShortDate(budget.start_date)} - {formatShortDate(budget.valid_until)}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      A partir de {formatShortDate(budget.start_date)}
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell className="text-right font-medium">
                   {formatCurrency(budget.final_total)}
                 </TableCell>
