@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, CalendarDays, MoreHorizontal, Pencil, Trash2, CheckCircle2, Circle, AlertCircle, Clock } from 'lucide-react';
+import { Plus, CalendarDays, MoreHorizontal, Pencil, Trash2, CheckCircle2, Circle, AlertCircle, Clock, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -118,8 +118,10 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
                   <div className="text-xs text-center mt-1 max-w-24 truncate">
                     {milestone.title}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {format(new Date(milestone.planned_date), 'dd/MM/yy', { locale: ptBR })}
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span>{format(new Date(milestone.start_date), 'dd/MM', { locale: ptBR })}</span>
+                    <ArrowRight className="h-3 w-3" />
+                    <span>{format(new Date(milestone.end_date), 'dd/MM', { locale: ptBR })}</span>
                   </div>
                 </div>
                 {index < milestones.length - 1 && (
@@ -144,9 +146,9 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-medium">{milestone.title}</p>
-                          {milestone.description && (
+                          {milestone.deliverables && (
                             <p className="text-sm text-muted-foreground mt-1">
-                              {milestone.description}
+                              <span className="font-medium">Entregáveis:</span> {milestone.deliverables}
                             </p>
                           )}
                         </div>
@@ -175,11 +177,13 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                      <div className="flex items-center gap-3 mt-2">
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <CalendarDays className="h-4 w-4" />
                           <span>
-                            Planejado: {format(new Date(milestone.planned_date), 'dd/MM/yyyy', { locale: ptBR })}
+                            Período: {format(new Date(milestone.start_date), 'dd/MM/yyyy', { locale: ptBR })}
+                            {' - '}
+                            {format(new Date(milestone.end_date), 'dd/MM/yyyy', { locale: ptBR })}
                           </span>
                         </div>
                         {milestone.completed_date && (

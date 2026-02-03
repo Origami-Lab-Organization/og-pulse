@@ -16,8 +16,7 @@ export const useProjectMilestones = (projectId: string | undefined) => {
         .from('project_milestones')
         .select('*')
         .eq('project_id', projectId!)
-        .order('order_index', { ascending: true })
-        .order('planned_date', { ascending: true });
+        .order('start_date', { ascending: true });
 
       if (error) throw error;
       return data.map((m) => ({
@@ -40,9 +39,9 @@ export const useCreateMilestone = () => {
         .insert({
           project_id: input.projectId,
           title: input.title,
-          description: input.description || null,
-          planned_date: input.plannedDate,
-          order_index: input.orderIndex || 0,
+          deliverables: input.deliverables || null,
+          start_date: input.startDate,
+          end_date: input.endDate,
         })
         .select()
         .single();
@@ -85,11 +84,11 @@ export const useUpdateMilestone = () => {
         .from('project_milestones')
         .update({
           title: updates.title,
-          description: updates.description,
-          planned_date: updates.plannedDate,
+          deliverables: updates.deliverables,
+          start_date: updates.startDate,
+          end_date: updates.endDate,
           completed_date: updates.completedDate,
           status: updates.status,
-          order_index: updates.orderIndex,
         })
         .eq('id', id)
         .select()
