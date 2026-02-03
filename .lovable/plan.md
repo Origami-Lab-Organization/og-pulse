@@ -1,230 +1,224 @@
 
 
-# Plano: Redesign Visual do Dashboard de Projeto
+# Plano: Portfólio de Projetos com Kanban
 
-## Diagnostico dos Problemas Visuais
+## Visao Geral
 
-Com base na analise das screenshots, identifiquei os seguintes problemas:
+Criar uma nova pagina de Kanban para gerenciamento do fluxo de entrega de projetos, similar ao CRM mas focado no ciclo de vida de projetos em execucao.
 
-1. **Cards de metricas desbalanceados**: Alguns tem cor de fundo, outros nao - falta consistencia
-2. **Grafico Donut muito simples**: Falta legenda clara, percentuais mal posicionados
-3. **Grafico de Recebimentos pouco informativo**: Com apenas 1 barra (Pendente), parece incompleto
-4. **Curva de Tendencia perdida**: Grafico pequeno com linhas finas, dificil interpretar
-5. **Equipe do Projeto basica**: Apenas avatares sem contexto visual
-6. **Espacamento excessivo**: Muito espaco branco desperdicado entre secoes
+## Nova Estrutura de Status
 
-## Solucao Proposta
+Adicionar um novo campo aos projetos para rastrear o estagio do portfolio:
 
-### 1. Cards de Metricas Refinados
+| Coluna | Descricao |
+|--------|-----------|
+| Planejamento | Projetos recem-criados em fase de setup |
+| Entrega de Valor | Projetos em execucao ativa entregando valor |
+| Apresentacao de Resultados | Fase de apresentacao ao cliente |
+| Value Book | Documentacao de valor entregue |
+| Aprendizado e Case | Criacao de case e licoes aprendidas |
+| Concluido | Projetos finalizados e documentados |
 
-Redesenhar os 5 cards com:
-- Estilo visual unificado (fundo neutro para todos)
-- Icones mais sutis e alinhados
-- Tamanho de fonte hierarquico (valor em destaque)
-- Indicadores de tendencia apenas onde faz sentido (margem)
+## Arquivos a Criar
 
-```text
-┌────────────────┐  ┌────────────────┐  ┌────────────────┐
-│ ≡ Contrato     │  │ ◎ Custo Plan.  │  │ ↗ Margem       │
-│                │  │                │  │                │
-│ R$ 40.800,00   │  │ R$ 19.568,18   │  │ 52.0%          │
-│                │  │                │  │ ▲ Saudavel     │
-└────────────────┘  └────────────────┘  └────────────────┘
+### 1. Tipos do Portfolio
+
+**Arquivo: `src/types/portfolio.ts`**
+
+```typescript
+export type PortfolioStage = 
+  | 'planning'
+  | 'value_delivery'
+  | 'results_presentation'
+  | 'value_book'
+  | 'learning_case'
+  | 'completed';
+
+export const PORTFOLIO_COLUMNS = [
+  { id: 'planning', label: 'Planejamento', color: 'bg-slate-100 text-slate-800' },
+  { id: 'value_delivery', label: 'Entrega de Valor', color: 'bg-blue-100 text-blue-800' },
+  { id: 'results_presentation', label: 'Apresentacao de Resultados', color: 'bg-purple-100 text-purple-800' },
+  { id: 'value_book', label: 'Value Book', color: 'bg-amber-100 text-amber-800' },
+  { id: 'learning_case', label: 'Aprendizado e Case', color: 'bg-teal-100 text-teal-800' },
+  { id: 'completed', label: 'Concluido', color: 'bg-green-100 text-green-800' },
+];
+
+export const PORTFOLIO_STAGE_LABELS: Record<PortfolioStage, string> = {
+  planning: 'Planejamento',
+  value_delivery: 'Entrega de Valor',
+  results_presentation: 'Apresentacao de Resultados',
+  value_book: 'Value Book',
+  learning_case: 'Aprendizado e Case',
+  completed: 'Concluido',
+};
 ```
 
-### 2. Grafico de Composicao de Custos Aprimorado
+### 2. Componentes do Kanban de Portfolio
 
-- Aumentar tamanho do donut chart
-- Adicionar valor total no centro do donut (destaque visual)
-- Legendas mais claras e proximas ao grafico
-- Cores harmonicas da paleta (Pine Teal + Celadon + Amber)
+**Arquivo: `src/components/portfolio/PortfolioKanbanBoard.tsx`**
 
-### 3. Grafico de Recebimentos Reformulado
+Componente principal com DndContext do @dnd-kit:
+- Grid de 6 colunas (responsivo: 3 em tablet, 2 em mobile)
+- Drag and drop entre colunas
+- Atualizacao de status via mutation
 
-Mudar de barra horizontal para um **Progress Bar Visual** mais informativo:
-- Barra de progresso mostrando % recebido do total
-- Tres secoes coloridas: Recebido (verde), Pendente (amarelo), Atrasado (vermelho)
-- Valores abaixo com legendas claras
+**Arquivo: `src/components/portfolio/PortfolioColumn.tsx`**
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│ Recebimentos                                            │
-│                                                         │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ │
-│ │ Recebido 0%    Pendente 100%                      │ │
-│ └─────────────────────────────────────────────────────┘ │
-│                                                         │
-│ R$ 0,00 de R$ 40.800,00                                 │
-└─────────────────────────────────────────────────────────┘
+Coluna droppable:
+- Header com titulo e contador
+- ScrollArea para cards
+- Indicador visual quando hovering
+
+**Arquivo: `src/components/portfolio/PortfolioCard.tsx`**
+
+Card draggable do projeto:
+- Nome do projeto
+- Cliente
+- Gerente responsavel
+- Valor do contrato
+- Progresso de recebimentos (mini progress bar)
+- Data de inicio
+
+### 3. Pagina Principal
+
+**Arquivo: `src/pages/Portfolio.tsx`**
+
+Pagina usando AppLayout:
+- Barra de busca
+- Filtros por cliente/gerente (opcional)
+- KanbanBoard com projetos
+
+### 4. Hook de Portfolio
+
+**Arquivo: `src/hooks/usePortfolioProjects.ts`**
+
+Hook para:
+- Buscar projetos com portfolio_stage
+- Mutation para atualizar estagio
+- Filtros por busca
+
+## Alteracoes no Banco de Dados
+
+**Nova coluna na tabela `projects`:**
+
+```sql
+ALTER TABLE projects 
+ADD COLUMN portfolio_stage TEXT DEFAULT 'planning';
 ```
 
-### 4. Curva de Tendencia Mais Legivel
+Mapeamento inicial:
+- Projetos com status 'planning' -> portfolio_stage 'planning'
+- Projetos com status 'active' -> portfolio_stage 'value_delivery'
+- Projetos com status 'completed' -> portfolio_stage 'completed'
 
-- Aumentar altura do grafico (de 250px para 300px)
-- Linhas mais espessas
-- Area preenchida sob a linha de custo planejado (semi-transparente)
-- Pontos de dados mais visiveis
-- Remover grid excessivo, manter apenas linhas horizontais
-- Tooltip mais rico com informacoes detalhadas
+## Alteracoes na Navegacao
 
-### 5. Secao de Equipe Melhorada
+**Arquivo: `src/components/layout/AppSidebar.tsx`**
 
-- Adicionar borda sutil e sombra ao card
-- Mostrar horas alocadas junto ao avatar
-- Indicador visual de carga (barra pequena sob avatar)
+Adicionar item na secao Operacoes ACIMA de Projetos:
 
-### 6. Parcelas de Pagamento Compactas
-
-- Transformar em timeline visual ao inves de tabela
-- Status com icones coloridos
-- Proxima parcela em destaque
-
-## Arquivos a Modificar
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/components/projects/detail/ProjectOverviewTab.tsx` | Redesign dos cards de metricas |
-| `src/components/projects/detail/ProjectCostBreakdownChart.tsx` | Donut com valor central, legendas melhores |
-| `src/components/projects/detail/ProjectPaymentsChart.tsx` | Progress bar ao inves de barras horizontais |
-| `src/components/projects/detail/ProjectTrendChart.tsx` | Area chart, linhas mais grossas |
-| `src/components/projects/detail/ProjectTeamSection.tsx` | Layout mais informativo |
-
-## Detalhes Tecnicos
-
-### Cards de Metricas (ProjectOverviewTab)
-
-```tsx
-// Card com estilo unificado e destaque no valor
-<Card className="relative overflow-hidden">
-  <CardContent className="pt-4 pb-4">
-    <div className="flex items-start justify-between">
-      <div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Contrato
-        </p>
-        <p className="text-2xl font-bold mt-1">
-          {formatCurrency(value)}
-        </p>
-      </div>
-      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-        <FileText className="h-4 w-4 text-primary" />
-      </div>
-    </div>
-  </CardContent>
-</Card>
+```typescript
+{
+  label: 'Operacoes',
+  requiresAdmin: true,
+  items: [
+    { title: 'Portfolio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresAdmin: true },
+    { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresAdmin: true },
+    // ... resto
+  ],
+}
 ```
 
-### Donut com Valor Central (ProjectCostBreakdownChart)
+**Arquivo: `src/App.tsx`**
 
-```tsx
-// Centro do donut com valor total
-<PieChart>
-  <Pie innerRadius={60} outerRadius={90}>...</Pie>
-  {/* Label personalizado no centro */}
-  <text x="50%" y="45%" textAnchor="middle" className="text-xs fill-muted-foreground">
-    Total
-  </text>
-  <text x="50%" y="55%" textAnchor="middle" className="text-lg font-bold fill-foreground">
-    R$ 19.5k
-  </text>
-</PieChart>
+Adicionar rota protegida:
+
+```typescript
+<Route 
+  path="/portfolio" 
+  element={
+    <RoleProtectedRoute requireAdmin>
+      <Portfolio />
+    </RoleProtectedRoute>
+  } 
+/>
 ```
 
-### Progress Bar de Recebimentos (ProjectPaymentsChart)
-
-```tsx
-// Barra de progresso segmentada
-<div className="h-4 rounded-full overflow-hidden flex bg-muted">
-  <div className="bg-green-500" style={{ width: `${receivedPercent}%` }} />
-  <div className="bg-amber-400" style={{ width: `${pendingPercent}%` }} />
-  <div className="bg-red-500" style={{ width: `${overduePercent}%` }} />
-</div>
-```
-
-### Area Chart para Tendencia (ProjectTrendChart)
-
-```tsx
-// Usar AreaChart ao inves de apenas LineChart
-<AreaChart>
-  <Area 
-    type="monotone" 
-    dataKey="planejado" 
-    fill="hsl(var(--chart-1))" 
-    fillOpacity={0.1}
-    stroke="hsl(var(--chart-1))"
-    strokeWidth={2}
-  />
-  ...
-</AreaChart>
-```
-
-## Layout Final Esperado
+## Layout Visual
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│  TABS: [Visao Geral] [Custos] [Financeiro] [Stakeholders] [Cronograma]          │
+│  Portfolio de Projetos                                               [+ Novo]   │
+│  Fluxo de entrega de projetos                                                   │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  [Buscar projetos...]                                                           │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
-│  │ CONTRATO │  │CUSTO PLAN│  │  MARGEM  │  │ RECEBIDO │  │ PENDENTE │          │
-│  │ R$40.8k  │  │ R$19.5k  │  │   52%    │  │   R$0    │  │ R$40.8k  │          │
-│  │          │  │          │  │ ▲Saudável│  │          │  │          │          │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘          │
-│                                                                                  │
-│  ┌──────────────────────────────┐  ┌────────────────────────────────┐          │
-│  │ COMPOSICAO DE CUSTOS         │  │ RECEBIMENTOS                   │          │
-│  │                              │  │                                 │          │
-│  │      ┌───────────┐           │  │ ┌─────────────────────────────┐│          │
-│  │     /    Total    \          │  │ │░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ││          │
-│  │    │   R$ 19.5k    │         │  │ └─────────────────────────────┘│          │
-│  │     \             /          │  │  R$ 0 de R$ 40.800,00 (0%)     │          │
-│  │      └───────────┘           │  │                                 │          │
-│  │ ● Mão de Obra: 77%           │  │ ● Recebido  ● Pendente ● Atras. │          │
-│  │ ● Fornecedores: 23%          │  │   R$ 0        R$ 40.8k   R$ 0   │          │
-│  └──────────────────────────────┘  └────────────────────────────────┘          │
-│                                                                                  │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │ CURVA DE TENDENCIA                                                        │  │
-│  │ ████████████████████████████████████████████████████████████████████████ │  │
-│  │ Grafico de area com linha de tendencia clara e area preenchida           │  │
-│  └──────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                  │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │ EQUIPE DO PROJETO (1 membro)                              [+ Adicionar]  │  │
-│  │ ┌──────────┐                                                              │  │
-│  │ │   VC     │  Victor Costa                                                │  │
-│  │ │ 40h/mes  │  Desenvolvedor                                               │  │
-│  │ └──────────┘                                                              │  │
-│  └──────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                  │
-│  ┌──────────────────────────────────────────────────────────────────────────┐  │
-│  │ PARCELAS DE PAGAMENTO                                                     │  │
-│  │ Mensal • 2 parcela(s) • Vencimento dia 26                                 │  │
-│  │ ─────────────────────────────────────────────────────────────────────────│  │
-│  │ Tabela de parcelas                                                        │  │
-│  └──────────────────────────────────────────────────────────────────────────┘  │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
+│ │Planejam. │ │Entrega   │ │Apresent. │ │Value Book│ │Aprendiz. │ │Concluido │  │
+│ │    2     │ │    3     │ │    1     │ │    0     │ │    1     │ │    5     │  │
+│ ├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤  │
+│ │          │ │          │ │          │ │          │ │          │ │          │  │
+│ │ ┌──────┐ │ │ ┌──────┐ │ │ ┌──────┐ │ │          │ │ ┌──────┐ │ │ ┌──────┐ │  │
+│ │ │Card 1│ │ │ │Card 3│ │ │ │Card 6│ │ │  Vazio   │ │ │Card 8│ │ │ │Card 9│ │  │
+│ │ └──────┘ │ │ └──────┘ │ │ └──────┘ │ │          │ │ └──────┘ │ │ └──────┘ │  │
+│ │          │ │          │ │          │ │          │ │          │ │          │  │
+│ │ ┌──────┐ │ │ ┌──────┐ │ │          │ │          │ │          │ │ ┌──────┐ │  │
+│ │ │Card 2│ │ │ │Card 4│ │ │          │ │          │ │          │ │ │Card10│ │  │
+│ │ └──────┘ │ │ └──────┘ │ │          │ │          │ │          │ │ └──────┘ │  │
+│ │          │ │          │ │          │ │          │ │          │ │          │  │
+│ │          │ │ ┌──────┐ │ │          │ │          │ │          │ │ ...      │  │
+│ │          │ │ │Card 5│ │ │          │ │          │ │          │ │          │  │
+│ │          │ │ └──────┘ │ │          │ │          │ │          │ │          │  │
+│ │          │ │          │ │          │ │          │ │          │ │          │  │
+│ └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
 │                                                                                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Paleta de Cores Aplicada
+## Design do Card
 
-| Elemento | Cor | Variavel CSS |
-|----------|-----|--------------|
-| Mao de Obra | Pine Teal | --chart-1 |
-| Fornecedores | Celadon | --chart-2 |
-| Materiais | Amber Gold | --chart-3 |
-| Recebido | Verde | emerald-500 |
-| Pendente | Amarelo | amber-400 |
-| Atrasado | Vermelho | red-500 |
-| Margem Positiva | Verde | green-600 |
-| Margem Negativa | Vermelho | red-600 |
+```text
+┌────────────────────────────────┐
+│ Nome do Projeto                │
+├────────────────────────────────┤
+│ 🏢 Cliente XYZ                 │
+│ 👤 Joao Silva                  │
+├────────────────────────────────┤
+│ R$ 40.800,00                   │
+│ ▓▓▓▓▓▓▓░░░░░░░░░░░░ 35%       │
+│ Inicio: 01/01/2026             │
+└────────────────────────────────┘
+```
 
-## Espacamento e Gaps
+## Responsividade
 
-- Espacamento entre secoes: `space-y-4` (16px) ao inves de `space-y-6` (24px)
-- Altura dos cards de metricas: compactos com `pt-4 pb-4`
-- Altura dos graficos: 220px (menor) com mais informacao
-- Grid de cards: `gap-3` para manter tudo mais unido
+| Breakpoint | Colunas |
+|------------|---------|
+| Desktop (>1280px) | 6 colunas |
+| Tablet (768-1280px) | 3 colunas com scroll horizontal |
+| Mobile (<768px) | 2 colunas com scroll horizontal |
+
+## Resumo de Arquivos
+
+### Novos Arquivos
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/types/portfolio.ts` | Tipos e constantes do portfolio |
+| `src/pages/Portfolio.tsx` | Pagina principal |
+| `src/components/portfolio/PortfolioKanbanBoard.tsx` | Board principal |
+| `src/components/portfolio/PortfolioColumn.tsx` | Coluna droppable |
+| `src/components/portfolio/PortfolioCard.tsx` | Card draggable |
+| `src/hooks/usePortfolioProjects.ts` | Hook de dados |
+
+### Arquivos Modificados
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/components/layout/AppSidebar.tsx` | Adicionar link Portfolio |
+| `src/App.tsx` | Adicionar rota /portfolio |
+| `src/types/project.ts` | Adicionar portfolio_stage ao tipo |
+| `src/services/projectService.ts` | Adicionar metodo updatePortfolioStage |
+
+### Migracao SQL
+Nova coluna `portfolio_stage` na tabela `projects` com valor default 'planning'
 
