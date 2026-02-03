@@ -832,6 +832,47 @@ export type Database = {
           },
         ]
       }
+      project_key_results: {
+        Row: {
+          created_at: string | null
+          current_value: number | null
+          description: string
+          id: string
+          okr_id: string
+          status: string | null
+          target_value: number | null
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_value?: number | null
+          description: string
+          id?: string
+          okr_id: string
+          status?: string | null
+          target_value?: number | null
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_value?: number | null
+          description?: string
+          id?: string
+          okr_id?: string
+          status?: string | null
+          target_value?: number | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_key_results_okr_id_fkey"
+            columns: ["okr_id"]
+            isOneToOne: false
+            referencedRelation: "project_okrs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_materials: {
         Row: {
           created_at: string
@@ -908,6 +949,144 @@ export type Database = {
           },
           {
             foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_milestones: {
+        Row: {
+          completed_date: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          order_index: number | null
+          planned_date: string
+          project_id: string
+          status: string | null
+          title: string
+        }
+        Insert: {
+          completed_date?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          order_index?: number | null
+          planned_date: string
+          project_id: string
+          status?: string | null
+          title: string
+        }
+        Update: {
+          completed_date?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          order_index?: number | null
+          planned_date?: string
+          project_id?: string
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_okrs: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          objective: string
+          progress_percent: number | null
+          project_id: string
+          status: string | null
+          target_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          objective: string
+          progress_percent?: number | null
+          project_id: string
+          status?: string | null
+          target_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          objective?: string
+          progress_percent?: number | null
+          project_id?: string
+          status?: string | null
+          target_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_okrs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_stakeholders: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          influence_level: string | null
+          interest_level: string | null
+          name: string
+          notes: string | null
+          organization: string | null
+          phone: string | null
+          project_id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          influence_level?: string | null
+          interest_level?: string | null
+          name: string
+          notes?: string | null
+          organization?: string | null
+          phone?: string | null
+          project_id: string
+          role: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          influence_level?: string | null
+          interest_level?: string | null
+          name?: string
+          notes?: string | null
+          organization?: string | null
+          phone?: string | null
+          project_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_stakeholders_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
