@@ -1,224 +1,86 @@
 
 
-# Plano: Portfólio de Projetos com Kanban
+# Plano: Ajustes Visuais no Portfolio de Projetos
 
-## Visao Geral
+## Problemas Identificados
 
-Criar uma nova pagina de Kanban para gerenciamento do fluxo de entrega de projetos, similar ao CRM mas focado no ciclo de vida de projetos em execucao.
+1. **Cores diferentes nas colunas**: Cada coluna tem uma cor distinta (slate, blue, purple, amber, teal, green), causando poluição visual
+2. **Barra de scroll horizontal mal posicionada**: O ScrollArea está com altura calculada incorretamente (`min-h-[calc(100vh-220px)]`), deixando a barra de scroll acima do rodapé
 
-## Nova Estrutura de Status
+## Alteracoes Propostas
 
-Adicionar um novo campo aos projetos para rastrear o estagio do portfolio:
-
-| Coluna | Descricao |
-|--------|-----------|
-| Planejamento | Projetos recem-criados em fase de setup |
-| Entrega de Valor | Projetos em execucao ativa entregando valor |
-| Apresentacao de Resultados | Fase de apresentacao ao cliente |
-| Value Book | Documentacao de valor entregue |
-| Aprendizado e Case | Criacao de case e licoes aprendidas |
-| Concluido | Projetos finalizados e documentados |
-
-## Arquivos a Criar
-
-### 1. Tipos do Portfolio
+### 1. Unificar Cores das Colunas
 
 **Arquivo: `src/types/portfolio.ts`**
 
+Alterar todas as colunas para usar a mesma cor neutra:
+
 ```typescript
-export type PortfolioStage = 
-  | 'planning'
-  | 'value_delivery'
-  | 'results_presentation'
-  | 'value_book'
-  | 'learning_case'
-  | 'completed';
+// De:
+{ id: 'planning', label: 'Planejamento', color: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300' },
+{ id: 'value_delivery', label: 'Entrega de Valor', color: 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' },
+// ... cada uma com cor diferente
 
-export const PORTFOLIO_COLUMNS = [
-  { id: 'planning', label: 'Planejamento', color: 'bg-slate-100 text-slate-800' },
-  { id: 'value_delivery', label: 'Entrega de Valor', color: 'bg-blue-100 text-blue-800' },
-  { id: 'results_presentation', label: 'Apresentacao de Resultados', color: 'bg-purple-100 text-purple-800' },
-  { id: 'value_book', label: 'Value Book', color: 'bg-amber-100 text-amber-800' },
-  { id: 'learning_case', label: 'Aprendizado e Case', color: 'bg-teal-100 text-teal-800' },
-  { id: 'completed', label: 'Concluido', color: 'bg-green-100 text-green-800' },
-];
-
-export const PORTFOLIO_STAGE_LABELS: Record<PortfolioStage, string> = {
-  planning: 'Planejamento',
-  value_delivery: 'Entrega de Valor',
-  results_presentation: 'Apresentacao de Resultados',
-  value_book: 'Value Book',
-  learning_case: 'Aprendizado e Case',
-  completed: 'Concluido',
-};
+// Para:
+// Todas com a mesma cor neutra
+{ id: 'planning', label: 'Planejamento', color: 'bg-muted text-foreground' },
+{ id: 'value_delivery', label: 'Entrega de Valor', color: 'bg-muted text-foreground' },
+{ id: 'results_presentation', label: 'Apresentacao de Resultados', color: 'bg-muted text-foreground' },
+{ id: 'value_book', label: 'Value Book', color: 'bg-muted text-foreground' },
+{ id: 'learning_case', label: 'Aprendizado e Case', color: 'bg-muted text-foreground' },
+{ id: 'completed', label: 'Concluido', color: 'bg-muted text-foreground' },
 ```
 
-### 2. Componentes do Kanban de Portfolio
+### 2. Corrigir Posicao da Barra de Scroll
 
 **Arquivo: `src/components/portfolio/PortfolioKanbanBoard.tsx`**
 
-Componente principal com DndContext do @dnd-kit:
-- Grid de 6 colunas (responsivo: 3 em tablet, 2 em mobile)
-- Drag and drop entre colunas
-- Atualizacao de status via mutation
+O problema esta na altura do container que usa `min-h-[calc(100vh-220px)]` - isso cria um espaco minimo que nao corresponde ao espaco disponivel real.
 
-**Arquivo: `src/components/portfolio/PortfolioColumn.tsx`**
+Ajustar para usar `h-full` no ScrollArea e remover a altura minima fixa das colunas:
 
-Coluna droppable:
-- Header com titulo e contador
-- ScrollArea para cards
-- Indicador visual quando hovering
+```typescript
+// De:
+<ScrollArea className="w-full">
+  <div className="flex gap-4 p-4 min-h-[calc(100vh-220px)]">
 
-**Arquivo: `src/components/portfolio/PortfolioCard.tsx`**
-
-Card draggable do projeto:
-- Nome do projeto
-- Cliente
-- Gerente responsavel
-- Valor do contrato
-- Progresso de recebimentos (mini progress bar)
-- Data de inicio
-
-### 3. Pagina Principal
+// Para:
+<ScrollArea className="w-full h-full">
+  <div className="flex gap-4 p-4 pb-6">
+```
 
 **Arquivo: `src/pages/Portfolio.tsx`**
 
-Pagina usando AppLayout:
-- Barra de busca
-- Filtros por cliente/gerente (opcional)
-- KanbanBoard com projetos
-
-### 4. Hook de Portfolio
-
-**Arquivo: `src/hooks/usePortfolioProjects.ts`**
-
-Hook para:
-- Buscar projetos com portfolio_stage
-- Mutation para atualizar estagio
-- Filtros por busca
-
-## Alteracoes no Banco de Dados
-
-**Nova coluna na tabela `projects`:**
-
-```sql
-ALTER TABLE projects 
-ADD COLUMN portfolio_stage TEXT DEFAULT 'planning';
-```
-
-Mapeamento inicial:
-- Projetos com status 'planning' -> portfolio_stage 'planning'
-- Projetos com status 'active' -> portfolio_stage 'value_delivery'
-- Projetos com status 'completed' -> portfolio_stage 'completed'
-
-## Alteracoes na Navegacao
-
-**Arquivo: `src/components/layout/AppSidebar.tsx`**
-
-Adicionar item na secao Operacoes ACIMA de Projetos:
+Garantir que o container do Kanban ocupe todo o espaco disponivel:
 
 ```typescript
-{
-  label: 'Operacoes',
-  requiresAdmin: true,
-  items: [
-    { title: 'Portfolio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresAdmin: true },
-    { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresAdmin: true },
-    // ... resto
-  ],
-}
+// De:
+<div className="flex-1 overflow-hidden bg-muted/30">
+
+// Para:
+<div className="flex-1 overflow-auto bg-muted/30">
 ```
 
-**Arquivo: `src/App.tsx`**
-
-Adicionar rota protegida:
-
-```typescript
-<Route 
-  path="/portfolio" 
-  element={
-    <RoleProtectedRoute requireAdmin>
-      <Portfolio />
-    </RoleProtectedRoute>
-  } 
-/>
-```
-
-## Layout Visual
+## Resultado Visual Esperado
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Portfolio de Projetos                                               [+ Novo]   │
-│  Fluxo de entrega de projetos                                                   │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  [Buscar projetos...]                                                           │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
-│ │Planejam. │ │Entrega   │ │Apresent. │ │Value Book│ │Aprendiz. │ │Concluido │  │
-│ │    2     │ │    3     │ │    1     │ │    0     │ │    1     │ │    5     │  │
-│ ├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤  │
-│ │          │ │          │ │          │ │          │ │          │ │          │  │
-│ │ ┌──────┐ │ │ ┌──────┐ │ │ ┌──────┐ │ │          │ │ ┌──────┐ │ │ ┌──────┐ │  │
-│ │ │Card 1│ │ │ │Card 3│ │ │ │Card 6│ │ │  Vazio   │ │ │Card 8│ │ │ │Card 9│ │  │
-│ │ └──────┘ │ │ └──────┘ │ │ └──────┘ │ │          │ │ └──────┘ │ │ └──────┘ │  │
-│ │          │ │          │ │          │ │          │ │          │ │          │  │
-│ │ ┌──────┐ │ │ ┌──────┐ │ │          │ │          │ │          │ │ ┌──────┐ │  │
-│ │ │Card 2│ │ │ │Card 4│ │ │          │ │          │ │          │ │ │Card10│ │  │
-│ │ └──────┘ │ │ └──────┘ │ │          │ │          │ │          │ │ └──────┘ │  │
-│ │          │ │          │ │          │ │          │ │          │ │          │  │
-│ │          │ │ ┌──────┐ │ │          │ │          │ │          │ │ ...      │  │
-│ │          │ │ │Card 5│ │ │          │ │          │ │          │ │          │  │
-│ │          │ │ └──────┘ │ │          │ │          │ │          │ │          │  │
-│ │          │ │          │ │          │ │          │ │          │ │          │  │
-│ └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│Planejam. │ │Entrega   │ │Apresent. │ │Value Book│ │Aprendiz. │ │Concluido │
+│    2     │ │    3     │ │    1     │ │    0     │ │    1     │ │    5     │
+├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤
+│ (cards)  │ │ (cards)  │ │ (cards)  │ │ (vazio)  │ │ (cards)  │ │ (cards)  │
+└──────────┴─┴──────────┴─┴──────────┴─┴──────────┴─┴──────────┴─┴──────────┘
+═══════════════════════════════════════════════════════════════════════════════
+                        [Barra de Scroll Horizontal no Rodape]
 ```
 
-## Design do Card
+Todas as colunas terao a mesma aparencia neutra (bg-muted) e a barra de scroll horizontal ficara posicionada no rodape da area do Kanban.
 
-```text
-┌────────────────────────────────┐
-│ Nome do Projeto                │
-├────────────────────────────────┤
-│ 🏢 Cliente XYZ                 │
-│ 👤 Joao Silva                  │
-├────────────────────────────────┤
-│ R$ 40.800,00                   │
-│ ▓▓▓▓▓▓▓░░░░░░░░░░░░ 35%       │
-│ Inicio: 01/01/2026             │
-└────────────────────────────────┘
-```
+## Arquivos a Modificar
 
-## Responsividade
-
-| Breakpoint | Colunas |
-|------------|---------|
-| Desktop (>1280px) | 6 colunas |
-| Tablet (768-1280px) | 3 colunas com scroll horizontal |
-| Mobile (<768px) | 2 colunas com scroll horizontal |
-
-## Resumo de Arquivos
-
-### Novos Arquivos
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/types/portfolio.ts` | Tipos e constantes do portfolio |
-| `src/pages/Portfolio.tsx` | Pagina principal |
-| `src/components/portfolio/PortfolioKanbanBoard.tsx` | Board principal |
-| `src/components/portfolio/PortfolioColumn.tsx` | Coluna droppable |
-| `src/components/portfolio/PortfolioCard.tsx` | Card draggable |
-| `src/hooks/usePortfolioProjects.ts` | Hook de dados |
-
-### Arquivos Modificados
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/layout/AppSidebar.tsx` | Adicionar link Portfolio |
-| `src/App.tsx` | Adicionar rota /portfolio |
-| `src/types/project.ts` | Adicionar portfolio_stage ao tipo |
-| `src/services/projectService.ts` | Adicionar metodo updatePortfolioStage |
-
-### Migracao SQL
-Nova coluna `portfolio_stage` na tabela `projects` com valor default 'planning'
+| `src/types/portfolio.ts` | Unificar cores para bg-muted text-foreground |
+| `src/components/portfolio/PortfolioKanbanBoard.tsx` | Ajustar altura do ScrollArea para h-full |
+| `src/pages/Portfolio.tsx` | Mudar overflow-hidden para overflow-auto |
 
