@@ -121,22 +121,6 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
         </Card>
       </div>
 
-      {/* Status Atual */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Status do Planejamento</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-lg px-4 py-2">
-              {PROJECT_STATUS_LABELS[project.status]}
-            </Badge>
-            <p className="text-sm text-muted-foreground">
-              O projeto está em fase de planejamento. Complete os OKRs, stakeholders, custos e cronograma antes de iniciar a execução.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Checklist de Planejamento */}
       <Card>
