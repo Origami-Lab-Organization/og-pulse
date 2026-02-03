@@ -119,12 +119,12 @@ export function ProjectTeamSection({ members, projectId }: ProjectTeamSectionPro
           </div>
         ) : (
           <TooltipProvider>
-            <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {members.map((member) => (
                 <Tooltip key={member.id}>
                   <TooltipTrigger asChild>
-                    <div className="flex flex-col items-center gap-1 cursor-default">
-                      <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
+                    <div className="flex items-center gap-3 p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-default">
+                      <Avatar className="h-10 w-10 border-2 border-background shadow-sm shrink-0">
                         {member.employee?.foto_url ? (
                           <AvatarImage src={member.employee.foto_url} />
                         ) : null}
@@ -132,9 +132,14 @@ export function ProjectTeamSection({ members, projectId }: ProjectTeamSectionPro
                           {member.employee ? getInitials(member.employee.nome) : '??'}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs font-medium text-center truncate w-full">
-                        {member.employee?.nome?.split(' ')[0] || 'N/A'}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">
+                          {member.employee?.nome?.split(' ')[0] || 'N/A'}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {member.hours_per_month}h/mês
+                        </p>
+                      </div>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
