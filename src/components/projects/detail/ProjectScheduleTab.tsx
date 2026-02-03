@@ -110,7 +110,7 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
       ) : (
         <div className="space-y-4">
           {/* Timeline visual */}
-          <div className="hidden md:flex items-center gap-2 px-4 overflow-x-auto pb-4">
+          <div className="hidden md:flex items-center justify-center gap-2 px-4 overflow-x-auto pb-4">
             {milestones.map((milestone, index) => (
               <div key={milestone.id} className="flex items-center">
                 <div className="flex flex-col items-center">
