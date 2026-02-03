@@ -32,9 +32,12 @@ import {
   ProjectStakeholder,
   STAKEHOLDER_ROLES,
   ORGANIZATION_OPTIONS,
+  SPONSORSHIP_LEVEL_OPTIONS,
   InfluenceLevel,
   InterestLevel,
+  SponsorshipLevel,
 } from '@/types/projectStakeholder';
+import { formatPhone } from '@/lib/masks';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -44,6 +47,7 @@ const formSchema = z.object({
   phone: z.string().optional(),
   influenceLevel: z.enum(['high', 'medium', 'low']).optional(),
   interestLevel: z.enum(['high', 'medium', 'low']).optional(),
+  sponsorshipLevel: z.enum(['promoter', 'neutral', 'detractor']).optional(),
   notes: z.string().optional(),
 });
 
@@ -76,6 +80,7 @@ export function StakeholderFormDialog({
       phone: '',
       influenceLevel: undefined,
       interestLevel: undefined,
+      sponsorshipLevel: undefined,
       notes: '',
     },
   });
@@ -90,6 +95,7 @@ export function StakeholderFormDialog({
         phone: stakeholder.phone || '',
         influenceLevel: stakeholder.influence_level || undefined,
         interestLevel: stakeholder.interest_level || undefined,
+        sponsorshipLevel: stakeholder.sponsorship_level || undefined,
         notes: stakeholder.notes || '',
       });
     } else {
@@ -101,6 +107,7 @@ export function StakeholderFormDialog({
         phone: '',
         influenceLevel: undefined,
         interestLevel: undefined,
+        sponsorshipLevel: undefined,
         notes: '',
       });
     }
@@ -120,6 +127,7 @@ export function StakeholderFormDialog({
             phone: data.phone,
             influenceLevel: data.influenceLevel as InfluenceLevel | undefined,
             interestLevel: data.interestLevel as InterestLevel | undefined,
+            sponsorshipLevel: data.sponsorshipLevel as SponsorshipLevel | undefined,
             notes: data.notes,
           },
         },
@@ -136,6 +144,7 @@ export function StakeholderFormDialog({
           phone: data.phone,
           influenceLevel: data.influenceLevel as InfluenceLevel | undefined,
           interestLevel: data.interestLevel as InterestLevel | undefined,
+          sponsorshipLevel: data.sponsorshipLevel as SponsorshipLevel | undefined,
           notes: data.notes,
         },
         { onSuccess: () => onOpenChange(false) }
@@ -192,30 +201,57 @@ export function StakeholderFormDialog({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="organization"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Organização</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {ORGANIZATION_OPTIONS.map((org) => (
-                        <SelectItem key={org.value} value={org.value}>
-                          {org.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="organization"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organização</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {ORGANIZATION_OPTIONS.map((org) => (
+                          <SelectItem key={org.value} value={org.value}>
+                            {org.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sponsorshipLevel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nível de Patrocínio</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {SPONSORSHIP_LEVEL_OPTIONS.map((level) => (
+                          <SelectItem key={level.value} value={level.value}>
+                            {level.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -239,7 +275,11 @@ export function StakeholderFormDialog({
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
                     <FormControl>
-                      <Input placeholder="(00) 00000-0000" {...field} />
+                      <Input 
+                        placeholder="(00) 00000-0000" 
+                        {...field}
+                        onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

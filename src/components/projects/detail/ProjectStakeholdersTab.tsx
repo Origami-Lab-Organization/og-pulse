@@ -20,6 +20,8 @@ import {
   INFLUENCE_LEVEL_LABELS,
   INTEREST_LEVEL_LABELS,
   ORGANIZATION_OPTIONS,
+  SPONSORSHIP_LEVEL_LABELS,
+  SponsorshipLevel,
 } from '@/types/projectStakeholder';
 import { StakeholderFormDialog } from '@/components/projects/stakeholders/StakeholderFormDialog';
 
@@ -69,6 +71,19 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
         return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
       case 'low':
         return 'bg-green-500/10 text-green-600 border-green-500/20';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const getSponsorshipColor = (level: string | null) => {
+    switch (level) {
+      case 'promoter':
+        return 'bg-green-500/10 text-green-600 border-green-500/20';
+      case 'neutral':
+        return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
+      case 'detractor':
+        return 'bg-red-500/10 text-red-600 border-red-500/20';
       default:
         return 'bg-muted text-muted-foreground';
     }
@@ -160,11 +175,18 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
                   </DropdownMenu>
                 </div>
 
-                {stakeholder.organization && (
-                  <Badge variant="outline" className="mb-3">
-                    {getOrgLabel(stakeholder.organization)}
-                  </Badge>
-                )}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {stakeholder.organization && (
+                    <Badge variant="outline">
+                      {getOrgLabel(stakeholder.organization)}
+                    </Badge>
+                  )}
+                  {stakeholder.sponsorship_level && (
+                    <Badge variant="outline" className={getSponsorshipColor(stakeholder.sponsorship_level)}>
+                      {SPONSORSHIP_LEVEL_LABELS[stakeholder.sponsorship_level as SponsorshipLevel]}
+                    </Badge>
+                  )}
+                </div>
 
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-4">

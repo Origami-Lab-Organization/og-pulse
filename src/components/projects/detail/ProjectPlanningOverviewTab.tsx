@@ -13,12 +13,17 @@ import {
   Clock,
   CreditCard
 } from 'lucide-react';
+import { useProjectOKRs } from '@/hooks/useProjectOKRs';
 
 interface ProjectPlanningOverviewTabProps {
   project: ProjectWithRelations;
 }
 
 export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewTabProps) {
+  const { data: okrs = [] } = useProjectOKRs(project.id);
+  
+  // OKRs are valid when there's at least 1 OKR with at least 1 Key Result
+  const hasValidOKRs = okrs.some(okr => (okr.key_results?.length || 0) > 0);
   const getPaymentMethodLabel = (method: string) => {
     const found = PAYMENT_METHOD_OPTIONS.find((m) => m.value === method);
     return found?.label || method;
@@ -143,8 +148,8 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
             />
             <ChecklistItem 
               label="OKRs definidos" 
-              completed={false}
-              hint="Vá para a aba OKRs" 
+              completed={hasValidOKRs}
+              hint={!hasValidOKRs ? "Vá para a aba OKRs" : undefined}
             />
             <ChecklistItem 
               label="Stakeholders mapeados" 
