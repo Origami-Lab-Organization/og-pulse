@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { FileText, TrendingUp, TrendingDown, Minus, Receipt, Wallet, Target, PiggyBank } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Receipt, Wallet, Target, PiggyBank, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, INSTALLMENT_STATUS_LABELS, PAYMENT_METHOD_OPTIONS } from '@/types/project';
@@ -92,38 +92,38 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-5">
+      {/* Key Metrics - 5 cards in a row */}
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                <Receipt className="h-4 w-4 text-primary" />
+                <FileText className="h-4 w-4 text-primary" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Contrato</p>
-                <p className="text-lg font-bold">{formatCurrency(metrics.contractValue)}</p>
+                <p className="text-lg font-bold truncate">{formatCurrency(metrics.contractValue)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                 <Target className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Custo Planejado</p>
-                <p className="text-lg font-bold">{formatCurrency(metrics.plannedCost)}</p>
+                <p className="text-lg font-bold truncate">{formatCurrency(metrics.plannedCost)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
               <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
                 marginTrend === 'up' ? 'bg-green-100 dark:bg-green-900/30' :
@@ -137,7 +137,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
                   <Minus className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Margem</p>
                 <p className={`text-lg font-bold ${
                   marginTrend === 'up' ? 'text-green-600 dark:text-green-400' :
@@ -151,14 +151,14 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
                 <Wallet className="h-4 w-4 text-green-600 dark:text-green-400" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Recebido</p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                <p className="text-lg font-bold text-green-600 dark:text-green-400 truncate">
                   {formatCurrency(metrics.receivedValue)}
                 </p>
               </div>
@@ -166,15 +166,15 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-4">
+        <Card className="col-span-2 sm:col-span-1">
+          <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
                 <PiggyBank className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Pendente</p>
-                <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
+                <p className="text-lg font-bold text-amber-600 dark:text-amber-400 truncate">
                   {formatCurrency(metrics.pendingValue)}
                 </p>
               </div>
@@ -183,49 +183,25 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         </Card>
       </div>
 
-      {/* Charts Row */}
+      {/* Charts Row - Cost Breakdown + Payments */}
       <div className="grid gap-4 md:grid-cols-2">
         <ProjectCostBreakdownChart project={project} />
         <ProjectPaymentsChart project={project} />
       </div>
 
-      {/* Trend Chart */}
+      {/* Trend Chart - Full Width */}
       <ProjectTrendChart project={project} />
 
-      {/* Description and Team - Two Columns */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Description Section */}
-        <Card className="h-full">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4" />
-              Descrição do Projeto
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {project.description ? (
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                {project.description}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">
-                Nenhuma descrição cadastrada.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Team Section */}
-        <ProjectTeamSection 
-          members={project.members || []} 
-          projectId={project.id} 
-        />
-      </div>
+      {/* Team Section - Full Width */}
+      <ProjectTeamSection 
+        members={project.members || []} 
+        projectId={project.id} 
+      />
 
       {/* Payment Info / Installments */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Informações de Pagamento</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Parcelas de Pagamento</CardTitle>
           <CardDescription>
             {paymentMethodLabel} • {project.installments_count} parcela(s) • Vencimento dia {project.due_day}
           </CardDescription>
