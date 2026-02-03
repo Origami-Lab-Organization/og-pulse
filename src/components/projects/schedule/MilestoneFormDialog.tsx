@@ -71,26 +71,28 @@ export function MilestoneFormDialog({
   });
 
   useEffect(() => {
-    if (milestone) {
-      form.reset({
-        title: milestone.title,
-        description: milestone.description || '',
-        plannedDate: milestone.planned_date,
-        completedDate: milestone.completed_date || '',
-        status: milestone.status,
-        orderIndex: milestone.order_index,
-      });
-    } else {
-      form.reset({
-        title: '',
-        description: '',
-        plannedDate: '',
-        completedDate: '',
-        status: 'pending',
-        orderIndex: 0,
-      });
+    if (open) {
+      if (milestone) {
+        form.reset({
+          title: milestone.title,
+          description: milestone.description || '',
+          plannedDate: milestone.planned_date,
+          completedDate: milestone.completed_date || '',
+          status: milestone.status,
+          orderIndex: milestone.order_index,
+        });
+      } else {
+        form.reset({
+          title: '',
+          description: '',
+          plannedDate: '',
+          completedDate: '',
+          status: 'pending',
+          orderIndex: 0,
+        });
+      }
     }
-  }, [milestone, form]);
+  }, [open, milestone, form]);
 
   const onSubmit = (data: FormData) => {
     if (isEditing) {

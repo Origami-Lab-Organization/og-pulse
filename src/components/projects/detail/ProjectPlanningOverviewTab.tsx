@@ -14,6 +14,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { useProjectOKRs } from '@/hooks/useProjectOKRs';
+import { useProjectStakeholders } from '@/hooks/useProjectStakeholders';
 
 interface ProjectPlanningOverviewTabProps {
   project: ProjectWithRelations;
@@ -21,9 +22,11 @@ interface ProjectPlanningOverviewTabProps {
 
 export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewTabProps) {
   const { data: okrs = [] } = useProjectOKRs(project.id);
+  const { data: stakeholders = [] } = useProjectStakeholders(project.id);
   
   // OKRs are valid when there's at least 1 OKR with at least 1 Key Result
   const hasValidOKRs = okrs.some(okr => (okr.key_results?.length || 0) > 0);
+  const hasStakeholders = stakeholders.length > 0;
   const getPaymentMethodLabel = (method: string) => {
     const found = PAYMENT_METHOD_OPTIONS.find((m) => m.value === method);
     return found?.label || method;
@@ -153,8 +156,8 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
             />
             <ChecklistItem 
               label="Stakeholders mapeados" 
-              completed={false}
-              hint="Vá para a aba Stakeholders" 
+              completed={hasStakeholders}
+              hint={!hasStakeholders ? "Vá para a aba Stakeholders" : undefined}
             />
             <ChecklistItem 
               label="Equipe alocada" 
