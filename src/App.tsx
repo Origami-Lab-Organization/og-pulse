@@ -57,11 +57,11 @@ const App = () => (
                   </ProtectedRoute>
                 } 
               />
-              {/* Management routes - Admin only */}
+              {/* Management routes - Manager or Admin */}
               <Route 
                 path="/" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <Index />
                   </RoleProtectedRoute>
                 } 
@@ -69,7 +69,7 @@ const App = () => (
               <Route 
                 path="/clients" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <Clients />
                   </RoleProtectedRoute>
                 } 
@@ -77,7 +77,7 @@ const App = () => (
               <Route 
                 path="/suppliers" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <Suppliers />
                   </RoleProtectedRoute>
                 } 
@@ -85,7 +85,7 @@ const App = () => (
               <Route 
                 path="/portfolio" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <Portfolio />
                   </RoleProtectedRoute>
                 } 
@@ -93,7 +93,7 @@ const App = () => (
               <Route 
                 path="/projects" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <Projects />
                   </RoleProtectedRoute>
                 } 
@@ -101,7 +101,7 @@ const App = () => (
               <Route 
                 path="/projects/:id" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <ProjectDetail />
                   </RoleProtectedRoute>
                 } 
@@ -109,7 +109,7 @@ const App = () => (
               <Route 
                 path="/crm" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <CRM />
                   </RoleProtectedRoute>
                 } 
@@ -117,7 +117,7 @@ const App = () => (
               <Route 
                 path="/budgets" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <Budgets />
                   </RoleProtectedRoute>
                 } 
@@ -125,7 +125,7 @@ const App = () => (
               <Route 
                 path="/budgets/new" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <BudgetForm />
                   </RoleProtectedRoute>
                 } 
@@ -133,7 +133,7 @@ const App = () => (
               <Route 
                 path="/budgets/:id" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <BudgetDetail />
                   </RoleProtectedRoute>
                 } 
@@ -141,7 +141,7 @@ const App = () => (
               <Route 
                 path="/budgets/:id/edit" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <BudgetForm />
                   </RoleProtectedRoute>
                 } 
