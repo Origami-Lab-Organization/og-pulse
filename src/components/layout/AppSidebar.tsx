@@ -50,29 +50,29 @@ const navigationGroups = [
   },
   {
     label: 'Gestão',
-    requiresAdmin: true,
+    requiresManager: true,
     items: [
-      { title: 'Funcionários', url: '/', icon: Users, requiresAdmin: true },
-      { title: 'Clientes', url: '/clients', icon: Building2, requiresAdmin: true },
-      { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresAdmin: true },
+      { title: 'Funcionários', url: '/', icon: Users, requiresManager: true },
+      { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
+      { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
     ] as NavItem[],
   },
   {
     label: 'Comercial',
-    requiresAdmin: true,
+    requiresManager: true,
     items: [
-      { title: 'CRM', url: '/crm', icon: Kanban, requiresAdmin: true },
-      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresAdmin: true },
+      { title: 'CRM', url: '/crm', icon: Kanban, requiresManager: true },
+      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresManager: true },
     ] as NavItem[],
   },
   {
     label: 'Operações',
-    requiresAdmin: true,
+    requiresManager: true,
     items: [
-      { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresAdmin: true },
-      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresAdmin: true },
-      { title: 'Timesheets', url: '/timesheets', icon: Clock, disabled: true, requiresAdmin: true },
-      { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true, requiresAdmin: true },
+      { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresManager: true },
+      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
+      { title: 'Timesheets', url: '/timesheets', icon: Clock, disabled: true, requiresManager: true },
+      { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true, requiresManager: true },
     ] as NavItem[],
   },
   {
@@ -164,6 +164,11 @@ export function AppSidebar() {
 
       <SidebarContent>
         {navigationGroups.map((group) => {
+          // Check group-level permissions
+          const groupConfig = group as { requiresAdmin?: boolean; requiresManager?: boolean };
+          if (groupConfig.requiresAdmin && !isAdmin) return null;
+          if (groupConfig.requiresManager && !isManager && !isAdmin) return null;
+          
           // Filter out items that require manager or admin access
           const visibleItems = group.items.filter((item) => {
             if (item.requiresAdmin && !isAdmin) return false;
