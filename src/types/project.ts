@@ -151,9 +151,9 @@ export interface ProjectWithRelations extends ProjectDB {
       id: string;
       nome: string;
       cargo: string;
-      salario_mensal: number;
-      beneficios: number;
-      encargos: number;
+      foto_url?: string | null;
+      total_monthly_cost_estimated: number;
+      jornada_mensal: number;
     };
   })[];
   installments?: ProjectInstallmentDB[];

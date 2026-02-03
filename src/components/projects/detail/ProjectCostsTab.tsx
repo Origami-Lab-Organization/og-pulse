@@ -40,21 +40,26 @@ export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
 
-  // Calculate labor costs from member's hourly_rate and monthly hours
+  // Calculate labor costs using real employee cost (total_monthly_cost_estimated / jornada_mensal)
   const laborCosts = useMemo(() => {
     if (!project.members || project.members.length === 0) return 0;
 
     let total = 0;
     project.members.forEach((member) => {
-      // Use the member's own hourly_rate (from budget or manually set)
-      const hourlyRate = Number((member as any).hourly_rate) || 0;
+      // Use the employee's real hourly cost
+      const employee = member.employee;
+      if (!employee) return;
+      
+      const totalMonthlyCost = employee.total_monthly_cost_estimated || 0;
+      const workHours = employee.jornada_mensal || 168;
+      const realHourlyCost = workHours > 0 ? totalMonthlyCost / workHours : 0;
 
       // Sum hours across all months
       const memberHours = memberMonths
         .filter((mm) => mm.project_member_id === member.id)
         .reduce((sum, mm) => sum + Number(mm.hours), 0);
 
-      total += hourlyRate * memberHours;
+      total += realHourlyCost * memberHours;
     });
 
     return total;

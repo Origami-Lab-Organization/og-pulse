@@ -12,10 +12,12 @@ interface ProjectExpectedResultTabProps {
 export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabProps) {
   // Calculate costs from project data
   const costs = useMemo(() => {
-    // Labor cost from members
+    // Labor cost from members using real employee cost
     const laborCost = project.members?.reduce((total, member) => {
-      const hourlyRate = (member.employee?.salario_mensal || 0) / 176; // Estimate hourly rate
-      return total + (hourlyRate * member.hours_per_month);
+      const totalMonthlyCost = member.employee?.total_monthly_cost_estimated || 0;
+      const workHours = member.employee?.jornada_mensal || 168;
+      const realHourlyCost = workHours > 0 ? totalMonthlyCost / workHours : 0;
+      return total + (realHourlyCost * member.hours_per_month);
     }, 0) || 0;
 
     // Suppliers cost
