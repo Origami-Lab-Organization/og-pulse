@@ -1,209 +1,207 @@
 
-# Plano: Dashboard Profissional de Projeto
+# Plano: Dashboard Profissional de Projeto Agil
 
-## Resumo das Alteracoes
+## Visao Geral das Alteracoes
 
-Transformar a aba "Visao Geral" em um dashboard profissional de gestao de projeto com layout otimizado e graficos de resumo.
+Redesenhar a tela de detalhes do projeto para um dashboard profissional de gestao agil, removendo informacoes duplicadas e organizando os dados de forma hierarquica e visual.
 
-## 1. Remover Botao Voltar e Excluir
+## Alteracoes Estruturais
+
+### 1. Header Simplificado
+
+**Arquivo: `src/components/projects/detail/ProjectHeader.tsx`**
+
+Remover os 8 cards atuais e criar um header compacto e informativo:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  [Badge Status]  Cliente • Gerente Responsavel • Periodo (Data Inicio - Fim)   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+Apenas uma linha de contexto que orienta o usuario sobre ONDE ele esta.
+
+### 2. Tabs como Primeiro Elemento
 
 **Arquivo: `src/pages/ProjectDetail.tsx`**
 
-Manter apenas o botao "Editar" na area de acoes:
+Reorganizar para que as tabs venham ANTES do conteudo do dashboard:
 
 ```text
-Antes:
-┌──────────┐  ┌──────────┐  ┌──────────┐
-│  Voltar  │  │  Editar  │  │  Excluir │
-└──────────┘  └──────────┘  └──────────┘
+Nome do Projeto                                                          [Editar]
+───────────────────────────────────────────────────────────────────────────────────
+[Status] Cliente • Gerente • Data Inicio - Data Fim
 
-Depois:
-┌──────────┐
-│  Editar  │
-└──────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ [Visao Geral] [Custos] [Financeiro] [Stakeholders] [Cronograma]                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+... Dashboard Content ...
 ```
 
-O breadcrumb "Projetos" ja serve como navegacao de retorno.
-
-## 2. Permitir Adicionar Membros na Visao Geral
-
-A funcionalidade de adicionar membros ja existe em `ProjectMembersTable`. Precisamos:
-- Importar o botao de adicionar membro na secao de equipe do `ProjectOverviewTab`
-- Exibir o botao apenas quando o projeto estiver em modo de planejamento OU quando o usuario quiser alocar mais pessoas
-
-## 3. Layout em Duas Colunas: Descricao e Equipe
+### 3. Dashboard Completo na Aba Visao Geral
 
 **Arquivo: `src/components/projects/detail/ProjectOverviewTab.tsx`**
 
-```text
-Antes:
-┌─────────────────────────────────────────┐
-│ Descricao do Projeto                    │
-└─────────────────────────────────────────┘
-┌─────────────────────────────────────────┐
-│ Equipe do Projeto                       │
-└─────────────────────────────────────────┘
-
-Depois:
-┌────────────────────┐  ┌────────────────────┐
-│ Descricao          │  │ Equipe             │
-│ do Projeto         │  │ do Projeto         │
-│                    │  │ + Adicionar Membro │
-└────────────────────┘  └────────────────────┘
-```
-
-## 4. Dashboard Profissional - Nova Estrutura
-
-Transformar a pagina em um dashboard de gestao agil:
+Transformar em um dashboard profissional de gestao agil:
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  [Status] Em Planejamento         Nome do Projeto                  [Editar]│
-│  Cliente: ABC Ltda • Gerente: Joao Silva • Jan/2026 - Jun/2026              │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─ METRICAS PRINCIPAIS ───────────────────────────────────────────────────────┐
-│ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ │
-│ │ Contrato   │ │ Custo Plan.│ │ Margem     │ │ Recebido   │ │ Pendente   │ │
-│ │ R$ 100.000 │ │ R$ 68.000  │ │ 32%        │ │ R$ 25.000  │ │ R$ 75.000  │ │
-│ └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─ GRAFICOS DE RESUMO ────────────────────────────────────────────────────────┐
-│ ┌─────────────────────────────┐  ┌─────────────────────────────┐            │
-│ │ Composicao de Custos        │  │ Recebimentos                │            │
-│ │ [Grafico de pizza ou donut] │  │ [Grafico de barras]         │            │
-│ │  Mao de Obra: 60%           │  │  Recebido vs Pendente       │            │
-│ │  Fornecedores: 25%          │  │                             │            │
-│ │  Materiais: 15%             │  │                             │            │
-│ └─────────────────────────────┘  └─────────────────────────────┘            │
-│                                                                              │
-│ ┌─────────────────────────────────────────────────────────────────────────┐ │
-│ │ Curva de Custos (mini)                                                   │ │
-│ │ [Linha de tendencia simplificada - Planejado vs Budget]                  │ │
-│ └─────────────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─ DESCRICAO E EQUIPE ────────────────────────────────────────────────────────┐
-│ ┌────────────────────────────┐  ┌─────────────────────────────────────────┐ │
-│ │ Descricao do Projeto       │  │ Equipe do Projeto (4 membros)           │ │
-│ │                            │  │                                         │ │
-│ │ Lorem ipsum dolor sit amet │  │ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐        │ │
-│ │ consectetur adipiscing     │  │ │ JS  │ │ MC  │ │ AP  │ │ RF  │        │ │
-│ │ elit. Sed do eiusmod...    │  │ │     │ │     │ │     │ │     │        │ │
-│ │                            │  │ └─────┘ └─────┘ └─────┘ └─────┘        │ │
-│ │                            │  │ Joao   Maria   Ana    Roberto          │ │
-│ │                            │  │                                         │ │
-│ │                            │  │            [+ Adicionar Membro]        │ │
-│ └────────────────────────────┘  └─────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─ PARCELAS ──────────────────────────────────────────────────────────────────┐
-│ Tabela de parcelas existente                                                │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  METRICAS FINANCEIRAS PRINCIPAIS (5 cards em linha)                             │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐              │
+│  │ Contrato │ │ Custo    │ │ Margem   │ │ Recebido │ │ Pendente │              │
+│  │ R$ 40.8k │ │ R$ 28k   │ │ 31%      │ │ R$ 0     │ │ R$ 40.8k │              │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘              │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  GRAFICOS DE CUSTOS E RECEBIMENTOS (2 colunas)                                  │
+│  ┌────────────────────────────┐  ┌────────────────────────────────┐            │
+│  │ Composicao de Custos       │  │ Recebimentos                   │            │
+│  │ [Donut Chart]              │  │ [Horizontal Bar Chart]         │            │
+│  │  Mao de Obra: 60%          │  │  Recebido: verde               │            │
+│  │  Fornecedores: 25%         │  │  Pendente: amarelo             │            │
+│  │  Materiais: 15%            │  │  Atrasado: vermelho            │            │
+│  └────────────────────────────┘  └────────────────────────────────┘            │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  CURVA DE TENDENCIA (largura total)                                             │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐│
+│  │ Custo Acumulado vs Orcamento                                                ││
+│  │ [Line Chart com projecao]                                                   ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  EQUIPE DO PROJETO (largura total, foco na gestao de pessoas)                   │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐│
+│  │ Equipe do Projeto (X membros)                             [+ Adicionar]     ││
+│  │ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐                                            ││
+│  │ │ JS  │ │ MC  │ │ AP  │ │ RF  │                                            ││
+│  │ └─────┘ └─────┘ └─────┘ └─────┘                                            ││
+│  │ Joao   Maria   Ana    Roberto                                               ││
+│  │ Dev    Design  PM     Backend                                               ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  INFORMACOES DE PAGAMENTO (Parcelas)                                            │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐│
+│  │ Tabela de parcelas com status                                               ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 5. Novos Componentes
+## Elementos Removidos
 
-### 5.1 Grafico de Composicao de Custos (Donut Chart)
+1. **Descricao do Projeto**: Removida conforme solicitado
+2. **Cards duplicados no Header**: Valor do Contrato, Recebido, Pendente, Duracao, Periodo (ja estarao no dashboard ou no contexto)
 
-**Novo arquivo: `src/components/projects/detail/ProjectCostBreakdownChart.tsx`**
+## Elementos do Header Simplificado
 
-Grafico de rosca mostrando a distribuicao percentual:
-- Mao de Obra (azul)
-- Fornecedores (roxo)
-- Materiais (amarelo)
+Manter apenas informacoes de CONTEXTO:
+- Badge de Status (colorido)
+- Nome do Cliente
+- Nome do Gerente
+- Periodo (data inicio - data fim)
 
-### 5.2 Grafico de Recebimentos
+Formato em linha unica, sem cards.
 
-**Novo arquivo: `src/components/projects/detail/ProjectPaymentsChart.tsx`**
-
-Grafico de barras horizontais:
-- Recebido (verde)
-- Pendente (amarelo)
-- Atrasado (vermelho)
-
-### 5.3 Mini Curva de Tendencia
-
-Reutilizar `ProjectTrendChart` em formato compacto para o dashboard.
-
-### 5.4 Componente de Equipe Compacto
-
-**Novo arquivo: `src/components/projects/detail/ProjectTeamSection.tsx`**
-
-Exibir equipe com avatares visuais e botao de adicionar:
-- Avatares circulares com iniciais
-- Nome e papel abaixo
-- Botao de adicionar membro (abre dialog)
-- Reutiliza logica do `ProjectMembersTable` para adicionar
-
-## 6. Arquivos a Modificar
+## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/ProjectDetail.tsx` | Remover botoes Voltar e Excluir |
-| `src/components/projects/detail/ProjectOverviewTab.tsx` | Transformar em dashboard completo |
-| `src/components/projects/detail/ProjectHeader.tsx` | Simplificar para linha unica no topo |
+| `src/pages/ProjectDetail.tsx` | Simplificar estrutura, tabs primeiro |
+| `src/components/projects/detail/ProjectHeader.tsx` | Header compacto em linha unica |
+| `src/components/projects/detail/ProjectOverviewTab.tsx` | Remover descricao, reorganizar dashboard |
 
-## 7. Novos Arquivos
+## Detalhes de Implementacao
 
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/components/projects/detail/ProjectCostBreakdownChart.tsx` | Donut chart de custos |
-| `src/components/projects/detail/ProjectPaymentsChart.tsx` | Barras de recebimentos |
-| `src/components/projects/detail/ProjectTeamSection.tsx` | Secao de equipe com adicionar |
+### ProjectHeader.tsx (Nova versao)
 
-## 8. Detalhes Tecnicos
-
-### Grafico de Composicao de Custos
 ```tsx
-// Usando Recharts PieChart com innerRadius para efeito donut
-<PieChart>
-  <Pie
-    data={[
-      { name: 'Mao de Obra', value: laborCost, fill: 'hsl(var(--chart-1))' },
-      { name: 'Fornecedores', value: supplierCost, fill: 'hsl(var(--chart-4))' },
-      { name: 'Materiais', value: materialCost, fill: 'hsl(var(--chart-3))' },
-    ]}
-    innerRadius={60}
-    outerRadius={80}
-  />
-</PieChart>
-```
-
-### Secao de Equipe
-```tsx
-// Avatares em grid responsivo
-<div className="grid grid-cols-4 sm:grid-cols-6 gap-4">
-  {members.map((member) => (
-    <div className="flex flex-col items-center gap-1">
-      <Avatar className="h-12 w-12">
-        <AvatarFallback>{getInitials(member.employee.nome)}</AvatarFallback>
-      </Avatar>
-      <span className="text-sm font-medium">{member.employee.nome.split(' ')[0]}</span>
-      <span className="text-xs text-muted-foreground">{member.role}</span>
-    </div>
-  ))}
+// Header compacto - apenas contexto
+<div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+  <Badge className={statusColors[project.status]}>
+    {PROJECT_STATUS_LABELS[project.status]}
+  </Badge>
+  <span className="hidden sm:inline">•</span>
+  <span className="flex items-center gap-1">
+    <Building2 className="h-3.5 w-3.5" />
+    {project.client?.trading_name || project.client?.company_name}
+  </span>
+  <span className="hidden sm:inline">•</span>
+  <span className="flex items-center gap-1">
+    <User className="h-3.5 w-3.5" />
+    {project.manager?.nome}
+  </span>
+  <span className="hidden sm:inline">•</span>
+  <span className="flex items-center gap-1">
+    <Calendar className="h-3.5 w-3.5" />
+    {formatPeriod(project)}
+  </span>
 </div>
 ```
 
-## 9. Resultado Visual Final
+### ProjectOverviewTab.tsx (Dashboard Completo)
 
-O dashboard tera aspecto profissional similar a ferramentas como Jira, Monday.com ou Azure DevOps, com:
+Remover a secao de descricao e reorganizar o dashboard:
 
-- Header compacto com informacoes essenciais
-- Metricas financeiras em destaque
-- Graficos visuais de composicao e status
-- Layout em grid responsivo (2 colunas em desktop, 1 em mobile)
-- Cores consistentes com a paleta do sistema
-- Interatividade para adicionar membros diretamente
+1. **Metricas Financeiras**: 5 cards compactos em linha
+2. **Graficos**: 2 colunas (Composicao de Custos + Recebimentos)
+3. **Tendencia**: Curva de custos em largura total
+4. **Equipe**: Secao de equipe em largura total (mais destaque)
+5. **Parcelas**: Tabela de pagamentos
 
-## 10. Responsividade
+### Estrutura Visual Final
 
 ```text
-Desktop (>1024px):      Tablet (768-1024px):    Mobile (<768px):
-┌─────┐ ┌─────┐         ┌─────┐ ┌─────┐        ┌─────────────┐
-│     │ │     │         │     │ │     │        │             │
-└─────┘ └─────┘         └─────┘ └─────┘        └─────────────┘
-2 colunas               2 colunas               1 coluna
+┌─ NOME DO PROJETO ─────────────────────────────────────────────────────── [Editar]
+│  [Status] Cliente • Gerente • Periodo
+├───────────────────────────────────────────────────────────────────────────────────
+│  [Visao Geral] [Custos] [Financeiro] [Stakeholders] [Cronograma]
+├───────────────────────────────────────────────────────────────────────────────────
+│
+│  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
+│  │Contrato│  │ Custo  │  │ Margem │  │Recebido│  │Pendente│
+│  │ R$ 40k │  │ R$ 28k │  │  31%   │  │ R$ 0   │  │ R$ 40k │
+│  └────────┘  └────────┘  └────────┘  └────────┘  └────────┘
+│
+│  ┌────────────────────────┐  ┌────────────────────────┐
+│  │  Composicao Custos     │  │  Recebimentos          │
+│  │      [Donut]           │  │      [Barras]          │
+│  └────────────────────────┘  └────────────────────────┘
+│
+│  ┌─────────────────────────────────────────────────────┐
+│  │          Curva de Tendencia                         │
+│  └─────────────────────────────────────────────────────┘
+│
+│  ┌─────────────────────────────────────────────────────┐
+│  │  Equipe do Projeto           [+ Adicionar Membro]   │
+│  │  [Avatar] [Avatar] [Avatar] [Avatar] [Avatar]       │
+│  └─────────────────────────────────────────────────────┘
+│
+│  ┌─────────────────────────────────────────────────────┐
+│  │  Parcelas de Pagamento                              │
+│  │  [Tabela]                                           │
+│  └─────────────────────────────────────────────────────┘
+│
+└───────────────────────────────────────────────────────────────────────────────────
 ```
+
+## Principios de Design Aplicados
+
+1. **Hierarquia Visual**: Metricas financeiras no topo (mais importantes)
+2. **Dados Acionaveis**: Graficos que permitem identificar problemas rapidamente
+3. **Gestao de Pessoas**: Equipe em destaque para projetos ageis
+4. **Fluxo de Caixa**: Parcelas visiveis para controle financeiro
+5. **Sem Duplicacao**: Cada informacao aparece em um unico lugar
+
+## Paleta de Cores dos Indicadores
+
+| Metrica | Cor Positiva | Cor Negativa |
+|---------|--------------|--------------|
+| Margem | Verde (>= 30%) | Vermelho (< 15%) |
+| Recebido | Verde | - |
+| Pendente | Amarelo | - |
+| Atrasado | - | Vermelho |
+| Custo Plan. | Neutro | - |
+
+## Responsividade
+
+- Desktop: 5 cards em linha, 2 colunas de graficos
+- Tablet: 5 cards em linha (menores), 2 colunas de graficos
+- Mobile: Cards empilham em 2x3, graficos em 1 coluna
