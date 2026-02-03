@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useProjectOKRs } from '@/hooks/useProjectOKRs';
 import { useProjectStakeholders } from '@/hooks/useProjectStakeholders';
+import { useProjectMilestones } from '@/hooks/useProjectMilestones';
 
 interface ProjectPlanningOverviewTabProps {
   project: ProjectWithRelations;
@@ -23,10 +24,19 @@ interface ProjectPlanningOverviewTabProps {
 export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewTabProps) {
   const { data: okrs = [] } = useProjectOKRs(project.id);
   const { data: stakeholders = [] } = useProjectStakeholders(project.id);
+  const { data: milestones = [] } = useProjectMilestones(project.id);
   
   // OKRs are valid when there's at least 1 OKR with at least 1 Key Result
   const hasValidOKRs = okrs.some(okr => (okr.key_results?.length || 0) > 0);
   const hasStakeholders = stakeholders.length > 0;
+  const hasMilestones = milestones.length > 0;
+  
+  // Costs are valid when there's at least one member, supplier, or material
+  const hasCosts = 
+    (project.members?.length || 0) > 0 || 
+    (project.suppliers?.length || 0) > 0 || 
+    (project.materials?.length || 0) > 0;
+
   const getPaymentMethodLabel = (method: string) => {
     const found = PAYMENT_METHOD_OPTIONS.find((m) => m.value === method);
     return found?.label || method;
@@ -146,16 +156,17 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
             <ChecklistItem 
               label="Equipe alocada" 
               completed={(project.members?.length || 0) > 0} 
+              hint={(project.members?.length || 0) === 0 ? "Vá para a aba Custos" : undefined}
             />
             <ChecklistItem 
               label="Custos planejados" 
-              completed={false}
-              hint="Vá para a aba Custos" 
+              completed={hasCosts}
+              hint={!hasCosts ? "Vá para a aba Custos" : undefined}
             />
             <ChecklistItem 
               label="Cronograma definido" 
-              completed={false}
-              hint="Vá para a aba Cronograma" 
+              completed={hasMilestones}
+              hint={!hasMilestones ? "Vá para a aba Cronograma" : undefined}
             />
           </div>
         </CardContent>

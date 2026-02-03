@@ -879,6 +879,7 @@ export type Database = {
           description: string
           id: string
           is_realized: boolean
+          month_number: number | null
           project_id: string
           purchase_date: string | null
           value: number
@@ -888,6 +889,7 @@ export type Database = {
           description: string
           id?: string
           is_realized?: boolean
+          month_number?: number | null
           project_id: string
           purchase_date?: string | null
           value?: number
@@ -897,6 +899,7 @@ export type Database = {
           description?: string
           id?: string
           is_realized?: boolean
+          month_number?: number | null
           project_id?: string
           purchase_date?: string | null
           value?: number
@@ -907,6 +910,35 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_member_months: {
+        Row: {
+          hours: number
+          id: string
+          month_number: number
+          project_member_id: string
+        }
+        Insert: {
+          hours?: number
+          id?: string
+          month_number: number
+          project_member_id: string
+        }
+        Update: {
+          hours?: number
+          id?: string
+          month_number?: number
+          project_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_member_months_project_member_id_fkey"
+            columns: ["project_member_id"]
+            isOneToOne: false
+            referencedRelation: "project_members"
             referencedColumns: ["id"]
           },
         ]
@@ -1097,6 +1129,35 @@ export type Database = {
           },
         ]
       }
+      project_supplier_months: {
+        Row: {
+          id: string
+          month_number: number
+          project_supplier_id: string
+          value: number
+        }
+        Insert: {
+          id?: string
+          month_number: number
+          project_supplier_id: string
+          value?: number
+        }
+        Update: {
+          id?: string
+          month_number?: number
+          project_supplier_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_supplier_months_project_supplier_id_fkey"
+            columns: ["project_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "project_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_suppliers: {
         Row: {
           created_at: string
@@ -1156,6 +1217,7 @@ export type Database = {
           created_at: string
           description: string | null
           due_day: number
+          duration_months: number
           end_date: string | null
           first_invoice_date: string | null
           id: string
@@ -1178,6 +1240,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_day?: number
+          duration_months?: number
           end_date?: string | null
           first_invoice_date?: string | null
           id?: string
@@ -1200,6 +1263,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_day?: number
+          duration_months?: number
           end_date?: string | null
           first_invoice_date?: string | null
           id?: string

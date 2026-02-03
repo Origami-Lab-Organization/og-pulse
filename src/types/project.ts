@@ -19,6 +19,7 @@ export interface ProjectDB {
   due_day: number;
   status: ProjectStatus;
   contract_url: string | null;
+  duration_months: number;
   created_at: string;
   updated_at: string;
 }
@@ -69,6 +70,7 @@ export interface ProjectMaterialDB {
   value: number;
   purchase_date: string | null;
   is_realized: boolean;
+  month_number: number;
   created_at: string;
 }
 
@@ -88,6 +90,7 @@ export interface CreateProjectInput {
   dueDay: number;
   status?: ProjectStatus;
   contractUrl?: string;
+  durationMonths?: number;
 }
 
 export interface CreateProjectMemberInput {
@@ -114,6 +117,7 @@ export interface CreateProjectMaterialInput {
   value: number;
   purchaseDate?: string;
   isRealized?: boolean;
+  monthNumber?: number;
 }
 
 export interface UpdateInstallmentInput {
@@ -167,6 +171,34 @@ export const INSTALLMENT_STATUS_LABELS: Record<InstallmentStatus, string> = {
   received: 'Recebido',
   overdue: 'Atrasado',
 };
+
+// Project Member Months (hours per month)
+export interface ProjectMemberMonthDB {
+  id: string;
+  project_member_id: string;
+  month_number: number;
+  hours: number;
+}
+
+// Project Supplier Months (value per month)
+export interface ProjectSupplierMonthDB {
+  id: string;
+  project_supplier_id: string;
+  month_number: number;
+  value: number;
+}
+
+export interface CreateProjectMemberMonthInput {
+  projectMemberId: string;
+  monthNumber: number;
+  hours: number;
+}
+
+export interface CreateProjectSupplierMonthInput {
+  projectSupplierId: string;
+  monthNumber: number;
+  value: number;
+}
 
 export const SENIORITY_OPTIONS = [
   { value: 'junior', label: 'Júnior' },

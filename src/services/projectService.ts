@@ -195,6 +195,7 @@ export const projectService = {
     if (updates.dueDay !== undefined) updateData.due_day = updates.dueDay;
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.contractUrl !== undefined) updateData.contract_url = updates.contractUrl;
+    if (updates.durationMonths !== undefined) updateData.duration_months = updates.durationMonths;
 
     const { data, error } = await supabase
       .from('projects')

@@ -133,6 +133,7 @@ export const useAddProjectMaterial = () => {
           value: input.value,
           purchase_date: input.purchaseDate || null,
           is_realized: input.isRealized || false,
+          month_number: input.monthNumber || 1,
         })
         .select()
         .single();

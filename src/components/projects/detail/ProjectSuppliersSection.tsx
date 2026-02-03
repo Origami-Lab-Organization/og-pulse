@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Plus, Trash2, Truck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import {
   Dialog,
@@ -21,17 +22,25 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { ProjectSupplierDB, CreateProjectSupplierInput } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
 import { useAddProjectSupplier, useRemoveProjectSupplier } from '@/hooks/useProjectCosts';
+import { useProjectSupplierMonths, useUpsertSupplierMonth } from '@/hooks/useProjectSupplierMonths';
 
 interface ProjectSuppliersSectionProps {
   projectId: string;
   suppliers: ProjectSupplierDB[];
+  durationMonths: number;
   isEditable: boolean;
 }
 
-export function ProjectSuppliersSection({ projectId, suppliers, isEditable }: ProjectSuppliersSectionProps) {
+export function ProjectSuppliersSection({
+  projectId,
+  suppliers,
+  durationMonths,
+  isEditable,
+}: ProjectSuppliersSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState<Omit<CreateProjectSupplierInput, 'projectId'>>({
     name: '',
@@ -43,6 +52,35 @@ export function ProjectSuppliersSection({ projectId, suppliers, isEditable }: Pr
 
   const addSupplier = useAddProjectSupplier();
   const removeSupplier = useRemoveProjectSupplier();
+
+  const supplierIds = useMemo(() => suppliers.map((s) => s.id), [suppliers]);
+  const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
+  const upsertSupplierMonth = useUpsertSupplierMonth();
+
+  const months = useMemo(() => {
+    return Array.from({ length: durationMonths }, (_, i) => i + 1);
+  }, [durationMonths]);
+
+  const getValueForMonth = useCallback(
+    (supplierId: string, monthNumber: number): number => {
+      const found = supplierMonths.find(
+        (sm) => sm.project_supplier_id === supplierId && sm.month_number === monthNumber
+      );
+      return found?.value || 0;
+    },
+    [supplierMonths]
+  );
+
+  const handleValueChange = useCallback(
+    (supplierId: string, monthNumber: number, value: number) => {
+      upsertSupplierMonth.mutate({
+        projectSupplierId: supplierId,
+        monthNumber,
+        value: value || 0,
+      });
+    },
+    [upsertSupplierMonth]
+  );
 
   const handleSubmit = () => {
     addSupplier.mutate(
@@ -60,7 +98,38 @@ export function ProjectSuppliersSection({ projectId, suppliers, isEditable }: Pr
     removeSupplier.mutate({ id, projectId });
   };
 
-  const totalMonthlyValue = suppliers.reduce((sum, s) => sum + Number(s.monthly_value), 0);
+  // Calculate totals
+  const totals = useMemo(() => {
+    const byMonth: Record<number, number> = {};
+    let totalValue = 0;
+
+    months.forEach((m) => {
+      byMonth[m] = 0;
+    });
+
+    suppliers.forEach((supplier) => {
+      months.forEach((monthNum) => {
+        const value = getValueForMonth(supplier.id, monthNum);
+        byMonth[monthNum] += value;
+        totalValue += value;
+      });
+    });
+
+    return { byMonth, totalValue };
+  }, [suppliers, months, getValueForMonth]);
+
+  // Calculate supplier totals
+  const supplierTotals = useMemo(() => {
+    const result: Record<string, number> = {};
+    suppliers.forEach((supplier) => {
+      let total = 0;
+      months.forEach((monthNum) => {
+        total += getValueForMonth(supplier.id, monthNum);
+      });
+      result[supplier.id] = total;
+    });
+    return result;
+  }, [suppliers, months, getValueForMonth]);
 
   return (
     <>
@@ -84,56 +153,104 @@ export function ProjectSuppliersSection({ projectId, suppliers, isEditable }: Pr
         </CardHeader>
         <CardContent>
           {suppliers.length > 0 ? (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-right">Valor Mensal</TableHead>
-                    <TableHead className="text-center">Mês Início</TableHead>
-                    <TableHead className="text-center">Mês Fim</TableHead>
-                    {isEditable && <TableHead className="w-16" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {suppliers.map((supplier) => (
-                    <TableRow key={supplier.id}>
-                      <TableCell className="font-medium">{supplier.name}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {supplier.description || '-'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(supplier.monthly_value)}
-                      </TableCell>
-                      <TableCell className="text-center">{supplier.start_month}</TableCell>
-                      <TableCell className="text-center">{supplier.end_month || '-'}</TableCell>
-                      {isEditable && (
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(supplier.id)}
-                            disabled={removeSupplier.isPending}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      )}
+            <ScrollArea className="w-full whitespace-nowrap">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky left-0 bg-background z-10 min-w-[200px]">
+                        Nome
+                      </TableHead>
+                      {months.map((m) => (
+                        <TableHead key={m} className="text-center min-w-[100px]">
+                          Mês {m}
+                        </TableHead>
+                      ))}
+                      <TableHead className="text-right min-w-[120px]">Total</TableHead>
+                      {isEditable && <TableHead className="w-12" />}
                     </TableRow>
-                  ))}
-                  <TableRow className="bg-muted/50">
-                    <TableCell colSpan={2} className="font-semibold">
-                      Total
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {formatCurrency(totalMonthlyValue)}
-                    </TableCell>
-                    <TableCell colSpan={isEditable ? 3 : 2} />
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {suppliers.map((supplier) => {
+                      const supplierTotal = supplierTotals[supplier.id] || 0;
+
+                      return (
+                        <TableRow key={supplier.id}>
+                          <TableCell className="sticky left-0 bg-background z-10 font-medium">
+                            <div>
+                              <p>{supplier.name}</p>
+                              {supplier.description && (
+                                <p className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                  {supplier.description}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          {months.map((monthNum) => (
+                            <TableCell key={monthNum} className="text-center p-1">
+                              {isEditable ? (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  className="w-24 h-8 text-center mx-auto"
+                                  value={getValueForMonth(supplier.id, monthNum) || ''}
+                                  onChange={(e) =>
+                                    handleValueChange(
+                                      supplier.id,
+                                      monthNum,
+                                      Number(e.target.value)
+                                    )
+                                  }
+                                />
+                              ) : (
+                                <span>
+                                  {getValueForMonth(supplier.id, monthNum)
+                                    ? formatCurrency(getValueForMonth(supplier.id, monthNum))
+                                    : '-'}
+                                </span>
+                              )}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(supplierTotal)}
+                          </TableCell>
+                          {isEditable && (
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(supplier.id)}
+                                disabled={removeSupplier.isPending}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell className="sticky left-0 bg-muted z-10 font-semibold">
+                        Total
+                      </TableCell>
+                      {months.map((monthNum) => (
+                        <TableCell key={monthNum} className="text-center font-medium">
+                          {formatCurrency(totals.byMonth[monthNum] || 0)}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right font-semibold">
+                        {formatCurrency(totals.totalValue)}
+                      </TableCell>
+                      {isEditable && <TableCell />}
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
           ) : (
             <p className="text-muted-foreground italic text-center py-8">
               Nenhum fornecedor cadastrado.
@@ -147,7 +264,7 @@ export function ProjectSuppliersSection({ projectId, suppliers, isEditable }: Pr
           <DialogHeader>
             <DialogTitle>Adicionar Fornecedor</DialogTitle>
             <DialogDescription>
-              Adicione um custo mensal recorrente com fornecedor externo.
+              Adicione um fornecedor. Depois defina os valores por mês na tabela.
             </DialogDescription>
           </DialogHeader>
 
@@ -171,42 +288,6 @@ export function ProjectSuppliersSection({ projectId, suppliers, isEditable }: Pr
                 placeholder="Descreva o serviço prestado"
                 rows={2}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="monthlyValue">Valor Mensal (R$)</Label>
-              <Input
-                id="monthlyValue"
-                type="number"
-                step="0.01"
-                value={formData.monthlyValue || ''}
-                onChange={(e) => setFormData({ ...formData, monthlyValue: Number(e.target.value) })}
-                placeholder="0,00"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startMonth">Mês de Início</Label>
-                <Input
-                  id="startMonth"
-                  type="number"
-                  min="1"
-                  value={formData.startMonth}
-                  onChange={(e) => setFormData({ ...formData, startMonth: Number(e.target.value) })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endMonth">Mês de Fim (opcional)</Label>
-                <Input
-                  id="endMonth"
-                  type="number"
-                  min="1"
-                  value={formData.endMonth || ''}
-                  onChange={(e) => setFormData({ ...formData, endMonth: e.target.value ? Number(e.target.value) : undefined })}
-                  placeholder="Até o fim"
-                />
-              </div>
             </div>
           </div>
 
