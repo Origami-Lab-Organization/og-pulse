@@ -1,20 +1,15 @@
-import { useMemo, useState } from 'react';
-import { Users, Truck, Package, AlertCircle, Settings, FileText } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { useMemo } from 'react';
+import { Users, Truck, Package } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { ProjectLaborSection } from '@/components/projects/detail/ProjectLaborSection';
 import { ProjectSuppliersSection } from '@/components/projects/detail/ProjectSuppliersSection';
 import { ProjectMaterialsSection } from '@/components/projects/detail/ProjectMaterialsSection';
 import { ProjectWithRelations } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
-import { useUpdateProject } from '@/hooks/useProjects';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useBudget } from '@/hooks/useBudgets';
-import { Link } from 'react-router-dom';
+import { differenceInMonths, parseISO } from 'date-fns';
 
 interface ProjectCostsTabProps {
   project: ProjectWithRelations;
@@ -22,11 +17,18 @@ interface ProjectCostsTabProps {
 }
 
 export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
-  const updateProject = useUpdateProject();
-  const [editingDuration, setEditingDuration] = useState(false);
-  const [durationValue, setDurationValue] = useState(project.duration_months || 1);
-
-  const durationMonths = project.duration_months || 1;
+  // Calculate duration from project dates
+  const durationMonths = useMemo(() => {
+    const startDate = parseISO(project.start_date);
+    if (project.is_continuous) {
+      return 12; // Continuous projects show 12 months
+    }
+    if (project.end_date) {
+      const endDate = parseISO(project.end_date);
+      return Math.max(1, differenceInMonths(endDate, startDate) + 1);
+    }
+    return 1;
+  }, [project.start_date, project.end_date, project.is_continuous]);
 
   // Fetch linked budget if exists
   const { data: budget } = useBudget(project.budget_id);
@@ -71,96 +73,8 @@ export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
 
   const totalCosts = laborCosts + supplierCosts + materialCosts;
 
-  const handleSaveDuration = () => {
-    if (durationValue < 1) return;
-    updateProject.mutate(
-      {
-        id: project.id,
-        updates: {
-          durationMonths: durationValue,
-        },
-      },
-      {
-        onSuccess: () => setEditingDuration(false),
-      }
-    );
-  };
-
   return (
     <div className="space-y-6">
-      {isEditable && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Modo de Planejamento</AlertTitle>
-          <AlertDescription>
-            Configure os custos planejados mês a mês antes de iniciar o projeto.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Budget Reference */}
-      {budget && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileText className="h-4 w-4" />
-                Orçamento Vinculado: {budget.budget_number}
-              </CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/budgets/${budget.id}`}>Ver Orçamento</Link>
-              </Button>
-            </div>
-            <CardDescription>
-              Os papéis e valores do orçamento servem como referência para alocação da equipe.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      {/* Duration Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Settings className="h-4 w-4" />
-            Configuração do Projeto
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Label htmlFor="duration">Duração do Projeto (meses):</Label>
-            {editingDuration ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  id="duration"
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={durationValue}
-                  onChange={(e) => setDurationValue(Number(e.target.value))}
-                  className="w-20"
-                />
-                <Button size="sm" onClick={handleSaveDuration} disabled={updateProject.isPending}>
-                  Salvar
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingDuration(false)}>
-                  Cancelar
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">{durationMonths} {durationMonths === 1 ? 'mês' : 'meses'}</span>
-                {isEditable && (
-                  <Button size="sm" variant="outline" onClick={() => setEditingDuration(true)}>
-                    Alterar
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Costs Summary */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
