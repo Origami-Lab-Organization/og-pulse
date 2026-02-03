@@ -24,6 +24,7 @@ import LandingPage from "./pages/LandingPage";
 import UnderConstruction from "./pages/UnderConstruction";
 import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
+import Portfolio from "./pages/Portfolio";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireAdmin>
                     <Suppliers />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/portfolio" 
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <Portfolio />
                   </RoleProtectedRoute>
                 } 
               />

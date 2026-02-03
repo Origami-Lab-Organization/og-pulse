@@ -69,6 +69,7 @@ const navigationGroups = [
     label: 'Operações',
     requiresAdmin: true,
     items: [
+      { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresAdmin: true },
       { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresAdmin: true },
       { title: 'Timesheets', url: '/timesheets', icon: Clock, disabled: true, requiresAdmin: true },
       { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true, requiresAdmin: true },
