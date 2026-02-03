@@ -1005,33 +1005,33 @@ export type Database = {
         Row: {
           completed_date: string | null
           created_at: string | null
-          description: string | null
+          deliverables: string | null
+          end_date: string
           id: string
-          order_index: number | null
-          planned_date: string
           project_id: string
+          start_date: string
           status: string | null
           title: string
         }
         Insert: {
           completed_date?: string | null
           created_at?: string | null
-          description?: string | null
+          deliverables?: string | null
+          end_date: string
           id?: string
-          order_index?: number | null
-          planned_date: string
           project_id: string
+          start_date: string
           status?: string | null
           title: string
         }
         Update: {
           completed_date?: string | null
           created_at?: string | null
-          description?: string | null
+          deliverables?: string | null
+          end_date?: string
           id?: string
-          order_index?: number | null
-          planned_date?: string
           project_id?: string
+          start_date?: string
           status?: string | null
           title?: string
         }

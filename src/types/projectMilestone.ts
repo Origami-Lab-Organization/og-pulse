@@ -4,29 +4,29 @@ export interface ProjectMilestone {
   id: string;
   project_id: string;
   title: string;
-  description: string | null;
-  planned_date: string;
+  deliverables: string | null;
+  start_date: string;
+  end_date: string;
   completed_date: string | null;
   status: MilestoneStatus;
-  order_index: number;
   created_at: string;
 }
 
 export interface CreateMilestoneInput {
   projectId: string;
   title: string;
-  description?: string;
-  plannedDate: string;
-  orderIndex?: number;
+  deliverables?: string;
+  startDate: string;
+  endDate: string;
 }
 
 export interface UpdateMilestoneInput {
   title?: string;
-  description?: string;
-  plannedDate?: string;
+  deliverables?: string;
+  startDate?: string;
+  endDate?: string;
   completedDate?: string;
   status?: MilestoneStatus;
-  orderIndex?: number;
 }
 
 export const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {

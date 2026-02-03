@@ -4,35 +4,51 @@ import { formatCurrency } from '@/lib/formatters';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, TrendingDown, DollarSign, Percent, Users, Package, Truck } from 'lucide-react';
 import { useMemo } from 'react';
+import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
+import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 
 interface ProjectExpectedResultTabProps {
   project: ProjectWithRelations;
 }
 
 export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabProps) {
-  // Calculate costs from project data
+  // Get member and supplier IDs for fetching monthly data
+  const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
+  const supplierIds = useMemo(() => (project.suppliers || []).map((s) => s.id), [project.suppliers]);
+
+  const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
+  const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
+
+  // Calculate costs from actual planned monthly data
   const costs = useMemo(() => {
-    // Labor cost from members using real employee cost
-    const laborCost = project.members?.reduce((total, member) => {
-      const totalMonthlyCost = member.employee?.total_monthly_cost_estimated || 0;
-      const workHours = member.employee?.jornada_mensal || 168;
+    // Labor cost: sum of (real hourly cost × planned hours per month)
+    let laborCost = 0;
+    project.members?.forEach((member) => {
+      const employee = member.employee;
+      if (!employee) return;
+
+      const totalMonthlyCost = employee.total_monthly_cost_estimated || 0;
+      const workHours = employee.jornada_mensal || 168;
       const realHourlyCost = workHours > 0 ? totalMonthlyCost / workHours : 0;
-      return total + (realHourlyCost * member.hours_per_month);
-    }, 0) || 0;
 
-    // Suppliers cost
-    const suppliersCost = project.suppliers?.reduce((total, supplier) => {
-      const months = (supplier.end_month || 12) - supplier.start_month + 1;
-      return total + (supplier.monthly_value * months);
-    }, 0) || 0;
+      // Sum all planned hours for this member from memberMonths
+      const totalPlannedHours = memberMonths
+        .filter((mm) => mm.project_member_id === member.id)
+        .reduce((sum, mm) => sum + Number(mm.hours), 0);
 
-    // Materials cost
+      laborCost += realHourlyCost * totalPlannedHours;
+    });
+
+    // Suppliers cost: sum of all monthly values from supplierMonths
+    const suppliersCost = supplierMonths.reduce((sum, sm) => sum + Number(sm.value), 0);
+
+    // Materials cost remains the same
     const materialsCost = project.materials?.reduce((total, material) => {
       return total + material.value;
     }, 0) || 0;
 
     return { laborCost, suppliersCost, materialsCost };
-  }, [project]);
+  }, [project.members, project.materials, memberMonths, supplierMonths]);
 
   const totalValue = project.total_value;
   const laborCost = costs.laborCost;

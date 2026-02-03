@@ -32,11 +32,19 @@ import { ProjectMilestone, MILESTONE_STATUS_LABELS, MilestoneStatus } from '@/ty
 
 const formSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
-  description: z.string().optional(),
-  plannedDate: z.string().min(1, 'Data planejada é obrigatória'),
+  deliverables: z.string().optional(),
+  startDate: z.string().min(1, 'Data de início é obrigatória'),
+  endDate: z.string().min(1, 'Data de fim é obrigatória'),
   completedDate: z.string().optional(),
   status: z.enum(['pending', 'in_progress', 'completed', 'delayed']),
-  orderIndex: z.coerce.number().optional(),
+}).refine((data) => {
+  if (data.startDate && data.endDate) {
+    return new Date(data.endDate) >= new Date(data.startDate);
+  }
+  return true;
+}, {
+  message: 'Data de fim deve ser igual ou posterior à data de início',
+  path: ['endDate'],
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -62,11 +70,11 @@ export function MilestoneFormDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
-      description: '',
-      plannedDate: '',
+      deliverables: '',
+      startDate: '',
+      endDate: '',
       completedDate: '',
       status: 'pending',
-      orderIndex: 0,
     },
   });
 
@@ -75,20 +83,20 @@ export function MilestoneFormDialog({
       if (milestone) {
         form.reset({
           title: milestone.title,
-          description: milestone.description || '',
-          plannedDate: milestone.planned_date,
+          deliverables: milestone.deliverables || '',
+          startDate: milestone.start_date,
+          endDate: milestone.end_date,
           completedDate: milestone.completed_date || '',
           status: milestone.status,
-          orderIndex: milestone.order_index,
         });
       } else {
         form.reset({
           title: '',
-          description: '',
-          plannedDate: '',
+          deliverables: '',
+          startDate: '',
+          endDate: '',
           completedDate: '',
           status: 'pending',
-          orderIndex: 0,
         });
       }
     }
@@ -102,11 +110,11 @@ export function MilestoneFormDialog({
           projectId,
           updates: {
             title: data.title,
-            description: data.description,
-            plannedDate: data.plannedDate,
+            deliverables: data.deliverables,
+            startDate: data.startDate,
+            endDate: data.endDate,
             completedDate: data.completedDate || undefined,
             status: data.status as MilestoneStatus,
-            orderIndex: data.orderIndex,
           },
         },
         { onSuccess: () => onOpenChange(false) }
@@ -116,9 +124,9 @@ export function MilestoneFormDialog({
         {
           projectId,
           title: data.title,
-          description: data.description,
-          plannedDate: data.plannedDate,
-          orderIndex: data.orderIndex,
+          deliverables: data.deliverables,
+          startDate: data.startDate,
+          endDate: data.endDate,
         },
         { onSuccess: () => onOpenChange(false) }
       );
@@ -149,12 +157,12 @@ export function MilestoneFormDialog({
 
             <FormField
               control={form.control}
-              name="description"
+              name="deliverables"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descrição</FormLabel>
+                  <FormLabel>Entregáveis</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Descreva o marco..." {...field} />
+                    <Textarea placeholder="Descreva os entregáveis deste marco..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -164,10 +172,10 @@ export function MilestoneFormDialog({
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="plannedDate"
+                name="startDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data Planejada *</FormLabel>
+                    <FormLabel>Data de Início *</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -176,7 +184,23 @@ export function MilestoneFormDialog({
                 )}
               />
 
-              {isEditing && (
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Fim *</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {isEditing && (
+              <>
                 <FormField
                   control={form.control}
                   name="completedDate"
@@ -190,49 +214,33 @@ export function MilestoneFormDialog({
                     </FormItem>
                   )}
                 />
-              )}
-            </div>
 
-            {isEditing && (
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.entries(MILESTONE_STATUS_LABELS).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(MILESTONE_STATUS_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
             )}
-
-            <FormField
-              control={form.control}
-              name="orderIndex"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ordem</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={0} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
