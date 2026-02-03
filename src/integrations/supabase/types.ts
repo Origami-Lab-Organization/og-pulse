@@ -945,8 +945,10 @@ export type Database = {
       }
       project_members: {
         Row: {
+          budget_role_id: string | null
           created_at: string
           employee_id: string
+          hourly_rate: number
           hours_per_month: number
           id: string
           project_id: string
@@ -954,8 +956,10 @@ export type Database = {
           seniority: string
         }
         Insert: {
+          budget_role_id?: string | null
           created_at?: string
           employee_id: string
+          hourly_rate?: number
           hours_per_month?: number
           id?: string
           project_id: string
@@ -963,8 +967,10 @@ export type Database = {
           seniority?: string
         }
         Update: {
+          budget_role_id?: string | null
           created_at?: string
           employee_id?: string
+          hourly_rate?: number
           hours_per_month?: number
           id?: string
           project_id?: string
@@ -972,6 +978,13 @@ export type Database = {
           seniority?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_members_budget_role_id_fkey"
+            columns: ["budget_role_id"]
+            isOneToOne: false
+            referencedRelation: "budget_roles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_members_employee_id_fkey"
             columns: ["employee_id"]

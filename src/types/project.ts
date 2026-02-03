@@ -31,6 +31,8 @@ export interface ProjectMemberDB {
   role: string;
   seniority: string;
   hours_per_month: number;
+  budget_role_id: string | null;
+  hourly_rate: number;
   created_at: string;
 }
 
@@ -99,6 +101,8 @@ export interface CreateProjectMemberInput {
   role: string;
   seniority: string;
   hoursPerMonth: number;
+  budgetRoleId?: string;
+  hourlyRate?: number;
 }
 
 export interface CreateProjectSupplierInput {
