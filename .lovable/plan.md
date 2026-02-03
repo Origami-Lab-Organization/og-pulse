@@ -1,478 +1,255 @@
 
-# Plano: Visualizacao de Projeto por Fase do Portfolio
+# Plano: Ajustes na Fase de Planejamento do Projeto
 
-## Visao Geral
+## Resumo das Alteracoes
 
-Reestruturar a pagina de detalhe do projeto para exibir abas diferentes dependendo da fase no portfolio:
+1. **Checklist de OKRs dinamico**: O item "OKRs definidos" deve ser marcado quando existir ao menos 1 OKR com pelo menos 1 Key Result
+2. **Stakeholders - Melhorias no formulario**:
+   - Verificar que o papel "Patrocinador" (sponsor) ja existe no dropdown
+   - Adicionar mascaras para telefone e e-mail
+   - Adicionar novo campo "Nivel de Patrocinio" (Promotor, Neutro, Detrator)
 
-- **Planejamento**: Foco em preparacao do projeto (OKRs, Stakeholders, Custos Planejados, Cronograma, Resultado Esperado)
-- **Execucao (Entrega de Valor em diante)**: Foco em acompanhamento (Visao Geral, Custos Realizados, Financeiro, etc.)
+---
 
-## Nova Estrutura de Abas
+## 1. Checklist Dinamico de OKRs
 
-### Fase: Planejamento (portfolio_stage = 'planning')
+### Arquivo: `src/components/projects/detail/ProjectPlanningOverviewTab.tsx`
 
-| Aba | Descricao |
-|-----|-----------|
-| Visao Geral | Informacoes basicas do projeto (cliente, valor, periodo) |
-| OKRs | Cadastro de objetivos e resultados-chave do projeto |
-| Stakeholders | Gestao de partes interessadas e contatos |
-| Custos | Planejamento de mao de obra, fornecedores e materiais |
-| Cronograma | Linha do tempo e marcos do projeto |
-| Resultado Esperado | Projecao financeira (receita, custo, margem) |
-
-### Fase: Execucao (portfolio_stage != 'planning')
-
-| Aba | Descricao |
-|-----|-----------|
-| Visao Geral | Dashboard com metricas de execucao |
-| OKRs | Acompanhamento de OKRs (com progresso) |
-| Stakeholders | Gestao de stakeholders |
-| Custos | Planejado vs Realizado |
-| Cronograma | Timeline com status de entregas |
-| Financeiro | Fluxo de caixa, recebimentos, margem real |
-
-## Novas Tabelas no Banco de Dados
-
-### 1. project_okrs
-
-Objetivos e Key Results do projeto.
-
-```sql
-CREATE TABLE public.project_okrs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  objective TEXT NOT NULL,
-  description TEXT,
-  target_date DATE,
-  status TEXT DEFAULT 'pending', -- pending, in_progress, completed, cancelled
-  progress_percent NUMERIC DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE public.project_key_results (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  okr_id UUID NOT NULL REFERENCES project_okrs(id) ON DELETE CASCADE,
-  description TEXT NOT NULL,
-  target_value NUMERIC,
-  current_value NUMERIC DEFAULT 0,
-  unit TEXT, -- Ex: '%', 'unidades', 'R$'
-  status TEXT DEFAULT 'pending',
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### 2. project_stakeholders
-
-Partes interessadas do projeto.
-
-```sql
-CREATE TABLE public.project_stakeholders (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  role TEXT NOT NULL, -- Sponsor, Product Owner, Tech Lead, etc.
-  organization TEXT, -- Cliente, Interna, Parceiro
-  email TEXT,
-  phone TEXT,
-  influence_level TEXT, -- high, medium, low
-  interest_level TEXT, -- high, medium, low
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### 3. project_milestones (para Cronograma)
-
-Marcos do projeto.
-
-```sql
-CREATE TABLE public.project_milestones (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
-  planned_date DATE NOT NULL,
-  completed_date DATE,
-  status TEXT DEFAULT 'pending', -- pending, in_progress, completed, delayed
-  order_index INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-## Novos Componentes
-
-### Abas de Planejamento
-
-| Componente | Descricao |
-|------------|-----------|
-| `ProjectPlanningOverviewTab.tsx` | Visao simplificada sem dados de execucao |
-| `ProjectOKRsTab.tsx` | CRUD de OKRs com key results |
-| `ProjectStakeholdersTab.tsx` | CRUD de stakeholders |
-| `ProjectScheduleTab.tsx` | Timeline de milestones |
-| `ProjectExpectedResultTab.tsx` | Projecao financeira planejada |
-
-### Componentes de Apoio
-
-| Componente | Descricao |
-|------------|-----------|
-| `OKRCard.tsx` | Card de um objetivo com key results |
-| `OKRFormDialog.tsx` | Dialog para criar/editar OKR |
-| `StakeholderCard.tsx` | Card de stakeholder |
-| `StakeholderFormDialog.tsx` | Dialog para criar/editar stakeholder |
-| `MilestoneTimeline.tsx` | Visualizacao de timeline |
-| `MilestoneFormDialog.tsx` | Dialog para criar/editar milestone |
-
-## Tipos TypeScript
-
-### project_okr.ts
+**Alteracao necessaria:**
+- Importar o hook `useProjectOKRs`
+- Calcular se o projeto possui OKRs validos (ao menos 1 objetivo com 1+ key result)
+- Passar o resultado para o `ChecklistItem` de OKRs
 
 ```typescript
-export interface ProjectOKR {
-  id: string;
-  project_id: string;
-  objective: string;
-  description: string | null;
-  target_date: string | null;
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-  progress_percent: number;
-  created_at: string;
-  updated_at: string;
-  key_results?: ProjectKeyResult[];
-}
+// Adicionar import
+import { useProjectOKRs } from '@/hooks/useProjectOKRs';
 
-export interface ProjectKeyResult {
-  id: string;
-  okr_id: string;
-  description: string;
-  target_value: number | null;
-  current_value: number;
-  unit: string | null;
-  status: 'pending' | 'in_progress' | 'completed';
-  created_at: string;
-}
+// Dentro do componente
+const { data: okrs = [] } = useProjectOKRs(project.id);
+
+// Calcular se tem OKRs validos
+const hasValidOKRs = okrs.some(okr => (okr.key_results?.length || 0) > 0);
+
+// Usar no ChecklistItem
+<ChecklistItem 
+  label="OKRs definidos" 
+  completed={hasValidOKRs}
+  hint={!hasValidOKRs ? "Va para a aba OKRs" : undefined}
+/>
 ```
 
-### project_stakeholder.ts
+---
+
+## 2. Novo Campo: Nivel de Patrocinio (sponsorship_level)
+
+### 2.1 Migracao SQL
+
+Adicionar nova coluna `sponsorship_level` na tabela `project_stakeholders`:
+
+```sql
+ALTER TABLE public.project_stakeholders 
+ADD COLUMN sponsorship_level TEXT;
+
+-- Valores permitidos: 'promoter', 'neutral', 'detractor'
+```
+
+### 2.2 Arquivo: `src/types/projectStakeholder.ts`
+
+Adicionar novo tipo e constantes:
 
 ```typescript
-export type InfluenceLevel = 'high' | 'medium' | 'low';
-export type InterestLevel = 'high' | 'medium' | 'low';
+export type SponsorshipLevel = 'promoter' | 'neutral' | 'detractor';
 
 export interface ProjectStakeholder {
-  id: string;
-  project_id: string;
-  name: string;
-  role: string;
-  organization: string | null;
-  email: string | null;
-  phone: string | null;
-  influence_level: InfluenceLevel | null;
-  interest_level: InterestLevel | null;
-  notes: string | null;
-  created_at: string;
+  // ... campos existentes
+  sponsorship_level: SponsorshipLevel | null; // NOVO
 }
 
-export const STAKEHOLDER_ROLES = [
-  { value: 'sponsor', label: 'Patrocinador' },
-  { value: 'product_owner', label: 'Product Owner' },
-  { value: 'tech_lead', label: 'Tech Lead' },
-  { value: 'decision_maker', label: 'Tomador de Decisao' },
-  { value: 'user', label: 'Usuario Final' },
-  { value: 'subject_expert', label: 'Especialista' },
-  { value: 'other', label: 'Outro' },
+export const SPONSORSHIP_LEVEL_LABELS: Record<SponsorshipLevel, string> = {
+  promoter: 'Promotor',
+  neutral: 'Neutro',
+  detractor: 'Detrator',
+};
+
+export const SPONSORSHIP_LEVEL_OPTIONS = [
+  { value: 'promoter', label: 'Promotor' },
+  { value: 'neutral', label: 'Neutro' },
+  { value: 'detractor', label: 'Detrator' },
 ];
 ```
 
-### project_milestone.ts
+Atualizar interfaces de input:
 
 ```typescript
-export interface ProjectMilestone {
-  id: string;
-  project_id: string;
-  title: string;
-  description: string | null;
-  planned_date: string;
-  completed_date: string | null;
-  status: 'pending' | 'in_progress' | 'completed' | 'delayed';
-  order_index: number;
-  created_at: string;
+export interface CreateStakeholderInput {
+  // ... campos existentes
+  sponsorshipLevel?: SponsorshipLevel;
+}
+
+export interface UpdateStakeholderInput {
+  // ... campos existentes
+  sponsorshipLevel?: SponsorshipLevel;
 }
 ```
 
-## Logica de Renderizacao Condicional
+### 2.3 Arquivo: `src/hooks/useProjectStakeholders.ts`
 
-**Arquivo: `src/pages/ProjectDetail.tsx`**
+Atualizar as queries e mutations para incluir `sponsorship_level`:
+
+**Na query:**
+```typescript
+sponsorship_level: s.sponsorship_level as SponsorshipLevel | null,
+```
+
+**No create:**
+```typescript
+sponsorship_level: input.sponsorshipLevel || null,
+```
+
+**No update:**
+```typescript
+sponsorship_level: updates.sponsorshipLevel,
+```
+
+---
+
+## 3. Mascaras de Telefone e E-mail no Formulario
+
+### Arquivo: `src/components/projects/stakeholders/StakeholderFormDialog.tsx`
+
+**Alteracoes:**
+
+1. Importar a funcao `formatPhone` de `@/lib/masks`
+2. Aplicar mascara ao campo de telefone usando `onChange` customizado
+3. E-mail nao precisa de mascara visual, apenas validacao (ja existe)
 
 ```typescript
-// Determina se esta em modo planejamento
-const isPlanning = project.portfolio_stage === 'planning';
+import { formatPhone } from '@/lib/masks';
 
-return (
-  <Tabs defaultValue="overview">
-    <TabsList>
-      <TabsTrigger value="overview">Visao Geral</TabsTrigger>
-      <TabsTrigger value="okrs">OKRs</TabsTrigger>
-      <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
-      <TabsTrigger value="costs">Custos</TabsTrigger>
-      <TabsTrigger value="schedule">Cronograma</TabsTrigger>
-      {isPlanning ? (
-        <TabsTrigger value="expected">Resultado Esperado</TabsTrigger>
-      ) : (
-        <TabsTrigger value="financial">Financeiro</TabsTrigger>
-      )}
-    </TabsList>
-
-    <TabsContent value="overview">
-      {isPlanning ? (
-        <ProjectPlanningOverviewTab project={project} />
-      ) : (
-        <ProjectOverviewTab project={project} />
-      )}
-    </TabsContent>
-    
-    {/* ... outras abas */}
-  </Tabs>
-);
+// Campo de telefone com mascara
+<FormField
+  control={form.control}
+  name="phone"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Telefone</FormLabel>
+      <FormControl>
+        <Input 
+          placeholder="(00) 00000-0000" 
+          {...field}
+          onChange={(e) => field.onChange(formatPhone(e.target.value))}
+        />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
 ```
 
-## Layout Visual - Aba OKRs
+---
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  OKRs do Projeto                                              [+ Novo Objetivo] │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐ │
-│  │ O1: Aumentar satisfacao do cliente com o sistema                          │ │
-│  │ Meta: 31/03/2026 | Status: Em Andamento | Progresso: ████████░░ 80%       │ │
-│  ├────────────────────────────────────────────────────────────────────────────┤ │
-│  │ KR1: Reduzir tempo de resposta para < 2s             ████████████░ 90%    │ │
-│  │ KR2: Atingir NPS >= 50                               ████████░░░░ 70%     │ │
-│  │ KR3: Zerar bugs criticos em producao                 ████████████ 100%    │ │
-│  │                                                          [+ Key Result]    │ │
-│  └────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐ │
-│  │ O2: Entregar MVP dentro do prazo                                           │ │
-│  │ Meta: 28/02/2026 | Status: Pendente | Progresso: ░░░░░░░░░░ 0%            │ │
-│  ├────────────────────────────────────────────────────────────────────────────┤ │
-│  │ Nenhum Key Result cadastrado                             [+ Key Result]    │ │
-│  └────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+## 4. Adicionar Campo Nivel de Patrocinio no Formulario
+
+### Arquivo: `src/components/projects/stakeholders/StakeholderFormDialog.tsx`
+
+**Alteracoes:**
+
+1. Importar `SPONSORSHIP_LEVEL_OPTIONS` e `SponsorshipLevel`
+2. Adicionar campo `sponsorshipLevel` no schema zod
+3. Adicionar campo no formulario
+4. Incluir no submit
+
+**Schema atualizado:**
+```typescript
+const formSchema = z.object({
+  // ... campos existentes
+  sponsorshipLevel: z.enum(['promoter', 'neutral', 'detractor']).optional(),
+});
 ```
 
-## Layout Visual - Aba Stakeholders
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Stakeholders                                               [+ Novo Stakeholder]│
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐            │
-│  │ 🧑 Maria Silva    │  │ 🧑 Joao Santos    │  │ 🧑 Ana Costa      │            │
-│  │ Patrocinadora     │  │ Product Owner     │  │ Tech Lead         │            │
-│  │ Cliente           │  │ Cliente           │  │ Interna           │            │
-│  ├───────────────────┤  ├───────────────────┤  ├───────────────────┤            │
-│  │ Influencia: Alta  │  │ Influencia: Alta  │  │ Influencia: Media │            │
-│  │ Interesse: Alto   │  │ Interesse: Alto   │  │ Interesse: Alto   │            │
-│  ├───────────────────┤  ├───────────────────┤  ├───────────────────┤            │
-│  │ 📧 maria@...      │  │ 📧 joao@...       │  │ 📧 ana@...        │            │
-│  │ 📱 (11) 9999-...  │  │ 📱 (11) 8888-...  │  │ 📱 (11) 7777-...  │            │
-│  └───────────────────┘  └───────────────────┘  └───────────────────┘            │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+**Novo campo no form:**
+```typescript
+<FormField
+  control={form.control}
+  name="sponsorshipLevel"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Nivel de Patrocinio</FormLabel>
+      <Select onValueChange={field.onChange} value={field.value || ''}>
+        <FormControl>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione" />
+          </SelectTrigger>
+        </FormControl>
+        <SelectContent>
+          <SelectItem value="promoter">Promotor</SelectItem>
+          <SelectItem value="neutral">Neutro</SelectItem>
+          <SelectItem value="detractor">Detrator</SelectItem>
+        </SelectContent>
+      </Select>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
 ```
 
-## Layout Visual - Aba Cronograma
+---
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Cronograma                                                    [+ Novo Marco]   │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ●──────────────────●──────────────────●──────────────────○──────────────────○  │
-│  │                  │                  │                  │                  │  │
-│  Kickoff         Design          Desenvolvimento       Homolog.          Go-Live│
-│  15/01/26 ✓      28/02/26 ✓      30/04/26 🔄           30/05/26          15/06/26│
-│                                                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐ │
-│  │ ✓ Kickoff do Projeto                                     15/01/2026       │ │
-│  │   Reuniao inicial com stakeholders                       [Concluido]      │ │
-│  ├────────────────────────────────────────────────────────────────────────────┤ │
-│  │ ✓ Entrega do Design                                      28/02/2026       │ │
-│  │   Wireframes e prototipos aprovados                      [Concluido]      │ │
-│  ├────────────────────────────────────────────────────────────────────────────┤ │
-│  │ 🔄 Conclusao do Desenvolvimento                          30/04/2026       │ │
-│  │   Features core implementadas                            [Em Andamento]   │ │
-│  ├────────────────────────────────────────────────────────────────────────────┤ │
-│  │ ○ Homologacao                                            30/05/2026       │ │
-│  │   Testes com usuario final                               [Pendente]       │ │
-│  ├────────────────────────────────────────────────────────────────────────────┤ │
-│  │ ○ Go-Live                                                15/06/2026       │ │
-│  │   Lancamento em producao                                 [Pendente]       │ │
-│  └────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+## 5. Exibir Nivel de Patrocinio no Card do Stakeholder
+
+### Arquivo: `src/components/projects/detail/ProjectStakeholdersTab.tsx`
+
+Adicionar exibicao do novo campo no card:
+
+```typescript
+import { SPONSORSHIP_LEVEL_LABELS } from '@/types/projectStakeholder';
+
+// Funcao para cor do badge
+const getSponsorshipColor = (level: string | null) => {
+  switch (level) {
+    case 'promoter':
+      return 'bg-green-500/10 text-green-600 border-green-500/20';
+    case 'neutral':
+      return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
+    case 'detractor':
+      return 'bg-red-500/10 text-red-600 border-red-500/20';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+};
+
+// No card, adicionar badge
+{stakeholder.sponsorship_level && (
+  <Badge variant="outline" className={getSponsorshipColor(stakeholder.sponsorship_level)}>
+    {SPONSORSHIP_LEVEL_LABELS[stakeholder.sponsorship_level]}
+  </Badge>
+)}
 ```
 
-## Layout Visual - Aba Resultado Esperado
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Resultado Financeiro Esperado                                                   │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │ Receita      │  │ Custo Plan.  │  │ Margem Bruta │  │ Margem %     │         │
-│  │ R$ 40.800,00 │  │ R$ 19.568,18 │  │ R$ 21.231,82 │  │ 52,0%        │         │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘         │
-│                                                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐ │
-│  │ Composicao de Custos Planejados                                            │ │
-│  │                                                                             │ │
-│  │ ┌────────────────────────────────────────────────────────────────────────┐ │ │
-│  │ │ Mao de Obra      │ R$ 15.068,18  │ ██████████████████████████░░░░ 77%  │ │ │
-│  │ │ Fornecedores     │ R$ 4.500,00   │ ██████████░░░░░░░░░░░░░░░░░░░░ 23%  │ │ │
-│  │ │ Materiais        │ R$ 0,00       │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0%   │ │ │
-│  │ └────────────────────────────────────────────────────────────────────────┘ │ │
-│  └────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐ │
-│  │ Projecao de Recebimentos                                                   │ │
-│  │                                                                             │ │
-│  │ Jan  ████████  R$ 20.400,00                                                 │ │
-│  │ Fev  ████████  R$ 20.400,00                                                 │ │
-│  │                                                                             │ │
-│  │ Total: R$ 40.800,00                                                         │ │
-│  └────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
-
-## Hooks Necessarios
-
-| Hook | Descricao |
-|------|-----------|
-| `useProjectOKRs.ts` | CRUD de OKRs e Key Results |
-| `useProjectStakeholders.ts` | CRUD de Stakeholders |
-| `useProjectMilestones.ts` | CRUD de Milestones |
-
-## Arquivos a Criar
-
-### Tipos
-- `src/types/projectOkr.ts`
-- `src/types/projectStakeholder.ts`
-- `src/types/projectMilestone.ts`
-
-### Hooks
-- `src/hooks/useProjectOKRs.ts`
-- `src/hooks/useProjectStakeholders.ts`
-- `src/hooks/useProjectMilestones.ts`
-
-### Componentes - OKRs
-- `src/components/projects/detail/ProjectOKRsTab.tsx`
-- `src/components/projects/okrs/OKRCard.tsx`
-- `src/components/projects/okrs/OKRFormDialog.tsx`
-- `src/components/projects/okrs/KeyResultRow.tsx`
-- `src/components/projects/okrs/KeyResultFormDialog.tsx`
-
-### Componentes - Stakeholders
-- `src/components/projects/detail/ProjectStakeholdersTab.tsx`
-- `src/components/projects/stakeholders/StakeholderCard.tsx`
-- `src/components/projects/stakeholders/StakeholderFormDialog.tsx`
-
-### Componentes - Cronograma
-- `src/components/projects/detail/ProjectScheduleTab.tsx`
-- `src/components/projects/schedule/MilestoneTimeline.tsx`
-- `src/components/projects/schedule/MilestoneCard.tsx`
-- `src/components/projects/schedule/MilestoneFormDialog.tsx`
-
-### Componentes - Resultado Esperado
-- `src/components/projects/detail/ProjectExpectedResultTab.tsx`
-
-### Componentes - Planejamento
-- `src/components/projects/detail/ProjectPlanningOverviewTab.tsx`
+---
 
 ## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/ProjectDetail.tsx` | Renderizacao condicional de abas por fase |
-| `src/types/project.ts` | Adicionar portfolio_stage ao ProjectWithRelations |
+| `src/components/projects/detail/ProjectPlanningOverviewTab.tsx` | Adicionar logica dinamica para checklist de OKRs |
+| `src/types/projectStakeholder.ts` | Adicionar tipo e constantes para sponsorship_level |
+| `src/hooks/useProjectStakeholders.ts` | Incluir sponsorship_level nas queries e mutations |
+| `src/components/projects/stakeholders/StakeholderFormDialog.tsx` | Adicionar mascara de telefone e campo de nivel de patrocinio |
+| `src/components/projects/detail/ProjectStakeholdersTab.tsx` | Exibir nivel de patrocinio no card |
 
-## Migracao SQL
+## Migracao de Banco de Dados
 
 ```sql
--- OKRs
-CREATE TABLE public.project_okrs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  objective TEXT NOT NULL,
-  description TEXT,
-  target_date DATE,
-  status TEXT DEFAULT 'pending',
-  progress_percent NUMERIC DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE public.project_key_results (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  okr_id UUID NOT NULL REFERENCES project_okrs(id) ON DELETE CASCADE,
-  description TEXT NOT NULL,
-  target_value NUMERIC,
-  current_value NUMERIC DEFAULT 0,
-  unit TEXT,
-  status TEXT DEFAULT 'pending',
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Stakeholders
-CREATE TABLE public.project_stakeholders (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  role TEXT NOT NULL,
-  organization TEXT,
-  email TEXT,
-  phone TEXT,
-  influence_level TEXT,
-  interest_level TEXT,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Milestones
-CREATE TABLE public.project_milestones (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
-  planned_date DATE NOT NULL,
-  completed_date DATE,
-  status TEXT DEFAULT 'pending',
-  order_index INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- RLS Policies (padrao tenant-based)
-ALTER TABLE project_okrs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE project_key_results ENABLE ROW LEVEL SECURITY;
-ALTER TABLE project_stakeholders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE project_milestones ENABLE ROW LEVEL SECURITY;
-
--- Policies seguem o mesmo padrao das outras tabelas de projeto
+ALTER TABLE public.project_stakeholders 
+ADD COLUMN sponsorship_level TEXT;
 ```
 
-## Resumo de Entregaveis
+---
 
-| Categoria | Quantidade |
-|-----------|------------|
-| Novas tabelas SQL | 4 (okrs, key_results, stakeholders, milestones) |
-| Novos tipos TS | 3 |
-| Novos hooks | 3 |
-| Novos componentes | 15 |
-| Arquivos modificados | 2 |
+## Observacoes
+
+1. O papel **Patrocinador (sponsor)** ja existe no dropdown `STAKEHOLDER_ROLES`
+2. A mascara de telefone usara a funcao `formatPhone` ja existente em `src/lib/masks.ts`
+3. E-mail ja possui validacao via zod, nao necessita mascara visual
+4. O nivel de patrocinio segue o conceito NPS: Promotor, Neutro, Detrator
