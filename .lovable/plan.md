@@ -1,207 +1,230 @@
 
-# Plano: Dashboard Profissional de Projeto Agil
 
-## Visao Geral das Alteracoes
+# Plano: Redesign Visual do Dashboard de Projeto
 
-Redesenhar a tela de detalhes do projeto para um dashboard profissional de gestao agil, removendo informacoes duplicadas e organizando os dados de forma hierarquica e visual.
+## Diagnostico dos Problemas Visuais
 
-## Alteracoes Estruturais
+Com base na analise das screenshots, identifiquei os seguintes problemas:
 
-### 1. Header Simplificado
+1. **Cards de metricas desbalanceados**: Alguns tem cor de fundo, outros nao - falta consistencia
+2. **Grafico Donut muito simples**: Falta legenda clara, percentuais mal posicionados
+3. **Grafico de Recebimentos pouco informativo**: Com apenas 1 barra (Pendente), parece incompleto
+4. **Curva de Tendencia perdida**: Grafico pequeno com linhas finas, dificil interpretar
+5. **Equipe do Projeto basica**: Apenas avatares sem contexto visual
+6. **Espacamento excessivo**: Muito espaco branco desperdicado entre secoes
 
-**Arquivo: `src/components/projects/detail/ProjectHeader.tsx`**
+## Solucao Proposta
 
-Remover os 8 cards atuais e criar um header compacto e informativo:
+### 1. Cards de Metricas Refinados
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  [Badge Status]  Cliente • Gerente Responsavel • Periodo (Data Inicio - Fim)   │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
-
-Apenas uma linha de contexto que orienta o usuario sobre ONDE ele esta.
-
-### 2. Tabs como Primeiro Elemento
-
-**Arquivo: `src/pages/ProjectDetail.tsx`**
-
-Reorganizar para que as tabs venham ANTES do conteudo do dashboard:
+Redesenhar os 5 cards com:
+- Estilo visual unificado (fundo neutro para todos)
+- Icones mais sutis e alinhados
+- Tamanho de fonte hierarquico (valor em destaque)
+- Indicadores de tendencia apenas onde faz sentido (margem)
 
 ```text
-Nome do Projeto                                                          [Editar]
-───────────────────────────────────────────────────────────────────────────────────
-[Status] Cliente • Gerente • Data Inicio - Data Fim
-
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ [Visao Geral] [Custos] [Financeiro] [Stakeholders] [Cronograma]                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-
-... Dashboard Content ...
+┌────────────────┐  ┌────────────────┐  ┌────────────────┐
+│ ≡ Contrato     │  │ ◎ Custo Plan.  │  │ ↗ Margem       │
+│                │  │                │  │                │
+│ R$ 40.800,00   │  │ R$ 19.568,18   │  │ 52.0%          │
+│                │  │                │  │ ▲ Saudavel     │
+└────────────────┘  └────────────────┘  └────────────────┘
 ```
 
-### 3. Dashboard Completo na Aba Visao Geral
+### 2. Grafico de Composicao de Custos Aprimorado
 
-**Arquivo: `src/components/projects/detail/ProjectOverviewTab.tsx`**
+- Aumentar tamanho do donut chart
+- Adicionar valor total no centro do donut (destaque visual)
+- Legendas mais claras e proximas ao grafico
+- Cores harmonicas da paleta (Pine Teal + Celadon + Amber)
 
-Transformar em um dashboard profissional de gestao agil:
+### 3. Grafico de Recebimentos Reformulado
+
+Mudar de barra horizontal para um **Progress Bar Visual** mais informativo:
+- Barra de progresso mostrando % recebido do total
+- Tres secoes coloridas: Recebido (verde), Pendente (amarelo), Atrasado (vermelho)
+- Valores abaixo com legendas claras
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  METRICAS FINANCEIRAS PRINCIPAIS (5 cards em linha)                             │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐              │
-│  │ Contrato │ │ Custo    │ │ Margem   │ │ Recebido │ │ Pendente │              │
-│  │ R$ 40.8k │ │ R$ 28k   │ │ 31%      │ │ R$ 0     │ │ R$ 40.8k │              │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘              │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  GRAFICOS DE CUSTOS E RECEBIMENTOS (2 colunas)                                  │
-│  ┌────────────────────────────┐  ┌────────────────────────────────┐            │
-│  │ Composicao de Custos       │  │ Recebimentos                   │            │
-│  │ [Donut Chart]              │  │ [Horizontal Bar Chart]         │            │
-│  │  Mao de Obra: 60%          │  │  Recebido: verde               │            │
-│  │  Fornecedores: 25%         │  │  Pendente: amarelo             │            │
-│  │  Materiais: 15%            │  │  Atrasado: vermelho            │            │
-│  └────────────────────────────┘  └────────────────────────────────┘            │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  CURVA DE TENDENCIA (largura total)                                             │
-│  ┌─────────────────────────────────────────────────────────────────────────────┐│
-│  │ Custo Acumulado vs Orcamento                                                ││
-│  │ [Line Chart com projecao]                                                   ││
-│  └─────────────────────────────────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  EQUIPE DO PROJETO (largura total, foco na gestao de pessoas)                   │
-│  ┌─────────────────────────────────────────────────────────────────────────────┐│
-│  │ Equipe do Projeto (X membros)                             [+ Adicionar]     ││
-│  │ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐                                            ││
-│  │ │ JS  │ │ MC  │ │ AP  │ │ RF  │                                            ││
-│  │ └─────┘ └─────┘ └─────┘ └─────┘                                            ││
-│  │ Joao   Maria   Ana    Roberto                                               ││
-│  │ Dev    Design  PM     Backend                                               ││
-│  └─────────────────────────────────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  INFORMACOES DE PAGAMENTO (Parcelas)                                            │
-│  ┌─────────────────────────────────────────────────────────────────────────────┐│
-│  │ Tabela de parcelas com status                                               ││
-│  └─────────────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ Recebimentos                                            │
+│                                                         │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ │
+│ │ Recebido 0%    Pendente 100%                      │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                         │
+│ R$ 0,00 de R$ 40.800,00                                 │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## Elementos Removidos
+### 4. Curva de Tendencia Mais Legivel
 
-1. **Descricao do Projeto**: Removida conforme solicitado
-2. **Cards duplicados no Header**: Valor do Contrato, Recebido, Pendente, Duracao, Periodo (ja estarao no dashboard ou no contexto)
+- Aumentar altura do grafico (de 250px para 300px)
+- Linhas mais espessas
+- Area preenchida sob a linha de custo planejado (semi-transparente)
+- Pontos de dados mais visiveis
+- Remover grid excessivo, manter apenas linhas horizontais
+- Tooltip mais rico com informacoes detalhadas
 
-## Elementos do Header Simplificado
+### 5. Secao de Equipe Melhorada
 
-Manter apenas informacoes de CONTEXTO:
-- Badge de Status (colorido)
-- Nome do Cliente
-- Nome do Gerente
-- Periodo (data inicio - data fim)
+- Adicionar borda sutil e sombra ao card
+- Mostrar horas alocadas junto ao avatar
+- Indicador visual de carga (barra pequena sob avatar)
 
-Formato em linha unica, sem cards.
+### 6. Parcelas de Pagamento Compactas
+
+- Transformar em timeline visual ao inves de tabela
+- Status com icones coloridos
+- Proxima parcela em destaque
 
 ## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/ProjectDetail.tsx` | Simplificar estrutura, tabs primeiro |
-| `src/components/projects/detail/ProjectHeader.tsx` | Header compacto em linha unica |
-| `src/components/projects/detail/ProjectOverviewTab.tsx` | Remover descricao, reorganizar dashboard |
+| `src/components/projects/detail/ProjectOverviewTab.tsx` | Redesign dos cards de metricas |
+| `src/components/projects/detail/ProjectCostBreakdownChart.tsx` | Donut com valor central, legendas melhores |
+| `src/components/projects/detail/ProjectPaymentsChart.tsx` | Progress bar ao inves de barras horizontais |
+| `src/components/projects/detail/ProjectTrendChart.tsx` | Area chart, linhas mais grossas |
+| `src/components/projects/detail/ProjectTeamSection.tsx` | Layout mais informativo |
 
-## Detalhes de Implementacao
+## Detalhes Tecnicos
 
-### ProjectHeader.tsx (Nova versao)
+### Cards de Metricas (ProjectOverviewTab)
 
 ```tsx
-// Header compacto - apenas contexto
-<div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-  <Badge className={statusColors[project.status]}>
-    {PROJECT_STATUS_LABELS[project.status]}
-  </Badge>
-  <span className="hidden sm:inline">•</span>
-  <span className="flex items-center gap-1">
-    <Building2 className="h-3.5 w-3.5" />
-    {project.client?.trading_name || project.client?.company_name}
-  </span>
-  <span className="hidden sm:inline">•</span>
-  <span className="flex items-center gap-1">
-    <User className="h-3.5 w-3.5" />
-    {project.manager?.nome}
-  </span>
-  <span className="hidden sm:inline">•</span>
-  <span className="flex items-center gap-1">
-    <Calendar className="h-3.5 w-3.5" />
-    {formatPeriod(project)}
-  </span>
+// Card com estilo unificado e destaque no valor
+<Card className="relative overflow-hidden">
+  <CardContent className="pt-4 pb-4">
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Contrato
+        </p>
+        <p className="text-2xl font-bold mt-1">
+          {formatCurrency(value)}
+        </p>
+      </div>
+      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+        <FileText className="h-4 w-4 text-primary" />
+      </div>
+    </div>
+  </CardContent>
+</Card>
+```
+
+### Donut com Valor Central (ProjectCostBreakdownChart)
+
+```tsx
+// Centro do donut com valor total
+<PieChart>
+  <Pie innerRadius={60} outerRadius={90}>...</Pie>
+  {/* Label personalizado no centro */}
+  <text x="50%" y="45%" textAnchor="middle" className="text-xs fill-muted-foreground">
+    Total
+  </text>
+  <text x="50%" y="55%" textAnchor="middle" className="text-lg font-bold fill-foreground">
+    R$ 19.5k
+  </text>
+</PieChart>
+```
+
+### Progress Bar de Recebimentos (ProjectPaymentsChart)
+
+```tsx
+// Barra de progresso segmentada
+<div className="h-4 rounded-full overflow-hidden flex bg-muted">
+  <div className="bg-green-500" style={{ width: `${receivedPercent}%` }} />
+  <div className="bg-amber-400" style={{ width: `${pendingPercent}%` }} />
+  <div className="bg-red-500" style={{ width: `${overduePercent}%` }} />
 </div>
 ```
 
-### ProjectOverviewTab.tsx (Dashboard Completo)
+### Area Chart para Tendencia (ProjectTrendChart)
 
-Remover a secao de descricao e reorganizar o dashboard:
-
-1. **Metricas Financeiras**: 5 cards compactos em linha
-2. **Graficos**: 2 colunas (Composicao de Custos + Recebimentos)
-3. **Tendencia**: Curva de custos em largura total
-4. **Equipe**: Secao de equipe em largura total (mais destaque)
-5. **Parcelas**: Tabela de pagamentos
-
-### Estrutura Visual Final
-
-```text
-┌─ NOME DO PROJETO ─────────────────────────────────────────────────────── [Editar]
-│  [Status] Cliente • Gerente • Periodo
-├───────────────────────────────────────────────────────────────────────────────────
-│  [Visao Geral] [Custos] [Financeiro] [Stakeholders] [Cronograma]
-├───────────────────────────────────────────────────────────────────────────────────
-│
-│  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
-│  │Contrato│  │ Custo  │  │ Margem │  │Recebido│  │Pendente│
-│  │ R$ 40k │  │ R$ 28k │  │  31%   │  │ R$ 0   │  │ R$ 40k │
-│  └────────┘  └────────┘  └────────┘  └────────┘  └────────┘
-│
-│  ┌────────────────────────┐  ┌────────────────────────┐
-│  │  Composicao Custos     │  │  Recebimentos          │
-│  │      [Donut]           │  │      [Barras]          │
-│  └────────────────────────┘  └────────────────────────┘
-│
-│  ┌─────────────────────────────────────────────────────┐
-│  │          Curva de Tendencia                         │
-│  └─────────────────────────────────────────────────────┘
-│
-│  ┌─────────────────────────────────────────────────────┐
-│  │  Equipe do Projeto           [+ Adicionar Membro]   │
-│  │  [Avatar] [Avatar] [Avatar] [Avatar] [Avatar]       │
-│  └─────────────────────────────────────────────────────┘
-│
-│  ┌─────────────────────────────────────────────────────┐
-│  │  Parcelas de Pagamento                              │
-│  │  [Tabela]                                           │
-│  └─────────────────────────────────────────────────────┘
-│
-└───────────────────────────────────────────────────────────────────────────────────
+```tsx
+// Usar AreaChart ao inves de apenas LineChart
+<AreaChart>
+  <Area 
+    type="monotone" 
+    dataKey="planejado" 
+    fill="hsl(var(--chart-1))" 
+    fillOpacity={0.1}
+    stroke="hsl(var(--chart-1))"
+    strokeWidth={2}
+  />
+  ...
+</AreaChart>
 ```
 
-## Principios de Design Aplicados
+## Layout Final Esperado
 
-1. **Hierarquia Visual**: Metricas financeiras no topo (mais importantes)
-2. **Dados Acionaveis**: Graficos que permitem identificar problemas rapidamente
-3. **Gestao de Pessoas**: Equipe em destaque para projetos ageis
-4. **Fluxo de Caixa**: Parcelas visiveis para controle financeiro
-5. **Sem Duplicacao**: Cada informacao aparece em um unico lugar
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  TABS: [Visao Geral] [Custos] [Financeiro] [Stakeholders] [Cronograma]          │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
+│  │ CONTRATO │  │CUSTO PLAN│  │  MARGEM  │  │ RECEBIDO │  │ PENDENTE │          │
+│  │ R$40.8k  │  │ R$19.5k  │  │   52%    │  │   R$0    │  │ R$40.8k  │          │
+│  │          │  │          │  │ ▲Saudável│  │          │  │          │          │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘          │
+│                                                                                  │
+│  ┌──────────────────────────────┐  ┌────────────────────────────────┐          │
+│  │ COMPOSICAO DE CUSTOS         │  │ RECEBIMENTOS                   │          │
+│  │                              │  │                                 │          │
+│  │      ┌───────────┐           │  │ ┌─────────────────────────────┐│          │
+│  │     /    Total    \          │  │ │░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ││          │
+│  │    │   R$ 19.5k    │         │  │ └─────────────────────────────┘│          │
+│  │     \             /          │  │  R$ 0 de R$ 40.800,00 (0%)     │          │
+│  │      └───────────┘           │  │                                 │          │
+│  │ ● Mão de Obra: 77%           │  │ ● Recebido  ● Pendente ● Atras. │          │
+│  │ ● Fornecedores: 23%          │  │   R$ 0        R$ 40.8k   R$ 0   │          │
+│  └──────────────────────────────┘  └────────────────────────────────┘          │
+│                                                                                  │
+│  ┌──────────────────────────────────────────────────────────────────────────┐  │
+│  │ CURVA DE TENDENCIA                                                        │  │
+│  │ ████████████████████████████████████████████████████████████████████████ │  │
+│  │ Grafico de area com linha de tendencia clara e area preenchida           │  │
+│  └──────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                  │
+│  ┌──────────────────────────────────────────────────────────────────────────┐  │
+│  │ EQUIPE DO PROJETO (1 membro)                              [+ Adicionar]  │  │
+│  │ ┌──────────┐                                                              │  │
+│  │ │   VC     │  Victor Costa                                                │  │
+│  │ │ 40h/mes  │  Desenvolvedor                                               │  │
+│  │ └──────────┘                                                              │  │
+│  └──────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                  │
+│  ┌──────────────────────────────────────────────────────────────────────────┐  │
+│  │ PARCELAS DE PAGAMENTO                                                     │  │
+│  │ Mensal • 2 parcela(s) • Vencimento dia 26                                 │  │
+│  │ ─────────────────────────────────────────────────────────────────────────│  │
+│  │ Tabela de parcelas                                                        │  │
+│  └──────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
 
-## Paleta de Cores dos Indicadores
+## Paleta de Cores Aplicada
 
-| Metrica | Cor Positiva | Cor Negativa |
-|---------|--------------|--------------|
-| Margem | Verde (>= 30%) | Vermelho (< 15%) |
-| Recebido | Verde | - |
-| Pendente | Amarelo | - |
-| Atrasado | - | Vermelho |
-| Custo Plan. | Neutro | - |
+| Elemento | Cor | Variavel CSS |
+|----------|-----|--------------|
+| Mao de Obra | Pine Teal | --chart-1 |
+| Fornecedores | Celadon | --chart-2 |
+| Materiais | Amber Gold | --chart-3 |
+| Recebido | Verde | emerald-500 |
+| Pendente | Amarelo | amber-400 |
+| Atrasado | Vermelho | red-500 |
+| Margem Positiva | Verde | green-600 |
+| Margem Negativa | Vermelho | red-600 |
 
-## Responsividade
+## Espacamento e Gaps
 
-- Desktop: 5 cards em linha, 2 colunas de graficos
-- Tablet: 5 cards em linha (menores), 2 colunas de graficos
-- Mobile: Cards empilham em 2x3, graficos em 1 coluna
+- Espacamento entre secoes: `space-y-4` (16px) ao inves de `space-y-6` (24px)
+- Altura dos cards de metricas: compactos com `pt-4 pb-4`
+- Altura dos graficos: 220px (menor) com mais informacao
+- Grid de cards: `gap-3` para manter tudo mais unido
+
