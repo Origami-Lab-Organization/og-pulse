@@ -209,11 +209,7 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
           plannedCosts={plannedCosts}
           projectDuration={projectDuration}
         />
-        <ProjectTrendChart 
-          project={project}
-          plannedCosts={plannedCosts}
-          projectDuration={projectDuration}
-        />
+        <ProjectTrendChart project={project} />
       </div>
     </div>
   );

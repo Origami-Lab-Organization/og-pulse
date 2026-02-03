@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { Edit } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -70,7 +70,6 @@ export default function ProjectDetail() {
         <div className="flex flex-col items-center justify-center h-64 gap-4">
           <p className="text-muted-foreground">O projeto solicitado não foi encontrado.</p>
           <Button onClick={() => navigate('/projects')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Projetos
           </Button>
         </div>
@@ -88,20 +87,10 @@ export default function ProjectDetail() {
         { label: project.name },
       ]}
       actions={
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate('/projects')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
-          </Button>
-          <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </Button>
-          <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Excluir
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+          <Edit className="mr-2 h-4 w-4" />
+          Editar
+        </Button>
       }
     >
       <div className="space-y-6">
