@@ -70,24 +70,26 @@ export function KeyResultFormDialog({
   });
 
   useEffect(() => {
-    if (keyResult) {
-      form.reset({
-        description: keyResult.description,
-        targetValue: keyResult.target_value ?? undefined,
-        currentValue: keyResult.current_value,
-        unit: keyResult.unit || '',
-        status: keyResult.status,
-      });
-    } else {
-      form.reset({
-        description: '',
-        targetValue: undefined,
-        currentValue: 0,
-        unit: '',
-        status: 'pending',
-      });
+    if (open) {
+      if (keyResult) {
+        form.reset({
+          description: keyResult.description,
+          targetValue: keyResult.target_value ?? undefined,
+          currentValue: keyResult.current_value,
+          unit: keyResult.unit || '',
+          status: keyResult.status,
+        });
+      } else {
+        form.reset({
+          description: '',
+          targetValue: undefined,
+          currentValue: 0,
+          unit: '',
+          status: 'pending',
+        });
+      }
     }
-  }, [keyResult, form]);
+  }, [open, keyResult, form]);
 
   const onSubmit = (data: FormData) => {
     if (isEditing) {

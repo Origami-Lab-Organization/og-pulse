@@ -64,24 +64,26 @@ export function OKRFormDialog({ open, onOpenChange, projectId, okr }: OKRFormDia
   });
 
   useEffect(() => {
-    if (okr) {
-      form.reset({
-        objective: okr.objective,
-        description: okr.description || '',
-        targetDate: okr.target_date || '',
-        status: okr.status,
-        progressPercent: okr.progress_percent,
-      });
-    } else {
-      form.reset({
-        objective: '',
-        description: '',
-        targetDate: '',
-        status: 'pending',
-        progressPercent: 0,
-      });
+    if (open) {
+      if (okr) {
+        form.reset({
+          objective: okr.objective,
+          description: okr.description || '',
+          targetDate: okr.target_date || '',
+          status: okr.status,
+          progressPercent: okr.progress_percent,
+        });
+      } else {
+        form.reset({
+          objective: '',
+          description: '',
+          targetDate: '',
+          status: 'pending',
+          progressPercent: 0,
+        });
+      }
     }
-  }, [okr, form]);
+  }, [open, okr, form]);
 
   const onSubmit = (data: FormData) => {
     if (isEditing) {

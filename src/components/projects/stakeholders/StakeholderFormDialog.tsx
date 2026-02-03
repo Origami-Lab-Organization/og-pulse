@@ -86,32 +86,34 @@ export function StakeholderFormDialog({
   });
 
   useEffect(() => {
-    if (stakeholder) {
-      form.reset({
-        name: stakeholder.name,
-        role: stakeholder.role,
-        organization: stakeholder.organization || '',
-        email: stakeholder.email || '',
-        phone: stakeholder.phone || '',
-        influenceLevel: stakeholder.influence_level || undefined,
-        interestLevel: stakeholder.interest_level || undefined,
-        sponsorshipLevel: stakeholder.sponsorship_level || undefined,
-        notes: stakeholder.notes || '',
-      });
-    } else {
-      form.reset({
-        name: '',
-        role: '',
-        organization: '',
-        email: '',
-        phone: '',
-        influenceLevel: undefined,
-        interestLevel: undefined,
-        sponsorshipLevel: undefined,
-        notes: '',
-      });
+    if (open) {
+      if (stakeholder) {
+        form.reset({
+          name: stakeholder.name,
+          role: stakeholder.role,
+          organization: stakeholder.organization || '',
+          email: stakeholder.email || '',
+          phone: stakeholder.phone || '',
+          influenceLevel: stakeholder.influence_level || undefined,
+          interestLevel: stakeholder.interest_level || undefined,
+          sponsorshipLevel: stakeholder.sponsorship_level || undefined,
+          notes: stakeholder.notes || '',
+        });
+      } else {
+        form.reset({
+          name: '',
+          role: '',
+          organization: '',
+          email: '',
+          phone: '',
+          influenceLevel: undefined,
+          interestLevel: undefined,
+          sponsorshipLevel: undefined,
+          notes: '',
+        });
+      }
     }
-  }, [stakeholder, form]);
+  }, [open, stakeholder, form]);
 
   const onSubmit = (data: FormData) => {
     if (isEditing) {
