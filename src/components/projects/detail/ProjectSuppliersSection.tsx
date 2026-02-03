@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Plus, Trash2, Truck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,27 +57,68 @@ export function ProjectSuppliersSection({
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const upsertSupplierMonth = useUpsertSupplierMonth();
 
+  // Local state for debounced value input
+  const [localValues, setLocalValues] = useState<Record<string, number>>({});
+  const pendingUpdates = useRef<Record<string, NodeJS.Timeout>>({});
+
+  // Sync local state when supplierMonths change
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    supplierMonths.forEach((sm) => {
+      const key = `${sm.project_supplier_id}-${sm.month_number}`;
+      initial[key] = sm.value;
+    });
+    setLocalValues(initial);
+  }, [supplierMonths]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(pendingUpdates.current).forEach(clearTimeout);
+    };
+  }, []);
+
   const months = useMemo(() => {
     return Array.from({ length: durationMonths }, (_, i) => i + 1);
   }, [durationMonths]);
 
+  // Get value prioritizing local state
   const getValueForMonth = useCallback(
     (supplierId: string, monthNumber: number): number => {
+      const key = `${supplierId}-${monthNumber}`;
+      if (key in localValues) {
+        return localValues[key];
+      }
       const found = supplierMonths.find(
         (sm) => sm.project_supplier_id === supplierId && sm.month_number === monthNumber
       );
       return found?.value || 0;
     },
-    [supplierMonths]
+    [localValues, supplierMonths]
   );
 
+  // Debounced value change handler
   const handleValueChange = useCallback(
     (supplierId: string, monthNumber: number, value: number) => {
-      upsertSupplierMonth.mutate({
-        projectSupplierId: supplierId,
-        monthNumber,
-        value: value || 0,
-      });
+      const key = `${supplierId}-${monthNumber}`;
+
+      // Update local state immediately (no lag)
+      setLocalValues((prev) => ({ ...prev, [key]: value }));
+
+      // Cancel previous timeout if exists
+      if (pendingUpdates.current[key]) {
+        clearTimeout(pendingUpdates.current[key]);
+      }
+
+      // Schedule save with 500ms debounce
+      pendingUpdates.current[key] = setTimeout(() => {
+        upsertSupplierMonth.mutate({
+          projectSupplierId: supplierId,
+          monthNumber,
+          value: value || 0,
+        });
+        delete pendingUpdates.current[key];
+      }, 500);
     },
     [upsertSupplierMonth]
   );

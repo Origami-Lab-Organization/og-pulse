@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Plus, Trash2, Users, Info } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -80,6 +80,27 @@ export function ProjectLaborSection({
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const upsertMemberMonth = useUpsertMemberMonth();
 
+  // Local state for debounced hours input
+  const [localHours, setLocalHours] = useState<Record<string, number>>({});
+  const pendingUpdates = useRef<Record<string, NodeJS.Timeout>>({});
+
+  // Sync local state when memberMonths change
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    memberMonths.forEach((mm) => {
+      const key = `${mm.project_member_id}-${mm.month_number}`;
+      initial[key] = mm.hours;
+    });
+    setLocalHours(initial);
+  }, [memberMonths]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(pendingUpdates.current).forEach(clearTimeout);
+    };
+  }, []);
+
   const months = useMemo(() => {
     return Array.from({ length: durationMonths }, (_, i) => i + 1);
   }, [durationMonths]);
@@ -93,20 +114,43 @@ export function ProjectLaborSection({
     return Number((member as any).hourly_rate) || 0;
   }, []);
 
-  const getHoursForMonth = useCallback((memberId: string, monthNumber: number): number => {
-    const found = memberMonths.find(
-      (mm) => mm.project_member_id === memberId && mm.month_number === monthNumber
-    );
-    return found?.hours || 0;
-  }, [memberMonths]);
+  // Get hours prioritizing local state
+  const getHoursForMonth = useCallback(
+    (memberId: string, monthNumber: number): number => {
+      const key = `${memberId}-${monthNumber}`;
+      if (key in localHours) {
+        return localHours[key];
+      }
+      const found = memberMonths.find(
+        (mm) => mm.project_member_id === memberId && mm.month_number === monthNumber
+      );
+      return found?.hours || 0;
+    },
+    [localHours, memberMonths]
+  );
 
+  // Debounced hours change handler
   const handleHoursChange = useCallback(
     (memberId: string, monthNumber: number, hours: number) => {
-      upsertMemberMonth.mutate({
-        projectMemberId: memberId,
-        monthNumber,
-        hours: hours || 0,
-      });
+      const key = `${memberId}-${monthNumber}`;
+
+      // Update local state immediately (no lag)
+      setLocalHours((prev) => ({ ...prev, [key]: hours }));
+
+      // Cancel previous timeout if exists
+      if (pendingUpdates.current[key]) {
+        clearTimeout(pendingUpdates.current[key]);
+      }
+
+      // Schedule save with 500ms debounce
+      pendingUpdates.current[key] = setTimeout(() => {
+        upsertMemberMonth.mutate({
+          projectMemberId: memberId,
+          monthNumber,
+          hours: hours || 0,
+        });
+        delete pendingUpdates.current[key];
+      }, 500);
     },
     [upsertMemberMonth]
   );
@@ -476,11 +520,11 @@ export function ProjectLaborSection({
               </>
             )}
 
-            {useBudgetRole && newMember.budgetRoleId && (
-              <div className="rounded-md bg-muted p-3 text-sm">
-                <p><strong>Papel:</strong> {newMember.role}</p>
-                <p><strong>Senioridade:</strong> {newMember.seniority}</p>
-                <p><strong>Valor/hora:</strong> {formatCurrency(newMember.hourlyRate)}</p>
+            {newMember.budgetRoleId && useBudgetRole && (
+              <div className="rounded-lg bg-muted p-3 text-sm">
+                <p className="text-muted-foreground">
+                  Valor/hora herdado: <span className="font-medium text-foreground">{formatCurrency(newMember.hourlyRate)}</span>
+                </p>
               </div>
             )}
           </div>
