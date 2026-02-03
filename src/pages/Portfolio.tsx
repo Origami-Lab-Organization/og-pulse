@@ -43,7 +43,7 @@ export default function Portfolio() {
           </div>
 
           {/* Kanban Board */}
-          <div className="flex-1 overflow-hidden bg-muted/30">
+          <div className="flex-1 overflow-auto bg-muted/30">
             {isLoading ? (
               <div className="flex gap-4 p-4">
                 {Array.from({ length: 6 }).map((_, i) => (
