@@ -91,7 +91,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
   const marginTrend = metrics.margin >= 30 ? 'up' : metrics.margin >= 15 ? 'neutral' : 'down';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Key Metrics - 5 cards in a row */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <Card>

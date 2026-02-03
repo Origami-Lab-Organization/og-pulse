@@ -1,9 +1,7 @@
 import { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
-import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 
 interface ProjectPaymentsChartProps {
   project: ProjectWithRelations;
@@ -12,6 +10,7 @@ interface ProjectPaymentsChartProps {
 export function ProjectPaymentsChart({ project }: ProjectPaymentsChartProps) {
   const paymentData = useMemo(() => {
     const installments = project.installments || [];
+    const contractValue = Number(project.total_value || 0);
     
     const received = installments
       .filter((i) => i.status === 'received')
@@ -25,86 +24,88 @@ export function ProjectPaymentsChart({ project }: ProjectPaymentsChartProps) {
       .filter((i) => i.status === 'pending' || i.status === 'invoiced')
       .reduce((sum, i) => sum + Number(i.value), 0);
 
-    return [
-      { name: 'Recebido', value: received, color: 'hsl(var(--chart-2))' },
-      { name: 'Pendente', value: pending, color: 'hsl(var(--chart-3))' },
-      { name: 'Atrasado', value: overdue, color: 'hsl(var(--chart-5))' },
-    ].filter(item => item.value > 0);
-  }, [project.installments]);
+    const total = received + pending + overdue;
+    
+    return {
+      received,
+      pending,
+      overdue,
+      total: total > 0 ? total : contractValue,
+      contractValue,
+      receivedPercent: total > 0 ? (received / total) * 100 : 0,
+      pendingPercent: total > 0 ? (pending / total) * 100 : 0,
+      overduePercent: total > 0 ? (overdue / total) * 100 : 0,
+    };
+  }, [project.installments, project.total_value]);
 
-  const chartConfig = {
-    'Recebido': { color: 'hsl(var(--chart-2))' },
-    'Pendente': { color: 'hsl(var(--chart-3))' },
-    'Atrasado': { color: 'hsl(var(--chart-5))' },
-  };
-
-  if (paymentData.length === 0) {
-    return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Recebimentos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-            Nenhuma parcela cadastrada
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const hasInstallments = (project.installments?.length || 0) > 0;
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">Recebimentos</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="h-[200px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={paymentData}
-              layout="vertical"
-              margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
-            >
-              <XAxis
-                type="number"
-                tickFormatter={(value) => formatCurrency(value)}
-                fontSize={10}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                content={
-                  <ChartTooltipContent
-                    formatter={(value) => formatCurrency(Number(value))}
-                  />
-                }
-              />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {paymentData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-        <div className="flex justify-between mt-4 text-xs">
-          {paymentData.map((item) => (
-            <div key={item.name} className="text-center">
-              <div
-                className="w-3 h-3 rounded-full mx-auto mb-1"
-                style={{ backgroundColor: item.color }}
-              />
-              <p className="text-muted-foreground">{item.name}</p>
-              <p className="font-medium">{formatCurrency(item.value)}</p>
+      <CardContent className="pb-4">
+        {!hasInstallments ? (
+          <div className="h-[220px] flex items-center justify-center text-muted-foreground">
+            Nenhuma parcela cadastrada
+          </div>
+        ) : (
+          <div className="h-[220px] flex flex-col justify-center">
+            {/* Progress summary */}
+            <div className="text-center mb-4">
+              <p className="text-2xl font-bold">
+                {formatCurrency(paymentData.received)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                de {formatCurrency(paymentData.total)} ({paymentData.receivedPercent.toFixed(0)}%)
+              </p>
             </div>
-          ))}
-        </div>
+            
+            {/* Segmented Progress Bar */}
+            <div className="h-4 rounded-full overflow-hidden flex bg-muted">
+              {paymentData.receivedPercent > 0 && (
+                <div 
+                  className="bg-emerald-500 transition-all"
+                  style={{ width: `${paymentData.receivedPercent}%` }}
+                />
+              )}
+              {paymentData.pendingPercent > 0 && (
+                <div 
+                  className="bg-amber-400 transition-all"
+                  style={{ width: `${paymentData.pendingPercent}%` }}
+                />
+              )}
+              {paymentData.overduePercent > 0 && (
+                <div 
+                  className="bg-red-500 transition-all"
+                  style={{ width: `${paymentData.overduePercent}%` }}
+                />
+              )}
+            </div>
+            
+            {/* Legend with values */}
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4">
+              <div className="flex items-center gap-1.5 text-xs">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-muted-foreground">Recebido:</span>
+                <span className="font-medium">{formatCurrency(paymentData.received)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
+                <span className="text-muted-foreground">Pendente:</span>
+                <span className="font-medium">{formatCurrency(paymentData.pending)}</span>
+              </div>
+              {paymentData.overdue > 0 && (
+                <div className="flex items-center gap-1.5 text-xs">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                  <span className="text-muted-foreground">Atrasado:</span>
+                  <span className="font-medium text-red-600 dark:text-red-400">{formatCurrency(paymentData.overdue)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Label } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
@@ -15,7 +15,7 @@ const HOURS_PER_MONTH = 176;
 export function ProjectCostBreakdownChart({ project }: ProjectCostBreakdownChartProps) {
   const { data: employees = [] } = useEmployees();
 
-  const costData = useMemo(() => {
+  const { costData, total } = useMemo(() => {
     // Calculate labor cost
     const laborCost = (project.members || []).reduce((acc, member) => {
       const employee = employees.find((e) => e.id === member.employee_id);
@@ -43,35 +43,31 @@ export function ProjectCostBreakdownChart({ project }: ProjectCostBreakdownChart
       0
     );
 
-    return [
-      { name: 'Mão de Obra', value: laborCost },
-      { name: 'Fornecedores', value: supplierCost },
-      { name: 'Materiais', value: materialCost },
+    const data = [
+      { name: 'Mão de Obra', value: laborCost, color: 'hsl(var(--chart-1))' },
+      { name: 'Fornecedores', value: supplierCost, color: 'hsl(var(--chart-2))' },
+      { name: 'Materiais', value: materialCost, color: 'hsl(var(--chart-3))' },
     ].filter(item => item.value > 0);
-  }, [project, employees]);
 
-  const total = costData.reduce((sum, item) => sum + item.value, 0);
+    const totalValue = data.reduce((sum, item) => sum + item.value, 0);
+
+    return { costData: data, total: totalValue };
+  }, [project, employees]);
 
   const chartConfig = {
     'Mão de Obra': { color: 'hsl(var(--chart-1))' },
-    'Fornecedores': { color: 'hsl(var(--chart-4))' },
+    'Fornecedores': { color: 'hsl(var(--chart-2))' },
     'Materiais': { color: 'hsl(var(--chart-3))' },
   };
 
-  const COLORS = [
-    'hsl(var(--chart-1))',
-    'hsl(var(--chart-4))',
-    'hsl(var(--chart-3))',
-  ];
-
   if (total === 0) {
     return (
-      <Card>
+      <Card className="h-full">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">Composição de Custos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+          <div className="h-[220px] flex items-center justify-center text-muted-foreground">
             Nenhum custo cadastrado
           </div>
         </CardContent>
@@ -79,13 +75,20 @@ export function ProjectCostBreakdownChart({ project }: ProjectCostBreakdownChart
     );
   }
 
+  // Format total for center label
+  const formatTotalShort = (value: number) => {
+    if (value >= 1000000) return `R$ ${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `R$ ${(value / 1000).toFixed(1)}k`;
+    return `R$ ${value.toFixed(0)}`;
+  };
+
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">Composição de Custos</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="h-[200px]">
+      <CardContent className="pb-4">
+        <ChartContainer config={chartConfig} className="h-[160px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -96,12 +99,41 @@ export function ProjectCostBreakdownChart({ project }: ProjectCostBreakdownChart
                 outerRadius={70}
                 paddingAngle={2}
                 dataKey="value"
-                label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                labelLine={false}
+                strokeWidth={0}
               >
                 {costData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
+                <Label
+                  content={({ viewBox }) => {
+                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                      return (
+                        <text
+                          x={viewBox.cx}
+                          y={viewBox.cy}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                        >
+                          <tspan
+                            x={viewBox.cx}
+                            y={(viewBox.cy || 0) - 8}
+                            className="fill-muted-foreground text-[10px]"
+                          >
+                            Total
+                          </tspan>
+                          <tspan
+                            x={viewBox.cx}
+                            y={(viewBox.cy || 0) + 8}
+                            className="fill-foreground text-sm font-bold"
+                          >
+                            {formatTotalShort(total)}
+                          </tspan>
+                        </text>
+                      );
+                    }
+                    return null;
+                  }}
+                />
               </Pie>
               <Tooltip
                 content={
@@ -110,19 +142,25 @@ export function ProjectCostBreakdownChart({ project }: ProjectCostBreakdownChart
                   />
                 }
               />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                formatter={(value, entry) => (
-                  <span className="text-xs text-foreground">{value}</span>
-                )}
-              />
             </PieChart>
           </ResponsiveContainer>
         </ChartContainer>
-        <div className="text-center mt-2">
-          <p className="text-xs text-muted-foreground">Total Planejado</p>
-          <p className="text-lg font-semibold">{formatCurrency(total)}</p>
+        
+        {/* Custom Legend */}
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-3">
+          {costData.map((item) => {
+            const percent = ((item.value / total) * 100).toFixed(0);
+            return (
+              <div key={item.name} className="flex items-center gap-1.5 text-xs">
+                <div
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="text-muted-foreground">{item.name}:</span>
+                <span className="font-medium">{percent}%</span>
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

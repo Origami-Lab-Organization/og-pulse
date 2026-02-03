@@ -3,8 +3,8 @@ import { ProjectWithRelations } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
 import { useMemo } from 'react';
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -31,7 +31,7 @@ export function ProjectTrendChart({ project }: ProjectTrendChartProps) {
     const endDate = project.end_date ? parseISO(project.end_date) : null;
     const projectDuration = endDate 
       ? differenceInMonths(endDate, startDate) + 1 
-      : 12; // Default to 12 months if continuous
+      : 12;
 
     // Calculate labor cost
     const laborCost = (project.members || []).reduce((acc, member) => {
@@ -65,7 +65,6 @@ export function ProjectTrendChart({ project }: ProjectTrendChartProps) {
     let cumulativeRealized = 0;
 
     for (let i = 1; i <= projectDuration; i++) {
-      // Add material cost on first month
       const monthlyPlanned = monthlyRecurring + (i === 1 ? materialCost : 0);
       cumulativePlanned += monthlyPlanned;
 
@@ -77,7 +76,6 @@ export function ProjectTrendChart({ project }: ProjectTrendChartProps) {
       });
     }
 
-    // Add budget line (contract value)
     const budgetLine = Number(project.total_value);
 
     return { data, budgetLine };
@@ -92,8 +90,8 @@ export function ProjectTrendChart({ project }: ProjectTrendChartProps) {
             entry.value !== null && (
               <div key={index} className="flex items-center gap-2 text-sm">
                 <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: entry.stroke }}
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: entry.stroke || entry.fill }}
                 />
                 <span className="text-muted-foreground">{entry.name}:</span>
                 <span className="font-medium">{formatCurrency(entry.value)}</span>
@@ -109,11 +107,11 @@ export function ProjectTrendChart({ project }: ProjectTrendChartProps) {
   if (chartData.data.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Curva de Tendência</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Curva de Tendência</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+          <div className="h-[220px] flex items-center justify-center text-muted-foreground">
             Dados insuficientes para gerar o gráfico
           </div>
         </CardContent>
@@ -124,65 +122,90 @@ export function ProjectTrendChart({ project }: ProjectTrendChartProps) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Curva de Tendência</CardTitle>
-        <CardDescription>
-          Custos acumulados com projeção e comparativo com o valor do contrato
+        <CardTitle className="text-sm font-medium">Curva de Tendência</CardTitle>
+        <CardDescription className="text-xs">
+          Custos acumulados vs valor do contrato
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="h-[250px]">
+      <CardContent className="pb-4">
+        <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData.data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <AreaChart data={chartData.data} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorPlanejado" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" vertical={false} />
               <XAxis 
                 dataKey="name" 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
                 className="text-muted-foreground"
               />
               <YAxis 
                 tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
                 className="text-muted-foreground"
+                width={60}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
+              <Legend 
+                wrapperStyle={{ fontSize: '12px' }}
+                iconType="circle"
+                iconSize={8}
+              />
               <ReferenceLine 
                 y={chartData.budgetLine} 
                 stroke="hsl(var(--chart-4))" 
                 strokeDasharray="5 5"
+                strokeWidth={2}
                 label={{ 
                   value: 'Contrato', 
                   position: 'right',
                   fill: 'hsl(var(--chart-4))',
-                  fontSize: 12
+                  fontSize: 11
                 }}
               />
-              <Line 
+              <Area 
                 type="monotone" 
                 dataKey="planejado" 
                 name="Custo Planejado" 
                 stroke="hsl(var(--chart-1))" 
-                strokeWidth={2}
-                dot={{ fill: 'hsl(var(--chart-1))' }}
+                strokeWidth={2.5}
+                fill="url(#colorPlanejado)"
+                dot={{ fill: 'hsl(var(--chart-1))', strokeWidth: 0, r: 3 }}
+                activeDot={{ r: 5, strokeWidth: 0 }}
               />
-              <Line 
+              <Area 
                 type="monotone" 
                 dataKey="realizado" 
                 name="Custo Realizado" 
                 stroke="hsl(var(--chart-2))" 
-                strokeWidth={2}
-                dot={{ fill: 'hsl(var(--chart-2))' }}
+                strokeWidth={2.5}
+                fill="url(#colorRealizado)"
+                dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 0, r: 3 }}
+                activeDot={{ r: 5, strokeWidth: 0 }}
               />
-              <Line 
+              <Area 
                 type="monotone" 
                 dataKey="tendencia" 
                 name="Tendência" 
                 stroke="hsl(var(--chart-3))" 
                 strokeWidth={2}
                 strokeDasharray="5 5"
+                fill="none"
                 dot={false}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
