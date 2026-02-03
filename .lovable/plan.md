@@ -1,226 +1,171 @@
 
-# Plano: Ajustes na Aba de Custos do Projeto
+# Plano: Valor/Hora do Orcamento como Balizador e Custo Real do Funcionario
 
-## Resumo das Alteracoes
+## Entendimento do Problema
 
-1. Remover visualizacao do orcamento vinculado
-2. Remover mensagem de modo planejamento
-3. Remover configuracao de duracao - calcular automaticamente das datas
-4. Otimizar inputs para reduzir lag usando debounce e estado local
+Atualmente, quando um membro e adicionado ao projeto, o sistema usa o `hourly_rate` do papel do orcamento para calcular os custos. Isso esta errado porque:
 
-## Alteracoes por Arquivo
+- O **valor/hora do orcamento** e o preco de venda (quanto cobramos do cliente)
+- O **custo real do funcionario** e quanto a empresa gasta (salario + encargos + beneficios + ferramentas)
 
-### 1. `src/components/projects/detail/ProjectCostsTab.tsx`
+## Nova Logica
 
-**Remover:**
-- Card "Orcamento Vinculado" com botao "Ver Orcamento" (linhas 101-119)
-- Alert "Modo de Planejamento" (linhas 91-99)  
-- Card "Configuracao do Projeto" com duracao editavel (linhas 121-162)
-- Estados `editingDuration` e `durationValue`
-- Funcao `handleSaveDuration`
-- Imports nao utilizados (`Settings`, `Link`, estados relacionados)
-
-**Adicionar:**
-- Calculo de duracao automatico baseado em `start_date` e `end_date`:
-
-```typescript
-import { differenceInMonths, parseISO } from 'date-fns';
-
-// Calcular duracao do projeto a partir das datas
-const durationMonths = useMemo(() => {
-  const startDate = parseISO(project.start_date);
-  if (project.is_continuous) {
-    return 12; // Projetos continuos mostram 12 meses
-  }
-  if (project.end_date) {
-    const endDate = parseISO(project.end_date);
-    return Math.max(1, differenceInMonths(endDate, startDate) + 1);
-  }
-  return 1;
-}, [project.start_date, project.end_date, project.is_continuous]);
-```
-
-### 2. `src/components/projects/detail/ProjectLaborSection.tsx`
-
-**Problema:** Cada digitacao dispara `upsertMemberMonth.mutate()` imediatamente, causando requisicoes excessivas e lag.
-
-**Solucao:** Usar estado local + debounce para agrupar mudancas:
-
-```typescript
-import { useState, useEffect, useRef } from 'react';
-
-// Estado local para valores editados
-const [localHours, setLocalHours] = useState<Record<string, number>>({});
-const pendingUpdates = useRef<Record<string, NodeJS.Timeout>>({});
-
-// Sincronizar estado local quando memberMonths mudar
-useEffect(() => {
-  const initial: Record<string, number> = {};
-  memberMonths.forEach((mm) => {
-    const key = `${mm.project_member_id}-${mm.month_number}`;
-    initial[key] = mm.hours;
-  });
-  setLocalHours(initial);
-}, [memberMonths]);
-
-// Funcao que atualiza localmente e dispara debounced save
-const handleHoursChange = useCallback(
-  (memberId: string, monthNumber: number, hours: number) => {
-    const key = `${memberId}-${monthNumber}`;
-    
-    // Atualiza estado local imediatamente (sem lag)
-    setLocalHours((prev) => ({ ...prev, [key]: hours }));
-    
-    // Cancela timeout anterior se existir
-    if (pendingUpdates.current[key]) {
-      clearTimeout(pendingUpdates.current[key]);
-    }
-    
-    // Agenda save com debounce de 500ms
-    pendingUpdates.current[key] = setTimeout(() => {
-      upsertMemberMonth.mutate({
-        projectMemberId: memberId,
-        monthNumber,
-        hours: hours || 0,
-      });
-      delete pendingUpdates.current[key];
-    }, 500);
-  },
-  [upsertMemberMonth]
-);
-
-// Funcao para obter horas (prioriza estado local)
-const getHoursForMonth = useCallback(
-  (memberId: string, monthNumber: number): number => {
-    const key = `${memberId}-${monthNumber}`;
-    if (key in localHours) {
-      return localHours[key];
-    }
-    const found = memberMonths.find(
-      (mm) => mm.project_member_id === memberId && mm.month_number === monthNumber
-    );
-    return found?.hours || 0;
-  },
-  [localHours, memberMonths]
-);
-
-// Cleanup dos timeouts ao desmontar
-useEffect(() => {
-  return () => {
-    Object.values(pendingUpdates.current).forEach(clearTimeout);
-  };
-}, []);
-```
-
-### 3. `src/components/projects/detail/ProjectSuppliersSection.tsx`
-
-**Mesma otimizacao com debounce:**
-
-```typescript
-// Estado local para valores editados
-const [localValues, setLocalValues] = useState<Record<string, number>>({});
-const pendingUpdates = useRef<Record<string, NodeJS.Timeout>>({});
-
-// Sincronizar estado local
-useEffect(() => {
-  const initial: Record<string, number> = {};
-  supplierMonths.forEach((sm) => {
-    const key = `${sm.project_supplier_id}-${sm.month_number}`;
-    initial[key] = sm.value;
-  });
-  setLocalValues(initial);
-}, [supplierMonths]);
-
-const handleValueChange = useCallback(
-  (supplierId: string, monthNumber: number, value: number) => {
-    const key = `${supplierId}-${monthNumber}`;
-    
-    setLocalValues((prev) => ({ ...prev, [key]: value }));
-    
-    if (pendingUpdates.current[key]) {
-      clearTimeout(pendingUpdates.current[key]);
-    }
-    
-    pendingUpdates.current[key] = setTimeout(() => {
-      upsertSupplierMonth.mutate({
-        projectSupplierId: supplierId,
-        monthNumber,
-        value: value || 0,
-      });
-      delete pendingUpdates.current[key];
-    }, 500);
-  },
-  [upsertSupplierMonth]
-);
-
-const getValueForMonth = useCallback(
-  (supplierId: string, monthNumber: number): number => {
-    const key = `${supplierId}-${monthNumber}`;
-    if (key in localValues) {
-      return localValues[key];
-    }
-    const found = supplierMonths.find(
-      (sm) => sm.project_supplier_id === supplierId && sm.month_number === monthNumber
-    );
-    return found?.value || 0;
-  },
-  [localValues, supplierMonths]
-);
-
-useEffect(() => {
-  return () => {
-    Object.values(pendingUpdates.current).forEach(clearTimeout);
-  };
-}, []);
-```
-
-## Resultado Visual
-
-### Antes
+O orcamento atua como **balizador** para formacao do time:
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│  [!] Modo de Planejamento                                    │
-│  Configure os custos planejados mes a mes...                 │
-├──────────────────────────────────────────────────────────────┤
-│  Orcamento Vinculado: ORC-2026-0001     [Ver Orcamento]     │
-├──────────────────────────────────────────────────────────────┤
-│  Configuracao do Projeto                                     │
-│  Duracao do Projeto: 6 meses  [Alterar]                     │
-├──────────────────────────────────────────────────────────────┤
-│  [Cards de Resumo de Custos]                                │
-├──────────────────────────────────────────────────────────────┤
-│  [Tabelas de Custos]                                        │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  ORCAMENTO (referencia)                                                         │
+│  Consultor Inovacao (Senior) - R$ 120/h (preco de venda) - 70h                 │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  ALOCACAO DE EQUIPE                                                             │
+│ ┌──────────────────────────────────────────────────────────────────────────────┐
+│ │ Funcionario       │ Papel              │ Orc. R$/h │ Custo R$/h │ M1  │ M2  │
+│ │───────────────────│────────────────────│───────────│────────────│─────│─────│
+│ │ Maria Santos      │ Consultor Inovacao │ R$ 120    │ R$ 85,50   │ 35h │ 35h │
+│ │ Joao Silva        │ Consultor Inovacao │ R$ 120    │ R$ 72,30   │ 35h │ 35h │
+│ └──────────────────────────────────────────────────────────────────────────────┘
+│  * Custo R$/h = Custo total mensal do funcionario / Jornada mensal             │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Depois
+## Calculo do Custo/Hora Real do Funcionario
+
+O campo `total_monthly_cost_estimated` ja inclui:
+- Salario/Bolsa/Contrato PJ/Pro-labore
+- Encargos (FGTS, INSS patronal, RAT, etc.)
+- Provisoes (13o, ferias, 1/3 ferias)
+- Beneficios
+- Ferramentas
+
+Formula:
+```
+custo_hora_real = total_monthly_cost_estimated / jornada_mensal
+```
+
+Exemplo:
+- Funcionario com custo mensal total R$ 15.000 e jornada de 168h
+- Custo/hora real = R$ 15.000 / 168 = R$ 89,29
+
+## Alteracoes Necessarias
+
+### 1. Atualizar Query de Membros do Projeto
+
+**Arquivo:** `src/services/projectService.ts`
+
+Buscar campos adicionais do funcionario:
+
+```typescript
+// De:
+employee:employees(id, nome, cargo, salario_mensal, beneficios, encargos)
+
+// Para:
+employee:employees(
+  id, 
+  nome, 
+  cargo, 
+  total_monthly_cost_estimated, 
+  jornada_mensal
+)
+```
+
+### 2. Atualizar Tipos
+
+**Arquivo:** `src/types/project.ts`
+
+Atualizar interface do employee em `ProjectWithRelations`:
+
+```typescript
+employee?: {
+  id: string;
+  nome: string;
+  cargo: string;
+  total_monthly_cost_estimated: number;
+  jornada_mensal: number;
+};
+```
+
+### 3. Atualizar Interface de Alocacao de Equipe
+
+**Arquivo:** `src/components/projects/detail/ProjectLaborSection.tsx`
+
+Alteracoes:
+1. Adicionar coluna "Orc. R$/h" mostrando valor do orcamento (referencia)
+2. Alterar coluna "Valor/h" para "Custo R$/h" mostrando custo real do funcionario
+3. Calcular `custo_hora_real = total_monthly_cost_estimated / jornada_mensal`
+4. Usar `custo_hora_real` para calcular o custo total do projeto
+
+```typescript
+// Calculo do custo/hora real
+const getRealHourlyCost = (member: typeof members[0]): number => {
+  if (!member.employee) return 0;
+  const totalCost = member.employee.total_monthly_cost_estimated || 0;
+  const workHours = member.employee.jornada_mensal || 168;
+  return totalCost / workHours;
+};
+
+// Obter valor/hora do orcamento (para referencia)
+const getBudgetHourlyRate = (member: typeof members[0]): number => {
+  return Number(member.hourly_rate) || 0;
+};
+```
+
+### 4. Atualizar Dialogo de Adicionar Membro
+
+Ao selecionar um funcionario, mostrar seu custo/hora real:
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│  [Cards de Resumo de Custos]                                │
-│  Mao de Obra | Fornecedores | Materiais | Custo Total      │
-├──────────────────────────────────────────────────────────────┤
-│  [Papeis do Orcamento - referencia]                         │
-│  [Tabela de Alocacao de Equipe]                             │
-├──────────────────────────────────────────────────────────────┤
-│  [Tabela de Fornecedores]                                   │
-├──────────────────────────────────────────────────────────────┤
-│  [Tabela de Materiais]                                      │
-└──────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│ Adicionar Membro ao Projeto                                       │
+├────────────────────────────────────────────────────────────────────┤
+│ Funcionario                                                        │
+│ [ Maria Santos - Consultor                            ▼ ]         │
+│                                                                    │
+│ Papel do Orcamento                                                 │
+│ [ Consultor de Inovacao (Senior) - R$ 120/h           ▼ ]         │
+│                                                                    │
+│ ┌──────────────────────────────────────────────────────────────┐  │
+│ │ Valor/hora do orcamento:  R$ 120,00                          │  │
+│ │ Custo/hora do funcionario: R$ 85,50                          │  │
+│ │ Margem estimada: 28,75%                                      │  │
+│ └──────────────────────────────────────────────────────────────┘  │
+├────────────────────────────────────────────────────────────────────┤
+│                                  [ Cancelar ]  [ Adicionar ]       │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-## Resumo de Arquivos
+### 5. Atualizar Hook useEmployees
+
+**Arquivo:** `src/components/projects/detail/ProjectLaborSection.tsx`
+
+Garantir que o hook `useEmployees` retorne os campos necessarios para calculo do custo/hora no dialogo de adicao.
+
+## Estrutura da Tabela Atualizada
+
+```text
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ Funcionario       │ Papel              │ Orc. R$/h │ Custo R$/h │ M1  │ Total  │
+│───────────────────│────────────────────│───────────│────────────│─────│────────│
+│ Maria Santos      │ Consultor Inovacao │ R$ 120    │ R$ 85,50   │ 35h │ R$ 2993│
+│   Consultor       │   (Senior)         │           │            │     │        │
+│ Joao Silva        │ Consultor Inovacao │ R$ 120    │ R$ 72,30   │ 35h │ R$ 2531│
+│   Analista Jr     │   (Senior)         │           │            │     │        │
+├────────────────────────────────────────────────────────────────────────────────┤
+│ TOTAL             │                    │           │            │ 70h │ R$ 5524│
+└────────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Resumo de Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/projects/detail/ProjectCostsTab.tsx` | Remover cards de orcamento/planejamento/configuracao, calcular duracao das datas |
-| `src/components/projects/detail/ProjectLaborSection.tsx` | Adicionar estado local + debounce nos inputs de horas |
-| `src/components/projects/detail/ProjectSuppliersSection.tsx` | Adicionar estado local + debounce nos inputs de valores |
+| `src/services/projectService.ts` | Buscar `total_monthly_cost_estimated` e `jornada_mensal` do funcionario |
+| `src/types/project.ts` | Atualizar interface do employee com novos campos |
+| `src/components/projects/detail/ProjectLaborSection.tsx` | Adicionar coluna de referencia do orcamento, calcular e usar custo real |
+| `src/components/projects/detail/ProjectCostsTab.tsx` | Atualizar calculo de custos para usar custo real |
 
 ## Beneficios
 
-1. **Interface mais limpa** - Remove elementos redundantes
-2. **Duracao automatica** - Calculada das datas definidas na Visao Geral, sem configuracao manual
-3. **Melhor UX nos inputs** - Estado local permite digitacao fluida, debounce agrupa saves
-4. **Menos requisicoes** - Reducao de 90%+ nas chamadas ao banco durante edicao
+1. **Visibilidade clara** - Usuario ve o preco de venda vs custo real lado a lado
+2. **Margem visivel** - Permite avaliar se a alocacao e rentavel
+3. **Decisao informada** - Ao escolher funcionarios, usuario ve impacto no custo
+4. **Orcamento como balizador** - Referencia para formacao do time sem distorcer custos reais
