@@ -145,6 +145,7 @@ export const projectService = {
         due_day: input.dueDay,
         status: input.status || 'planning',
         contract_url: input.contractUrl || null,
+        duration_months: input.durationMonths || 1,
       })
       .select()
       .single();
@@ -299,6 +300,8 @@ export const projectService = {
         role: input.role,
         seniority: input.seniority,
         hours_per_month: input.hoursPerMonth,
+        budget_role_id: input.budgetRoleId || null,
+        hourly_rate: input.hourlyRate || 0,
       })
       .select()
       .single();
@@ -313,7 +316,7 @@ export const projectService = {
 
   async updateMember(
     id: string,
-    updates: { role?: string; seniority?: string; hours_per_month?: number }
+    updates: { role?: string; seniority?: string; hours_per_month?: number; hourly_rate?: number }
   ): Promise<ProjectMemberDB> {
     const { data, error } = await supabase
       .from('project_members')

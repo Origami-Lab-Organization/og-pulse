@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Users, Truck, Package, AlertCircle, Settings } from 'lucide-react';
+import { Users, Truck, Package, AlertCircle, Settings, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,8 @@ import { formatCurrency } from '@/lib/formatters';
 import { useUpdateProject } from '@/hooks/useProjects';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
+import { useBudget } from '@/hooks/useBudgets';
+import { Link } from 'react-router-dom';
 
 interface ProjectCostsTabProps {
   project: ProjectWithRelations;
@@ -26,6 +28,9 @@ export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
 
   const durationMonths = project.duration_months || 1;
 
+  // Fetch linked budget if exists
+  const { data: budget } = useBudget(project.budget_id);
+
   // Get member and supplier IDs for fetching monthly data
   const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
   const supplierIds = useMemo(() => (project.suppliers || []).map((s) => s.id), [project.suppliers]);
@@ -33,17 +38,14 @@ export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
 
-  // Calculate labor costs from monthly hours
+  // Calculate labor costs from member's hourly_rate and monthly hours
   const laborCosts = useMemo(() => {
     if (!project.members || project.members.length === 0) return 0;
 
     let total = 0;
     project.members.forEach((member) => {
-      const employee = member.employee;
-      if (!employee) return;
-
-      const monthlyCost = Number(employee.salario_mensal) + Number(employee.beneficios) + Number(employee.encargos);
-      const hourlyRate = monthlyCost / 176;
+      // Use the member's own hourly_rate (from budget or manually set)
+      const hourlyRate = Number((member as any).hourly_rate) || 0;
 
       // Sum hours across all months
       const memberHours = memberMonths
@@ -94,6 +96,26 @@ export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
             Configure os custos planejados mês a mês antes de iniciar o projeto.
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Budget Reference */}
+      {budget && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4" />
+                Orçamento Vinculado: {budget.budget_number}
+              </CardTitle>
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/budgets/${budget.id}`}>Ver Orçamento</Link>
+              </Button>
+            </div>
+            <CardDescription>
+              Os papéis e valores do orçamento servem como referência para alocação da equipe.
+            </CardDescription>
+          </CardHeader>
+        </Card>
       )}
 
       {/* Duration Configuration */}
@@ -208,6 +230,7 @@ export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
         members={project.members || []}
         durationMonths={durationMonths}
         isEditable={isEditable}
+        budgetRoles={budget?.roles || []}
       />
 
       {/* Suppliers Section */}
