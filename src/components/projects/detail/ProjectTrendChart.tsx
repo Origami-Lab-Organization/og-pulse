@@ -13,33 +13,62 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
+import { useEmployees } from '@/hooks/useEmployees';
+import { differenceInMonths, parseISO } from 'date-fns';
 
 interface ProjectTrendChartProps {
   project: ProjectWithRelations;
-  plannedCosts: {
-    laborCost: number;
-    supplierCost: number;
-    materialCost: number;
-    monthlyRecurring: number;
-    oneTimeCosts: number;
-  };
-  projectDuration: number;
 }
 
-export function ProjectTrendChart({ project, plannedCosts, projectDuration }: ProjectTrendChartProps) {
+const HOURS_PER_MONTH = 176;
+
+export function ProjectTrendChart({ project }: ProjectTrendChartProps) {
+  const { data: employees = [] } = useEmployees();
+
   const chartData = useMemo(() => {
+    // Calculate project duration
+    const startDate = parseISO(project.start_date);
+    const endDate = project.end_date ? parseISO(project.end_date) : null;
+    const projectDuration = endDate 
+      ? differenceInMonths(endDate, startDate) + 1 
+      : 12; // Default to 12 months if continuous
+
+    // Calculate labor cost
+    const laborCost = (project.members || []).reduce((acc, member) => {
+      const employee = employees.find((e) => e.id === member.employee_id);
+      if (!employee) return acc;
+      const totalCost =
+        employee.salarioMensal +
+        employee.beneficios +
+        employee.encargos +
+        (employee.totalToolsCost || 0);
+      const hourlyCost = totalCost / HOURS_PER_MONTH;
+      return acc + hourlyCost * Number(member.hours_per_month || 0);
+    }, 0);
+
+    // Calculate supplier cost (monthly average)
+    const supplierCost = (project.suppliers || []).reduce(
+      (acc, supplier) => acc + Number(supplier.monthly_value || 0),
+      0
+    );
+
+    // Calculate materials cost (one-time)
+    const materialCost = (project.materials || []).reduce(
+      (acc, material) => acc + Number(material.value || 0),
+      0
+    );
+
+    const monthlyRecurring = laborCost + supplierCost;
+
     const data = [];
     let cumulativePlanned = 0;
     let cumulativeRealized = 0;
 
     for (let i = 1; i <= projectDuration; i++) {
       // Add material cost on first month
-      const monthlyPlanned = plannedCosts.monthlyRecurring + (i === 1 ? plannedCosts.materialCost : 0);
+      const monthlyPlanned = monthlyRecurring + (i === 1 ? materialCost : 0);
       cumulativePlanned += monthlyPlanned;
 
-      // Simulated realized (would come from actual data)
-      // For now, showing 0 as we don't have actual costs yet
-      
       data.push({
         name: `M${i}`,
         planejado: cumulativePlanned,
@@ -52,7 +81,7 @@ export function ProjectTrendChart({ project, plannedCosts, projectDuration }: Pr
     const budgetLine = Number(project.total_value);
 
     return { data, budgetLine };
-  }, [plannedCosts, projectDuration, project.total_value]);
+  }, [project, employees]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -77,16 +106,31 @@ export function ProjectTrendChart({ project, plannedCosts, projectDuration }: Pr
     return null;
   };
 
+  if (chartData.data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Curva de Tendência</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+            Dados insuficientes para gerar o gráfico
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Curva de Tendência</CardTitle>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Curva de Tendência</CardTitle>
         <CardDescription>
           Custos acumulados com projeção e comparativo com o valor do contrato
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
+        <div className="h-[250px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData.data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />

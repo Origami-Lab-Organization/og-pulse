@@ -1,8 +1,9 @@
-import { FileText, Users } from 'lucide-react';
+import { useMemo } from 'react';
+import { FileText, TrendingUp, TrendingDown, Minus, Receipt, Wallet, Target, PiggyBank } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, INSTALLMENT_STATUS_LABELS, PAYMENT_METHOD_OPTIONS } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, formatPercent } from '@/lib/formatters';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -13,6 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ProjectCostBreakdownChart } from './ProjectCostBreakdownChart';
+import { ProjectPaymentsChart } from './ProjectPaymentsChart';
+import { ProjectTeamSection } from './ProjectTeamSection';
+import { ProjectTrendChart } from './ProjectTrendChart';
+import { useEmployees } from '@/hooks/useEmployees';
 
 interface ProjectOverviewTabProps {
   project: ProjectWithRelations;
@@ -25,60 +31,201 @@ const installmentStatusColors: Record<string, string> = {
   overdue: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
+const HOURS_PER_MONTH = 176;
+
 export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
+  const { data: employees = [] } = useEmployees();
+
   const paymentMethodLabel = PAYMENT_METHOD_OPTIONS.find(
     (opt) => opt.value === project.payment_method
   )?.label || project.payment_method;
 
+  // Calculate financial metrics
+  const metrics = useMemo(() => {
+    // Labor cost
+    const laborCost = (project.members || []).reduce((acc, member) => {
+      const employee = employees.find((e) => e.id === member.employee_id);
+      if (!employee) return acc;
+      const totalCost =
+        employee.salarioMensal +
+        employee.beneficios +
+        employee.encargos +
+        (employee.totalToolsCost || 0);
+      const hourlyCost = totalCost / HOURS_PER_MONTH;
+      return acc + hourlyCost * Number(member.hours_per_month || 0);
+    }, 0);
+
+    // Supplier cost
+    const supplierCost = (project.suppliers || []).reduce((acc, supplier) => {
+      const months = supplier.end_month 
+        ? supplier.end_month - supplier.start_month + 1 
+        : 12;
+      return acc + Number(supplier.monthly_value || 0) * months;
+    }, 0);
+
+    // Materials cost
+    const materialCost = (project.materials || []).reduce(
+      (acc, material) => acc + Number(material.value || 0),
+      0
+    );
+
+    const plannedCost = laborCost + supplierCost + materialCost;
+    const contractValue = Number(project.total_value || 0);
+    const margin = contractValue > 0 ? ((contractValue - plannedCost) / contractValue) * 100 : 0;
+
+    const receivedValue = (project.installments || [])
+      .filter((i) => i.status === 'received')
+      .reduce((sum, i) => sum + Number(i.value), 0);
+
+    const pendingValue = contractValue - receivedValue;
+
+    return {
+      contractValue,
+      plannedCost,
+      margin,
+      receivedValue,
+      pendingValue,
+    };
+  }, [project, employees]);
+
+  const marginTrend = metrics.margin >= 30 ? 'up' : metrics.margin >= 15 ? 'neutral' : 'down';
+
   return (
     <div className="space-y-6">
-      {/* Description Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Descrição do Projeto
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {project.description ? (
-            <p className="text-muted-foreground whitespace-pre-wrap">{project.description}</p>
-          ) : (
-            <p className="text-muted-foreground italic">Nenhuma descrição cadastrada.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Team Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Equipe do Projeto
-          </CardTitle>
-          <CardDescription>
-            {project.members?.length || 0} membro(s) alocado(s)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {project.members && project.members.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {project.members.map((member) => (
-                <Badge key={member.id} variant="secondary" className="py-1 px-3">
-                  {member.employee?.nome || 'Funcionário'} - {member.role} ({member.hours_per_month}h/mês)
-                </Badge>
-              ))}
+      {/* Key Metrics */}
+      <div className="grid gap-4 md:grid-cols-5">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                <Receipt className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Contrato</p>
+                <p className="text-lg font-bold">{formatCurrency(metrics.contractValue)}</p>
+              </div>
             </div>
-          ) : (
-            <p className="text-muted-foreground italic">Nenhum membro alocado.</p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Payment Info */}
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Custo Planejado</p>
+                <p className="text-lg font-bold">{formatCurrency(metrics.plannedCost)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                marginTrend === 'up' ? 'bg-green-100 dark:bg-green-900/30' :
+                marginTrend === 'down' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-muted'
+              }`}>
+                {marginTrend === 'up' ? (
+                  <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                ) : marginTrend === 'down' ? (
+                  <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+                ) : (
+                  <Minus className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Margem</p>
+                <p className={`text-lg font-bold ${
+                  marginTrend === 'up' ? 'text-green-600 dark:text-green-400' :
+                  marginTrend === 'down' ? 'text-red-600 dark:text-red-400' : ''
+                }`}>
+                  {formatPercent(metrics.margin)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                <Wallet className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Recebido</p>
+                <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                  {formatCurrency(metrics.receivedValue)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                <PiggyBank className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Pendente</p>
+                <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
+                  {formatCurrency(metrics.pendingValue)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <ProjectCostBreakdownChart project={project} />
+        <ProjectPaymentsChart project={project} />
+      </div>
+
+      {/* Trend Chart */}
+      <ProjectTrendChart project={project} />
+
+      {/* Description and Team - Two Columns */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Description Section */}
+        <Card className="h-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4" />
+              Descrição do Projeto
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {project.description ? (
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                {project.description}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">
+                Nenhuma descrição cadastrada.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Team Section */}
+        <ProjectTeamSection 
+          members={project.members || []} 
+          projectId={project.id} 
+        />
+      </div>
+
+      {/* Payment Info / Installments */}
       <Card>
         <CardHeader>
-          <CardTitle>Informações de Pagamento</CardTitle>
+          <CardTitle className="text-base">Informações de Pagamento</CardTitle>
           <CardDescription>
             {paymentMethodLabel} • {project.installments_count} parcela(s) • Vencimento dia {project.due_day}
           </CardDescription>
