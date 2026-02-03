@@ -6,8 +6,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectHeader } from '@/components/projects/detail/ProjectHeader';
 import { ProjectOverviewTab } from '@/components/projects/detail/ProjectOverviewTab';
+import { ProjectPlanningOverviewTab } from '@/components/projects/detail/ProjectPlanningOverviewTab';
 import { ProjectCostsTab } from '@/components/projects/detail/ProjectCostsTab';
 import { ProjectFinancialTab } from '@/components/projects/detail/ProjectFinancialTab';
+import { ProjectOKRsTab } from '@/components/projects/detail/ProjectOKRsTab';
+import { ProjectStakeholdersTab } from '@/components/projects/detail/ProjectStakeholdersTab';
+import { ProjectScheduleTab } from '@/components/projects/detail/ProjectScheduleTab';
+import { ProjectExpectedResultTab } from '@/components/projects/detail/ProjectExpectedResultTab';
 import { ProjectFormDialog } from '@/components/projects/ProjectFormDialog';
 import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
 import { useProject, useUpdateProject, useDeleteProject } from '@/hooks/useProjects';
@@ -77,7 +82,8 @@ export default function ProjectDetail() {
     );
   }
 
-  const isPlanning = project.status === 'planning';
+  // Determine if project is in planning phase
+  const isPlanning = project.portfolio_stage === 'planning';
 
   return (
     <AppLayout
@@ -97,29 +103,52 @@ export default function ProjectDetail() {
         <ProjectHeader project={project} />
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="okrs">OKRs</TabsTrigger>
+            <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
             <TabsTrigger value="costs">Custos</TabsTrigger>
-            <TabsTrigger value="financial">Financeiro</TabsTrigger>
-            <TabsTrigger value="stakeholders" disabled>
-              Stakeholders
-            </TabsTrigger>
-            <TabsTrigger value="schedule" disabled>
-              Cronograma
-            </TabsTrigger>
+            <TabsTrigger value="schedule">Cronograma</TabsTrigger>
+            {isPlanning ? (
+              <TabsTrigger value="expected">Resultado Esperado</TabsTrigger>
+            ) : (
+              <TabsTrigger value="financial">Financeiro</TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
-            <ProjectOverviewTab project={project} />
+            {isPlanning ? (
+              <ProjectPlanningOverviewTab project={project} />
+            ) : (
+              <ProjectOverviewTab project={project} />
+            )}
+          </TabsContent>
+
+          <TabsContent value="okrs" className="mt-6">
+            <ProjectOKRsTab project={project} />
+          </TabsContent>
+
+          <TabsContent value="stakeholders" className="mt-6">
+            <ProjectStakeholdersTab project={project} />
           </TabsContent>
 
           <TabsContent value="costs" className="mt-6">
             <ProjectCostsTab project={project} isEditable={isPlanning} />
           </TabsContent>
 
-          <TabsContent value="financial" className="mt-6">
-            <ProjectFinancialTab project={project} />
+          <TabsContent value="schedule" className="mt-6">
+            <ProjectScheduleTab project={project} />
           </TabsContent>
+
+          {isPlanning ? (
+            <TabsContent value="expected" className="mt-6">
+              <ProjectExpectedResultTab project={project} />
+            </TabsContent>
+          ) : (
+            <TabsContent value="financial" className="mt-6">
+              <ProjectFinancialTab project={project} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 

@@ -127,6 +127,7 @@ export interface UpdateInstallmentInput {
 
 // Extended types with relations
 export interface ProjectWithRelations extends ProjectDB {
+  portfolio_stage?: string | null;
   client?: {
     id: string;
     company_name: string;
