@@ -17,14 +17,15 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
     let supplierCost = 0;
     let materialCost = 0;
 
-    // Labor costs (monthly)
+    // Labor costs using real employee cost (total_monthly_cost_estimated / jornada_mensal)
     if (project.members && project.members.length > 0) {
       laborCost = project.members.reduce((total, member) => {
         const employee = member.employee;
         if (!employee) return total;
-        const monthlyCost = Number(employee.salario_mensal) + Number(employee.beneficios) + Number(employee.encargos);
-        const hourlyRate = monthlyCost / 176;
-        return total + hourlyRate * Number(member.hours_per_month);
+        const totalMonthlyCost = employee.total_monthly_cost_estimated || 0;
+        const workHours = employee.jornada_mensal || 168;
+        const realHourlyCost = workHours > 0 ? totalMonthlyCost / workHours : 0;
+        return total + realHourlyCost * Number(member.hours_per_month);
       }, 0);
     }
 

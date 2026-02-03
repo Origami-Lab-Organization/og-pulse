@@ -45,9 +45,9 @@ interface ProjectLaborSectionProps {
       id: string;
       nome: string;
       cargo: string;
-      salario_mensal: number;
-      beneficios: number;
-      encargos: number;
+      foto_url?: string | null;
+      total_monthly_cost_estimated: number;
+      jornada_mensal: number;
     };
   })[];
   durationMonths: number;
@@ -109,9 +109,17 @@ export function ProjectLaborSection({
     return employees.filter((e) => e.status === 'ativo');
   }, [employees]);
 
-  // Get hourly rate from member's own hourly_rate field
-  const getHourlyRate = useCallback((member: typeof members[0]): number => {
+  // Get budget hourly rate from member's hourly_rate field (price we charge client)
+  const getBudgetHourlyRate = useCallback((member: typeof members[0]): number => {
     return Number((member as any).hourly_rate) || 0;
+  }, []);
+
+  // Get real hourly cost from employee's total_monthly_cost_estimated / jornada_mensal
+  const getRealHourlyCost = useCallback((member: typeof members[0]): number => {
+    if (!member.employee) return 0;
+    const totalCost = member.employee.total_monthly_cost_estimated || 0;
+    const workHours = member.employee.jornada_mensal || 168;
+    return workHours > 0 ? totalCost / workHours : 0;
   }, []);
 
   // Get hours prioritizing local state
@@ -195,7 +203,7 @@ export function ProjectLaborSection({
     removeMember.mutate({ id: memberId, projectId });
   };
 
-  // Calculate totals
+  // Calculate totals using real employee cost
   const totals = useMemo(() => {
     const byMonth: Record<number, { hours: number; value: number }> = {};
     let totalHours = 0;
@@ -206,32 +214,32 @@ export function ProjectLaborSection({
     });
 
     members.forEach((member) => {
-      const hourlyRate = getHourlyRate(member);
+      const realCost = getRealHourlyCost(member);
       months.forEach((monthNum) => {
         const hours = getHoursForMonth(member.id, monthNum);
         byMonth[monthNum].hours += hours;
-        byMonth[monthNum].value += hours * hourlyRate;
+        byMonth[monthNum].value += hours * realCost;
         totalHours += hours;
-        totalValue += hours * hourlyRate;
+        totalValue += hours * realCost;
       });
     });
 
     return { byMonth, totalHours, totalValue };
-  }, [members, months, getHourlyRate, getHoursForMonth]);
+  }, [members, months, getRealHourlyCost, getHoursForMonth]);
 
-  // Calculate member totals
+  // Calculate member totals using real employee cost
   const memberTotals = useMemo(() => {
     const result: Record<string, { hours: number; value: number }> = {};
     members.forEach((member) => {
-      const hourlyRate = getHourlyRate(member);
+      const realCost = getRealHourlyCost(member);
       let hours = 0;
       months.forEach((monthNum) => {
         hours += getHoursForMonth(member.id, monthNum);
       });
-      result[member.id] = { hours, value: hours * hourlyRate };
+      result[member.id] = { hours, value: hours * realCost };
     });
     return result;
-  }, [members, months, getHourlyRate, getHoursForMonth]);
+  }, [members, months, getRealHourlyCost, getHoursForMonth]);
 
   // Calculate budget roles summary for reference
   const budgetRolesSummary = useMemo(() => {
@@ -300,20 +308,22 @@ export function ProjectLaborSection({
                       <TableHead className="sticky left-0 bg-background z-10 min-w-[200px]">
                         Funcionário
                       </TableHead>
-                      <TableHead className="text-right min-w-[100px]">Valor/h</TableHead>
+                      <TableHead className="text-right min-w-[90px]">Orç. R$/h</TableHead>
+                      <TableHead className="text-right min-w-[90px]">Custo R$/h</TableHead>
                       {months.map((m) => (
                         <TableHead key={m} className="text-center min-w-[80px]">
                           Mês {m}
                         </TableHead>
                       ))}
                       <TableHead className="text-right min-w-[80px]">Total H</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Total R$</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Custo Total</TableHead>
                       {isEditable && <TableHead className="w-12" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {members.map((member) => {
-                      const hourlyRate = getHourlyRate(member);
+                      const budgetRate = getBudgetHourlyRate(member);
+                      const realCost = getRealHourlyCost(member);
                       const memberTotal = memberTotals[member.id] || { hours: 0, value: 0 };
 
                       return (
@@ -324,8 +334,11 @@ export function ProjectLaborSection({
                               <p className="text-xs text-muted-foreground">{member.role}</p>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right text-muted-foreground">
-                            {formatCurrency(hourlyRate)}
+                          <TableCell className="text-right text-muted-foreground text-xs">
+                            {budgetRate > 0 ? formatCurrency(budgetRate) : '-'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(realCost)}
                           </TableCell>
                           {months.map((monthNum) => (
                             <TableCell key={monthNum} className="text-center p-1">
@@ -375,6 +388,7 @@ export function ProjectLaborSection({
                       <TableCell className="sticky left-0 bg-muted z-10 font-semibold">
                         Total
                       </TableCell>
+                      <TableCell />
                       <TableCell />
                       {months.map((monthNum) => (
                         <TableCell key={monthNum} className="text-center font-medium">
@@ -520,11 +534,42 @@ export function ProjectLaborSection({
               </>
             )}
 
-            {newMember.budgetRoleId && useBudgetRole && (
-              <div className="rounded-lg bg-muted p-3 text-sm">
-                <p className="text-muted-foreground">
-                  Valor/hora herdado: <span className="font-medium text-foreground">{formatCurrency(newMember.hourlyRate)}</span>
-                </p>
+            {/* Cost comparison info */}
+            {newMember.employeeId && (useBudgetRole && newMember.budgetRoleId ? true : true) && (
+              <div className="rounded-lg bg-muted p-3 space-y-1">
+                {useBudgetRole && newMember.budgetRoleId && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Valor/hora do orçamento:</span>
+                    <span className="font-medium">{formatCurrency(newMember.hourlyRate)}</span>
+                  </div>
+                )}
+                {(() => {
+                  const selectedEmployee = availableEmployees.find(e => e.id === newMember.employeeId);
+                  if (!selectedEmployee) return null;
+                  const totalCost = selectedEmployee.totalMonthlyCostEstimated || 0;
+                  const workHours = selectedEmployee.jornadaMensal || 168;
+                  const realCost = workHours > 0 ? totalCost / workHours : 0;
+                  const margin = newMember.hourlyRate > 0 && realCost > 0 
+                    ? ((newMember.hourlyRate - realCost) / newMember.hourlyRate) * 100 
+                    : 0;
+                  
+                  return (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Custo/hora do funcionário:</span>
+                        <span className="font-medium">{formatCurrency(realCost)}</span>
+                      </div>
+                      {useBudgetRole && newMember.budgetRoleId && margin !== 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Margem estimada:</span>
+                          <span className={`font-medium ${margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {margin.toFixed(1)}%
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
