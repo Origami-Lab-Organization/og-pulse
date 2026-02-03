@@ -1,9 +1,7 @@
-import { Building2, Calendar, User, Clock, Banknote } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Building2, Calendar, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PROJECT_STATUS_LABELS } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
-import { differenceInMonths, parseISO, format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface ProjectHeaderProps {
@@ -21,156 +19,42 @@ const statusColors: Record<string, string> = {
 export function ProjectHeader({ project }: ProjectHeaderProps) {
   const startDate = parseISO(project.start_date);
   const endDate = project.end_date ? parseISO(project.end_date) : null;
-  
-  const durationMonths = endDate 
-    ? differenceInMonths(endDate, startDate) + 1
-    : null;
 
-  const receivedValue = project.installments
-    ?.filter((i) => i.status === 'received')
-    .reduce((sum, i) => sum + Number(i.value), 0) || 0;
+  const clientName = project.client?.trading_name || project.client?.company_name || '-';
+  const managerName = project.manager?.nome || '-';
 
-  const pendingValue = project.total_value - receivedValue;
+  const formatPeriod = () => {
+    const start = format(startDate, "MMM/yyyy", { locale: ptBR });
+    if (project.is_continuous) {
+      return `${start} - Contínuo`;
+    }
+    if (endDate) {
+      const end = format(endDate, "MMM/yyyy", { locale: ptBR });
+      return `${start} - ${end}`;
+    }
+    return start;
+  };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {/* Status Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Status</p>
-              <Badge className={statusColors[project.status]}>
-                {PROJECT_STATUS_LABELS[project.status]}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Client Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-              <Building2 className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-muted-foreground">Cliente</p>
-              <p className="font-medium truncate">
-                {project.client?.trading_name || project.client?.company_name || '-'}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Manager Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-              <User className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-muted-foreground">Gerente</p>
-              <p className="font-medium truncate">{project.manager?.nome || '-'}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Duration Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Duração</p>
-              <p className="font-medium">
-                {project.is_continuous 
-                  ? 'Contínuo' 
-                  : durationMonths 
-                    ? `${durationMonths} ${durationMonths === 1 ? 'mês' : 'meses'}`
-                    : 'Indefinido'
-                }
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Value Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Banknote className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Valor do Contrato</p>
-              <p className="text-lg font-semibold">{formatCurrency(project.total_value)}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Received Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-              <Banknote className="h-5 w-5 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Recebido</p>
-              <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                {formatCurrency(receivedValue)}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pending Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-              <Banknote className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Pendente</p>
-              <p className="text-lg font-semibold text-amber-600 dark:text-amber-400">
-                {formatCurrency(pendingValue)}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Period Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Período</p>
-              <p className="font-medium text-sm">
-                {format(startDate, "dd/MM/yyyy", { locale: ptBR })}
-                {endDate && ` - ${format(endDate, "dd/MM/yyyy", { locale: ptBR })}`}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+      <Badge className={statusColors[project.status]}>
+        {PROJECT_STATUS_LABELS[project.status]}
+      </Badge>
+      <span className="hidden sm:inline text-muted-foreground/50">•</span>
+      <span className="flex items-center gap-1.5">
+        <Building2 className="h-3.5 w-3.5" />
+        <span className="font-medium text-foreground">{clientName}</span>
+      </span>
+      <span className="hidden sm:inline text-muted-foreground/50">•</span>
+      <span className="flex items-center gap-1.5">
+        <User className="h-3.5 w-3.5" />
+        <span>{managerName}</span>
+      </span>
+      <span className="hidden sm:inline text-muted-foreground/50">•</span>
+      <span className="flex items-center gap-1.5">
+        <Calendar className="h-3.5 w-3.5" />
+        <span>{formatPeriod()}</span>
+      </span>
     </div>
   );
 }
