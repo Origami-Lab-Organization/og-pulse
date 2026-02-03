@@ -1,5 +1,6 @@
 export type InfluenceLevel = 'high' | 'medium' | 'low';
 export type InterestLevel = 'high' | 'medium' | 'low';
+export type SponsorshipLevel = 'promoter' | 'neutral' | 'detractor';
 
 export interface ProjectStakeholder {
   id: string;
@@ -11,6 +12,7 @@ export interface ProjectStakeholder {
   phone: string | null;
   influence_level: InfluenceLevel | null;
   interest_level: InterestLevel | null;
+  sponsorship_level: SponsorshipLevel | null;
   notes: string | null;
   created_at: string;
 }
@@ -24,6 +26,7 @@ export interface CreateStakeholderInput {
   phone?: string;
   influenceLevel?: InfluenceLevel;
   interestLevel?: InterestLevel;
+  sponsorshipLevel?: SponsorshipLevel;
   notes?: string;
 }
 
@@ -35,6 +38,7 @@ export interface UpdateStakeholderInput {
   phone?: string;
   influenceLevel?: InfluenceLevel;
   interestLevel?: InterestLevel;
+  sponsorshipLevel?: SponsorshipLevel;
   notes?: string;
 }
 
@@ -66,4 +70,16 @@ export const ORGANIZATION_OPTIONS = [
   { value: 'internal', label: 'Interna' },
   { value: 'partner', label: 'Parceiro' },
   { value: 'other', label: 'Outro' },
+];
+
+export const SPONSORSHIP_LEVEL_LABELS: Record<SponsorshipLevel, string> = {
+  promoter: 'Promotor',
+  neutral: 'Neutro',
+  detractor: 'Detrator',
+};
+
+export const SPONSORSHIP_LEVEL_OPTIONS = [
+  { value: 'promoter', label: 'Promotor' },
+  { value: 'neutral', label: 'Neutro' },
+  { value: 'detractor', label: 'Detrator' },
 ];

@@ -1057,6 +1057,7 @@ export type Database = {
           phone: string | null
           project_id: string
           role: string
+          sponsorship_level: string | null
         }
         Insert: {
           created_at?: string | null
@@ -1070,6 +1071,7 @@ export type Database = {
           phone?: string | null
           project_id: string
           role: string
+          sponsorship_level?: string | null
         }
         Update: {
           created_at?: string | null
@@ -1083,6 +1085,7 @@ export type Database = {
           phone?: string | null
           project_id?: string
           role?: string
+          sponsorship_level?: string | null
         }
         Relationships: [
           {
