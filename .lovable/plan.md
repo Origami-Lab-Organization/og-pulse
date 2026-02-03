@@ -1,73 +1,114 @@
 
-# Plano: Reordenar Campos do Formulario de Stakeholder
+# Plano: Corrigir Formularios Pre-preenchidos e Checklist de Stakeholders
 
-## Situacao Atual
+## Problemas Identificados
 
-A ordem dos campos no formulario e:
-1. Nome, Papel
-2. Organizacao, Nivel de Patrocinio
-3. E-mail, Telefone
-4. Nivel de Influencia, Nivel de Interesse
-5. Observacoes
+1. **Formularios vindo pre-preenchidos**: Quando o usuario cria um OKR, KR, Stakeholder ou Milestone, e depois tenta criar um novo, o formulario vem com os dados do anterior
+2. **Checklist de Stakeholders**: Esta sempre como "nao concluido" (hardcoded `completed={false}`)
 
-## Nova Ordem Solicitada
+## Causa Raiz do Problema 1
 
-O usuario deseja que E-mail e Telefone venham logo apos Nome e Papel:
-1. Nome, Papel
-2. E-mail, Telefone
-3. Organizacao, Nivel de Patrocinio
-4. Nivel de Influencia, Nivel de Interesse
-5. Observacoes
+O `useEffect` que reseta o formulario depende apenas de `entity` (ex: `stakeholder`, `keyResult`, etc.) e `form`. Quando o dialogo abre para um **novo** item:
+- Primeira vez: `entity = null` -> form reseta corretamente
+- Segunda vez: `entity = null` (mesmo valor) -> `useEffect` nao re-executa, formulario mantem valores antigos
 
-## Alteracao Necessaria
+## Solucao
 
-### Arquivo: `src/components/projects/stakeholders/StakeholderFormDialog.tsx`
+### 1. Adicionar `open` como dependencia do useEffect
 
-Reordenar os blocos `<div className="grid grid-cols-2 gap-4">` para refletir a nova ordem:
+Em todos os formularios de dialogo, adicionar `open` como dependencia do `useEffect` para que o form seja resetado sempre que o dialogo abrir.
 
-**Antes (linhas 163-288):**
-```
-Bloco 1: Nome, Papel (linhas 163-202)
-Bloco 2: Organizacao, Nivel de Patrocinio (linhas 204-254)
-Bloco 3: E-mail, Telefone (linhas 256-288)
-Bloco 4: Nivel de Influencia, Nivel de Interesse (linhas 290-336)
-```
+**Arquivos afetados:**
+- `src/components/projects/okrs/OKRFormDialog.tsx`
+- `src/components/projects/okrs/KeyResultFormDialog.tsx`
+- `src/components/projects/stakeholders/StakeholderFormDialog.tsx`
+- `src/components/projects/schedule/MilestoneFormDialog.tsx`
 
-**Depois:**
-```
-Bloco 1: Nome, Papel
-Bloco 2: E-mail, Telefone (movido para cima)
-Bloco 3: Organizacao, Nivel de Patrocinio (movido para baixo)
-Bloco 4: Nivel de Influencia, Nivel de Interesse
-```
+**Alteracao em cada arquivo:**
 
-## Resultado Visual
+```typescript
+// Antes
+useEffect(() => {
+  if (entity) {
+    form.reset({...});
+  } else {
+    form.reset({...defaultValues});
+  }
+}, [entity, form]);
 
-```text
-┌─────────────────────────────────────────────────────┐
-│  Novo Stakeholder                                   │
-├─────────────────────────────────────────────────────┤
-│  Nome *              │  Papel *                     │
-│  [Nome completo    ] │  [Selecione          v]     │
-├─────────────────────────────────────────────────────┤
-│  E-mail              │  Telefone                    │
-│  [email@exemplo.com] │  [(00) 00000-0000   ]       │
-├─────────────────────────────────────────────────────┤
-│  Organizacao         │  Nivel de Patrocinio         │
-│  [Selecione      v]  │  [Selecione          v]     │
-├─────────────────────────────────────────────────────┤
-│  Nivel de Influencia │  Nivel de Interesse          │
-│  [Selecione      v]  │  [Selecione          v]     │
-├─────────────────────────────────────────────────────┤
-│  Observacoes                                        │
-│  [Observacoes sobre o stakeholder...             ] │
-├─────────────────────────────────────────────────────┤
-│                      [Cancelar]  [Adicionar]        │
-└─────────────────────────────────────────────────────┘
+// Depois
+useEffect(() => {
+  if (open) {
+    if (entity) {
+      form.reset({...});
+    } else {
+      form.reset({...defaultValues});
+    }
+  }
+}, [open, entity, form]);
 ```
 
-## Resumo
+### 2. Adicionar Checklist Dinamico de Stakeholders
+
+**Arquivo:** `src/components/projects/detail/ProjectPlanningOverviewTab.tsx`
+
+Importar o hook `useProjectStakeholders` e verificar se existe ao menos um stakeholder:
+
+```typescript
+import { useProjectStakeholders } from '@/hooks/useProjectStakeholders';
+
+// Dentro do componente
+const { data: stakeholders = [] } = useProjectStakeholders(project.id);
+const hasStakeholders = stakeholders.length > 0;
+
+// No ChecklistItem
+<ChecklistItem 
+  label="Stakeholders mapeados" 
+  completed={hasStakeholders}
+  hint={!hasStakeholders ? "Va para a aba Stakeholders" : undefined}
+/>
+```
+
+---
+
+## Resumo das Alteracoes
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/projects/stakeholders/StakeholderFormDialog.tsx` | Mover bloco E-mail/Telefone para logo apos Nome/Papel |
+| `OKRFormDialog.tsx` | Adicionar `open` como dependencia do `useEffect` |
+| `KeyResultFormDialog.tsx` | Adicionar `open` como dependencia do `useEffect` |
+| `StakeholderFormDialog.tsx` | Adicionar `open` como dependencia do `useEffect` |
+| `MilestoneFormDialog.tsx` | Adicionar `open` como dependencia do `useEffect` |
+| `ProjectPlanningOverviewTab.tsx` | Adicionar verificacao dinamica de stakeholders no checklist |
+
+---
+
+## Logica Final dos Formularios
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ useEffect([open, entity, form])                             │
+├─────────────────────────────────────────────────────────────┤
+│ if (open) {                                                 │
+│   if (entity) {                                             │
+│     // Modo edicao: preencher com dados existentes          │
+│     form.reset(entityData);                                 │
+│   } else {                                                  │
+│     // Modo criacao: limpar formulario                      │
+│     form.reset(defaultValues);                              │
+│   }                                                         │
+│ }                                                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Logica Final do Checklist
+
+```text
+Checklist de Preparacao:
+[x] Informacoes basicas    -> client_id && manager_id existem
+[x] OKRs definidos         -> ao menos 1 OKR com 1+ Key Result
+[x] Stakeholders mapeados  -> ao menos 1 stakeholder (NOVO)
+[x] Equipe alocada         -> members.length > 0
+[ ] Custos planejados      -> TODO: implementar
+[ ] Cronograma definido    -> TODO: implementar
+```
