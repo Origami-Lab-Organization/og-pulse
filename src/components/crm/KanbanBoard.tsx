@@ -110,6 +110,8 @@ export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
     installmentsCount: number;
     dueDay: number;
     firstInvoiceDate: string;
+    startDate: string;
+    endDate: string;
   }) => {
     if (!budgetToClose) return;
 

@@ -4,7 +4,6 @@ import { useToast } from '@/hooks/use-toast';
 import { budgetService } from '@/services/budgetService';
 import { projectService } from '@/services/projectService';
 import { BudgetWithDetails } from '@/types/budget';
-import { addMonths } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
 interface CloseBusinessInput {
@@ -14,6 +13,8 @@ interface CloseBusinessInput {
   installmentsCount: number;
   dueDay: number;
   firstInvoiceDate: string;
+  startDate: string;
+  endDate: string;
 }
 
 export function useCloseBusinessDeal() {
@@ -26,18 +27,12 @@ export function useCloseBusinessDeal() {
     mutationFn: async (input: CloseBusinessInput) => {
       if (!tenantId) throw new Error('Tenant não encontrado');
 
-      const { budget, managerId, paymentMethod, installmentsCount, dueDay, firstInvoiceDate } = input;
+      const { budget, managerId, paymentMethod, installmentsCount, dueDay, firstInvoiceDate, startDate, endDate } = input;
 
       // 1. Update budget status to 'active'
       await budgetService.updateStatus(budget.id, 'active');
 
-      // 2. Calculate project dates
-      const startDate = budget.start_date;
-      const endDate = addMonths(new Date(startDate), budget.duration_months)
-        .toISOString()
-        .split('T')[0];
-
-      // 3. Create project linked to budget with duration_months from budget
+      // 2. Create project linked to budget with dates from form
       const project = await projectService.create(
         {
           name: budget.title,
