@@ -1,190 +1,95 @@
 
 
-# Plano: Liberar Acesso para Gerentes de Projeto
+# Plano: Corrigir Acesso para Gerentes de Projeto
 
-## Entendimento Atual
+## Problema Identificado
 
-O sistema possui dois níveis de acesso verificados no frontend:
+Os usuários **Cecília**, **Ítalo** e **Guilherme** foram atualizados para o perfil "Gerente de Projetos" (`system_role = 'manager'`), mas o campo `is_gerente` permanece como `false`.
 
-1. **isAdmin** - Verificado na tabela `user_roles` (role = 'admin')
-2. **is_gerente** - Campo booleano na tabela `employees`
+**Dados atuais no banco:**
+| Nome | system_role | is_gerente |
+|------|-------------|------------|
+| Maria Cecília Prado Coelho | manager | false |
+| Italo Cesar Castro | manager | false |
+| Guilherme Valadares Pereira | manager | false |
 
-Atualmente, as seções de Gestão, Comercial e Operações estão configuradas como `requiresAdmin`, bloqueando o acesso para Gerentes de Projeto (`is_gerente = true`).
+O frontend verifica o campo `is_gerente` para conceder acesso às seções de Gestão, Comercial e Operações, mas esse campo não está sendo atualizado quando o `system_role` muda para `'manager'`.
 
-## Nova Estrutura de Permissões
+---
 
-| Seção | Admin | Gerente de Projeto | Usuário |
-|-------|-------|-------------------|---------|
-| Visão Geral | Sim | Sim | Sim |
-| **Gestão** (Funcionários, Clientes, Fornecedores) | Sim | Sim | Não |
-| **Comercial** (CRM, Orçamentos) | Sim | Sim | Não |
-| **Operações** (Portfólio, Projetos, Timesheets, Analytics) | Sim | Sim | Não |
-| **Configurações** (Tabela de Preços, Configurações) | Sim | Não | Não |
+## Solução
 
-## Alterações Necessárias
+Há duas abordagens possíveis:
 
-### 1. Atualizar RoleProtectedRoute
+### Opção A: Sincronizar `is_gerente` automaticamente com `system_role` (Recomendada)
 
-**Arquivo:** `src/components/auth/RoleProtectedRoute.tsx`
+Modificar o formulário de funcionários para definir `is_gerente = true` automaticamente quando `system_role` for `'admin'` ou `'manager'`.
 
-Alterar a lógica para que `requireManager` seja suficiente para acessar as rotas de Gestão, Comercial e Operações:
+**Vantagens:**
+- Mantém compatibilidade com o código existente
+- Uma única alteração resolve o problema
 
-```typescript
-// Verificar se usuário precisa de acesso de admin (apenas Configurações)
-if (requireAdmin && !employee.isAdmin) {
-  return <Navigate to="/dashboard" replace />;
-}
+### Opção B: Substituir verificações de `is_gerente` por `system_role`
 
-// Verificar se usuário precisa de acesso de gerente (Admin também pode)
-if (requireManager && !employee.is_gerente && !employee.isAdmin) {
-  return <Navigate to="/dashboard" replace />;
-}
-```
+Modificar todos os pontos do código que verificam `is_gerente` para usar `system_role` em vez disso.
 
-A lógica atual já está correta. O que precisa mudar é o uso do prop `requireManager` em vez de `requireAdmin` nas rotas apropriadas.
+**Desvantagens:**
+- Requer alterações em múltiplos arquivos
+- Maior risco de esquecer algum ponto
 
-### 2. Atualizar Rotas no App.tsx
+---
 
-**Arquivo:** `src/App.tsx`
+## Implementação (Opção A)
 
-Trocar `requireAdmin` por `requireManager` nas rotas de Gestão, Comercial e Operações:
+### 1. Atualizar o Formulário de Funcionários
 
-```text
-ANTES:
-┌────────────────────────────────────────────────────────────────────┐
-│ /                    → requireAdmin    (Funcionários)             │
-│ /clients             → requireAdmin    (Clientes)                 │
-│ /suppliers           → requireAdmin    (Fornecedores)             │
-│ /crm                 → requireAdmin    (CRM)                      │
-│ /budgets/*           → requireAdmin    (Orçamentos)               │
-│ /portfolio           → requireAdmin    (Portfólio)                │
-│ /projects/*          → requireAdmin    (Projetos)                 │
-│ /pricing             → requireAdmin    (Tabela de Preços)         │
-│ /settings            → requireAdmin    (Configurações)            │
-└────────────────────────────────────────────────────────────────────┘
+**Arquivo:** `src/components/employees/EmployeeFormDialog.tsx`
 
-DEPOIS:
-┌────────────────────────────────────────────────────────────────────┐
-│ /                    → requireManager  (Funcionários)             │
-│ /clients             → requireManager  (Clientes)                 │
-│ /suppliers           → requireManager  (Fornecedores)             │
-│ /crm                 → requireManager  (CRM)                      │
-│ /budgets/*           → requireManager  (Orçamentos)               │
-│ /portfolio           → requireManager  (Portfólio)                │
-│ /projects/*          → requireManager  (Projetos)                 │
-│ /pricing             → requireAdmin    (MANTÉM - Configurações)   │
-│ /settings            → requireAdmin    (MANTÉM - Configurações)   │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-### 3. Atualizar Navegação no Sidebar
-
-**Arquivo:** `src/components/layout/AppSidebar.tsx`
-
-Trocar `requiresAdmin` por `requiresManager` nos grupos e itens apropriados:
+Adicionar lógica para sincronizar `isGerente` baseado no `systemRole`:
 
 ```typescript
-const navigationGroups = [
-  {
-    label: 'Dashboard',
-    items: [
-      { title: 'Visão Geral', url: '/dashboard', icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: 'Gestão',
-    requiresManager: true,  // Era requiresAdmin
-    items: [
-      { title: 'Funcionários', url: '/', icon: Users, requiresManager: true },
-      { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
-      { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
-    ],
-  },
-  {
-    label: 'Comercial',
-    requiresManager: true,  // Era requiresAdmin
-    items: [
-      { title: 'CRM', url: '/crm', icon: Kanban, requiresManager: true },
-      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresManager: true },
-    ],
-  },
-  {
-    label: 'Operações',
-    requiresManager: true,  // Era requiresAdmin
-    items: [
-      { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresManager: true },
-      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
-      { title: 'Timesheets', url: '/timesheets', icon: Clock, disabled: true, requiresManager: true },
-      { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true, requiresManager: true },
-    ],
-  },
-  {
-    label: 'Configurações',
-    requiresAdmin: true,  // MANTÉM requiresAdmin
-    items: [
-      { title: 'Tabela de Preços', url: '/pricing', icon: DollarSign, requiresAdmin: true },
-      { title: 'Configurações', url: '/settings', icon: Settings, requiresAdmin: true },
-    ],
-  },
-];
+// Quando o systemRole mudar, atualizar isGerente automaticamente
+useEffect(() => {
+  const systemRole = form.watch('systemRole');
+  if (systemRole === 'admin' || systemRole === 'manager') {
+    form.setValue('isGerente', true);
+  } else {
+    form.setValue('isGerente', false);
+  }
+}, [form.watch('systemRole')]);
 ```
 
-### 4. Atualizar Lógica de Filtragem no Sidebar
+### 2. Corrigir os Dados Existentes no Banco
 
-A lógica de filtragem de grupos também precisa considerar `requiresManager`:
+Executar uma atualização para sincronizar os funcionários existentes:
 
-```typescript
-// Lógica atual - precisa adicionar verificação de requiresManager no nível de grupo
-const shouldShowGroup = (group) => {
-  if (group.requiresAdmin && !isAdmin) return false;
-  if (group.requiresManager && !isManager && !isAdmin) return false;
-  return true;
-};
+```sql
+UPDATE employees 
+SET is_gerente = true 
+WHERE system_role IN ('admin', 'manager') 
+  AND is_gerente = false;
 ```
 
-## Resumo de Arquivos a Modificar
+---
+
+## Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/App.tsx` | Trocar `requireAdmin` por `requireManager` nas rotas de Gestão, Comercial e Operações |
-| `src/components/layout/AppSidebar.tsx` | Trocar `requiresAdmin` por `requiresManager` nos grupos e itens de Gestão, Comercial e Operações |
+| **Banco de Dados** | Atualizar `is_gerente = true` para funcionários com `system_role` = 'admin' ou 'manager' |
+| `src/components/employees/EmployeeFormDialog.tsx` | Sincronizar `isGerente` automaticamente quando `systemRole` mudar |
 
-## Fluxo de Acesso Resultante
+---
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    HIERARQUIA DE ACESSO                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   ADMIN (isAdmin = true)                                       │
-│   ┌─────────────────────────────────────────────────────────┐  │
-│   │ Acesso total a todas as funcionalidades                 │  │
-│   │ + Configurações (Tabela de Preços, Settings)            │  │
-│   └─────────────────────────────────────────────────────────┘  │
-│                            │                                   │
-│                            ▼                                   │
-│   GERENTE DE PROJETO (is_gerente = true)                       │
-│   ┌─────────────────────────────────────────────────────────┐  │
-│   │ ✓ Dashboard                                              │  │
-│   │ ✓ Gestão (Funcionários, Clientes, Fornecedores)         │  │
-│   │ ✓ Comercial (CRM, Orçamentos)                           │  │
-│   │ ✓ Operações (Portfólio, Projetos, Timesheets, Analytics)│  │
-│   │ ✗ Configurações (bloqueado)                              │  │
-│   └─────────────────────────────────────────────────────────┘  │
-│                            │                                   │
-│                            ▼                                   │
-│   USUÁRIO (is_gerente = false, isAdmin = false)                │
-│   ┌─────────────────────────────────────────────────────────┐  │
-│   │ ✓ Dashboard                                              │  │
-│   │ ✗ Gestão, Comercial, Operações, Configurações           │  │
-│   └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+## Resultado Esperado
 
-## Benefícios
+Após a correção:
 
-1. **Gerentes autônomos** - Podem gerenciar projetos, clientes e equipe sem precisar de um admin
-2. **Configurações protegidas** - Apenas admins alteram preços e configurações do sistema
-3. **Consistência** - Lógica unificada entre rotas e navegação
+| Nome | system_role | is_gerente | Acesso |
+|------|-------------|------------|--------|
+| Maria Cecília Prado Coelho | manager | **true** | Gestão, Comercial, Operações |
+| Italo Cesar Castro | manager | **true** | Gestão, Comercial, Operações |
+| Guilherme Valadares Pereira | manager | **true** | Gestão, Comercial, Operações |
+
+Os Gerentes de Projeto terão acesso imediato às seções corretas após a atualização dos dados e do formulário.
 
