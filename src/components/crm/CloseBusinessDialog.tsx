@@ -42,6 +42,8 @@ const closeBusinessSchema = z.object({
   installmentsCount: z.coerce.number().min(1, 'Mínimo de 1 parcela'),
   dueDay: z.coerce.number().min(1).max(31).default(10),
   firstInvoiceDate: z.string().min(1, 'Data da primeira NF é obrigatória'),
+  startDate: z.string().min(1, 'Data de início é obrigatória'),
+  endDate: z.string().min(1, 'Data de fim é obrigatória'),
 });
 
 type CloseBusinessFormValues = z.infer<typeof closeBusinessSchema>;
@@ -76,24 +78,39 @@ export function CloseBusinessDialog({
       installmentsCount: budget?.duration_months || 1,
       dueDay: 10,
       firstInvoiceDate: '',
+      startDate: '',
+      endDate: '',
     },
   });
+
+  // Watch startDate to auto-calculate endDate
+  const startDateValue = form.watch('startDate');
 
   // Reset form when budget changes
   useEffect(() => {
     if (open && budget) {
-      // Calculate first invoice date as start_date of the budget
-      const startDate = budget.start_date;
+      const start = budget.start_date;
+      const end = addMonths(new Date(start), budget.duration_months).toISOString().split('T')[0];
       
       form.reset({
         managerId: '',
         paymentMethod: 'mensal',
         installmentsCount: budget.duration_months || 1,
         dueDay: 10,
-        firstInvoiceDate: startDate,
+        firstInvoiceDate: start,
+        startDate: start,
+        endDate: end,
       });
     }
   }, [open, budget, form]);
+
+  // Auto-recalculate endDate when startDate changes
+  useEffect(() => {
+    if (startDateValue && budget && open) {
+      const newEndDate = addMonths(new Date(startDateValue), budget.duration_months);
+      form.setValue('endDate', newEndDate.toISOString().split('T')[0]);
+    }
+  }, [startDateValue, budget, form, open]);
 
   const handleSubmit = (values: CloseBusinessFormValues) => {
     onConfirm(values);
@@ -192,6 +209,36 @@ export function CloseBusinessDialog({
                 </FormItem>
               )}
             />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Início *</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Fim *</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
