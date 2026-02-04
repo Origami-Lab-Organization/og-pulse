@@ -1,216 +1,204 @@
 
+# Plano: Adicionar Data de Início e Data de Fim no Dialog "Fechar Negócio"
 
-# Plano Revisado: Acompanhamento de Execução nas Abas Existentes
+## Contexto
 
-## Mudança de Abordagem
+Atualmente, quando o usuário move um orçamento para "Negócio Fechado", o dialog `CloseBusinessDialog` coleta:
+- Gerente do Projeto
+- Forma de Pagamento
+- Parcelas
+- Data Primeira NF
+- Dia de Vencimento
 
-Em vez de criar uma nova aba "Execução", o acompanhamento de progresso será integrado diretamente nas abas já existentes do projeto:
-- **Custos**: Planejado vs Realizado (Mão de Obra, Fornecedores, Materiais)
-- **Cronograma**: Atualização de status dos Milestones
-- **OKRs**: Atualização de progresso dos Key Results
-- **Stakeholders**: Sem alteração
+O sistema calcula automaticamente a data de fim do projeto baseado no `start_date` do orçamento + `duration_months`, mas o usuário não pode visualizar nem editar essas datas.
 
----
+## Requisito
 
-## Fase 1: Visualização na Aba de Custos (Planejado vs Realizado)
-
-### Objetivo
-Transformar a aba de Custos para exibir uma comparação clara entre valores planejados e realizados quando o projeto estiver em execução.
-
-### Estrutura Visual Proposta
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  Aba: Custos (modo execução)                                                │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  [Cards de Resumo - já existentes, atualizados]                            │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
-│  │ Mão de Obra │ │ Fornecedores│ │ Materiais   │ │ Custo Total │           │
-│  │ Plan: 50.000│ │ Plan: 10.000│ │ Plan: 5.000 │ │ Plan: 65.000│           │
-│  │ Real: 42.000│ │ Real: 8.500 │ │ Real: 4.200 │ │ Real: 54.700│           │
-│  │ ▲ 84%       │ │ ▲ 85%       │ │ ▲ 84%       │ │ ▲ 84%       │           │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘           │
-│                                                                             │
-│  [Seção: Mão de Obra] ─────────────────────────────────────────────────────│
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ Funcionário    │ Papel      │ Custo/h │ Horas     │ Custo Total    │   │
-│  │                │            │         │ Plan|Real │ Plan | Real    │   │
-│  ├────────────────┼────────────┼─────────┼───────────┼────────────────┤   │
-│  │ João Silva     │ Designer   │ R$ 85   │ 240 | 180 │ 20.400|15.300  │   │
-│  │ Maria Santos   │ Developer  │ R$ 120  │ 160 | 140 │ 19.200|16.800  │   │
-│  │ Pedro Lima     │ PM         │ R$ 95   │ 80  | 75  │  7.600| 7.125  │   │
-│  ├────────────────┴────────────┴─────────┼───────────┼────────────────┤   │
-│  │ TOTAL                                 │ 480 | 395 │ 47.200|39.225  │   │
-│  └───────────────────────────────────────┴───────────┴────────────────┘   │
-│  * Horas reais são importadas dos Timesheets                               │
-│                                                                             │
-│  [Seção: Fornecedores] ────────────────────────────────────────────────────│
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ Fornecedor      │ Mês 1        │ Mês 2        │ Total              │   │
-│  │                 │ Plan | Real  │ Plan | Real  │ Plan | Real        │   │
-│  ├─────────────────┼──────────────┼──────────────┼────────────────────┤   │
-│  │ Agência Mkt     │ 2.000| 1.800 │ 2.000| 2.000 │ 4.000 | 3.800      │   │
-│  │ Cloud Services  │ 1.500| 1.500 │ 1.500| --    │ 3.000 | 1.500      │   │
-│  │ [+ Lançamento]                                                      │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  [Seção: Materiais] ───────────────────────────────────────────────────────│
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ Descrição           │ Mês    │ Valor      │ Status                 │   │
-│  ├─────────────────────┼────────┼────────────┼────────────────────────┤   │
-│  │ Licenças software   │ Mês 1  │ R$ 2.000   │ [✓] Realizado          │   │
-│  │ Equipamento teste   │ Mês 2  │ R$ 3.000   │ [ ] Pendente           │   │
-│  │ [+ Material]                                                        │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+1. Adicionar campos **Data de Início** e **Data de Fim** no formulário
+2. **Data de Início**: pré-preenchida com a `start_date` do orçamento, editável pelo usuário
+3. **Data de Fim**: calculada automaticamente (Data de Início + duração do orçamento em meses), editável pelo usuário
+4. Quando a **Data de Início** mudar, recalcular a **Data de Fim** automaticamente (mantendo a duração)
 
 ---
 
-## Estrutura de Dados
+## Implementação
 
-### 1. Tabela de Timesheets (para Mão de Obra Real)
+### 1. Atualizar Schema do Formulário
 
-```sql
-CREATE TABLE project_timesheets (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  project_member_id UUID NOT NULL REFERENCES project_members(id) ON DELETE CASCADE,
-  work_date DATE NOT NULL,
-  hours NUMERIC NOT NULL DEFAULT 0,
-  description TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by UUID REFERENCES employees(id),
-  
-  UNIQUE(project_member_id, work_date)
-);
+**Arquivo:** `src/components/crm/CloseBusinessDialog.tsx`
+
+Adicionar campos no schema Zod:
+
+```typescript
+const closeBusinessSchema = z.object({
+  managerId: z.string().min(1, 'Gerente é obrigatório'),
+  paymentMethod: z.string().default('mensal'),
+  installmentsCount: z.coerce.number().min(1, 'Mínimo de 1 parcela'),
+  dueDay: z.coerce.number().min(1).max(31).default(10),
+  firstInvoiceDate: z.string().min(1, 'Data da primeira NF é obrigatória'),
+  startDate: z.string().min(1, 'Data de início é obrigatória'),    // NOVO
+  endDate: z.string().min(1, 'Data de fim é obrigatória'),          // NOVO
+});
 ```
 
-### 2. Tabela de Custos Reais de Fornecedores
+### 2. Adicionar Lógica de Recálculo Automático
 
-```sql
-CREATE TABLE project_supplier_actuals (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_supplier_id UUID NOT NULL REFERENCES project_suppliers(id) ON DELETE CASCADE,
-  month_number INTEGER NOT NULL,
-  value NUMERIC NOT NULL DEFAULT 0,
-  invoice_number TEXT,
-  invoice_date DATE,
-  notes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  
-  UNIQUE(project_supplier_id, month_number)
-);
+Quando o usuário alterar a `startDate`, recalcular a `endDate` automaticamente:
+
+```typescript
+const startDateValue = form.watch('startDate');
+
+useEffect(() => {
+  if (startDateValue && budget) {
+    const newEndDate = addMonths(new Date(startDateValue), budget.duration_months);
+    form.setValue('endDate', newEndDate.toISOString().split('T')[0]);
+  }
+}, [startDateValue, budget, form]);
 ```
 
-### 3. Materiais
+### 3. Adicionar Campos no Formulário
 
-Já possui o campo `is_realized` - será utilizado diretamente.
+Inserir antes do grid de "Forma de Pagamento":
+
+```tsx
+<div className="grid grid-cols-2 gap-4">
+  <FormField
+    control={form.control}
+    name="startDate"
+    render={({ field }) => (
+      <FormItem>
+        <FormLabel>Data de Início *</FormLabel>
+        <FormControl>
+          <Input type="date" {...field} />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    )}
+  />
+
+  <FormField
+    control={form.control}
+    name="endDate"
+    render={({ field }) => (
+      <FormItem>
+        <FormLabel>Data de Fim *</FormLabel>
+        <FormControl>
+          <Input type="date" {...field} />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    )}
+  />
+</div>
+```
+
+### 4. Atualizar Interface de Callback
+
+**Arquivo:** `src/components/crm/CloseBusinessDialog.tsx`
+
+Atualizar o tipo `CloseBusinessFormValues` (automático pelo Zod).
+
+### 5. Atualizar o Hook useCloseBusinessDeal
+
+**Arquivo:** `src/hooks/useCloseBusinessDeal.ts`
+
+Receber as datas do formulário em vez de calcular:
+
+```typescript
+interface CloseBusinessInput {
+  budget: BudgetWithDetails;
+  managerId: string;
+  paymentMethod: string;
+  installmentsCount: number;
+  dueDay: number;
+  firstInvoiceDate: string;
+  startDate: string;     // NOVO
+  endDate: string;       // NOVO
+}
+
+// Usar diretamente as datas recebidas
+const project = await projectService.create({
+  startDate: input.startDate,  // Usar do formulário
+  endDate: input.endDate,      // Usar do formulário
+  // ... resto
+});
+```
+
+### 6. Atualizar KanbanBoard
+
+**Arquivo:** `src/components/crm/KanbanBoard.tsx`
+
+Atualizar o tipo do callback `handleCloseBusinessConfirm` para incluir as novas datas:
+
+```typescript
+const handleCloseBusinessConfirm = (formData: {
+  managerId: string;
+  paymentMethod: string;
+  installmentsCount: number;
+  dueDay: number;
+  firstInvoiceDate: string;
+  startDate: string;       // NOVO
+  endDate: string;         // NOVO
+}) => {
+  // ...
+};
+```
 
 ---
-
-## Implementação: Aba de Custos Modo Execução
-
-### Etapa 1: Criar Tabelas e Hooks
-
-| Arquivo | Descrição |
-|---------|-----------|
-| **Migration SQL** | Criar `project_timesheets` e `project_supplier_actuals` com RLS |
-| `src/hooks/useProjectTimesheets.ts` | Hook para buscar timesheets do projeto |
-| `src/hooks/useProjectSupplierActuals.ts` | Hook para buscar custos reais de fornecedores |
-
-### Etapa 2: Atualizar Componentes de Custos
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/projects/detail/ProjectCostsTab.tsx` | Adicionar cálculo de valores reais nos cards de resumo |
-| `src/components/projects/detail/ProjectLaborSection.tsx` | Adicionar coluna "Horas Reais" e "Custo Real" vindos dos timesheets |
-| `src/components/projects/detail/ProjectSuppliersSection.tsx` | Adicionar colunas de valores reais por mês com possibilidade de lançamento inline |
-| `src/components/projects/detail/ProjectMaterialsSection.tsx` | Melhorar UX do checkbox "Realizado" |
-
-### Etapa 3: Criar Componente de Lançamento de Fornecedores
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/components/projects/detail/SupplierActualFormDialog.tsx` | Modal para lançar valor real de fornecedor |
-
----
-
-## Fluxo de Dados: Mão de Obra
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Mão de Obra                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  PLANEJADO                        REALIZADO                     │
-│  ────────────                     ─────────────                 │
-│  project_member_months            project_timesheets            │
-│  (horas por mês)                  (horas por dia)               │
-│       │                                  │                      │
-│       │                                  │                      │
-│       ▼                                  ▼                      │
-│  Custo Planejado =               Custo Realizado =              │
-│  Σ horas × custo/hora            Σ horas × custo/hora           │
-│  do funcionário                  do funcionário                 │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │         Tabela na Aba de Custos                         │   │
-│  │  Funcionário │ Horas Plan│Real │ Custo Plan│Real │ %    │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Arquivos a Criar
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/hooks/useProjectTimesheets.ts` | Query e mutations para timesheets |
-| `src/hooks/useProjectSupplierActuals.ts` | Query e mutations para custos reais |
-| `src/components/projects/detail/SupplierActualFormDialog.tsx` | Modal de lançamento de valor real |
 
 ## Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/projects/detail/ProjectCostsTab.tsx` | Buscar dados reais e calcular totais planejado vs realizado |
-| `src/components/projects/detail/ProjectLaborSection.tsx` | Exibir horas/custos reais por membro (readonly, vindo de timesheets) |
-| `src/components/projects/detail/ProjectSuppliersSection.tsx` | Adicionar colunas de valores reais com possibilidade de lançamento |
-| `src/components/projects/detail/ProjectMaterialsSection.tsx` | Aprimorar toggle de realização |
+| `src/components/crm/CloseBusinessDialog.tsx` | Adicionar campos `startDate` e `endDate` no schema e formulário, com recálculo automático |
+| `src/hooks/useCloseBusinessDeal.ts` | Receber `startDate` e `endDate` como parâmetros em vez de calcular |
+| `src/components/crm/KanbanBoard.tsx` | Atualizar tipo do callback para incluir novas datas |
 
 ---
 
-## Próximos Passos (Após esta fase)
+## Comportamento Esperado
 
-1. **Timesheets**: Criar tela dedicada para lançamento de horas (sessão separada no sistema)
-2. **Cronograma**: Adicionar ações rápidas para atualizar status de milestones
-3. **OKRs**: Adicionar input inline para atualizar current_value dos Key Results
+1. Usuário arrasta orçamento para "Negócio Fechado"
+2. Dialog abre com:
+   - **Data de Início**: pré-preenchida com `budget.start_date`
+   - **Data de Fim**: calculada automaticamente (`start_date + duration_months`)
+3. Se usuário alterar **Data de Início**, a **Data de Fim** é recalculada automaticamente
+4. Usuário pode editar manualmente a **Data de Fim** se necessário
+5. Ao confirmar, o projeto é criado com as datas definidas pelo usuário
 
 ---
 
-## Sequência de Implementação
+## Layout Visual Atualizado
 
 ```
-1. Criar migrations SQL (tabelas + RLS)
-       │
-       ▼
-2. Criar hooks (useProjectTimesheets, useProjectSupplierActuals)
-       │
-       ▼
-3. Atualizar ProjectCostsTab (cards de resumo com planejado vs real)
-       │
-       ▼
-4. Atualizar ProjectLaborSection (exibir horas reais readonly)
-       │
-       ▼
-5. Atualizar ProjectSuppliersSection (colunas de valores reais + lançamento)
-       │
-       ▼
-6. Atualizar ProjectMaterialsSection (melhorar UX de realização)
+┌─ Fechar Negócio ────────────────────────────────────────────┐
+│                                                              │
+│  [Resumo do Orçamento - já existente]                       │
+│                                                              │
+│  ─────────────────────────────────────────────────────────  │
+│                                                              │
+│  Complete as informações abaixo para criar o projeto:       │
+│                                                              │
+│  Gerente do Projeto *                                       │
+│  [Selecione o gerente                              ▼]       │
+│                                                              │
+│  ┌──────────────────────┐  ┌──────────────────────┐        │
+│  │ Data de Início *     │  │ Data de Fim *        │        │ <- NOVO
+│  │ [01/12/2025]         │  │ [01/06/2026]         │        │
+│  └──────────────────────┘  └──────────────────────┘        │
+│                                                              │
+│  ┌──────────────────────┐  ┌──────────────────────┐        │
+│  │ Forma de Pagamento   │  │ Parcelas             │        │
+│  │ [Mensal          ▼]  │  │ [6]                  │        │
+│  └──────────────────────┘  └──────────────────────┘        │
+│                                                              │
+│  ┌──────────────────────┐  ┌──────────────────────┐        │
+│  │ Data Primeira NF *   │  │ Dia de Vencimento    │        │
+│  │ [01/01/2026]         │  │ [10]                 │        │
+│  └──────────────────────┘  └──────────────────────┘        │
+│                                                              │
+│  ─────────────────────────────────────────────────────────  │
+│                                                              │
+│                    [Cancelar] [Confirmar e Criar Projeto]   │
+└──────────────────────────────────────────────────────────────┘
 ```
-
