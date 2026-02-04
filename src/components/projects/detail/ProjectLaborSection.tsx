@@ -37,6 +37,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useAddProjectMember, useRemoveProjectMember } from '@/hooks/useProjects';
 import { useProjectMemberMonths, useUpsertMemberMonth } from '@/hooks/useProjectMemberMonths';
+import { ProjectTimesheetDB } from '@/hooks/useProjectTimesheets';
 
 interface ProjectLaborSectionProps {
   projectId: string;
@@ -53,6 +54,7 @@ interface ProjectLaborSectionProps {
   durationMonths: number;
   isEditable: boolean;
   budgetRoles: BudgetRoleWithMonths[];
+  timesheets?: ProjectTimesheetDB[];
 }
 
 export function ProjectLaborSection({
@@ -61,6 +63,7 @@ export function ProjectLaborSection({
   durationMonths,
   isEditable,
   budgetRoles,
+  timesheets = [],
 }: ProjectLaborSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [useBudgetRole, setUseBudgetRole] = useState(true);
@@ -203,11 +206,25 @@ export function ProjectLaborSection({
     removeMember.mutate({ id: memberId, projectId });
   };
 
-  // Calculate totals using real employee cost
+  // Calculate ACTUAL hours from timesheets per member
+  const actualHoursByMember = useMemo(() => {
+    const result: Record<string, number> = {};
+    timesheets.forEach((ts) => {
+      if (!result[ts.project_member_id]) {
+        result[ts.project_member_id] = 0;
+      }
+      result[ts.project_member_id] += Number(ts.hours);
+    });
+    return result;
+  }, [timesheets]);
+
+  // Calculate totals using real employee cost (PLANNED)
   const totals = useMemo(() => {
     const byMonth: Record<number, { hours: number; value: number }> = {};
     let totalHours = 0;
     let totalValue = 0;
+    let totalActualHours = 0;
+    let totalActualValue = 0;
 
     months.forEach((m) => {
       byMonth[m] = { hours: 0, value: 0 };
@@ -222,24 +239,35 @@ export function ProjectLaborSection({
         totalHours += hours;
         totalValue += hours * realCost;
       });
+      
+      // Add actual hours
+      const actualHours = actualHoursByMember[member.id] || 0;
+      totalActualHours += actualHours;
+      totalActualValue += actualHours * realCost;
     });
 
-    return { byMonth, totalHours, totalValue };
-  }, [members, months, getRealHourlyCost, getHoursForMonth]);
+    return { byMonth, totalHours, totalValue, totalActualHours, totalActualValue };
+  }, [members, months, getRealHourlyCost, getHoursForMonth, actualHoursByMember]);
 
-  // Calculate member totals using real employee cost
+  // Calculate member totals using real employee cost (PLANNED + ACTUAL)
   const memberTotals = useMemo(() => {
-    const result: Record<string, { hours: number; value: number }> = {};
+    const result: Record<string, { plannedHours: number; plannedValue: number; actualHours: number; actualValue: number }> = {};
     members.forEach((member) => {
       const realCost = getRealHourlyCost(member);
-      let hours = 0;
+      let plannedHours = 0;
       months.forEach((monthNum) => {
-        hours += getHoursForMonth(member.id, monthNum);
+        plannedHours += getHoursForMonth(member.id, monthNum);
       });
-      result[member.id] = { hours, value: hours * realCost };
+      const actualHours = actualHoursByMember[member.id] || 0;
+      result[member.id] = { 
+        plannedHours, 
+        plannedValue: plannedHours * realCost,
+        actualHours,
+        actualValue: actualHours * realCost,
+      };
     });
     return result;
-  }, [members, months, getRealHourlyCost, getHoursForMonth]);
+  }, [members, months, getRealHourlyCost, getHoursForMonth, actualHoursByMember]);
 
   // Calculate budget roles summary for reference
   const budgetRolesSummary = useMemo(() => {
@@ -315,8 +343,18 @@ export function ProjectLaborSection({
                           Mês {m}
                         </TableHead>
                       ))}
-                      <TableHead className="text-right min-w-[80px]">Total H</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Custo Total</TableHead>
+                      <TableHead className="text-center min-w-[130px]">
+                        <div className="flex flex-col">
+                          <span>Horas</span>
+                          <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-center min-w-[160px]">
+                        <div className="flex flex-col">
+                          <span>Custo</span>
+                          <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                        </div>
+                      </TableHead>
                       {isEditable && <TableHead className="w-12" />}
                     </TableRow>
                   </TableHeader>
@@ -324,7 +362,7 @@ export function ProjectLaborSection({
                     {members.map((member) => {
                       const budgetRate = getBudgetHourlyRate(member);
                       const realCost = getRealHourlyCost(member);
-                      const memberTotal = memberTotals[member.id] || { hours: 0, value: 0 };
+                      const memberTotal = memberTotals[member.id] || { plannedHours: 0, plannedValue: 0, actualHours: 0, actualValue: 0 };
 
                       return (
                         <TableRow key={member.id}>
@@ -361,11 +399,19 @@ export function ProjectLaborSection({
                               )}
                             </TableCell>
                           ))}
-                          <TableCell className="text-right font-medium">
-                            {memberTotal.hours}h
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="text-muted-foreground">{memberTotal.plannedHours}h</span>
+                              <span className="text-muted-foreground">|</span>
+                              <span className="font-medium">{memberTotal.actualHours}h</span>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(memberTotal.value)}
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-sm">
+                              <span className="text-muted-foreground">{formatCurrency(memberTotal.plannedValue)}</span>
+                              <span className="text-muted-foreground">|</span>
+                              <span className="font-medium">{formatCurrency(memberTotal.actualValue)}</span>
+                            </div>
                           </TableCell>
                           {isEditable && (
                             <TableCell>
@@ -395,11 +441,19 @@ export function ProjectLaborSection({
                           {totals.byMonth[monthNum]?.hours || 0}h
                         </TableCell>
                       ))}
-                      <TableCell className="text-right font-semibold">
-                        {totals.totalHours}h
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-muted-foreground">{totals.totalHours}h</span>
+                          <span className="text-muted-foreground">|</span>
+                          <span className="font-semibold">{totals.totalActualHours}h</span>
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(totals.totalValue)}
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1 text-sm">
+                          <span className="text-muted-foreground">{formatCurrency(totals.totalValue)}</span>
+                          <span className="text-muted-foreground">|</span>
+                          <span className="font-semibold">{formatCurrency(totals.totalActualValue)}</span>
+                        </div>
                       </TableCell>
                       {isEditable && <TableCell />}
                     </TableRow>
