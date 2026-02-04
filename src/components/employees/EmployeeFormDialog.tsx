@@ -224,6 +224,16 @@ const EmployeeFormDialog = ({
   const proLabore = form.watch('proLabore');
   const dividendos = form.watch('dividendos');
   const nome = form.watch('nome');
+  const systemRole = form.watch('systemRole');
+
+  // Sync isGerente based on systemRole - admins and managers are automatically gerentes
+  useEffect(() => {
+    if (systemRole === 'admin' || systemRole === 'manager') {
+      form.setValue('isGerente', true);
+    } else {
+      form.setValue('isGerente', false);
+    }
+  }, [systemRole, form]);
 
   // Handle dialog close with confirmation only if there are unsaved changes
   const handleClose = (openState: boolean) => {
