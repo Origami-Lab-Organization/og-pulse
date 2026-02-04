@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Plus, Trash2, Truck } from 'lucide-react';
+import { Plus, Trash2, Truck, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,16 +23,19 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProjectSupplierDB, CreateProjectSupplierInput } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
 import { useAddProjectSupplier, useRemoveProjectSupplier } from '@/hooks/useProjectCosts';
 import { useProjectSupplierMonths, useUpsertSupplierMonth } from '@/hooks/useProjectSupplierMonths';
+import { ProjectSupplierActualDB, useUpsertSupplierActual } from '@/hooks/useProjectSupplierActuals';
 
 interface ProjectSuppliersSectionProps {
   projectId: string;
   suppliers: ProjectSupplierDB[];
   durationMonths: number;
   isEditable: boolean;
+  supplierActuals?: ProjectSupplierActualDB[];
 }
 
 export function ProjectSuppliersSection({
@@ -40,6 +43,7 @@ export function ProjectSuppliersSection({
   suppliers,
   durationMonths,
   isEditable,
+  supplierActuals = [],
 }: ProjectSuppliersSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState<Omit<CreateProjectSupplierInput, 'projectId'>>({
@@ -56,10 +60,15 @@ export function ProjectSuppliersSection({
   const supplierIds = useMemo(() => suppliers.map((s) => s.id), [suppliers]);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const upsertSupplierMonth = useUpsertSupplierMonth();
+  const upsertSupplierActual = useUpsertSupplierActual();
 
-  // Local state for debounced value input
+  // Local state for debounced planned value input
   const [localValues, setLocalValues] = useState<Record<string, number>>({});
   const pendingUpdates = useRef<Record<string, NodeJS.Timeout>>({});
+  
+  // Local state for debounced actual value input
+  const [localActualValues, setLocalActualValues] = useState<Record<string, number>>({});
+  const pendingActualUpdates = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Sync local state when supplierMonths change
   useEffect(() => {
@@ -71,10 +80,21 @@ export function ProjectSuppliersSection({
     setLocalValues(initial);
   }, [supplierMonths]);
 
+  // Sync local state when supplierActuals change
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    supplierActuals.forEach((sa) => {
+      const key = `${sa.project_supplier_id}-${sa.month_number}`;
+      initial[key] = sa.value;
+    });
+    setLocalActualValues(initial);
+  }, [supplierActuals]);
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       Object.values(pendingUpdates.current).forEach(clearTimeout);
+      Object.values(pendingActualUpdates.current).forEach(clearTimeout);
     };
   }, []);
 
@@ -82,7 +102,7 @@ export function ProjectSuppliersSection({
     return Array.from({ length: durationMonths }, (_, i) => i + 1);
   }, [durationMonths]);
 
-  // Get value prioritizing local state
+  // Get PLANNED value prioritizing local state
   const getValueForMonth = useCallback(
     (supplierId: string, monthNumber: number): number => {
       const key = `${supplierId}-${monthNumber}`;
@@ -97,7 +117,22 @@ export function ProjectSuppliersSection({
     [localValues, supplierMonths]
   );
 
-  // Debounced value change handler
+  // Get ACTUAL value prioritizing local state
+  const getActualValueForMonth = useCallback(
+    (supplierId: string, monthNumber: number): number => {
+      const key = `${supplierId}-${monthNumber}`;
+      if (key in localActualValues) {
+        return localActualValues[key];
+      }
+      const found = supplierActuals.find(
+        (sa) => sa.project_supplier_id === supplierId && sa.month_number === monthNumber
+      );
+      return found?.value || 0;
+    },
+    [localActualValues, supplierActuals]
+  );
+
+  // Debounced PLANNED value change handler
   const handleValueChange = useCallback(
     (supplierId: string, monthNumber: number, value: number) => {
       const key = `${supplierId}-${monthNumber}`;
@@ -123,6 +158,32 @@ export function ProjectSuppliersSection({
     [upsertSupplierMonth]
   );
 
+  // Debounced ACTUAL value change handler
+  const handleActualValueChange = useCallback(
+    (supplierId: string, monthNumber: number, value: number) => {
+      const key = `${supplierId}-${monthNumber}`;
+
+      // Update local state immediately (no lag)
+      setLocalActualValues((prev) => ({ ...prev, [key]: value }));
+
+      // Cancel previous timeout if exists
+      if (pendingActualUpdates.current[key]) {
+        clearTimeout(pendingActualUpdates.current[key]);
+      }
+
+      // Schedule save with 500ms debounce
+      pendingActualUpdates.current[key] = setTimeout(() => {
+        upsertSupplierActual.mutate({
+          projectSupplierId: supplierId,
+          monthNumber,
+          value: value || 0,
+        });
+        delete pendingActualUpdates.current[key];
+      }, 500);
+    },
+    [upsertSupplierActual]
+  );
+
   const handleSubmit = () => {
     addSupplier.mutate(
       { projectId, ...formData },
@@ -139,38 +200,44 @@ export function ProjectSuppliersSection({
     removeSupplier.mutate({ id, projectId });
   };
 
-  // Calculate totals
+  // Calculate totals (Planned and Actual)
   const totals = useMemo(() => {
-    const byMonth: Record<number, number> = {};
-    let totalValue = 0;
+    const byMonth: Record<number, { planned: number; actual: number }> = {};
+    let totalPlanned = 0;
+    let totalActual = 0;
 
     months.forEach((m) => {
-      byMonth[m] = 0;
+      byMonth[m] = { planned: 0, actual: 0 };
     });
 
     suppliers.forEach((supplier) => {
       months.forEach((monthNum) => {
-        const value = getValueForMonth(supplier.id, monthNum);
-        byMonth[monthNum] += value;
-        totalValue += value;
+        const planned = getValueForMonth(supplier.id, monthNum);
+        const actual = getActualValueForMonth(supplier.id, monthNum);
+        byMonth[monthNum].planned += planned;
+        byMonth[monthNum].actual += actual;
+        totalPlanned += planned;
+        totalActual += actual;
       });
     });
 
-    return { byMonth, totalValue };
-  }, [suppliers, months, getValueForMonth]);
+    return { byMonth, totalPlanned, totalActual };
+  }, [suppliers, months, getValueForMonth, getActualValueForMonth]);
 
-  // Calculate supplier totals
+  // Calculate supplier totals (Planned and Actual)
   const supplierTotals = useMemo(() => {
-    const result: Record<string, number> = {};
+    const result: Record<string, { planned: number; actual: number }> = {};
     suppliers.forEach((supplier) => {
-      let total = 0;
+      let totalPlanned = 0;
+      let totalActual = 0;
       months.forEach((monthNum) => {
-        total += getValueForMonth(supplier.id, monthNum);
+        totalPlanned += getValueForMonth(supplier.id, monthNum);
+        totalActual += getActualValueForMonth(supplier.id, monthNum);
       });
-      result[supplier.id] = total;
+      result[supplier.id] = { planned: totalPlanned, actual: totalActual };
     });
     return result;
-  }, [suppliers, months, getValueForMonth]);
+  }, [suppliers, months, getValueForMonth, getActualValueForMonth]);
 
   return (
     <>
@@ -203,17 +270,27 @@ export function ProjectSuppliersSection({
                         Nome
                       </TableHead>
                       {months.map((m) => (
-                        <TableHead key={m} className="text-center min-w-[100px]">
-                          Mês {m}
+                        <TableHead key={m} className="text-center min-w-[180px]">
+                          <div className="flex flex-col">
+                            <span>Mês {m}</span>
+                            {!isEditable && (
+                              <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                            )}
+                          </div>
                         </TableHead>
                       ))}
-                      <TableHead className="text-right min-w-[120px]">Total</TableHead>
+                      <TableHead className="text-center min-w-[160px]">
+                        <div className="flex flex-col">
+                          <span>Total</span>
+                          <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                        </div>
+                      </TableHead>
                       {isEditable && <TableHead className="w-12" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {suppliers.map((supplier) => {
-                      const supplierTotal = supplierTotals[supplier.id] || 0;
+                      const supplierTotal = supplierTotals[supplier.id] || { planned: 0, actual: 0 };
 
                       return (
                         <TableRow key={supplier.id}>
@@ -227,34 +304,81 @@ export function ProjectSuppliersSection({
                               )}
                             </div>
                           </TableCell>
-                          {months.map((monthNum) => (
-                            <TableCell key={monthNum} className="text-center p-1">
-                              {isEditable ? (
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  className="w-24 h-8 text-center mx-auto"
-                                  value={getValueForMonth(supplier.id, monthNum) || ''}
-                                  onChange={(e) =>
-                                    handleValueChange(
-                                      supplier.id,
-                                      monthNum,
-                                      Number(e.target.value)
-                                    )
-                                  }
-                                />
-                              ) : (
-                                <span>
-                                  {getValueForMonth(supplier.id, monthNum)
-                                    ? formatCurrency(getValueForMonth(supplier.id, monthNum))
-                                    : '-'}
-                                </span>
-                              )}
-                            </TableCell>
-                          ))}
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(supplierTotal)}
+                          {months.map((monthNum) => {
+                            const plannedValue = getValueForMonth(supplier.id, monthNum);
+                            const actualValue = getActualValueForMonth(supplier.id, monthNum);
+                            
+                            return (
+                              <TableCell key={monthNum} className="text-center p-1">
+                                {isEditable ? (
+                                  <div className="flex flex-col gap-1">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            className="w-24 h-8 text-center mx-auto"
+                                            value={plannedValue || ''}
+                                            onChange={(e) =>
+                                              handleValueChange(
+                                                supplier.id,
+                                                monthNum,
+                                                Number(e.target.value)
+                                              )
+                                            }
+                                          />
+                                        </TooltipTrigger>
+                                        <TooltipContent>Valor Planejado</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="flex items-center gap-1">
+                                            <DollarSign className="h-3 w-3 text-muted-foreground" />
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              className="w-20 h-7 text-center text-xs bg-muted/50"
+                                              placeholder="Real"
+                                              value={actualValue || ''}
+                                              onChange={(e) =>
+                                                handleActualValueChange(
+                                                  supplier.id,
+                                                  monthNum,
+                                                  Number(e.target.value)
+                                                )
+                                              }
+                                            />
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Valor Realizado</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-1 text-sm">
+                                    <span className="text-muted-foreground">
+                                      {plannedValue ? formatCurrency(plannedValue) : '-'}
+                                    </span>
+                                    <span className="text-muted-foreground">|</span>
+                                    <span className="font-medium">
+                                      {actualValue ? formatCurrency(actualValue) : '-'}
+                                    </span>
+                                  </div>
+                                )}
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-sm">
+                              <span className="text-muted-foreground">{formatCurrency(supplierTotal.planned)}</span>
+                              <span className="text-muted-foreground">|</span>
+                              <span className="font-medium">{formatCurrency(supplierTotal.actual)}</span>
+                            </div>
                           </TableCell>
                           {isEditable && (
                             <TableCell>
@@ -277,13 +401,24 @@ export function ProjectSuppliersSection({
                       <TableCell className="sticky left-0 bg-muted z-10 font-semibold">
                         Total
                       </TableCell>
-                      {months.map((monthNum) => (
-                        <TableCell key={monthNum} className="text-center font-medium">
-                          {formatCurrency(totals.byMonth[monthNum] || 0)}
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(totals.totalValue)}
+                      {months.map((monthNum) => {
+                        const monthData = totals.byMonth[monthNum] || { planned: 0, actual: 0 };
+                        return (
+                          <TableCell key={monthNum} className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-sm">
+                              <span className="text-muted-foreground">{formatCurrency(monthData.planned)}</span>
+                              <span className="text-muted-foreground">|</span>
+                              <span className="font-medium">{formatCurrency(monthData.actual)}</span>
+                            </div>
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1 text-sm">
+                          <span className="text-muted-foreground">{formatCurrency(totals.totalPlanned)}</span>
+                          <span className="text-muted-foreground">|</span>
+                          <span className="font-semibold">{formatCurrency(totals.totalActual)}</span>
+                        </div>
                       </TableCell>
                       {isEditable && <TableCell />}
                     </TableRow>

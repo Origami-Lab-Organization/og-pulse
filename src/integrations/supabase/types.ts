@@ -1142,6 +1142,47 @@ export type Database = {
           },
         ]
       }
+      project_supplier_actuals: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          month_number: number
+          notes: string | null
+          project_supplier_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          month_number: number
+          notes?: string | null
+          project_supplier_id: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          month_number?: number
+          notes?: string | null
+          project_supplier_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_supplier_actuals_project_supplier_id_fkey"
+            columns: ["project_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "project_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_supplier_months: {
         Row: {
           id: string
@@ -1218,6 +1259,61 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_timesheets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          hours: number
+          id: string
+          project_id: string
+          project_member_id: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hours?: number
+          id?: string
+          project_id: string
+          project_member_id: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hours?: number
+          id?: string
+          project_id?: string
+          project_member_id?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_timesheets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_timesheets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_timesheets_project_member_id_fkey"
+            columns: ["project_member_id"]
+            isOneToOne: false
+            referencedRelation: "project_members"
             referencedColumns: ["id"]
           },
         ]
