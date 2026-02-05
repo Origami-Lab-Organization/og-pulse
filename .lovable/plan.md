@@ -1,124 +1,130 @@
 
-# Plano: Permitir Lançamento de Custos Reais em Projetos em Execução
+
+# Plano: Modais para Lançamento de Custos Reais
 
 ## Problema Atual
 
-A aba de Custos bloqueia **toda edição** quando o projeto sai da fase de "Planejamento". Isso impede o lançamento de custos reais (fornecedores e materiais) durante a execução do projeto.
+A interface atual exibe inputs inline para cada mês de cada fornecedor, resultando em:
+- Muitos campos visíveis simultaneamente
+- Experiência confusa e poluída
+- Dificuldade de navegação em projetos longos
 
-## Conceito de Edição Separada
+## Nova Experiência Proposta
 
-Na fase de **Execução**, devemos:
-- **Bloquear** edição do planejado (valores já definidos)
-- **Permitir** lançamento do realizado
+### Fluxo para Fornecedores
+
+Na linha de cada fornecedor, adicionar um botão "Lançar Custo" que abre um modal simples:
+
+```
+┌─ Lançar Custo Real ────────────────────────────────────────┐
+│                                                             │
+│  Fornecedor: AWS Hosting                                    │
+│                                                             │
+│  Mês do Projeto *                                           │
+│  [▼ Mês 3                                  ]                │
+│                                                             │
+│  Valor Realizado (R$) *                                     │
+│  [_______________1.450,00_______________]                   │
+│                                                             │
+│  Observação (opcional)                                      │
+│  [________________________________]                         │
+│                                                             │
+│                          [Cancelar] [Salvar]                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Fluxo para Materiais
+
+Adicionar botão "Registrar Realizado" na seção que abre modal para marcar materiais como pagos:
+
+```
+┌─ Registrar Material Realizado ──────────────────────────────┐
+│                                                             │
+│  Selecione os materiais já pagos/realizados:                │
+│                                                             │
+│  ☑ Licença Software X - Mês 2 - R$ 2.500,00                │
+│  ☐ Equipamento Y - Mês 3 - R$ 1.200,00                     │
+│  ☑ Serviço Z - Mês 1 - R$ 800,00                           │
+│                                                             │
+│                          [Cancelar] [Salvar]                │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Alterações Necessárias
+## Alterações Técnicas
 
-### 1. Arquivo: `src/pages/ProjectDetail.tsx`
+### 1. `ProjectSuppliersSection.tsx`
 
-Passar informação adicional para a aba de custos indicando se está em execução:
+**Simplificar tabela em modo execução:**
+- Remover inputs inline de valor realizado
+- Exibir apenas valores (Plan | Real) como texto
+- Adicionar coluna de ações com botão "Lançar"
+
+**Novo modal `SupplierActualDialog`:**
+- Select para escolher o mês
+- Input para valor realizado
+- Campo opcional para observação
+- Salva usando `upsertSupplierActual`
 
 ```typescript
-// Linha 86 - Adicionar flag de execução
-const isPlanning = project.portfolio_stage === 'planning';
-const isExecution = project.portfolio_stage !== 'planning';
+// Botão na coluna de ações (quando canEditActuals)
+<Button variant="outline" size="sm" onClick={() => openActualDialog(supplier)}>
+  <DollarSign className="h-4 w-4 mr-1" />
+  Lançar Custo
+</Button>
 ```
 
-### 2. Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`
+### 2. `ProjectMaterialsSection.tsx`
 
-Atualizar props e lógica:
+**Adicionar botão no header da seção:**
+- Visível quando `canEditActuals` e há materiais não realizados
+- Abre modal com lista de materiais pendentes
 
-```typescript
-interface ProjectCostsTabProps {
-  project: ProjectWithRelations;
-  isEditable: boolean;       // Pode editar planejado
-  canEditActuals?: boolean;  // Pode lançar realizados (NOVO)
-}
-
-// Passar para as seções
-<ProjectSuppliersSection
-  ...
-  isEditable={isEditable}
-  canEditActuals={canEditActuals || isEditable}  // NOVO
-/>
-
-<ProjectMaterialsSection
-  ...
-  isEditable={isEditable}
-  canEditActuals={canEditActuals || isEditable}  // NOVO
-/>
-```
-
-### 3. Arquivo: `src/components/projects/detail/ProjectSuppliersSection.tsx`
-
-Separar lógica de edição:
+**Novo modal `MaterialRealizeDialog`:**
+- Lista checkboxes dos materiais não realizados
+- Permite marcar vários de uma vez
+- Salva em batch
 
 ```typescript
-interface ProjectSuppliersSectionProps {
-  ...
-  isEditable: boolean;       // Editar planejado
-  canEditActuals?: boolean;  // Lançar realizado
-}
-
-// Na renderização das células mensais:
-{/* Valor Planejado - só mostra input se isEditable */}
-{isEditable ? (
-  <Input ... />  // Input editável
-) : (
-  <span>{formatCurrency(plannedValue)}</span>  // Somente leitura
-)}
-
-{/* Valor Realizado - mostra input se canEditActuals */}
-{canEditActuals ? (
-  <Input ... onChange={handleActualValueChange} />  // Input editável
-) : (
-  <span>{formatCurrency(actualValue)}</span>  // Somente leitura
-)}
-```
-
-### 4. Arquivo: `src/components/projects/detail/ProjectMaterialsSection.tsx`
-
-Permitir toggle de "Realizado" mesmo fora do planejamento:
-
-```typescript
-interface ProjectMaterialsSectionProps {
-  ...
-  isEditable: boolean;       // Adicionar novos materiais
-  canEditActuals?: boolean;  // Marcar como realizado
-}
-
-// O botão de toggle "Realizado" deve aparecer quando canEditActuals=true
-{(isEditable || canEditActuals) && (
-  <Button onClick={() => handleToggleRealized(...)}>
-    {material.is_realized ? 'Sim' : 'Não'}
+// Botão no header (ao lado do "Adicionar Material")
+{canEditActuals && materiaisNaoRealizados.length > 0 && (
+  <Button variant="outline" onClick={() => setRealizeDialogOpen(true)}>
+    <Check className="mr-2 h-4 w-4" />
+    Registrar Realizados
   </Button>
 )}
 ```
 
 ---
 
-## Layout Final (Projeto em Execução)
+## Estrutura Visual Final
+
+### Fornecedores (Projeto em Execução)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ FORNECEDORES                                                            │
-├─────────────────┬──────────────────────────────────────────────────────┤
-│ Nome            │  Mês 1         │  Mês 2         │  Total            │
-│                 │  Plan | Real   │  Plan | Real   │  Plan | Real      │
-├─────────────────┼────────────────┼────────────────┼───────────────────┤
-│ AWS Hosting     │ R$1.500        │ R$1.500        │ R$3.000           │
-│                 │ [___R$1.450__] │ [___R$_______] │ R$1.450           │
-│                 │    ↑ editável  │   ↑ editável   │                   │
-└─────────────────┴────────────────┴────────────────┴───────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🚚 FORNECEDORES                                                             │
+├─────────────────┬──────────────┬──────────────┬──────────────┬─────────────┤
+│ Nome            │  Mês 1       │  Mês 2       │  Total       │ Ações       │
+│                 │  Plan | Real │  Plan | Real │  Plan | Real │             │
+├─────────────────┼──────────────┼──────────────┼──────────────┼─────────────┤
+│ AWS Hosting     │ R$1.500 | -  │ R$1.500 | -  │ R$3.000 | -  │ [$ Lançar]  │
+│ Marketing       │ R$500 | R$500│ R$500 | -    │ R$1.000|R$500│ [$ Lançar]  │
+└─────────────────┴──────────────┴──────────────┴──────────────┴─────────────┘
+```
 
-┌─────────────────────────────────────────────────────────────────────────┐
-│ MATERIAIS                                                               │
-├──────────────────────┬────────┬──────────────┬──────────────────────────┤
-│ Descrição            │  Mês   │    Valor     │ Realizado               │
-├──────────────────────┼────────┼──────────────┼──────────────────────────┤
-│ Licença software X   │ Mês 2  │ R$ 2.500,00  │ [Toggle: Sim/Não] ← ativo│
-└──────────────────────┴────────┴──────────────┴──────────────────────────┘
+### Materiais (Projeto em Execução)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 📦 MATERIAIS                                      [✓ Registrar Realizados]  │
+├──────────────────────┬────────┬──────────────┬──────────────────────────────┤
+│ Descrição            │  Mês   │    Valor     │ Realizado                    │
+├──────────────────────┼────────┼──────────────┼──────────────────────────────┤
+│ Licença software X   │ Mês 2  │ R$ 2.500,00  │ ✓ Sim                        │
+│ Equipamento Y        │ Mês 3  │ R$ 1.200,00  │ Não                          │
+└──────────────────────┴────────┴──────────────┴──────────────────────────────┘
 ```
 
 ---
@@ -127,17 +133,16 @@ interface ProjectMaterialsSectionProps {
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `ProjectDetail.tsx` | Passar `canEditActuals={!isPlanning}` para CostsTab |
-| `ProjectCostsTab.tsx` | Receber e repassar prop `canEditActuals` |
-| `ProjectSuppliersSection.tsx` | Separar edição de planejado vs realizado |
-| `ProjectMaterialsSection.tsx` | Permitir toggle de realizado em execução |
+| `ProjectSuppliersSection.tsx` | Remover inputs inline, adicionar coluna de ações, criar modal de lançamento |
+| `ProjectMaterialsSection.tsx` | Adicionar botão e modal para registrar materiais realizados em batch |
 
 ---
 
-## Comportamento por Fase
+## Benefícios
 
-| Fase | Editar Planejado | Lançar Realizado | Adicionar Itens |
-|------|------------------|------------------|-----------------|
-| Planejamento | ✅ | ✅ | ✅ |
-| Execução | ❌ | ✅ | ❌ |
-| Concluído | ❌ | ❌ | ❌ |
+- Interface limpa e organizada
+- Ação intencional (clicar no botão) ao invés de edição acidental
+- Modal focado em uma tarefa específica
+- Possibilidade de adicionar campos extras (observação, número da NF)
+- Melhor experiência em projetos com muitos meses
+
