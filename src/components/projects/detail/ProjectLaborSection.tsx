@@ -421,6 +421,45 @@ export function ProjectLaborSection({
     return workHours > 0 ? totalCost / workHours : 0;
   }, []);
 
+  // Calculate budget data per member for comparison
+  const budgetDataByMember = useMemo(() => {
+    const result: Record<string, {
+      budgetSeniority: string;
+      budgetHourlyRate: number;
+      budgetHoursByMonth: Record<number, number>;
+      budgetTotalHours: number;
+    }> = {};
+    
+    members.forEach(member => {
+      if (member.budget_role_id) {
+        const budgetRole = budgetRoles.find(r => r.id === member.budget_role_id);
+        if (budgetRole) {
+          const hoursByMonth: Record<number, number> = {};
+          budgetRole.months?.forEach(m => {
+            hoursByMonth[m.month_number] = m.hours;
+          });
+          result[member.id] = {
+            budgetSeniority: budgetRole.seniority,
+            budgetHourlyRate: budgetRole.hourly_rate,
+            budgetHoursByMonth: hoursByMonth,
+            budgetTotalHours: budgetRole.months?.reduce((sum, m) => sum + m.hours, 0) || 0,
+          };
+        }
+      }
+      // If no budget role, values remain empty
+      if (!result[member.id]) {
+        result[member.id] = {
+          budgetSeniority: '',
+          budgetHourlyRate: 0,
+          budgetHoursByMonth: {},
+          budgetTotalHours: 0,
+        };
+      }
+    });
+    
+    return result;
+  }, [members, budgetRoles]);
+
   return (
     <>
       <Card>
@@ -488,15 +527,13 @@ export function ProjectLaborSection({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="sticky left-0 bg-background z-10 min-w-[120px]">
-                        Papel
+                      <TableHead className="sticky left-0 bg-background z-10 min-w-[220px]">
+                        Funcionário
                       </TableHead>
-                      <TableHead className="min-w-[80px]">Senioridade</TableHead>
-                      <TableHead className="min-w-[220px]">Funcionário</TableHead>
-                      <TableHead className="text-right min-w-[90px]">Orç. R$/h</TableHead>
-                      <TableHead className="text-right min-w-[90px]">Custo R$/h</TableHead>
+                      <TableHead className="min-w-[100px]">Senioridade</TableHead>
+                      <TableHead className="text-right min-w-[100px]">R$/h</TableHead>
                       {months.map((m) => (
-                        <TableHead key={m} className="text-center min-w-[90px]">
+                        <TableHead key={m} className="text-center min-w-[80px]">
                           <div className="flex flex-col">
                             <span>Mês {m}</span>
                             {!isInPlanningMode && (
@@ -505,7 +542,7 @@ export function ProjectLaborSection({
                           </div>
                         </TableHead>
                       ))}
-                      <TableHead className="text-center min-w-[130px]">
+                      <TableHead className="text-center min-w-[100px]">
                         <div className="flex flex-col">
                           <span>Horas</span>
                           {!isInPlanningMode && (
@@ -513,7 +550,7 @@ export function ProjectLaborSection({
                           )}
                         </div>
                       </TableHead>
-                      <TableHead className="text-center min-w-[160px]">
+                      <TableHead className="text-center min-w-[130px]">
                         <div className="flex flex-col">
                           <span>Custo</span>
                           {!isInPlanningMode && (
@@ -528,99 +565,104 @@ export function ProjectLaborSection({
                   </TableHeader>
                   <TableBody>
                     {members.map((member) => {
-                      const budgetRate = getBudgetHourlyRate(member);
+                      const budgetData = budgetDataByMember[member.id];
                       const realCost = getRealHourlyCost(member);
                       const memberTotal = memberTotals[member.id] || { plannedHours: 0, plannedValue: 0, actualHours: 0, actualValue: 0 };
-                      const seniorityLabel = SENIORITY_OPTIONS.find(s => s.value === member.seniority)?.label || member.seniority;
+                      const employeeSeniority = member.employee 
+                        ? SENIORITY_OPTIONS.find(s => s.value === member.seniority)?.label 
+                        : null;
+                      const budgetSeniorityLabel = SENIORITY_OPTIONS.find(
+                        s => s.value === budgetData.budgetSeniority
+                      )?.label || budgetData.budgetSeniority;
 
                       return (
                         <TableRow key={member.id}>
-                          <TableCell className="sticky left-0 bg-background z-10 font-medium">
-                            {member.role}
+                          {/* Column 1: Employee + Role */}
+                          <TableCell className="sticky left-0 bg-background z-10 p-2 min-w-[220px]">
+                            <div className="flex flex-col gap-1">
+                              {isEditable ? (
+                                <Select
+                                  value={member.employee_id || ''}
+                                  onValueChange={(value) => handleAssignEmployee(member.id, value || null)}
+                                >
+                                  <SelectTrigger className="w-full h-9">
+                                    <SelectValue placeholder="Selecionar funcionário">
+                                      {member.employee?.nome || 'Selecionar funcionário'}
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent className="min-w-[360px] bg-popover">
+                                    <SelectItem value="none">
+                                      <span className="text-muted-foreground italic">Sem funcionário</span>
+                                    </SelectItem>
+                                    {availableEmployees.map((emp) => {
+                                      const hourlyCost = getEmployeeHourlyCost(emp);
+                                      return (
+                                        <SelectItem key={emp.id} value={emp.id} className="py-2.5">
+                                          <div className="flex items-center justify-between w-full gap-3">
+                                            <span className="font-medium truncate max-w-[140px]">{emp.nome}</span>
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                              {emp.cargo}
+                                            </span>
+                                            <span className="text-xs font-semibold text-primary whitespace-nowrap flex-shrink-0">
+                                              {formatCurrency(hourlyCost)}/h
+                                            </span>
+                                          </div>
+                                        </SelectItem>
+                                      );
+                                    })}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <span className="font-medium">
+                                  {member.employee?.nome || <span className="text-muted-foreground italic">Não atribuído</span>}
+                                </span>
+                              )}
+                              <span className="text-sm font-semibold text-foreground">
+                                {member.role}
+                              </span>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {seniorityLabel}
-                          </TableCell>
+                          
+                          {/* Column 2: Seniority */}
                           <TableCell className="p-2">
-                            {isEditable ? (
-                              <Select
-                                value={member.employee_id || ''}
-                                onValueChange={(value) => handleAssignEmployee(member.id, value || null)}
-                              >
-                                <SelectTrigger className="w-full h-9">
-                                  <SelectValue placeholder="Selecionar...">
-                                    {member.employee?.nome || 'Selecionar...'}
-                                  </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent className="min-w-[360px] bg-popover">
-                                  <SelectItem value="none">
-                                    <span className="text-muted-foreground italic">Sem funcionário</span>
-                                  </SelectItem>
-                                  {availableEmployees.map((emp) => {
-                                    const hourlyCost = getEmployeeHourlyCost(emp);
-                                    return (
-                                      <SelectItem key={emp.id} value={emp.id} className="py-2.5">
-                                        <div className="flex items-center justify-between w-full gap-3">
-                                          <span className="font-medium truncate max-w-[140px]">{emp.nome}</span>
-                                          <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-                                            {emp.cargo}
-                                          </span>
-                                          <span className="text-xs font-semibold text-primary whitespace-nowrap flex-shrink-0">
-                                            {formatCurrency(hourlyCost)}/h
-                                          </span>
-                                        </div>
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <div>
-                                {member.employee ? (
-                                  <p className="font-medium">{member.employee.nome}</p>
-                                ) : (
-                                  <span className="text-muted-foreground italic">Não atribuído</span>
-                                )}
-                              </div>
-                            )}
+                            <div className="flex flex-col gap-0.5">
+                              <span className={member.employee ? "font-medium" : "text-muted-foreground"}>
+                                {employeeSeniority || '-'}
+                              </span>
+                              {budgetData.budgetSeniority && (
+                                <span className="text-xs text-muted-foreground">
+                                  {budgetSeniorityLabel}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell className="text-right text-muted-foreground text-xs">
-                            {budgetRate > 0 ? formatCurrency(budgetRate) : '-'}
+                          
+                          {/* Column 3: R$/h */}
+                          <TableCell className="text-right p-2">
+                            <div className="flex flex-col gap-0.5 items-end">
+                              <span className={member.employee ? "font-medium" : "text-muted-foreground"}>
+                                {member.employee ? formatCurrency(realCost) : '-'}
+                              </span>
+                              {budgetData.budgetHourlyRate > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  {formatCurrency(budgetData.budgetHourlyRate)}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {member.employee ? formatCurrency(realCost) : '-'}
-                          </TableCell>
+                          
+                          {/* Month columns */}
                           {months.map((monthNum) => {
                             const plannedHours = getHoursForMonth(member.id, monthNum);
                             const actualHours = getActualHoursForMonth(member.id, monthNum);
+                            const budgetHours = budgetData.budgetHoursByMonth[monthNum] || 0;
                             
                             return (
                               <TableCell key={monthNum} className="text-center p-1">
-                                {isInPlanningMode ? (
-                                  // Planning mode: only show planned hours
-                                  hoursEditMode ? (
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      className="w-16 h-8 text-center mx-auto"
-                                      value={plannedHours || ''}
-                                      onChange={(e) =>
-                                        handleHoursChange(
-                                          member.id,
-                                          monthNum,
-                                          Number(e.target.value)
-                                        )
-                                      }
-                                    />
-                                  ) : (
-                                    <span className="text-sm">
-                                      {plannedHours > 0 ? plannedHours : '-'}
-                                    </span>
-                                  )
-                                ) : (
-                                  // Execution mode: show Plan | Real
-                                  hoursEditMode ? (
-                                    <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex flex-col gap-0.5 items-center">
+                                  {isInPlanningMode ? (
+                                    // Planning mode: only show planned hours
+                                    hoursEditMode ? (
                                       <Input
                                         type="number"
                                         min="0"
@@ -634,49 +676,97 @@ export function ProjectLaborSection({
                                           )
                                         }
                                       />
-                                      {actualHours > 0 && (
-                                        <span className="text-xs text-muted-foreground">
-                                          Real: {actualHours}
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center justify-center gap-1 text-sm">
-                                      <span className="text-muted-foreground">
+                                    ) : (
+                                      <span className="text-sm">
                                         {plannedHours > 0 ? plannedHours : '-'}
                                       </span>
-                                      <span className="text-muted-foreground">|</span>
-                                      <span className="font-medium">
-                                        {actualHours > 0 ? actualHours : '-'}
-                                      </span>
-                                    </div>
-                                  )
-                                )}
+                                    )
+                                  ) : (
+                                    // Execution mode: show Plan | Real
+                                    hoursEditMode ? (
+                                      <>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          className="w-16 h-8 text-center mx-auto"
+                                          value={plannedHours || ''}
+                                          onChange={(e) =>
+                                            handleHoursChange(
+                                              member.id,
+                                              monthNum,
+                                              Number(e.target.value)
+                                            )
+                                          }
+                                        />
+                                        {actualHours > 0 && (
+                                          <span className="text-xs text-muted-foreground">
+                                            Real: {actualHours}
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <div className="flex items-center justify-center gap-1 text-sm">
+                                        <span className="text-muted-foreground">
+                                          {plannedHours > 0 ? plannedHours : '-'}
+                                        </span>
+                                        <span className="text-muted-foreground">|</span>
+                                        <span className="font-medium">
+                                          {actualHours > 0 ? actualHours : '-'}
+                                        </span>
+                                      </div>
+                                    )
+                                  )}
+                                  {budgetHours > 0 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {budgetHours}h orç.
+                                    </span>
+                                  )}
+                                </div>
                               </TableCell>
                             );
                           })}
-                          <TableCell className="text-center">
-                            {isInPlanningMode ? (
-                              <span>{memberTotal.plannedHours}h</span>
-                            ) : (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="text-muted-foreground">{memberTotal.plannedHours}h</span>
-                                <span className="text-muted-foreground">|</span>
-                                <span className="font-medium">{memberTotal.actualHours}h</span>
-                              </div>
-                            )}
+                          
+                          {/* Total Hours column */}
+                          <TableCell className="text-center p-2">
+                            <div className="flex flex-col gap-0.5 items-center">
+                              {isInPlanningMode ? (
+                                <span className="font-medium">{memberTotal.plannedHours}h</span>
+                              ) : (
+                                <div className="flex items-center justify-center gap-1">
+                                  <span className="text-muted-foreground">{memberTotal.plannedHours}h</span>
+                                  <span className="text-muted-foreground">|</span>
+                                  <span className="font-medium">{memberTotal.actualHours}h</span>
+                                </div>
+                              )}
+                              {budgetData.budgetTotalHours > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  {budgetData.budgetTotalHours}h orç.
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell className="text-center">
-                            {isInPlanningMode ? (
-                              <span>{formatCurrency(memberTotal.plannedValue)}</span>
-                            ) : (
-                              <div className="flex items-center justify-center gap-1 text-sm">
-                                <span className="text-muted-foreground">{formatCurrency(memberTotal.plannedValue)}</span>
-                                <span className="text-muted-foreground">|</span>
-                                <span className="font-medium">{formatCurrency(memberTotal.actualValue)}</span>
-                              </div>
-                            )}
+                          
+                          {/* Total Cost column */}
+                          <TableCell className="text-center p-2">
+                            <div className="flex flex-col gap-0.5 items-center">
+                              {isInPlanningMode ? (
+                                <span className="font-medium">{formatCurrency(memberTotal.plannedValue)}</span>
+                              ) : (
+                                <div className="flex items-center justify-center gap-1 text-sm">
+                                  <span className="text-muted-foreground">{formatCurrency(memberTotal.plannedValue)}</span>
+                                  <span className="text-muted-foreground">|</span>
+                                  <span className="font-medium">{formatCurrency(memberTotal.actualValue)}</span>
+                                </div>
+                              )}
+                              {budgetData.budgetTotalHours > 0 && budgetData.budgetHourlyRate > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  {formatCurrency(budgetData.budgetTotalHours * budgetData.budgetHourlyRate)}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
+                          
+                          {/* Actions column */}
                           {isEditable && (
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-1">
@@ -706,8 +796,6 @@ export function ProjectLaborSection({
                       <TableCell className="sticky left-0 bg-muted z-10 font-semibold">
                         Total
                       </TableCell>
-                      <TableCell />
-                      <TableCell />
                       <TableCell />
                       <TableCell />
                       {months.map((monthNum) => {
