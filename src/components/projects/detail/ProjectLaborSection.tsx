@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { differenceInMonths, parseISO } from 'date-fns';
-import { Plus, Trash2, Users, Pencil, Check, TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { Plus, Trash2, Users, Pencil, Check, X, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -92,8 +92,8 @@ export function ProjectLaborSection({
   const pendingUpdates = useRef<Record<string, NodeJS.Timeout>>({});
   const hasPendingEdits = useRef(false);
 
-  // Hours edit mode toggle
-  const [hoursEditMode, setHoursEditMode] = useState(false);
+  // Hours edit mode per member - stores the member ID being edited (null = none)
+  const [editingHoursMemberId, setEditingHoursMemberId] = useState<string | null>(null);
 
   // Edit member dialog state
   const [editingMember, setEditingMember] = useState<typeof members[0] | null>(null);
@@ -190,15 +190,41 @@ export function ProjectLaborSection({
     [upsertMemberMonth]
   );
 
-  // Save hours and exit edit mode
-  const handleSaveHours = useCallback(() => {
-    // Clear all pending timeouts and trigger immediate saves
+  // Cancel hours edit for a member
+  const handleCancelHoursEdit = useCallback((memberId: string) => {
+    // Clear any pending updates for this member
     Object.keys(pendingUpdates.current).forEach((key) => {
-      clearTimeout(pendingUpdates.current[key]);
+      if (key.startsWith(memberId)) {
+        clearTimeout(pendingUpdates.current[key]);
+        delete pendingUpdates.current[key];
+      }
     });
-    pendingUpdates.current = {};
-    hasPendingEdits.current = false;
-    setHoursEditMode(false);
+    
+    // Restore original values from memberMonths for this member
+    const restoredHours: Record<string, number> = {};
+    memberMonths.forEach((mm) => {
+      if (mm.project_member_id === memberId) {
+        const key = `${mm.project_member_id}-${mm.month_number}`;
+        restoredHours[key] = mm.hours;
+      }
+    });
+    setLocalHours((prev) => ({ ...prev, ...restoredHours }));
+    setEditingHoursMemberId(null);
+  }, [memberMonths]);
+
+  // Save hours for a specific member and exit edit mode
+  const handleSaveHoursForMember = useCallback((memberId: string) => {
+    // Clear pending timeouts for this member
+    Object.keys(pendingUpdates.current).forEach((key) => {
+      if (key.startsWith(memberId)) {
+        clearTimeout(pendingUpdates.current[key]);
+        delete pendingUpdates.current[key];
+      }
+    });
+    if (Object.keys(pendingUpdates.current).length === 0) {
+      hasPendingEdits.current = false;
+    }
+    setEditingHoursMemberId(null);
   }, []);
 
   // Open edit member dialog
@@ -610,7 +636,7 @@ export function ProjectLaborSection({
                                 <div className="flex flex-col gap-0.5 items-center">
                                   {isInPlanningMode ? (
                                     // Planning mode: only show planned hours
-                                    hoursEditMode ? (
+                                    editingHoursMemberId === member.id ? (
                                       <Input
                                         type="number"
                                         min="0"
@@ -631,7 +657,7 @@ export function ProjectLaborSection({
                                     )
                                   ) : (
                                     // Execution mode: show Plan | Real
-                                    hoursEditMode ? (
+                                    editingHoursMemberId === member.id ? (
                                       <>
                                         <Input
                                           type="number"
@@ -718,20 +744,47 @@ export function ProjectLaborSection({
                           {isEditable && (
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openEditDialog(member)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleRemoveMember(member.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
+                                {editingHoursMemberId === member.id ? (
+                                  // Save/Cancel mode
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleSaveHoursForMember(member.id)}
+                                      title="Salvar"
+                                    >
+                                      <Check className="h-4 w-4 text-green-600" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleCancelHoursEdit(member.id)}
+                                      title="Cancelar"
+                                    >
+                                      <X className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  // Edit/Delete mode
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setEditingHoursMemberId(member.id)}
+                                      title="Editar Horas"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleRemoveMember(member.id)}
+                                      title="Excluir"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             </TableCell>
                           )}
@@ -853,22 +906,6 @@ export function ProjectLaborSection({
           )}
         </CardContent>
 
-        {/* Footer with edit/save buttons */}
-        {isEditable && members.length > 0 && (
-          <CardFooter className="justify-end border-t pt-4">
-            {hoursEditMode ? (
-              <Button onClick={handleSaveHours}>
-                <Check className="mr-2 h-4 w-4" />
-                Salvar Horas
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={() => setHoursEditMode(true)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar Horas
-              </Button>
-            )}
-          </CardFooter>
-        )}
       </Card>
 
       {/* Add Role Dialog */}
