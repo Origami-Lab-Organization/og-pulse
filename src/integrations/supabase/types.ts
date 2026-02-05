@@ -362,6 +362,56 @@ export type Database = {
           },
         ]
       }
+      company_holidays: {
+        Row: {
+          created_at: string
+          fixed_day: number | null
+          fixed_month: number | null
+          holiday_type: string
+          id: string
+          is_active: boolean
+          name: string
+          reference_year: number | null
+          specific_date: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fixed_day?: number | null
+          fixed_month?: number | null
+          holiday_type: string
+          id?: string
+          is_active?: boolean
+          name: string
+          reference_year?: number | null
+          specific_date?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fixed_day?: number | null
+          fixed_month?: number | null
+          holiday_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          reference_year?: number | null
+          specific_date?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_holidays_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_benefits: {
         Row: {
           created_at: string
