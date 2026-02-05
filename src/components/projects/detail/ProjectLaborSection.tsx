@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { differenceInMonths, parseISO } from 'date-fns';
-import { Plus, Trash2, Users, Info } from 'lucide-react';
+import { Plus, Trash2, Users, Info, Pencil, Check } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,7 @@ import { ProjectMemberDB, SENIORITY_OPTIONS } from '@/types/project';
 import { BudgetRoleWithMonths } from '@/types/budget';
 import { formatCurrency } from '@/lib/formatters';
 import { useEmployees } from '@/hooks/useEmployees';
-import { useAddProjectMember, useRemoveProjectMember } from '@/hooks/useProjects';
+import { useAddProjectMember, useRemoveProjectMember, useUpdateProjectMember } from '@/hooks/useProjects';
 import { useProjectMemberMonths, useUpsertMemberMonth } from '@/hooks/useProjectMemberMonths';
 import { ProjectTimesheetDB } from '@/hooks/useProjectTimesheets';
 
@@ -81,6 +81,7 @@ export function ProjectLaborSection({
   const { data: employees = [] } = useEmployees();
   const addMember = useAddProjectMember();
   const removeMember = useRemoveProjectMember();
+  const updateMember = useUpdateProjectMember();
 
   const memberIds = useMemo(() => members.map((m) => m.id), [members]);
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
@@ -89,9 +90,19 @@ export function ProjectLaborSection({
   // Local state for debounced hours input
   const [localHours, setLocalHours] = useState<Record<string, number>>({});
   const pendingUpdates = useRef<Record<string, NodeJS.Timeout>>({});
+  const hasPendingEdits = useRef(false);
 
-  // Sync local state when memberMonths change
+  // Hours edit mode toggle
+  const [hoursEditMode, setHoursEditMode] = useState(false);
+
+  // Edit member dialog state
+  const [editingMember, setEditingMember] = useState<typeof members[0] | null>(null);
+  const [editForm, setEditForm] = useState({ role: '', seniority: '', hourlyRate: 0 });
+
+  // Sync local state when memberMonths change, but only if no pending edits
   useEffect(() => {
+    if (hasPendingEdits.current) return;
+    
     const initial: Record<string, number> = {};
     memberMonths.forEach((mm) => {
       const key = `${mm.project_member_id}-${mm.month_number}`;
@@ -147,6 +158,7 @@ export function ProjectLaborSection({
   const handleHoursChange = useCallback(
     (memberId: string, monthNumber: number, hours: number) => {
       const key = `${memberId}-${monthNumber}`;
+      hasPendingEdits.current = true;
 
       // Update local state immediately (no lag)
       setLocalHours((prev) => ({ ...prev, [key]: hours }));
@@ -158,16 +170,65 @@ export function ProjectLaborSection({
 
       // Schedule save with 500ms debounce
       pendingUpdates.current[key] = setTimeout(() => {
-        upsertMemberMonth.mutate({
-          projectMemberId: memberId,
-          monthNumber,
-          hours: hours || 0,
-        });
-        delete pendingUpdates.current[key];
+        upsertMemberMonth.mutate(
+          {
+            projectMemberId: memberId,
+            monthNumber,
+            hours: hours || 0,
+          },
+          {
+            onSettled: () => {
+              delete pendingUpdates.current[key];
+              if (Object.keys(pendingUpdates.current).length === 0) {
+                hasPendingEdits.current = false;
+              }
+            },
+          }
+        );
       }, 500);
     },
     [upsertMemberMonth]
   );
+
+  // Save hours and exit edit mode
+  const handleSaveHours = useCallback(() => {
+    // Clear all pending timeouts and trigger immediate saves
+    Object.keys(pendingUpdates.current).forEach((key) => {
+      clearTimeout(pendingUpdates.current[key]);
+    });
+    pendingUpdates.current = {};
+    hasPendingEdits.current = false;
+    setHoursEditMode(false);
+  }, []);
+
+  // Open edit member dialog
+  const openEditDialog = useCallback((member: typeof members[0]) => {
+    setEditingMember(member);
+    setEditForm({
+      role: member.role,
+      seniority: member.seniority,
+      hourlyRate: Number((member as any).hourly_rate) || 0,
+    });
+  }, []);
+
+  // Update member handler
+  const handleUpdateMember = useCallback(() => {
+    if (!editingMember) return;
+    updateMember.mutate(
+      {
+        id: editingMember.id,
+        projectId,
+        updates: {
+          role: editForm.role,
+          seniority: editForm.seniority,
+          hourly_rate: editForm.hourlyRate,
+        },
+      },
+      {
+        onSuccess: () => setEditingMember(null),
+      }
+    );
+  }, [editingMember, editForm, projectId, updateMember]);
 
   // When selecting a budget role, auto-fill role name, seniority and hourly rate
   const handleBudgetRoleChange = (roleId: string) => {
@@ -366,12 +427,27 @@ export function ProjectLaborSection({
               Defina quem executará cada papel e as horas por mês
             </CardDescription>
           </div>
-          {isEditable && (
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar Membro
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {isEditable && members.length > 0 && (
+              hoursEditMode ? (
+                <Button variant="default" onClick={handleSaveHours}>
+                  <Check className="mr-2 h-4 w-4" />
+                  Salvar Horas
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => setHoursEditMode(true)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar Horas
+                </Button>
+              )
+            )}
+            {isEditable && (
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Membro
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {members.length > 0 ? (
@@ -405,7 +481,9 @@ export function ProjectLaborSection({
                           <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
                         </div>
                       </TableHead>
-                      {isEditable && <TableHead className="w-12" />}
+                      {isEditable && (
+                        <TableHead className="text-center min-w-[80px]">Ações</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -434,7 +512,7 @@ export function ProjectLaborSection({
                             
                             return (
                               <TableCell key={monthNum} className="text-center p-1">
-                                {isEditable ? (
+                                {hoursEditMode ? (
                                   <div className="flex flex-col items-center gap-0.5">
                                     <Input
                                       type="number"
@@ -484,15 +562,23 @@ export function ProjectLaborSection({
                             </div>
                           </TableCell>
                           {isEditable && (
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveMember(member.id)}
-                                disabled={removeMember.isPending}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDialog(member)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRemoveMember(member.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
                             </TableCell>
                           )}
                         </TableRow>
@@ -718,6 +804,79 @@ export function ProjectLaborSection({
               disabled={!newMember.employeeId || !newMember.role || addMember.isPending}
             >
               {addMember.isPending ? 'Adicionando...' : 'Adicionar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Member Dialog */}
+      <Dialog open={!!editingMember} onOpenChange={(open) => !open && setEditingMember(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Membro</DialogTitle>
+            <DialogDescription>
+              Altere os dados do membro no projeto.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="font-medium">{editingMember?.employee?.nome}</p>
+              <p className="text-sm text-muted-foreground">{editingMember?.employee?.cargo}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Papel no Projeto</Label>
+              <Input
+                value={editForm.role}
+                onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                placeholder="Ex: Desenvolvedor Frontend"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Senioridade</Label>
+                <Select
+                  value={editForm.seniority}
+                  onValueChange={(value) => setEditForm({ ...editForm, seniority: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SENIORITY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Valor/Hora (R$)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editForm.hourlyRate || ''}
+                  onChange={(e) => setEditForm({ ...editForm, hourlyRate: Number(e.target.value) })}
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMember(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleUpdateMember}
+              disabled={!editForm.role || updateMember.isPending}
+            >
+              {updateMember.isPending ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>
