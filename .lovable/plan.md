@@ -1,102 +1,160 @@
 
-# Plano: Corrigir Race Condition na Digitação do Timesheet
+# Plano: Mostrar Planejado vs Realizado por Mês na Alocação de Equipe
 
-## Problema Identificado
+## Objetivo
 
-Quando o usuário digita um valor, dá Tab e digita rapidamente no próximo campo, o sistema reseta o valor para 0. Isso ocorre porque:
+Modificar a seção de Alocação de Equipe para exibir, em cada coluna de mês, as horas planejadas e realizadas (timesheets) lado a lado, conforme a referência visual fornecida.
 
-1. O `onBlur` dispara uma mutation para salvar
-2. Após o sucesso, as queries são invalidadas e os dados recarregados
-3. O `useEffect` que sincroniza com `existingEntries` sobrescreve **todo** o estado local
-4. O valor que estava sendo digitado no novo campo é perdido
+---
 
-## Solução
+## Formato Desejado
 
-Modificar a lógica de sincronização para **preservar campos com alterações pendentes**. Em vez de sobrescrever tudo, fazer um merge inteligente:
+```
+┌─────────────────┬──────────┬───────────┬─────────┬─────────┬─────────┬─────────────┬──────────────────────┐
+│ Funcionário     │ Orç. R$/h│ Custo R$/h│  Mês 1  │  Mês 2  │  Mês 3  │    Horas    │        Custo         │
+│                 │          │           │         │         │         │  Plan|Real  │     Plan | Real      │
+├─────────────────┼──────────┼───────────┼─────────┼─────────┼─────────┼─────────────┼──────────────────────┤
+│ Victor Couto    │ R$180,00 │ R$ 119,05 │ 50 | 60 │ 50 | 45 │  -  | 0 │ 100h | 105h │ R$11.904 | R$12.500  │
+│ Líder de Proj.  │          │           │         │         │         │             │                      │
+├─────────────────┼──────────┼───────────┼─────────┼─────────┼─────────┼─────────────┼──────────────────────┤
+│ Total           │          │           │50h |60h │50h |45h │ 0h | 0h │ 100h | 105h │ R$11.904 | R$12.500  │
+└─────────────────┴──────────┴───────────┴─────────┴─────────┴─────────┴─────────────┴──────────────────────┘
+```
+
+---
+
+## Lógica de Mapeamento
+
+Os timesheets possuem `work_date` (data real do trabalho). Para mapear para o número do mês do projeto:
 
 ```typescript
-// ANTES (linha 74-77)
-useEffect(() => {
-  setHours(getInitialHours());  // Sobrescreve TUDO
-}, [getInitialHours]);
+const getMonthNumber = (workDate: Date, projectStartDate: Date): number => {
+  return differenceInMonths(workDate, projectStartDate) + 1;
+};
 
-// DEPOIS
-useEffect(() => {
-  setHours(prev => {
-    const serverHours = getInitialHours();
-    // Preservar valores de campos com salvamento pendente
-    const merged: Record<string, number> = { ...serverHours };
-    pendingSaves.forEach(date => {
-      if (prev[date] !== undefined) {
-        merged[date] = prev[date];  // Manter valor local
-      }
-    });
-    return merged;
-  });
-}, [existingEntries, weekDays, memberId]);
+// Exemplo:
+// projectStartDate = 2025-01-15
+// workDate = 2025-01-20 → Mês 1
+// workDate = 2025-02-10 → Mês 2
+// workDate = 2025-03-05 → Mês 3
 ```
+
+---
 
 ## Alterações Necessárias
 
-### Arquivo: `src/components/timesheets/TimesheetWeekRow.tsx`
+### 1. Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`
 
-1. **Modificar o useEffect de sincronização** para fazer merge preservando campos pendentes
-2. **Adicionar ref para valores pendentes** para evitar problemas com closures stale
-3. **Atualizar dependências do useEffect** para evitar loops infinitos
-
-## Detalhes Técnicos
-
-O problema é que `pendingSaves` dentro do `useEffect` pode estar desatualizado (stale closure). A solução usa uma ref para manter o valor mais atual:
+Passar a data de início do projeto para o `ProjectLaborSection`:
 
 ```typescript
-const pendingSavesRef = useRef<Set<string>>(new Set());
+<ProjectLaborSection
+  projectId={project.id}
+  members={project.members || []}
+  durationMonths={durationMonths}
+  isEditable={isEditable}
+  budgetRoles={budget?.roles || []}
+  timesheets={timesheets}
+  projectStartDate={project.start_date}  // ← NOVO
+/>
+```
 
-// Manter a ref sincronizada
-useEffect(() => {
-  pendingSavesRef.current = pendingSaves;
-}, [pendingSaves]);
+### 2. Arquivo: `src/components/projects/detail/ProjectLaborSection.tsx`
 
-// Usar a ref no merge
-useEffect(() => {
-  setHours(prev => {
-    const serverHours: Record<string, number> = {};
-    weekDays.forEach((day) => {
-      const entry = existingEntries.find(
-        (e) => e.projectMemberId === memberId && e.workDate === day.date
-      );
-      serverHours[day.date] = entry?.hours ?? 0;
-    });
+**a) Adicionar prop `projectStartDate`**:
+
+```typescript
+interface ProjectLaborSectionProps {
+  // ... existentes
+  projectStartDate: string;  // ← NOVO
+}
+```
+
+**b) Criar função para calcular horas reais por membro e por mês**:
+
+```typescript
+const actualHoursByMemberAndMonth = useMemo(() => {
+  const result: Record<string, Record<number, number>> = {};
+  
+  timesheets.forEach((ts) => {
+    const workDate = parseISO(ts.work_date);
+    const startDate = parseISO(projectStartDate);
+    const monthNumber = differenceInMonths(workDate, startDate) + 1;
     
-    // Preservar valores com salvamento pendente
-    const merged = { ...serverHours };
-    pendingSavesRef.current.forEach(date => {
-      if (prev[date] !== undefined) {
-        merged[date] = prev[date];
-      }
-    });
-    return merged;
+    if (!result[ts.project_member_id]) {
+      result[ts.project_member_id] = {};
+    }
+    if (!result[ts.project_member_id][monthNumber]) {
+      result[ts.project_member_id][monthNumber] = 0;
+    }
+    result[ts.project_member_id][monthNumber] += Number(ts.hours);
   });
-}, [existingEntries, weekDays, memberId]);
+  
+  return result;
+}, [timesheets, projectStartDate]);
 ```
 
-## Fluxo Corrigido
+**c) Modificar exibição das células de mês (modo não-editável)**:
 
+Alterar de:
+```tsx
+<span>{getHoursForMonth(member.id, monthNum) || '-'}</span>
 ```
-1. Usuário digita "8" no campo A
-2. pendingSaves = { "2025-02-03" }
-3. Usuário dá Tab → onBlur salva campo A
-4. Usuário digita "6" no campo B
-5. pendingSaves = { "2025-02-03", "2025-02-04" }
-6. Mutation A completa → dados recarregados
-7. useEffect detecta novos existingEntries
-8. Merge: servidor[A]=8, servidor[B]=0
-9. Mas B está em pendingSaves → preservar prev[B]=6
-10. Resultado: { A: 8, B: 6 } ← Valor preservado!
+
+Para:
+```tsx
+<div className="flex items-center justify-center gap-1 text-sm">
+  <span className="text-muted-foreground">
+    {plannedHours > 0 ? plannedHours : '-'}
+  </span>
+  <span className="text-muted-foreground">|</span>
+  <span className="font-medium">
+    {actualHours > 0 ? actualHours : '-'}
+  </span>
+</div>
 ```
+
+**d) Modificar cabeçalho das colunas de mês**:
+
+Adicionar subtítulo "Plan | Real" nas colunas de mês:
+
+```tsx
+<TableHead key={m} className="text-center min-w-[80px]">
+  <div className="flex flex-col">
+    <span>Mês {m}</span>
+    <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+  </div>
+</TableHead>
+```
+
+**e) Atualizar totals por mês no rodapé**:
+
+Calcular também o total realizado por mês e exibir no formato "50h | 60h".
+
+---
+
+## Comportamento Especial
+
+| Situação | Planejado | Realizado | Exibição |
+|----------|-----------|-----------|----------|
+| Ambos preenchidos | 50 | 45 | 50 \| 45 |
+| Apenas planejado | 50 | 0 | 50 \| - |
+| Apenas realizado | 0 | 30 | - \| 30 |
+| Nenhum | 0 | 0 | - \| - ou apenas - |
+
+---
+
+## Modo Editável (Planejamento)
+
+Quando `isEditable=true` (fase de planejamento), manter o input para edição das horas planejadas, mas:
+- Mostrar abaixo do input as horas realizadas (se houver)
+- Ou exibir apenas o input se não houver timesheets
+
+---
 
 ## Arquivos Afetados
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/timesheets/TimesheetWeekRow.tsx` | Corrigir lógica de merge no useEffect |
-
+| `src/components/projects/detail/ProjectCostsTab.tsx` | Passar `projectStartDate` |
+| `src/components/projects/detail/ProjectLaborSection.tsx` | Calcular e exibir horas por mês |
