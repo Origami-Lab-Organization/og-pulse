@@ -21,6 +21,14 @@ export interface CreateTimesheetInput {
   description?: string;
 }
 
+export interface BatchUpsertTimesheetInput {
+  projectId: string;
+  projectMemberId: string;
+  workDate: string;
+  hours: number;
+  description?: string;
+}
+
 export const useProjectTimesheets = (projectId: string | undefined) => {
   return useQuery({
     queryKey: ['project-timesheets', projectId],
@@ -83,6 +91,7 @@ export const useCreateTimesheet = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['project-timesheets', variables.projectId] });
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-members'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project'] });
       toast({
         title: 'Timesheet registrado',
@@ -126,11 +135,52 @@ export const useUpsertTimesheet = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['project-timesheets', variables.projectId] });
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-members'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project'] });
     },
     onError: (error: Error) => {
       toast({
         title: 'Erro ao atualizar timesheet',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useBatchUpsertTimesheets = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (inputs: BatchUpsertTimesheetInput[]) => {
+      if (inputs.length === 0) return [];
+
+      const records = inputs.map((input) => ({
+        project_id: input.projectId,
+        project_member_id: input.projectMemberId,
+        work_date: input.workDate,
+        hours: input.hours,
+        description: input.description || null,
+      }));
+
+      const { data, error } = await supabase
+        .from('project_timesheets')
+        .upsert(records, { onConflict: 'project_member_id,work_date' })
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-members'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao salvar timesheets',
         description: error.message,
         variant: 'destructive',
       });
@@ -154,6 +204,7 @@ export const useDeleteTimesheet = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-members'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project'] });
       toast({
         title: 'Timesheet removido',
