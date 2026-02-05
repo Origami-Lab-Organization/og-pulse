@@ -1,167 +1,167 @@
 
 
-# Plano: Gestão de Feriados e Folgas nas Configurações
+# Plano: Workflow de Submissão de Timesheets com Rascunho e Travamento
 
 ## Objetivo
 
-Criar uma área nas Configurações para gerenciar feriados e folgas da empresa, com feriados nacionais pré-cadastrados. Os dias cadastrados como feriados/folgas serão desabilitados no lançamento de timesheets.
+Implementar um fluxo onde:
+1. Ao digitar valores, os registros são salvos como **rascunho** (draft)
+2. Um botão **"Enviar Semana"** permite submeter/travar as horas lançadas
+3. Após envio, as horas ficam **bloqueadas para edição**
+4. Somente **Admins** podem editar timesheets submetidos, mediante preenchimento de **justificativa**
 
 ---
 
 ## Estrutura Visual
 
-### Aba de Feriados nas Configurações
+### Interface Atualizada
 
 ```
-┌─ Configurações ─────────────────────────────────────────────────────────────┐
-│                                                                              │
-│  [Financeiro] [Encargos/Folha] [Feriados/Folgas]                            │
-│                                                                              │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Timesheets                                                                 │
+│  Registre as horas trabalhadas pelos funcionários nos projetos             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [Semana: ◀ 03/02 - 07/02/2025 ▶]     [Por Projeto] [Por Funcionário]      │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │ 📝 Status da Semana                                                   │ │
+│  │                                                                       │ │
+│  │ Esta semana está em modo RASCUNHO.                  [Enviar Semana]  │ │
+│  │ As horas serão salvas automaticamente, mas só                         │ │
+│  │ serão consideradas após o envio.                                      │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
 │  ─────────────────────────────────────────────────────────────────────────  │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ 🎉 Feriados e Folgas                           [+ Adicionar Feriado]│   │
-│  │ Configure os dias que não serão contabilizados nos timesheets       │   │
-│  ├─────────────────────────────────────────────────────────────────────┤   │
-│  │                                                                      │   │
-│  │  Nome                    │ Data       │ Tipo        │ Ações        │   │
-│  ├──────────────────────────┼────────────┼─────────────┼──────────────┤   │
-│  │  Confraternização        │ 01/01      │ Fixo        │ [✏️] [🗑️]   │   │
-│  │  Carnaval                │ 03/03/2025 │ Móvel       │ [✏️] [🗑️]   │   │
-│  │  Sexta-feira Santa       │ 18/04/2025 │ Móvel       │ [✏️] [🗑️]   │   │
-│  │  Tiradentes              │ 21/04      │ Fixo        │ [✏️] [🗑️]   │   │
-│  │  Dia do Trabalho         │ 01/05      │ Fixo        │ [✏️] [🗑️]   │   │
-│  │  Corpus Christi          │ 19/06/2025 │ Móvel       │ [✏️] [🗑️]   │   │
-│  │  Independência           │ 07/09      │ Fixo        │ [✏️] [🗑️]   │   │
-│  │  N. Sra. Aparecida       │ 12/10      │ Fixo        │ [✏️] [🗑️]   │   │
-│  │  Finados                 │ 02/11      │ Fixo        │ [✏️] [🗑️]   │   │
-│  │  Proclamação República   │ 15/11      │ Fixo        │ [✏️] [🗑️]   │   │
-│  │  Natal                   │ 25/12      │ Fixo        │ [✏️] [🗑️]   │   │
-│  │  Folga Aniversário       │ 15/02/2025 │ Pontual     │ [✏️] [🗑️]   │   │
-│  │                                                                      │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+│                                                                             │
+│  ┌─ Bry Tecnologia / Plataforma Discovery ──────────────────────────────┐  │
+│  │  Funcionário         │ Seg  │ Ter  │ Qua  │ Qui  │ Sex  │ Total     │  │
+│  ├──────────────────────┼──────┼──────┼──────┼──────┼──────┼───────────┤  │
+│  │  Victor Couto        │ [8]  │ [8]  │ [6]  │ [8]  │ [8]  │ 38h       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Modal de Adicionar/Editar Feriado
+### Status Enviado (Travado)
 
 ```
-┌─ Adicionar Feriado ─────────────────────────────────────────┐
-│                                                              │
-│  Nome do Feriado *                                          │
-│  [Dia do Trabalhador                               ]        │
-│                                                              │
-│  Tipo *                                                     │
-│  ○ Fixo (repete todo ano na mesma data)                     │
-│  ○ Móvel (data varia por ano - ex: Carnaval)                │
-│  ○ Pontual (apenas uma data específica)                     │
-│                                                              │
-│  ─────────────────────────────────────────────────────────  │
-│                                                              │
-│  [Se Fixo]                                                  │
-│  ┌────────────┐  ┌────────────┐                             │
-│  │ Dia    [01]│  │ Mês    [05]│                             │
-│  └────────────┘  └────────────┘                             │
-│                                                              │
-│  [Se Móvel ou Pontual]                                      │
-│  Data *                                                     │
-│  [01/05/2025]                                               │
-│                                                              │
-│  ─────────────────────────────────────────────────────────  │
-│                                                              │
-│                              [Cancelar] [Salvar]            │
-└──────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│ ✅ Status da Semana                                                       │
+│                                                                           │
+│ Esta semana foi ENVIADA em 07/02/2025 às 18:30 por Maria Silva           │
+│ Total: 186 horas lançadas                                                 │
+│                                                                           │
+│ [Admin: Os campos abaixo estão editáveis apenas para admins]              │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Timesheets com Feriados Desabilitados
+### Dialog de Justificativa (Edição pelo Admin)
 
 ```
-┌─ Bry Tecnologia / Plataforma Discovery ─────────────────────────────────────┐
-│                                                                              │
-│  Funcionário         │ Seg  │ Ter  │ Qua  │ Qui  │ Sex  │ Total            │
-│                      │ 28   │ 29   │ 30   │ 01*  │ 02   │                   │
-├──────────────────────┼──────┼──────┼──────┼──────┼──────┼───────────────────│
-│  Victor Couto        │ [8]  │ [8]  │ [8]  │ [--] │ [8]  │ 32h              │
-│  Maria Silva         │ [4]  │ [4]  │ [4]  │ [--] │ [4]  │ 16h              │
-│                                                                              │
-│  * Feriado: Dia do Trabalho                                                 │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌─ Editar Timesheet Enviado ───────────────────────────────────┐
+│                                                               │
+│  ⚠️ Este timesheet já foi enviado e está travado.            │
+│                                                               │
+│  Para alterar, é necessário fornecer uma justificativa.      │
+│                                                               │
+│  Funcionário: Victor Couto                                   │
+│  Projeto: Bry Discovery                                      │
+│  Data: Seg, 03/02/2025                                       │
+│  Horas atuais: 8h                                            │
+│                                                               │
+│  Novas horas *                                               │
+│  [6                                                  ]       │
+│                                                               │
+│  Justificativa *                                             │
+│  [Correção solicitada pelo funcionário, havia erro ]        │
+│  [no lançamento original                           ]        │
+│                                                               │
+│  ─────────────────────────────────────────────────────────   │
+│                                                               │
+│                              [Cancelar] [Salvar Alteração]   │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Estrutura de Dados
+## Modelo de Dados
 
-### Tabela: company_holidays
+### Nova Tabela: timesheet_submissions
+
+Controla o status de submissão por semana:
 
 ```sql
-CREATE TABLE company_holidays (
+CREATE TABLE timesheet_submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  holiday_type TEXT NOT NULL CHECK (holiday_type IN ('fixed', 'floating', 'one_time')),
-  -- Para feriados fixos: dia e mês (repete todo ano)
-  fixed_day INTEGER,  -- 1-31
-  fixed_month INTEGER, -- 1-12
-  -- Para feriados móveis/pontuais: data específica
-  specific_date DATE,
-  -- Para feriados móveis: ano de referência (null = todos os anos até ser atualizado)
-  reference_year INTEGER,
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  tenant_id UUID NOT NULL,
+  week_start DATE NOT NULL,  -- Segunda-feira da semana
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted')),
+  submitted_at TIMESTAMPTZ,
+  submitted_by UUID,  -- auth.users.id
+  total_hours NUMERIC NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  
+  UNIQUE (tenant_id, week_start)
 );
+```
 
--- RLS policies
-ALTER TABLE company_holidays ENABLE ROW LEVEL SECURITY;
+### Alteração: project_timesheets
 
--- Admins can manage holidays
-CREATE POLICY "Admins can manage holidays" ON company_holidays
-  FOR ALL USING (has_role(auth.uid(), tenant_id, 'admin'));
+Adicionar colunas para rastreamento de edições:
 
--- All users can view holidays in their tenant
-CREATE POLICY "Users can view holidays" ON company_holidays
-  FOR SELECT USING (user_belongs_to_tenant(auth.uid(), tenant_id));
+```sql
+ALTER TABLE project_timesheets 
+  ADD COLUMN is_locked BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ADD COLUMN updated_by UUID;
+
+-- Tabela de histórico de alterações (auditoria)
+CREATE TABLE timesheet_edit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  timesheet_id UUID NOT NULL REFERENCES project_timesheets(id) ON DELETE CASCADE,
+  previous_hours NUMERIC NOT NULL,
+  new_hours NUMERIC NOT NULL,
+  justification TEXT NOT NULL,
+  edited_by UUID NOT NULL,  -- auth.users.id
+  edited_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ```
 
 ---
 
-## Tipos de Feriados
+## Regras de Negócio
 
-| Tipo | Descrição | Exemplo | Armazenamento |
-|------|-----------|---------|---------------|
-| **Fixo** | Repete todo ano na mesma data | Natal (25/12), Independência (07/09) | `fixed_day` + `fixed_month` |
-| **Móvel** | Data varia por ano | Carnaval, Páscoa, Corpus Christi | `specific_date` + `reference_year` |
-| **Pontual** | Data única específica | Folga extraordinária | `specific_date` |
+### Estados do Timesheet Semanal
 
----
+| Estado | Descrição | Quem pode editar |
+|--------|-----------|------------------|
+| `draft` | Rascunho - horas estão sendo lançadas | Gerentes e Admins |
+| `submitted` | Enviado - horas travadas | Somente Admins (com justificativa) |
 
-## Feriados Nacionais Pré-cadastrados
+### Fluxo de Trabalho
 
-Os seguintes feriados serão criados automaticamente ao inicializar o tenant:
+```
+┌────────────┐      Enviar      ┌────────────┐
+│   DRAFT    │ ───────────────► │  SUBMITTED │
+│            │                  │ (Travado)  │
+└────────────┘                  └────────────┘
+       ▲                              │
+       │                              │ Admin edita
+       │                              │ com justificativa
+       │                              ▼
+       │                        ┌────────────┐
+       └─────── (não volta) ────│   Editado  │
+                                │ (Auditoria)│
+                                └────────────┘
+```
 
-### Feriados Fixos
+### Validações
 
-| Feriado | Dia | Mês |
-|---------|-----|-----|
-| Confraternização Universal | 01 | 01 |
-| Tiradentes | 21 | 04 |
-| Dia do Trabalho | 01 | 05 |
-| Independência do Brasil | 07 | 09 |
-| N. Sra. Aparecida | 12 | 10 |
-| Finados | 02 | 11 |
-| Proclamação da República | 15 | 11 |
-| Natal | 25 | 12 |
-
-### Feriados Móveis (2025-2026)
-
-| Feriado | 2025 | 2026 |
-|---------|------|------|
-| Carnaval (segunda) | 03/03 | 16/02 |
-| Carnaval (terça) | 04/03 | 17/02 |
-| Sexta-feira Santa | 18/04 | 03/04 |
-| Corpus Christi | 19/06 | 04/06 |
+1. **Ao enviar**: Verificar se há pelo menos uma hora lançada na semana
+2. **Ao editar (admin)**: Justificativa é obrigatória (mínimo 10 caracteres)
+3. **Travamento**: Após submissão, apenas admin pode alterar
 
 ---
 
@@ -171,151 +171,219 @@ Os seguintes feriados serão criados automaticamente ao inicializar o tenant:
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `src/types/holiday.ts` | Tipos para feriados |
-| `src/services/holidayService.ts` | Service para CRUD de feriados |
-| `src/hooks/useHolidays.ts` | Hooks React Query |
-| `src/components/settings/HolidaysSettingsForm.tsx` | Componente de listagem/gestão |
-| `src/components/settings/HolidayFormDialog.tsx` | Modal de adicionar/editar |
-| `src/components/settings/DeleteHolidayDialog.tsx` | Dialog de confirmação de exclusão |
+| `src/types/timesheetSubmission.ts` | Tipos para submissão de timesheets |
+| `src/hooks/useTimesheetSubmissions.ts` | Hooks para gerenciar submissões |
+| `src/components/timesheets/TimesheetWeekStatus.tsx` | Card de status da semana (rascunho/enviado) |
+| `src/components/timesheets/SubmitWeekDialog.tsx` | Dialog de confirmação para enviar semana |
+| `src/components/timesheets/AdminEditDialog.tsx` | Dialog para admin editar com justificativa |
 
 ### Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/pages/Settings.tsx` | Adicionar aba "Feriados/Folgas" |
-| `src/hooks/useTimesheetData.ts` | Adicionar hook `useHolidaysInRange` |
-| `src/components/timesheets/TimesheetWeekRow.tsx` | Desabilitar inputs em dias de feriado |
-| `src/components/timesheets/TimesheetByProject.tsx` | Marcar visualmente dias de feriado |
-| `src/components/timesheets/TimesheetByEmployee.tsx` | Marcar visualmente dias de feriado |
+| `src/pages/Timesheets.tsx` | Adicionar card de status e botão de envio |
+| `src/components/timesheets/TimesheetWeekRow.tsx` | Desabilitar inputs se semana estiver travada, habilitar edição admin com modal |
+| `src/hooks/useProjectTimesheets.ts` | Adicionar mutation para atualização com justificativa |
 
 ---
 
-## Lógica de Verificação de Feriados
+## Componentes Detalhados
 
-### Função para verificar se uma data é feriado
+### TimesheetWeekStatus
+
+Exibe o status atual da semana:
 
 ```typescript
-function isHoliday(date: Date, holidays: Holiday[]): Holiday | null {
-  const day = date.getDate();
-  const month = date.getMonth() + 1;
-  const year = date.getFullYear();
-  const dateStr = format(date, 'yyyy-MM-dd');
+interface TimesheetWeekStatusProps {
+  weekStart: Date;
+  submission: TimesheetSubmission | null;
+  totalHours: number;
+  onSubmit: () => void;
+  isAdmin: boolean;
+}
+```
 
-  for (const holiday of holidays) {
-    if (holiday.holiday_type === 'fixed') {
-      // Feriado fixo: verificar dia e mês
-      if (holiday.fixed_day === day && holiday.fixed_month === month) {
-        return holiday;
-      }
-    } else {
-      // Feriado móvel ou pontual: verificar data específica
-      if (holiday.specific_date === dateStr) {
-        return holiday;
-      }
-    }
-  }
-  return null;
+- **Rascunho**: Exibe mensagem + botão "Enviar Semana"
+- **Enviado**: Exibe data de envio + quem enviou + total de horas
+
+### AdminEditDialog
+
+Modal para edição pelo admin:
+
+```typescript
+interface AdminEditDialogProps {
+  open: boolean;
+  onClose: () => void;
+  entry: {
+    id: string;
+    employeeName: string;
+    projectName: string;
+    workDate: string;
+    currentHours: number;
+  };
+  onSave: (newHours: number, justification: string) => void;
+}
+```
+
+### TimesheetWeekRow (Atualizado)
+
+Adicionar props:
+
+```typescript
+interface TimesheetWeekRowProps {
+  // ... props existentes
+  isLocked: boolean;          // Nova prop - semana travada
+  isAdmin: boolean;           // Nova prop - usuário é admin
+  onAdminEdit?: (date: string, currentHours: number) => void;  // Callback para edição admin
 }
 ```
 
 ---
 
-## Fluxo de Seed dos Feriados
+## Hooks
 
-Ao criar um novo tenant (registro de empresa), executar seed dos feriados padrão via edge function `register-tenant`:
+### useTimesheetSubmissions
 
 ```typescript
-const defaultHolidays = [
-  // Fixos
-  { name: 'Confraternização Universal', holiday_type: 'fixed', fixed_day: 1, fixed_month: 1 },
-  { name: 'Tiradentes', holiday_type: 'fixed', fixed_day: 21, fixed_month: 4 },
-  { name: 'Dia do Trabalho', holiday_type: 'fixed', fixed_day: 1, fixed_month: 5 },
-  { name: 'Independência do Brasil', holiday_type: 'fixed', fixed_day: 7, fixed_month: 9 },
-  { name: 'Nossa Senhora Aparecida', holiday_type: 'fixed', fixed_day: 12, fixed_month: 10 },
-  { name: 'Finados', holiday_type: 'fixed', fixed_day: 2, fixed_month: 11 },
-  { name: 'Proclamação da República', holiday_type: 'fixed', fixed_day: 15, fixed_month: 11 },
-  { name: 'Natal', holiday_type: 'fixed', fixed_day: 25, fixed_month: 12 },
-  // Móveis 2025
-  { name: 'Carnaval (Segunda)', holiday_type: 'floating', specific_date: '2025-03-03', reference_year: 2025 },
-  { name: 'Carnaval (Terça)', holiday_type: 'floating', specific_date: '2025-03-04', reference_year: 2025 },
-  { name: 'Sexta-feira Santa', holiday_type: 'floating', specific_date: '2025-04-18', reference_year: 2025 },
-  { name: 'Corpus Christi', holiday_type: 'floating', specific_date: '2025-06-19', reference_year: 2025 },
-  // Móveis 2026
-  { name: 'Carnaval (Segunda)', holiday_type: 'floating', specific_date: '2026-02-16', reference_year: 2026 },
-  { name: 'Carnaval (Terça)', holiday_type: 'floating', specific_date: '2026-02-17', reference_year: 2026 },
-  { name: 'Sexta-feira Santa', holiday_type: 'floating', specific_date: '2026-04-03', reference_year: 2026 },
-  { name: 'Corpus Christi', holiday_type: 'floating', specific_date: '2026-06-04', reference_year: 2026 },
-];
+// Buscar status da semana
+export const useWeekSubmission = (weekStart: string) => {
+  return useQuery({
+    queryKey: ['timesheet-submission', weekStart],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('timesheet_submissions')
+        .select('*, submitted_by_employee:employees!submitted_by(nome)')
+        .eq('week_start', weekStart)
+        .maybeSingle();
+      // ...
+    },
+  });
+};
+
+// Submeter semana
+export const useSubmitWeek = () => {
+  return useMutation({
+    mutationFn: async ({ weekStart, totalHours }: SubmitWeekInput) => {
+      // 1. Criar/atualizar registro de submissão
+      // 2. Marcar todos os timesheets da semana como is_locked = true
+    },
+  });
+};
+
+// Edição pelo admin com justificativa
+export const useAdminEditTimesheet = () => {
+  return useMutation({
+    mutationFn: async ({ timesheetId, newHours, justification }: AdminEditInput) => {
+      // 1. Buscar horas atuais
+      // 2. Inserir log de auditoria
+      // 3. Atualizar timesheet
+    },
+  });
+};
 ```
 
 ---
 
-## Detalhes Técnicos
+## RLS Policies
 
-### Interface Holiday
+### timesheet_submissions
 
-```typescript
-export interface Holiday {
-  id: string;
-  tenant_id: string;
-  name: string;
-  holiday_type: 'fixed' | 'floating' | 'one_time';
-  fixed_day: number | null;
-  fixed_month: number | null;
-  specific_date: string | null;
-  reference_year: number | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+```sql
+-- Gerentes e admins podem visualizar
+CREATE POLICY "Users can view submissions in their tenant" 
+  ON timesheet_submissions FOR SELECT 
+  USING (user_belongs_to_tenant(auth.uid(), tenant_id));
 
-export interface HolidayFormData {
-  name: string;
-  holiday_type: 'fixed' | 'floating' | 'one_time';
-  fixed_day?: number;
-  fixed_month?: number;
-  specific_date?: string;
-}
+-- Gerentes e admins podem criar/atualizar
+CREATE POLICY "Managers can manage submissions" 
+  ON timesheet_submissions FOR ALL 
+  USING (is_admin_or_manager(auth.uid(), tenant_id));
 ```
 
-### Visual de Feriado nos Timesheets
+### timesheet_edit_logs
 
-1. Coluna do header com fundo diferenciado (vermelho suave)
-2. Input desabilitado com texto "--"
-3. Tooltip com nome do feriado
+```sql
+-- Apenas admins podem inserir logs (editar timesheets travados)
+CREATE POLICY "Only admins can edit locked timesheets" 
+  ON timesheet_edit_logs FOR INSERT 
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role = 'admin'
+    )
+  );
+
+-- Todos podem visualizar logs (auditoria)
+CREATE POLICY "Users can view edit logs" 
+  ON timesheet_edit_logs FOR SELECT 
+  USING (
+    EXISTS (
+      SELECT 1 FROM project_timesheets pt
+      JOIN project_members pm ON pt.project_member_id = pm.id
+      JOIN projects p ON pm.project_id = p.id
+      WHERE pt.id = timesheet_edit_logs.timesheet_id
+      AND user_belongs_to_tenant(auth.uid(), p.tenant_id)
+    )
+  );
+```
+
+---
+
+## Fluxo de UI
+
+### Semana em Rascunho
+
+1. Usuário (gerente/admin) entra na tela de timesheets
+2. Card amarelo exibe "Status: Rascunho"
+3. Inputs habilitados para edição
+4. Ao alterar valor, salva automaticamente como rascunho
+5. Botão "Enviar Semana" disponível
+6. Ao clicar, dialog de confirmação exibe resumo
+
+### Semana Enviada
+
+1. Card verde exibe "Status: Enviado" + detalhes
+2. Inputs desabilitados para gerentes
+3. Para admins: inputs clicáveis abrem modal de edição
+4. Admin preenche justificativa obrigatória
+5. Alteração é salva + log de auditoria criado
 
 ---
 
 ## Sequência de Implementação
 
 ```
-1. Criar migration SQL (tabela + RLS + seed para tenants existentes)
+1. Criar migration SQL (tabelas + RLS)
        │
        ▼
-2. Criar tipos e service
+2. Criar tipos TypeScript
        │
        ▼
-3. Criar hooks
+3. Criar hooks de submissão
        │
        ▼
-4. Criar componentes de gestão (Settings)
+4. Criar componente TimesheetWeekStatus
        │
        ▼
-5. Atualizar página Settings
+5. Criar dialogs (Submit + AdminEdit)
        │
        ▼
-6. Integrar feriados nos Timesheets
+6. Atualizar TimesheetWeekRow com props de lock
        │
        ▼
-7. Atualizar edge function register-tenant para seed
+7. Atualizar Timesheets.tsx com status e fluxo
+       │
+       ▼
+8. Testar fluxo completo
 ```
 
 ---
 
 ## Notas Importantes
 
-1. **Feriados móveis**: O admin precisará atualizar manualmente as datas para cada ano (Carnaval, Corpus Christi, etc.)
-2. **Performance**: Buscar feriados apenas para o ano relevante
-3. **Visualização**: Feriados que caem no fim de semana não aparecem nos timesheets (que só mostram Seg-Sex)
-4. **Exclusão**: Ao excluir um feriado, não afeta timesheets já lançados
+1. **Histórico preservado**: Todas as edições em timesheets travados ficam registradas em `timesheet_edit_logs`
+2. **Não há "desfazer envio"**: Uma vez enviado, o status não pode voltar para rascunho
+3. **Semana = Segunda a Sexta**: O travamento é por semana inteira, não por dia individual
+4. **Performance**: O status de submissão é por tenant + semana, não por projeto
 
