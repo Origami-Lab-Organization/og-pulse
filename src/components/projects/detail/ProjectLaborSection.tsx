@@ -491,7 +491,7 @@ export function ProjectLaborSection({
                       <TableHead className="sticky left-0 bg-background z-10 min-w-[220px]">
                         Funcionário
                       </TableHead>
-                      <TableHead className="min-w-[100px]">Senioridade</TableHead>
+                      
                       <TableHead className="text-right min-w-[100px]">R$/h</TableHead>
                       {months.map((m) => (
                         <TableHead key={m} className="text-center min-w-[80px]">
@@ -579,24 +579,11 @@ export function ProjectLaborSection({
                                 </span>
                               )}
                               <span className="text-xs font-semibold text-muted-foreground">
-                                {member.role}
+                                {member.role}{budgetSeniorityLabel ? ` ${budgetSeniorityLabel}` : ''}
                               </span>
                             </div>
                           </TableCell>
                           
-                          {/* Column 2: Seniority */}
-                          <TableCell className="p-2">
-                            <div className="flex flex-col gap-0.5 items-center text-center">
-                              <span className={member.employee ? "font-medium" : "text-muted-foreground"}>
-                                {employeeSeniority || '-'}
-                              </span>
-                              {budgetData.budgetSeniority && (
-                                <span className="text-xs text-muted-foreground">
-                                  {budgetSeniorityLabel}
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
                           
                           {/* Column 3: R$/h */}
                           <TableCell className="text-right p-2">
@@ -757,7 +744,6 @@ export function ProjectLaborSection({
                       <TableCell className="sticky left-0 bg-muted z-10 font-semibold">
                         Total
                       </TableCell>
-                      <TableCell />
                       <TableCell />
                       {months.map((monthNum) => {
                         const monthTotals = totals.byMonth[monthNum];
