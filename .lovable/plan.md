@@ -1,147 +1,172 @@
 
 
-# Plano: Edição de Admin com Justificativa por Semana
+# Plano: Corrigir Cálculo do Total de Horas no Dialog de Edição Admin
 
-## Problemas Identificados
+## Problema Identificado
 
-### 1. RLS Bloqueando Edição
-A política de INSERT na tabela `timesheet_edit_logs` exige `has_role(auth.uid(), tenant_id, 'admin')`, mas a edição de timesheets usa `is_admin_or_manager()`. Isso pode causar inconsistências.
+O total da semana (19.0h) está incorreto porque o estado `hours` não está sincronizado corretamente com os dados exibidos nos inputs.
 
-### 2. Justificativa por Dia (atual)
-O fluxo atual pede justificativa para cada dia editado individualmente, o que é trabalhoso.
+### Causa Raiz
 
----
+1. O estado `hours` é inicializado com `useState(initialHours)` na **linha 81**
+2. O `initialHours` é um `useMemo` que recalcula quando as props mudam
+3. **Porém**, `useState` só usa o valor inicial no primeiro render - mudanças posteriores em `initialHours` são ignoradas
+4. Quando o dialog reabre, o `handleOpenChange` tenta fazer `setHours(initialHours)`, mas nesse momento o `initialHours` pode estar desatualizado (closure stale)
 
-## Nova Experiência Proposta
-
-### Fluxo de Edição
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│  [Semana Enviada - Travado]                                          │
-│  Enviado em 05/02/2026 às 10:40 por Victor                          │
-│                                            [Editar Semana] ← NOVO   │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-Quando o admin clica em "Editar Semana":
+### Fluxo do Bug
 
 ```
-┌─ Editar Semana Enviada ────────────────────────────────────────────┐
-│                                                                     │
-│  Projeto: Cliente X / Projeto Y                                     │
-│  Semana: 03/02 - 07/02/2025                                        │
-│                                                                     │
-│  ┌─────────────┬─────────────────────────────────────────────────┐ │
-│  │ Funcionário │ Seg │ Ter │ Qua │ Qui │ Sex │ Total            │ │
-│  ├─────────────┼─────┼─────┼─────┼─────┼─────┼──────────────────┤ │
-│  │ João Silva  │ [6] │ [8] │ [8] │ [7] │ [0] │ 29h → 29h       │ │
-│  │ Maria Costa │ [4] │ [4] │ [4] │ [4] │ [4] │ 20h → 20h       │ │
-│  └─────────────┴─────┴─────┴─────┴─────┴─────┴──────────────────┘ │
-│                                                                     │
-│  Justificativa * (aplicada a todas as alterações)                   │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ Correção solicitada pelo cliente após revisão do projeto   │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│                               [Cancelar] [Salvar Alterações]        │
-└─────────────────────────────────────────────────────────────────────┘
+1. Dialog abre pela primeira vez → hours inicializado com dados do servidor (19h)
+2. Usuário digita 0 em todos os campos → hours atualizado para 0 em cada dia editado
+3. MAS o cálculo do total na linha 208 soma Object.values(memberHours)
+4. O memberHours contém mix de valores: alguns editados (0), outros do initialHours original
+5. Se o usuário não clicou em todos os dias, valores antigos permanecem
 ```
 
 ---
 
-## Alterações Técnicas
+## Solução
 
-### 1. Banco de Dados
+### 1. Sincronizar Estado Quando Dialog Abre
 
-**Corrigir RLS de `timesheet_edit_logs`** para permitir que admins (verificados por `has_role`) possam inserir:
-- A policy atual já está correta para admins
-- Verificar se o usuário tem a role 'admin' na tabela `user_roles`
+Garantir que o `hours` sempre seja reinicializado com os dados mais recentes do servidor quando o dialog abre.
 
-### 2. Componente `TimesheetWeekStatus.tsx`
-
-Adicionar botão "Editar Semana" quando:
-- `isSubmitted === true`
-- `isAdmin === true`
+O problema é que dentro do `handleOpenChange`, o `initialHours` pode estar com valor antigo (stale closure). Precisamos recalcular diretamente:
 
 ```typescript
-{isSubmitted && isAdmin && (
-  <Button variant="outline" onClick={onAdminEdit}>
-    <Edit2 className="h-4 w-4 mr-2" />
-    Editar Semana
-  </Button>
-)}
+// ANTES (linha 84-90)
+const handleOpenChange = (isOpen: boolean) => {
+  if (isOpen) {
+    setHours(initialHours);  // ← initialHours pode estar stale
+    setJustification('');
+  }
+  onOpenChange(isOpen);
+};
+
+// DEPOIS - Recalcular diretamente
+const handleOpenChange = (isOpen: boolean) => {
+  if (isOpen) {
+    // Recalcular horas iniciais diretamente
+    const freshHours: Record<string, Record<string, number>> = {};
+    projects.forEach((project) => {
+      project.members.forEach((member) => {
+        weekDays.forEach((day) => {
+          const entry = timesheetEntries.find(
+            (e) => e.projectMemberId === member.memberId && e.workDate === day.date
+          );
+          if (!freshHours[member.memberId]) freshHours[member.memberId] = {};
+          freshHours[member.memberId][day.date] = entry?.hours ?? 0;
+        });
+      });
+    });
+    setHours(freshHours);
+    setJustification('');
+  }
+  onOpenChange(isOpen);
+};
 ```
 
-### 3. Novo Componente `AdminWeekEditDialog.tsx`
+### 2. Alternativa Mais Limpa - Usar useEffect
 
-Substituir o `AdminEditDialog` por um dialog mais completo que:
-- Mostra todos os projetos e membros da semana
-- Permite editar qualquer valor diretamente
-- Tem um único campo de justificativa no final
-- Salva todas as alterações de uma vez com batch update
+Adicionar um `useEffect` que reseta o estado quando o dialog abre:
 
-### 4. Arquivo `src/pages/Timesheets.tsx`
+```typescript
+useEffect(() => {
+  if (open) {
+    // Recalcular estado inicial quando dialog abre
+    const freshHours: Record<string, Record<string, number>> = {};
+    projects.forEach((project) => {
+      project.members.forEach((member) => {
+        weekDays.forEach((day) => {
+          const entry = timesheetEntries.find(
+            (e) => e.projectMemberId === member.memberId && e.workDate === day.date
+          );
+          if (!freshHours[member.memberId]) freshHours[member.memberId] = {};
+          freshHours[member.memberId][day.date] = entry?.hours ?? 0;
+        });
+      });
+    });
+    setHours(freshHours);
+    setJustification('');
+  }
+}, [open, projects, weekDays, timesheetEntries]);
+```
 
-- Remover o handler de edição por célula individual
-- Adicionar handler para edição da semana inteira
-- Passar dados completos (projetos, timesheets) para o novo dialog
+### 3. Garantir Cálculo Correto do Total
 
-### 5. Arquivo `src/hooks/useTimesheetSubmissions.ts`
+O cálculo do total na linha 208 deve considerar apenas os dias da semana atual:
 
-Criar mutation `useAdminBatchEditTimesheets` que:
-- Recebe array de alterações `{ timesheetId, newHours, previousHours }[]`
-- Recebe uma única justificativa
-- Atualiza todos os timesheets
-- Cria log único com resumo das alterações (ou múltiplos logs vinculados)
+```typescript
+// ANTES (linha 207-208)
+const memberHours = hours[member.memberId] || {};
+const totalHours = Object.values(memberHours).reduce((sum, h) => sum + (h || 0), 0);
 
-### 6. Remover Edição Individual
-
-- Remover o click handler das células travadas para admin
-- As células travadas ficam apenas visuais (cinza com cadeado)
-- Toda edição passa pelo botão "Editar Semana"
+// DEPOIS - Somar apenas os dias da semana atual
+const memberHours = hours[member.memberId] || {};
+const totalHours = weekDays.reduce((sum, day) => {
+  const dayHours = memberHours[day.date] ?? 0;
+  return sum + dayHours;
+}, 0);
+```
 
 ---
 
-## Modelo de Dados para Log
+## Alteração no Arquivo
 
-Opção A - Um log por alteração (atual):
-```
-timesheet_edit_logs
-├── id
-├── timesheet_id → individual
-├── previous_hours
-├── new_hours
-├── justification → repetida em cada registro
-├── edited_by
-└── edited_at
-```
+### `src/components/timesheets/AdminWeekEditDialog.tsx`
 
-Opção B - Um log por sessão de edição (recomendado):
-```
-timesheet_edit_sessions
-├── id
-├── week_start
-├── tenant_id
-├── justification → única
-├── edited_by
-├── edited_at
-└── changes_json → [{ timesheet_id, prev, new }, ...]
-```
-
-**Recomendação**: Manter a estrutura atual (Opção A) por simplicidade, apenas replicando a justificativa para cada registro.
+| Linha | Alteração |
+|-------|-----------|
+| 81 | Manter inicialização vazia ou com {} |
+| 83-90 | Substituir por useEffect para sincronizar estado |
+| 207-208 | Corrigir cálculo do total para usar apenas weekDays |
 
 ---
 
-## Arquivos a Modificar/Criar
+## Código Final
 
-| Arquivo | Ação |
-|---------|------|
-| `src/components/timesheets/AdminWeekEditDialog.tsx` | Criar (novo) |
-| `src/components/timesheets/AdminEditDialog.tsx` | Remover |
-| `src/components/timesheets/TimesheetWeekStatus.tsx` | Adicionar botão |
-| `src/components/timesheets/TimesheetWeekRow.tsx` | Remover click admin |
-| `src/pages/Timesheets.tsx` | Refatorar handlers |
-| `src/hooks/useTimesheetSubmissions.ts` | Adicionar batch mutation |
-| `src/types/timesheetSubmission.ts` | Adicionar tipos batch |
+```typescript
+// Inicializar vazio - será preenchido pelo useEffect
+const [hours, setHours] = useState<Record<string, Record<string, number>>>({});
+
+// Sincronizar quando dialog abre ou dados mudam
+useEffect(() => {
+  if (open) {
+    const freshHours: Record<string, Record<string, number>> = {};
+    projects.forEach((project) => {
+      project.members.forEach((member) => {
+        weekDays.forEach((day) => {
+          const entry = timesheetEntries.find(
+            (e) => e.projectMemberId === member.memberId && e.workDate === day.date
+          );
+          if (!freshHours[member.memberId]) freshHours[member.memberId] = {};
+          freshHours[member.memberId][day.date] = entry?.hours ?? 0;
+        });
+      });
+    });
+    setHours(freshHours);
+    setJustification('');
+  }
+}, [open, projects, weekDays, timesheetEntries]);
+
+// handleOpenChange simplificado
+const handleOpenChange = (isOpen: boolean) => {
+  onOpenChange(isOpen);
+};
+
+// Total corrigido (dentro do map de members)
+const memberHours = hours[member.memberId] || {};
+const totalHours = weekDays.reduce((sum, day) => {
+  return sum + (memberHours[day.date] ?? 0);
+}, 0);
+```
+
+---
+
+## Resumo
+
+- **Problema**: Estado `hours` não sincronizado corretamente com dados do servidor
+- **Causa**: `useState` com valor inicial não reage a mudanças nas props
+- **Solução**: Usar `useEffect` para sincronizar estado quando dialog abre
+- **Bonus**: Corrigir cálculo do total para usar apenas os dias da semana atual
 
