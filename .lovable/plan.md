@@ -1,151 +1,156 @@
 
-
-# Plano: Layout Responsivo para Telas 14" e Menores
+# Plano: Fornecedores com Comparação Orçado vs Planejado
 
 ## Problema Identificado
 
-Os cards de métricas estão truncando valores monetários em telas de 14" (típico em laptops), resultando em informação ilegível ("R$ 239....", "R$ 12...."). Isso afeta a aba de Custos e potencialmente outras abas.
+A seção de Fornecedores no planejamento de projeto:
+1. Não permite selecionar fornecedores do cadastro central (apenas nome livre)
+2. Não exibe a comparação "Orçado vs Planejado" como a seção de Mão de Obra faz
+3. O rodapé mostra "Plan | Real" mas deveria mostrar valores do orçamento abaixo
 
-## Análise das Telas
+## Estrutura Atual
 
-| Componente | Problema Atual | Solução |
-|------------|----------------|---------|
-| **Custos** | 5 cards em grid truncam valores | Layout empilhado ou grid adaptativo |
-| **OKRs** | Cards únicos, sem problemas críticos | Manter layout atual |
-| **Stakeholders** | Grid 3 colunas em lg | Ajustar breakpoints |
-| **Cronograma** | Timeline horizontal pode ser longa | Já tem fallback mobile |
-| **Resultado Esperado** | 4 cards com valores grandes | Ajustar grid |
+```text
++------------------+--------+--------+--------+-------+--------+
+| Nome             | Mês 1  | Mês 2  | Mês 3  | Total | Ações  |
++------------------+--------+--------+--------+-------+--------+
+| Next Digital     | 16000  | 16000  | 16000  | 48000 |  x     |
++------------------+--------+--------+--------+-------+--------+
+| Total            | R$ 16k | R$ 0   | ...    |       |        |
++------------------+--------+--------+--------+-------+--------+
+```
 
-## Estratégia: Priorizar Legibilidade sobre Densidade
+## Nova Estrutura Visual
 
-Para telas de 14" (tipicamente 1366px ou 1440px de largura):
-- Com sidebar (~260px), restam ~1100-1180px de área útil
-- 5 cards nesse espaço = ~220px por card (muito estreito)
-- Solução: usar 3 colunas no breakpoint intermediário
+```text
++----------------------+----------+----------+----------+---------+--------+
+| Fornecedor           | Mês 1    | Mês 2    | Mês 3    | Total   | Ações  |
++----------------------+----------+----------+----------+---------+--------+
+| [Select Fornecedor]  | [16000]  | [16000]  | [16000]  | 48.000  |  -     |
+| Serviço de Marketing |                                | 48.000  | (orç)  |
++----------------------+----------+----------+----------+---------+--------+
+| Total                | 16.000   | 16.000   | 16.000   | 48.000  | Var%   |
+|                      | 16.000   | 16.000   | 16.000   | 48.000  |        |
++----------------------+----------+----------+----------+---------+--------+
+```
+
+Onde:
+- Linha superior: valores PLANEJADOS (editáveis)
+- Linha inferior (cinza menor): valores ORÇADOS
 
 ---
 
 ## Alterações Técnicas
 
-### 1. Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`
+### 1. Adicionar props para fornecedores do orçamento e cadastro
 
-**Problema:** Grid de 5 colunas comprime demais os cards.
+**Arquivo:** `src/components/projects/detail/ProjectSuppliersSection.tsx`
 
-**Solução:** Reformular o layout dos cost cards para um formato mais compacto que preserve a legibilidade.
-
-#### Alteração A: Simplificar o CostCard (modo compacto)
-
-Ao invés de empilhar 3 linhas (Orçado, Planejado, %), exibir em formato mais horizontal quando possível:
-
+Novas props necessárias:
 ```tsx
-// Novo layout: valores lado a lado quando caber
-<div className="text-right">
-  <p className="text-lg font-bold">{formatCurrency(compareValue)}</p>
-  <p className="text-xs text-muted-foreground">
-    de {formatCurrency(baseValue)}
-  </p>
-  {/* Indicador de tendência abaixo */}
-</div>
+interface ProjectSuppliersSectionProps {
+  projectId: string;
+  suppliers: ProjectSupplierDB[];
+  durationMonths: number;
+  isEditable: boolean;
+  canEditActuals?: boolean;
+  supplierActuals?: ProjectSupplierActualDB[];
+  budgetSuppliers: BudgetSupplierDB[];        // NOVO
+  availableSuppliers: Supplier[];             // NOVO (do cadastro)
+}
 ```
 
-#### Alteração B: Ajustar breakpoints do grid
+### 2. Modificar o CostsTab para passar as novas props
 
-**Antes:**
-```tsx
-<div className={cn("grid gap-4", isEditable ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-2 md:grid-cols-4")}>
-```
+**Arquivo:** `src/components/projects/detail/ProjectCostsTab.tsx`
 
-**Depois:**
-```tsx
-<div className={cn(
-  "grid gap-4",
-  isEditable 
-    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" 
-    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-)}>
-```
+Importar:
+- `useSuppliers` - para obter lista de fornecedores cadastrados
+- Passar `budget?.suppliers || []` para o componente
 
-Isso garante:
-- Mobile: 1 coluna (legível)
-- Tablet/14": 2-3 colunas (espaço suficiente)
-- Desktop grande: 4-5 colunas
+### 3. Adaptar a coluna de Nome para incluir seletor
 
-#### Alteração C: Remover truncate dos valores monetários
+Quando `isEditable=true`:
+- Exibir `Select` com fornecedores do cadastro
+- Exibir nome do serviço abaixo (como o papel na seção de equipe)
 
-Trocar `truncate` por `text-ellipsis` apenas quando necessário, mas garantir que valores principais sejam sempre visíveis.
+### 4. Calcular e exibir dados orçados por fornecedor
 
-#### Alteração D: Reduzir padding interno
+Cada fornecedor do projeto pode ter um `budget_supplier_id` (opcional) que vincula ao item do orçamento.
 
-Diminuir de `pt-6` para `pt-4` e `gap-3` para `gap-2` para ganhar espaço.
+Para cada fornecedor:
+- Valor orçado por mês: `budget_supplier.monthly_value`
+- Total orçado: `monthly_value × duration_months`
+
+No rodapé:
+- Somatório orçado por mês
+- Indicador de variação (verde/vermelho)
+
+### 5. Adicionar campo `budget_supplier_id` ao model (se não existir)
+
+Verificar se a tabela `project_suppliers` já tem campo `budget_supplier_id`. Caso contrário, adicionar migração.
+
+### 6. Modificar dialog de adição
+
+Adicionar opção de:
+1. Selecionar fornecedor do orçamento (herda nome e valor mensal)
+2. Selecionar fornecedor do cadastro (apenas vincula)
+3. Digitar nome livre (comportamento atual)
 
 ---
 
-### 2. Arquivo: `src/components/projects/detail/ProjectExpectedResultTab.tsx`
+## Lógica de Comparação no Rodapé
 
-**Problema:** Grid de 4 colunas pode comprimir valores.
-
-**Solução:** Ajustar breakpoints.
-
-**Antes (linha 77):**
 ```tsx
-<div className="grid gap-4 md:grid-cols-4">
-```
+// Calcular totais orçados
+const budgetTotals = useMemo(() => {
+  const byMonth: Record<number, number> = {};
+  let total = 0;
+  
+  months.forEach(m => {
+    const monthValue = budgetSuppliers.reduce((sum, bs) => 
+      sum + Number(bs.monthly_value), 0);
+    byMonth[m] = monthValue;
+    total += monthValue;
+  });
+  
+  return { byMonth, total };
+}, [budgetSuppliers, months]);
 
-**Depois:**
-```tsx
-<div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+// Indicador de variação
+const variation = useMemo(() => {
+  if (budgetTotals.total === 0) return { percent: 0, isUnder: true };
+  const diff = totals.totalPlanned - budgetTotals.total;
+  return {
+    percent: (diff / budgetTotals.total) * 100,
+    isUnder: diff <= 0,
+  };
+}, [totals.totalPlanned, budgetTotals.total]);
 ```
 
 ---
 
-### 3. Arquivo: `src/components/projects/detail/ProjectStakeholdersTab.tsx`
+## Exibição das Células (Modo Planejamento)
 
-**Problema:** Grid de 3 colunas em `lg` pode ser apertado.
+Cada célula de mês mostrará:
 
-**Solução:** Usar xl para 3 colunas.
-
-**Antes (linha 131):**
 ```tsx
-<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+{isInPlanningMode ? (
+  <div className="flex flex-col gap-0.5 items-center">
+    {/* Input ou valor planejado */}
+    <Input type="number" value={plannedValue} ... />
+    
+    {/* Valor orçado abaixo (se existir) */}
+    {budgetValueForMonth > 0 && (
+      <span className="text-xs text-muted-foreground">
+        {formatCurrency(budgetValueForMonth)}
+      </span>
+    )}
+  </div>
+) : (
+  // Modo execução: Plan | Real
+)}
 ```
-
-**Depois:**
-```tsx
-<div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-```
-
----
-
-### 4. Arquivo: `src/components/projects/detail/ProjectScheduleTab.tsx`
-
-O componente já tem layout adaptativo (timeline hidden em md). Apenas garantir que a lista de marcos tenha espaço adequado.
-
-**Nenhuma alteração crítica necessária.**
-
----
-
-### 5. Arquivo: `src/components/projects/detail/ProjectOKRsTab.tsx`
-
-Os cards são em lista vertical, ocupando largura total. Layout já é responsivo.
-
-**Nenhuma alteração crítica necessária.**
-
----
-
-## Novo Design do CostCard
-
-Para maximizar legibilidade em espaços menores, o novo layout será:
-
-```text
-┌─────────────────────────────┐
-│ [Icon] Mão de Obra          │
-│         R$ 119.040,00       │  <- Valor principal em destaque
-│         de R$ 239.040,00    │  <- Base value menor
-│         ↓ 50% economia      │  <- Trend indicator
-└─────────────────────────────┘
-```
-
-Isso coloca o valor mais importante (planejado ou realizado) em destaque, com o valor de comparação em texto menor abaixo.
 
 ---
 
@@ -153,18 +158,18 @@ Isso coloca o valor mais importante (planejado ou realizado) em destaque, com o 
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `ProjectCostsTab.tsx` | Novo layout de CostCard + grid responsivo |
-| `ProjectExpectedResultTab.tsx` | Breakpoint ajustado para `lg:grid-cols-4` |
-| `ProjectStakeholdersTab.tsx` | Breakpoint ajustado para `xl:grid-cols-3` |
-| `ProjectScheduleTab.tsx` | Sem alteração |
-| `ProjectOKRsTab.tsx` | Sem alteração |
+| `ProjectCostsTab.tsx` | Passar `budgetSuppliers` e `availableSuppliers` |
+| `ProjectSuppliersSection.tsx` | Receber novas props, adicionar seletor de fornecedor, exibir comparação orçado vs planejado |
+| `src/hooks/useProjectCosts.ts` | Adicionar suporte a `budget_supplier_id` |
+| Migração SQL | Adicionar coluna `budget_supplier_id` à tabela `project_suppliers` |
+| `src/types/project.ts` | Atualizar interface `ProjectSupplierDB` |
 
 ---
 
 ## Resultado Esperado
 
-1. **Telas 14" (1366-1440px):** Cards com espaço suficiente para exibir valores completos
-2. **Telas menores:** Layout empilhado garante legibilidade
-3. **Telas grandes (1920px+):** Aproveitamento total com 4-5 colunas
-4. **Valores sempre visíveis:** Nenhum valor monetário será truncado
-
+1. **Seletor de fornecedor**: Dropdown para escolher do cadastro central
+2. **Herança de orçamento**: Ao adicionar de orçamento, herda valores mensais
+3. **Comparação visual**: Linha abaixo mostra valor orçado
+4. **Indicador de variação**: No rodapé, mostra % de diferença
+5. **Consistência**: Mesmo padrão visual da seção de Mão de Obra
