@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
 import { formatCNPJ } from '@/lib/masks';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface SupplierColumnsProps {
   onEdit: (supplier: Supplier) => void;
@@ -71,6 +71,9 @@ export const createSupplierColumns = ({
         return (
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9">
+              {supplier.logoUrl && (
+                <AvatarImage src={supplier.logoUrl} alt={supplier.companyName} className="object-cover" />
+              )}
               <AvatarFallback className="bg-accent/20 text-accent text-sm font-medium">
                 {initials}
               </AvatarFallback>
