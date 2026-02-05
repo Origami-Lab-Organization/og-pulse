@@ -65,21 +65,21 @@ export function TimesheetWeekStatus({
   }
 
   return (
-    <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
+    <Card className="border-muted bg-muted/30">
       <CardContent className="py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <FileText className="h-5 w-5 text-muted-foreground" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-medium text-amber-700 dark:text-amber-300">
+                <span className="font-medium text-foreground">
                   Rascunho
                 </span>
-                <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                <Badge variant="secondary">
                   Em edição
                 </Badge>
               </div>
-              <p className="text-sm text-amber-600 dark:text-amber-400">
+              <p className="text-sm text-muted-foreground">
                 As horas estão sendo salvas automaticamente, mas só serão consideradas após o envio.
               </p>
             </div>
@@ -87,7 +87,7 @@ export function TimesheetWeekStatus({
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm text-muted-foreground">Total atual</p>
-              <p className="text-lg font-semibold text-amber-700 dark:text-amber-300">
+              <p className="text-lg font-semibold">
                 {totalHours.toFixed(1)}h
               </p>
             </div>
