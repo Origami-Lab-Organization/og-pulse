@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { differenceInMonths, parseISO } from 'date-fns';
-import { Plus, Trash2, Users, Pencil, Check } from 'lucide-react';
+import { Plus, Trash2, Users, Pencil, Check, TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -368,6 +369,26 @@ export function ProjectLaborSection({
     return { byMonth, totalHours, totalValue, totalActualHours, totalActualValue };
   }, [members, months, getRealHourlyCost, getHoursForMonth, getActualHoursForMonth]);
 
+  // Calculate budget summary for comparison card
+  const budgetSummary = useMemo(() => {
+    let budgetHours = 0;
+    let budgetValue = 0;
+    budgetRoles.forEach(role => {
+      const hours = role.months?.reduce((sum, m) => sum + m.hours, 0) || 0;
+      budgetHours += hours;
+      budgetValue += hours * role.hourly_rate;
+    });
+    return { hours: budgetHours, value: budgetValue };
+  }, [budgetRoles]);
+
+  // Calculate variation between planned and budget
+  const budgetVariation = useMemo(() => {
+    if (budgetSummary.value === 0) return { percent: 0, isUnderBudget: true };
+    const diff = totals.totalValue - budgetSummary.value;
+    const percent = (diff / budgetSummary.value) * 100;
+    return { percent, isUnderBudget: percent <= 0 };
+  }, [totals.totalValue, budgetSummary.value]);
+
   // Calculate member totals using real employee cost (PLANNED + ACTUAL)
   const memberTotals = useMemo(() => {
     const result: Record<string, { plannedHours: number; plannedValue: number; actualHours: number; actualValue: number }> = {};
@@ -421,6 +442,46 @@ export function ProjectLaborSection({
           )}
         </CardHeader>
         <CardContent>
+          {/* Budget vs Planned Comparison Card */}
+          {budgetRoles.length > 0 && (
+            <div className="mb-4 p-4 bg-muted/50 rounded-lg border">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Orçado</p>
+                  <p className="font-semibold text-lg">
+                    {budgetSummary.hours}h <span className="text-muted-foreground font-normal">•</span> {formatCurrency(budgetSummary.value)}
+                  </p>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Planejado</p>
+                  <p className="font-semibold text-lg">
+                    {totals.totalHours}h <span className="text-muted-foreground font-normal">•</span> {formatCurrency(totals.totalValue)}
+                  </p>
+                </div>
+                <div className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium",
+                  budgetVariation.percent === 0 && "bg-muted text-muted-foreground",
+                  budgetVariation.isUnderBudget && budgetVariation.percent !== 0 && "bg-green-500/10 text-green-600 dark:text-green-400",
+                  !budgetVariation.isUnderBudget && "bg-red-500/10 text-red-600 dark:text-red-400"
+                )}>
+                  {budgetVariation.percent === 0 ? (
+                    <Minus className="h-4 w-4" />
+                  ) : budgetVariation.isUnderBudget ? (
+                    <TrendingDown className="h-4 w-4" />
+                  ) : (
+                    <TrendingUp className="h-4 w-4" />
+                  )}
+                  <span>
+                    {budgetVariation.percent === 0 
+                      ? 'No orçamento' 
+                      : `${Math.abs(budgetVariation.percent).toFixed(1)}% ${budgetVariation.isUnderBudget ? 'abaixo' : 'acima'}`
+                    }
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {members.length > 0 ? (
             <ScrollArea className="w-full whitespace-nowrap">
               <div className="rounded-md border">
@@ -487,20 +548,25 @@ export function ProjectLaborSection({
                                 onValueChange={(value) => handleAssignEmployee(member.id, value || null)}
                               >
                                 <SelectTrigger className="w-full h-9">
-                                  <SelectValue placeholder="Selecionar funcionário" />
+                                  <SelectValue placeholder="Selecionar...">
+                                    {member.employee?.nome || 'Selecionar...'}
+                                  </SelectValue>
                                 </SelectTrigger>
-                                <SelectContent className="bg-popover">
+                                <SelectContent className="min-w-[360px] bg-popover">
                                   <SelectItem value="none">
                                     <span className="text-muted-foreground italic">Sem funcionário</span>
                                   </SelectItem>
                                   {availableEmployees.map((emp) => {
                                     const hourlyCost = getEmployeeHourlyCost(emp);
                                     return (
-                                      <SelectItem key={emp.id} value={emp.id}>
-                                        <div className="flex flex-col">
-                                          <span className="font-medium">{emp.nome}</span>
-                                          <span className="text-xs text-muted-foreground">
-                                            {emp.cargo} • {formatCurrency(hourlyCost)}/h
+                                      <SelectItem key={emp.id} value={emp.id} className="py-2.5">
+                                        <div className="flex items-center justify-between w-full gap-3">
+                                          <span className="font-medium truncate max-w-[140px]">{emp.nome}</span>
+                                          <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                            {emp.cargo}
+                                          </span>
+                                          <span className="text-xs font-semibold text-primary whitespace-nowrap flex-shrink-0">
+                                            {formatCurrency(hourlyCost)}/h
                                           </span>
                                         </div>
                                       </SelectItem>
@@ -511,10 +577,7 @@ export function ProjectLaborSection({
                             ) : (
                               <div>
                                 {member.employee ? (
-                                  <>
-                                    <p className="font-medium">{member.employee.nome}</p>
-                                    <p className="text-xs text-muted-foreground">{member.employee.cargo}</p>
-                                  </>
+                                  <p className="font-medium">{member.employee.nome}</p>
                                 ) : (
                                   <span className="text-muted-foreground italic">Não atribuído</span>
                                 )}
