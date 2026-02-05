@@ -103,6 +103,7 @@ export interface CreateProjectMemberInput {
   hoursPerMonth: number;
   budgetRoleId?: string;
   hourlyRate?: number;
+  monthlyHours?: { monthNumber: number; hours: number }[];
 }
 
 export interface CreateProjectSupplierInput {

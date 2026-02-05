@@ -311,6 +311,24 @@ export const projectService = {
       throw error;
     }
 
+    // If budget hours are provided, copy them to project_member_months
+    if (input.monthlyHours && input.monthlyHours.length > 0) {
+      const monthInserts = input.monthlyHours.map((m) => ({
+        project_member_id: data.id,
+        month_number: m.monthNumber,
+        hours: m.hours,
+      }));
+
+      const { error: monthsError } = await supabase
+        .from('project_member_months')
+        .insert(monthInserts);
+
+      if (monthsError) {
+        console.error('Error adding member monthly hours:', monthsError);
+        // Don't throw - member was created successfully
+      }
+    }
+
     return data as unknown as ProjectMemberDB;
   },
 
