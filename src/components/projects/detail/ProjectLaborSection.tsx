@@ -481,45 +481,6 @@ export function ProjectLaborSection({
           )}
         </CardHeader>
         <CardContent>
-          {/* Budget vs Planned Comparison Card */}
-          {budgetRoles.length > 0 && (
-            <div className="mb-4 p-4 bg-muted/50 rounded-lg border">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Orçado</p>
-                  <p className="font-semibold text-lg">
-                    {budgetSummary.hours}h <span className="text-muted-foreground font-normal">•</span> {formatCurrency(budgetSummary.value)}
-                  </p>
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Planejado</p>
-                  <p className="font-semibold text-lg">
-                    {totals.totalHours}h <span className="text-muted-foreground font-normal">•</span> {formatCurrency(totals.totalValue)}
-                  </p>
-                </div>
-                <div className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium",
-                  budgetVariation.percent === 0 && "bg-muted text-muted-foreground",
-                  budgetVariation.isUnderBudget && budgetVariation.percent !== 0 && "bg-green-500/10 text-green-600 dark:text-green-400",
-                  !budgetVariation.isUnderBudget && "bg-red-500/10 text-red-600 dark:text-red-400"
-                )}>
-                  {budgetVariation.percent === 0 ? (
-                    <Minus className="h-4 w-4" />
-                  ) : budgetVariation.isUnderBudget ? (
-                    <TrendingDown className="h-4 w-4" />
-                  ) : (
-                    <TrendingUp className="h-4 w-4" />
-                  )}
-                  <span>
-                    {budgetVariation.percent === 0 
-                      ? 'No orçamento' 
-                      : `${Math.abs(budgetVariation.percent).toFixed(1)}% ${budgetVariation.isUnderBudget ? 'abaixo' : 'acima'}`
-                    }
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {members.length > 0 ? (
             <ScrollArea className="w-full whitespace-nowrap">
@@ -617,7 +578,7 @@ export function ProjectLaborSection({
                                   {member.employee?.nome || <span className="text-muted-foreground italic">Não atribuído</span>}
                                 </span>
                               )}
-                              <span className="text-xs font-semibold text-muted-foreground text-center w-full">
+                              <span className="text-xs font-semibold text-muted-foreground">
                                 {member.role}
                               </span>
                             </div>
@@ -867,7 +828,32 @@ export function ProjectLaborSection({
                           )}
                         </div>
                       </TableCell>
-                      {isEditable && <TableCell />}
+                      {isEditable && (
+                        <TableCell className="text-center">
+                          {budgetSummary.hours > 0 && (
+                            <div className={cn(
+                              "flex items-center justify-center gap-1 text-xs font-medium",
+                              budgetVariation.percent === 0 && "text-muted-foreground",
+                              budgetVariation.isUnderBudget && budgetVariation.percent !== 0 && "text-green-600 dark:text-green-400",
+                              !budgetVariation.isUnderBudget && "text-red-600 dark:text-red-400"
+                            )}>
+                              {budgetVariation.percent === 0 ? (
+                                <Minus className="h-3 w-3" />
+                              ) : budgetVariation.isUnderBudget ? (
+                                <TrendingDown className="h-3 w-3" />
+                              ) : (
+                                <TrendingUp className="h-3 w-3" />
+                              )}
+                              <span>
+                                {budgetVariation.percent === 0 
+                                  ? 'No orçamento' 
+                                  : `${Math.abs(budgetVariation.percent).toFixed(1)}%`
+                                }
+                              </span>
+                            </div>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   </TableFooter>
                 </Table>
