@@ -1,160 +1,147 @@
 
-# Plano: Mostrar Planejado vs Realizado por Mês na Alocação de Equipe
 
-## Objetivo
+# Plano: Edição de Admin com Justificativa por Semana
 
-Modificar a seção de Alocação de Equipe para exibir, em cada coluna de mês, as horas planejadas e realizadas (timesheets) lado a lado, conforme a referência visual fornecida.
+## Problemas Identificados
 
----
+### 1. RLS Bloqueando Edição
+A política de INSERT na tabela `timesheet_edit_logs` exige `has_role(auth.uid(), tenant_id, 'admin')`, mas a edição de timesheets usa `is_admin_or_manager()`. Isso pode causar inconsistências.
 
-## Formato Desejado
-
-```
-┌─────────────────┬──────────┬───────────┬─────────┬─────────┬─────────┬─────────────┬──────────────────────┐
-│ Funcionário     │ Orç. R$/h│ Custo R$/h│  Mês 1  │  Mês 2  │  Mês 3  │    Horas    │        Custo         │
-│                 │          │           │         │         │         │  Plan|Real  │     Plan | Real      │
-├─────────────────┼──────────┼───────────┼─────────┼─────────┼─────────┼─────────────┼──────────────────────┤
-│ Victor Couto    │ R$180,00 │ R$ 119,05 │ 50 | 60 │ 50 | 45 │  -  | 0 │ 100h | 105h │ R$11.904 | R$12.500  │
-│ Líder de Proj.  │          │           │         │         │         │             │                      │
-├─────────────────┼──────────┼───────────┼─────────┼─────────┼─────────┼─────────────┼──────────────────────┤
-│ Total           │          │           │50h |60h │50h |45h │ 0h | 0h │ 100h | 105h │ R$11.904 | R$12.500  │
-└─────────────────┴──────────┴───────────┴─────────┴─────────┴─────────┴─────────────┴──────────────────────┘
-```
+### 2. Justificativa por Dia (atual)
+O fluxo atual pede justificativa para cada dia editado individualmente, o que é trabalhoso.
 
 ---
 
-## Lógica de Mapeamento
+## Nova Experiência Proposta
 
-Os timesheets possuem `work_date` (data real do trabalho). Para mapear para o número do mês do projeto:
+### Fluxo de Edição
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  [Semana Enviada - Travado]                                          │
+│  Enviado em 05/02/2026 às 10:40 por Victor                          │
+│                                            [Editar Semana] ← NOVO   │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+Quando o admin clica em "Editar Semana":
+
+```
+┌─ Editar Semana Enviada ────────────────────────────────────────────┐
+│                                                                     │
+│  Projeto: Cliente X / Projeto Y                                     │
+│  Semana: 03/02 - 07/02/2025                                        │
+│                                                                     │
+│  ┌─────────────┬─────────────────────────────────────────────────┐ │
+│  │ Funcionário │ Seg │ Ter │ Qua │ Qui │ Sex │ Total            │ │
+│  ├─────────────┼─────┼─────┼─────┼─────┼─────┼──────────────────┤ │
+│  │ João Silva  │ [6] │ [8] │ [8] │ [7] │ [0] │ 29h → 29h       │ │
+│  │ Maria Costa │ [4] │ [4] │ [4] │ [4] │ [4] │ 20h → 20h       │ │
+│  └─────────────┴─────┴─────┴─────┴─────┴─────┴──────────────────┘ │
+│                                                                     │
+│  Justificativa * (aplicada a todas as alterações)                   │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │ Correção solicitada pelo cliente após revisão do projeto   │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│                               [Cancelar] [Salvar Alterações]        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Alterações Técnicas
+
+### 1. Banco de Dados
+
+**Corrigir RLS de `timesheet_edit_logs`** para permitir que admins (verificados por `has_role`) possam inserir:
+- A policy atual já está correta para admins
+- Verificar se o usuário tem a role 'admin' na tabela `user_roles`
+
+### 2. Componente `TimesheetWeekStatus.tsx`
+
+Adicionar botão "Editar Semana" quando:
+- `isSubmitted === true`
+- `isAdmin === true`
 
 ```typescript
-const getMonthNumber = (workDate: Date, projectStartDate: Date): number => {
-  return differenceInMonths(workDate, projectStartDate) + 1;
-};
-
-// Exemplo:
-// projectStartDate = 2025-01-15
-// workDate = 2025-01-20 → Mês 1
-// workDate = 2025-02-10 → Mês 2
-// workDate = 2025-03-05 → Mês 3
+{isSubmitted && isAdmin && (
+  <Button variant="outline" onClick={onAdminEdit}>
+    <Edit2 className="h-4 w-4 mr-2" />
+    Editar Semana
+  </Button>
+)}
 ```
+
+### 3. Novo Componente `AdminWeekEditDialog.tsx`
+
+Substituir o `AdminEditDialog` por um dialog mais completo que:
+- Mostra todos os projetos e membros da semana
+- Permite editar qualquer valor diretamente
+- Tem um único campo de justificativa no final
+- Salva todas as alterações de uma vez com batch update
+
+### 4. Arquivo `src/pages/Timesheets.tsx`
+
+- Remover o handler de edição por célula individual
+- Adicionar handler para edição da semana inteira
+- Passar dados completos (projetos, timesheets) para o novo dialog
+
+### 5. Arquivo `src/hooks/useTimesheetSubmissions.ts`
+
+Criar mutation `useAdminBatchEditTimesheets` que:
+- Recebe array de alterações `{ timesheetId, newHours, previousHours }[]`
+- Recebe uma única justificativa
+- Atualiza todos os timesheets
+- Cria log único com resumo das alterações (ou múltiplos logs vinculados)
+
+### 6. Remover Edição Individual
+
+- Remover o click handler das células travadas para admin
+- As células travadas ficam apenas visuais (cinza com cadeado)
+- Toda edição passa pelo botão "Editar Semana"
 
 ---
 
-## Alterações Necessárias
+## Modelo de Dados para Log
 
-### 1. Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`
-
-Passar a data de início do projeto para o `ProjectLaborSection`:
-
-```typescript
-<ProjectLaborSection
-  projectId={project.id}
-  members={project.members || []}
-  durationMonths={durationMonths}
-  isEditable={isEditable}
-  budgetRoles={budget?.roles || []}
-  timesheets={timesheets}
-  projectStartDate={project.start_date}  // ← NOVO
-/>
+Opção A - Um log por alteração (atual):
+```
+timesheet_edit_logs
+├── id
+├── timesheet_id → individual
+├── previous_hours
+├── new_hours
+├── justification → repetida em cada registro
+├── edited_by
+└── edited_at
 ```
 
-### 2. Arquivo: `src/components/projects/detail/ProjectLaborSection.tsx`
-
-**a) Adicionar prop `projectStartDate`**:
-
-```typescript
-interface ProjectLaborSectionProps {
-  // ... existentes
-  projectStartDate: string;  // ← NOVO
-}
+Opção B - Um log por sessão de edição (recomendado):
+```
+timesheet_edit_sessions
+├── id
+├── week_start
+├── tenant_id
+├── justification → única
+├── edited_by
+├── edited_at
+└── changes_json → [{ timesheet_id, prev, new }, ...]
 ```
 
-**b) Criar função para calcular horas reais por membro e por mês**:
-
-```typescript
-const actualHoursByMemberAndMonth = useMemo(() => {
-  const result: Record<string, Record<number, number>> = {};
-  
-  timesheets.forEach((ts) => {
-    const workDate = parseISO(ts.work_date);
-    const startDate = parseISO(projectStartDate);
-    const monthNumber = differenceInMonths(workDate, startDate) + 1;
-    
-    if (!result[ts.project_member_id]) {
-      result[ts.project_member_id] = {};
-    }
-    if (!result[ts.project_member_id][monthNumber]) {
-      result[ts.project_member_id][monthNumber] = 0;
-    }
-    result[ts.project_member_id][monthNumber] += Number(ts.hours);
-  });
-  
-  return result;
-}, [timesheets, projectStartDate]);
-```
-
-**c) Modificar exibição das células de mês (modo não-editável)**:
-
-Alterar de:
-```tsx
-<span>{getHoursForMonth(member.id, monthNum) || '-'}</span>
-```
-
-Para:
-```tsx
-<div className="flex items-center justify-center gap-1 text-sm">
-  <span className="text-muted-foreground">
-    {plannedHours > 0 ? plannedHours : '-'}
-  </span>
-  <span className="text-muted-foreground">|</span>
-  <span className="font-medium">
-    {actualHours > 0 ? actualHours : '-'}
-  </span>
-</div>
-```
-
-**d) Modificar cabeçalho das colunas de mês**:
-
-Adicionar subtítulo "Plan | Real" nas colunas de mês:
-
-```tsx
-<TableHead key={m} className="text-center min-w-[80px]">
-  <div className="flex flex-col">
-    <span>Mês {m}</span>
-    <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
-  </div>
-</TableHead>
-```
-
-**e) Atualizar totals por mês no rodapé**:
-
-Calcular também o total realizado por mês e exibir no formato "50h | 60h".
+**Recomendação**: Manter a estrutura atual (Opção A) por simplicidade, apenas replicando a justificativa para cada registro.
 
 ---
 
-## Comportamento Especial
+## Arquivos a Modificar/Criar
 
-| Situação | Planejado | Realizado | Exibição |
-|----------|-----------|-----------|----------|
-| Ambos preenchidos | 50 | 45 | 50 \| 45 |
-| Apenas planejado | 50 | 0 | 50 \| - |
-| Apenas realizado | 0 | 30 | - \| 30 |
-| Nenhum | 0 | 0 | - \| - ou apenas - |
+| Arquivo | Ação |
+|---------|------|
+| `src/components/timesheets/AdminWeekEditDialog.tsx` | Criar (novo) |
+| `src/components/timesheets/AdminEditDialog.tsx` | Remover |
+| `src/components/timesheets/TimesheetWeekStatus.tsx` | Adicionar botão |
+| `src/components/timesheets/TimesheetWeekRow.tsx` | Remover click admin |
+| `src/pages/Timesheets.tsx` | Refatorar handlers |
+| `src/hooks/useTimesheetSubmissions.ts` | Adicionar batch mutation |
+| `src/types/timesheetSubmission.ts` | Adicionar tipos batch |
 
----
-
-## Modo Editável (Planejamento)
-
-Quando `isEditable=true` (fase de planejamento), manter o input para edição das horas planejadas, mas:
-- Mostrar abaixo do input as horas realizadas (se houver)
-- Ou exibir apenas o input se não houver timesheets
-
----
-
-## Arquivos Afetados
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/projects/detail/ProjectCostsTab.tsx` | Passar `projectStartDate` |
-| `src/components/projects/detail/ProjectLaborSection.tsx` | Calcular e exibir horas por mês |
