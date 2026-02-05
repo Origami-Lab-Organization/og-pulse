@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AlertTriangle } from 'lucide-react';
@@ -78,14 +78,29 @@ export function AdminWeekEditDialog({
     return hours;
   }, [projects, weekDays, timesheetEntries]);
 
-  const [hours, setHours] = useState<Record<string, Record<string, number>>>(initialHours);
+  const [hours, setHours] = useState<Record<string, Record<string, number>>>({});
 
-  // Reset state when dialog opens
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen) {
-      setHours(initialHours);
+  // Sync state when dialog opens or data changes
+  useEffect(() => {
+    if (open) {
+      const freshHours: Record<string, Record<string, number>> = {};
+      projects.forEach((project) => {
+        project.members.forEach((member) => {
+          weekDays.forEach((day) => {
+            const entry = timesheetEntries.find(
+              (e) => e.projectMemberId === member.memberId && e.workDate === day.date
+            );
+            if (!freshHours[member.memberId]) freshHours[member.memberId] = {};
+            freshHours[member.memberId][day.date] = entry?.hours ?? 0;
+          });
+        });
+      });
+      setHours(freshHours);
       setJustification('');
     }
+  }, [open, projects, weekDays, timesheetEntries]);
+
+  const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
   };
 
@@ -205,7 +220,7 @@ export function AdminWeekEditDialog({
                 {/* Member Rows */}
                 {project.members.map((member) => {
                   const memberHours = hours[member.memberId] || {};
-                  const totalHours = Object.values(memberHours).reduce((sum, h) => sum + (h || 0), 0);
+                  const totalHours = weekDays.reduce((sum, day) => sum + (memberHours[day.date] ?? 0), 0);
                   const initials = member.employeeName
                     .split(' ')
                     .map((n) => n[0])
