@@ -1,235 +1,124 @@
 
+# Plano: Métricas de Custo para Projetos em Planejamento
 
-# Plano: Edição de Horas por Linha com Botões de Ação
+## Problema Identificado
 
-## Alterações Solicitadas
+Atualmente, a aba de Custos exibe sempre "Planejado vs Realizado", mas para projetos em fase de planejamento, a comparação relevante é "Orçado vs Planejado". Além disso, a margem do projeto não está visível nesta aba, forçando o usuário a alternar para "Resultado Esperado".
 
-Com base na imagem de referência, os seguintes ajustes serão implementados:
+## Solução Proposta
 
-1. **Remover o botão "Editar Horas" do rodapé do Card**
-2. **O botão de editar na coluna Ações libera a edição de horas apenas daquele funcionário**
-3. **Ao clicar no ícone de editar, as ações mudam para ✓ (salvar) e ✗ (cancelar)**
+Modificar o componente `ProjectCostsTab` para:
+1. Exibir "Orçado vs Planejado" quando em fase de planejamento
+2. Adicionar um card de margem ao lado dos custos
+3. Manter "Planejado vs Realizado" quando em fase de execução
 
-## Nova Interação Visual
+## Nova Estrutura Visual
 
-```
-Estado Normal:
-┌─────────────────┬───────┬──────┬──────┬──────┬──────────┐
-│ Funcionário     │ R$/h  │ Mês 1│ Mês 2│ Horas│ Ações    │
-├─────────────────┼───────┼──────┼──────┼──────┼──────────┤
-│ Victor Couto    │R$119  │  84  │  84  │ 420h │ [✏] [🗑] │
-│ Gerente Sênior  │       │      │      │      │          │
-└─────────────────┴───────┴──────┴──────┴──────┴──────────┘
-
-Estado Editando (após clicar em ✏):
-┌─────────────────┬───────┬──────┬──────┬──────┬──────────┐
-│ Funcionário     │ R$/h  │ Mês 1│ Mês 2│ Horas│ Ações    │
-├─────────────────┼───────┼──────┼──────┼──────┼──────────┤
-│ Victor Couto    │R$119  │[    ]│[    ]│ 420h │ [✓] [✗]  │
-│ Gerente Sênior  │       │inputs│inputs│      │          │
-└─────────────────┴───────┴──────┴──────┴──────┴──────────┘
+```text
++-------------------+-------------------+-------------------+-------------------+-------------------+
+| Mão de Obra       | Fornecedores      | Materiais         | Custo Total       | Margem Planejada  |
+|                   |                   |                   |                   |                   |
+| Orçado:  R$ X     | Orçado:  R$ X     | Orçado:  R$ X     | Orçado:  R$ X     | R$ XXX.XXX,XX     |
+| Planejado: R$ Y   | Planejado: R$ Y   | Planejado: R$ Y   | Planejado: R$ Y   | XX,X%             |
+| -X% (economia)    | +X% (estouro)     |                   |                   | (verde/vermelho)  |
++-------------------+-------------------+-------------------+-------------------+-------------------+
 ```
 
 ---
 
 ## Alterações Técnicas
 
-### Arquivo: `src/components/projects/detail/ProjectLaborSection.tsx`
+### Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`
 
-#### 1. Alterar o estado de controle de edição (linhas 95-96)
+#### 1. Importar a função de cálculo do orçamento
 
-Mudar de boolean global para ID do membro em edição:
-
-**Antes:**
+Adicionar import:
 ```tsx
-// Hours edit mode toggle
-const [hoursEditMode, setHoursEditMode] = useState(false);
+import { calculateBudgetTotals } from '@/types/budget';
 ```
 
-**Depois:**
+#### 2. Calcular os custos do orçamento
+
+Utilizar o `budget` já disponível via `useBudget(project.budget_id)` para extrair:
+- **laborCostBudgeted**: soma de (horas × tarifa horária) para cada role
+- **suppliersCostBudgeted**: soma de (valor mensal × duração) para cada fornecedor
+- **materialsCostBudgeted**: soma dos valores de materiais
+
+#### 3. Modificar o componente `CostCard` para suportar modo de planejamento
+
+Adicionar props ao `CostCard`:
 ```tsx
-// Hours edit mode per member - stores the member ID being edited (null = none)
-const [editingHoursMemberId, setEditingHoursMemberId] = useState<string | null>(null);
+interface CostCardProps {
+  icon: React.ReactNode;
+  iconBg: string;
+  label: string;
+  plannedValue: number;
+  actualValue: number;
+  isTotal?: boolean;
+  isPlanningMode?: boolean; // NOVO
+  budgetedValue?: number;   // NOVO
+}
 ```
 
-#### 2. Adicionar import do ícone X (linha 3)
+Quando `isPlanningMode=true`:
+- Exibir "Orçado:" com `budgetedValue`
+- Exibir "Planejado:" com `plannedValue`
+- Comparar planejado vs orçado ao invés de realizado vs planejado
 
-**Antes:**
-```tsx
-import { Plus, Trash2, Users, Pencil, Check, TrendingDown, TrendingUp, Minus } from 'lucide-react';
-```
+#### 4. Adicionar Card de Margem
 
-**Depois:**
-```tsx
-import { Plus, Trash2, Users, Pencil, Check, X, TrendingDown, TrendingUp, Minus } from 'lucide-react';
-```
+Criar novo componente ou card inline que mostra:
+- **Valor do Contrato**: `project.total_value`
+- **Custo Planejado Total**: soma de mão de obra + fornecedores + materiais
+- **Margem Bruta**: contrato - custo
+- **Margem %**: (margem / contrato) × 100
 
-#### 3. Criar handler para cancelar edição e handler para salvar
+#### 5. Ajustar a lógica condicional
 
-Adicionar novo handler para cancelar (restaura valores originais):
+Utilizar o prop `isEditable` já passado para determinar o modo:
+- `isEditable = true` → Modo Planejamento → Orçado vs Planejado
+- `isEditable = false` → Modo Execução → Planejado vs Realizado
 
-```tsx
-// Cancel hours edit for a member
-const handleCancelHoursEdit = useCallback((memberId: string) => {
-  // Clear any pending updates for this member
-  Object.keys(pendingUpdates.current).forEach((key) => {
-    if (key.startsWith(memberId)) {
-      clearTimeout(pendingUpdates.current[key]);
-      delete pendingUpdates.current[key];
-    }
-  });
+---
+
+## Cálculo dos Custos Orçados
+
+```typescript
+const budgetedCosts = useMemo(() => {
+  if (!budget) return { labor: 0, suppliers: 0, materials: 0, total: 0 };
   
-  // Restore original values from memberMonths for this member
-  const restoredHours: Record<string, number> = {};
-  memberMonths.forEach((mm) => {
-    if (mm.project_member_id === memberId) {
-      const key = `${mm.project_member_id}-${mm.month_number}`;
-      restoredHours[key] = mm.hours;
-    }
-  });
-  setLocalHours((prev) => ({ ...prev, ...restoredHours }));
-  setEditingHoursMemberId(null);
-}, [memberMonths]);
-
-// Save hours for a specific member and exit edit mode
-const handleSaveHoursForMember = useCallback((memberId: string) => {
-  // Clear pending timeouts for this member and trigger immediate saves
-  Object.keys(pendingUpdates.current).forEach((key) => {
-    if (key.startsWith(memberId)) {
-      clearTimeout(pendingUpdates.current[key]);
-      delete pendingUpdates.current[key];
-    }
-  });
-  setEditingHoursMemberId(null);
-}, []);
+  // Mão de obra: soma de horas × tarifa para cada papel
+  const labor = budget.roles.reduce((acc, role) => {
+    const roleHours = role.months.reduce((h, m) => h + m.hours, 0);
+    return acc + roleHours * role.hourly_rate;
+  }, 0);
+  
+  // Fornecedores: valor mensal × duração
+  const suppliers = budget.suppliers.reduce((acc, s) => 
+    acc + s.monthly_value * budget.duration_months, 0);
+  
+  // Materiais: soma simples
+  const materials = budget.materials.reduce((acc, m) => 
+    acc + m.value, 0);
+  
+  return { labor, suppliers, materials, total: labor + suppliers + materials };
+}, [budget]);
 ```
 
-#### 4. Atualizar a condição de exibição dos inputs de horas (linhas 610-666)
+---
 
-Substituir `hoursEditMode` pela verificação do membro específico:
+## Cálculo da Margem
 
-**Antes:**
-```tsx
-hoursEditMode ? (
-  <Input ... />
-) : (
-  <span ... />
-)
+```typescript
+const marginData = useMemo(() => {
+  const contractValue = project.total_value;
+  const totalPlannedCost = laborCostsPlanned + supplierCostsPlanned + materialCostsPlanned;
+  const grossMargin = contractValue - totalPlannedCost;
+  const marginPercent = contractValue > 0 ? (grossMargin / contractValue) * 100 : 0;
+  
+  return { contractValue, totalPlannedCost, grossMargin, marginPercent };
+}, [project.total_value, laborCostsPlanned, supplierCostsPlanned, materialCostsPlanned]);
 ```
-
-**Depois:**
-```tsx
-editingHoursMemberId === member.id ? (
-  <Input ... />
-) : (
-  <span ... />
-)
-```
-
-#### 5. Atualizar a coluna de Ações para alternar entre editar/excluir e salvar/cancelar (linhas 717-737)
-
-**Antes:**
-```tsx
-{/* Actions column */}
-{isEditable && (
-  <TableCell className="text-center">
-    <div className="flex items-center justify-center gap-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => openEditDialog(member)}
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => handleRemoveMember(member.id)}
-      >
-        <Trash2 className="h-4 w-4 text-destructive" />
-      </Button>
-    </div>
-  </TableCell>
-)}
-```
-
-**Depois:**
-```tsx
-{/* Actions column */}
-{isEditable && (
-  <TableCell className="text-center">
-    <div className="flex items-center justify-center gap-1">
-      {editingHoursMemberId === member.id ? (
-        // Save/Cancel mode
-        <>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleSaveHoursForMember(member.id)}
-            title="Salvar"
-          >
-            <Check className="h-4 w-4 text-green-600" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleCancelHoursEdit(member.id)}
-            title="Cancelar"
-          >
-            <X className="h-4 w-4 text-destructive" />
-          </Button>
-        </>
-      ) : (
-        // Edit/Delete mode
-        <>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setEditingHoursMemberId(member.id)}
-            title="Editar Horas"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleRemoveMember(member.id)}
-            title="Excluir"
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </>
-      )}
-    </div>
-  </TableCell>
-)}
-```
-
-#### 6. Remover o CardFooter com botão "Editar Horas" (linhas 856-871)
-
-Remover completamente o bloco:
-```tsx
-{/* Footer with edit/save buttons */}
-{isEditable && members.length > 0 && (
-  <CardFooter className="justify-end border-t pt-4">
-    {hoursEditMode ? (
-      <Button onClick={handleSaveHours}>
-        <Check className="mr-2 h-4 w-4" />
-        Salvar Horas
-      </Button>
-    ) : (
-      <Button variant="outline" onClick={() => setHoursEditMode(true)}>
-        <Pencil className="mr-2 h-4 w-4" />
-        Editar Horas
-      </Button>
-    )}
-  </CardFooter>
-)}
-```
-
-#### 7. Remover o handler handleSaveHours (linhas 193-202)
-
-Este handler global não será mais necessário.
 
 ---
 
@@ -237,19 +126,16 @@ Este handler global não será mais necessário.
 
 | Alteração | Descrição |
 |-----------|-----------|
-| Estado de edição | De `boolean` global para `string \| null` (ID do membro) |
-| Import X | Adicionar ícone X de lucide-react |
-| Novos handlers | `handleCancelHoursEdit` e `handleSaveHoursForMember` |
-| Condição de input | `hoursEditMode` → `editingHoursMemberId === member.id` |
-| Coluna Ações | Alternar entre [✏][🗑] e [✓][✗] |
-| CardFooter | Removido completamente |
+| Novo modo de exibição | Orçado vs Planejado para projetos em planejamento |
+| Card de Margem | Novo card mostrando margem bruta e percentual |
+| Props do CostCard | Adicionar `isPlanningMode` e `budgetedValue` |
+| Cálculos orçados | Derivar custos do orçamento vinculado |
+| Grid de 5 colunas | Layout expandido para incluir margem |
 
 ---
 
 ## Resultado Esperado
 
-1. **Sem botão no rodapé**: Interface mais limpa
-2. **Edição por linha**: Cada funcionário é editado individualmente
-3. **Feedback visual**: Botões mudam para confirmar/cancelar durante edição
-4. **Cancelar restaura valores**: Se cancelar, os valores originais são restaurados
-
+1. **Em Planejamento**: Cards mostram Orçado vs Planejado + Card de Margem
+2. **Em Execução**: Cards mostram Planejado vs Realizado (comportamento atual)
+3. **Margem visível**: Usuário não precisa mudar de aba para ver a margem
