@@ -1,0 +1,199 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { TimesheetSubmission, SubmitWeekInput, AdminEditInput } from '@/types/timesheetSubmission';
+
+export const useWeekSubmission = (weekStart: string, tenantId: string | undefined) => {
+  return useQuery({
+    queryKey: ['timesheet-submission', weekStart, tenantId],
+    queryFn: async () => {
+      if (!tenantId) return null;
+      
+      const { data, error } = await supabase
+        .from('timesheet_submissions')
+        .select('*')
+        .eq('week_start', weekStart)
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data && data.submitted_by) {
+        // Fetch the employee name who submitted
+        const { data: employee } = await supabase
+          .from('employees')
+          .select('nome')
+          .eq('auth_id', data.submitted_by)
+          .maybeSingle();
+        
+        return {
+          ...data,
+          submitted_by_employee: employee,
+        } as TimesheetSubmission;
+      }
+      
+      return data as TimesheetSubmission | null;
+    },
+    enabled: !!tenantId,
+  });
+};
+
+export const useSubmitWeek = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ weekStart, totalHours, tenantId }: SubmitWeekInput) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Get week end date (Friday)
+      const weekStartDate = new Date(weekStart);
+      const weekEndDate = new Date(weekStartDate);
+      weekEndDate.setDate(weekEndDate.getDate() + 4);
+      const weekEndStr = weekEndDate.toISOString().split('T')[0];
+
+      // Create or update the submission record
+      const { data: submission, error: submissionError } = await supabase
+        .from('timesheet_submissions')
+        .upsert({
+          tenant_id: tenantId,
+          week_start: weekStart,
+          status: 'submitted',
+          submitted_at: new Date().toISOString(),
+          submitted_by: user.id,
+          total_hours: totalHours,
+        }, {
+          onConflict: 'tenant_id,week_start',
+        })
+        .select()
+        .single();
+
+      if (submissionError) throw submissionError;
+
+      // Lock all timesheets for this week
+      const { error: lockError } = await supabase
+        .from('project_timesheets')
+        .update({ is_locked: true, updated_by: user.id })
+        .gte('work_date', weekStart)
+        .lte('work_date', weekEndStr);
+
+      if (lockError) throw lockError;
+
+      return submission;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['timesheet-submission', variables.weekStart] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
+      queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+      toast({
+        title: 'Semana enviada',
+        description: 'Os timesheets foram enviados e travados com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao enviar semana',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useAdminEditTimesheet = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ 
+      timesheetId, 
+      projectId,
+      projectMemberId,
+      workDate,
+      previousHours, 
+      newHours, 
+      justification 
+    }: AdminEditInput) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // If timesheetId exists, update it
+      if (timesheetId) {
+        // Insert audit log
+        const { error: logError } = await supabase
+          .from('timesheet_edit_logs')
+          .insert({
+            timesheet_id: timesheetId,
+            previous_hours: previousHours,
+            new_hours: newHours,
+            justification,
+            edited_by: user.id,
+          });
+
+        if (logError) throw logError;
+
+        // Update the timesheet
+        const { data, error } = await supabase
+          .from('project_timesheets')
+          .update({ 
+            hours: newHours, 
+            updated_by: user.id 
+          })
+          .eq('id', timesheetId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } else {
+        // Create new locked timesheet entry
+        const { data, error } = await supabase
+          .from('project_timesheets')
+          .insert({
+            project_id: projectId,
+            project_member_id: projectMemberId,
+            work_date: workDate,
+            hours: newHours,
+            is_locked: true,
+            updated_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Insert audit log for the new entry
+        const { error: logError } = await supabase
+          .from('timesheet_edit_logs')
+          .insert({
+            timesheet_id: data.id,
+            previous_hours: 0,
+            new_hours: newHours,
+            justification,
+            edited_by: user.id,
+          });
+
+        if (logError) throw logError;
+
+        return data;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
+      queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-submission'] });
+      toast({
+        title: 'Timesheet atualizado',
+        description: 'A alteração foi registrada com justificativa.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao atualizar timesheet',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};

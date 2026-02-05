@@ -6,6 +6,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetByProject } from '@/components/timesheets/TimesheetByProject';
 import { TimesheetByEmployee } from '@/components/timesheets/TimesheetByEmployee';
+import { TimesheetWeekStatus } from '@/components/timesheets/TimesheetWeekStatus';
+import { SubmitWeekDialog } from '@/components/timesheets/SubmitWeekDialog';
+import { AdminEditDialog } from '@/components/timesheets/AdminEditDialog';
 import {
   useActiveProjectsWithMembers,
   useTimesheetsByDateRange,
@@ -15,12 +18,33 @@ import {
   groupByEmployee,
 } from '@/hooks/useTimesheetData';
 import { useHolidays } from '@/hooks/useHolidays';
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  useWeekSubmission, 
+  useSubmitWeek, 
+  useAdminEditTimesheet 
+} from '@/hooks/useTimesheetSubmissions';
 
 type ViewMode = 'project' | 'employee';
+
+interface AdminEditEntry {
+  id: string;
+  projectId: string;
+  projectMemberId: string;
+  employeeName: string;
+  projectName: string;
+  workDate: string;
+  currentHours: number;
+}
 
 export default function Timesheets() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('project');
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [editEntry, setEditEntry] = useState<AdminEditEntry | null>(null);
+  
+  const { employee } = useAuth();
+  const isAdmin = employee?.isAdmin ?? false;
 
   const weekStart = getWeekStart(selectedDate);
   const weekEnd = getWeekEnd(selectedDate);
@@ -35,13 +59,57 @@ export default function Timesheets() {
     endDateStr
   );
   const { data: holidays = [] } = useHolidays();
+  const { data: submission, isLoading: isLoadingSubmission } = useWeekSubmission(
+    startDateStr, 
+    employee?.tenant_id
+  );
+
+  const submitWeek = useSubmitWeek();
+  const adminEditTimesheet = useAdminEditTimesheet();
 
   const employees = useMemo(() => {
     if (!projects) return [];
     return groupByEmployee(projects);
   }, [projects]);
 
-  const isLoading = isLoadingProjects || isLoadingTimesheets;
+  const totalHours = useMemo(() => {
+    return (timesheetEntries || []).reduce((sum, e) => sum + e.hours, 0);
+  }, [timesheetEntries]);
+
+  const isLocked = submission?.status === 'submitted';
+  const isLoading = isLoadingProjects || isLoadingTimesheets || isLoadingSubmission;
+
+  const handleSubmitWeek = () => {
+    if (!employee?.tenant_id) return;
+    
+    submitWeek.mutate({
+      weekStart: startDateStr,
+      totalHours,
+      tenantId: employee.tenant_id,
+    }, {
+      onSuccess: () => setShowSubmitDialog(false),
+    });
+  };
+
+  const handleAdminEdit = (entry: AdminEditEntry) => {
+    setEditEntry(entry);
+  };
+
+  const handleAdminSave = (newHours: number, justification: string) => {
+    if (!editEntry) return;
+    
+    adminEditTimesheet.mutate({
+      timesheetId: editEntry.id,
+      projectId: editEntry.projectId,
+      projectMemberId: editEntry.projectMemberId,
+      workDate: editEntry.workDate,
+      previousHours: editEntry.currentHours,
+      newHours,
+      justification,
+    }, {
+      onSuccess: () => setEditEntry(null),
+    });
+  };
 
   return (
     <AppLayout 
@@ -65,6 +133,17 @@ export default function Timesheets() {
           </Tabs>
         </div>
 
+        {/* Week Status */}
+        {!isLoading && (
+          <TimesheetWeekStatus
+            submission={submission || null}
+            totalHours={totalHours}
+            onSubmit={() => setShowSubmitDialog(true)}
+            isSubmitting={submitWeek.isPending}
+            canSubmit={!isLocked && (employee?.is_gerente || isAdmin)}
+          />
+        )}
+
         {/* Content */}
         {isLoading ? (
           <div className="space-y-4">
@@ -78,6 +157,9 @@ export default function Timesheets() {
             weekDays={weekDays}
             timesheetEntries={timesheetEntries || []}
             holidays={holidays}
+            isLocked={isLocked}
+            isAdmin={isAdmin}
+            onAdminEdit={handleAdminEdit}
           />
         ) : (
           <TimesheetByEmployee
@@ -85,9 +167,32 @@ export default function Timesheets() {
             weekDays={weekDays}
             timesheetEntries={timesheetEntries || []}
             holidays={holidays}
+            isLocked={isLocked}
+            isAdmin={isAdmin}
+            onAdminEdit={handleAdminEdit}
           />
         )}
       </div>
+
+      {/* Submit Week Dialog */}
+      <SubmitWeekDialog
+        open={showSubmitDialog}
+        onOpenChange={setShowSubmitDialog}
+        weekStart={weekStart}
+        weekEnd={weekEnd}
+        totalHours={totalHours}
+        onConfirm={handleSubmitWeek}
+        isSubmitting={submitWeek.isPending}
+      />
+
+      {/* Admin Edit Dialog */}
+      <AdminEditDialog
+        open={!!editEntry}
+        onOpenChange={(open) => !open && setEditEntry(null)}
+        entry={editEntry}
+        onSave={handleAdminSave}
+        isSaving={adminEditTimesheet.isPending}
+      />
     </AppLayout>
   );
 }
