@@ -1,204 +1,220 @@
 
-# Plano: Adicionar Data de Início e Data de Fim no Dialog "Fechar Negócio"
+# Plano: Tela de Lançamento de Timesheets
 
-## Contexto
+## Objetivo
 
-Atualmente, quando o usuário move um orçamento para "Negócio Fechado", o dialog `CloseBusinessDialog` coleta:
-- Gerente do Projeto
-- Forma de Pagamento
-- Parcelas
-- Data Primeira NF
-- Dia de Vencimento
+Criar uma tela dedicada para lançamento de horas trabalhadas pelos funcionários nos projetos, com duas visualizações:
+- **Por Projeto**: Cabeçalho com Cliente/Projeto, campos para funcionário e horas da semana
+- **Por Funcionário**: Cabeçalho com Funcionário, campos para Cliente/Projeto e horas da semana
 
-O sistema calcula automaticamente a data de fim do projeto baseado no `start_date` do orçamento + `duration_months`, mas o usuário não pode visualizar nem editar essas datas.
+---
 
-## Requisito
+## Estrutura Visual
 
-1. Adicionar campos **Data de Início** e **Data de Fim** no formulário
-2. **Data de Início**: pré-preenchida com a `start_date` do orçamento, editável pelo usuário
-3. **Data de Fim**: calculada automaticamente (Data de Início + duração do orçamento em meses), editável pelo usuário
-4. Quando a **Data de Início** mudar, recalcular a **Data de Fim** automaticamente (mantendo a duração)
+### Layout Geral
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Timesheets                                                                 │
+│  Registre as horas trabalhadas pelos funcionários nos projetos             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [Semana: ◀ 03/02 - 07/02/2025 ▶]     [Por Projeto] [Por Funcionário]      │
+│                                                                             │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│                                                                             │
+│  ┌─ Bry Tecnologia / Plataforma Bry Discovery ──────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Funcionário         │ Seg  │ Ter  │ Qua  │ Qui  │ Sex  │ Total     │  │
+│  ├──────────────────────┼──────┼──────┼──────┼──────┼──────┼───────────┤  │
+│  │  Victor Couto        │ [8]  │ [8]  │ [6]  │ [8]  │ [8]  │ 38h       │  │
+│  │  Maria Silva         │ [4]  │ [4]  │ [4]  │ [4]  │ [4]  │ 20h       │  │
+│  │  [+ Adicionar funcionário]                                           │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Cliente X / Projeto Y ──────────────────────────────────────────────┐  │
+│  │  ...                                                                  │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Visualização por Funcionário
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Victor Couto ───────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Cliente / Projeto   │ Seg  │ Ter  │ Qua  │ Qui  │ Sex  │ Total     │  │
+│  ├──────────────────────┼──────┼──────┼──────┼──────┼──────┼───────────┤  │
+│  │  Bry / Discovery     │ [8]  │ [8]  │ [6]  │ [8]  │ [8]  │ 38h       │  │
+│  │  Cliente Y / Proj Z  │ [2]  │ [2]  │ [0]  │ [2]  │ [0]  │  6h       │  │
+│  │                      │      │      │      │      │      │ Total: 44h│  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Fluxo de Dados
+
+### Dados Necessários
+
+1. **Projetos ativos** com seus membros alocados
+   - Buscar projetos onde `status = 'active'` ou `portfolio_stage != 'planning'`
+   - Incluir cliente e membros com dados do funcionário
+
+2. **Funcionários** alocados em projetos
+   - A partir de `project_members` com join em `employees`
+
+3. **Timesheets existentes** para a semana selecionada
+   - Filtrar `project_timesheets` por `work_date` dentro da semana
+
+### Hooks Necessários
+
+```typescript
+// Hook para buscar projetos ativos com membros
+useActiveProjectsWithMembers()
+
+// Hook já existente - timesheets por período
+useTimesheetsByDateRange(startDate, endDate)
+
+// Hook para upsert em batch (múltiplos registros)
+useBatchUpsertTimesheets()
+```
 
 ---
 
 ## Implementação
 
-### 1. Atualizar Schema do Formulário
+### Arquivos a Criar
 
-**Arquivo:** `src/components/crm/CloseBusinessDialog.tsx`
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/pages/Timesheets.tsx` | Página principal de timesheets |
+| `src/components/timesheets/TimesheetWeekSelector.tsx` | Seletor de semana com navegação |
+| `src/components/timesheets/TimesheetByProject.tsx` | Visualização agrupada por projeto |
+| `src/components/timesheets/TimesheetByEmployee.tsx` | Visualização agrupada por funcionário |
+| `src/components/timesheets/TimesheetWeekRow.tsx` | Linha editável com inputs de horas |
+| `src/hooks/useTimesheetData.ts` | Hook para buscar dados consolidados |
 
-Adicionar campos no schema Zod:
-
-```typescript
-const closeBusinessSchema = z.object({
-  managerId: z.string().min(1, 'Gerente é obrigatório'),
-  paymentMethod: z.string().default('mensal'),
-  installmentsCount: z.coerce.number().min(1, 'Mínimo de 1 parcela'),
-  dueDay: z.coerce.number().min(1).max(31).default(10),
-  firstInvoiceDate: z.string().min(1, 'Data da primeira NF é obrigatória'),
-  startDate: z.string().min(1, 'Data de início é obrigatória'),    // NOVO
-  endDate: z.string().min(1, 'Data de fim é obrigatória'),          // NOVO
-});
-```
-
-### 2. Adicionar Lógica de Recálculo Automático
-
-Quando o usuário alterar a `startDate`, recalcular a `endDate` automaticamente:
-
-```typescript
-const startDateValue = form.watch('startDate');
-
-useEffect(() => {
-  if (startDateValue && budget) {
-    const newEndDate = addMonths(new Date(startDateValue), budget.duration_months);
-    form.setValue('endDate', newEndDate.toISOString().split('T')[0]);
-  }
-}, [startDateValue, budget, form]);
-```
-
-### 3. Adicionar Campos no Formulário
-
-Inserir antes do grid de "Forma de Pagamento":
-
-```tsx
-<div className="grid grid-cols-2 gap-4">
-  <FormField
-    control={form.control}
-    name="startDate"
-    render={({ field }) => (
-      <FormItem>
-        <FormLabel>Data de Início *</FormLabel>
-        <FormControl>
-          <Input type="date" {...field} />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    )}
-  />
-
-  <FormField
-    control={form.control}
-    name="endDate"
-    render={({ field }) => (
-      <FormItem>
-        <FormLabel>Data de Fim *</FormLabel>
-        <FormControl>
-          <Input type="date" {...field} />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    )}
-  />
-</div>
-```
-
-### 4. Atualizar Interface de Callback
-
-**Arquivo:** `src/components/crm/CloseBusinessDialog.tsx`
-
-Atualizar o tipo `CloseBusinessFormValues` (automático pelo Zod).
-
-### 5. Atualizar o Hook useCloseBusinessDeal
-
-**Arquivo:** `src/hooks/useCloseBusinessDeal.ts`
-
-Receber as datas do formulário em vez de calcular:
-
-```typescript
-interface CloseBusinessInput {
-  budget: BudgetWithDetails;
-  managerId: string;
-  paymentMethod: string;
-  installmentsCount: number;
-  dueDay: number;
-  firstInvoiceDate: string;
-  startDate: string;     // NOVO
-  endDate: string;       // NOVO
-}
-
-// Usar diretamente as datas recebidas
-const project = await projectService.create({
-  startDate: input.startDate,  // Usar do formulário
-  endDate: input.endDate,      // Usar do formulário
-  // ... resto
-});
-```
-
-### 6. Atualizar KanbanBoard
-
-**Arquivo:** `src/components/crm/KanbanBoard.tsx`
-
-Atualizar o tipo do callback `handleCloseBusinessConfirm` para incluir as novas datas:
-
-```typescript
-const handleCloseBusinessConfirm = (formData: {
-  managerId: string;
-  paymentMethod: string;
-  installmentsCount: number;
-  dueDay: number;
-  firstInvoiceDate: string;
-  startDate: string;       // NOVO
-  endDate: string;         // NOVO
-}) => {
-  // ...
-};
-```
-
----
-
-## Arquivos a Modificar
+### Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/crm/CloseBusinessDialog.tsx` | Adicionar campos `startDate` e `endDate` no schema e formulário, com recálculo automático |
-| `src/hooks/useCloseBusinessDeal.ts` | Receber `startDate` e `endDate` como parâmetros em vez de calcular |
-| `src/components/crm/KanbanBoard.tsx` | Atualizar tipo do callback para incluir novas datas |
+| `src/App.tsx` | Adicionar rota `/timesheets` |
+| `src/components/layout/AppSidebar.tsx` | Habilitar link de Timesheets (remover `disabled: true`) |
+| `src/hooks/useProjectTimesheets.ts` | Adicionar hook `useTimesheetsByDateRange` e `useBatchUpsertTimesheets` |
 
 ---
 
-## Comportamento Esperado
+## Componentes Detalhados
 
-1. Usuário arrasta orçamento para "Negócio Fechado"
-2. Dialog abre com:
-   - **Data de Início**: pré-preenchida com `budget.start_date`
-   - **Data de Fim**: calculada automaticamente (`start_date + duration_months`)
-3. Se usuário alterar **Data de Início**, a **Data de Fim** é recalculada automaticamente
-4. Usuário pode editar manualmente a **Data de Fim** se necessário
-5. Ao confirmar, o projeto é criado com as datas definidas pelo usuário
+### TimesheetWeekSelector
+
+- Exibe semana atual (Seg-Sex)
+- Botões para navegar entre semanas
+- Formata datas no padrão brasileiro
+
+### TimesheetByProject
+
+- Agrupa por Cliente/Projeto
+- Lista funcionários alocados no projeto
+- Inputs editáveis para cada dia da semana
+- Calcula total por funcionário
+
+### TimesheetByEmployee
+
+- Agrupa por Funcionário
+- Lista projetos onde está alocado
+- Inputs editáveis para cada dia da semana
+- Calcula total geral do funcionário
+
+### TimesheetWeekRow
+
+- Linha reutilizável com inputs de horas
+- Debounce para salvar automaticamente
+- Validação de horas (0-24)
+- Exibe total calculado
 
 ---
 
-## Layout Visual Atualizado
+## Regras de Negócio
+
+1. **Janela de Lançamento**: Seg a Sex (5 dias úteis)
+2. **Projetos Elegíveis**: Apenas projetos ativos ou em execução (`portfolio_stage != 'planning'`)
+3. **Funcionários Elegíveis**: Apenas membros alocados no projeto
+4. **Salvamento**: Automático com debounce (upsert)
+5. **Permissões**: Gerentes e Admins podem lançar horas para qualquer funcionário
+
+---
+
+## Detalhes Técnicos
+
+### Query para Projetos Ativos com Membros
+
+```sql
+SELECT 
+  p.id, p.name, p.start_date, p.end_date,
+  c.id as client_id, c.company_name,
+  pm.id as member_id, pm.employee_id, pm.role,
+  e.nome, e.foto_url, e.total_monthly_cost_estimated, e.jornada_mensal
+FROM projects p
+JOIN clients c ON p.client_id = c.id
+JOIN project_members pm ON pm.project_id = p.id
+JOIN employees e ON pm.employee_id = e.id
+WHERE p.status = 'active' OR p.portfolio_stage != 'planning'
+ORDER BY c.company_name, p.name, e.nome
+```
+
+### Estrutura de Dados no Frontend
+
+```typescript
+interface TimesheetWeekData {
+  projectId: string;
+  projectName: string;
+  clientName: string;
+  members: {
+    memberId: string;
+    employeeId: string;
+    employeeName: string;
+    employeePhoto?: string;
+    role: string;
+    days: {
+      date: string;
+      dayOfWeek: number;
+      hours: number;
+    }[];
+    totalHours: number;
+  }[];
+}
+```
+
+---
+
+## Sequência de Implementação
 
 ```
-┌─ Fechar Negócio ────────────────────────────────────────────┐
-│                                                              │
-│  [Resumo do Orçamento - já existente]                       │
-│                                                              │
-│  ─────────────────────────────────────────────────────────  │
-│                                                              │
-│  Complete as informações abaixo para criar o projeto:       │
-│                                                              │
-│  Gerente do Projeto *                                       │
-│  [Selecione o gerente                              ▼]       │
-│                                                              │
-│  ┌──────────────────────┐  ┌──────────────────────┐        │
-│  │ Data de Início *     │  │ Data de Fim *        │        │ <- NOVO
-│  │ [01/12/2025]         │  │ [01/06/2026]         │        │
-│  └──────────────────────┘  └──────────────────────┘        │
-│                                                              │
-│  ┌──────────────────────┐  ┌──────────────────────┐        │
-│  │ Forma de Pagamento   │  │ Parcelas             │        │
-│  │ [Mensal          ▼]  │  │ [6]                  │        │
-│  └──────────────────────┘  └──────────────────────┘        │
-│                                                              │
-│  ┌──────────────────────┐  ┌──────────────────────┐        │
-│  │ Data Primeira NF *   │  │ Dia de Vencimento    │        │
-│  │ [01/01/2026]         │  │ [10]                 │        │
-│  └──────────────────────┘  └──────────────────────┘        │
-│                                                              │
-│  ─────────────────────────────────────────────────────────  │
-│                                                              │
-│                    [Cancelar] [Confirmar e Criar Projeto]   │
-└──────────────────────────────────────────────────────────────┘
+1. Criar hooks para buscar dados
+       │
+       ▼
+2. Criar página Timesheets.tsx
+       │
+       ▼
+3. Criar componente TimesheetWeekSelector
+       │
+       ▼
+4. Criar componente TimesheetByProject
+       │
+       ▼
+5. Criar componente TimesheetByEmployee
+       │
+       ▼
+6. Atualizar rotas e sidebar
+       │
+       ▼
+7. Testar fluxo completo
 ```
+
