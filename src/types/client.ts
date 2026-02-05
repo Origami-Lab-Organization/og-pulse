@@ -11,6 +11,7 @@ export interface ClientDB {
   bairro: string | null;
   cidade: string | null;
   estado: string | null;
+  logo_url: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -29,6 +30,7 @@ export interface Client {
   bairro: string | null;
   cidade: string | null;
   estado: string | null;
+  logoUrl: string | null;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
@@ -45,6 +47,7 @@ export interface CreateClientInput {
   bairro?: string;
   cidade?: string;
   estado?: string;
+  logoUrl?: string | null;
   status: 'active' | 'inactive';
 }
 
@@ -61,6 +64,7 @@ export const dbToClient = (db: ClientDB): Client => ({
   bairro: db.bairro,
   cidade: db.cidade,
   estado: db.estado,
+  logoUrl: db.logo_url,
   status: db.status as 'active' | 'inactive',
   createdAt: db.created_at,
   updatedAt: db.updated_at,
