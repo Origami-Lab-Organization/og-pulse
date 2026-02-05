@@ -129,6 +129,7 @@ const Suppliers = () => {
           data={suppliers}
           searchKey="companyName"
           searchValue={searchQuery}
+          onRowClick={canManage ? handleEditSupplier : undefined}
         />
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
