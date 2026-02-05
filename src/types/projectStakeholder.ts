@@ -1,6 +1,7 @@
 export type InfluenceLevel = 'high' | 'medium' | 'low';
 export type InterestLevel = 'high' | 'medium' | 'low';
 export type SponsorshipLevel = 'promoter' | 'neutral' | 'detractor';
+export type StakeholderAction = 'keep_satisfied' | 'keep_informed' | 'manage_closely' | 'involve_in_rituals';
 
 export interface ProjectStakeholder {
   id: string;
@@ -13,6 +14,7 @@ export interface ProjectStakeholder {
   influence_level: InfluenceLevel | null;
   interest_level: InterestLevel | null;
   sponsorship_level: SponsorshipLevel | null;
+  action: StakeholderAction | null;
   notes: string | null;
   created_at: string;
 }
@@ -27,6 +29,7 @@ export interface CreateStakeholderInput {
   influenceLevel?: InfluenceLevel;
   interestLevel?: InterestLevel;
   sponsorshipLevel?: SponsorshipLevel;
+  action?: StakeholderAction;
   notes?: string;
 }
 
@@ -39,6 +42,7 @@ export interface UpdateStakeholderInput {
   influenceLevel?: InfluenceLevel;
   interestLevel?: InterestLevel;
   sponsorshipLevel?: SponsorshipLevel;
+  action?: StakeholderAction;
   notes?: string;
 }
 
@@ -82,4 +86,18 @@ export const SPONSORSHIP_LEVEL_OPTIONS = [
   { value: 'promoter', label: 'Promotor' },
   { value: 'neutral', label: 'Neutro' },
   { value: 'detractor', label: 'Detrator' },
+];
+
+export const STAKEHOLDER_ACTION_LABELS: Record<StakeholderAction, string> = {
+  keep_satisfied: 'Manter satisfeito',
+  keep_informed: 'Manter informado',
+  manage_closely: 'Gerenciar de perto',
+  involve_in_rituals: 'Envolver nos ritos',
+};
+
+export const STAKEHOLDER_ACTION_OPTIONS = [
+  { value: 'keep_satisfied', label: 'Manter satisfeito' },
+  { value: 'keep_informed', label: 'Manter informado' },
+  { value: 'manage_closely', label: 'Gerenciar de perto' },
+  { value: 'involve_in_rituals', label: 'Envolver nos ritos' },
 ];

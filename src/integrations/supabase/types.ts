@@ -1141,6 +1141,7 @@ export type Database = {
       }
       project_stakeholders: {
         Row: {
+          action: string | null
           created_at: string | null
           email: string | null
           id: string
@@ -1155,6 +1156,7 @@ export type Database = {
           sponsorship_level: string | null
         }
         Insert: {
+          action?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
@@ -1169,6 +1171,7 @@ export type Database = {
           sponsorship_level?: string | null
         }
         Update: {
+          action?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
