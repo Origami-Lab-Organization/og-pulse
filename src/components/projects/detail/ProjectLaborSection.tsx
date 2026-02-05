@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { differenceInMonths, parseISO } from 'date-fns';
 import { Plus, Trash2, Users, Info } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,7 @@ interface ProjectLaborSectionProps {
   isEditable: boolean;
   budgetRoles: BudgetRoleWithMonths[];
   timesheets?: ProjectTimesheetDB[];
+  projectStartDate: string;
 }
 
 export function ProjectLaborSection({
@@ -64,6 +66,7 @@ export function ProjectLaborSection({
   isEditable,
   budgetRoles,
   timesheets = [],
+  projectStartDate,
 }: ProjectLaborSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [useBudgetRole, setUseBudgetRole] = useState(true);
@@ -218,36 +221,69 @@ export function ProjectLaborSection({
     return result;
   }, [timesheets]);
 
-  // Calculate totals using real employee cost (PLANNED)
+  // Calculate ACTUAL hours from timesheets per member AND per month
+  const actualHoursByMemberAndMonth = useMemo(() => {
+    const result: Record<string, Record<number, number>> = {};
+    const startDate = parseISO(projectStartDate);
+    
+    timesheets.forEach((ts) => {
+      const workDate = parseISO(ts.work_date);
+      const monthNumber = differenceInMonths(workDate, startDate) + 1;
+      
+      if (monthNumber < 1 || monthNumber > durationMonths) return; // Skip if outside project duration
+      
+      if (!result[ts.project_member_id]) {
+        result[ts.project_member_id] = {};
+      }
+      if (!result[ts.project_member_id][monthNumber]) {
+        result[ts.project_member_id][monthNumber] = 0;
+      }
+      result[ts.project_member_id][monthNumber] += Number(ts.hours);
+    });
+    
+    return result;
+  }, [timesheets, projectStartDate, durationMonths]);
+
+  // Get actual hours for a specific member and month
+  const getActualHoursForMonth = useCallback(
+    (memberId: string, monthNumber: number): number => {
+      return actualHoursByMemberAndMonth[memberId]?.[monthNumber] || 0;
+    },
+    [actualHoursByMemberAndMonth]
+  );
+
+  // Calculate totals using real employee cost (PLANNED + ACTUAL by month)
   const totals = useMemo(() => {
-    const byMonth: Record<number, { hours: number; value: number }> = {};
+    const byMonth: Record<number, { plannedHours: number; plannedValue: number; actualHours: number; actualValue: number }> = {};
     let totalHours = 0;
     let totalValue = 0;
     let totalActualHours = 0;
     let totalActualValue = 0;
 
     months.forEach((m) => {
-      byMonth[m] = { hours: 0, value: 0 };
+      byMonth[m] = { plannedHours: 0, plannedValue: 0, actualHours: 0, actualValue: 0 };
     });
 
     members.forEach((member) => {
       const realCost = getRealHourlyCost(member);
       months.forEach((monthNum) => {
-        const hours = getHoursForMonth(member.id, monthNum);
-        byMonth[monthNum].hours += hours;
-        byMonth[monthNum].value += hours * realCost;
-        totalHours += hours;
-        totalValue += hours * realCost;
+        const plannedHours = getHoursForMonth(member.id, monthNum);
+        const actualHours = getActualHoursForMonth(member.id, monthNum);
+        
+        byMonth[monthNum].plannedHours += plannedHours;
+        byMonth[monthNum].plannedValue += plannedHours * realCost;
+        byMonth[monthNum].actualHours += actualHours;
+        byMonth[monthNum].actualValue += actualHours * realCost;
+        
+        totalHours += plannedHours;
+        totalValue += plannedHours * realCost;
+        totalActualHours += actualHours;
+        totalActualValue += actualHours * realCost;
       });
-      
-      // Add actual hours
-      const actualHours = actualHoursByMember[member.id] || 0;
-      totalActualHours += actualHours;
-      totalActualValue += actualHours * realCost;
     });
 
     return { byMonth, totalHours, totalValue, totalActualHours, totalActualValue };
-  }, [members, months, getRealHourlyCost, getHoursForMonth, actualHoursByMember]);
+  }, [members, months, getRealHourlyCost, getHoursForMonth, getActualHoursForMonth]);
 
   // Calculate member totals using real employee cost (PLANNED + ACTUAL)
   const memberTotals = useMemo(() => {
@@ -339,8 +375,11 @@ export function ProjectLaborSection({
                       <TableHead className="text-right min-w-[90px]">Orç. R$/h</TableHead>
                       <TableHead className="text-right min-w-[90px]">Custo R$/h</TableHead>
                       {months.map((m) => (
-                        <TableHead key={m} className="text-center min-w-[80px]">
-                          Mês {m}
+                        <TableHead key={m} className="text-center min-w-[90px]">
+                          <div className="flex flex-col">
+                            <span>Mês {m}</span>
+                            <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                          </div>
                         </TableHead>
                       ))}
                       <TableHead className="text-center min-w-[130px]">
@@ -378,27 +417,47 @@ export function ProjectLaborSection({
                           <TableCell className="text-right font-medium">
                             {formatCurrency(realCost)}
                           </TableCell>
-                          {months.map((monthNum) => (
-                            <TableCell key={monthNum} className="text-center p-1">
-                              {isEditable ? (
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  className="w-16 h-8 text-center mx-auto"
-                                  value={getHoursForMonth(member.id, monthNum) || ''}
-                                  onChange={(e) =>
-                                    handleHoursChange(
-                                      member.id,
-                                      monthNum,
-                                      Number(e.target.value)
-                                    )
-                                  }
-                                />
-                              ) : (
-                                <span>{getHoursForMonth(member.id, monthNum) || '-'}</span>
-                              )}
-                            </TableCell>
-                          ))}
+                          {months.map((monthNum) => {
+                            const plannedHours = getHoursForMonth(member.id, monthNum);
+                            const actualHours = getActualHoursForMonth(member.id, monthNum);
+                            
+                            return (
+                              <TableCell key={monthNum} className="text-center p-1">
+                                {isEditable ? (
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      className="w-16 h-8 text-center mx-auto"
+                                      value={plannedHours || ''}
+                                      onChange={(e) =>
+                                        handleHoursChange(
+                                          member.id,
+                                          monthNum,
+                                          Number(e.target.value)
+                                        )
+                                      }
+                                    />
+                                    {actualHours > 0 && (
+                                      <span className="text-xs text-muted-foreground">
+                                        Real: {actualHours}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-1 text-sm">
+                                    <span className="text-muted-foreground">
+                                      {plannedHours > 0 ? plannedHours : '-'}
+                                    </span>
+                                    <span className="text-muted-foreground">|</span>
+                                    <span className="font-medium">
+                                      {actualHours > 0 ? actualHours : '-'}
+                                    </span>
+                                  </div>
+                                )}
+                              </TableCell>
+                            );
+                          })}
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
                               <span className="text-muted-foreground">{memberTotal.plannedHours}h</span>
@@ -436,11 +495,22 @@ export function ProjectLaborSection({
                       </TableCell>
                       <TableCell />
                       <TableCell />
-                      {months.map((monthNum) => (
-                        <TableCell key={monthNum} className="text-center font-medium">
-                          {totals.byMonth[monthNum]?.hours || 0}h
-                        </TableCell>
-                      ))}
+                      {months.map((monthNum) => {
+                        const monthTotals = totals.byMonth[monthNum];
+                        return (
+                          <TableCell key={monthNum} className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-sm">
+                              <span className="text-muted-foreground">
+                                {monthTotals?.plannedHours || 0}
+                              </span>
+                              <span className="text-muted-foreground">|</span>
+                              <span className="font-medium">
+                                {monthTotals?.actualHours || 0}
+                              </span>
+                            </div>
+                          </TableCell>
+                        );
+                      })}
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
                           <span className="text-muted-foreground">{totals.totalHours}h</span>
