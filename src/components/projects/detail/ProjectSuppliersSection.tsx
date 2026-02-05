@@ -28,7 +28,8 @@ import { ProjectSupplierDB, CreateProjectSupplierInput } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
 import { useAddProjectSupplier, useRemoveProjectSupplier } from '@/hooks/useProjectCosts';
 import { useProjectSupplierMonths, useUpsertSupplierMonth } from '@/hooks/useProjectSupplierMonths';
-import { ProjectSupplierActualDB, useUpsertSupplierActual } from '@/hooks/useProjectSupplierActuals';
+import { ProjectSupplierActualDB } from '@/hooks/useProjectSupplierActuals';
+import { SupplierActualDialog } from './SupplierActualDialog';
 
 interface ProjectSuppliersSectionProps {
   projectId: string;
@@ -48,6 +49,8 @@ export function ProjectSuppliersSection({
   supplierActuals = [],
 }: ProjectSuppliersSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [actualDialogOpen, setActualDialogOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<ProjectSupplierDB | null>(null);
   const [formData, setFormData] = useState<Omit<CreateProjectSupplierInput, 'projectId'>>({
     name: '',
     description: '',
@@ -62,15 +65,10 @@ export function ProjectSuppliersSection({
   const supplierIds = useMemo(() => suppliers.map((s) => s.id), [suppliers]);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const upsertSupplierMonth = useUpsertSupplierMonth();
-  const upsertSupplierActual = useUpsertSupplierActual();
 
   // Local state for debounced planned value input
   const [localValues, setLocalValues] = useState<Record<string, number>>({});
   const pendingUpdates = useRef<Record<string, NodeJS.Timeout>>({});
-  
-  // Local state for debounced actual value input
-  const [localActualValues, setLocalActualValues] = useState<Record<string, number>>({});
-  const pendingActualUpdates = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Sync local state when supplierMonths change
   useEffect(() => {
@@ -82,21 +80,10 @@ export function ProjectSuppliersSection({
     setLocalValues(initial);
   }, [supplierMonths]);
 
-  // Sync local state when supplierActuals change
-  useEffect(() => {
-    const initial: Record<string, number> = {};
-    supplierActuals.forEach((sa) => {
-      const key = `${sa.project_supplier_id}-${sa.month_number}`;
-      initial[key] = sa.value;
-    });
-    setLocalActualValues(initial);
-  }, [supplierActuals]);
-
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       Object.values(pendingUpdates.current).forEach(clearTimeout);
-      Object.values(pendingActualUpdates.current).forEach(clearTimeout);
     };
   }, []);
 
@@ -119,19 +106,15 @@ export function ProjectSuppliersSection({
     [localValues, supplierMonths]
   );
 
-  // Get ACTUAL value prioritizing local state
+  // Get ACTUAL value from supplierActuals
   const getActualValueForMonth = useCallback(
     (supplierId: string, monthNumber: number): number => {
-      const key = `${supplierId}-${monthNumber}`;
-      if (key in localActualValues) {
-        return localActualValues[key];
-      }
       const found = supplierActuals.find(
         (sa) => sa.project_supplier_id === supplierId && sa.month_number === monthNumber
       );
       return found?.value || 0;
     },
-    [localActualValues, supplierActuals]
+    [supplierActuals]
   );
 
   // Debounced PLANNED value change handler
@@ -160,32 +143,6 @@ export function ProjectSuppliersSection({
     [upsertSupplierMonth]
   );
 
-  // Debounced ACTUAL value change handler
-  const handleActualValueChange = useCallback(
-    (supplierId: string, monthNumber: number, value: number) => {
-      const key = `${supplierId}-${monthNumber}`;
-
-      // Update local state immediately (no lag)
-      setLocalActualValues((prev) => ({ ...prev, [key]: value }));
-
-      // Cancel previous timeout if exists
-      if (pendingActualUpdates.current[key]) {
-        clearTimeout(pendingActualUpdates.current[key]);
-      }
-
-      // Schedule save with 500ms debounce
-      pendingActualUpdates.current[key] = setTimeout(() => {
-        upsertSupplierActual.mutate({
-          projectSupplierId: supplierId,
-          monthNumber,
-          value: value || 0,
-        });
-        delete pendingActualUpdates.current[key];
-      }, 500);
-    },
-    [upsertSupplierActual]
-  );
-
   const handleSubmit = () => {
     addSupplier.mutate(
       { projectId, ...formData },
@@ -200,6 +157,11 @@ export function ProjectSuppliersSection({
 
   const handleDelete = (id: string) => {
     removeSupplier.mutate({ id, projectId });
+  };
+
+  const openActualDialog = (supplier: ProjectSupplierDB) => {
+    setSelectedSupplier(supplier);
+    setActualDialogOpen(true);
   };
 
   // Calculate totals (Planned and Actual)
@@ -272,7 +234,7 @@ export function ProjectSuppliersSection({
                         Nome
                       </TableHead>
                       {months.map((m) => (
-                        <TableHead key={m} className="text-center min-w-[180px]">
+                        <TableHead key={m} className="text-center min-w-[140px]">
                           <div className="flex flex-col">
                             <span>Mês {m}</span>
                             {!isEditable && (
@@ -281,13 +243,13 @@ export function ProjectSuppliersSection({
                           </div>
                         </TableHead>
                       ))}
-                      <TableHead className="text-center min-w-[160px]">
+                      <TableHead className="text-center min-w-[140px]">
                         <div className="flex flex-col">
                           <span>Total</span>
                           <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
                         </div>
                       </TableHead>
-                      {isEditable && <TableHead className="w-12" />}
+                      {(isEditable || canEditActuals) && <TableHead className="w-28">Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -311,70 +273,42 @@ export function ProjectSuppliersSection({
                             const actualValue = getActualValueForMonth(supplier.id, monthNum);
                             
                             return (
-                              <TableCell key={monthNum} className="text-center p-1">
-                                <div className="flex flex-col gap-1">
-                                  {/* Planned Value - editable only in planning */}
-                                  {isEditable ? (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            className="w-24 h-8 text-center mx-auto"
-                                            value={plannedValue || ''}
-                                            onChange={(e) =>
-                                              handleValueChange(
-                                                supplier.id,
-                                                monthNum,
-                                                Number(e.target.value)
-                                              )
-                                            }
-                                          />
-                                        </TooltipTrigger>
-                                        <TooltipContent>Valor Planejado</TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  ) : (
-                                    <span className="text-sm text-muted-foreground">
+                              <TableCell key={monthNum} className="text-center p-2">
+                                {isEditable ? (
+                                  // Planning mode: show editable input for planned value
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          className="w-24 h-8 text-center mx-auto"
+                                          value={plannedValue || ''}
+                                          onChange={(e) =>
+                                            handleValueChange(
+                                              supplier.id,
+                                              monthNum,
+                                              Number(e.target.value)
+                                            )
+                                          }
+                                        />
+                                      </TooltipTrigger>
+                                      <TooltipContent>Valor Planejado</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ) : (
+                                  // Execution mode: show read-only Plan | Real
+                                  <div className="flex items-center justify-center gap-1 text-sm">
+                                    <span className="text-muted-foreground">
                                       {plannedValue ? formatCurrency(plannedValue) : '-'}
                                     </span>
-                                  )}
-                                  
-                                  {/* Actual Value - editable if canEditActuals */}
-                                  {canEditActuals ? (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <div className="flex items-center justify-center gap-1">
-                                            <DollarSign className="h-3 w-3 text-muted-foreground" />
-                                            <Input
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                                              className="w-20 h-7 text-center text-xs bg-muted/50"
-                                              placeholder="Real"
-                                              value={actualValue || ''}
-                                              onChange={(e) =>
-                                                handleActualValueChange(
-                                                  supplier.id,
-                                                  monthNum,
-                                                  Number(e.target.value)
-                                                )
-                                              }
-                                            />
-                                          </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Valor Realizado</TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  ) : (
-                                    <span className="text-sm font-medium">
+                                    <span className="text-muted-foreground">|</span>
+                                    <span className={actualValue > 0 ? 'font-medium' : 'text-muted-foreground'}>
                                       {actualValue ? formatCurrency(actualValue) : '-'}
                                     </span>
-                                  )}
-                                </div>
+                                  </div>
+                                )}
                               </TableCell>
                             );
                           })}
@@ -385,16 +319,37 @@ export function ProjectSuppliersSection({
                               <span className="font-medium">{formatCurrency(supplierTotal.actual)}</span>
                             </div>
                           </TableCell>
-                          {isEditable && (
+                          {(isEditable || canEditActuals) && (
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDelete(supplier.id)}
-                                disabled={removeSupplier.isPending}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                {canEditActuals && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => openActualDialog(supplier)}
+                                        >
+                                          <DollarSign className="h-4 w-4 mr-1" />
+                                          Lançar
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Lançar custo realizado</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                                {isEditable && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDelete(supplier.id)}
+                                    disabled={removeSupplier.isPending}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           )}
                         </TableRow>
@@ -425,7 +380,7 @@ export function ProjectSuppliersSection({
                           <span className="font-semibold">{formatCurrency(totals.totalActual)}</span>
                         </div>
                       </TableCell>
-                      {isEditable && <TableCell />}
+                      {(isEditable || canEditActuals) && <TableCell />}
                     </TableRow>
                   </TableFooter>
                 </Table>
@@ -440,6 +395,7 @@ export function ProjectSuppliersSection({
         </CardContent>
       </Card>
 
+      {/* Add Supplier Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -482,6 +438,16 @@ export function ProjectSuppliersSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Actual Cost Dialog */}
+      <SupplierActualDialog
+        open={actualDialogOpen}
+        onOpenChange={setActualDialogOpen}
+        supplier={selectedSupplier}
+        durationMonths={durationMonths}
+        existingActuals={supplierActuals}
+        getPlannedValueForMonth={getValueForMonth}
+      />
     </>
   );
 }
