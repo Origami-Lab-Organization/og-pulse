@@ -97,7 +97,7 @@ export interface CreateProjectInput {
 
 export interface CreateProjectMemberInput {
   projectId: string;
-  employeeId: string;
+  employeeId?: string; // Optional - allows creating roles without assigned employees
   role: string;
   seniority: string;
   hoursPerMonth: number;

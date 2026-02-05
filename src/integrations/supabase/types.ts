@@ -997,7 +997,7 @@ export type Database = {
         Row: {
           budget_role_id: string | null
           created_at: string
-          employee_id: string
+          employee_id: string | null
           hourly_rate: number
           hours_per_month: number
           id: string
@@ -1008,7 +1008,7 @@ export type Database = {
         Insert: {
           budget_role_id?: string | null
           created_at?: string
-          employee_id: string
+          employee_id?: string | null
           hourly_rate?: number
           hours_per_month?: number
           id?: string
@@ -1019,7 +1019,7 @@ export type Database = {
         Update: {
           budget_role_id?: string | null
           created_at?: string
-          employee_id?: string
+          employee_id?: string | null
           hourly_rate?: number
           hours_per_month?: number
           id?: string

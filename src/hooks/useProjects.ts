@@ -171,7 +171,7 @@ export const useUpdateProjectMember = () => {
     }: {
       id: string;
       projectId: string;
-      updates: { role?: string; seniority?: string; hours_per_month?: number; hourly_rate?: number };
+      updates: { role?: string; seniority?: string; hours_per_month?: number; hourly_rate?: number; employee_id?: string | null };
     }) => {
       return projectService.updateMember(id, updates);
     },
@@ -186,6 +186,37 @@ export const useUpdateProjectMember = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao atualizar membro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+// Assign/unassign employee to a role
+export const useAssignMemberEmployee = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      memberId,
+      projectId,
+      employeeId,
+    }: {
+      memberId: string;
+      projectId: string;
+      employeeId: string | null;
+    }) => {
+      return projectService.updateMember(memberId, { employee_id: employeeId });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['project-members', variables.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao atualizar funcionário',
         description: error.message,
         variant: 'destructive',
       });

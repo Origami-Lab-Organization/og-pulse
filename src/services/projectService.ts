@@ -296,7 +296,7 @@ export const projectService = {
       .from('project_members')
       .insert({
         project_id: input.projectId,
-        employee_id: input.employeeId,
+        employee_id: input.employeeId || null, // Allow null for roles without assigned employees
         role: input.role,
         seniority: input.seniority,
         hours_per_month: input.hoursPerMonth,
@@ -334,7 +334,7 @@ export const projectService = {
 
   async updateMember(
     id: string,
-    updates: { role?: string; seniority?: string; hours_per_month?: number; hourly_rate?: number }
+    updates: { role?: string; seniority?: string; hours_per_month?: number; hourly_rate?: number; employee_id?: string | null }
   ): Promise<ProjectMemberDB> {
     const { data, error } = await supabase
       .from('project_members')
