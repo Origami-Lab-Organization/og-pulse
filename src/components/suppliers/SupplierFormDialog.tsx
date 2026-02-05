@@ -33,6 +33,7 @@ import { fetchAddressByCep } from '@/lib/viaCep';
 import { toTitleCase } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { LogoUpload } from '@/components/ui/logo-upload';
 
 const formSchema = z.object({
   companyName: z.string().min(2, 'Razão Social deve ter pelo menos 2 caracteres'),
@@ -77,6 +78,7 @@ const SupplierFormDialog = ({
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [isExtractingPdf, setIsExtractingPdf] = useState(false);
   const [pdfExtracted, setPdfExtracted] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -124,6 +126,8 @@ const SupplierFormDialog = ({
         setCnpjDisplay(supplier.cnpj ? formatCNPJ(supplier.cnpj) : '');
         setCepDisplay(supplier.cep ? formatCEP(supplier.cep) : '');
         setPhoneDisplay(supplier.contactPhone ? formatPhone(supplier.contactPhone) : '');
+        setLogoUrl(supplier.logoUrl || null);
+        setPdfExtracted(false);
       } else {
         form.reset({
           companyName: '',
@@ -146,6 +150,7 @@ const SupplierFormDialog = ({
         setCnpjDisplay('');
         setCepDisplay('');
         setPhoneDisplay('');
+        setLogoUrl(null);
         setPdfExtracted(false);
       }
     }
@@ -270,12 +275,13 @@ const SupplierFormDialog = ({
   }, [form]);
 
   const handleSubmit = (data: FormData) => {
-    onSubmit(data as CreateSupplierInput);
+    onSubmit({ ...data, logoUrl } as CreateSupplierInput);
     form.reset();
     setCnpjDisplay('');
     setCepDisplay('');
     setPhoneDisplay('');
     setPdfExtracted(false);
+    setLogoUrl(null);
   };
 
   const isEditing = !!supplier;
@@ -342,6 +348,17 @@ const SupplierFormDialog = ({
                 </label>
               </div>
             )}
+
+            {/* Upload de Logo */}
+            <div className="border rounded-lg p-4">
+              <LogoUpload
+                currentLogoUrl={logoUrl}
+                onLogoChange={setLogoUrl}
+                entityType="supplier"
+                entityId={supplier?.id}
+                disabled={isLoading}
+              />
+            </div>
 
             {/* Dados da Empresa */}
             <div className="space-y-4">

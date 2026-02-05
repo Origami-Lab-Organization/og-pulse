@@ -32,6 +32,7 @@ import { toTitleCase } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/viaCep';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { LogoUpload } from '@/components/ui/logo-upload';
 
 const formSchema = z.object({
   companyName: z.string().min(2, 'Razão Social deve ter pelo menos 2 caracteres'),
@@ -70,6 +71,7 @@ const ClientFormDialog = ({
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [isExtractingPdf, setIsExtractingPdf] = useState(false);
   const [pdfExtracted, setPdfExtracted] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -107,6 +109,7 @@ const ClientFormDialog = ({
         });
         setCnpjDisplay(client.cnpj ? formatCNPJ(client.cnpj) : '');
         setCepDisplay(client.cep ? formatCEP(client.cep) : '');
+        setLogoUrl(client.logoUrl || null);
       } else {
         form.reset({
           companyName: '',
@@ -123,6 +126,7 @@ const ClientFormDialog = ({
         });
         setCnpjDisplay('');
         setCepDisplay('');
+        setLogoUrl(null);
       }
     }
   }, [open, client, form]);
@@ -264,11 +268,12 @@ const ClientFormDialog = ({
   }, [form]);
 
   const handleSubmit = (data: FormData) => {
-    onSubmit(data as CreateClientInput);
+    onSubmit({ ...data, logoUrl } as CreateClientInput);
     form.reset();
     setCnpjDisplay('');
     setCepDisplay('');
     setPdfExtracted(false);
+    setLogoUrl(null);
   };
 
   const isEditing = !!client;
@@ -335,6 +340,17 @@ const ClientFormDialog = ({
                 </label>
               </div>
             )}
+
+            {/* Upload de Logo */}
+            <div className="border rounded-lg p-4">
+              <LogoUpload
+                currentLogoUrl={logoUrl}
+                onLogoChange={setLogoUrl}
+                entityType="client"
+                entityId={client?.id}
+                disabled={isLoading}
+              />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField

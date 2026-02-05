@@ -15,6 +15,7 @@ export interface SupplierDB {
   bairro: string | null;
   cidade: string | null;
   estado: string | null;
+  logo_url: string | null;
   notes: string | null;
   status: string;
   created_at: string;
@@ -38,6 +39,7 @@ export interface Supplier {
   bairro: string | null;
   cidade: string | null;
   estado: string | null;
+  logoUrl: string | null;
   notes: string | null;
   status: 'active' | 'inactive';
   createdAt: string;
@@ -59,6 +61,7 @@ export interface CreateSupplierInput {
   bairro?: string;
   cidade?: string;
   estado?: string;
+  logoUrl?: string | null;
   notes?: string;
   status: 'active' | 'inactive';
 }
@@ -80,6 +83,7 @@ export const dbToSupplier = (db: SupplierDB): Supplier => ({
   bairro: db.bairro,
   cidade: db.cidade,
   estado: db.estado,
+  logoUrl: db.logo_url,
   notes: db.notes,
   status: db.status as 'active' | 'inactive',
   createdAt: db.created_at,

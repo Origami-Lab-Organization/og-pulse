@@ -51,6 +51,7 @@ export const supplierService = {
         bairro: input.bairro || null,
         cidade: input.cidade || null,
         estado: input.estado || null,
+        logo_url: input.logoUrl || null,
         notes: input.notes || null,
         status: input.status,
       })
@@ -82,6 +83,7 @@ export const supplierService = {
     if (updates.bairro !== undefined) updateData.bairro = updates.bairro || null;
     if (updates.cidade !== undefined) updateData.cidade = updates.cidade || null;
     if (updates.estado !== undefined) updateData.estado = updates.estado || null;
+    if (updates.logoUrl !== undefined) updateData.logo_url = updates.logoUrl || null;
     if (updates.notes !== undefined) updateData.notes = updates.notes || null;
     if (updates.status !== undefined) updateData.status = updates.status;
 

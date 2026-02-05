@@ -311,6 +311,7 @@ export type Database = {
           created_at: string
           estado: string | null
           id: string
+          logo_url: string | null
           logradouro: string | null
           numero: string | null
           status: string
@@ -328,6 +329,7 @@ export type Database = {
           created_at?: string
           estado?: string | null
           id?: string
+          logo_url?: string | null
           logradouro?: string | null
           numero?: string | null
           status?: string
@@ -345,6 +347,7 @@ export type Database = {
           created_at?: string
           estado?: string | null
           id?: string
+          logo_url?: string | null
           logradouro?: string | null
           numero?: string | null
           status?: string
@@ -1541,6 +1544,7 @@ export type Database = {
           created_at: string
           estado: string | null
           id: string
+          logo_url: string | null
           logradouro: string | null
           notes: string | null
           numero: string | null
@@ -1563,6 +1567,7 @@ export type Database = {
           created_at?: string
           estado?: string | null
           id?: string
+          logo_url?: string | null
           logradouro?: string | null
           notes?: string | null
           numero?: string | null
@@ -1585,6 +1590,7 @@ export type Database = {
           created_at?: string
           estado?: string | null
           id?: string
+          logo_url?: string | null
           logradouro?: string | null
           notes?: string | null
           numero?: string | null
