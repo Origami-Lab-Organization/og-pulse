@@ -39,6 +39,7 @@ interface ProjectMaterialsSectionProps {
   materials: ProjectMaterialDB[];
   durationMonths: number;
   isEditable: boolean;
+  canEditActuals?: boolean;
 }
 
 export function ProjectMaterialsSection({
@@ -46,6 +47,7 @@ export function ProjectMaterialsSection({
   materials,
   durationMonths,
   isEditable,
+  canEditActuals = false,
 }: ProjectMaterialsSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState<Omit<CreateProjectMaterialInput, 'projectId'>>({
@@ -154,22 +156,33 @@ export function ProjectMaterialsSection({
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(material.value)}</TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleRealized(material.id, material.is_realized)}
-                            disabled={updateMaterial.isPending}
-                            className="h-8 w-8 p-0"
-                          >
-                            {material.is_realized ? (
+                          {(isEditable || canEditActuals) ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleRealized(material.id, material.is_realized)}
+                              disabled={updateMaterial.isPending}
+                              className="h-8 w-8 p-0"
+                            >
+                              {material.is_realized ? (
+                                <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Sim
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary">Não</Badge>
+                              )}
+                            </Button>
+                          ) : (
+                            material.is_realized ? (
                               <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
                                 <Check className="h-3 w-3 mr-1" />
                                 Sim
                               </Badge>
                             ) : (
                               <Badge variant="secondary">Não</Badge>
-                            )}
-                          </Button>
+                            )
+                          )}
                         </TableCell>
                         {isEditable && (
                           <TableCell>

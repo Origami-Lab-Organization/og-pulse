@@ -35,6 +35,7 @@ interface ProjectSuppliersSectionProps {
   suppliers: ProjectSupplierDB[];
   durationMonths: number;
   isEditable: boolean;
+  canEditActuals?: boolean;
   supplierActuals?: ProjectSupplierActualDB[];
 }
 
@@ -43,6 +44,7 @@ export function ProjectSuppliersSection({
   suppliers,
   durationMonths,
   isEditable,
+  canEditActuals = false,
   supplierActuals = [],
 }: ProjectSuppliersSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -310,8 +312,9 @@ export function ProjectSuppliersSection({
                             
                             return (
                               <TableCell key={monthNum} className="text-center p-1">
-                                {isEditable ? (
-                                  <div className="flex flex-col gap-1">
+                                <div className="flex flex-col gap-1">
+                                  {/* Planned Value - editable only in planning */}
+                                  {isEditable ? (
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
@@ -333,10 +336,18 @@ export function ProjectSuppliersSection({
                                         <TooltipContent>Valor Planejado</TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
+                                  ) : (
+                                    <span className="text-sm text-muted-foreground">
+                                      {plannedValue ? formatCurrency(plannedValue) : '-'}
+                                    </span>
+                                  )}
+                                  
+                                  {/* Actual Value - editable if canEditActuals */}
+                                  {canEditActuals ? (
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <div className="flex items-center gap-1">
+                                          <div className="flex items-center justify-center gap-1">
                                             <DollarSign className="h-3 w-3 text-muted-foreground" />
                                             <Input
                                               type="number"
@@ -358,18 +369,12 @@ export function ProjectSuppliersSection({
                                         <TooltipContent>Valor Realizado</TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center justify-center gap-1 text-sm">
-                                    <span className="text-muted-foreground">
-                                      {plannedValue ? formatCurrency(plannedValue) : '-'}
-                                    </span>
-                                    <span className="text-muted-foreground">|</span>
-                                    <span className="font-medium">
+                                  ) : (
+                                    <span className="text-sm font-medium">
                                       {actualValue ? formatCurrency(actualValue) : '-'}
                                     </span>
-                                  </div>
-                                )}
+                                  )}
+                                </div>
                               </TableCell>
                             );
                           })}

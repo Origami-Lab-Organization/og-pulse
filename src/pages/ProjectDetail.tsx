@@ -133,7 +133,11 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="costs" className="mt-6">
-            <ProjectCostsTab project={project} isEditable={isPlanning} />
+            <ProjectCostsTab 
+              project={project} 
+              isEditable={isPlanning} 
+              canEditActuals={!isPlanning && project.portfolio_stage !== 'completed'}
+            />
           </TabsContent>
 
           <TabsContent value="schedule" className="mt-6">
