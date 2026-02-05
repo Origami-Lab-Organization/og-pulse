@@ -112,7 +112,7 @@ export function ProjectLaborSection({
   }, [durationMonths]);
 
   const availableEmployees = useMemo(() => {
-    return employees.filter((e) => e.status === 'ativo');
+    return employees.filter((e) => e.status === 'ativo' || e.status === 'aguardando_confirmacao');
   }, [employees]);
 
   // Get budget hourly rate from member's hourly_rate field (price we charge client)

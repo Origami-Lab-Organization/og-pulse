@@ -342,7 +342,7 @@ export function ProjectFormDialog({
                   name="totalValue"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valor Total do Projeto *</FormLabel>
+                      <FormLabel>{isContinuous ? 'Valor Recorrente Mensal *' : 'Valor Total do Projeto *'}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="R$ 0,00"
@@ -359,7 +359,7 @@ export function ProjectFormDialog({
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className={`grid ${isContinuous ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                   <FormField
                     control={form.control}
                     name="paymentMethod"
@@ -385,19 +385,21 @@ export function ProjectFormDialog({
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="installmentsCount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quantidade de Parcelas</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="1" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {!isContinuous && (
+                    <FormField
+                      control={form.control}
+                      name="installmentsCount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quantidade de Parcelas</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="1" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
