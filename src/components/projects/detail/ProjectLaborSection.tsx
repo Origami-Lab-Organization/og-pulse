@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { differenceInMonths, parseISO } from 'date-fns';
 import { Plus, Trash2, Users, Info, Pencil, Check } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -381,13 +381,20 @@ export function ProjectLaborSection({
   const budgetRolesSummary = useMemo(() => {
     return budgetRoles.map((role) => {
       const totalHours = role.months.reduce((sum, m) => sum + m.hours, 0);
+      const allocatedCount = members.filter(m => m.budget_role_id === role.id).length;
       return {
         ...role,
         totalHours,
         totalValue: totalHours * role.hourly_rate,
+        allocatedCount,
       };
     });
-  }, [budgetRoles]);
+  }, [budgetRoles, members]);
+
+  // Detect if we're in planning mode (no actual hours yet)
+  const isInPlanningMode = useMemo(() => {
+    return totals.totalActualHours === 0;
+  }, [totals.totalActualHours]);
 
   return (
     <>
@@ -405,10 +412,13 @@ export function ProjectLaborSection({
               {budgetRolesSummary.map((role) => (
                 <Badge
                   key={role.id}
-                  variant="secondary"
+                  variant={role.allocatedCount > 0 ? "default" : "secondary"}
                   className="py-1 px-3 text-xs font-normal"
                 >
                   {role.role_name} ({role.seniority}) • {formatCurrency(role.hourly_rate)}/h • {role.totalHours}h
+                  {role.allocatedCount > 0 && (
+                    <span className="ml-2 opacity-80">({role.allocatedCount} alocado{role.allocatedCount > 1 ? 's' : ''})</span>
+                  )}
                 </Badge>
               ))}
             </div>
@@ -427,27 +437,12 @@ export function ProjectLaborSection({
               Defina quem executará cada papel e as horas por mês
             </CardDescription>
           </div>
-          <div className="flex gap-2">
-            {isEditable && members.length > 0 && (
-              hoursEditMode ? (
-                <Button variant="default" onClick={handleSaveHours}>
-                  <Check className="mr-2 h-4 w-4" />
-                  Salvar Horas
-                </Button>
-              ) : (
-                <Button variant="outline" onClick={() => setHoursEditMode(true)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar Horas
-                </Button>
-              )
-            )}
-            {isEditable && (
-              <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Membro
-              </Button>
-            )}
-          </div>
+          {isEditable && (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Membro
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {members.length > 0 ? (
@@ -465,20 +460,26 @@ export function ProjectLaborSection({
                         <TableHead key={m} className="text-center min-w-[90px]">
                           <div className="flex flex-col">
                             <span>Mês {m}</span>
-                            <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                            {!isInPlanningMode && (
+                              <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                            )}
                           </div>
                         </TableHead>
                       ))}
                       <TableHead className="text-center min-w-[130px]">
                         <div className="flex flex-col">
                           <span>Horas</span>
-                          <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                          {!isInPlanningMode && (
+                            <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                          )}
                         </div>
                       </TableHead>
                       <TableHead className="text-center min-w-[160px]">
                         <div className="flex flex-col">
                           <span>Custo</span>
-                          <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                          {!isInPlanningMode && (
+                            <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                          )}
                         </div>
                       </TableHead>
                       {isEditable && (
@@ -512,8 +513,9 @@ export function ProjectLaborSection({
                             
                             return (
                               <TableCell key={monthNum} className="text-center p-1">
-                                {hoursEditMode ? (
-                                  <div className="flex flex-col items-center gap-0.5">
+                                {isInPlanningMode ? (
+                                  // Planning mode: only show planned hours
+                                  hoursEditMode ? (
                                     <Input
                                       type="number"
                                       min="0"
@@ -527,39 +529,70 @@ export function ProjectLaborSection({
                                         )
                                       }
                                     />
-                                    {actualHours > 0 && (
-                                      <span className="text-xs text-muted-foreground">
-                                        Real: {actualHours}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center justify-center gap-1 text-sm">
-                                    <span className="text-muted-foreground">
+                                  ) : (
+                                    <span className="text-sm">
                                       {plannedHours > 0 ? plannedHours : '-'}
                                     </span>
-                                    <span className="text-muted-foreground">|</span>
-                                    <span className="font-medium">
-                                      {actualHours > 0 ? actualHours : '-'}
-                                    </span>
-                                  </div>
+                                  )
+                                ) : (
+                                  // Execution mode: show Plan | Real
+                                  hoursEditMode ? (
+                                    <div className="flex flex-col items-center gap-0.5">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        className="w-16 h-8 text-center mx-auto"
+                                        value={plannedHours || ''}
+                                        onChange={(e) =>
+                                          handleHoursChange(
+                                            member.id,
+                                            monthNum,
+                                            Number(e.target.value)
+                                          )
+                                        }
+                                      />
+                                      {actualHours > 0 && (
+                                        <span className="text-xs text-muted-foreground">
+                                          Real: {actualHours}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-center gap-1 text-sm">
+                                      <span className="text-muted-foreground">
+                                        {plannedHours > 0 ? plannedHours : '-'}
+                                      </span>
+                                      <span className="text-muted-foreground">|</span>
+                                      <span className="font-medium">
+                                        {actualHours > 0 ? actualHours : '-'}
+                                      </span>
+                                    </div>
+                                  )
                                 )}
                               </TableCell>
                             );
                           })}
                           <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <span className="text-muted-foreground">{memberTotal.plannedHours}h</span>
-                              <span className="text-muted-foreground">|</span>
-                              <span className="font-medium">{memberTotal.actualHours}h</span>
-                            </div>
+                            {isInPlanningMode ? (
+                              <span>{memberTotal.plannedHours}h</span>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-muted-foreground">{memberTotal.plannedHours}h</span>
+                                <span className="text-muted-foreground">|</span>
+                                <span className="font-medium">{memberTotal.actualHours}h</span>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-sm">
-                              <span className="text-muted-foreground">{formatCurrency(memberTotal.plannedValue)}</span>
-                              <span className="text-muted-foreground">|</span>
-                              <span className="font-medium">{formatCurrency(memberTotal.actualValue)}</span>
-                            </div>
+                            {isInPlanningMode ? (
+                              <span>{formatCurrency(memberTotal.plannedValue)}</span>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1 text-sm">
+                                <span className="text-muted-foreground">{formatCurrency(memberTotal.plannedValue)}</span>
+                                <span className="text-muted-foreground">|</span>
+                                <span className="font-medium">{formatCurrency(memberTotal.actualValue)}</span>
+                              </div>
+                            )}
                           </TableCell>
                           {isEditable && (
                             <TableCell className="text-center">
@@ -596,31 +629,43 @@ export function ProjectLaborSection({
                         const monthTotals = totals.byMonth[monthNum];
                         return (
                           <TableCell key={monthNum} className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-sm">
-                              <span className="text-muted-foreground">
-                                {monthTotals?.plannedHours || 0}
-                              </span>
-                              <span className="text-muted-foreground">|</span>
-                              <span className="font-medium">
-                                {monthTotals?.actualHours || 0}
-                              </span>
-                            </div>
+                            {isInPlanningMode ? (
+                              <span className="font-medium">{monthTotals?.plannedHours || 0}</span>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1 text-sm">
+                                <span className="text-muted-foreground">
+                                  {monthTotals?.plannedHours || 0}
+                                </span>
+                                <span className="text-muted-foreground">|</span>
+                                <span className="font-medium">
+                                  {monthTotals?.actualHours || 0}
+                                </span>
+                              </div>
+                            )}
                           </TableCell>
                         );
                       })}
                       <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <span className="text-muted-foreground">{totals.totalHours}h</span>
-                          <span className="text-muted-foreground">|</span>
-                          <span className="font-semibold">{totals.totalActualHours}h</span>
-                        </div>
+                        {isInPlanningMode ? (
+                          <span className="font-semibold">{totals.totalHours}h</span>
+                        ) : (
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-muted-foreground">{totals.totalHours}h</span>
+                            <span className="text-muted-foreground">|</span>
+                            <span className="font-semibold">{totals.totalActualHours}h</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1 text-sm">
-                          <span className="text-muted-foreground">{formatCurrency(totals.totalValue)}</span>
-                          <span className="text-muted-foreground">|</span>
-                          <span className="font-semibold">{formatCurrency(totals.totalActualValue)}</span>
-                        </div>
+                        {isInPlanningMode ? (
+                          <span className="font-semibold">{formatCurrency(totals.totalValue)}</span>
+                        ) : (
+                          <div className="flex items-center justify-center gap-1 text-sm">
+                            <span className="text-muted-foreground">{formatCurrency(totals.totalValue)}</span>
+                            <span className="text-muted-foreground">|</span>
+                            <span className="font-semibold">{formatCurrency(totals.totalActualValue)}</span>
+                          </div>
+                        )}
                       </TableCell>
                       {isEditable && <TableCell />}
                     </TableRow>
@@ -635,6 +680,23 @@ export function ProjectLaborSection({
             </p>
           )}
         </CardContent>
+
+        {/* Footer with edit/save buttons */}
+        {isEditable && members.length > 0 && (
+          <CardFooter className="justify-end border-t pt-4">
+            {hoursEditMode ? (
+              <Button onClick={handleSaveHours}>
+                <Check className="mr-2 h-4 w-4" />
+                Salvar Horas
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => setHoursEditMode(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar Horas
+              </Button>
+            )}
+          </CardFooter>
+        )}
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
