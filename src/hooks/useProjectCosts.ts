@@ -38,6 +38,7 @@ export const useAddProjectSupplier = () => {
         .insert({
           project_id: input.projectId,
           supplier_id: input.supplierId || null,
+          budget_supplier_id: input.budgetSupplierId || null,
           name: input.name,
           description: input.description || null,
           monthly_value: input.monthlyValue,

@@ -1270,6 +1270,7 @@ export type Database = {
       }
       project_suppliers: {
         Row: {
+          budget_supplier_id: string | null
           created_at: string
           description: string | null
           end_month: number | null
@@ -1281,6 +1282,7 @@ export type Database = {
           supplier_id: string | null
         }
         Insert: {
+          budget_supplier_id?: string | null
           created_at?: string
           description?: string | null
           end_month?: number | null
@@ -1292,6 +1294,7 @@ export type Database = {
           supplier_id?: string | null
         }
         Update: {
+          budget_supplier_id?: string | null
           created_at?: string
           description?: string | null
           end_month?: number | null
@@ -1303,6 +1306,13 @@ export type Database = {
           supplier_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_suppliers_budget_supplier_id_fkey"
+            columns: ["budget_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "budget_suppliers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_suppliers_project_id_fkey"
             columns: ["project_id"]
