@@ -1,28 +1,27 @@
 
-# Plano: Métricas de Custo para Projetos em Planejamento
+
+# Plano: Corrigir Vazamento de Texto nos Cards de Custo
 
 ## Problema Identificado
 
-Atualmente, a aba de Custos exibe sempre "Planejado vs Realizado", mas para projetos em fase de planejamento, a comparação relevante é "Orçado vs Planejado". Além disso, a margem do projeto não está visível nesta aba, forçando o usuário a alternar para "Resultado Esperado".
+Os cards de custo estão exibindo texto que quebra inadequadamente, especialmente:
+- "50% (-" aparece em uma linha e "R$ 119.040,00)" em outra
+- "84% (-" e "R$ 39.040,00)" também quebram
+- O símbolo de percentual "~ 54.8%" no card de Margem também está problemático
+
+## Causa Raiz
+
+1. Os cards não têm largura mínima suficiente
+2. O texto de porcentagem + diferença não tem `whitespace-nowrap` para evitar quebra
+3. Com 5 colunas em grid, cada card fica muito estreito em telas menores
 
 ## Solução Proposta
 
-Modificar o componente `ProjectCostsTab` para:
-1. Exibir "Orçado vs Planejado" quando em fase de planejamento
-2. Adicionar um card de margem ao lado dos custos
-3. Manter "Planejado vs Realizado" quando em fase de execução
+Adicionar classes CSS para controlar a exibição do texto:
 
-## Nova Estrutura Visual
-
-```text
-+-------------------+-------------------+-------------------+-------------------+-------------------+
-| Mão de Obra       | Fornecedores      | Materiais         | Custo Total       | Margem Planejada  |
-|                   |                   |                   |                   |                   |
-| Orçado:  R$ X     | Orçado:  R$ X     | Orçado:  R$ X     | Orçado:  R$ X     | R$ XXX.XXX,XX     |
-| Planejado: R$ Y   | Planejado: R$ Y   | Planejado: R$ Y   | Planejado: R$ Y   | XX,X%             |
-| -X% (economia)    | +X% (estouro)     |                   |                   | (verde/vermelho)  |
-+-------------------+-------------------+-------------------+-------------------+-------------------+
-```
+1. **Evitar quebra de texto** na linha de porcentagem/diferença
+2. **Truncar ou ajustar** quando não couber
+3. **Definir largura mínima** nos cards
 
 ---
 
@@ -30,94 +29,45 @@ Modificar o componente `ProjectCostsTab` para:
 
 ### Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`
 
-#### 1. Importar a função de cálculo do orçamento
+#### 1. Adicionar `whitespace-nowrap` e `truncate` nas linhas de porcentagem
 
-Adicionar import:
+**CostCard - Linhas 79-108**
+
+Adicionar `whitespace-nowrap` ao container da porcentagem:
+
 ```tsx
-import { calculateBudgetTotals } from '@/types/budget';
+{baseValue > 0 && (
+  <div className="flex items-center gap-1 pt-1 whitespace-nowrap">
+    {/* conteúdo existente */}
+  </div>
+)}
 ```
 
-#### 2. Calcular os custos do orçamento
+#### 2. Adicionar `whitespace-nowrap` nas linhas de valores
 
-Utilizar o `budget` já disponível via `useBudget(project.budget_id)` para extrair:
-- **laborCostBudgeted**: soma de (horas × tarifa horária) para cada role
-- **suppliersCostBudgeted**: soma de (valor mensal × duração) para cada fornecedor
-- **materialsCostBudgeted**: soma dos valores de materiais
+Garantir que os valores monetários não quebrem:
 
-#### 3. Modificar o componente `CostCard` para suportar modo de planejamento
+- Linha 70: `<span className="text-sm font-medium whitespace-nowrap">`
+- Linha 76: `<span className="text-sm font-semibold whitespace-nowrap">`
 
-Adicionar props ao `CostCard`:
+#### 3. Ajustar o MarginCard da mesma forma
+
+- Linha 140: Adicionar `whitespace-nowrap` no valor do contrato
+- Linha 148: Adicionar `whitespace-nowrap` no valor da margem
+- Linha 151: Adicionar `whitespace-nowrap` no container de porcentagem
+
+#### 4. Ajustar o grid responsivo
+
+Mudar o grid de 5 colunas para usar largura mínima ou adaptar melhor em telas menores:
+
+**Linha 300 - Antes:**
 ```tsx
-interface CostCardProps {
-  icon: React.ReactNode;
-  iconBg: string;
-  label: string;
-  plannedValue: number;
-  actualValue: number;
-  isTotal?: boolean;
-  isPlanningMode?: boolean; // NOVO
-  budgetedValue?: number;   // NOVO
-}
+<div className={cn("grid gap-4", isEditable ? "md:grid-cols-5" : "md:grid-cols-4")}>
 ```
 
-Quando `isPlanningMode=true`:
-- Exibir "Orçado:" com `budgetedValue`
-- Exibir "Planejado:" com `plannedValue`
-- Comparar planejado vs orçado ao invés de realizado vs planejado
-
-#### 4. Adicionar Card de Margem
-
-Criar novo componente ou card inline que mostra:
-- **Valor do Contrato**: `project.total_value`
-- **Custo Planejado Total**: soma de mão de obra + fornecedores + materiais
-- **Margem Bruta**: contrato - custo
-- **Margem %**: (margem / contrato) × 100
-
-#### 5. Ajustar a lógica condicional
-
-Utilizar o prop `isEditable` já passado para determinar o modo:
-- `isEditable = true` → Modo Planejamento → Orçado vs Planejado
-- `isEditable = false` → Modo Execução → Planejado vs Realizado
-
----
-
-## Cálculo dos Custos Orçados
-
-```typescript
-const budgetedCosts = useMemo(() => {
-  if (!budget) return { labor: 0, suppliers: 0, materials: 0, total: 0 };
-  
-  // Mão de obra: soma de horas × tarifa para cada papel
-  const labor = budget.roles.reduce((acc, role) => {
-    const roleHours = role.months.reduce((h, m) => h + m.hours, 0);
-    return acc + roleHours * role.hourly_rate;
-  }, 0);
-  
-  // Fornecedores: valor mensal × duração
-  const suppliers = budget.suppliers.reduce((acc, s) => 
-    acc + s.monthly_value * budget.duration_months, 0);
-  
-  // Materiais: soma simples
-  const materials = budget.materials.reduce((acc, m) => 
-    acc + m.value, 0);
-  
-  return { labor, suppliers, materials, total: labor + suppliers + materials };
-}, [budget]);
-```
-
----
-
-## Cálculo da Margem
-
-```typescript
-const marginData = useMemo(() => {
-  const contractValue = project.total_value;
-  const totalPlannedCost = laborCostsPlanned + supplierCostsPlanned + materialCostsPlanned;
-  const grossMargin = contractValue - totalPlannedCost;
-  const marginPercent = contractValue > 0 ? (grossMargin / contractValue) * 100 : 0;
-  
-  return { contractValue, totalPlannedCost, grossMargin, marginPercent };
-}, [project.total_value, laborCostsPlanned, supplierCostsPlanned, materialCostsPlanned]);
+**Depois:**
+```tsx
+<div className={cn("grid gap-4", isEditable ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-2 md:grid-cols-4")}>
 ```
 
 ---
@@ -126,16 +76,15 @@ const marginData = useMemo(() => {
 
 | Alteração | Descrição |
 |-----------|-----------|
-| Novo modo de exibição | Orçado vs Planejado para projetos em planejamento |
-| Card de Margem | Novo card mostrando margem bruta e percentual |
-| Props do CostCard | Adicionar `isPlanningMode` e `budgetedValue` |
-| Cálculos orçados | Derivar custos do orçamento vinculado |
-| Grid de 5 colunas | Layout expandido para incluir margem |
+| `whitespace-nowrap` | Evita quebra de linha nos valores e porcentagens |
+| Grid responsivo | Melhor adaptação para telas menores (2 colunas em mobile) |
+| Valores monetários | Mantém em uma única linha |
 
 ---
 
 ## Resultado Esperado
 
-1. **Em Planejamento**: Cards mostram Orçado vs Planejado + Card de Margem
-2. **Em Execução**: Cards mostram Planejado vs Realizado (comportamento atual)
-3. **Margem visível**: Usuário não precisa mudar de aba para ver a margem
+1. **Texto não quebra**: Valores e porcentagens ficam em uma linha só
+2. **Layout responsivo**: 2 colunas em mobile, expandindo para 4-5 em desktop
+3. **Cards legíveis**: Informação apresentada de forma clara e organizada
+
