@@ -1,131 +1,93 @@
 
 
-# Plano: Modais para Lançamento de Custos Reais
+# Plano: Melhorias na Interface de Custos
 
-## Problema Atual
+## Alterações Solicitadas
 
-A interface atual exibe inputs inline para cada mês de cada fornecedor, resultando em:
-- Muitos campos visíveis simultaneamente
-- Experiência confusa e poluída
-- Dificuldade de navegação em projetos longos
+### 1. Botão de Lançar - Apenas Ícone
 
-## Nova Experiência Proposta
+Remover o texto "Lançar" do botão, mantendo apenas o ícone de dinheiro com tooltip para explicar a ação.
 
-### Fluxo para Fornecedores
-
-Na linha de cada fornecedor, adicionar um botão "Lançar Custo" que abre um modal simples:
-
-```
-┌─ Lançar Custo Real ────────────────────────────────────────┐
-│                                                             │
-│  Fornecedor: AWS Hosting                                    │
-│                                                             │
-│  Mês do Projeto *                                           │
-│  [▼ Mês 3                                  ]                │
-│                                                             │
-│  Valor Realizado (R$) *                                     │
-│  [_______________1.450,00_______________]                   │
-│                                                             │
-│  Observação (opcional)                                      │
-│  [________________________________]                         │
-│                                                             │
-│                          [Cancelar] [Salvar]                │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Fluxo para Materiais
-
-Adicionar botão "Registrar Realizado" na seção que abre modal para marcar materiais como pagos:
-
-```
-┌─ Registrar Material Realizado ──────────────────────────────┐
-│                                                             │
-│  Selecione os materiais já pagos/realizados:                │
-│                                                             │
-│  ☑ Licença Software X - Mês 2 - R$ 2.500,00                │
-│  ☐ Equipamento Y - Mês 3 - R$ 1.200,00                     │
-│  ☑ Serviço Z - Mês 1 - R$ 800,00                           │
-│                                                             │
-│                          [Cancelar] [Salvar]                │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Alterações Técnicas
-
-### 1. `ProjectSuppliersSection.tsx`
-
-**Simplificar tabela em modo execução:**
-- Remover inputs inline de valor realizado
-- Exibir apenas valores (Plan | Real) como texto
-- Adicionar coluna de ações com botão "Lançar"
-
-**Novo modal `SupplierActualDialog`:**
-- Select para escolher o mês
-- Input para valor realizado
-- Campo opcional para observação
-- Salva usando `upsertSupplierActual`
+**Arquivo:** `ProjectSuppliersSection.tsx` (linhas 329-336)
 
 ```typescript
-// Botão na coluna de ações (quando canEditActuals)
+// ANTES
 <Button variant="outline" size="sm" onClick={() => openActualDialog(supplier)}>
   <DollarSign className="h-4 w-4 mr-1" />
-  Lançar Custo
+  Lançar
+</Button>
+
+// DEPOIS
+<Button variant="outline" size="icon" onClick={() => openActualDialog(supplier)}>
+  <DollarSign className="h-4 w-4" />
 </Button>
 ```
 
-### 2. `ProjectMaterialsSection.tsx`
+### 2. Permitir Adicionar Fornecedores Durante Execução
 
-**Adicionar botão no header da seção:**
-- Visível quando `canEditActuals` e há materiais não realizados
-- Abre modal com lista de materiais pendentes
+Atualmente o botão "Adicionar Fornecedor" só aparece quando `isEditable` (fase de planejamento). Precisamos mostrá-lo também quando `canEditActuals`.
 
-**Novo modal `MaterialRealizeDialog`:**
-- Lista checkboxes dos materiais não realizados
-- Permite marcar vários de uma vez
-- Salva em batch
+**Arquivo:** `ProjectSuppliersSection.tsx` (linhas 219-224)
 
 ```typescript
-// Botão no header (ao lado do "Adicionar Material")
-{canEditActuals && materiaisNaoRealizados.length > 0 && (
-  <Button variant="outline" onClick={() => setRealizeDialogOpen(true)}>
-    <Check className="mr-2 h-4 w-4" />
-    Registrar Realizados
+// ANTES
+{isEditable && (
+  <Button onClick={() => setDialogOpen(true)}>
+    <Plus className="mr-2 h-4 w-4" />
+    Adicionar Fornecedor
+  </Button>
+)}
+
+// DEPOIS
+{(isEditable || canEditActuals) && (
+  <Button onClick={() => setDialogOpen(true)}>
+    <Plus className="mr-2 h-4 w-4" />
+    Adicionar Fornecedor
   </Button>
 )}
 ```
 
----
+### 3. Permitir Adicionar Materiais Durante Execução
 
-## Estrutura Visual Final
+Mesma lógica para a seção de materiais.
 
-### Fornecedores (Projeto em Execução)
+**Arquivo:** `ProjectMaterialsSection.tsx` (linhas 125-130)
 
+```typescript
+// ANTES
+{isEditable && (
+  <Button onClick={() => setDialogOpen(true)}>
+    <Plus className="mr-2 h-4 w-4" />
+    Adicionar Material
+  </Button>
+)}
+
+// DEPOIS
+{(isEditable || canEditActuals) && (
+  <Button onClick={() => setDialogOpen(true)}>
+    <Plus className="mr-2 h-4 w-4" />
+    Adicionar Material
+  </Button>
+)}
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ 🚚 FORNECEDORES                                                             │
-├─────────────────┬──────────────┬──────────────┬──────────────┬─────────────┤
-│ Nome            │  Mês 1       │  Mês 2       │  Total       │ Ações       │
-│                 │  Plan | Real │  Plan | Real │  Plan | Real │             │
-├─────────────────┼──────────────┼──────────────┼──────────────┼─────────────┤
-│ AWS Hosting     │ R$1.500 | -  │ R$1.500 | -  │ R$3.000 | -  │ [$ Lançar]  │
-│ Marketing       │ R$500 | R$500│ R$500 | -    │ R$1.000|R$500│ [$ Lançar]  │
-└─────────────────┴──────────────┴──────────────┴──────────────┴─────────────┘
+
+### 4. Permitir Excluir Fornecedores/Materiais Adicionados na Execução
+
+O botão de excluir também deve aparecer durante a execução para corrigir erros.
+
+**Arquivo:** `ProjectSuppliersSection.tsx` (linha 342)
+
+```typescript
+// ANTES
+{isEditable && (
+  <Button variant="ghost" size="icon" onClick={() => handleDelete(supplier.id)} ...>
+
+// DEPOIS  
+{(isEditable || canEditActuals) && (
+  <Button variant="ghost" size="icon" onClick={() => handleDelete(supplier.id)} ...>
 ```
 
-### Materiais (Projeto em Execução)
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ 📦 MATERIAIS                                      [✓ Registrar Realizados]  │
-├──────────────────────┬────────┬──────────────┬──────────────────────────────┤
-│ Descrição            │  Mês   │    Valor     │ Realizado                    │
-├──────────────────────┼────────┼──────────────┼──────────────────────────────┤
-│ Licença software X   │ Mês 2  │ R$ 2.500,00  │ ✓ Sim                        │
-│ Equipamento Y        │ Mês 3  │ R$ 1.200,00  │ Não                          │
-└──────────────────────┴────────┴──────────────┴──────────────────────────────┘
-```
+**Arquivo:** `ProjectMaterialsSection.tsx` - Adicionar coluna de ação para excluir quando `canEditActuals`
 
 ---
 
@@ -133,16 +95,14 @@ Adicionar botão "Registrar Realizado" na seção que abre modal para marcar mat
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `ProjectSuppliersSection.tsx` | Remover inputs inline, adicionar coluna de ações, criar modal de lançamento |
-| `ProjectMaterialsSection.tsx` | Adicionar botão e modal para registrar materiais realizados em batch |
+| `ProjectSuppliersSection.tsx` | Botão apenas com ícone; permitir adicionar/excluir em execução |
+| `ProjectMaterialsSection.tsx` | Permitir adicionar/excluir materiais em execução |
 
 ---
 
-## Benefícios
+## Resultado Final
 
-- Interface limpa e organizada
-- Ação intencional (clicar no botão) ao invés de edição acidental
-- Modal focado em uma tarefa específica
-- Possibilidade de adicionar campos extras (observação, número da NF)
-- Melhor experiência em projetos com muitos meses
+- Interface mais limpa com botões apenas de ícones
+- Flexibilidade para ajustar custos durante a execução do projeto
+- Fornecedores e materiais não planejados podem ser registrados
 
