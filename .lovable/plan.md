@@ -1,43 +1,96 @@
 
-# Plano: Ajustes na Alocação de Equipe e Formulário de Projeto
+# Plano: Herdar Horas do Orçamento ao Adicionar Membro
 
-## Alteração 1: Funcionários Disponíveis para Alocação
+## Problema Identificado
 
-**Problema:** Na seção de alocação de equipe (aba Custos), apenas funcionários com status "ativo" aparecem para seleção. Funcionários "aguardando confirmação" (que ainda não fizeram o primeiro login) também devem estar disponíveis.
+Ao adicionar um membro à equipe do projeto usando um papel do orçamento, o sistema herda:
+- Nome do papel
+- Senioridade
+- Valor/hora
 
-**Arquivo:** `src/components/projects/detail/ProjectLaborSection.tsx`
+Mas **não herda** as horas planejadas por mês que estão registradas no orçamento (tabela `budget_role_months`).
 
-**Alteração:** Linha 115 - atualizar o filtro de funcionários
+## Solução
 
-```typescript
-// ANTES
-const availableEmployees = useMemo(() => {
-  return employees.filter((e) => e.status === 'ativo');
-}, [employees]);
-
-// DEPOIS
-const availableEmployees = useMemo(() => {
-  return employees.filter((e) => e.status === 'ativo' || e.status === 'aguardando_confirmacao');
-}, [employees]);
-```
+Modificar o fluxo de adição de membro para que, após criar o `project_member`, também crie os registros de `project_member_months` copiando as horas de cada mês do papel do orçamento.
 
 ---
 
-## Alteração 2: Formulário de Projeto Contínuo
+## Alterações Técnicas
 
-**Problema:** Ao criar um projeto contínuo, o campo "Valor Total do Projeto" não faz sentido semanticamente (deveria ser "Valor Recorrente") e o campo "Quantidade de Parcelas" é desnecessário.
+### 1. Modificar `ProjectLaborSection.tsx`
 
-**Arquivo:** `src/components/projects/ProjectFormDialog.tsx`
+Atualizar a função `handleAddMember` para passar as horas mensais do papel selecionado:
 
-**Alterações:**
+```typescript
+const handleAddMember = () => {
+  if (!newMember.employeeId || !newMember.role) return;
+  
+  // Obter as horas mensais do papel do orçamento (se selecionado)
+  const budgetRole = budgetRoles.find(r => r.id === newMember.budgetRoleId);
+  const monthlyHours = budgetRole?.months || [];
+  
+  addMember.mutate(
+    {
+      projectId,
+      employeeId: newMember.employeeId,
+      role: newMember.role,
+      seniority: newMember.seniority,
+      hoursPerMonth: 0, // Valor legado, não usado
+      budgetRoleId: useBudgetRole && newMember.budgetRoleId ? newMember.budgetRoleId : undefined,
+      hourlyRate: newMember.hourlyRate,
+      monthlyHours, // NOVO: passar array de horas
+    },
+    { ... }
+  );
+};
+```
 
-1. **Campo de Valor (linha 341-360):** Atualizar o label dinamicamente
-   - Se `isContinuous = true`: "Valor Recorrente Mensal *"
-   - Se `isContinuous = false`: "Valor Total do Projeto *"
+### 2. Atualizar `CreateProjectMemberInput` em `types/project.ts`
 
-2. **Campo de Parcelas (linhas 388-400):** Ocultar quando for projeto contínuo
-   - Mostrar apenas quando `!isContinuous`
-   - Ajustar layout do grid de 2 colunas para 1 quando contínuo
+Adicionar campo opcional para as horas mensais:
+
+```typescript
+export interface CreateProjectMemberInput {
+  projectId: string;
+  employeeId: string;
+  role: string;
+  seniority: string;
+  hoursPerMonth: number;
+  budgetRoleId?: string;
+  hourlyRate?: number;
+  monthlyHours?: { monthNumber: number; hours: number }[]; // NOVO
+}
+```
+
+### 3. Modificar `projectService.addMember`
+
+Após criar o membro, se houver `monthlyHours`, criar os registros em `project_member_months`:
+
+```typescript
+async addMember(input: CreateProjectMemberInput): Promise<ProjectMemberDB> {
+  const { data, error } = await supabase
+    .from('project_members')
+    .insert({ ... })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Se houver horas do orçamento, copiar para project_member_months
+  if (input.monthlyHours && input.monthlyHours.length > 0) {
+    const monthInserts = input.monthlyHours.map(m => ({
+      project_member_id: data.id,
+      month_number: m.monthNumber,
+      hours: m.hours,
+    }));
+
+    await supabase.from('project_member_months').insert(monthInserts);
+  }
+
+  return data;
+}
+```
 
 ---
 
@@ -45,5 +98,14 @@ const availableEmployees = useMemo(() => {
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `ProjectLaborSection.tsx` | Incluir funcionários "aguardando_confirmacao" na lista de disponíveis |
-| `ProjectFormDialog.tsx` | Ajustar label do valor e ocultar parcelas para projetos contínuos |
+| `types/project.ts` | Adicionar `monthlyHours` ao `CreateProjectMemberInput` |
+| `services/projectService.ts` | Criar registros em `project_member_months` ao adicionar membro |
+| `ProjectLaborSection.tsx` | Passar horas mensais do papel do orçamento ao adicionar membro |
+
+---
+
+## Benefícios
+
+- Ao selecionar um papel do orçamento, as horas planejadas são automaticamente copiadas
+- O usuário não precisa replicar manualmente a alocação mês a mês
+- Mantém consistência entre planejamento comercial e execução do projeto
