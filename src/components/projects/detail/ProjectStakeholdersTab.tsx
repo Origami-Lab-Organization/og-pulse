@@ -128,7 +128,7 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {stakeholders.map((stakeholder) => (
             <Card key={stakeholder.id} className="relative group">
               <CardContent className="p-4">

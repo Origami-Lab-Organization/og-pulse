@@ -74,7 +74,7 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
       </div>
 
       {/* Main KPIs */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
