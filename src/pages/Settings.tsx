@@ -2,7 +2,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FinancialSettingsForm } from '@/components/settings/FinancialSettingsForm';
 import { PayrollProfileSettingsForm } from '@/components/settings/PayrollProfileSettingsForm';
-import { DollarSign, Receipt } from 'lucide-react';
+import { HolidaysSettingsForm } from '@/components/settings/HolidaysSettingsForm';
+import { DollarSign, Receipt, PartyPopper } from 'lucide-react';
 
 export default function Settings() {
   return (
@@ -21,6 +22,10 @@ export default function Settings() {
             <Receipt className="h-4 w-4" />
             Encargos/Folha
           </TabsTrigger>
+          <TabsTrigger value="holidays" className="flex items-center gap-2">
+            <PartyPopper className="h-4 w-4" />
+            Feriados/Folgas
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="financial" className="space-y-4">
@@ -29,6 +34,10 @@ export default function Settings() {
 
         <TabsContent value="payroll" className="space-y-4">
           <PayrollProfileSettingsForm />
+        </TabsContent>
+
+        <TabsContent value="holidays" className="space-y-4">
+          <HolidaysSettingsForm />
         </TabsContent>
       </Tabs>
     </AppLayout>

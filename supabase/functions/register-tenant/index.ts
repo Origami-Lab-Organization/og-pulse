@@ -80,6 +80,38 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 1.1 Seed default holidays for the new tenant
+    const defaultHolidays = [
+      // Fixed holidays
+      { tenant_id: tenant.id, name: 'Confraternização Universal', holiday_type: 'fixed', fixed_day: 1, fixed_month: 1 },
+      { tenant_id: tenant.id, name: 'Tiradentes', holiday_type: 'fixed', fixed_day: 21, fixed_month: 4 },
+      { tenant_id: tenant.id, name: 'Dia do Trabalho', holiday_type: 'fixed', fixed_day: 1, fixed_month: 5 },
+      { tenant_id: tenant.id, name: 'Independência do Brasil', holiday_type: 'fixed', fixed_day: 7, fixed_month: 9 },
+      { tenant_id: tenant.id, name: 'Nossa Senhora Aparecida', holiday_type: 'fixed', fixed_day: 12, fixed_month: 10 },
+      { tenant_id: tenant.id, name: 'Finados', holiday_type: 'fixed', fixed_day: 2, fixed_month: 11 },
+      { tenant_id: tenant.id, name: 'Proclamação da República', holiday_type: 'fixed', fixed_day: 15, fixed_month: 11 },
+      { tenant_id: tenant.id, name: 'Natal', holiday_type: 'fixed', fixed_day: 25, fixed_month: 12 },
+      // Floating holidays 2025
+      { tenant_id: tenant.id, name: 'Carnaval (Segunda)', holiday_type: 'floating', specific_date: '2025-03-03', reference_year: 2025 },
+      { tenant_id: tenant.id, name: 'Carnaval (Terça)', holiday_type: 'floating', specific_date: '2025-03-04', reference_year: 2025 },
+      { tenant_id: tenant.id, name: 'Sexta-feira Santa', holiday_type: 'floating', specific_date: '2025-04-18', reference_year: 2025 },
+      { tenant_id: tenant.id, name: 'Corpus Christi', holiday_type: 'floating', specific_date: '2025-06-19', reference_year: 2025 },
+      // Floating holidays 2026
+      { tenant_id: tenant.id, name: 'Carnaval (Segunda)', holiday_type: 'floating', specific_date: '2026-02-16', reference_year: 2026 },
+      { tenant_id: tenant.id, name: 'Carnaval (Terça)', holiday_type: 'floating', specific_date: '2026-02-17', reference_year: 2026 },
+      { tenant_id: tenant.id, name: 'Sexta-feira Santa', holiday_type: 'floating', specific_date: '2026-04-03', reference_year: 2026 },
+      { tenant_id: tenant.id, name: 'Corpus Christi', holiday_type: 'floating', specific_date: '2026-06-04', reference_year: 2026 },
+    ];
+
+    const { error: holidaysError } = await adminClient
+      .from('company_holidays')
+      .insert(defaultHolidays);
+
+    if (holidaysError) {
+      console.error('Error seeding holidays:', holidaysError);
+      // Non-critical error, continue with registration
+    }
+
     // 2. Create auth user (only if new user)
     if (!isExistingUser) {
       const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({

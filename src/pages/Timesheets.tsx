@@ -14,6 +14,7 @@ import {
   getWeekDays,
   groupByEmployee,
 } from '@/hooks/useTimesheetData';
+import { useHolidays } from '@/hooks/useHolidays';
 
 type ViewMode = 'project' | 'employee';
 
@@ -33,6 +34,7 @@ export default function Timesheets() {
     startDateStr,
     endDateStr
   );
+  const { data: holidays = [] } = useHolidays();
 
   const employees = useMemo(() => {
     if (!projects) return [];
@@ -75,12 +77,14 @@ export default function Timesheets() {
             projects={projects || []}
             weekDays={weekDays}
             timesheetEntries={timesheetEntries || []}
+            holidays={holidays}
           />
         ) : (
           <TimesheetByEmployee
             employees={employees}
             weekDays={weekDays}
             timesheetEntries={timesheetEntries || []}
+            holidays={holidays}
           />
         )}
       </div>

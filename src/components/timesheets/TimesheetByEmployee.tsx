@@ -3,16 +3,26 @@ import { User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { TimesheetWeekRow } from './TimesheetWeekRow';
 import { EmployeeWithProjects, WeekDay, TimesheetEntry } from '@/hooks/useTimesheetData';
-import { format } from 'date-fns';
+import { Holiday } from '@/types/holiday';
+import { isHoliday } from '@/hooks/useHolidays';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface TimesheetByEmployeeProps {
   employees: EmployeeWithProjects[];
   weekDays: WeekDay[];
   timesheetEntries: TimesheetEntry[];
+  holidays?: Holiday[];
 }
 
-export function TimesheetByEmployee({ employees, weekDays, timesheetEntries }: TimesheetByEmployeeProps) {
+export function TimesheetByEmployee({ employees, weekDays, timesheetEntries, holidays = [] }: TimesheetByEmployeeProps) {
   if (employees.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -22,6 +32,11 @@ export function TimesheetByEmployee({ employees, weekDays, timesheetEntries }: T
       </div>
     );
   }
+
+  const getHolidayForDate = (dateStr: string): Holiday | null => {
+    const date = parseISO(dateStr);
+    return isHoliday(date, holidays);
+  };
 
   // Calculate total hours per employee
   const getEmployeeTotalHours = (employeeProjects: EmployeeWithProjects['projects']) => {
@@ -69,15 +84,35 @@ export function TimesheetByEmployee({ employees, weekDays, timesheetEntries }: T
               {/* Header Row */}
               <div className="grid grid-cols-[1fr_repeat(5,60px)_80px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
                 <div>Cliente / Projeto</div>
-                {weekDays.map((day) => (
-                  <div key={day.date} className="text-center">
-                    {format(new Date(day.date + 'T12:00:00'), 'EEE', { locale: ptBR })}
-                    <br />
-                    <span className="text-[10px]">
-                      {format(new Date(day.date + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
-                    </span>
-                  </div>
-                ))}
+                {weekDays.map((day) => {
+                  const holiday = getHolidayForDate(day.date);
+                  const isHolidayDay = !!holiday;
+
+                  return (
+                    <TooltipProvider key={day.date}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={cn(
+                            "text-center rounded-md py-1",
+                            isHolidayDay && "bg-destructive/10 text-destructive"
+                          )}>
+                            {format(new Date(day.date + 'T12:00:00'), 'EEE', { locale: ptBR })}
+                            <br />
+                            <span className="text-[10px]">
+                              {format(new Date(day.date + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
+                            </span>
+                            {isHolidayDay && <span className="text-[8px] block">*</span>}
+                          </div>
+                        </TooltipTrigger>
+                        {isHolidayDay && (
+                          <TooltipContent>
+                            <p>{holiday.name}</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                })}
                 <div className="text-right pr-2">Total</div>
               </div>
               
@@ -91,6 +126,7 @@ export function TimesheetByEmployee({ employees, weekDays, timesheetEntries }: T
                   memberId={project.memberId}
                   weekDays={weekDays}
                   existingEntries={timesheetEntries}
+                  holidays={holidays}
                 />
               ))}
             </CardContent>
