@@ -1,80 +1,53 @@
 
+# Plano: Reorganização da Tabela com Valores Orçados Abaixo
 
-# Plano: Melhorias de UX na Tela de Alocação de Equipe
+## Entendimento do Pedido
 
-## Análise do Problema
+A nova estrutura da tabela deve seguir um padrão consistente:
+- **Linha superior**: Valor planejado/selecionado (funcionário, senioridade, custo, horas)
+- **Linha inferior**: Valor do orçamento original (papel, senioridade orçada, custo orçado, horas orçadas)
 
-Analisando a imagem fornecida como especialista UX com 15 anos de experiência, identifiquei dois problemas principais:
+## Nova Estrutura Visual
 
-### Problema 1: Dropdown de Funcionário Visualmente Confuso
-
-O dropdown atual exibe as informações do funcionário em formato empilhado (nome em cima, cargo + valor/hora embaixo), mas dentro de uma célula de tabela estreita isso resulta em:
-
-- **Informações "emboladas"**: Nome, cargo e valor/hora ficam amontoados
-- **Falta de hierarquia visual**: Não fica claro qual é a informação principal
-- **Comparação difícil**: O gerente precisa comparar custos entre funcionários rapidamente
-
-### Problema 2: Falta de Visão do Orçamento vs Planejado
-
-O gerente não consegue visualizar facilmente:
-- **O que foi orçado**: Qual era a expectativa do orçamento original?
-- **O que está planejando**: Como o planejamento atual se compara ao orçado?
-- **Variações**: Está acima ou abaixo do esperado?
+```
+┌─────────────────────────┬──────────────┬──────────────┬───────────┬───────────┬────────┐
+│ Funcionário             │ Senioridade  │ R$/h         │ Mês 1     │ Mês 2     │ ...    │
+├─────────────────────────┼──────────────┼──────────────┼───────────┼───────────┼────────┤
+│ [Victor Couto ▼]        │ Sênior       │ R$ 119,05    │ 84        │ 84        │ ...    │
+│ Gerente de Produto      │ Sênior       │ R$ 90,00     │ 84h orç.  │ 84h orç.  │ ...    │
+├─────────────────────────┼──────────────┼──────────────┼───────────┼───────────┼────────┤
+│ [Selecionar ▼]          │ -            │ -            │ 168       │ 168       │ ...    │
+│ Engenheiro de Software  │ Pleno        │ R$ 60,00     │ 168h orç. │ 168h orç. │ ...    │
+└─────────────────────────┴──────────────┴──────────────┴───────────┴───────────┴────────┘
+```
 
 ---
 
-## Soluções Propostas
+## Lógica de Exibição por Coluna
 
-### Solução 1: Melhorar a Coluna de Funcionário
+### Coluna 1: Funcionário
+- **Linha 1**: Select dropdown (ou nome do funcionário se não editável)
+- **Linha 2**: Nome do papel em **negrito, fonte menor** (sempre visível, vem do orçamento)
 
-**Abordagem: Separar a seleção do display**
+### Coluna 2: Senioridade
+- **Linha 1**: Senioridade do funcionário selecionado (preenchida ao selecionar)
+- **Linha 2**: Senioridade orçada em fonte menor/suave
 
-Em vez de exibir todas as informações no trigger do Select, usaremos:
+### Coluna 3: R$/h
+- **Linha 1**: Custo real do funcionário (calculado)
+- **Linha 2**: Custo orçado (do budget role) em fonte menor/suave
 
-1. **Trigger limpo**: Exibir apenas o nome do funcionário (ou "Selecionar..." se vazio)
-2. **Custo separado na tabela**: Mover o custo real para a coluna dedicada "Custo R$/h" (já existe)
-3. **Dropdown rico**: Dentro do dropdown, exibir informações completas em layout horizontal:
+### Colunas de Mês
+- **Linha 1**: Horas planejadas (editável no modo de edição)
+- **Linha 2**: Horas orçadas em fonte menor/suave (ex: "84h orç.")
 
-```
-┌─────────────────────────────────────────────────┐
-│ Victor Couto          CEO        R$ 119,05/h    │
-├─────────────────────────────────────────────────┤
-│ Italo Cesar Castro    Tech Lead  R$ 59,52/h    │
-├─────────────────────────────────────────────────┤
-│ Maria Silva           Designer   R$ 45,00/h    │
-└─────────────────────────────────────────────────┘
-```
+### Coluna Horas Total
+- **Linha 1**: Total de horas planejadas
+- **Linha 2**: Total de horas orçadas em fonte menor
 
-**Benefícios:**
-- Trigger do Select fica limpo e legível
-- Dropdown mostra informações lado a lado (mais fácil comparar)
-- Custo real fica na coluna dedicada da tabela
-
-### Solução 2: Adicionar Resumo Visual do Orçamento
-
-**Abordagem: Card de comparação no topo da seção**
-
-Adicionar um pequeno card de resumo que exiba:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  📊 Comparativo com Orçamento                                   │
-│                                                                 │
-│  Orçado: 420h • R$ 31.500,00    Planejado: 420h • R$ 29.840,00 │
-│                                                                 │
-│  [████████████████░░] -5,3% abaixo do orçado ✓                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Informações exibidas:**
-- Total de horas orçadas vs planejadas
-- Valor total orçado vs custo planejado
-- Indicador visual (verde se abaixo, amarelo se próximo, vermelho se acima)
-
-**Benefícios:**
-- Visão imediata do impacto das decisões de alocação
-- Feedback em tempo real ao trocar funcionários
-- Ajuda na tomada de decisão do gerente
+### Coluna Custo Total
+- **Linha 1**: Custo planejado total
+- **Linha 2**: Custo orçado total em fonte menor
 
 ---
 
@@ -82,105 +55,211 @@ Adicionar um pequeno card de resumo que exiba:
 
 ### Arquivo: `src/components/projects/detail/ProjectLaborSection.tsx`
 
-#### 1. Refatorar o Select de Funcionário
+#### 1. Adicionar Cálculo de Dados Orçados por Membro
 
-**Antes:**
-```tsx
-<SelectItem key={emp.id} value={emp.id}>
-  <div className="flex flex-col">
-    <span className="font-medium">{emp.nome}</span>
-    <span className="text-xs text-muted-foreground">
-      {emp.cargo} • {formatCurrency(hourlyCost)}/h
-    </span>
-  </div>
-</SelectItem>
-```
+Criar um useMemo para obter os dados do orçamento original para cada papel:
 
-**Depois:**
-```tsx
-<SelectTrigger className="w-full">
-  <SelectValue placeholder="Selecionar...">
-    {member.employee?.nome || 'Selecionar...'}
-  </SelectValue>
-</SelectTrigger>
-<SelectContent className="min-w-[320px]">
-  <SelectItem value="none">
-    <span className="text-muted-foreground italic">Sem funcionário</span>
-  </SelectItem>
-  {availableEmployees.map((emp) => (
-    <SelectItem key={emp.id} value={emp.id} className="py-2">
-      <div className="flex items-center justify-between w-full gap-4">
-        <span className="font-medium truncate">{emp.nome}</span>
-        <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {emp.cargo}
-        </span>
-        <span className="text-xs font-medium text-primary whitespace-nowrap">
-          {formatCurrency(hourlyCost)}/h
-        </span>
-      </div>
-    </SelectItem>
-  ))}
-</SelectContent>
-```
-
-#### 2. Adicionar Card de Comparação com Orçamento
-
-Criar um card simples no topo que calcula e exibe:
-- Totais do orçamento original (budgetRoles)
-- Totais do planejamento atual (members)
-- Percentual de variação
-
-```tsx
-// Cálculo do resumo do orçamento
-const budgetSummary = useMemo(() => {
-  let budgetHours = 0;
-  let budgetValue = 0;
-  budgetRoles.forEach(role => {
-    const hours = role.months?.reduce((sum, m) => sum + m.hours, 0) || 0;
-    budgetHours += hours;
-    budgetValue += hours * role.hourly_rate;
+```typescript
+const budgetDataByMember = useMemo(() => {
+  const result: Record<string, {
+    budgetSeniority: string;
+    budgetHourlyRate: number;
+    budgetHoursByMonth: Record<number, number>;
+    budgetTotalHours: number;
+  }> = {};
+  
+  members.forEach(member => {
+    if (member.budget_role_id) {
+      const budgetRole = budgetRoles.find(r => r.id === member.budget_role_id);
+      if (budgetRole) {
+        const hoursByMonth: Record<number, number> = {};
+        budgetRole.months?.forEach(m => {
+          hoursByMonth[m.month_number] = m.hours;
+        });
+        result[member.id] = {
+          budgetSeniority: budgetRole.seniority,
+          budgetHourlyRate: budgetRole.hourly_rate,
+          budgetHoursByMonth: hoursByMonth,
+          budgetTotalHours: budgetRole.months?.reduce((sum, m) => sum + m.hours, 0) || 0,
+        };
+      }
+    }
+    // Se não tem budget role, valores ficam vazios
+    if (!result[member.id]) {
+      result[member.id] = {
+        budgetSeniority: '',
+        budgetHourlyRate: 0,
+        budgetHoursByMonth: {},
+        budgetTotalHours: 0,
+      };
+    }
   });
-  return { hours: budgetHours, value: budgetValue };
-}, [budgetRoles]);
+  
+  return result;
+}, [members, budgetRoles]);
+```
 
-// Exibição do card de comparação
-{budgetRoles.length > 0 && (
-  <div className="mb-4 p-4 bg-muted/50 rounded-lg border">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm text-muted-foreground">Orçado</p>
-        <p className="font-semibold">{budgetSummary.hours}h • {formatCurrency(budgetSummary.value)}</p>
-      </div>
-      <div>
-        <p className="text-sm text-muted-foreground">Planejado</p>
-        <p className="font-semibold">{totals.totalHours}h • {formatCurrency(totals.totalValue)}</p>
-      </div>
-      <div className={cn("px-3 py-1 rounded-full text-sm font-medium", variationClass)}>
-        {variationPercent}% {variationPercent < 0 ? 'abaixo' : 'acima'}
-      </div>
-    </div>
-  </div>
-)}
+#### 2. Alterar Header da Tabela
+
+Remover colunas "Papel" e "Orç. R$/h" separadas:
+
+```tsx
+<TableHeader>
+  <TableRow>
+    <TableHead className="sticky left-0 bg-background z-10 min-w-[220px]">
+      Funcionário
+    </TableHead>
+    <TableHead className="min-w-[100px]">Senioridade</TableHead>
+    <TableHead className="text-right min-w-[100px]">R$/h</TableHead>
+    {months.map((m) => (
+      <TableHead key={m} className="text-center min-w-[80px]">
+        Mês {m}
+      </TableHead>
+    ))}
+    <TableHead className="text-center min-w-[100px]">Horas</TableHead>
+    <TableHead className="text-center min-w-[120px]">Custo</TableHead>
+    {isEditable && (
+      <TableHead className="text-center min-w-[80px]">Ações</TableHead>
+    )}
+  </TableRow>
+</TableHeader>
+```
+
+#### 3. Refatorar Corpo da Tabela
+
+Cada célula terá duas linhas (valor planejado + orçado):
+
+```tsx
+{members.map((member) => {
+  const budgetData = budgetDataByMember[member.id];
+  const realCost = getRealHourlyCost(member);
+  const memberTotal = memberTotals[member.id];
+  const employeeSeniority = member.employee 
+    ? SENIORITY_OPTIONS.find(s => s.value === member.seniority)?.label 
+    : null;
+  const budgetSeniorityLabel = SENIORITY_OPTIONS.find(
+    s => s.value === budgetData.budgetSeniority
+  )?.label || budgetData.budgetSeniority;
+
+  return (
+    <TableRow key={member.id}>
+      {/* Coluna 1: Funcionário + Papel */}
+      <TableCell className="sticky left-0 bg-background z-10 p-2 min-w-[220px]">
+        <div className="flex flex-col gap-1">
+          {isEditable ? (
+            <Select ...>...</Select>
+          ) : (
+            <span className="font-medium">
+              {member.employee?.nome || 'Não atribuído'}
+            </span>
+          )}
+          <span className="text-sm font-semibold text-foreground">
+            {member.role}
+          </span>
+        </div>
+      </TableCell>
+      
+      {/* Coluna 2: Senioridade */}
+      <TableCell className="p-2">
+        <div className="flex flex-col gap-0.5">
+          <span className={member.employee ? "font-medium" : "text-muted-foreground"}>
+            {employeeSeniority || '-'}
+          </span>
+          {budgetData.budgetSeniority && (
+            <span className="text-xs text-muted-foreground">
+              {budgetSeniorityLabel}
+            </span>
+          )}
+        </div>
+      </TableCell>
+      
+      {/* Coluna 3: R$/h */}
+      <TableCell className="text-right p-2">
+        <div className="flex flex-col gap-0.5">
+          <span className={member.employee ? "font-medium" : "text-muted-foreground"}>
+            {member.employee ? formatCurrency(realCost) : '-'}
+          </span>
+          {budgetData.budgetHourlyRate > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {formatCurrency(budgetData.budgetHourlyRate)}
+            </span>
+          )}
+        </div>
+      </TableCell>
+      
+      {/* Colunas de Mês */}
+      {months.map((monthNum) => {
+        const plannedHours = getHoursForMonth(member.id, monthNum);
+        const budgetHours = budgetData.budgetHoursByMonth[monthNum] || 0;
+        
+        return (
+          <TableCell key={monthNum} className="text-center p-1">
+            <div className="flex flex-col gap-0.5">
+              {hoursEditMode ? (
+                <Input ... />
+              ) : (
+                <span>{plannedHours > 0 ? plannedHours : '-'}</span>
+              )}
+              {budgetHours > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {budgetHours}h orç.
+                </span>
+              )}
+            </div>
+          </TableCell>
+        );
+      })}
+      
+      {/* Coluna Horas Total */}
+      <TableCell className="text-center p-2">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-medium">{memberTotal.plannedHours}h</span>
+          {budgetData.budgetTotalHours > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {budgetData.budgetTotalHours}h orç.
+            </span>
+          )}
+        </div>
+      </TableCell>
+      
+      {/* Coluna Custo Total */}
+      <TableCell className="text-center p-2">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-medium">{formatCurrency(memberTotal.plannedValue)}</span>
+          {budgetData.budgetTotalHours > 0 && budgetData.budgetHourlyRate > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {formatCurrency(budgetData.budgetTotalHours * budgetData.budgetHourlyRate)}
+            </span>
+          )}
+        </div>
+      </TableCell>
+      
+      {/* Coluna Ações */}
+      {isEditable && <TableCell>...</TableCell>}
+    </TableRow>
+  );
+})}
 ```
 
 ---
 
 ## Resumo das Alterações
 
-| Alteração | Benefício UX |
-|-----------|--------------|
-| Trigger do Select mostra apenas nome | Célula limpa e legível |
-| Dropdown com layout horizontal | Fácil comparar funcionários |
-| Largura mínima no dropdown (320px) | Informações não ficam cortadas |
-| Card de comparação orçado/planejado | Visão imediata do impacto financeiro |
-| Indicador visual de variação | Feedback instantâneo (verde/amarelo/vermelho) |
+| Alteração | Descrição |
+|-----------|-----------|
+| Nova coluna "Funcionário" | Select + papel abaixo em negrito |
+| Coluna "Senioridade" com duas linhas | Planejado em cima, orçado abaixo |
+| Coluna "R$/h" com duas linhas | Custo real em cima, orçado abaixo |
+| Colunas de mês com duas linhas | Horas planejadas em cima, orçadas abaixo |
+| Remover coluna "Orç. R$/h" separada | Integrada na coluna R$/h |
+| Remover coluna "Papel" separada | Integrada na coluna Funcionário |
 
 ---
 
 ## Resultado Esperado
 
-1. **Célula de funcionário**: Exibe apenas o nome, mantendo a tabela limpa
-2. **Dropdown de seleção**: Layout horizontal com nome, cargo e custo lado a lado para fácil comparação
-3. **Resumo visual**: Card no topo mostrando orçado vs planejado com indicador colorido
-4. **Tomada de decisão**: Gerente consegue ver imediatamente o impacto de suas escolhas de alocação
+1. **Tabela mais compacta**: Menos colunas horizontais
+2. **Comparação visual imediata**: Planejado vs orçado em cada célula
+3. **Hierarquia clara**: Valores atuais em destaque, orçados em fonte suave
+4. **Feedback visual**: Gerente vê imediatamente se está acima/abaixo do orçado
 
