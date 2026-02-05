@@ -200,22 +200,52 @@ export const useRemoveProjectMember = () => {
   return useMutation({
     mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
       await projectService.removeMember(id);
-      return { projectId };
+      return { id, projectId };
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['project-members', data.projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project', data.projectId] });
-      toast({
-        title: 'Membro removido',
-        description: 'O membro foi removido do projeto.',
+    // Optimistic update - remove immediately from UI
+    onMutate: async ({ id, projectId }) => {
+      await queryClient.cancelQueries({ queryKey: ['project', projectId] });
+      await queryClient.cancelQueries({ queryKey: ['project-members', projectId] });
+
+      const previousProject = queryClient.getQueryData(['project', projectId]);
+      const previousMembers = queryClient.getQueryData(['project-members', projectId]);
+
+      // Update project cache
+      queryClient.setQueryData(['project', projectId], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          members: old.members?.filter((m: any) => m.id !== id) || [],
+        };
       });
+
+      // Update members cache
+      queryClient.setQueryData(['project-members', projectId], (old: any) => {
+        if (!old) return old;
+        return Array.isArray(old) ? old.filter((m: any) => m.id !== id) : old;
+      });
+
+      return { previousProject, previousMembers, projectId };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _, context) => {
+      // Rollback on error
+      if (context?.previousProject) {
+        queryClient.setQueryData(['project', context.projectId], context.previousProject);
+      }
+      if (context?.previousMembers) {
+        queryClient.setQueryData(['project-members', context.projectId], context.previousMembers);
+      }
       toast({
         title: 'Erro ao remover membro',
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: (data) => {
+      if (data?.projectId) {
+        queryClient.invalidateQueries({ queryKey: ['project-members', data.projectId] });
+        queryClient.invalidateQueries({ queryKey: ['project', data.projectId] });
+      }
     },
   });
 };
