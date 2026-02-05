@@ -1,154 +1,190 @@
 
+# Plano: Reformulação da Tela de Alocação de Equipe
 
-# Plano: Melhorias na UX de Planejamento de Custos de Mão de Obra
+## Contexto
+
+O usuário deseja reformular a seção de alocação de equipe na tela de custos do projeto para melhorar a experiência do gerente durante o planejamento.
 
 ## Problemas Identificados
 
-1. **Exibição dos Papéis do Orçamento**: Os papéis aparecem apenas como badges de referência no topo, dificultando a visualização do que foi orçado enquanto o gerente planeja a alocação
-2. **Colunas "Plan | Real" durante planejamento**: Durante a fase de planejamento, não faz sentido exibir "Planejado vs Realizado" pois ainda não há execução - isso confunde o usuário
-3. **Layout dos botões "Salvar/Editar Horas" e "Adicionar Membro"**: Os botões ficaram visualmente ruins lado a lado, precisam de melhor organização
+1. A seção "Papéis do Orçamento (referência)" é redundante e não será mais necessária
+2. A tabela atual mostra funcionários alocados, mas o fluxo ideal é mostrar os **papéis** planejados e permitir selecionar funcionários para cada papel
+3. O dropdown atual de funcionários não exibe informações suficientes (nome, cargo, valor/hora) para ajudar na decisão
 
 ---
 
-## Solução Proposta
+## Nova Abordagem
 
-### 1. Seção de Referência do Orçamento Expandida
+### Conceito Principal
 
-Transformar a seção de referência do orçamento em uma visualização mais útil:
-- Mostrar uma **tabela resumida** com os papéis orçados, incluindo horas por mês e total
-- Exibir o **status de alocação** de cada papel (quantas pessoas já foram alocadas para aquele papel)
-- Usar visual de card com destaque para facilitar consulta enquanto planeja
+A seção de alocação será baseada em **papéis** (roles) ao invés de funcionários:
+- Cada linha representa um **papel** planejado para o projeto
+- O papel pode ter ou não um funcionário associado
+- O usuário pode adicionar novos papéis manualmente
+- O usuário pode deletar papéis existentes
 
-### 2. Simplificar Interface de Planejamento
+### Fluxo do Usuário
 
-Durante a fase de planejamento (quando `isEditable` é true e não há horas reais):
-- **Remover as colunas "Plan | Real"** dos cabeçalhos mensais
-- Exibir apenas **uma coluna de horas** por mês (as horas planejadas)
-- Remover as colunas de totais "Plan | Real" (mostrar apenas o total planejado)
-- Detectar se o projeto está em fase de planejamento baseado na existência de horas reais
-
-### 3. Reorganizar Layout dos Botões
-
-Separar as ações em duas linhas ou grupos lógicos:
-- **Linha 1 (CardHeader)**: Apenas o botão "Adicionar Membro"
-- **Linha 2 (abaixo da tabela ou como toolbar)**: Botões "Editar Horas" / "Salvar Horas" quando houver membros
-
-Ou usar um layout com grupos visuais:
-```
-[Título e descrição]                    [+ Adicionar Membro]
-                                        
-[Tabela...]
-
-[Footer com: Editar Horas / Salvar Horas]
-```
+1. Ao converter um orçamento, os papéis do orçamento são herdados como linhas na tabela
+2. O gerente vê cada papel com suas horas planejadas por mês
+3. Na coluna "Funcionário", há um dropdown onde pode selecionar quem executará aquele papel
+4. O dropdown mostra: Nome, Cargo na Empresa, Valor/Hora
+5. Pode adicionar novos papéis sem funcionário associado
+6. Pode deletar papéis que não serão utilizados
 
 ---
 
 ## Alterações Técnicas
 
-### Arquivo: `src/components/projects/detail/ProjectLaborSection.tsx`
+### 1. Mudança de Modelo Mental
 
-#### 1. Detectar se está em modo de planejamento (sem horas reais)
+**Antes:** A tabela lista `project_members` (funcionário + papel)
+**Depois:** A tabela lista papéis, sendo que cada papel pode ter um funcionário associado (ou não)
+
+No banco, o `project_members` já suporta isso via `budget_role_id` e os campos `role`, `seniority`, `hourly_rate`. A mudança é permitir que `employee_id` seja NULL para papéis sem funcionário associado.
+
+### 2. Migração do Banco de Dados
+
+```sql
+-- Permitir que employee_id seja NULL para papéis sem funcionário associado
+ALTER TABLE project_members 
+ALTER COLUMN employee_id DROP NOT NULL;
+```
+
+### 3. Alterações no `ProjectLaborSection.tsx`
+
+#### Remover Seção de Referência do Orçamento
+- Deletar completamente o card "Papéis do Orçamento (referência)" que usa badges
+
+#### Refatorar Tabela Principal
+
+**Nova estrutura de colunas:**
+| Papel | Senioridade | Funcionário | Orç. R$/h | Custo R$/h | Mês 1 | ... | Horas | Custo | Ações |
+
+**Coluna "Funcionário":**
+- Exibe um Select/Dropdown
+- Quando não há funcionário: mostra "Selecionar funcionário"
+- Quando há funcionário: mostra o nome do funcionário
+- O dropdown lista funcionários disponíveis com:
+  - Nome completo
+  - Cargo na empresa
+  - Valor/hora calculado (custo total / jornada)
+
+**Coluna "Ações":**
+- Botão de editar (lápis) - permite alterar papel, senioridade, valor/hora
+- Botão de excluir (lixeira) - deleta o papel
+
+#### Novo Dialog "Adicionar Papel"
+
+Em vez de "Adicionar Membro", será "Adicionar Papel":
+
+```
+┌─────────────────────────────────────────────┐
+│ Adicionar Papel                              │
+├─────────────────────────────────────────────┤
+│ Papel no Projeto: [________________]         │
+│                                              │
+│ ┌──────────────────┐ ┌──────────────────┐   │
+│ │ Senioridade      │ │ Valor/Hora (R$)  │   │
+│ │ [Select ▼      ] │ │ [___________]    │   │
+│ └──────────────────┘ └──────────────────┘   │
+│                                              │
+│ [ ] Herdar de papel do orçamento             │
+│ [Select papel do orçamento ▼]                │
+│                                              │
+│              [Cancelar] [Adicionar]          │
+└─────────────────────────────────────────────┘
+```
+
+Se herdar do orçamento:
+- Preenche automaticamente papel, senioridade, valor/hora
+- Copia as horas por mês do papel do orçamento
+
+#### Refatorar Seleção de Funcionário Inline
+
+Na coluna "Funcionário" da tabela, usar um Select com:
+
+```tsx
+<Select 
+  value={member.employee_id || ''} 
+  onValueChange={(empId) => handleAssignEmployee(member.id, empId)}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Selecionar funcionário" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="">
+      <span className="text-muted-foreground italic">Sem funcionário</span>
+    </SelectItem>
+    {availableEmployees.map((emp) => {
+      const hourlyCost = emp.totalMonthlyCostEstimated / emp.jornadaMensal;
+      return (
+        <SelectItem key={emp.id} value={emp.id}>
+          <div className="flex flex-col">
+            <span className="font-medium">{emp.nome}</span>
+            <span className="text-xs text-muted-foreground">
+              {emp.cargo} • {formatCurrency(hourlyCost)}/h
+            </span>
+          </div>
+        </SelectItem>
+      );
+    })}
+  </SelectContent>
+</Select>
+```
+
+### 4. Alterações no Hook `useProjects.ts`
+
+#### Novo Mutation: `useAssignMemberEmployee`
+
+Permite associar/desassociar um funcionário a um papel existente:
+
 ```typescript
-const isInPlanningMode = useMemo(() => {
-  // Se o total de horas reais for 0, estamos em planejamento
-  return totals.totalActualHours === 0;
-}, [totals.totalActualHours]);
+export const useAssignMemberEmployee = () => {
+  return useMutation({
+    mutationFn: async ({ memberId, projectId, employeeId }: { 
+      memberId: string; 
+      projectId: string; 
+      employeeId: string | null;
+    }) => {
+      return projectService.updateMember(memberId, { employee_id: employeeId });
+    },
+    // ...
+  });
+};
 ```
 
-#### 2. Simplificar cabeçalhos mensais durante planejamento
-Remover o subtítulo "Plan | Real" e mostrar apenas "Mês X":
-```tsx
-<TableHead key={m} className="text-center min-w-[90px]">
-  <span>Mês {m}</span>
-  {!isInPlanningMode && (
-    <span className="text-xs font-normal text-muted-foreground block">Plan | Real</span>
-  )}
-</TableHead>
+### 5. Alterações no `projectService.ts`
+
+Atualizar o método `addMember` para permitir `employeeId` como opcional:
+
+```typescript
+async addMember(input: CreateProjectMemberInput) {
+  const { data, error } = await supabase
+    .from('project_members')
+    .insert({
+      project_id: input.projectId,
+      employee_id: input.employeeId || null, // Allow null
+      role: input.role,
+      seniority: input.seniority,
+      // ...
+    })
+    // ...
+}
 ```
 
-#### 3. Simplificar células de horas durante planejamento
-Mostrar apenas as horas planejadas (editáveis ou não):
-```tsx
-{isInPlanningMode ? (
-  // Modo planejamento: apenas horas planejadas
-  hoursEditMode ? (
-    <Input ... />
-  ) : (
-    <span>{plannedHours > 0 ? plannedHours : '-'}</span>
-  )
-) : (
-  // Modo execução: Plan | Real
-  <div className="flex items-center justify-center gap-1">
-    <span>{plannedHours}</span> | <span>{actualHours}</span>
-  </div>
-)}
-```
+### 6. Atualizar Tipos
 
-#### 4. Simplificar colunas de totais durante planejamento
-Mostrar apenas "Horas" e "Custo" sem o subtítulo "Plan | Real":
-```tsx
-<TableHead className="text-center">
-  <span>Horas</span>
-  {!isInPlanningMode && (
-    <span className="text-xs block">Plan | Real</span>
-  )}
-</TableHead>
-```
+Em `src/types/project.ts`:
 
-#### 5. Reorganizar os botões
-Mover o botão de edição/salvamento para um CardFooter:
-```tsx
-<Card>
-  <CardHeader>
-    <div>
-      <CardTitle>...</CardTitle>
-      <CardDescription>...</CardDescription>
-    </div>
-    {isEditable && (
-      <Button onClick={() => setDialogOpen(true)}>
-        <Plus className="mr-2 h-4 w-4" />
-        Adicionar Membro
-      </Button>
-    )}
-  </CardHeader>
-  
-  <CardContent>
-    {/* Tabela */}
-  </CardContent>
-  
-  {isEditable && members.length > 0 && (
-    <CardFooter className="justify-end border-t pt-4">
-      {hoursEditMode ? (
-        <Button onClick={handleSaveHours}>
-          <Check className="mr-2 h-4 w-4" />
-          Salvar Horas
-        </Button>
-      ) : (
-        <Button variant="outline" onClick={() => setHoursEditMode(true)}>
-          <Pencil className="mr-2 h-4 w-4" />
-          Editar Horas
-        </Button>
-      )}
-    </CardFooter>
-  )}
-</Card>
-```
-
-#### 6. Melhorar seção de referência do orçamento
-Adicionar indicador de quantos membros foram alocados para cada papel:
-```tsx
-{budgetRolesSummary.map((role) => {
-  const allocatedCount = members.filter(m => m.budget_role_id === role.id).length;
-  return (
-    <Badge key={role.id} variant={allocatedCount > 0 ? "default" : "secondary"}>
-      {role.role_name} ({role.seniority}) • {formatCurrency(role.hourly_rate)}/h • {role.totalHours}h
-      {allocatedCount > 0 && (
-        <span className="ml-2 text-xs">({allocatedCount} alocado(s))</span>
-      )}
-    </Badge>
-  );
-})}
+```typescript
+export interface CreateProjectMemberInput {
+  projectId: string;
+  employeeId?: string; // Now optional
+  role: string;
+  seniority: string;
+  // ...
+}
 ```
 
 ---
@@ -157,14 +193,18 @@ Adicionar indicador de quantos membros foram alocados para cada papel:
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `ProjectLaborSection.tsx` | Detectar modo planejamento, simplificar UI sem "Plan/Real", reorganizar botões para CardFooter, melhorar referência do orçamento |
+| Migração SQL | Permitir `employee_id` NULL em `project_members` |
+| `types/project.ts` | Tornar `employeeId` opcional no input |
+| `services/projectService.ts` | Permitir criar membro sem funcionário, método para atribuir funcionário |
+| `hooks/useProjects.ts` | Adicionar `useAssignMemberEmployee` |
+| `ProjectLaborSection.tsx` | Remover seção de referência, refatorar tabela com seleção inline de funcionário, novo dialog para adicionar papel |
 
 ---
 
 ## Resultado Esperado
 
-- Durante o planejamento, interface limpa mostrando apenas as horas a planejar
-- Botões organizados: "Adicionar Membro" no topo, "Editar/Salvar Horas" no rodapé do card
-- Papéis do orçamento mostram quantos membros já foram alocados
-- Quando o projeto entrar em execução (horas reais > 0), automaticamente exibe "Plan | Real"
-
+- Interface focada em papéis ao invés de funcionários
+- Dropdown inline mostra nome, cargo e valor/hora do funcionário
+- Possibilidade de planejar papéis sem atribuir funcionários
+- Possibilidade de deletar papéis que não serão utilizados
+- Referência do orçamento integrada diretamente na criação de novos papéis
