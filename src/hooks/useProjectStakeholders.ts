@@ -8,6 +8,7 @@ import {
   InfluenceLevel,
   InterestLevel,
   SponsorshipLevel,
+  StakeholderAction,
 } from '@/types/projectStakeholder';
 
 export const useProjectStakeholders = (projectId: string | undefined) => {
@@ -26,6 +27,7 @@ export const useProjectStakeholders = (projectId: string | undefined) => {
         influence_level: s.influence_level as InfluenceLevel | null,
         interest_level: s.interest_level as InterestLevel | null,
         sponsorship_level: s.sponsorship_level as SponsorshipLevel | null,
+        action: s.action as StakeholderAction | null,
       })) as ProjectStakeholder[];
     },
     enabled: !!projectId,
@@ -50,6 +52,7 @@ export const useCreateStakeholder = () => {
           influence_level: input.influenceLevel || null,
           interest_level: input.interestLevel || null,
           sponsorship_level: input.sponsorshipLevel || null,
+          action: input.action || null,
           notes: input.notes || null,
         })
         .select()
@@ -100,6 +103,7 @@ export const useUpdateStakeholder = () => {
           influence_level: updates.influenceLevel,
           interest_level: updates.interestLevel,
           sponsorship_level: updates.sponsorshipLevel,
+          action: updates.action,
           notes: updates.notes,
         })
         .eq('id', id)
