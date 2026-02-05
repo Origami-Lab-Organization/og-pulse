@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 interface ProjectCostsTabProps {
   project: ProjectWithRelations;
   isEditable: boolean;
+  canEditActuals?: boolean;
 }
 
 interface CostCardProps {
@@ -93,7 +94,7 @@ function CostCard({ icon, iconBg, label, plannedValue, actualValue, isTotal = fa
   );
 }
 
-export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
+export function ProjectCostsTab({ project, isEditable, canEditActuals = false }: ProjectCostsTabProps) {
   // Calculate duration from project dates
   const durationMonths = useMemo(() => {
     const startDate = parseISO(project.start_date);
@@ -252,6 +253,7 @@ export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
         suppliers={project.suppliers || []}
         durationMonths={durationMonths}
         isEditable={isEditable}
+        canEditActuals={canEditActuals || isEditable}
         supplierActuals={supplierActuals}
       />
 
@@ -261,6 +263,7 @@ export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
         materials={project.materials || []}
         durationMonths={durationMonths}
         isEditable={isEditable}
+        canEditActuals={canEditActuals || isEditable}
       />
     </div>
   );
