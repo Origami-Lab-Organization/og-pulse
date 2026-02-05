@@ -55,50 +55,47 @@ function CostCard({
   
   return (
     <Card className={cn(isTotal && 'bg-primary/5')}>
-      <CardContent className="pt-6">
-        <div className="flex items-start gap-3">
-          <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg', iconBg)}>
+      <CardContent className="pt-4">
+        <div className="flex items-start gap-2">
+          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
             {icon}
           </div>
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <p className="text-sm text-muted-foreground truncate">{label}</p>
-            <div className="mt-1 space-y-1 overflow-hidden">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {isPlanningMode ? 'Orçado:' : 'Planejado:'}
-                </span>
-                <span className="text-sm font-medium whitespace-nowrap truncate">{formatCurrency(baseValue)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {isPlanningMode ? 'Planejado:' : 'Realizado:'}
-                </span>
-                <span className="text-sm font-semibold whitespace-nowrap truncate">{formatCurrency(compareValue)}</span>
-              </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <div className="mt-1">
+              {/* Main value - highlighted */}
+              <p className="text-lg font-bold leading-tight">
+                {formatCurrency(compareValue)}
+              </p>
+              {/* Base value - smaller */}
+              <p className="text-xs text-muted-foreground mt-0.5">
+                de {formatCurrency(baseValue)}
+              </p>
+              {/* Trend indicator */}
               {baseValue > 0 && (
-                <div className="flex items-center gap-1 pt-1 whitespace-nowrap overflow-hidden">
+                <div className="flex items-center gap-1 mt-1">
                   {isOverBudget ? (
                     <>
-                      <TrendingUp className="h-3 w-3 text-destructive" />
+                      <TrendingUp className="h-3 w-3 text-destructive shrink-0" />
                       <span className="text-xs font-medium text-destructive">
-                        {percentage.toFixed(0)}% (+{formatCurrency(diff)})
+                        {percentage.toFixed(0)}%
                       </span>
                     </>
                   ) : isUnderBudget ? (
                     <>
-                      <TrendingDown className="h-3 w-3 text-green-600" />
+                      <TrendingDown className="h-3 w-3 text-green-600 shrink-0" />
                       <span className="text-xs font-medium text-green-600">
-                        {percentage.toFixed(0)}% ({formatCurrency(diff)})
+                        {percentage.toFixed(0)}%
                       </span>
                     </>
                   ) : compareValue === 0 ? (
                     <>
-                      <Minus className="h-3 w-3 text-muted-foreground" />
+                      <Minus className="h-3 w-3 text-muted-foreground shrink-0" />
                       <span className="text-xs text-muted-foreground">0%</span>
                     </>
                   ) : (
                     <>
-                      <Minus className="h-3 w-3 text-muted-foreground" />
+                      <Minus className="h-3 w-3 text-muted-foreground shrink-0" />
                       <span className="text-xs text-muted-foreground">
                         {percentage.toFixed(0)}%
                       </span>
@@ -127,32 +124,31 @@ function MarginCard({ contractValue, totalPlannedCost }: MarginCardProps) {
   
   return (
     <Card className="bg-primary/5">
-      <CardContent className="pt-6">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+      <CardContent className="pt-4">
+        <div className="flex items-start gap-2">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
             <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <p className="text-sm text-muted-foreground truncate">Margem Planejada</p>
-            <div className="mt-1 space-y-1 overflow-hidden">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">Contrato:</span>
-                <span className="text-sm font-medium whitespace-nowrap truncate">{formatCurrency(contractValue)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">Margem:</span>
-                <span className={cn(
-                  "text-sm font-semibold whitespace-nowrap truncate",
-                  isPositive ? "text-green-600" : "text-destructive"
-                )}>
-                  {formatCurrency(grossMargin)}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 pt-1 whitespace-nowrap overflow-hidden">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground">Margem Planejada</p>
+            <div className="mt-1">
+              {/* Main value - highlighted */}
+              <p className={cn(
+                "text-lg font-bold leading-tight",
+                isPositive ? "text-green-600" : "text-destructive"
+              )}>
+                {formatCurrency(grossMargin)}
+              </p>
+              {/* Contract value - smaller */}
+              <p className="text-xs text-muted-foreground mt-0.5">
+                de {formatCurrency(contractValue)}
+              </p>
+              {/* Percentage indicator */}
+              <div className="flex items-center gap-1 mt-1">
                 {isPositive ? (
-                  <TrendingUp className="h-3 w-3 text-green-600" />
+                  <TrendingUp className="h-3 w-3 text-green-600 shrink-0" />
                 ) : (
-                  <TrendingDown className="h-3 w-3 text-destructive" />
+                  <TrendingDown className="h-3 w-3 text-destructive shrink-0" />
                 )}
                 <span className={cn(
                   "text-xs font-medium",
@@ -297,7 +293,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   return (
     <div className="space-y-6">
       {/* Costs Summary */}
-      <div className={cn("grid gap-4", isEditable ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-2 md:grid-cols-4")}>
+      <div className={cn("grid gap-3", isEditable ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4")}>
         <CostCard
           icon={<Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
           iconBg="bg-blue-100 dark:bg-blue-900/30"
