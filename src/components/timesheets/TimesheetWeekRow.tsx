@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { WeekDay, TimesheetEntry } from '@/hooks/useTimesheetData';
@@ -70,11 +70,36 @@ export function TimesheetWeekRow({
 
   const [hours, setHours] = useState<Record<string, number>>(getInitialHours);
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
-
-  // Update hours when existingEntries change
+  
+  // Ref to track pending saves for use in effects (avoids stale closure)
+  const pendingSavesRef = useRef<Set<string>>(new Set());
+  
+  // Keep ref in sync with state
   useEffect(() => {
-    setHours(getInitialHours());
-  }, [getInitialHours]);
+    pendingSavesRef.current = pendingSaves;
+  }, [pendingSaves]);
+
+  // Update hours when existingEntries change, preserving fields with pending saves
+  useEffect(() => {
+    setHours(prev => {
+      const serverHours: Record<string, number> = {};
+      weekDays.forEach((day) => {
+        const entry = existingEntries.find(
+          (e) => e.projectMemberId === memberId && e.workDate === day.date
+        );
+        serverHours[day.date] = entry?.hours ?? 0;
+      });
+      
+      // Preserve values for fields with pending saves
+      const merged = { ...serverHours };
+      pendingSavesRef.current.forEach(date => {
+        if (prev[date] !== undefined) {
+          merged[date] = prev[date];
+        }
+      });
+      return merged;
+    });
+  }, [existingEntries, weekDays, memberId]);
 
   const handleHoursChange = (date: string, value: string) => {
     const numValue = value === '' ? 0 : parseFloat(value);
