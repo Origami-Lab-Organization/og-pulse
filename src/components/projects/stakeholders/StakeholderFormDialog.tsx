@@ -43,6 +43,7 @@ import { formatPhone } from '@/lib/masks';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
+  jobTitle: z.string().optional(),
   role: z.string().min(1, 'Papel é obrigatório'),
   organization: z.string().optional(),
   email: z.string().email('E-mail inválido').optional().or(z.literal('')),
@@ -77,6 +78,7 @@ export function StakeholderFormDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
+      jobTitle: '',
       role: '',
       organization: '',
       email: '',
@@ -94,6 +96,7 @@ export function StakeholderFormDialog({
       if (stakeholder) {
         form.reset({
           name: stakeholder.name,
+          jobTitle: stakeholder.job_title || '',
           role: stakeholder.role,
           organization: stakeholder.organization || '',
           email: stakeholder.email || '',
@@ -107,6 +110,7 @@ export function StakeholderFormDialog({
       } else {
         form.reset({
           name: '',
+          jobTitle: '',
           role: '',
           organization: '',
           email: '',
@@ -129,6 +133,7 @@ export function StakeholderFormDialog({
           projectId,
           updates: {
             name: data.name,
+            jobTitle: data.jobTitle,
             role: data.role,
             organization: data.organization,
             email: data.email,
@@ -147,6 +152,7 @@ export function StakeholderFormDialog({
         {
           projectId,
           name: data.name,
+          jobTitle: data.jobTitle,
           role: data.role,
           organization: data.organization,
           email: data.email,
@@ -170,15 +176,29 @@ export function StakeholderFormDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nome completo" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="name"
+                name="jobTitle"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome *</FormLabel>
+                    <FormLabel>Cargo</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nome completo" {...field} />
+                      <Input placeholder="Ex: Diretor de TI" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -190,7 +210,7 @@ export function StakeholderFormDialog({
                 name="role"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Papel *</FormLabel>
+                    <FormLabel>Papel no Projeto *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>

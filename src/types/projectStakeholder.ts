@@ -7,6 +7,7 @@ export interface ProjectStakeholder {
   id: string;
   project_id: string;
   name: string;
+  job_title: string | null;
   role: string;
   organization: string | null;
   email: string | null;
@@ -22,6 +23,7 @@ export interface ProjectStakeholder {
 export interface CreateStakeholderInput {
   projectId: string;
   name: string;
+  jobTitle?: string;
   role: string;
   organization?: string;
   email?: string;
@@ -35,6 +37,7 @@ export interface CreateStakeholderInput {
 
 export interface UpdateStakeholderInput {
   name?: string;
+  jobTitle?: string;
   role?: string;
   organization?: string;
   email?: string;

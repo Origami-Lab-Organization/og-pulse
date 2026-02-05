@@ -45,6 +45,7 @@ export const useCreateStakeholder = () => {
         .insert({
           project_id: input.projectId,
           name: input.name,
+          job_title: input.jobTitle || null,
           role: input.role,
           organization: input.organization || null,
           email: input.email || null,
@@ -96,6 +97,7 @@ export const useUpdateStakeholder = () => {
         .from('project_stakeholders')
         .update({
           name: updates.name,
+          job_title: updates.jobTitle,
           role: updates.role,
           organization: updates.organization,
           email: updates.email,

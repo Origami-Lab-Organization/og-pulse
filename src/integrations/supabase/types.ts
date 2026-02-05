@@ -1147,6 +1147,7 @@ export type Database = {
           id: string
           influence_level: string | null
           interest_level: string | null
+          job_title: string | null
           name: string
           notes: string | null
           organization: string | null
@@ -1162,6 +1163,7 @@ export type Database = {
           id?: string
           influence_level?: string | null
           interest_level?: string | null
+          job_title?: string | null
           name: string
           notes?: string | null
           organization?: string | null
@@ -1177,6 +1179,7 @@ export type Database = {
           id?: string
           influence_level?: string | null
           interest_level?: string | null
+          job_title?: string | null
           name?: string
           notes?: string | null
           organization?: string | null
