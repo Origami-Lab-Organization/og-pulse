@@ -617,7 +617,7 @@ export function ProjectLaborSection({
                                   {member.employee?.nome || <span className="text-muted-foreground italic">Não atribuído</span>}
                                 </span>
                               )}
-                              <span className="text-sm font-semibold text-foreground">
+                              <span className="text-xs font-semibold text-muted-foreground text-center w-full">
                                 {member.role}
                               </span>
                             </div>
@@ -625,7 +625,7 @@ export function ProjectLaborSection({
                           
                           {/* Column 2: Seniority */}
                           <TableCell className="p-2">
-                            <div className="flex flex-col gap-0.5">
+                            <div className="flex flex-col gap-0.5 items-center text-center">
                               <span className={member.employee ? "font-medium" : "text-muted-foreground"}>
                                 {employeeSeniority || '-'}
                               </span>
@@ -718,7 +718,7 @@ export function ProjectLaborSection({
                                   )}
                                   {budgetHours > 0 && (
                                     <span className="text-xs text-muted-foreground">
-                                      {budgetHours}h orç.
+                                      {budgetHours}h
                                     </span>
                                   )}
                                 </div>
@@ -740,7 +740,7 @@ export function ProjectLaborSection({
                               )}
                               {budgetData.budgetTotalHours > 0 && (
                                 <span className="text-xs text-muted-foreground">
-                                  {budgetData.budgetTotalHours}h orç.
+                                  {budgetData.budgetTotalHours}h
                                 </span>
                               )}
                             </div>
@@ -800,45 +800,72 @@ export function ProjectLaborSection({
                       <TableCell />
                       {months.map((monthNum) => {
                         const monthTotals = totals.byMonth[monthNum];
+                        // Calculate budget totals for this month
+                        let budgetHoursForMonth = 0;
+                        members.forEach(member => {
+                          const bd = budgetDataByMember[member.id];
+                          budgetHoursForMonth += bd.budgetHoursByMonth[monthNum] || 0;
+                        });
                         return (
                           <TableCell key={monthNum} className="text-center">
-                            {isInPlanningMode ? (
-                              <span className="font-medium">{monthTotals?.plannedHours || 0}</span>
-                            ) : (
-                              <div className="flex items-center justify-center gap-1 text-sm">
-                                <span className="text-muted-foreground">
-                                  {monthTotals?.plannedHours || 0}
+                            <div className="flex flex-col gap-0.5 items-center">
+                              {isInPlanningMode ? (
+                                <span className="font-medium">{monthTotals?.plannedHours || 0}</span>
+                              ) : (
+                                <div className="flex items-center justify-center gap-1 text-sm">
+                                  <span className="text-muted-foreground">
+                                    {monthTotals?.plannedHours || 0}
+                                  </span>
+                                  <span className="text-muted-foreground">|</span>
+                                  <span className="font-medium">
+                                    {monthTotals?.actualHours || 0}
+                                  </span>
+                                </div>
+                              )}
+                              {budgetHoursForMonth > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  {budgetHoursForMonth}h
                                 </span>
-                                <span className="text-muted-foreground">|</span>
-                                <span className="font-medium">
-                                  {monthTotals?.actualHours || 0}
-                                </span>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </TableCell>
                         );
                       })}
                       <TableCell className="text-center">
-                        {isInPlanningMode ? (
-                          <span className="font-semibold">{totals.totalHours}h</span>
-                        ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-muted-foreground">{totals.totalHours}h</span>
-                            <span className="text-muted-foreground">|</span>
-                            <span className="font-semibold">{totals.totalActualHours}h</span>
-                          </div>
-                        )}
+                        <div className="flex flex-col gap-0.5 items-center">
+                          {isInPlanningMode ? (
+                            <span className="font-semibold">{totals.totalHours}h</span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="text-muted-foreground">{totals.totalHours}h</span>
+                              <span className="text-muted-foreground">|</span>
+                              <span className="font-semibold">{totals.totalActualHours}h</span>
+                            </div>
+                          )}
+                          {budgetSummary.hours > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {budgetSummary.hours}h
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        {isInPlanningMode ? (
-                          <span className="font-semibold">{formatCurrency(totals.totalValue)}</span>
-                        ) : (
-                          <div className="flex items-center justify-center gap-1 text-sm">
-                            <span className="text-muted-foreground">{formatCurrency(totals.totalValue)}</span>
-                            <span className="text-muted-foreground">|</span>
-                            <span className="font-semibold">{formatCurrency(totals.totalActualValue)}</span>
-                          </div>
-                        )}
+                        <div className="flex flex-col gap-0.5 items-center">
+                          {isInPlanningMode ? (
+                            <span className="font-semibold">{formatCurrency(totals.totalValue)}</span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1 text-sm">
+                              <span className="text-muted-foreground">{formatCurrency(totals.totalValue)}</span>
+                              <span className="text-muted-foreground">|</span>
+                              <span className="font-semibold">{formatCurrency(totals.totalActualValue)}</span>
+                            </div>
+                          )}
+                          {budgetSummary.value > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {formatCurrency(budgetSummary.value)}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       {isEditable && <TableCell />}
                     </TableRow>
