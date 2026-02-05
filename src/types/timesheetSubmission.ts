@@ -39,3 +39,17 @@ export interface AdminEditInput {
   newHours: number;
   justification: string;
 }
+
+export interface BatchEditChange {
+  timesheetId: string;
+  projectId: string;
+  projectMemberId: string;
+  workDate: string;
+  previousHours: number;
+  newHours: number;
+}
+
+export interface AdminBatchEditInput {
+  changes: BatchEditChange[];
+  justification: string;
+}

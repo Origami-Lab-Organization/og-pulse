@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { FileText, CheckCircle2, Send } from 'lucide-react';
+import { FileText, CheckCircle2, Send, Edit2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,8 @@ interface TimesheetWeekStatusProps {
   onSubmit: () => void;
   isSubmitting: boolean;
   canSubmit: boolean;
+  isAdmin?: boolean;
+  onAdminEdit?: () => void;
 }
 
 export function TimesheetWeekStatus({
@@ -20,6 +22,8 @@ export function TimesheetWeekStatus({
   onSubmit,
   isSubmitting,
   canSubmit,
+  isAdmin = false,
+  onAdminEdit,
 }: TimesheetWeekStatusProps) {
   const isSubmitted = submission?.status === 'submitted';
 
@@ -49,16 +53,26 @@ export function TimesheetWeekStatus({
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Total</p>
-              <p className="text-lg font-semibold text-green-700 dark:text-green-300">
-                {submission.total_hours.toFixed(1)}h
-              </p>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Total</p>
+                <p className="text-lg font-semibold text-green-700 dark:text-green-300">
+                  {submission.total_hours.toFixed(1)}h
+                </p>
+              </div>
+              {isAdmin && onAdminEdit && (
+                <Button variant="outline" onClick={onAdminEdit} className="gap-2">
+                  <Edit2 className="h-4 w-4" />
+                  Editar Semana
+                </Button>
+              )}
             </div>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Apenas administradores podem editar os valores mediante justificativa.
-          </p>
+          {!isAdmin && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Apenas administradores podem editar os valores mediante justificativa.
+            </p>
+          )}
         </CardContent>
       </Card>
     );

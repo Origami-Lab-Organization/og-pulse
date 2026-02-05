@@ -8,7 +8,7 @@ import { TimesheetByProject } from '@/components/timesheets/TimesheetByProject';
 import { TimesheetByEmployee } from '@/components/timesheets/TimesheetByEmployee';
 import { TimesheetWeekStatus } from '@/components/timesheets/TimesheetWeekStatus';
 import { SubmitWeekDialog } from '@/components/timesheets/SubmitWeekDialog';
-import { AdminEditDialog } from '@/components/timesheets/AdminEditDialog';
+import { AdminWeekEditDialog } from '@/components/timesheets/AdminWeekEditDialog';
 import {
   useActiveProjectsWithMembers,
   useTimesheetsByDateRange,
@@ -22,26 +22,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   useWeekSubmission, 
   useSubmitWeek, 
-  useAdminEditTimesheet 
+  useAdminBatchEditTimesheets 
 } from '@/hooks/useTimesheetSubmissions';
+import { BatchEditChange } from '@/types/timesheetSubmission';
 
 type ViewMode = 'project' | 'employee';
-
-interface AdminEditEntry {
-  id: string;
-  projectId: string;
-  projectMemberId: string;
-  employeeName: string;
-  projectName: string;
-  workDate: string;
-  currentHours: number;
-}
 
 export default function Timesheets() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('project');
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
-  const [editEntry, setEditEntry] = useState<AdminEditEntry | null>(null);
+  const [showAdminEditDialog, setShowAdminEditDialog] = useState(false);
   
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
@@ -65,7 +56,7 @@ export default function Timesheets() {
   );
 
   const submitWeek = useSubmitWeek();
-  const adminEditTimesheet = useAdminEditTimesheet();
+  const adminBatchEdit = useAdminBatchEditTimesheets();
 
   const employees = useMemo(() => {
     if (!projects) return [];
@@ -91,23 +82,12 @@ export default function Timesheets() {
     });
   };
 
-  const handleAdminEdit = (entry: AdminEditEntry) => {
-    setEditEntry(entry);
-  };
-
-  const handleAdminSave = (newHours: number, justification: string) => {
-    if (!editEntry) return;
-    
-    adminEditTimesheet.mutate({
-      timesheetId: editEntry.id,
-      projectId: editEntry.projectId,
-      projectMemberId: editEntry.projectMemberId,
-      workDate: editEntry.workDate,
-      previousHours: editEntry.currentHours,
-      newHours,
+  const handleAdminBatchSave = (changes: BatchEditChange[], justification: string) => {
+    adminBatchEdit.mutate({
+      changes,
       justification,
     }, {
-      onSuccess: () => setEditEntry(null),
+      onSuccess: () => setShowAdminEditDialog(false),
     });
   };
 
@@ -141,6 +121,8 @@ export default function Timesheets() {
             onSubmit={() => setShowSubmitDialog(true)}
             isSubmitting={submitWeek.isPending}
             canSubmit={!isLocked && (employee?.is_gerente || isAdmin)}
+            isAdmin={isAdmin}
+            onAdminEdit={() => setShowAdminEditDialog(true)}
           />
         )}
 
@@ -159,7 +141,6 @@ export default function Timesheets() {
             holidays={holidays}
             isLocked={isLocked}
             isAdmin={isAdmin}
-            onAdminEdit={handleAdminEdit}
           />
         ) : (
           <TimesheetByEmployee
@@ -169,7 +150,6 @@ export default function Timesheets() {
             holidays={holidays}
             isLocked={isLocked}
             isAdmin={isAdmin}
-            onAdminEdit={handleAdminEdit}
           />
         )}
       </div>
@@ -184,13 +164,18 @@ export default function Timesheets() {
         isSubmitting={submitWeek.isPending}
       />
 
-      {/* Admin Edit Dialog */}
-      <AdminEditDialog
-        open={!!editEntry}
-        onOpenChange={(open) => !open && setEditEntry(null)}
-        entry={editEntry}
-        onSave={handleAdminSave}
-        isSaving={adminEditTimesheet.isPending}
+      {/* Admin Week Edit Dialog */}
+      <AdminWeekEditDialog
+        open={showAdminEditDialog}
+        onOpenChange={setShowAdminEditDialog}
+        weekStart={weekStart}
+        weekEnd={weekEnd}
+        projects={projects || []}
+        weekDays={weekDays}
+        timesheetEntries={timesheetEntries || []}
+        holidays={holidays}
+        onSave={handleAdminBatchSave}
+        isSaving={adminBatchEdit.isPending}
       />
     </AppLayout>
   );
