@@ -32,7 +32,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectMaterialDB, CreateProjectMaterialInput } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
-import { useAddProjectMaterial, useRemoveProjectMaterial, useUpdateProjectMaterial } from '@/hooks/useProjectCosts';
+import { useAddProjectMaterial, useRemoveProjectMaterial } from '@/hooks/useProjectCosts';
+import { MaterialRealizeDialog } from './MaterialRealizeDialog';
 
 interface ProjectMaterialsSectionProps {
   projectId: string;
@@ -50,6 +51,7 @@ export function ProjectMaterialsSection({
   canEditActuals = false,
 }: ProjectMaterialsSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [realizeDialogOpen, setRealizeDialogOpen] = useState(false);
   const [formData, setFormData] = useState<Omit<CreateProjectMaterialInput, 'projectId'>>({
     description: '',
     value: 0,
@@ -60,7 +62,6 @@ export function ProjectMaterialsSection({
 
   const addMaterial = useAddProjectMaterial();
   const removeMaterial = useRemoveProjectMaterial();
-  const updateMaterial = useUpdateProjectMaterial();
 
   const months = useMemo(() => {
     return Array.from({ length: durationMonths }, (_, i) => i + 1);
@@ -82,12 +83,9 @@ export function ProjectMaterialsSection({
     removeMaterial.mutate({ id, projectId });
   };
 
-  const handleToggleRealized = (id: string, isRealized: boolean) => {
-    updateMaterial.mutate({ id, projectId, updates: { isRealized: !isRealized } });
-  };
-
   const totalValue = materials.reduce((sum, m) => sum + Number(m.value), 0);
   const realizedValue = materials.filter((m) => m.is_realized).reduce((sum, m) => sum + Number(m.value), 0);
+  const unrealizedCount = materials.filter((m) => !m.is_realized).length;
 
   // Group materials by month for summary
   const materialsByMonth = useMemo(() => {
@@ -117,12 +115,20 @@ export function ProjectMaterialsSection({
               Custos avulsos com materiais e insumos
             </CardDescription>
           </div>
-          {isEditable && (
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar Material
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {canEditActuals && unrealizedCount > 0 && (
+              <Button variant="outline" onClick={() => setRealizeDialogOpen(true)}>
+                <Check className="mr-2 h-4 w-4" />
+                Registrar Realizados
+              </Button>
+            )}
+            {isEditable && (
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Material
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {materials.length > 0 ? (
@@ -156,32 +162,13 @@ export function ProjectMaterialsSection({
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(material.value)}</TableCell>
                         <TableCell className="text-center">
-                          {(isEditable || canEditActuals) ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleToggleRealized(material.id, material.is_realized)}
-                              disabled={updateMaterial.isPending}
-                              className="h-8 w-8 p-0"
-                            >
-                              {material.is_realized ? (
-                                <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Sim
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary">Não</Badge>
-                              )}
-                            </Button>
+                          {material.is_realized ? (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                              <Check className="h-3 w-3 mr-1" />
+                              Sim
+                            </Badge>
                           ) : (
-                            material.is_realized ? (
-                              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                                <Check className="h-3 w-3 mr-1" />
-                                Sim
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary">Não</Badge>
-                            )
+                            <Badge variant="secondary">Não</Badge>
                           )}
                         </TableCell>
                         {isEditable && (
@@ -221,6 +208,7 @@ export function ProjectMaterialsSection({
         </CardContent>
       </Card>
 
+      {/* Add Material Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -299,6 +287,14 @@ export function ProjectMaterialsSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Realize Materials Dialog */}
+      <MaterialRealizeDialog
+        open={realizeDialogOpen}
+        onOpenChange={setRealizeDialogOpen}
+        materials={materials}
+        projectId={projectId}
+      />
     </>
   );
 }
