@@ -243,6 +243,7 @@ export function ProjectCostsTab({ project, isEditable }: ProjectCostsTabProps) {
         isEditable={isEditable}
         budgetRoles={budget?.roles || []}
         timesheets={timesheets}
+        projectStartDate={project.start_date}
       />
 
       {/* Suppliers Section */}
