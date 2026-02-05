@@ -216,7 +216,7 @@ export function ProjectSuppliersSection({
               Custos mensais recorrentes com fornecedores externos
             </CardDescription>
           </div>
-          {isEditable && (
+          {(isEditable || canEditActuals) && (
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Adicionar Fornecedor
@@ -328,18 +328,17 @@ export function ProjectSuppliersSection({
                                       <TooltipTrigger asChild>
                                         <Button
                                           variant="outline"
-                                          size="sm"
+                                          size="icon"
                                           onClick={() => openActualDialog(supplier)}
                                         >
-                                          <DollarSign className="h-4 w-4 mr-1" />
-                                          Lançar
+                                          <DollarSign className="h-4 w-4" />
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>Lançar custo realizado</TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                 )}
-                                {isEditable && (
+                                {(isEditable || canEditActuals) && (
                                   <Button
                                     variant="ghost"
                                     size="icon"

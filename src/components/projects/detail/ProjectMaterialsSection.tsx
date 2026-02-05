@@ -122,7 +122,7 @@ export function ProjectMaterialsSection({
                 Registrar Realizados
               </Button>
             )}
-            {isEditable && (
+            {(isEditable || canEditActuals) && (
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Adicionar Material
@@ -150,7 +150,7 @@ export function ProjectMaterialsSection({
                       <TableHead className="text-center">Mês</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
                       <TableHead className="text-center">Realizado</TableHead>
-                      {isEditable && <TableHead className="w-16" />}
+                      {(isEditable || canEditActuals) && <TableHead className="w-16" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -171,7 +171,7 @@ export function ProjectMaterialsSection({
                             <Badge variant="secondary">Não</Badge>
                           )}
                         </TableCell>
-                        {isEditable && (
+                        {(isEditable || canEditActuals) && (
                           <TableCell>
                             <Button
                               variant="ghost"
@@ -194,7 +194,7 @@ export function ProjectMaterialsSection({
                       <TableCell className="text-center text-sm text-muted-foreground">
                         {formatCurrency(realizedValue)} realizado
                       </TableCell>
-                      {isEditable && <TableCell />}
+                      {(isEditable || canEditActuals) && <TableCell />}
                     </TableRow>
                   </TableBody>
                 </Table>
