@@ -15,16 +15,6 @@ import {
 } from '@/components/ui/tooltip';
 import { Lock } from 'lucide-react';
 
-interface AdminEditEntry {
-  id: string;
-  projectId: string;
-  projectMemberId: string;
-  employeeName: string;
-  projectName: string;
-  workDate: string;
-  currentHours: number;
-}
-
 interface TimesheetWeekRowProps {
   label: string;
   subLabel?: string;
@@ -37,7 +27,6 @@ interface TimesheetWeekRowProps {
   holidays?: Holiday[];
   isLocked?: boolean;
   isAdmin?: boolean;
-  onAdminEdit?: (entry: AdminEditEntry) => void;
 }
 
 export function TimesheetWeekRow({
@@ -45,14 +34,12 @@ export function TimesheetWeekRow({
   subLabel,
   avatarUrl,
   projectId,
-  projectName,
   memberId,
   weekDays,
   existingEntries,
   holidays = [],
   isLocked = false,
   isAdmin = false,
-  onAdminEdit,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
   
@@ -131,24 +118,6 @@ export function TimesheetWeekRow({
     }
   };
 
-  const handleLockedCellClick = (date: string) => {
-    if (!isLocked || !isAdmin || !onAdminEdit) return;
-    
-    const entry = existingEntries.find(
-      (e) => e.projectMemberId === memberId && e.workDate === date
-    );
-    
-    onAdminEdit({
-      id: entry?.id || '',
-      projectId,
-      projectMemberId: memberId,
-      employeeName: label,
-      projectName: projectName || subLabel || '',
-      workDate: date,
-      currentHours: hours[date] || 0,
-    });
-  };
-
   const totalHours = Object.values(hours).reduce((sum, h) => sum + (h || 0), 0);
 
   const initials = label
@@ -162,8 +131,6 @@ export function TimesheetWeekRow({
     const date = parseISO(dateStr);
     return isHoliday(date, holidays);
   };
-
-  const isReadOnly = isLocked && !isAdmin;
 
   return (
     <div className="grid grid-cols-[1fr_repeat(5,60px)_80px] gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md">
@@ -204,8 +171,8 @@ export function TimesheetWeekRow({
           );
         }
 
-        // Locked cell for non-admins
-        if (isReadOnly) {
+        // Locked cell for non-admins and admins (now just display, no click)
+        if (isLocked) {
           return (
             <TooltipProvider key={day.date}>
               <Tooltip>
@@ -217,28 +184,6 @@ export function TimesheetWeekRow({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Semana enviada - valores travados</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          );
-        }
-
-        // Locked cell for admins - clickable to edit
-        if (isLocked && isAdmin) {
-          return (
-            <TooltipProvider key={day.date}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => handleLockedCellClick(day.date)}
-                    className="h-8 flex items-center justify-center text-sm bg-muted/50 rounded-md border border-muted-foreground/20 hover:bg-muted transition-colors cursor-pointer gap-1"
-                  >
-                    <span className="text-muted-foreground">{hours[day.date] || 0}</span>
-                    <Lock className="h-3 w-3 text-muted-foreground" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Clique para editar (requer justificativa)</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

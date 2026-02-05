@@ -14,16 +14,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-interface AdminEditEntry {
-  id: string;
-  projectId: string;
-  projectMemberId: string;
-  employeeName: string;
-  projectName: string;
-  workDate: string;
-  currentHours: number;
-}
-
 interface TimesheetByProjectProps {
   projects: ProjectWithMembers[];
   weekDays: WeekDay[];
@@ -31,7 +21,6 @@ interface TimesheetByProjectProps {
   holidays?: Holiday[];
   isLocked?: boolean;
   isAdmin?: boolean;
-  onAdminEdit?: (entry: AdminEditEntry) => void;
 }
 
 export function TimesheetByProject({ 
@@ -41,7 +30,6 @@ export function TimesheetByProject({
   holidays = [],
   isLocked = false,
   isAdmin = false,
-  onAdminEdit,
 }: TimesheetByProjectProps) {
   if (projects.length === 0) {
     return (
@@ -126,7 +114,6 @@ export function TimesheetByProject({
                   holidays={holidays}
                   isLocked={isLocked}
                   isAdmin={isAdmin}
-                  onAdminEdit={onAdminEdit}
                 />
               ))
             )}

@@ -15,16 +15,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-interface AdminEditEntry {
-  id: string;
-  projectId: string;
-  projectMemberId: string;
-  employeeName: string;
-  projectName: string;
-  workDate: string;
-  currentHours: number;
-}
-
 interface TimesheetByEmployeeProps {
   employees: EmployeeWithProjects[];
   weekDays: WeekDay[];
@@ -32,7 +22,6 @@ interface TimesheetByEmployeeProps {
   holidays?: Holiday[];
   isLocked?: boolean;
   isAdmin?: boolean;
-  onAdminEdit?: (entry: AdminEditEntry) => void;
 }
 
 export function TimesheetByEmployee({ 
@@ -42,7 +31,6 @@ export function TimesheetByEmployee({
   holidays = [],
   isLocked = false,
   isAdmin = false,
-  onAdminEdit,
 }: TimesheetByEmployeeProps) {
   if (employees.length === 0) {
     return (
@@ -144,14 +132,12 @@ export function TimesheetByEmployee({
                   label={project.projectName}
                   subLabel={project.clientName}
                   projectId={project.projectId}
-                  projectName={project.projectName}
                   memberId={project.memberId}
                   weekDays={weekDays}
                   existingEntries={timesheetEntries}
                   holidays={holidays}
                   isLocked={isLocked}
                   isAdmin={isAdmin}
-                  onAdminEdit={onAdminEdit ? (entry) => onAdminEdit({ ...entry, employeeName: employee.employeeName }) : undefined}
                 />
               ))}
             </CardContent>

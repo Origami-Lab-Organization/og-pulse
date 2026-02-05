@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { TimesheetSubmission, SubmitWeekInput, AdminEditInput } from '@/types/timesheetSubmission';
+import { TimesheetSubmission, SubmitWeekInput, AdminEditInput, AdminBatchEditInput } from '@/types/timesheetSubmission';
 
 export const useWeekSubmission = (weekStart: string, tenantId: string | undefined) => {
   return useQuery({
@@ -191,6 +191,87 @@ export const useAdminEditTimesheet = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao atualizar timesheet',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useAdminBatchEditTimesheets = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ changes, justification }: AdminBatchEditInput) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const results = [];
+
+      for (const change of changes) {
+        let timesheetId = change.timesheetId;
+
+        // If no timesheet exists, create one
+        if (!timesheetId) {
+          const { data: newTimesheet, error: createError } = await supabase
+            .from('project_timesheets')
+            .insert({
+              project_id: change.projectId,
+              project_member_id: change.projectMemberId,
+              work_date: change.workDate,
+              hours: change.newHours,
+              is_locked: true,
+              updated_by: user.id,
+            })
+            .select()
+            .single();
+
+          if (createError) throw createError;
+          timesheetId = newTimesheet.id;
+        } else {
+          // Update existing timesheet
+          const { error: updateError } = await supabase
+            .from('project_timesheets')
+            .update({ 
+              hours: change.newHours, 
+              updated_by: user.id 
+            })
+            .eq('id', timesheetId);
+
+          if (updateError) throw updateError;
+        }
+
+        // Insert audit log for this change
+        const { error: logError } = await supabase
+          .from('timesheet_edit_logs')
+          .insert({
+            timesheet_id: timesheetId,
+            previous_hours: change.previousHours,
+            new_hours: change.newHours,
+            justification,
+            edited_by: user.id,
+          });
+
+        if (logError) throw logError;
+
+        results.push({ timesheetId, success: true });
+      }
+
+      return results;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
+      queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-submission'] });
+      toast({
+        title: 'Timesheets atualizados',
+        description: `${variables.changes.length} alteração(ões) registrada(s) com sucesso.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao atualizar timesheets',
         description: error.message,
         variant: 'destructive',
       });
