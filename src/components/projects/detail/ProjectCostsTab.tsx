@@ -60,23 +60,23 @@ function CostCard({
           <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg', iconBg)}>
             {icon}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <div className="mt-1 space-y-1">
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <p className="text-sm text-muted-foreground truncate">{label}</p>
+            <div className="mt-1 space-y-1 overflow-hidden">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">
                   {isPlanningMode ? 'Orçado:' : 'Planejado:'}
                 </span>
-                <span className="text-sm font-medium whitespace-nowrap">{formatCurrency(baseValue)}</span>
+                <span className="text-sm font-medium whitespace-nowrap truncate">{formatCurrency(baseValue)}</span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">
                   {isPlanningMode ? 'Planejado:' : 'Realizado:'}
                 </span>
-                <span className="text-sm font-semibold whitespace-nowrap">{formatCurrency(compareValue)}</span>
+                <span className="text-sm font-semibold whitespace-nowrap truncate">{formatCurrency(compareValue)}</span>
               </div>
               {baseValue > 0 && (
-                <div className="flex items-center gap-1 pt-1 whitespace-nowrap">
+                <div className="flex items-center gap-1 pt-1 whitespace-nowrap overflow-hidden">
                   {isOverBudget ? (
                     <>
                       <TrendingUp className="h-3 w-3 text-destructive" />
@@ -132,23 +132,23 @@ function MarginCard({ contractValue, totalPlannedCost }: MarginCardProps) {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
             <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground">Margem Planejada</p>
-            <div className="mt-1 space-y-1">
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <p className="text-sm text-muted-foreground truncate">Margem Planejada</p>
+            <div className="mt-1 space-y-1 overflow-hidden">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">Contrato:</span>
-                <span className="text-sm font-medium whitespace-nowrap">{formatCurrency(contractValue)}</span>
+                <span className="text-sm font-medium whitespace-nowrap truncate">{formatCurrency(contractValue)}</span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">Margem:</span>
                 <span className={cn(
-                  "text-sm font-semibold whitespace-nowrap",
+                  "text-sm font-semibold whitespace-nowrap truncate",
                   isPositive ? "text-green-600" : "text-destructive"
                 )}>
                   {formatCurrency(grossMargin)}
                 </span>
               </div>
-              <div className="flex items-center gap-1 pt-1 whitespace-nowrap">
+              <div className="flex items-center gap-1 pt-1 whitespace-nowrap overflow-hidden">
                 {isPositive ? (
                   <TrendingUp className="h-3 w-3 text-green-600" />
                 ) : (
