@@ -3,6 +3,7 @@ import { Plus, Trash2, Truck, DollarSign, TrendingUp, TrendingDown, Minus } from
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -67,6 +68,7 @@ export function ProjectSuppliersSection({
   const [selectedSupplier, setSelectedSupplier] = useState<ProjectSupplierDB | null>(null);
   const [selectedBudgetSupplier, setSelectedBudgetSupplier] = useState<string>('');
   const [selectedRegistrySupplier, setSelectedRegistrySupplier] = useState<string>('');
+  const [useBudgetSupplier, setUseBudgetSupplier] = useState(true);
   const [formData, setFormData] = useState<Omit<CreateProjectSupplierInput, 'projectId'>>({
     name: '',
     description: '',
@@ -208,19 +210,33 @@ export function ProjectSuppliersSection({
   };
 
   const handleSubmit = () => {
+    // Build input based on mode
+    const input: Omit<CreateProjectSupplierInput, 'projectId'> = useBudgetSupplier
+      ? {
+          name: formData.name,
+          description: formData.description,
+          monthlyValue: formData.monthlyValue,
+          startMonth: 1,
+          endMonth: undefined,
+          budgetSupplierId: selectedBudgetSupplier,
+        }
+      : {
+          name: availableSuppliers.find(s => s.id === selectedRegistrySupplier)?.tradingName 
+                || availableSuppliers.find(s => s.id === selectedRegistrySupplier)?.companyName
+                || formData.name,
+          description: formData.description,
+          monthlyValue: formData.monthlyValue,
+          startMonth: 1,
+          endMonth: undefined,
+          supplierId: selectedRegistrySupplier,
+        };
+
     addSupplier.mutate(
-      { 
-        projectId, 
-        ...formData,
-        budgetSupplierId: selectedBudgetSupplier || undefined,
-        supplierId: selectedRegistrySupplier || undefined,
-      },
+      { projectId, ...input },
       {
         onSuccess: () => {
           setDialogOpen(false);
-          setFormData({ name: '', description: '', monthlyValue: 0, startMonth: 1, endMonth: undefined });
-          setSelectedBudgetSupplier('');
-          setSelectedRegistrySupplier('');
+          resetForm();
         },
       }
     );
@@ -309,6 +325,29 @@ export function ProjectSuppliersSection({
       .filter((id): id is string => id !== null);
     return budgetSuppliers.filter(bs => !usedIds.includes(bs.id));
   }, [budgetSuppliers, suppliers]);
+
+  // Reset form
+  const resetForm = useCallback(() => {
+    setFormData({ name: '', description: '', monthlyValue: 0, startMonth: 1, endMonth: undefined });
+    setSelectedBudgetSupplier('');
+    setSelectedRegistrySupplier('');
+  }, []);
+
+  // Reset mode when dialog opens based on available budget suppliers
+  useEffect(() => {
+    if (dialogOpen) {
+      setUseBudgetSupplier(unusedBudgetSuppliers.length > 0);
+      resetForm();
+    }
+  }, [dialogOpen, unusedBudgetSuppliers.length, resetForm]);
+
+  // Validation for submit button
+  const canSubmit = useMemo(() => {
+    if (useBudgetSupplier) {
+      return !!selectedBudgetSupplier;
+    }
+    return !!selectedRegistrySupplier && formData.monthlyValue > 0;
+  }, [useBudgetSupplier, selectedBudgetSupplier, selectedRegistrySupplier, formData.monthlyValue]);
 
   return (
     <>
@@ -586,15 +625,36 @@ export function ProjectSuppliersSection({
           <DialogHeader>
             <DialogTitle>Adicionar Fornecedor</DialogTitle>
             <DialogDescription>
-              Selecione um fornecedor do orçamento, do cadastro ou digite manualmente.
+              Selecione um fornecedor do orçamento ou adicione um novo do cadastro.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Budget Supplier Selector */}
+            {/* Mode: From Budget */}
             {unusedBudgetSuppliers.length > 0 && (
-              <div className="space-y-2">
-                <Label>Do Orçamento</Label>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="useBudgetSupplier"
+                  checked={useBudgetSupplier}
+                  onCheckedChange={(checked) => {
+                    setUseBudgetSupplier(!!checked);
+                    if (checked) {
+                      setSelectedRegistrySupplier('');
+                      setFormData({ ...formData, description: '', monthlyValue: 0 });
+                    } else {
+                      setSelectedBudgetSupplier('');
+                      setFormData({ ...formData, name: '', description: '', monthlyValue: 0 });
+                    }
+                  }}
+                />
+                <Label htmlFor="useBudgetSupplier" className="font-medium cursor-pointer">
+                  Do Orçamento
+                </Label>
+              </div>
+            )}
+
+            {useBudgetSupplier && unusedBudgetSuppliers.length > 0 ? (
+              <div className="space-y-3">
                 <Select value={selectedBudgetSupplier} onValueChange={handleBudgetSupplierSelect}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um serviço do orçamento..." />
@@ -612,91 +672,98 @@ export function ProjectSuppliersSection({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            )}
 
-            {/* Registry Supplier Selector */}
-            {availableSuppliers.length > 0 && (
-              <div className="space-y-2">
-                <Label>Do Cadastro</Label>
-                <Select value={selectedRegistrySupplier} onValueChange={handleRegistrySupplierSelect}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um fornecedor cadastrado..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableSuppliers.map((supplier) => (
-                      <SelectItem key={supplier.id} value={supplier.id}>
-                        <div className="flex items-center justify-between gap-4">
-                          <span>{supplier.tradingName || supplier.companyName}</span>
-                          {supplier.category && (
-                            <span className="text-muted-foreground text-sm">
-                              {supplier.category}
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Preview of inherited data */}
+                {selectedBudgetSupplier && (
+                  <div className="p-3 bg-muted rounded-md text-sm space-y-1">
+                    <p><strong>Serviço:</strong> {formData.name}</p>
+                    {formData.description && (
+                      <p><strong>Descrição:</strong> {formData.description}</p>
+                    )}
+                    <p><strong>Valor Mensal:</strong> {formatCurrency(formData.monthlyValue)}</p>
+                  </div>
+                )}
               </div>
-            )}
+            ) : (
+              /* Mode: New Supplier from Registry */
+              <div className="space-y-4">
+                {unusedBudgetSuppliers.length > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="useNewSupplier"
+                      checked={!useBudgetSupplier}
+                      onCheckedChange={(checked) => {
+                        setUseBudgetSupplier(!checked);
+                        if (checked) {
+                          setSelectedBudgetSupplier('');
+                          setFormData({ ...formData, name: '', description: '', monthlyValue: 0 });
+                        }
+                      }}
+                    />
+                    <Label htmlFor="useNewSupplier" className="font-medium cursor-pointer">
+                      Novo Fornecedor
+                    </Label>
+                  </div>
+                )}
 
-            {/* Divider */}
-            {(unusedBudgetSuppliers.length > 0 || availableSuppliers.length > 0) && (
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                <div className="space-y-2">
+                  <Label>Fornecedor</Label>
+                  <Select value={selectedRegistrySupplier} onValueChange={handleRegistrySupplierSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um fornecedor cadastrado..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSuppliers.map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          <div className="flex items-center justify-between gap-4">
+                            <span>{supplier.tradingName || supplier.companyName}</span>
+                            {supplier.category && (
+                              <span className="text-muted-foreground text-sm">
+                                {supplier.category}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">ou digite manualmente</span>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Descrição do Serviço</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Ex: Gestão de mídias sociais"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyValue">Valor Mensal Inicial (R$)</Label>
+                  <Input
+                    id="monthlyValue"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.monthlyValue || ''}
+                    onChange={(e) => setFormData({ ...formData, monthlyValue: Number(e.target.value) })}
+                    placeholder="0,00"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Você poderá ajustar os valores por mês na tabela depois.
+                  </p>
                 </div>
               </div>
             )}
-
-            {/* Manual Input */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome do Fornecedor/Serviço</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Ex: Agência de Marketing"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição do Serviço</Label>
-              <Textarea
-                id="description"
-                value={formData.description || ''}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Descrição opcional do serviço"
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="monthlyValue">Valor Mensal Inicial (R$)</Label>
-              <Input
-                id="monthlyValue"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.monthlyValue || ''}
-                onChange={(e) => setFormData({ ...formData, monthlyValue: Number(e.target.value) })}
-                placeholder="0,00"
-              />
-              <p className="text-xs text-muted-foreground">
-                Você poderá ajustar os valores por mês na tabela depois.
-              </p>
-            </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} disabled={!formData.name || addSupplier.isPending}>
+            <Button onClick={handleSubmit} disabled={!canSubmit || addSupplier.isPending}>
               Adicionar
             </Button>
           </DialogFooter>
