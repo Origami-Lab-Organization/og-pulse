@@ -1,90 +1,170 @@
 
 
-# Plano: Corrigir Vazamento de Texto nos Cards de Custo
+# Plano: Layout Responsivo para Telas 14" e Menores
 
 ## Problema Identificado
 
-Os cards de custo estão exibindo texto que quebra inadequadamente, especialmente:
-- "50% (-" aparece em uma linha e "R$ 119.040,00)" em outra
-- "84% (-" e "R$ 39.040,00)" também quebram
-- O símbolo de percentual "~ 54.8%" no card de Margem também está problemático
+Os cards de métricas estão truncando valores monetários em telas de 14" (típico em laptops), resultando em informação ilegível ("R$ 239....", "R$ 12...."). Isso afeta a aba de Custos e potencialmente outras abas.
 
-## Causa Raiz
+## Análise das Telas
 
-1. Os cards não têm largura mínima suficiente
-2. O texto de porcentagem + diferença não tem `whitespace-nowrap` para evitar quebra
-3. Com 5 colunas em grid, cada card fica muito estreito em telas menores
+| Componente | Problema Atual | Solução |
+|------------|----------------|---------|
+| **Custos** | 5 cards em grid truncam valores | Layout empilhado ou grid adaptativo |
+| **OKRs** | Cards únicos, sem problemas críticos | Manter layout atual |
+| **Stakeholders** | Grid 3 colunas em lg | Ajustar breakpoints |
+| **Cronograma** | Timeline horizontal pode ser longa | Já tem fallback mobile |
+| **Resultado Esperado** | 4 cards com valores grandes | Ajustar grid |
 
-## Solução Proposta
+## Estratégia: Priorizar Legibilidade sobre Densidade
 
-Adicionar classes CSS para controlar a exibição do texto:
-
-1. **Evitar quebra de texto** na linha de porcentagem/diferença
-2. **Truncar ou ajustar** quando não couber
-3. **Definir largura mínima** nos cards
+Para telas de 14" (tipicamente 1366px ou 1440px de largura):
+- Com sidebar (~260px), restam ~1100-1180px de área útil
+- 5 cards nesse espaço = ~220px por card (muito estreito)
+- Solução: usar 3 colunas no breakpoint intermediário
 
 ---
 
 ## Alterações Técnicas
 
-### Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`
+### 1. Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`
 
-#### 1. Adicionar `whitespace-nowrap` e `truncate` nas linhas de porcentagem
+**Problema:** Grid de 5 colunas comprime demais os cards.
 
-**CostCard - Linhas 79-108**
+**Solução:** Reformular o layout dos cost cards para um formato mais compacto que preserve a legibilidade.
 
-Adicionar `whitespace-nowrap` ao container da porcentagem:
+#### Alteração A: Simplificar o CostCard (modo compacto)
+
+Ao invés de empilhar 3 linhas (Orçado, Planejado, %), exibir em formato mais horizontal quando possível:
 
 ```tsx
-{baseValue > 0 && (
-  <div className="flex items-center gap-1 pt-1 whitespace-nowrap">
-    {/* conteúdo existente */}
-  </div>
-)}
+// Novo layout: valores lado a lado quando caber
+<div className="text-right">
+  <p className="text-lg font-bold">{formatCurrency(compareValue)}</p>
+  <p className="text-xs text-muted-foreground">
+    de {formatCurrency(baseValue)}
+  </p>
+  {/* Indicador de tendência abaixo */}
+</div>
 ```
 
-#### 2. Adicionar `whitespace-nowrap` nas linhas de valores
+#### Alteração B: Ajustar breakpoints do grid
 
-Garantir que os valores monetários não quebrem:
-
-- Linha 70: `<span className="text-sm font-medium whitespace-nowrap">`
-- Linha 76: `<span className="text-sm font-semibold whitespace-nowrap">`
-
-#### 3. Ajustar o MarginCard da mesma forma
-
-- Linha 140: Adicionar `whitespace-nowrap` no valor do contrato
-- Linha 148: Adicionar `whitespace-nowrap` no valor da margem
-- Linha 151: Adicionar `whitespace-nowrap` no container de porcentagem
-
-#### 4. Ajustar o grid responsivo
-
-Mudar o grid de 5 colunas para usar largura mínima ou adaptar melhor em telas menores:
-
-**Linha 300 - Antes:**
+**Antes:**
 ```tsx
-<div className={cn("grid gap-4", isEditable ? "md:grid-cols-5" : "md:grid-cols-4")}>
+<div className={cn("grid gap-4", isEditable ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-2 md:grid-cols-4")}>
 ```
 
 **Depois:**
 ```tsx
-<div className={cn("grid gap-4", isEditable ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-2 md:grid-cols-4")}>
+<div className={cn(
+  "grid gap-4",
+  isEditable 
+    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" 
+    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+)}>
 ```
+
+Isso garante:
+- Mobile: 1 coluna (legível)
+- Tablet/14": 2-3 colunas (espaço suficiente)
+- Desktop grande: 4-5 colunas
+
+#### Alteração C: Remover truncate dos valores monetários
+
+Trocar `truncate` por `text-ellipsis` apenas quando necessário, mas garantir que valores principais sejam sempre visíveis.
+
+#### Alteração D: Reduzir padding interno
+
+Diminuir de `pt-6` para `pt-4` e `gap-3` para `gap-2` para ganhar espaço.
+
+---
+
+### 2. Arquivo: `src/components/projects/detail/ProjectExpectedResultTab.tsx`
+
+**Problema:** Grid de 4 colunas pode comprimir valores.
+
+**Solução:** Ajustar breakpoints.
+
+**Antes (linha 77):**
+```tsx
+<div className="grid gap-4 md:grid-cols-4">
+```
+
+**Depois:**
+```tsx
+<div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+```
+
+---
+
+### 3. Arquivo: `src/components/projects/detail/ProjectStakeholdersTab.tsx`
+
+**Problema:** Grid de 3 colunas em `lg` pode ser apertado.
+
+**Solução:** Usar xl para 3 colunas.
+
+**Antes (linha 131):**
+```tsx
+<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+```
+
+**Depois:**
+```tsx
+<div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+```
+
+---
+
+### 4. Arquivo: `src/components/projects/detail/ProjectScheduleTab.tsx`
+
+O componente já tem layout adaptativo (timeline hidden em md). Apenas garantir que a lista de marcos tenha espaço adequado.
+
+**Nenhuma alteração crítica necessária.**
+
+---
+
+### 5. Arquivo: `src/components/projects/detail/ProjectOKRsTab.tsx`
+
+Os cards são em lista vertical, ocupando largura total. Layout já é responsivo.
+
+**Nenhuma alteração crítica necessária.**
+
+---
+
+## Novo Design do CostCard
+
+Para maximizar legibilidade em espaços menores, o novo layout será:
+
+```text
+┌─────────────────────────────┐
+│ [Icon] Mão de Obra          │
+│         R$ 119.040,00       │  <- Valor principal em destaque
+│         de R$ 239.040,00    │  <- Base value menor
+│         ↓ 50% economia      │  <- Trend indicator
+└─────────────────────────────┘
+```
+
+Isso coloca o valor mais importante (planejado ou realizado) em destaque, com o valor de comparação em texto menor abaixo.
 
 ---
 
 ## Resumo das Alterações
 
-| Alteração | Descrição |
-|-----------|-----------|
-| `whitespace-nowrap` | Evita quebra de linha nos valores e porcentagens |
-| Grid responsivo | Melhor adaptação para telas menores (2 colunas em mobile) |
-| Valores monetários | Mantém em uma única linha |
+| Arquivo | Alteração |
+|---------|-----------|
+| `ProjectCostsTab.tsx` | Novo layout de CostCard + grid responsivo |
+| `ProjectExpectedResultTab.tsx` | Breakpoint ajustado para `lg:grid-cols-4` |
+| `ProjectStakeholdersTab.tsx` | Breakpoint ajustado para `xl:grid-cols-3` |
+| `ProjectScheduleTab.tsx` | Sem alteração |
+| `ProjectOKRsTab.tsx` | Sem alteração |
 
 ---
 
 ## Resultado Esperado
 
-1. **Texto não quebra**: Valores e porcentagens ficam em uma linha só
-2. **Layout responsivo**: 2 colunas em mobile, expandindo para 4-5 em desktop
-3. **Cards legíveis**: Informação apresentada de forma clara e organizada
+1. **Telas 14" (1366-1440px):** Cards com espaço suficiente para exibir valores completos
+2. **Telas menores:** Layout empilhado garante legibilidade
+3. **Telas grandes (1920px+):** Aproveitamento total com 4-5 colunas
+4. **Valores sempre visíveis:** Nenhum valor monetário será truncado
 
