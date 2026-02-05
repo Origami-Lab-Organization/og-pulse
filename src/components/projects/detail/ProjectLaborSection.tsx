@@ -185,6 +185,16 @@ export function ProjectLaborSection({
 
   const handleAddMember = () => {
     if (!newMember.employeeId || !newMember.role) return;
+
+    // Get monthly hours from budget role if selected
+    const budgetRole = useBudgetRole && newMember.budgetRoleId
+      ? budgetRoles.find((r) => r.id === newMember.budgetRoleId)
+      : undefined;
+    const monthlyHours = budgetRole?.months?.map((m) => ({
+      monthNumber: m.month_number,
+      hours: m.hours,
+    })) || [];
+
     addMember.mutate(
       {
         projectId,
@@ -194,6 +204,7 @@ export function ProjectLaborSection({
         hoursPerMonth: 0,
         budgetRoleId: useBudgetRole && newMember.budgetRoleId ? newMember.budgetRoleId : undefined,
         hourlyRate: newMember.hourlyRate,
+        monthlyHours,
       },
       {
         onSuccess: () => {
