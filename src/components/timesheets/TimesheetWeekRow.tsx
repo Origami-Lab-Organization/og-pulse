@@ -206,10 +206,10 @@ export function TimesheetWeekRow({
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => handleLockedCellClick(day.date)}
-                    className="h-8 flex items-center justify-center text-sm bg-amber-50 dark:bg-amber-950/20 rounded-md border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors cursor-pointer gap-1"
+                    className="h-8 flex items-center justify-center text-sm bg-muted/50 rounded-md border border-muted-foreground/20 hover:bg-muted transition-colors cursor-pointer gap-1"
                   >
-                    <span>{hours[day.date] || 0}</span>
-                    <Lock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                    <span className="text-muted-foreground">{hours[day.date] || 0}</span>
+                    <Lock className="h-3 w-3 text-muted-foreground" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
