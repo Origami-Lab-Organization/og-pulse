@@ -1,53 +1,14 @@
 
-# Plano: Reorganização da Tabela com Valores Orçados Abaixo
+# Plano: Ajustes Visuais na Tabela de Alocação de Equipe
 
-## Entendimento do Pedido
+## Alterações Solicitadas
 
-A nova estrutura da tabela deve seguir um padrão consistente:
-- **Linha superior**: Valor planejado/selecionado (funcionário, senioridade, custo, horas)
-- **Linha inferior**: Valor do orçamento original (papel, senioridade orçada, custo orçado, horas orçadas)
+Com base na imagem de referência, os seguintes ajustes visuais serão implementados:
 
-## Nova Estrutura Visual
-
-```
-┌─────────────────────────┬──────────────┬──────────────┬───────────┬───────────┬────────┐
-│ Funcionário             │ Senioridade  │ R$/h         │ Mês 1     │ Mês 2     │ ...    │
-├─────────────────────────┼──────────────┼──────────────┼───────────┼───────────┼────────┤
-│ [Victor Couto ▼]        │ Sênior       │ R$ 119,05    │ 84        │ 84        │ ...    │
-│ Gerente de Produto      │ Sênior       │ R$ 90,00     │ 84h orç.  │ 84h orç.  │ ...    │
-├─────────────────────────┼──────────────┼──────────────┼───────────┼───────────┼────────┤
-│ [Selecionar ▼]          │ -            │ -            │ 168       │ 168       │ ...    │
-│ Engenheiro de Software  │ Pleno        │ R$ 60,00     │ 168h orç. │ 168h orç. │ ...    │
-└─────────────────────────┴──────────────┴──────────────┴───────────┴───────────┴────────┘
-```
-
----
-
-## Lógica de Exibição por Coluna
-
-### Coluna 1: Funcionário
-- **Linha 1**: Select dropdown (ou nome do funcionário se não editável)
-- **Linha 2**: Nome do papel em **negrito, fonte menor** (sempre visível, vem do orçamento)
-
-### Coluna 2: Senioridade
-- **Linha 1**: Senioridade do funcionário selecionado (preenchida ao selecionar)
-- **Linha 2**: Senioridade orçada em fonte menor/suave
-
-### Coluna 3: R$/h
-- **Linha 1**: Custo real do funcionário (calculado)
-- **Linha 2**: Custo orçado (do budget role) em fonte menor/suave
-
-### Colunas de Mês
-- **Linha 1**: Horas planejadas (editável no modo de edição)
-- **Linha 2**: Horas orçadas em fonte menor/suave (ex: "84h orç.")
-
-### Coluna Horas Total
-- **Linha 1**: Total de horas planejadas
-- **Linha 2**: Total de horas orçadas em fonte menor
-
-### Coluna Custo Total
-- **Linha 1**: Custo planejado total
-- **Linha 2**: Custo orçado total em fonte menor
+1. **Coluna Funcionário**: Reduzir fonte do papel e centralizá-lo abaixo do dropdown
+2. **Coluna Senioridade**: Centralizar os dados verticalmente
+3. **Horas Orçadas**: Remover o sufixo "orç." (exibir apenas o número, ex: "84h" em vez de "84h orç.")
+4. **Totais Orçados**: Adicionar valores orçados abaixo dos totais planejados no rodapé
 
 ---
 
@@ -55,190 +16,161 @@ A nova estrutura da tabela deve seguir um padrão consistente:
 
 ### Arquivo: `src/components/projects/detail/ProjectLaborSection.tsx`
 
-#### 1. Adicionar Cálculo de Dados Orçados por Membro
+#### 1. Coluna Funcionário (linhas 620-623)
 
-Criar um useMemo para obter os dados do orçamento original para cada papel:
+Reduzir tamanho da fonte do papel e centralizar:
+
+**Antes:**
+```tsx
+<span className="text-sm font-semibold text-foreground">
+  {member.role}
+</span>
+```
+
+**Depois:**
+```tsx
+<span className="text-xs font-semibold text-muted-foreground text-center w-full">
+  {member.role}
+</span>
+```
+
+#### 2. Coluna Senioridade (linhas 627-638)
+
+Centralizar os dados verticalmente:
+
+**Antes:**
+```tsx
+<TableCell className="p-2">
+  <div className="flex flex-col gap-0.5">
+```
+
+**Depois:**
+```tsx
+<TableCell className="p-2">
+  <div className="flex flex-col gap-0.5 items-center text-center">
+```
+
+#### 3. Remover Sufixo "orç." das Horas (linhas 719-723, 741-744)
+
+Nas colunas de meses:
+
+**Antes:**
+```tsx
+<span className="text-xs text-muted-foreground">
+  {budgetHours}h orç.
+</span>
+```
+
+**Depois:**
+```tsx
+<span className="text-xs text-muted-foreground">
+  {budgetHours}h
+</span>
+```
+
+Na coluna de horas totais do membro:
+
+**Antes:**
+```tsx
+<span className="text-xs text-muted-foreground">
+  {budgetData.budgetTotalHours}h orç.
+</span>
+```
+
+**Depois:**
+```tsx
+<span className="text-xs text-muted-foreground">
+  {budgetData.budgetTotalHours}h
+</span>
+```
+
+#### 4. Adicionar Totais Orçados no Rodapé (linhas 794-844)
+
+Calcular totais orçados e exibi-los abaixo dos totais planejados:
+
+```tsx
+// No TableFooter, para cada coluna de mês:
+<TableCell key={monthNum} className="text-center">
+  <div className="flex flex-col gap-0.5 items-center">
+    {isInPlanningMode ? (
+      <span className="font-medium">{monthTotals?.plannedHours || 0}</span>
+    ) : (
+      <div className="flex items-center justify-center gap-1 text-sm">
+        <span className="text-muted-foreground">{monthTotals?.plannedHours || 0}</span>
+        <span className="text-muted-foreground">|</span>
+        <span className="font-medium">{monthTotals?.actualHours || 0}</span>
+      </div>
+    )}
+    {/* Budgeted hours for this month */}
+    {budgetTotalsByMonth[monthNum] > 0 && (
+      <span className="text-xs text-muted-foreground">
+        {budgetTotalsByMonth[monthNum]}h
+      </span>
+    )}
+  </div>
+</TableCell>
+```
+
+Para a coluna de horas totais no rodapé:
+```tsx
+<TableCell className="text-center">
+  <div className="flex flex-col gap-0.5 items-center">
+    {isInPlanningMode ? (
+      <span className="font-semibold">{totals.totalHours}h</span>
+    ) : (
+      <div className="flex items-center justify-center gap-1">
+        <span className="text-muted-foreground">{totals.totalHours}h</span>
+        <span className="text-muted-foreground">|</span>
+        <span className="font-semibold">{totals.totalActualHours}h</span>
+      </div>
+    )}
+    {budgetSummary.hours > 0 && (
+      <span className="text-xs text-muted-foreground">
+        {budgetSummary.hours}h
+      </span>
+    )}
+  </div>
+</TableCell>
+```
+
+Para a coluna de custo total no rodapé:
+```tsx
+<TableCell className="text-center">
+  <div className="flex flex-col gap-0.5 items-center">
+    {isInPlanningMode ? (
+      <span className="font-semibold">{formatCurrency(totals.totalValue)}</span>
+    ) : (
+      <div className="flex items-center justify-center gap-1 text-sm">
+        <span className="text-muted-foreground">{formatCurrency(totals.totalValue)}</span>
+        <span className="text-muted-foreground">|</span>
+        <span className="font-semibold">{formatCurrency(totals.totalActualValue)}</span>
+      </div>
+    )}
+    {budgetSummary.value > 0 && (
+      <span className="text-xs text-muted-foreground">
+        {formatCurrency(budgetSummary.value)}
+      </span>
+    )}
+  </div>
+</TableCell>
+```
+
+#### 5. Adicionar Cálculo de Totais Orçados por Mês
+
+Adicionar um `useMemo` para calcular os totais orçados por mês (para exibir no footer):
 
 ```typescript
-const budgetDataByMember = useMemo(() => {
-  const result: Record<string, {
-    budgetSeniority: string;
-    budgetHourlyRate: number;
-    budgetHoursByMonth: Record<number, number>;
-    budgetTotalHours: number;
-  }> = {};
-  
+const budgetTotalsByMonth = useMemo(() => {
+  const result: Record<number, number> = {};
   members.forEach(member => {
-    if (member.budget_role_id) {
-      const budgetRole = budgetRoles.find(r => r.id === member.budget_role_id);
-      if (budgetRole) {
-        const hoursByMonth: Record<number, number> = {};
-        budgetRole.months?.forEach(m => {
-          hoursByMonth[m.month_number] = m.hours;
-        });
-        result[member.id] = {
-          budgetSeniority: budgetRole.seniority,
-          budgetHourlyRate: budgetRole.hourly_rate,
-          budgetHoursByMonth: hoursByMonth,
-          budgetTotalHours: budgetRole.months?.reduce((sum, m) => sum + m.hours, 0) || 0,
-        };
-      }
-    }
-    // Se não tem budget role, valores ficam vazios
-    if (!result[member.id]) {
-      result[member.id] = {
-        budgetSeniority: '',
-        budgetHourlyRate: 0,
-        budgetHoursByMonth: {},
-        budgetTotalHours: 0,
-      };
-    }
+    const budgetData = budgetDataByMember[member.id];
+    Object.entries(budgetData.budgetHoursByMonth).forEach(([month, hours]) => {
+      const monthNum = Number(month);
+      result[monthNum] = (result[monthNum] || 0) + hours;
+    });
   });
-  
   return result;
-}, [members, budgetRoles]);
-```
-
-#### 2. Alterar Header da Tabela
-
-Remover colunas "Papel" e "Orç. R$/h" separadas:
-
-```tsx
-<TableHeader>
-  <TableRow>
-    <TableHead className="sticky left-0 bg-background z-10 min-w-[220px]">
-      Funcionário
-    </TableHead>
-    <TableHead className="min-w-[100px]">Senioridade</TableHead>
-    <TableHead className="text-right min-w-[100px]">R$/h</TableHead>
-    {months.map((m) => (
-      <TableHead key={m} className="text-center min-w-[80px]">
-        Mês {m}
-      </TableHead>
-    ))}
-    <TableHead className="text-center min-w-[100px]">Horas</TableHead>
-    <TableHead className="text-center min-w-[120px]">Custo</TableHead>
-    {isEditable && (
-      <TableHead className="text-center min-w-[80px]">Ações</TableHead>
-    )}
-  </TableRow>
-</TableHeader>
-```
-
-#### 3. Refatorar Corpo da Tabela
-
-Cada célula terá duas linhas (valor planejado + orçado):
-
-```tsx
-{members.map((member) => {
-  const budgetData = budgetDataByMember[member.id];
-  const realCost = getRealHourlyCost(member);
-  const memberTotal = memberTotals[member.id];
-  const employeeSeniority = member.employee 
-    ? SENIORITY_OPTIONS.find(s => s.value === member.seniority)?.label 
-    : null;
-  const budgetSeniorityLabel = SENIORITY_OPTIONS.find(
-    s => s.value === budgetData.budgetSeniority
-  )?.label || budgetData.budgetSeniority;
-
-  return (
-    <TableRow key={member.id}>
-      {/* Coluna 1: Funcionário + Papel */}
-      <TableCell className="sticky left-0 bg-background z-10 p-2 min-w-[220px]">
-        <div className="flex flex-col gap-1">
-          {isEditable ? (
-            <Select ...>...</Select>
-          ) : (
-            <span className="font-medium">
-              {member.employee?.nome || 'Não atribuído'}
-            </span>
-          )}
-          <span className="text-sm font-semibold text-foreground">
-            {member.role}
-          </span>
-        </div>
-      </TableCell>
-      
-      {/* Coluna 2: Senioridade */}
-      <TableCell className="p-2">
-        <div className="flex flex-col gap-0.5">
-          <span className={member.employee ? "font-medium" : "text-muted-foreground"}>
-            {employeeSeniority || '-'}
-          </span>
-          {budgetData.budgetSeniority && (
-            <span className="text-xs text-muted-foreground">
-              {budgetSeniorityLabel}
-            </span>
-          )}
-        </div>
-      </TableCell>
-      
-      {/* Coluna 3: R$/h */}
-      <TableCell className="text-right p-2">
-        <div className="flex flex-col gap-0.5">
-          <span className={member.employee ? "font-medium" : "text-muted-foreground"}>
-            {member.employee ? formatCurrency(realCost) : '-'}
-          </span>
-          {budgetData.budgetHourlyRate > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {formatCurrency(budgetData.budgetHourlyRate)}
-            </span>
-          )}
-        </div>
-      </TableCell>
-      
-      {/* Colunas de Mês */}
-      {months.map((monthNum) => {
-        const plannedHours = getHoursForMonth(member.id, monthNum);
-        const budgetHours = budgetData.budgetHoursByMonth[monthNum] || 0;
-        
-        return (
-          <TableCell key={monthNum} className="text-center p-1">
-            <div className="flex flex-col gap-0.5">
-              {hoursEditMode ? (
-                <Input ... />
-              ) : (
-                <span>{plannedHours > 0 ? plannedHours : '-'}</span>
-              )}
-              {budgetHours > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {budgetHours}h orç.
-                </span>
-              )}
-            </div>
-          </TableCell>
-        );
-      })}
-      
-      {/* Coluna Horas Total */}
-      <TableCell className="text-center p-2">
-        <div className="flex flex-col gap-0.5">
-          <span className="font-medium">{memberTotal.plannedHours}h</span>
-          {budgetData.budgetTotalHours > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {budgetData.budgetTotalHours}h orç.
-            </span>
-          )}
-        </div>
-      </TableCell>
-      
-      {/* Coluna Custo Total */}
-      <TableCell className="text-center p-2">
-        <div className="flex flex-col gap-0.5">
-          <span className="font-medium">{formatCurrency(memberTotal.plannedValue)}</span>
-          {budgetData.budgetTotalHours > 0 && budgetData.budgetHourlyRate > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {formatCurrency(budgetData.budgetTotalHours * budgetData.budgetHourlyRate)}
-            </span>
-          )}
-        </div>
-      </TableCell>
-      
-      {/* Coluna Ações */}
-      {isEditable && <TableCell>...</TableCell>}
-    </TableRow>
-  );
-})}
+}, [members, budgetDataByMember]);
 ```
 
 ---
@@ -247,19 +179,16 @@ Cada célula terá duas linhas (valor planejado + orçado):
 
 | Alteração | Descrição |
 |-----------|-----------|
-| Nova coluna "Funcionário" | Select + papel abaixo em negrito |
-| Coluna "Senioridade" com duas linhas | Planejado em cima, orçado abaixo |
-| Coluna "R$/h" com duas linhas | Custo real em cima, orçado abaixo |
-| Colunas de mês com duas linhas | Horas planejadas em cima, orçadas abaixo |
-| Remover coluna "Orç. R$/h" separada | Integrada na coluna R$/h |
-| Remover coluna "Papel" separada | Integrada na coluna Funcionário |
+| Papel centralizado | Fonte menor (`text-xs`) e centralizado abaixo do dropdown |
+| Senioridade centralizada | `items-center text-center` na célula |
+| Remover "orç." | Exibir apenas "84h" em vez de "84h orç." |
+| Totais orçados no footer | Valores orçados abaixo dos totais em cada coluna |
 
 ---
 
 ## Resultado Esperado
 
-1. **Tabela mais compacta**: Menos colunas horizontais
-2. **Comparação visual imediata**: Planejado vs orçado em cada célula
-3. **Hierarquia clara**: Valores atuais em destaque, orçados em fonte suave
-4. **Feedback visual**: Gerente vê imediatamente se está acima/abaixo do orçado
-
+1. **Coluna Funcionário**: Dropdown na primeira linha, papel centralizado em fonte menor abaixo
+2. **Coluna Senioridade**: Dados centralizados verticalmente
+3. **Colunas de Mês**: Horas orçadas sem sufixo "orç."
+4. **Rodapé**: Totais orçados exibidos abaixo dos totais planejados/reais
