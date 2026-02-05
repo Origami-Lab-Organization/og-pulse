@@ -1,274 +1,231 @@
 
-# Plano: Fornecedores Herdados do Orçamento + Seleção do Cadastro
+# Plano: Upload de PDF para Preenchimento Automático de Fornecedor
 
-## Problema Atual
+## Objetivo
 
-O dialog de adicionar fornecedor mostra 3 opções:
-1. Selecionar do orçamento
-2. Selecionar do cadastro
-3. Digitar manualmente
+Adicionar funcionalidade de upload de Cartão CNPJ (PDF) no cadastro de fornecedores, utilizando a mesma Edge Function de IA (`parse-cnpj-card`) já existente para preencher automaticamente os campos do formulário.
 
-O usuário quer que siga o mesmo padrão da Mão de Obra:
-- **Fornecedores do orçamento são herdados** automaticamente (sem opção de seleção manual)
-- **Novos fornecedores** devem ser selecionados do cadastro (não digitar manualmente)
+## Análise do Padrão Existente
 
----
-
-## Comportamento Desejado
-
-### Padrão a Seguir (Mão de Obra)
-
-```text
-┌───────────────────────────────────────┐
-│ Adicionar Papel                       │
-│                                       │
-│ [x] Do Orçamento                      │
-│     [Select: Desenvolvedor Senior ]   │
-│                                       │
-│ [ ] Novo Papel                        │
-│     Nome do Papel: __________         │
-│     Senioridade:  [Select ▼]          │
-│     Valor/Hora:   __________          │
-└───────────────────────────────────────┘
-```
-
-### Aplicar para Fornecedores
-
-```text
-┌───────────────────────────────────────┐
-│ Adicionar Fornecedor                  │
-│                                       │
-│ [x] Do Orçamento                      │
-│     [Select: Serviço de Marketing ]   │
-│     → Herda nome, descrição e R$/mês  │
-│                                       │
-│ [ ] Novo Fornecedor                   │
-│     [Select: Fornecedor do Cadastro]  │
-│     Descrição do Serviço: _________   │
-│     Valor Mensal Inicial: _________   │
-└───────────────────────────────────────┘
-```
+O `ClientFormDialog` já implementa essa funcionalidade com:
+- Estado para controle: `isExtractingPdf`, `pdfExtracted`
+- Input file oculto + label estilizado como área de drop
+- Chamada à Edge Function `parse-cnpj-card`
+- Preenchimento dos campos com formatação `toTitleCase`
+- Feedback visual durante extração e após sucesso
 
 ---
 
 ## Alterações Técnicas
 
-### Arquivo: `src/components/projects/detail/ProjectSuppliersSection.tsx`
+### Arquivo: `src/components/suppliers/SupplierFormDialog.tsx`
 
-#### 1. Adicionar estado para controle do modo
+#### 1. Novos imports
 
 ```tsx
-const [useBudgetSupplier, setUseBudgetSupplier] = useState(budgetSuppliers.length > 0);
+import { Upload, FileText, CheckCircle2 } from 'lucide-react';
+import { toTitleCase } from '@/lib/formatters';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 ```
 
-#### 2. Modificar o Dialog de Adicionar
-
-Remover a opção de "digitar manualmente" e estruturar em dois modos:
-
-**Modo A - Do Orçamento:**
-- Select com fornecedores não utilizados do orçamento
-- Ao selecionar, herda automaticamente: nome, descrição, valor mensal
-- Não exibe campos de input (tudo vem do orçamento)
-
-**Modo B - Novo Fornecedor:**
-- Select **obrigatório** de fornecedor do cadastro
-- Campo de descrição do serviço (opcional)
-- Campo de valor mensal inicial (obrigatório)
-
-#### 3. Remover campos de input manual para nome
-
-O campo "Nome do Fornecedor/Serviço" será removido. O nome sempre virá de:
-- Orçamento (quando selecionado do orçamento)
-- Cadastro de fornecedores (quando selecionado do cadastro)
-
-#### 4. Ajustar validação do submit
+#### 2. Novos estados
 
 ```tsx
-// Modo orçamento: precisa ter budget supplier selecionado
-// Modo novo: precisa ter fornecedor do cadastro selecionado + valor mensal
-const canSubmit = useBudgetSupplier 
-  ? !!selectedBudgetSupplier 
-  : (!!selectedRegistrySupplier && formData.monthlyValue > 0);
+const { toast } = useToast();
+const [isExtractingPdf, setIsExtractingPdf] = useState(false);
+const [pdfExtracted, setPdfExtracted] = useState(false);
 ```
 
----
-
-## Novo Layout do Dialog
+#### 3. Função de upload de PDF
 
 ```tsx
-<Dialog>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Adicionar Fornecedor</DialogTitle>
-      <DialogDescription>
-        Selecione um fornecedor do orçamento ou adicione um novo do cadastro.
-      </DialogDescription>
-    </DialogHeader>
+const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    <div className="space-y-4">
-      {/* Modo: Do Orçamento */}
-      {unusedBudgetSuppliers.length > 0 && (
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            checked={useBudgetSupplier} 
-            onCheckedChange={(checked) => setUseBudgetSupplier(!!checked)} 
-          />
-          <Label>Do Orçamento</Label>
-        </div>
-      )}
+  if (file.type !== 'application/pdf') {
+    toast({
+      title: 'Formato inválido',
+      description: 'Por favor, selecione um arquivo PDF.',
+      variant: 'destructive',
+    });
+    return;
+  }
 
-      {useBudgetSupplier && unusedBudgetSuppliers.length > 0 ? (
-        <div className="space-y-2">
-          <Select value={selectedBudgetSupplier} onValueChange={handleBudgetSupplierSelect}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um serviço do orçamento..." />
-            </SelectTrigger>
-            <SelectContent>
-              {unusedBudgetSuppliers.map((bs) => (
-                <SelectItem key={bs.id} value={bs.id}>
-                  {bs.name} - {formatCurrency(bs.monthly_value)}/mês
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* Preview dos dados herdados */}
-          {selectedBudgetSupplier && (
-            <div className="p-3 bg-muted rounded-md text-sm space-y-1">
-              <p><strong>Serviço:</strong> {formData.name}</p>
-              {formData.description && <p><strong>Descrição:</strong> {formData.description}</p>}
-              <p><strong>Valor Mensal:</strong> {formatCurrency(formData.monthlyValue)}</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Modo: Novo Fornecedor */
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Fornecedor</Label>
-            <Select value={selectedRegistrySupplier} onValueChange={handleRegistrySupplierSelect}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um fornecedor cadastrado..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableSuppliers.map((supplier) => (
-                  <SelectItem key={supplier.id} value={supplier.id}>
-                    {supplier.tradingName || supplier.companyName}
-                    {supplier.category && ` (${supplier.category})`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+  if (file.size > 10 * 1024 * 1024) {
+    toast({
+      title: 'Arquivo muito grande',
+      description: 'O arquivo deve ter no máximo 10MB.',
+      variant: 'destructive',
+    });
+    return;
+  }
 
-          <div className="space-y-2">
-            <Label>Descrição do Serviço</Label>
-            <Textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              placeholder="Ex: Gestão de mídias sociais"
-            />
-          </div>
+  setIsExtractingPdf(true);
+  setPdfExtracted(false);
 
-          <div className="space-y-2">
-            <Label>Valor Mensal Inicial (R$)</Label>
-            <Input
-              type="number"
-              value={formData.monthlyValue || ''}
-              onChange={(e) => setFormData({...formData, monthlyValue: Number(e.target.value)})}
-            />
-          </div>
-        </div>
-      )}
-    </div>
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const base64 = (reader.result as string).split(',')[1];
 
-    <DialogFooter>
-      <Button variant="outline" onClick={() => setDialogOpen(false)}>
-        Cancelar
-      </Button>
-      <Button 
-        onClick={handleSubmit} 
-        disabled={!canSubmit || addSupplier.isPending}
-      >
-        Adicionar
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-```
+      const { data, error } = await supabase.functions.invoke('parse-cnpj-card', {
+        body: { pdfBase64: base64 },
+      });
 
----
+      if (error) throw new Error(error.message || 'Erro ao processar o documento');
+      if (data.error) throw new Error(data.error);
 
-## Ajustes na Lógica de Submit
-
-```tsx
-const handleSubmit = () => {
-  const input: Omit<CreateProjectSupplierInput, 'projectId'> = useBudgetSupplier
-    ? {
-        name: formData.name,              // Nome do serviço do orçamento
-        description: formData.description,
-        monthlyValue: formData.monthlyValue,
-        startMonth: 1,
-        endMonth: undefined,
-        budgetSupplierId: selectedBudgetSupplier,
+      // Preencher os campos com formatação Title Case
+      if (data.razaoSocial) form.setValue('companyName', toTitleCase(data.razaoSocial));
+      if (data.nomeFantasia) form.setValue('tradingName', toTitleCase(data.nomeFantasia));
+      if (data.cnpj) {
+        const cleanCnpj = data.cnpj.replace(/\D/g, '');
+        form.setValue('cnpj', cleanCnpj);
+        setCnpjDisplay(formatCNPJ(cleanCnpj));
       }
-    : {
-        // Para novo fornecedor, nome vem do fornecedor do cadastro
-        name: availableSuppliers.find(s => s.id === selectedRegistrySupplier)?.tradingName 
-              || availableSuppliers.find(s => s.id === selectedRegistrySupplier)?.companyName
-              || '',
-        description: formData.description,
-        monthlyValue: formData.monthlyValue,
-        startMonth: 1,
-        endMonth: undefined,
-        supplierId: selectedRegistrySupplier,
-      };
+      if (data.cep) {
+        const cleanCep = data.cep.replace(/\D/g, '');
+        form.setValue('cep', cleanCep);
+        setCepDisplay(formatCEP(cleanCep));
+      }
+      if (data.logradouro) form.setValue('logradouro', toTitleCase(data.logradouro));
+      if (data.numero) form.setValue('numero', data.numero);
+      if (data.complemento) form.setValue('complemento', toTitleCase(data.complemento));
+      if (data.bairro) form.setValue('bairro', toTitleCase(data.bairro));
+      if (data.cidade) form.setValue('cidade', toTitleCase(data.cidade));
+      if (data.estado) form.setValue('estado', data.estado.toUpperCase());
 
-  addSupplier.mutate({ projectId, ...input }, {
-    onSuccess: () => {
-      setDialogOpen(false);
-      resetForm();
-    },
-  });
+      setPdfExtracted(true);
+      toast({
+        title: 'Dados extraídos',
+        description: 'Os dados do Cartão CNPJ foram preenchidos automaticamente.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Erro ao extrair dados',
+        description: err instanceof Error ? err.message : 'Não foi possível extrair os dados do PDF.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExtractingPdf(false);
+      e.target.value = '';
+    }
+  };
+
+  reader.onerror = () => {
+    toast({
+      title: 'Erro ao ler arquivo',
+      description: 'Não foi possível ler o arquivo PDF.',
+      variant: 'destructive',
+    });
+    setIsExtractingPdf(false);
+  };
+
+  reader.readAsDataURL(file);
 };
 ```
 
----
+#### 4. Reset do estado ao abrir/fechar dialog
 
-## Exibição na Tabela
+No `useEffect` existente, adicionar:
+```tsx
+setPdfExtracted(false);
+```
 
-Para fornecedores do cadastro (novo), exibir:
-- **Linha 1:** Nome do fornecedor (tradingName ou companyName)
-- **Linha 2:** Descrição do serviço (se houver)
+#### 5. Reset após submit
 
-Para fornecedores do orçamento, exibir:
-- **Linha 1:** Nome do fornecedor (se vinculado ao cadastro) ou Nome do serviço
-- **Linha 2:** Descrição do orçamento
+Na função `handleSubmit`, adicionar:
+```tsx
+setPdfExtracted(false);
+```
+
+#### 6. Componente de upload no JSX
+
+Adicionar antes da seção "Dados da Empresa", apenas para novo cadastro (`!isEditing`):
+
+```tsx
+{!isEditing && (
+  <div className="relative">
+    <input
+      type="file"
+      accept=".pdf"
+      onChange={handlePdfUpload}
+      className="hidden"
+      id="supplier-cnpj-pdf-upload"
+      disabled={isExtractingPdf || isLoading}
+    />
+    <label
+      htmlFor="supplier-cnpj-pdf-upload"
+      className={`
+        flex items-center justify-center gap-3 p-4 rounded-lg border-2 border-dashed
+        transition-colors cursor-pointer
+        ${isExtractingPdf ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'}
+        ${pdfExtracted ? 'border-accent bg-accent/10' : ''}
+      `}
+    >
+      {isExtractingPdf ? (
+        <>
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="text-sm">
+            <p className="font-medium text-primary">Extraindo dados...</p>
+            <p className="text-muted-foreground">Analisando o Cartão CNPJ</p>
+          </div>
+        </>
+      ) : pdfExtracted ? (
+        <>
+          <CheckCircle2 className="h-6 w-6 text-primary" />
+          <div className="text-sm">
+            <p className="font-medium text-primary">Dados extraídos com sucesso!</p>
+            <p className="text-muted-foreground">Clique para enviar outro arquivo</p>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="text-sm">
+            <p className="font-medium">Enviar Cartão CNPJ (PDF)</p>
+            <p className="text-muted-foreground">Opcional - preenche os campos automaticamente</p>
+          </div>
+          <Upload className="h-4 w-4 text-muted-foreground ml-auto" />
+        </>
+      )}
+    </label>
+  </div>
+)}
+```
 
 ---
 
 ## Resumo das Alterações
 
-| Item | Alteração |
+| Item | Descrição |
 |------|-----------|
-| Dialog | Substituir 3 opções por 2 modos: Orçamento vs Novo |
-| Input manual de nome | Removido - nome sempre vem do orçamento ou cadastro |
-| Modo Orçamento | Herda nome, descrição e valor mensal automaticamente |
-| Modo Novo | Select obrigatório do cadastro + campos descrição e valor |
-| Validação | Ajustada para os dois modos |
-| Tabela | Mantém exibição atual (já mostra nome + descrição) |
+| **Imports** | Adicionar `Upload`, `FileText`, `CheckCircle2`, `toTitleCase`, `supabase`, `useToast` |
+| **Estados** | `isExtractingPdf`, `pdfExtracted` |
+| **Função** | `handlePdfUpload` - lê PDF, chama Edge Function, preenche campos |
+| **UI** | Área de upload com 3 estados visuais (padrão, extraindo, sucesso) |
+| **Reset** | Limpar estado no `useEffect` e no `handleSubmit` |
 
 ---
 
-## Arquivo Afetado
+## Reutilização
 
-- `src/components/projects/detail/ProjectSuppliersSection.tsx`
+A Edge Function `parse-cnpj-card` já existe e funciona tanto para clientes quanto para fornecedores, pois ambos usam os mesmos dados do Cartão CNPJ:
+- Razão Social → `companyName`
+- Nome Fantasia → `tradingName`
+- CNPJ → `cnpj`
+- Endereço completo → `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `estado`
 
 ---
 
 ## Resultado Esperado
 
-1. **Consistência** com a seção de Mão de Obra
-2. **Sem digitação manual** de nomes de fornecedores
-3. **Dados do orçamento** herdados automaticamente
-4. **Novos fornecedores** sempre vinculados ao cadastro central
+1. **Upload intuitivo**: Área de drag & drop visualmente similar ao cadastro de clientes
+2. **Extração automática**: Dados do PDF preenchidos automaticamente via IA
+3. **Formatação profissional**: Nomes em Title Case, preservando siglas (LTDA, ME, etc.)
+4. **Feedback visual**: Indicação clara durante extração e após sucesso
+5. **Consistência**: Mesma experiência do cadastro de clientes
