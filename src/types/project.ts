@@ -56,6 +56,7 @@ export interface ProjectSupplierDB {
   id: string;
   project_id: string;
   supplier_id: string | null;
+  budget_supplier_id: string | null;
   name: string;
   description: string | null;
   monthly_value: number;
@@ -109,6 +110,7 @@ export interface CreateProjectMemberInput {
 export interface CreateProjectSupplierInput {
   projectId: string;
   supplierId?: string;
+  budgetSupplierId?: string;
   name: string;
   description?: string;
   monthlyValue: number;

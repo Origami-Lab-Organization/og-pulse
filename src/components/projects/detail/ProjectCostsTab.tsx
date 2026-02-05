@@ -11,6 +11,7 @@ import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
 import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
 import { useBudget } from '@/hooks/useBudgets';
+import { useSuppliers } from '@/hooks/useSuppliers';
 import { differenceInMonths, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -182,7 +183,8 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   // Fetch linked budget if exists
   const { data: budget } = useBudget(project.budget_id);
 
-  // Get member and supplier IDs for fetching monthly data
+  // Fetch available suppliers from registry
+  const { data: availableSuppliers = [] } = useSuppliers();
   const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
   const supplierIds = useMemo(() => (project.suppliers || []).map((s) => s.id), [project.suppliers]);
 
@@ -363,6 +365,8 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
         isEditable={isEditable}
         canEditActuals={canEditActuals || isEditable}
         supplierActuals={supplierActuals}
+        budgetSuppliers={budget?.suppliers || []}
+        availableSuppliers={availableSuppliers}
       />
 
       {/* Materials Section */}
