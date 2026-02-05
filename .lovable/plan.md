@@ -1,50 +1,102 @@
 
-# Plano: Simplificar Mensagem do Dialog de Envio
+# Plano: Corrigir Race Condition na Digitação do Timesheet
 
-## Objetivo
+## Problema Identificado
 
-Simplificar o dialog de confirmação de envio da semana, removendo o resumo de horas e mantendo apenas a pergunta direta de confirmação.
+Quando o usuário digita um valor, dá Tab e digita rapidamente no próximo campo, o sistema reseta o valor para 0. Isso ocorre porque:
 
----
+1. O `onBlur` dispara uma mutation para salvar
+2. Após o sucesso, as queries são invalidadas e os dados recarregados
+3. O `useEffect` que sincroniza com `existingEntries` sobrescreve **todo** o estado local
+4. O valor que estava sendo digitado no novo campo é perdido
 
-## Alteração
+## Solução
 
-### Arquivo: `src/components/timesheets/SubmitWeekDialog.tsx`
+Modificar a lógica de sincronização para **preservar campos com alterações pendentes**. Em vez de sobrescrever tudo, fazer um merge inteligente:
 
-**De (atual):**
-```
-┌─ Enviar Semana ─────────────────────────────────────────┐
-│                                                          │
-│  Você está prestes a enviar os timesheets da semana     │
-│  03/11 - 07/11/2025.                                    │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │ Total de horas lançadas                          │   │
-│  │ 15.0h                                            │   │
-│  └──────────────────────────────────────────────────┘   │
-│                                                          │
-│  ⚠️ Após o envio, os valores serão travados...         │
-│                                                          │
-│                        [Cancelar] [Confirmar Envio]     │
-└──────────────────────────────────────────────────────────┘
-```
+```typescript
+// ANTES (linha 74-77)
+useEffect(() => {
+  setHours(getInitialHours());  // Sobrescreve TUDO
+}, [getInitialHours]);
 
-**Para (simplificado):**
-```
-┌─ Enviar Semana ─────────────────────────────────────────┐
-│                                                          │
-│  Deseja enviar os timesheets da semana                  │
-│  03/11 - 07/11/2025?                                    │
-│                                                          │
-│                        [Cancelar] [Confirmar Envio]     │
-└──────────────────────────────────────────────────────────┘
+// DEPOIS
+useEffect(() => {
+  setHours(prev => {
+    const serverHours = getInitialHours();
+    // Preservar valores de campos com salvamento pendente
+    const merged: Record<string, number> = { ...serverHours };
+    pendingSaves.forEach(date => {
+      if (prev[date] !== undefined) {
+        merged[date] = prev[date];  // Manter valor local
+      }
+    });
+    return merged;
+  });
+}, [existingEntries, weekDays, memberId]);
 ```
 
----
+## Alterações Necessárias
 
-## Mudanças no Código
+### Arquivo: `src/components/timesheets/TimesheetWeekRow.tsx`
 
-1. **Remover** o bloco de resumo de horas (`div.rounded-lg bg-muted`)
-2. **Remover** o bloco de aviso amarelo
-3. **Simplificar** a mensagem para uma pergunta direta: "Deseja enviar os timesheets da semana **03/11 - 07/11/2025**?"
-4. **Manter** os botões Cancelar e Confirmar Envio como estão
+1. **Modificar o useEffect de sincronização** para fazer merge preservando campos pendentes
+2. **Adicionar ref para valores pendentes** para evitar problemas com closures stale
+3. **Atualizar dependências do useEffect** para evitar loops infinitos
+
+## Detalhes Técnicos
+
+O problema é que `pendingSaves` dentro do `useEffect` pode estar desatualizado (stale closure). A solução usa uma ref para manter o valor mais atual:
+
+```typescript
+const pendingSavesRef = useRef<Set<string>>(new Set());
+
+// Manter a ref sincronizada
+useEffect(() => {
+  pendingSavesRef.current = pendingSaves;
+}, [pendingSaves]);
+
+// Usar a ref no merge
+useEffect(() => {
+  setHours(prev => {
+    const serverHours: Record<string, number> = {};
+    weekDays.forEach((day) => {
+      const entry = existingEntries.find(
+        (e) => e.projectMemberId === memberId && e.workDate === day.date
+      );
+      serverHours[day.date] = entry?.hours ?? 0;
+    });
+    
+    // Preservar valores com salvamento pendente
+    const merged = { ...serverHours };
+    pendingSavesRef.current.forEach(date => {
+      if (prev[date] !== undefined) {
+        merged[date] = prev[date];
+      }
+    });
+    return merged;
+  });
+}, [existingEntries, weekDays, memberId]);
+```
+
+## Fluxo Corrigido
+
+```
+1. Usuário digita "8" no campo A
+2. pendingSaves = { "2025-02-03" }
+3. Usuário dá Tab → onBlur salva campo A
+4. Usuário digita "6" no campo B
+5. pendingSaves = { "2025-02-03", "2025-02-04" }
+6. Mutation A completa → dados recarregados
+7. useEffect detecta novos existingEntries
+8. Merge: servidor[A]=8, servidor[B]=0
+9. Mas B está em pendingSaves → preservar prev[B]=6
+10. Resultado: { A: 8, B: 6 } ← Valor preservado!
+```
+
+## Arquivos Afetados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/components/timesheets/TimesheetWeekRow.tsx` | Corrigir lógica de merge no useEffect |
+
