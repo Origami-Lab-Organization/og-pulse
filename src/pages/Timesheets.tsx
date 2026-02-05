@@ -180,7 +180,6 @@ export default function Timesheets() {
         onOpenChange={setShowSubmitDialog}
         weekStart={weekStart}
         weekEnd={weekEnd}
-        totalHours={totalHours}
         onConfirm={handleSubmitWeek}
         isSubmitting={submitWeek.isPending}
       />
