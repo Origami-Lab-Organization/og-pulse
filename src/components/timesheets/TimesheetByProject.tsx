@@ -14,14 +14,35 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+interface AdminEditEntry {
+  id: string;
+  projectId: string;
+  projectMemberId: string;
+  employeeName: string;
+  projectName: string;
+  workDate: string;
+  currentHours: number;
+}
+
 interface TimesheetByProjectProps {
   projects: ProjectWithMembers[];
   weekDays: WeekDay[];
   timesheetEntries: TimesheetEntry[];
   holidays?: Holiday[];
+  isLocked?: boolean;
+  isAdmin?: boolean;
+  onAdminEdit?: (entry: AdminEditEntry) => void;
 }
 
-export function TimesheetByProject({ projects, weekDays, timesheetEntries, holidays = [] }: TimesheetByProjectProps) {
+export function TimesheetByProject({ 
+  projects, 
+  weekDays, 
+  timesheetEntries, 
+  holidays = [],
+  isLocked = false,
+  isAdmin = false,
+  onAdminEdit,
+}: TimesheetByProjectProps) {
   if (projects.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -98,10 +119,14 @@ export function TimesheetByProject({ projects, weekDays, timesheetEntries, holid
                   subLabel={member.role}
                   avatarUrl={member.employeePhoto}
                   projectId={project.projectId}
+                  projectName={project.projectName}
                   memberId={member.memberId}
                   weekDays={weekDays}
                   existingEntries={timesheetEntries}
                   holidays={holidays}
+                  isLocked={isLocked}
+                  isAdmin={isAdmin}
+                  onAdminEdit={onAdminEdit}
                 />
               ))
             )}

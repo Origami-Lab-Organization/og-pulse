@@ -1320,8 +1320,11 @@ export type Database = {
           description: string | null
           hours: number
           id: string
+          is_locked: boolean
           project_id: string
           project_member_id: string
+          updated_at: string
+          updated_by: string | null
           work_date: string
         }
         Insert: {
@@ -1330,8 +1333,11 @@ export type Database = {
           description?: string | null
           hours?: number
           id?: string
+          is_locked?: boolean
           project_id: string
           project_member_id: string
+          updated_at?: string
+          updated_by?: string | null
           work_date: string
         }
         Update: {
@@ -1340,8 +1346,11 @@ export type Database = {
           description?: string | null
           hours?: number
           id?: string
+          is_locked?: boolean
           project_id?: string
           project_member_id?: string
+          updated_at?: string
+          updated_by?: string | null
           work_date?: string
         }
         Relationships: [
@@ -1598,6 +1607,88 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      timesheet_edit_logs: {
+        Row: {
+          edited_at: string
+          edited_by: string
+          id: string
+          justification: string
+          new_hours: number
+          previous_hours: number
+          timesheet_id: string
+        }
+        Insert: {
+          edited_at?: string
+          edited_by: string
+          id?: string
+          justification: string
+          new_hours: number
+          previous_hours: number
+          timesheet_id: string
+        }
+        Update: {
+          edited_at?: string
+          edited_by?: string
+          id?: string
+          justification?: string
+          new_hours?: number
+          previous_hours?: number
+          timesheet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheet_edit_logs_timesheet_id_fkey"
+            columns: ["timesheet_id"]
+            isOneToOne: false
+            referencedRelation: "project_timesheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timesheet_submissions: {
+        Row: {
+          created_at: string
+          id: string
+          status: string
+          submitted_at: string | null
+          submitted_by: string | null
+          tenant_id: string
+          total_hours: number
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tenant_id: string
+          total_hours?: number
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tenant_id?: string
+          total_hours?: number
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheet_submissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
