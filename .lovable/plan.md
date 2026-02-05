@@ -1,93 +1,43 @@
 
+# Plano: Ajustes na Alocação de Equipe e Formulário de Projeto
 
-# Plano: Melhorias na Interface de Custos
+## Alteração 1: Funcionários Disponíveis para Alocação
 
-## Alterações Solicitadas
+**Problema:** Na seção de alocação de equipe (aba Custos), apenas funcionários com status "ativo" aparecem para seleção. Funcionários "aguardando confirmação" (que ainda não fizeram o primeiro login) também devem estar disponíveis.
 
-### 1. Botão de Lançar - Apenas Ícone
+**Arquivo:** `src/components/projects/detail/ProjectLaborSection.tsx`
 
-Remover o texto "Lançar" do botão, mantendo apenas o ícone de dinheiro com tooltip para explicar a ação.
-
-**Arquivo:** `ProjectSuppliersSection.tsx` (linhas 329-336)
+**Alteração:** Linha 115 - atualizar o filtro de funcionários
 
 ```typescript
 // ANTES
-<Button variant="outline" size="sm" onClick={() => openActualDialog(supplier)}>
-  <DollarSign className="h-4 w-4 mr-1" />
-  Lançar
-</Button>
+const availableEmployees = useMemo(() => {
+  return employees.filter((e) => e.status === 'ativo');
+}, [employees]);
 
 // DEPOIS
-<Button variant="outline" size="icon" onClick={() => openActualDialog(supplier)}>
-  <DollarSign className="h-4 w-4" />
-</Button>
+const availableEmployees = useMemo(() => {
+  return employees.filter((e) => e.status === 'ativo' || e.status === 'aguardando_confirmacao');
+}, [employees]);
 ```
 
-### 2. Permitir Adicionar Fornecedores Durante Execução
+---
 
-Atualmente o botão "Adicionar Fornecedor" só aparece quando `isEditable` (fase de planejamento). Precisamos mostrá-lo também quando `canEditActuals`.
+## Alteração 2: Formulário de Projeto Contínuo
 
-**Arquivo:** `ProjectSuppliersSection.tsx` (linhas 219-224)
+**Problema:** Ao criar um projeto contínuo, o campo "Valor Total do Projeto" não faz sentido semanticamente (deveria ser "Valor Recorrente") e o campo "Quantidade de Parcelas" é desnecessário.
 
-```typescript
-// ANTES
-{isEditable && (
-  <Button onClick={() => setDialogOpen(true)}>
-    <Plus className="mr-2 h-4 w-4" />
-    Adicionar Fornecedor
-  </Button>
-)}
+**Arquivo:** `src/components/projects/ProjectFormDialog.tsx`
 
-// DEPOIS
-{(isEditable || canEditActuals) && (
-  <Button onClick={() => setDialogOpen(true)}>
-    <Plus className="mr-2 h-4 w-4" />
-    Adicionar Fornecedor
-  </Button>
-)}
-```
+**Alterações:**
 
-### 3. Permitir Adicionar Materiais Durante Execução
+1. **Campo de Valor (linha 341-360):** Atualizar o label dinamicamente
+   - Se `isContinuous = true`: "Valor Recorrente Mensal *"
+   - Se `isContinuous = false`: "Valor Total do Projeto *"
 
-Mesma lógica para a seção de materiais.
-
-**Arquivo:** `ProjectMaterialsSection.tsx` (linhas 125-130)
-
-```typescript
-// ANTES
-{isEditable && (
-  <Button onClick={() => setDialogOpen(true)}>
-    <Plus className="mr-2 h-4 w-4" />
-    Adicionar Material
-  </Button>
-)}
-
-// DEPOIS
-{(isEditable || canEditActuals) && (
-  <Button onClick={() => setDialogOpen(true)}>
-    <Plus className="mr-2 h-4 w-4" />
-    Adicionar Material
-  </Button>
-)}
-```
-
-### 4. Permitir Excluir Fornecedores/Materiais Adicionados na Execução
-
-O botão de excluir também deve aparecer durante a execução para corrigir erros.
-
-**Arquivo:** `ProjectSuppliersSection.tsx` (linha 342)
-
-```typescript
-// ANTES
-{isEditable && (
-  <Button variant="ghost" size="icon" onClick={() => handleDelete(supplier.id)} ...>
-
-// DEPOIS  
-{(isEditable || canEditActuals) && (
-  <Button variant="ghost" size="icon" onClick={() => handleDelete(supplier.id)} ...>
-```
-
-**Arquivo:** `ProjectMaterialsSection.tsx` - Adicionar coluna de ação para excluir quando `canEditActuals`
+2. **Campo de Parcelas (linhas 388-400):** Ocultar quando for projeto contínuo
+   - Mostrar apenas quando `!isContinuous`
+   - Ajustar layout do grid de 2 colunas para 1 quando contínuo
 
 ---
 
@@ -95,14 +45,5 @@ O botão de excluir também deve aparecer durante a execução para corrigir err
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `ProjectSuppliersSection.tsx` | Botão apenas com ícone; permitir adicionar/excluir em execução |
-| `ProjectMaterialsSection.tsx` | Permitir adicionar/excluir materiais em execução |
-
----
-
-## Resultado Final
-
-- Interface mais limpa com botões apenas de ícones
-- Flexibilidade para ajustar custos durante a execução do projeto
-- Fornecedores e materiais não planejados podem ser registrados
-
+| `ProjectLaborSection.tsx` | Incluir funcionários "aguardando_confirmacao" na lista de disponíveis |
+| `ProjectFormDialog.tsx` | Ajustar label do valor e ocultar parcelas para projetos contínuos |
