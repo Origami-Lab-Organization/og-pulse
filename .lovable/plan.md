@@ -1,66 +1,141 @@
 
-# Plano: Mover Meta de Margem Bruta para Seção Própria
+# Plano: Novo Layout dos Cards de Custos do Projeto
 
-## Problema Atual
+## Objetivo
 
-O campo "Meta de Margem Bruta" está misturado com os percentuais de markup de orçamento (Despesas Administrativas, Impostos, Comissão, Margem Líquida), mas tem um propósito diferente - é uma meta para projetos, não um componente da fórmula de preço.
+Reorganizar a hierarquia visual dos cards de custos para priorizar os percentuais, conforme solicitado.
 
-## Solução
+## Layout Atual vs Proposto
 
-Criar uma nova seção "Metas de Projeto" separada da seção "Percentuais para Orçamentos".
-
-## Alteração
-
-**Arquivo:** `src/components/settings/FinancialSettingsForm.tsx`
-
-**Layout Atual:**
+**Atual:**
 ```text
-┌────────────────────────────────────────────────────────────────────┐
-│ % Percentuais para Orçamentos                                      │
-│                                                                    │
-│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌─────────────┐ │
-│ │ Desp. Admin  │ │ Impostos     │ │ Comissão     │ │ Margem Líq. │ │
-│ └──────────────┘ └──────────────┘ └──────────────┘ └─────────────┘ │
-│ ┌──────────────┐                                                   │
-│ │ Meta Margem  │  <-- Misturado aqui                               │
-│ └──────────────┘                                                   │
-└────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────┐
+│ 👥  Mão de Obra               │
+│                                │
+│ R$ 90.000,00        (grande)   │
+│ de R$ 239.040,00    (pequeno)  │
+│ ↘ 38%               (pequeno)  │
+└────────────────────────────────┘
 ```
 
-**Layout Proposto:**
+**Proposto:**
 ```text
-┌────────────────────────────────────────────────────────────────────┐
-│ % Percentuais para Orçamentos                                      │
-│ Configure os percentuais padrão usados na fórmula de markup...    │
-│                                                                    │
-│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌─────────────┐ │
-│ │ Desp. Admin  │ │ Impostos     │ │ Comissão     │ │ Margem Líq. │ │
-│ └──────────────┘ └──────────────┘ └──────────────┘ └─────────────┘ │
-└────────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────────┐
-│ 📈 Metas de Projeto                                                │
-│ Configure as metas financeiras para acompanhamento de projetos    │
-│                                                                    │
-│ ┌──────────────┐                                                   │
-│ │ Meta Margem  │                                                   │
-│ │ Bruta        │                                                   │
-│ └──────────────┘                                                   │
-└────────────────────────────────────────────────────────────────────┘
-
-                                            [Salvar Configurações]
+┌────────────────────────────────┐
+│ 👥  Mão de Obra               │
+│                                │
+│ ↘ 38%    R$ 239.040,00        │
+│ (grande)  (previsto pequeno)   │
+│                                │
+│ R$ 90.000,00                   │
+│ (absoluto pequeno)             │
+└────────────────────────────────┘
 ```
 
-## Implementacao
+## Alterações
 
-1. Mover o FormField de `gross_margin_target_percent` para fora do grid atual
-2. Criar um novo Card com titulo "Metas de Projeto" e icone Target
-3. Adicionar descricao explicando o proposito das metas
-4. Mover o botao "Salvar Configuracoes" para fora dos cards (salva tudo junto)
-5. Importar icone `Target` do lucide-react
+**Arquivo:** `src/components/projects/detail/ProjectCostsTab.tsx`
 
-## Resultado
+### CostCard - Novo Layout
 
-- Separacao clara entre percentuais de markup e metas de acompanhamento
-- Interface mais organizada e intuitiva
-- Possibilidade de adicionar mais metas no futuro nessa mesma secao
+```tsx
+function CostCard({ ... }: CostCardProps) {
+  return (
+    <Card>
+      <CardContent className="pt-4">
+        <div className="flex items-start gap-2">
+          {/* Icon */}
+          <div className={cn('flex h-9 w-9 ...', iconBg)}>
+            {icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            
+            {/* Linha 1: Percentual grande + valor previsto pequeno */}
+            <div className="flex items-baseline gap-2 mt-1">
+              <div className="flex items-center gap-1">
+                {/* Ícone de tendência */}
+                <TrendingDown className="h-4 w-4 text-green-600" />
+                {/* Percentual grande */}
+                <span className="text-xl font-bold text-green-600">
+                  38%
+                </span>
+              </div>
+              {/* Valor previsto pequeno ao lado */}
+              <span className="text-xs text-muted-foreground">
+                R$ 239.040,00
+              </span>
+            </div>
+            
+            {/* Linha 2: Valor absoluto atual pequeno */}
+            <p className="text-sm text-muted-foreground mt-0.5">
+              R$ 90.000,00
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### MarginCard - Novo Layout
+
+Para o card de Margem Bruta:
+
+```tsx
+function MarginCard({ ... }: MarginCardProps) {
+  return (
+    <Card className="bg-primary/5">
+      <CardContent className="pt-4">
+        <div className="flex items-start gap-2">
+          <div className="...">
+            <DollarSign className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground">Margem Bruta</p>
+            
+            {/* Linha 1: Percentual grande + valor orçado pequeno */}
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-xl font-bold text-green-600">
+                44.9%
+              </span>
+              <span className="text-xs text-muted-foreground">
+                R$ 145.664,15 (orçado)
+              </span>
+            </div>
+            
+            {/* Linha 2: Valor absoluto */}
+            <p className="text-sm text-muted-foreground mt-0.5">
+              R$ 198.704,15
+            </p>
+            
+            {/* Linha 3: Meta e gap */}
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t">
+              <span className="text-xs text-muted-foreground">
+                Meta: 40%
+              </span>
+              <span className="text-xs text-green-600">
+                ✓ +4.9pp
+              </span>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+## Hierarquia Visual Final
+
+| Elemento | Tamanho | Cor |
+|----------|---------|-----|
+| Percentual | `text-xl font-bold` | Verde/Vermelho conforme tendência |
+| Valor previsto (base) | `text-xs` | `text-muted-foreground` |
+| Valor absoluto (atual) | `text-sm` | `text-muted-foreground` |
+| Meta | `text-xs` | `text-muted-foreground` |
+| Gap da meta | `text-xs font-medium` | Verde/Âmbar |
+
+## Resultado Esperado
+
+Cards mais focados em indicadores de performance (%), com valores monetários como contexto secundário.
