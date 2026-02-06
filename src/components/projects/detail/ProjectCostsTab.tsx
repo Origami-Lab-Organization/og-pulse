@@ -112,14 +112,13 @@ function CostCard({
   );
 }
 
-// Net Margin Card Component for planning mode (Budgeted vs Planned)
+// Gross Margin Card Component for planning mode (Budgeted vs Planned)
+// Gross Margin = Revenue - Taxes - Project Costs (no admin expenses)
 interface MarginCardProps {
   contractValue: number;
   totalPlannedCost: number;
   totalBudgetedCost: number;
   taxesPercent: number;
-  adminExpensesPercent: number;
-  commissionPercent: number;
 }
 
 function MarginCard({ 
@@ -127,29 +126,20 @@ function MarginCard({
   totalPlannedCost, 
   totalBudgetedCost,
   taxesPercent,
-  adminExpensesPercent,
-  commissionPercent,
 }: MarginCardProps) {
-  // Calculate deductions from revenue
+  // Calculate gross margin: Revenue - Taxes - Costs
   const taxes = contractValue * (taxesPercent / 100);
-  const adminExpenses = contractValue * (adminExpensesPercent / 100);
-  const commission = contractValue * (commissionPercent / 100);
-  const netRevenue = contractValue - taxes - adminExpenses - commission;
+  const revenueAfterTaxes = contractValue - taxes;
   
-  // Calculate net margins
-  const netMarginPlanned = netRevenue - totalPlannedCost;
-  const netMarginBudgeted = netRevenue - totalBudgetedCost;
+  // Calculate gross margins
+  const grossMarginPlanned = revenueAfterTaxes - totalPlannedCost;
+  const grossMarginBudgeted = revenueAfterTaxes - totalBudgetedCost;
   
   // Calculate percentages based on contract value
-  const plannedPercent = contractValue > 0 ? (netMarginPlanned / contractValue) * 100 : 0;
+  const plannedPercent = contractValue > 0 ? (grossMarginPlanned / contractValue) * 100 : 0;
   
-  // Calculate variation (planned vs budgeted)
-  const variationPercent = netMarginBudgeted !== 0 
-    ? ((netMarginPlanned - netMarginBudgeted) / Math.abs(netMarginBudgeted)) * 100 
-    : 0;
-  
-  const isPlannedPositive = netMarginPlanned >= 0;
-  const isVariationPositive = netMarginPlanned >= netMarginBudgeted;
+  const isPlannedPositive = grossMarginPlanned >= 0;
+  const isVariationPositive = grossMarginPlanned >= grossMarginBudgeted;
   
   return (
     <Card className="bg-primary/5">
@@ -159,18 +149,18 @@ function MarginCard({
             <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground">Margem Líquida</p>
+            <p className="text-sm text-muted-foreground">Margem Bruta</p>
             <div className="mt-1">
               {/* Planned margin - highlighted */}
               <p className={cn(
                 "text-lg font-bold leading-tight",
                 isPlannedPositive ? "text-green-600" : "text-destructive"
               )}>
-                {formatCurrency(netMarginPlanned)}
+                {formatCurrency(grossMarginPlanned)}
               </p>
               {/* Budgeted margin - smaller */}
               <p className="text-xs text-muted-foreground mt-0.5">
-                de {formatCurrency(netMarginBudgeted)} (orçado)
+                de {formatCurrency(grossMarginBudgeted)} (orçado)
               </p>
               {/* Variation indicator */}
               <div className="flex items-center gap-1 mt-1">
@@ -377,8 +367,6 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
             totalPlannedCost={totalPlanned}
             totalBudgetedCost={budgetedCosts.total}
             taxesPercent={budget?.taxes_percent || 0}
-            adminExpensesPercent={budget?.admin_expenses_percent || 0}
-            commissionPercent={budget?.commission_percent || 0}
           />
         )}
       </div>
