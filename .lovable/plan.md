@@ -1,140 +1,84 @@
 
-# Plano: Melhorar Layout dos Cards de Custos
+# Plano: Simplificar Card de Resumo Financeiro
 
-## Problemas Identificados
+## Problema Atual
 
-1. **Legibilidade ruim**: A hierarquia visual atual mistura elementos de forma confusa
-2. **Excesso de cards**: 5 cards na linha ocupam muito espaco e o card de "Custo Total" tem informacao redundante
-
-## Solucao Proposta
-
-Reduzir para **4 cards** combinando "Custo Total" e "Margem Bruta" num unico card de resumo financeiro.
+O card de "Resumo Financeiro" está com layout embolado, tentando mostrar muita informação em colunas apertadas.
 
 ## Layout Proposto
 
+Simplificar para um layout vertical claro, similar aos outros cards:
+
 ```text
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐
-│ 👥 Mao de Obra   │  │ 🚚 Fornecedores  │  │ 📦 Materiais     │  │ 💰 Resumo Financeiro     │
-│                  │  │                  │  │                  │  │                          │
-│ Planejado:       │  │ Planejado:       │  │ Planejado:       │  │ Custo Total    Margem    │
-│ R$ 90.000,00     │  │ R$ 96.000,00     │  │ R$ 0,00          │  │ R$ 186.000    44.9%     │
-│                  │  │                  │  │                  │  │ (78% orcado)  +4.9pp    │
-│ Orcado:          │  │ Orcado:          │  │ Orcado:          │  │                          │
-│ R$ 239.040,00    │  │ R$ 0,00          │  │ R$ 0,00          │  │ Meta: 40%  ✓ Acima      │
-└──────────────────┘  └──────────────────┘  └──────────────────┘  └──────────────────────────┘
+┌─────────────────────────────────────┐
+│ 💰  Custo Total                     │
+│                                     │
+│ R$ 186.000,00         (valor grande)│
+│ Orçado: R$ 239.040,00 (referência)  │
+│                                     │
+│ Margem: 44.9%  +4.9pp               │
+│ (verde ou vermelho conforme sinal)  │
+└─────────────────────────────────────┘
 ```
 
 ## Alteracoes
 
 **Arquivo:** `src/components/projects/detail/ProjectCostsTab.tsx`
 
-### 1. Redesign do CostCard - Layout mais limpo
+### FinancialSummaryCard Simplificado
 
 ```tsx
-function CostCard({ icon, iconBg, label, plannedValue, actualValue, isPlanningMode, budgetedValue }: CostCardProps) {
-  const baseValue = isPlanningMode ? budgetedValue : plannedValue;
-  const compareValue = isPlanningMode ? plannedValue : actualValue;
-  
-  return (
-    <Card>
-      <CardContent className="pt-4">
-        <div className="flex items-center gap-3">
-          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', iconBg)}>
-            {icon}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            {/* Valor principal (planejado ou realizado) */}
-            <p className="text-lg font-semibold">
-              {formatCurrency(compareValue)}
-            </p>
-            {/* Valor de referencia (orcado ou planejado) */}
-            <p className="text-xs text-muted-foreground">
-              {isPlanningMode ? 'Orçado' : 'Planejado'}: {formatCurrency(baseValue)}
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-```
-
-### 2. Novo FinancialSummaryCard - Combina Custo Total e Margem
-
-```tsx
-interface FinancialSummaryCardProps {
-  totalPlannedCost: number;
-  totalBudgetedCost: number;
-  contractValue: number;
-  taxesPercent: number;
-  grossMarginTarget: number;
-  isPlanningMode: boolean;
-}
-
 function FinancialSummaryCard({ ... }: FinancialSummaryCardProps) {
-  const costPercent = totalBudgetedCost > 0 
-    ? (totalPlannedCost / totalBudgetedCost) * 100 
-    : 0;
+  const displayCost = isPlanningMode ? totalPlannedCost : totalActualCost;
+  const baseDisplayCost = isPlanningMode ? totalBudgetedCost : totalPlannedCost;
   
   const taxes = contractValue * (taxesPercent / 100);
-  const grossMargin = contractValue - taxes - totalPlannedCost;
+  const grossMargin = contractValue - taxes - displayCost;
   const marginPercent = contractValue > 0 
     ? (grossMargin / contractValue) * 100 
     : 0;
   
-  const isAboveTarget = marginPercent >= grossMarginTarget;
   const gap = marginPercent - grossMarginTarget;
+  const isPositive = gap >= 0;
   
   return (
     <Card className="bg-primary/5">
       <CardContent className="pt-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100">
-            <DollarSign className="h-5 w-5 text-emerald-600" />
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+            <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="flex-1 min-w-0 space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">Resumo Financeiro</p>
+          <div className="flex-1 min-w-0">
+            {/* Titulo: Custo Total */}
+            <p className="text-sm font-medium text-muted-foreground">Custo Total</p>
             
-            {/* Duas colunas: Custo Total | Margem Bruta */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Custo Total */}
-              <div>
-                <p className="text-xs text-muted-foreground">Custo Total</p>
-                <p className="text-lg font-semibold">{formatCurrency(totalPlannedCost)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {costPercent.toFixed(0)}% do orcado
-                </p>
-              </div>
-              
-              {/* Margem Bruta */}
-              <div>
-                <p className="text-xs text-muted-foreground">Margem Bruta</p>
-                <p className={cn(
-                  "text-lg font-semibold",
-                  grossMargin >= 0 ? "text-green-600" : "text-destructive"
-                )}>
-                  {marginPercent.toFixed(1)}%
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatCurrency(grossMargin)}
-                </p>
-              </div>
-            </div>
+            {/* Valor principal em destaque */}
+            <p className="text-lg font-semibold">
+              {formatCurrency(displayCost)}
+            </p>
             
-            {/* Meta indicator */}
-            {grossMarginTarget > 0 && (
-              <div className="flex items-center gap-2 pt-2 border-t">
-                <Target className="h-3 w-3" />
-                <span className="text-xs">Meta: {grossMarginTarget}%</span>
+            {/* Valor de referencia */}
+            <p className="text-xs text-muted-foreground">
+              {isPlanningMode ? 'Orçado' : 'Planejado'}: {formatCurrency(baseDisplayCost)}
+            </p>
+            
+            {/* Margem Bruta com gap ao lado (pequeno) */}
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className={cn(
+                "text-sm font-medium",
+                marginPercent >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"
+              )}>
+                Margem: {marginPercent.toFixed(1)}%
+              </span>
+              {grossMarginTarget > 0 && (
                 <span className={cn(
-                  "text-xs font-medium",
-                  isAboveTarget ? "text-green-600" : "text-amber-600"
+                  "text-xs",
+                  isPositive ? "text-green-600 dark:text-green-400" : "text-destructive"
                 )}>
-                  {isAboveTarget ? '✓' : '⚠'} {gap > 0 ? '+' : ''}{gap.toFixed(1)}pp
+                  {isPositive ? '+' : ''}{gap.toFixed(1)}pp
                 </span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </CardContent>
@@ -143,23 +87,20 @@ function FinancialSummaryCard({ ... }: FinancialSummaryCardProps) {
 }
 ```
 
-### 3. Atualizar Grid de Cards
+## Mudancas Principais
 
-```tsx
-{/* De 5 para 4 colunas */}
-<div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-  <CostCard ... label="Mão de Obra" />
-  <CostCard ... label="Fornecedores" />
-  <CostCard ... label="Materiais" />
-  <FinancialSummaryCard ... />  {/* Substitui os 2 cards anteriores */}
-</div>
-```
+| Elemento | Antes | Depois |
+|----------|-------|--------|
+| Titulo | "Resumo Financeiro" | "Custo Total" |
+| Layout | Grid 2 colunas | Vertical simples |
+| Custo | Em sub-coluna | Principal grande |
+| Margem | Em sub-coluna separada | Linha inferior com pp ao lado |
+| Meta | Linha separada com icones | Removida (pp indica a diferenca) |
+| Icones | Target, CheckCircle, AlertTriangle | Removidos |
 
 ## Resultado
 
-| Antes | Depois |
-|-------|--------|
-| 5 cards apertados | 4 cards com mais espaco |
-| Hierarquia confusa | Valores claros e organizados |
-| Custo Total separado da Margem | Informacoes financeiras consolidadas |
-| Porcentagem como foco principal | Valores monetarios como foco, porcentagem como contexto |
+- Layout consistente com os outros 3 cards
+- Hierarquia visual clara: valor principal > referencia > margem
+- Cor verde/vermelha indica se margem e gap sao positivos ou negativos
+- Menos elementos visuais = leitura mais facil
