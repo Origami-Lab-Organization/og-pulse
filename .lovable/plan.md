@@ -1,176 +1,273 @@
 
 
-# Plano: Calculadora de Custos de Funcionário
+# Plano: Reorganizar Calculadora em 3 Areas Distintas
 
 ## Objetivo
 
-Criar uma calculadora independente que permita simular custos de contratação CLT vs PJ sem necessidade de cadastrar o funcionário. A ferramenta calculará:
-1. **Custo para a Empresa** - Salário + Encargos + Provisões + Benefícios
-2. **Salário Líquido do Funcionário** - Salário Bruto menos descontos (INSS, IRRF)
-3. **Comparativo CLT vs PJ** - Visualização lado a lado para tomada de decisão
+Reestruturar a interface da calculadora para apresentar 3 areas claras e distintas, considerando empresa no Simples Nacional:
 
-## Arquitetura
+1. **Custo Empresa** - Detalhamento completo do custo para a empresa
+2. **Salario Liquido + Beneficios** - O que o funcionario efetivamente recebe
+3. **Equivalente PJ** - Valor equivalente se contratado como PJ
+
+## Nova Estrutura Visual
 
 ```text
-┌──────────────────────────────────────────────────────────────────┐
-│                    Página: Calculadora                           │
-├──────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────┐  ┌────────────────────────────┐ │
-│  │    INPUTS                    │  │   RESULTADOS              │ │
-│  │  • Salário Bruto CLT         │  │   ┌────────┐ ┌────────┐   │ │
-│  │  • Benefícios (opcional)     │  │   │  CLT   │ │   PJ   │   │ │
-│  │  • Jornada Mensal            │  │   └────────┘ └────────┘   │ │
-│  └─────────────────────────────┘  │                            │ │
-│                                    │   Custo Empresa: R$ X     │ │
-│                                    │   Sal. Líquido: R$ Y      │ │
-│                                    │                            │ │
-│                                    │   [Detalhamento]          │ │
-│                                    └────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ INPUTS (coluna esquerda)                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  1. CUSTO EMPRESA (CLT)                                              │   │
+│  │  ┌─────────────────┬────────────────┬─────────────────┐              │   │
+│  │  │ Base            │ Encargos       │ Provisoes       │              │   │
+│  │  │ R$ 5.000        │ R$ 1.790       │ R$ 555          │              │   │
+│  │  └─────────────────┴────────────────┴─────────────────┘              │   │
+│  │  Beneficios: R$ 800                                                  │   │
+│  │  ───────────────────────────────────────────────────────             │   │
+│  │  CUSTO TOTAL: R$ 8.145/mes    Custo/Hora: R$ 48,48                   │   │
+│  │  [Ver detalhamento ▼]                                                │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  2. SALARIO LIQUIDO DO FUNCIONARIO                                   │   │
+│  │  Salario Bruto: R$ 5.000                                             │   │
+│  │  (-) INSS: R$ 532,17                                                 │   │
+│  │  (-) IRRF: R$ 263,87                                                 │   │
+│  │  ───────────────────────────────────────────────────────             │   │
+│  │  LIQUIDO: R$ 4.203,96                                                │   │
+│  │  (+) Beneficios: R$ 800 (VR, VT, Saude)                              │   │
+│  │  ───────────────────────────────────────────────────────             │   │
+│  │  TOTAL RECEBIDO: R$ 5.003,96                                         │   │
+│  │  [Ver detalhamento ▼]                                                │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  3. PJ EQUIVALENTE (Simples Nacional)                                │   │
+│  │  Para mesmo custo empresa de R$ 8.145:                               │   │
+│  │  Valor do Contrato PJ: R$ 8.145                                      │   │
+│  │  (-) Impostos (~15% Simples): R$ 1.221,75                            │   │
+│  │  ───────────────────────────────────────────────────────             │   │
+│  │  LIQUIDO ESTIMADO PJ: R$ 6.923,25                                    │   │
+│  │  Custo/Hora PJ: R$ 48,48                                             │   │
+│  │                                                                      │   │
+│  │  ⚠️ Diferenca liquido: +R$ 2.719,29 (+64,7% como PJ)                 │   │
+│  │  ⚠️ PJ nao inclui: FGTS, 13o, Ferias, direitos trabalhistas         │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Cálculos a Implementar
+## Alteracoes nos Arquivos
 
-### 1. Salário Líquido CLT (Descontos do Funcionário)
+### 1. CalculatorResults.tsx - Reescrever Completamente
 
-**INSS do Empregado (Tabela 2024):**
-| Faixa Salarial | Alíquota |
-|----------------|----------|
-| Até R$ 1.412,00 | 7,5% |
-| R$ 1.412,01 a R$ 2.666,68 | 9% |
-| R$ 2.666,69 a R$ 4.000,03 | 12% |
-| R$ 4.000,04 a R$ 7.786,02 | 14% |
-| Acima de R$ 7.786,02 | Teto: R$ 908,86 |
+Substituir a estrutura atual de 2 cards lado a lado por 3 cards verticais:
 
-**IRRF (Tabela 2024):**
-| Base de Cálculo | Alíquota | Dedução |
-|-----------------|----------|---------|
-| Até R$ 2.259,20 | Isento | - |
-| R$ 2.259,21 a R$ 2.826,65 | 7,5% | R$ 169,44 |
-| R$ 2.826,66 a R$ 3.751,05 | 15% | R$ 381,44 |
-| R$ 3.751,06 a R$ 4.664,68 | 22,5% | R$ 662,77 |
-| Acima de R$ 4.664,68 | 27,5% | R$ 896,00 |
+**Card 1 - Custo Empresa:**
+- Resumo visual: Base + Encargos + Provisoes + Beneficios = Total
+- Exibir custo/hora
+- Botao para expandir detalhamento completo
 
-**Fórmula:**
-```
-Base IRRF = Salário Bruto - INSS - (Dependentes × R$ 189,59)
-Salário Líquido = Salário Bruto - INSS - IRRF
-```
+**Card 2 - Salario Liquido do Funcionario:**
+- Salario bruto
+- Descontos (INSS + IRRF)
+- Salario liquido
+- Beneficios recebidos (VR, VT, etc)
+- Total recebido (liquido + beneficios)
+- Botao para expandir detalhamento INSS/IRRF
 
-### 2. Comparativo PJ
+**Card 3 - Equivalente PJ:**
+- Valor do contrato (= custo empresa CLT)
+- Impostos Simples Nacional (~15%)
+- Liquido estimado PJ
+- Custo/hora
+- Comparativo de ganho liquido vs CLT
+- Notas sobre ausencia de beneficios trabalhistas
 
-Para o comparativo, consideramos:
-- **Valor PJ sugerido** = Custo Total CLT (para equivalência de custo empresa)
-- **Valor PJ mínimo** = Salário Bruto CLT + Encargos + Provisões (sem benefícios)
-- Mostrar quanto o profissional receberia líquido como PJ (estimando ~15% de impostos no Simples)
+### 2. CalculatorBreakdown.tsx - Integrar ao CalculatorResults
 
-## Arquivos a Criar/Modificar
+Mover a logica de detalhamento para dentro dos cards como Collapsibles internos, em vez de cards separados.
 
-### Novos Arquivos
+### 3. EmployeeCalculator.tsx - Simplificar
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/lib/netSalaryCalculator.ts` | Funções para calcular INSS, IRRF e salário líquido |
-| `src/pages/EmployeeCalculator.tsx` | Página da calculadora |
-| `src/components/calculator/CalculatorInputs.tsx` | Formulário de entrada |
-| `src/components/calculator/CalculatorResults.tsx` | Cards de resultado CLT vs PJ |
-| `src/components/calculator/CalculatorBreakdown.tsx` | Detalhamento expandível |
+Remover referencia ao CalculatorBreakdown separado, ja que estara integrado.
 
-### Modificações
+## Detalhes de Implementacao
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/App.tsx` | Adicionar rota `/calculator` |
-| `src/components/layout/AppSidebar.tsx` | Adicionar link "Calculadora" no grupo Gestão |
+### Card 1 - Custo Empresa
 
-## Detalhes Técnicos
+```tsx
+<Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+  <CardHeader>
+    <CardTitle>1. Custo para a Empresa (CLT)</CardTitle>
+  </CardHeader>
+  <CardContent>
+    {/* Grid com os 4 componentes de custo */}
+    <div className="grid grid-cols-4 gap-2 text-center">
+      <div className="p-3 rounded bg-background">
+        <p className="text-xs text-muted-foreground">Base</p>
+        <p className="font-bold">{formatCurrency(cltCost.baseAmount)}</p>
+      </div>
+      <div className="p-3 rounded bg-background">
+        <p className="text-xs text-muted-foreground">Encargos</p>
+        <p className="font-bold">{formatCurrency(cltCost.chargesAmount)}</p>
+      </div>
+      <div className="p-3 rounded bg-background">
+        <p className="text-xs text-muted-foreground">Provisoes</p>
+        <p className="font-bold">{formatCurrency(cltCost.provisionsAmount)}</p>
+      </div>
+      <div className="p-3 rounded bg-background">
+        <p className="text-xs text-muted-foreground">Beneficios</p>
+        <p className="font-bold">{formatCurrency(cltCost.benefitsAmount)}</p>
+      </div>
+    </div>
 
-### 1. Calculador de Salário Líquido (`netSalaryCalculator.ts`)
+    {/* Total e Custo/Hora */}
+    <div className="mt-4 p-4 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+      <div className="flex justify-between items-center">
+        <span className="font-semibold">Custo Total Mensal</span>
+        <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+          {formatCurrency(cltCost.totalMonthlyCost)}
+        </span>
+      </div>
+      <div className="flex justify-between text-sm text-muted-foreground mt-1">
+        <span>Custo/Hora</span>
+        <span>{formatCurrency(cltHourlyCost)}/h</span>
+      </div>
+    </div>
 
-```typescript
-interface INSSBracket {
-  min: number;
-  max: number;
-  rate: number;
-}
-
-interface IRRFBracket {
-  min: number;
-  max: number;
-  rate: number;
-  deduction: number;
-}
-
-// Tabelas atualizadas 2024
-const INSS_BRACKETS: INSSBracket[] = [
-  { min: 0, max: 1412.00, rate: 0.075 },
-  { min: 1412.01, max: 2666.68, rate: 0.09 },
-  { min: 2666.69, max: 4000.03, rate: 0.12 },
-  { min: 4000.04, max: 7786.02, rate: 0.14 },
-];
-const INSS_CEILING = 908.86;
-
-const IRRF_BRACKETS: IRRFBracket[] = [
-  { min: 0, max: 2259.20, rate: 0, deduction: 0 },
-  { min: 2259.21, max: 2826.65, rate: 0.075, deduction: 169.44 },
-  { min: 2826.66, max: 3751.05, rate: 0.15, deduction: 381.44 },
-  { min: 3751.06, max: 4664.68, rate: 0.225, deduction: 662.77 },
-  { min: 4664.69, max: Infinity, rate: 0.275, deduction: 896.00 },
-];
-const DEPENDENT_DEDUCTION = 189.59;
-
-export function calculateINSS(salarioBruto: number): number
-export function calculateIRRF(salarioBruto: number, inss: number, dependents: number): number
-export function calculateNetSalary(salarioBruto: number, dependents: number): NetSalaryBreakdown
+    {/* Collapsible detalhamento */}
+    <Collapsible>
+      <CollapsibleTrigger>Ver detalhamento</CollapsibleTrigger>
+      <CollapsibleContent>
+        {/* Detalhes de encargos e provisoes */}
+      </CollapsibleContent>
+    </Collapsible>
+  </CardContent>
+</Card>
 ```
 
-### 2. Página da Calculadora
+### Card 2 - Salario Liquido
 
-**Inputs:**
-- Salário Bruto CLT (obrigatório)
-- Benefícios mensais (opcional, default 0)
-- Jornada mensal (default 168h)
-- Número de dependentes IRRF (default 0)
+```tsx
+<Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
+  <CardHeader>
+    <CardTitle>2. Salario Liquido do Funcionario</CardTitle>
+  </CardHeader>
+  <CardContent>
+    {/* Calculo do liquido */}
+    <div className="space-y-2">
+      <div className="flex justify-between">
+        <span>Salario Bruto</span>
+        <span>{formatCurrency(cltNetSalary.grossSalary)}</span>
+      </div>
+      <div className="flex justify-between text-destructive">
+        <span>(-) INSS</span>
+        <span>- {formatCurrency(cltNetSalary.inss)}</span>
+      </div>
+      <div className="flex justify-between text-destructive">
+        <span>(-) IRRF</span>
+        <span>- {formatCurrency(cltNetSalary.irrf)}</span>
+      </div>
+      <div className="flex justify-between font-semibold border-t pt-2">
+        <span>Salario Liquido</span>
+        <span>{formatCurrency(cltNetSalary.netSalary)}</span>
+      </div>
+    </div>
 
-**Outputs lado a lado:**
+    {/* Beneficios */}
+    <div className="mt-4 p-3 rounded bg-green-100 dark:bg-green-900/30">
+      <div className="flex justify-between text-sm">
+        <span>(+) Beneficios</span>
+        <span>+ {formatCurrency(cltCost.benefitsAmount)}</span>
+      </div>
+      <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t">
+        <span>Total Recebido</span>
+        <span className="text-green-700 dark:text-green-300">
+          {formatCurrency(cltNetSalary.netSalary + cltCost.benefitsAmount)}
+        </span>
+      </div>
+    </div>
 
-| Métrica | CLT | PJ Equivalente |
-|---------|-----|----------------|
-| Custo Empresa | R$ X | R$ X |
-| Valor Bruto | R$ Y | R$ Y |
-| Descontos | R$ Z | ~15% Simples |
-| Líquido Estimado | R$ W | R$ V |
-| Custo/Hora | R$ A | R$ B |
-
-### 3. Navegação
-
-Adicionar no grupo "Gestão" do sidebar (acessível a managers/admins):
-```typescript
-{ title: 'Calculadora', url: '/calculator', icon: Calculator, requiresManager: true }
+    {/* Collapsible detalhamento INSS/IRRF */}
+  </CardContent>
+</Card>
 ```
 
-## Fluxo de Uso
+### Card 3 - Equivalente PJ
 
-1. Usuário acessa "Calculadora" no menu lateral
-2. Informa salário bruto CLT desejado e benefícios
-3. Sistema calcula em tempo real:
-   - **CLT**: Custo empresa, encargos, provisões, salário líquido
-   - **PJ**: Valor equivalente de contrato para mesmo custo empresa
-4. Usuário visualiza comparativo para decisão
+```tsx
+<Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+  <CardHeader>
+    <CardTitle>3. Equivalente PJ (Simples Nacional)</CardTitle>
+    <CardDescription>
+      Valor de contrato PJ para o mesmo custo empresa
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    {/* Calculo PJ */}
+    <div className="space-y-2">
+      <div className="flex justify-between">
+        <span>Valor do Contrato</span>
+        <span className="font-bold">{formatCurrency(pjEquivalentValue)}</span>
+      </div>
+      <div className="flex justify-between text-destructive">
+        <span>(-) Impostos (~15% Simples)</span>
+        <span>- {formatCurrency(pjEstimatedTax)}</span>
+      </div>
+      <div className="flex justify-between font-bold text-lg border-t pt-2">
+        <span>Liquido Estimado</span>
+        <span className="text-amber-700 dark:text-amber-300">
+          {formatCurrency(pjNetEstimate)}
+        </span>
+      </div>
+    </div>
 
-## Interface Visual
+    {/* Comparativo */}
+    <div className="mt-4 p-3 rounded bg-amber-100 dark:bg-amber-900/30">
+      <p className="text-sm font-medium mb-2">Comparativo com CLT:</p>
+      <div className="flex justify-between">
+        <span>Diferenca no liquido</span>
+        <span className="font-bold text-green-600">
+          + {formatCurrency(netDifference)} (+{netDifferencePercent}%)
+        </span>
+      </div>
+    </div>
 
-A calculadora utilizará:
-- Cards lado a lado (CLT vs PJ)
-- Cores diferenciadas (primary para CLT, secondary para PJ)
-- Collapsible para detalhamento de cálculos
-- Tooltips explicando cada item
-- Input com máscara de moeda (reutilizar `formatCurrencyMask`)
+    {/* Aviso */}
+    <div className="mt-4 p-3 rounded border border-amber-300 dark:border-amber-700 text-sm">
+      <p className="font-medium">Importante:</p>
+      <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
+        <li>PJ nao tem FGTS, 13o, ferias remuneradas</li>
+        <li>Aliquota de 15% e estimativa (varia por anexo/faturamento)</li>
+        <li>PJ deve arcar com contador e obrigacoes fiscais</li>
+      </ul>
+    </div>
+  </CardContent>
+</Card>
+```
 
-## Validações
+## Cores dos Cards
 
-- Salário bruto mínimo: R$ 1.412,00 (salário mínimo 2024)
-- Benefícios: >= 0
-- Jornada: 1-220 horas
-- Dependentes: 0-10
+| Area | Cor Principal | Justificativa |
+|------|---------------|---------------|
+| Custo Empresa | Azul | Representa a perspectiva do empregador |
+| Salario Liquido | Verde | Representa ganho/dinheiro no bolso |
+| PJ Equivalente | Amber/Dourado | Representa alternativa/opcao |
+
+## Arquivos a Modificar
+
+| Arquivo | Acao |
+|---------|------|
+| `src/components/calculator/CalculatorResults.tsx` | Reescrever com 3 cards verticais |
+| `src/components/calculator/CalculatorBreakdown.tsx` | Integrar como Collapsibles internos |
+| `src/pages/EmployeeCalculator.tsx` | Remover import do CalculatorBreakdown separado |
+
+## Notas Tecnicas
+
+- Manter a logica de calculo existente em `employeeCostCalculator.ts` e `netSalaryCalculator.ts`
+- Usar a constante `PJ_SIMPLES_TAX_RATE = 0.15` ja existente para Simples Nacional
+- Layout responsivo: em telas menores, os cards ficam empilhados verticalmente
+- Collapsibles comecam fechados para nao sobrecarregar a interface inicial
 
