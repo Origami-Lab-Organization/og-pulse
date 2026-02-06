@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { Users, Truck, Package, DollarSign, Target, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Users, Truck, Package, DollarSign } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProjectLaborSection } from '@/components/projects/detail/ProjectLaborSection';
 import { ProjectSuppliersSection } from '@/components/projects/detail/ProjectSuppliersSection';
@@ -94,10 +94,6 @@ function FinancialSummaryCard({
   const displayCost = isPlanningMode ? totalPlannedCost : totalActualCost;
   const baseDisplayCost = isPlanningMode ? totalBudgetedCost : totalPlannedCost;
   
-  const costPercent = baseDisplayCost > 0 
-    ? (displayCost / baseDisplayCost) * 100 
-    : 0;
-  
   // Calculate gross margin: Revenue - Taxes - Costs
   const taxes = contractValue * (taxesPercent / 100);
   const grossMargin = contractValue - taxes - displayCost;
@@ -105,71 +101,47 @@ function FinancialSummaryCard({
     ? (grossMargin / contractValue) * 100 
     : 0;
   
-  const isAboveTarget = marginPercent >= grossMarginTarget;
   const gap = marginPercent - grossMarginTarget;
+  const isPositive = gap >= 0;
   
   return (
     <Card className="bg-primary/5">
       <CardContent className="pt-4">
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
             <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="flex-1 min-w-0 space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">Resumo Financeiro</p>
+          <div className="flex-1 min-w-0">
+            {/* Título: Custo Total */}
+            <p className="text-sm font-medium text-muted-foreground">Custo Total</p>
             
-            {/* Duas colunas: Custo Total | Margem Bruta */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Custo Total */}
-              <div>
-                <p className="text-xs text-muted-foreground">Custo Total</p>
-                <p className="text-lg font-semibold">{formatCurrency(displayCost)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {costPercent.toFixed(0)}% do {isPlanningMode ? 'orçado' : 'planejado'}
-                </p>
-              </div>
-              
-              {/* Margem Bruta */}
-              <div>
-                <p className="text-xs text-muted-foreground">Margem Bruta</p>
-                <p className={cn(
-                  "text-lg font-semibold",
-                  grossMargin >= 0 ? "text-green-600" : "text-destructive"
+            {/* Valor principal em destaque */}
+            <p className="text-lg font-semibold">
+              {formatCurrency(displayCost)}
+            </p>
+            
+            {/* Valor de referência */}
+            <p className="text-xs text-muted-foreground">
+              {isPlanningMode ? 'Orçado' : 'Planejado'}: {formatCurrency(baseDisplayCost)}
+            </p>
+            
+            {/* Margem Bruta com gap ao lado (pequeno) */}
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className={cn(
+                "text-sm font-medium",
+                marginPercent >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"
+              )}>
+                Margem: {marginPercent.toFixed(1)}%
+              </span>
+              {grossMarginTarget > 0 && (
+                <span className={cn(
+                  "text-xs",
+                  isPositive ? "text-green-600 dark:text-green-400" : "text-destructive"
                 )}>
-                  {marginPercent.toFixed(1)}%
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatCurrency(grossMargin)}
-                </p>
-              </div>
+                  {isPositive ? '+' : ''}{gap.toFixed(1)}pp
+                </span>
+              )}
             </div>
-            
-            {/* Meta indicator */}
-            {grossMarginTarget > 0 && (
-              <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-                <div className="flex items-center gap-1">
-                  <Target className="h-3 w-3 text-muted-foreground shrink-0" />
-                  <span className="text-xs text-muted-foreground">
-                    Meta: {grossMarginTarget.toFixed(0)}%
-                  </span>
-                </div>
-                {isAboveTarget ? (
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600 shrink-0" />
-                    <span className="text-xs font-medium text-green-600">
-                      +{gap.toFixed(1)}pp
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
-                    <span className="text-xs font-medium text-amber-600">
-                      {gap.toFixed(1)}pp
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </CardContent>
