@@ -221,9 +221,12 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
                       </span>
                     )}
                   </div>
-                  {stakeholder.action && (
-                    <p>Ação: {STAKEHOLDER_ACTION_LABELS[stakeholder.action as StakeholderAction]}</p>
-                  )}
+                  <p>
+                    Ação:{' '}
+                    {stakeholder.action
+                      ? STAKEHOLDER_ACTION_LABELS[stakeholder.action as StakeholderAction]
+                      : 'Selecionar'}
+                  </p>
                 </div>
 
                 {(stakeholder.email || stakeholder.phone) && (

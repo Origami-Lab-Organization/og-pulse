@@ -43,11 +43,11 @@ import { formatPhone } from '@/lib/masks';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
-  jobTitle: z.string().optional(),
+  jobTitle: z.string().min(1, 'Cargo é obrigatório'),
   role: z.string().min(1, 'Papel é obrigatório'),
   organization: z.string().optional(),
-  email: z.string().email('E-mail inválido').optional().or(z.literal('')),
-  phone: z.string().optional(),
+  email: z.string().min(1, 'E-mail é obrigatório').email('E-mail inválido'),
+  phone: z.string().min(1, 'Telefone é obrigatório'),
   influenceLevel: z.enum(['high', 'medium', 'low']).optional(),
   interestLevel: z.enum(['high', 'medium', 'low']).optional(),
   sponsorshipLevel: z.enum(['promoter', 'neutral', 'detractor']).optional(),
@@ -196,7 +196,7 @@ export function StakeholderFormDialog({
                 name="jobTitle"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cargo</FormLabel>
+                    <FormLabel>Cargo *</FormLabel>
                     <FormControl>
                       <Input placeholder="Ex: Diretor de TI" {...field} />
                     </FormControl>
@@ -237,7 +237,7 @@ export function StakeholderFormDialog({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>E-mail</FormLabel>
+                    <FormLabel>E-mail *</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="email@exemplo.com" {...field} />
                     </FormControl>
@@ -251,7 +251,7 @@ export function StakeholderFormDialog({
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefone</FormLabel>
+                    <FormLabel>Telefone *</FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="(00) 00000-0000" 
