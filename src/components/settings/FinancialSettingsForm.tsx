@@ -34,6 +34,10 @@ const formSchema = z.object({
     .number()
     .min(0, 'Valor mínimo é 0%')
     .max(100, 'Valor máximo é 100%'),
+  gross_margin_target_percent: z.coerce
+    .number()
+    .min(0, 'Valor mínimo é 0%')
+    .max(100, 'Valor máximo é 100%'),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -49,6 +53,7 @@ export function FinancialSettingsForm() {
       taxes_percent: 0,
       commission_percent: 0,
       net_margin_percent: 0,
+      gross_margin_target_percent: 0,
     },
   });
 
@@ -59,6 +64,7 @@ export function FinancialSettingsForm() {
         taxes_percent: settings.taxes_percent,
         commission_percent: settings.commission_percent,
         net_margin_percent: settings.net_margin_percent ?? 0,
+        gross_margin_target_percent: settings.gross_margin_target_percent ?? 0,
       });
     }
   }, [settings, form]);
@@ -69,6 +75,7 @@ export function FinancialSettingsForm() {
       taxes_percent: data.taxes_percent,
       commission_percent: data.commission_percent,
       net_margin_percent: data.net_margin_percent,
+      gross_margin_target_percent: data.gross_margin_target_percent,
     });
   };
 
@@ -222,6 +229,39 @@ export function FinancialSettingsForm() {
                     </FormControl>
                     <FormDescription>
                       Percentual de margem líquida desejada
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="gross_margin_target_percent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      Meta de Margem Bruta
+                    </FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          placeholder="32.00"
+                          className="pr-8"
+                          {...field}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          %
+                        </span>
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      Meta de margem bruta sobre a receita (ex: 32%)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
