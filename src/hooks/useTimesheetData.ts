@@ -56,16 +56,22 @@ export const getWeekEnd = (date: Date): Date => {
   return addDays(start, 4); // Friday
 };
 
-export const useActiveProjectsWithMembers = () => {
+export interface ActiveProjectsFilterOptions {
+  isAdmin?: boolean;
+  employeeId?: string;
+}
+
+export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptions) => {
   return useQuery({
-    queryKey: ['active-projects-with-members'],
+    queryKey: ['active-projects-with-members', options?.isAdmin, options?.employeeId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('projects')
         .select(`
           id,
           name,
           client_id,
+          manager_id,
           clients!inner (
             id,
             company_name
@@ -81,8 +87,14 @@ export const useActiveProjectsWithMembers = () => {
             )
           )
         `)
-        .or('status.eq.active,portfolio_stage.neq.planning')
-        .order('name');
+        .or('status.eq.active,portfolio_stage.neq.planning');
+
+      // Se não é admin, filtra apenas projetos onde é gerente
+      if (!options?.isAdmin && options?.employeeId) {
+        query = query.eq('manager_id', options.employeeId);
+      }
+
+      const { data, error } = await query.order('name');
 
       if (error) throw error;
 

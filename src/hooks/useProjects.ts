@@ -11,10 +11,15 @@ import {
 export const useProjects = () => {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
+  const isAdmin = employee?.isAdmin ?? false;
+  const employeeId = employee?.id;
 
   return useQuery({
-    queryKey: ['projects', tenantId],
-    queryFn: () => projectService.getAll(tenantId!),
+    queryKey: ['projects', tenantId, isAdmin, employeeId],
+    queryFn: () => projectService.getAll(tenantId!, {
+      isAdmin,
+      managerId: isAdmin ? undefined : employeeId,
+    }),
     enabled: !!tenantId,
   });
 };

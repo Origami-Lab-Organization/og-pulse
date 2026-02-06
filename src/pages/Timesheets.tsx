@@ -49,7 +49,10 @@ export default function Timesheets() {
   const startDateStr = format(weekStart, 'yyyy-MM-dd');
   const endDateStr = format(weekEnd, 'yyyy-MM-dd');
 
-  const { data: projects, isLoading: isLoadingProjects } = useActiveProjectsWithMembers();
+  const { data: projects, isLoading: isLoadingProjects } = useActiveProjectsWithMembers({
+    isAdmin,
+    employeeId: employee?.id,
+  });
   const { data: timesheetEntries, isLoading: isLoadingTimesheets } = useTimesheetsByDateRange(
     startDateStr,
     endDateStr

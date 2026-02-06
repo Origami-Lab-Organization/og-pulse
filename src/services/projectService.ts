@@ -49,17 +49,28 @@ function generateInstallments(
   return installments;
 }
 
+export interface ProjectFilterOptions {
+  isAdmin?: boolean;
+  managerId?: string;
+}
+
 export const projectService = {
-  async getAll(tenantId: string): Promise<ProjectWithRelations[]> {
-    const { data, error } = await supabase
+  async getAll(tenantId: string, options?: ProjectFilterOptions): Promise<ProjectWithRelations[]> {
+    let query = supabase
       .from('projects')
       .select(`
         *,
         client:clients(id, company_name, trading_name),
         manager:employees!projects_manager_id_fkey(id, nome, cargo)
       `)
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false });
+      .eq('tenant_id', tenantId);
+
+    // Se não é admin, filtra apenas projetos onde é gerente
+    if (!options?.isAdmin && options?.managerId) {
+      query = query.eq('manager_id', options.managerId);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching projects:', error);
