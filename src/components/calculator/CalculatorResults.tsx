@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/formatters';
 import { CostBreakdown } from '@/lib/employeeCostCalculator';
@@ -11,18 +13,24 @@ interface CalculatorResultsProps {
   cltCost: CostBreakdown;
   cltNetSalary: NetSalaryBreakdown;
   jornadaMensal: number;
+  pjBase: 'total_cost' | 'gross_salary';
+  setPjBase: (value: 'total_cost' | 'gross_salary') => void;
 }
 
 export function CalculatorResults({
   cltCost,
   cltNetSalary,
   jornadaMensal,
+  pjBase,
+  setPjBase,
 }: CalculatorResultsProps) {
   const [isOpenCost, setIsOpenCost] = useState(false);
   const [isOpenNet, setIsOpenNet] = useState(false);
 
-  // PJ equivalente = mesmo custo empresa
-  const pjEquivalentValue = cltCost.totalMonthlyCost;
+  // PJ equivalente baseado na seleção do usuário
+  const pjEquivalentValue = pjBase === 'total_cost' 
+    ? cltCost.totalMonthlyCost 
+    : cltNetSalary.grossSalary;
   const pjEstimatedTax = pjEquivalentValue * PJ_SIMPLES_TAX_RATE;
   const pjNetEstimate = pjEquivalentValue - pjEstimatedTax;
 
@@ -42,39 +50,39 @@ export function CalculatorResults({
   return (
     <div className="space-y-4">
       {/* Card 1 - Custo para a Empresa */}
-      <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <Building2 className="h-5 w-5 text-primary" />
             1. Custo para a Empresa (CLT)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Grid com os 4 componentes de custo */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-            <div className="p-3 rounded-lg bg-background border">
+            <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Base</p>
               <p className="font-bold">{formatCurrency(cltCost.baseAmount)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-background border">
+            <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Encargos</p>
               <p className="font-bold">{formatCurrency(cltCost.chargesAmount)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-background border">
+            <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Provisões</p>
               <p className="font-bold">{formatCurrency(cltCost.provisionsAmount)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-background border">
+            <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Benefícios</p>
               <p className="font-bold">{formatCurrency(cltCost.benefitsAmount)}</p>
             </div>
           </div>
 
           {/* Total e Custo/Hora */}
-          <div className="p-4 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+          <div className="p-4 rounded-lg bg-muted">
             <div className="flex justify-between items-center">
               <span className="font-semibold">Custo Total Mensal</span>
-              <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+              <span className="text-2xl font-bold text-foreground">
                 {formatCurrency(cltCost.totalMonthlyCost)}
               </span>
             </div>
@@ -101,7 +109,7 @@ export function CalculatorResults({
                 {/* Encargos */}
                 <div>
                   <h4 className="font-medium text-muted-foreground mb-2">Encargos sobre Salário</h4>
-                  <div className="space-y-1 pl-2 border-l-2 border-blue-200 dark:border-blue-800">
+                  <div className="space-y-1 pl-2 border-l-2 border-border">
                     <div className="flex justify-between py-1">
                       <span>FGTS (8%)</span>
                       <span>{formatCurrency(cltCost.details.fgts)}</span>
@@ -128,7 +136,7 @@ export function CalculatorResults({
                 {/* Provisões */}
                 <div>
                   <h4 className="font-medium text-muted-foreground mb-2">Provisões</h4>
-                  <div className="space-y-1 pl-2 border-l-2 border-blue-200 dark:border-blue-800">
+                  <div className="space-y-1 pl-2 border-l-2 border-border">
                     <div className="flex justify-between py-1">
                       <span>13º Salário (1/12)</span>
                       <span>{formatCurrency(cltCost.details.provisao13)}</span>
@@ -158,10 +166,10 @@ export function CalculatorResults({
       </Card>
 
       {/* Card 2 - Salário Líquido do Funcionário */}
-      <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <User className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <User className="h-5 w-5 text-primary" />
             2. Salário Líquido do Funcionário
           </CardTitle>
         </CardHeader>
@@ -187,14 +195,14 @@ export function CalculatorResults({
           </div>
 
           {/* Benefícios e Total Recebido */}
-          <div className="p-4 rounded-lg bg-green-100 dark:bg-green-900/30">
+          <div className="p-4 rounded-lg bg-muted">
             <div className="flex justify-between text-sm">
               <span>(+) Benefícios</span>
-              <span className="text-green-700 dark:text-green-300">+ {formatCurrency(cltCost.benefitsAmount)}</span>
+              <span className="text-foreground">+ {formatCurrency(cltCost.benefitsAmount)}</span>
             </div>
-            <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-green-200 dark:border-green-700">
+            <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-border">
               <span>Total Recebido</span>
-              <span className="text-green-700 dark:text-green-300">
+              <span className="text-foreground">
                 {formatCurrency(totalRecebidoCLT)}
               </span>
             </div>
@@ -217,7 +225,7 @@ export function CalculatorResults({
                 {/* INSS */}
                 <div>
                   <h4 className="font-medium text-muted-foreground mb-2">INSS do Empregado (Progressivo)</h4>
-                  <div className="space-y-1 pl-2 border-l-2 border-green-200 dark:border-green-800">
+                  <div className="space-y-1 pl-2 border-l-2 border-border">
                     {cltNetSalary.inssBreakdown.bracket1 > 0 && (
                       <div className="flex justify-between py-1">
                         <span>Faixa 1 (até R$ 1.412 - 7,5%)</span>
@@ -248,7 +256,7 @@ export function CalculatorResults({
                 {/* IRRF */}
                 <div>
                   <h4 className="font-medium text-muted-foreground mb-2">IRRF</h4>
-                  <div className="space-y-1 pl-2 border-l-2 border-green-200 dark:border-green-800">
+                  <div className="space-y-1 pl-2 border-l-2 border-border">
                     <div className="flex justify-between py-1">
                       <span>Base de Cálculo</span>
                       <span>{formatCurrency(cltNetSalary.irrfBase)}</span>
@@ -274,19 +282,42 @@ export function CalculatorResults({
       </Card>
 
       {/* Card 3 - Equivalente PJ */}
-      <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Briefcase className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <Briefcase className="h-5 w-5 text-primary" />
             3. Equivalente PJ (Simples Nacional)
           </CardTitle>
           <CardDescription>
-            Valor de contrato PJ para o mesmo custo empresa
+            Valor de contrato PJ para comparação
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Seletor de base PJ */}
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Comparar com:</p>
+            <RadioGroup 
+              value={pjBase} 
+              onValueChange={(value) => setPjBase(value as 'total_cost' | 'gross_salary')}
+              className="space-y-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="total_cost" id="total_cost" />
+                <Label htmlFor="total_cost" className="cursor-pointer">
+                  Custo Total Empresa ({formatCurrency(cltCost.totalMonthlyCost)})
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="gross_salary" id="gross_salary" />
+                <Label htmlFor="gross_salary" className="cursor-pointer">
+                  Salário Bruto ({formatCurrency(cltNetSalary.grossSalary)})
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
           {/* Cálculo PJ */}
-          <div className="space-y-2">
+          <div className="space-y-2 pt-2 border-t">
             <div className="flex justify-between py-1">
               <span>Valor do Contrato</span>
               <span className="font-bold">{formatCurrency(pjEquivalentValue)}</span>
@@ -297,7 +328,7 @@ export function CalculatorResults({
             </div>
             <div className="flex justify-between py-2 font-bold text-lg border-t">
               <span>Líquido Estimado</span>
-              <span className="text-amber-700 dark:text-amber-300">
+              <span className="text-foreground">
                 {formatCurrency(pjNetEstimate)}
               </span>
             </div>
@@ -308,7 +339,7 @@ export function CalculatorResults({
           </div>
 
           {/* Comparativo */}
-          <div className="p-4 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+          <div className="p-4 rounded-lg bg-muted">
             <p className="text-sm font-medium mb-2">Comparativo com CLT:</p>
             <div className="flex justify-between items-center">
               <span className="text-sm">Diferença no líquido</span>
@@ -319,14 +350,14 @@ export function CalculatorResults({
           </div>
 
           {/* Aviso */}
-          <div className="p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/50">
+          <div className="p-3 rounded-lg border bg-muted/50">
             <div className="flex gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-amber-800 dark:text-amber-200">Importante:</p>
+                <p className="font-medium">Importante:</p>
                 <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
                   <li>PJ não tem FGTS, 13º, férias remuneradas</li>
-                  <li>Alíquota de 15% é estimativa (varia por anexo/faturamento)</li>
+                  <li>Alíquota de 6% é estimativa (varia por anexo/faturamento)</li>
                   <li>PJ deve arcar com contador e obrigações fiscais</li>
                 </ul>
               </div>

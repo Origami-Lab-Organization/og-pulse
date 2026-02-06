@@ -37,7 +37,7 @@ const IRRF_BRACKETS: IRRFBracket[] = [
 export const DEPENDENT_DEDUCTION = 189.59;
 
 // Alíquota estimada Simples Nacional para PJ (média)
-export const PJ_SIMPLES_TAX_RATE = 0.15;
+export const PJ_SIMPLES_TAX_RATE = 0.06;
 
 export interface INSSBreakdown {
   bracket1: number;
