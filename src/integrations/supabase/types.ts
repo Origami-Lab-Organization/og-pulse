@@ -713,6 +713,7 @@ export type Database = {
           admin_expenses_percent: number
           commission_percent: number
           created_at: string
+          gross_margin_target_percent: number | null
           id: string
           net_margin_percent: number
           taxes_percent: number
@@ -723,6 +724,7 @@ export type Database = {
           admin_expenses_percent?: number
           commission_percent?: number
           created_at?: string
+          gross_margin_target_percent?: number | null
           id?: string
           net_margin_percent?: number
           taxes_percent?: number
@@ -733,6 +735,7 @@ export type Database = {
           admin_expenses_percent?: number
           commission_percent?: number
           created_at?: string
+          gross_margin_target_percent?: number | null
           id?: string
           net_margin_percent?: number
           taxes_percent?: number

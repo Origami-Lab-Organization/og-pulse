@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { Users, Truck, Package, TrendingUp, TrendingDown, Minus, DollarSign } from 'lucide-react';
+import { Users, Truck, Package, TrendingUp, TrendingDown, Minus, DollarSign, Target, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProjectLaborSection } from '@/components/projects/detail/ProjectLaborSection';
 import { ProjectSuppliersSection } from '@/components/projects/detail/ProjectSuppliersSection';
@@ -12,6 +12,7 @@ import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
 import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
 import { useBudget } from '@/hooks/useBudgets';
 import { useSuppliers } from '@/hooks/useSuppliers';
+import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { differenceInMonths, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -119,6 +120,7 @@ interface MarginCardProps {
   totalPlannedCost: number;
   totalBudgetedCost: number;
   taxesPercent: number;
+  grossMarginTarget: number;
 }
 
 function MarginCard({ 
@@ -126,6 +128,7 @@ function MarginCard({
   totalPlannedCost, 
   totalBudgetedCost,
   taxesPercent,
+  grossMarginTarget,
 }: MarginCardProps) {
   // Calculate gross margin: Revenue - Taxes - Costs
   const taxes = contractValue * (taxesPercent / 100);
@@ -139,7 +142,10 @@ function MarginCard({
   const plannedPercent = contractValue > 0 ? (grossMarginPlanned / contractValue) * 100 : 0;
   
   const isPlannedPositive = grossMarginPlanned >= 0;
-  const isVariationPositive = grossMarginPlanned >= grossMarginBudgeted;
+  
+  // Compare with target
+  const isAboveTarget = plannedPercent >= grossMarginTarget;
+  const gapToTarget = plannedPercent - grossMarginTarget;
   
   return (
     <Card className="bg-primary/5">
@@ -157,29 +163,40 @@ function MarginCard({
                 isPlannedPositive ? "text-green-600" : "text-destructive"
               )}>
                 {formatCurrency(grossMarginPlanned)}
+                <span className="text-sm font-medium ml-1">
+                  ({plannedPercent.toFixed(1)}%)
+                </span>
               </p>
               {/* Budgeted margin - smaller */}
               <p className="text-xs text-muted-foreground mt-0.5">
                 de {formatCurrency(grossMarginBudgeted)} (orçado)
               </p>
-              {/* Variation indicator */}
-              <div className="flex items-center gap-1 mt-1">
-                {isVariationPositive ? (
-                  <>
-                    <TrendingUp className="h-3 w-3 text-green-600 shrink-0" />
-                    <span className="text-xs font-medium text-green-600">
-                      {plannedPercent.toFixed(1)}%
+              {/* Target indicator */}
+              {grossMarginTarget > 0 && (
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-1">
+                    <Target className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-muted-foreground">
+                      Meta: {grossMarginTarget.toFixed(0)}%
                     </span>
-                  </>
-                ) : (
-                  <>
-                    <TrendingDown className="h-3 w-3 text-destructive shrink-0" />
-                    <span className="text-xs font-medium text-destructive">
-                      {plannedPercent.toFixed(1)}%
-                    </span>
-                  </>
-                )}
-              </div>
+                  </div>
+                  {isAboveTarget ? (
+                    <div className="flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3 text-green-600 shrink-0" />
+                      <span className="text-xs font-medium text-green-600">
+                        +{gapToTarget.toFixed(1)}pp
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                      <span className="text-xs font-medium text-amber-600">
+                        {gapToTarget.toFixed(1)}pp
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -204,6 +221,9 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
 
   // Fetch linked budget if exists
   const { data: budget } = useBudget(project.budget_id);
+
+  // Fetch financial settings for gross margin target
+  const { data: financialSettings } = useFinancialSettings();
 
   // Fetch available suppliers from registry
   const { data: availableSuppliers = [] } = useSuppliers();
@@ -367,6 +387,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
             totalPlannedCost={totalPlanned}
             totalBudgetedCost={budgetedCosts.total}
             taxesPercent={budget?.taxes_percent || 0}
+            grossMarginTarget={financialSettings?.gross_margin_target_percent || 0}
           />
         )}
       </div>
