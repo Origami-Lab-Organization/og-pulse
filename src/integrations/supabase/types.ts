@@ -1332,6 +1332,50 @@ export type Database = {
           },
         ]
       }
+      project_timesheet_submissions: {
+        Row: {
+          created_at: string | null
+          id: string
+          project_id: string
+          status: string
+          submitted_at: string | null
+          submitted_by: string | null
+          total_hours: number | null
+          updated_at: string | null
+          week_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          project_id: string
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          total_hours?: number | null
+          updated_at?: string | null
+          week_start: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          total_hours?: number | null
+          updated_at?: string | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_timesheet_submissions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_timesheets: {
         Row: {
           created_at: string
@@ -1770,6 +1814,7 @@ export type Database = {
           version_id: string
         }[]
       }
+      get_project_tenant_id: { Args: { _project_id: string }; Returns: string }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

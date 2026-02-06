@@ -1,7 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { TimesheetSubmission, SubmitWeekInput, AdminEditInput, AdminBatchEditInput } from '@/types/timesheetSubmission';
+import { 
+  TimesheetSubmission, 
+  ProjectTimesheetSubmission,
+  SubmitWeekInput, 
+  SubmitProjectWeekInput,
+  AdminEditInput, 
+  AdminBatchEditInput 
+} from '@/types/timesheetSubmission';
+
+// ============= Legacy Global Submission Hooks =============
 
 export const useWeekSubmission = (weekStart: string, tenantId: string | undefined) => {
   return useQuery({
@@ -19,7 +28,6 @@ export const useWeekSubmission = (weekStart: string, tenantId: string | undefine
       if (error) throw error;
       
       if (data && data.submitted_by) {
-        // Fetch the employee name who submitted
         const { data: employee } = await supabase
           .from('employees')
           .select('nome')
@@ -47,13 +55,11 @@ export const useSubmitWeek = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // Get week end date (Friday)
       const weekStartDate = new Date(weekStart);
       const weekEndDate = new Date(weekStartDate);
       weekEndDate.setDate(weekEndDate.getDate() + 4);
       const weekEndStr = weekEndDate.toISOString().split('T')[0];
 
-      // Create or update the submission record
       const { data: submission, error: submissionError } = await supabase
         .from('timesheet_submissions')
         .upsert({
@@ -71,7 +77,6 @@ export const useSubmitWeek = () => {
 
       if (submissionError) throw submissionError;
 
-      // Lock all timesheets for this week
       const { error: lockError } = await supabase
         .from('project_timesheets')
         .update({ is_locked: true, updated_by: user.id })
@@ -101,6 +106,187 @@ export const useSubmitWeek = () => {
   });
 };
 
+// ============= Per-Project Submission Hooks =============
+
+export const useProjectWeekSubmissions = (weekStart: string, projectIds: string[]) => {
+  return useQuery({
+    queryKey: ['project-timesheet-submissions', weekStart, projectIds],
+    queryFn: async () => {
+      if (projectIds.length === 0) return new Map<string, ProjectTimesheetSubmission>();
+      
+      const { data, error } = await supabase
+        .from('project_timesheet_submissions')
+        .select('*')
+        .eq('week_start', weekStart)
+        .in('project_id', projectIds);
+
+      if (error) throw error;
+      
+      const submissionsMap = new Map<string, ProjectTimesheetSubmission>();
+      
+      for (const submission of data || []) {
+        let submittedByEmployee = null;
+        
+        if (submission.submitted_by) {
+          const { data: employee } = await supabase
+            .from('employees')
+            .select('nome')
+            .eq('auth_id', submission.submitted_by)
+            .maybeSingle();
+          submittedByEmployee = employee;
+        }
+        
+        submissionsMap.set(submission.project_id, {
+          ...submission,
+          status: submission.status as 'draft' | 'submitted',
+          submitted_by_employee: submittedByEmployee,
+        });
+      }
+      
+      return submissionsMap;
+    },
+    enabled: projectIds.length > 0,
+  });
+};
+
+export const useSubmitProjectWeek = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ projectId, weekStart, totalHours }: SubmitProjectWeekInput) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const weekStartDate = new Date(weekStart);
+      const weekEndDate = new Date(weekStartDate);
+      weekEndDate.setDate(weekEndDate.getDate() + 4);
+      const weekEndStr = weekEndDate.toISOString().split('T')[0];
+
+      // Upsert project submission
+      const { data: submission, error: submissionError } = await supabase
+        .from('project_timesheet_submissions')
+        .upsert({
+          project_id: projectId,
+          week_start: weekStart,
+          status: 'submitted',
+          submitted_at: new Date().toISOString(),
+          submitted_by: user.id,
+          total_hours: totalHours,
+        }, {
+          onConflict: 'project_id,week_start',
+        })
+        .select()
+        .single();
+
+      if (submissionError) throw submissionError;
+
+      // Lock timesheets for this specific project in this week
+      const { error: lockError } = await supabase
+        .from('project_timesheets')
+        .update({ is_locked: true, updated_by: user.id })
+        .eq('project_id', projectId)
+        .gte('work_date', weekStart)
+        .lte('work_date', weekEndStr);
+
+      if (lockError) throw lockError;
+
+      return submission;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['project-timesheet-submissions'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
+      queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+      toast({
+        title: 'Projeto enviado',
+        description: 'Os timesheets do projeto foram enviados e travados.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao enviar projeto',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useSubmitAllProjects = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ 
+      projects, 
+      weekStart 
+    }: { 
+      projects: { projectId: string; totalHours: number }[]; 
+      weekStart: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const weekStartDate = new Date(weekStart);
+      const weekEndDate = new Date(weekStartDate);
+      weekEndDate.setDate(weekEndDate.getDate() + 4);
+      const weekEndStr = weekEndDate.toISOString().split('T')[0];
+
+      const results = [];
+
+      for (const project of projects) {
+        const { data: submission, error: submissionError } = await supabase
+          .from('project_timesheet_submissions')
+          .upsert({
+            project_id: project.projectId,
+            week_start: weekStart,
+            status: 'submitted',
+            submitted_at: new Date().toISOString(),
+            submitted_by: user.id,
+            total_hours: project.totalHours,
+          }, {
+            onConflict: 'project_id,week_start',
+          })
+          .select()
+          .single();
+
+        if (submissionError) throw submissionError;
+
+        const { error: lockError } = await supabase
+          .from('project_timesheets')
+          .update({ is_locked: true, updated_by: user.id })
+          .eq('project_id', project.projectId)
+          .gte('work_date', weekStart)
+          .lte('work_date', weekEndStr);
+
+        if (lockError) throw lockError;
+
+        results.push(submission);
+      }
+
+      return results;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-timesheet-submissions'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
+      queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+      toast({
+        title: 'Todos os projetos enviados',
+        description: 'Os timesheets de todos os projetos foram enviados e travados.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao enviar projetos',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+// ============= Admin Edit Hooks =============
+
 export const useAdminEditTimesheet = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -118,9 +304,7 @@ export const useAdminEditTimesheet = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // If timesheetId exists, update it
       if (timesheetId) {
-        // Insert audit log
         const { error: logError } = await supabase
           .from('timesheet_edit_logs')
           .insert({
@@ -133,7 +317,6 @@ export const useAdminEditTimesheet = () => {
 
         if (logError) throw logError;
 
-        // Update the timesheet
         const { data, error } = await supabase
           .from('project_timesheets')
           .update({ 
@@ -147,7 +330,6 @@ export const useAdminEditTimesheet = () => {
         if (error) throw error;
         return data;
       } else {
-        // Create new locked timesheet entry
         const { data, error } = await supabase
           .from('project_timesheets')
           .insert({
@@ -163,7 +345,6 @@ export const useAdminEditTimesheet = () => {
 
         if (error) throw error;
 
-        // Insert audit log for the new entry
         const { error: logError } = await supabase
           .from('timesheet_edit_logs')
           .insert({
@@ -182,7 +363,7 @@ export const useAdminEditTimesheet = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
-      queryClient.invalidateQueries({ queryKey: ['timesheet-submission'] });
+      queryClient.invalidateQueries({ queryKey: ['project-timesheet-submissions'] });
       toast({
         title: 'Timesheet atualizado',
         description: 'A alteração foi registrada com justificativa.',
@@ -212,7 +393,6 @@ export const useAdminBatchEditTimesheets = () => {
       for (const change of changes) {
         let timesheetId = change.timesheetId;
 
-        // If no timesheet exists, create one
         if (!timesheetId) {
           const { data: newTimesheet, error: createError } = await supabase
             .from('project_timesheets')
@@ -230,7 +410,6 @@ export const useAdminBatchEditTimesheets = () => {
           if (createError) throw createError;
           timesheetId = newTimesheet.id;
         } else {
-          // Update existing timesheet
           const { error: updateError } = await supabase
             .from('project_timesheets')
             .update({ 
@@ -242,7 +421,6 @@ export const useAdminBatchEditTimesheets = () => {
           if (updateError) throw updateError;
         }
 
-        // Insert audit log for this change
         const { error: logError } = await supabase
           .from('timesheet_edit_logs')
           .insert({
@@ -263,7 +441,7 @@ export const useAdminBatchEditTimesheets = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
-      queryClient.invalidateQueries({ queryKey: ['timesheet-submission'] });
+      queryClient.invalidateQueries({ queryKey: ['project-timesheet-submissions'] });
       toast({
         title: 'Timesheets atualizados',
         description: `${variables.changes.length} alteração(ões) registrada(s) com sucesso.`,

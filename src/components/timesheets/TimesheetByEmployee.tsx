@@ -1,8 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { User, CheckCircle2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { TimesheetWeekRow } from './TimesheetWeekRow';
 import { EmployeeWithProjects, WeekDay, TimesheetEntry } from '@/hooks/useTimesheetData';
+import { ProjectTimesheetSubmission } from '@/types/timesheetSubmission';
 import { Holiday } from '@/types/holiday';
 import { isHoliday } from '@/hooks/useHolidays';
 import { format, parseISO } from 'date-fns';
@@ -20,7 +22,7 @@ interface TimesheetByEmployeeProps {
   weekDays: WeekDay[];
   timesheetEntries: TimesheetEntry[];
   holidays?: Holiday[];
-  isLocked?: boolean;
+  submissions: Map<string, ProjectTimesheetSubmission>;
   isAdmin?: boolean;
 }
 
@@ -29,7 +31,7 @@ export function TimesheetByEmployee({
   weekDays, 
   timesheetEntries, 
   holidays = [],
-  isLocked = false,
+  submissions,
   isAdmin = false,
 }: TimesheetByEmployeeProps) {
   if (employees.length === 0) {
@@ -59,6 +61,11 @@ export function TimesheetByEmployee({
       });
     });
     return total;
+  };
+
+  const isProjectLocked = (projectId: string): boolean => {
+    const submission = submissions.get(projectId);
+    return submission?.status === 'submitted';
   };
 
   return (
@@ -126,20 +133,36 @@ export function TimesheetByEmployee({
               </div>
               
               {/* Project Rows */}
-              {employee.projects.map((project) => (
-                <TimesheetWeekRow
-                  key={project.memberId}
-                  label={project.projectName}
-                  subLabel={project.clientName}
-                  projectId={project.projectId}
-                  memberId={project.memberId}
-                  weekDays={weekDays}
-                  existingEntries={timesheetEntries}
-                  holidays={holidays}
-                  isLocked={isLocked}
-                  isAdmin={isAdmin}
-                />
-              ))}
+              {employee.projects.map((project) => {
+                const projectLocked = isProjectLocked(project.projectId);
+                
+                return (
+                  <div key={project.memberId} className="relative">
+                    {projectLocked && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
+                        <Badge 
+                          variant="secondary" 
+                          className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] py-0"
+                        >
+                          <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                          Enviado
+                        </Badge>
+                      </div>
+                    )}
+                    <TimesheetWeekRow
+                      label={project.projectName}
+                      subLabel={project.clientName}
+                      projectId={project.projectId}
+                      memberId={project.memberId}
+                      weekDays={weekDays}
+                      existingEntries={timesheetEntries}
+                      holidays={holidays}
+                      isLocked={projectLocked}
+                      isAdmin={isAdmin}
+                    />
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         );

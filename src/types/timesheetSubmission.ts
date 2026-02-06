@@ -14,6 +14,19 @@ export interface TimesheetSubmission {
   } | null;
 }
 
+export interface ProjectTimesheetSubmission {
+  id: string;
+  project_id: string;
+  week_start: string;
+  status: 'draft' | 'submitted';
+  submitted_at: string | null;
+  submitted_by: string | null;
+  total_hours: number;
+  created_at: string;
+  updated_at: string;
+  submitted_by_employee?: { nome: string } | null;
+}
+
 export interface TimesheetEditLog {
   id: string;
   timesheet_id: string;
@@ -28,6 +41,12 @@ export interface SubmitWeekInput {
   weekStart: string;
   totalHours: number;
   tenantId: string;
+}
+
+export interface SubmitProjectWeekInput {
+  projectId: string;
+  weekStart: string;
+  totalHours: number;
 }
 
 export interface AdminEditInput {
@@ -47,6 +66,11 @@ export interface BatchEditChange {
   workDate: string;
   previousHours: number;
   newHours: number;
+}
+
+export interface AdminBatchEditInput {
+  changes: BatchEditChange[];
+  justification: string;
 }
 
 export interface AdminBatchEditInput {
