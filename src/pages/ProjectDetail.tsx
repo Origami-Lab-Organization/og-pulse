@@ -105,7 +105,7 @@ export default function ProjectDetail() {
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="okrs">OKRs</TabsTrigger>
+            <TabsTrigger value="okrs">OKR</TabsTrigger>
             <TabsTrigger value="costs">Custos</TabsTrigger>
             <TabsTrigger value="schedule">Cronograma</TabsTrigger>
             <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
