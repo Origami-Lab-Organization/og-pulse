@@ -1,74 +1,56 @@
 
-# Plano: Novo Layout dos Cards de Custos do Projeto
+# Plano: Melhorar Layout dos Cards de Custos
 
-## Objetivo
+## Problemas Identificados
 
-Reorganizar a hierarquia visual dos cards de custos para priorizar os percentuais, conforme solicitado.
+1. **Legibilidade ruim**: A hierarquia visual atual mistura elementos de forma confusa
+2. **Excesso de cards**: 5 cards na linha ocupam muito espaco e o card de "Custo Total" tem informacao redundante
 
-## Layout Atual vs Proposto
+## Solucao Proposta
 
-**Atual:**
+Reduzir para **4 cards** combinando "Custo Total" e "Margem Bruta" num unico card de resumo financeiro.
+
+## Layout Proposto
+
 ```text
-┌────────────────────────────────┐
-│ 👥  Mão de Obra               │
-│                                │
-│ R$ 90.000,00        (grande)   │
-│ de R$ 239.040,00    (pequeno)  │
-│ ↘ 38%               (pequeno)  │
-└────────────────────────────────┘
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐
+│ 👥 Mao de Obra   │  │ 🚚 Fornecedores  │  │ 📦 Materiais     │  │ 💰 Resumo Financeiro     │
+│                  │  │                  │  │                  │  │                          │
+│ Planejado:       │  │ Planejado:       │  │ Planejado:       │  │ Custo Total    Margem    │
+│ R$ 90.000,00     │  │ R$ 96.000,00     │  │ R$ 0,00          │  │ R$ 186.000    44.9%     │
+│                  │  │                  │  │                  │  │ (78% orcado)  +4.9pp    │
+│ Orcado:          │  │ Orcado:          │  │ Orcado:          │  │                          │
+│ R$ 239.040,00    │  │ R$ 0,00          │  │ R$ 0,00          │  │ Meta: 40%  ✓ Acima      │
+└──────────────────┘  └──────────────────┘  └──────────────────┘  └──────────────────────────┘
 ```
 
-**Proposto:**
-```text
-┌────────────────────────────────┐
-│ 👥  Mão de Obra               │
-│                                │
-│ ↘ 38%    R$ 239.040,00        │
-│ (grande)  (previsto pequeno)   │
-│                                │
-│ R$ 90.000,00                   │
-│ (absoluto pequeno)             │
-└────────────────────────────────┘
-```
-
-## Alterações
+## Alteracoes
 
 **Arquivo:** `src/components/projects/detail/ProjectCostsTab.tsx`
 
-### CostCard - Novo Layout
+### 1. Redesign do CostCard - Layout mais limpo
 
 ```tsx
-function CostCard({ ... }: CostCardProps) {
+function CostCard({ icon, iconBg, label, plannedValue, actualValue, isPlanningMode, budgetedValue }: CostCardProps) {
+  const baseValue = isPlanningMode ? budgetedValue : plannedValue;
+  const compareValue = isPlanningMode ? plannedValue : actualValue;
+  
   return (
     <Card>
       <CardContent className="pt-4">
-        <div className="flex items-start gap-2">
-          {/* Icon */}
-          <div className={cn('flex h-9 w-9 ...', iconBg)}>
+        <div className="flex items-center gap-3">
+          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', iconBg)}>
             {icon}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            
-            {/* Linha 1: Percentual grande + valor previsto pequeno */}
-            <div className="flex items-baseline gap-2 mt-1">
-              <div className="flex items-center gap-1">
-                {/* Ícone de tendência */}
-                <TrendingDown className="h-4 w-4 text-green-600" />
-                {/* Percentual grande */}
-                <span className="text-xl font-bold text-green-600">
-                  38%
-                </span>
-              </div>
-              {/* Valor previsto pequeno ao lado */}
-              <span className="text-xs text-muted-foreground">
-                R$ 239.040,00
-              </span>
-            </div>
-            
-            {/* Linha 2: Valor absoluto atual pequeno */}
-            <p className="text-sm text-muted-foreground mt-0.5">
-              R$ 90.000,00
+            <p className="text-sm font-medium text-muted-foreground">{label}</p>
+            {/* Valor principal (planejado ou realizado) */}
+            <p className="text-lg font-semibold">
+              {formatCurrency(compareValue)}
+            </p>
+            {/* Valor de referencia (orcado ou planejado) */}
+            <p className="text-xs text-muted-foreground">
+              {isPlanningMode ? 'Orçado' : 'Planejado'}: {formatCurrency(baseValue)}
             </p>
           </div>
         </div>
@@ -78,46 +60,81 @@ function CostCard({ ... }: CostCardProps) {
 }
 ```
 
-### MarginCard - Novo Layout
-
-Para o card de Margem Bruta:
+### 2. Novo FinancialSummaryCard - Combina Custo Total e Margem
 
 ```tsx
-function MarginCard({ ... }: MarginCardProps) {
+interface FinancialSummaryCardProps {
+  totalPlannedCost: number;
+  totalBudgetedCost: number;
+  contractValue: number;
+  taxesPercent: number;
+  grossMarginTarget: number;
+  isPlanningMode: boolean;
+}
+
+function FinancialSummaryCard({ ... }: FinancialSummaryCardProps) {
+  const costPercent = totalBudgetedCost > 0 
+    ? (totalPlannedCost / totalBudgetedCost) * 100 
+    : 0;
+  
+  const taxes = contractValue * (taxesPercent / 100);
+  const grossMargin = contractValue - taxes - totalPlannedCost;
+  const marginPercent = contractValue > 0 
+    ? (grossMargin / contractValue) * 100 
+    : 0;
+  
+  const isAboveTarget = marginPercent >= grossMarginTarget;
+  const gap = marginPercent - grossMarginTarget;
+  
   return (
     <Card className="bg-primary/5">
       <CardContent className="pt-4">
-        <div className="flex items-start gap-2">
-          <div className="...">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100">
             <DollarSign className="h-5 w-5 text-emerald-600" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground">Margem Bruta</p>
+          <div className="flex-1 min-w-0 space-y-3">
+            <p className="text-sm font-medium text-muted-foreground">Resumo Financeiro</p>
             
-            {/* Linha 1: Percentual grande + valor orçado pequeno */}
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-xl font-bold text-green-600">
-                44.9%
-              </span>
-              <span className="text-xs text-muted-foreground">
-                R$ 145.664,15 (orçado)
-              </span>
+            {/* Duas colunas: Custo Total | Margem Bruta */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Custo Total */}
+              <div>
+                <p className="text-xs text-muted-foreground">Custo Total</p>
+                <p className="text-lg font-semibold">{formatCurrency(totalPlannedCost)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {costPercent.toFixed(0)}% do orcado
+                </p>
+              </div>
+              
+              {/* Margem Bruta */}
+              <div>
+                <p className="text-xs text-muted-foreground">Margem Bruta</p>
+                <p className={cn(
+                  "text-lg font-semibold",
+                  grossMargin >= 0 ? "text-green-600" : "text-destructive"
+                )}>
+                  {marginPercent.toFixed(1)}%
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatCurrency(grossMargin)}
+                </p>
+              </div>
             </div>
             
-            {/* Linha 2: Valor absoluto */}
-            <p className="text-sm text-muted-foreground mt-0.5">
-              R$ 198.704,15
-            </p>
-            
-            {/* Linha 3: Meta e gap */}
-            <div className="flex items-center gap-2 mt-2 pt-2 border-t">
-              <span className="text-xs text-muted-foreground">
-                Meta: 40%
-              </span>
-              <span className="text-xs text-green-600">
-                ✓ +4.9pp
-              </span>
-            </div>
+            {/* Meta indicator */}
+            {grossMarginTarget > 0 && (
+              <div className="flex items-center gap-2 pt-2 border-t">
+                <Target className="h-3 w-3" />
+                <span className="text-xs">Meta: {grossMarginTarget}%</span>
+                <span className={cn(
+                  "text-xs font-medium",
+                  isAboveTarget ? "text-green-600" : "text-amber-600"
+                )}>
+                  {isAboveTarget ? '✓' : '⚠'} {gap > 0 ? '+' : ''}{gap.toFixed(1)}pp
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -126,16 +143,23 @@ function MarginCard({ ... }: MarginCardProps) {
 }
 ```
 
-## Hierarquia Visual Final
+### 3. Atualizar Grid de Cards
 
-| Elemento | Tamanho | Cor |
-|----------|---------|-----|
-| Percentual | `text-xl font-bold` | Verde/Vermelho conforme tendência |
-| Valor previsto (base) | `text-xs` | `text-muted-foreground` |
-| Valor absoluto (atual) | `text-sm` | `text-muted-foreground` |
-| Meta | `text-xs` | `text-muted-foreground` |
-| Gap da meta | `text-xs font-medium` | Verde/Âmbar |
+```tsx
+{/* De 5 para 4 colunas */}
+<div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+  <CostCard ... label="Mão de Obra" />
+  <CostCard ... label="Fornecedores" />
+  <CostCard ... label="Materiais" />
+  <FinancialSummaryCard ... />  {/* Substitui os 2 cards anteriores */}
+</div>
+```
 
-## Resultado Esperado
+## Resultado
 
-Cards mais focados em indicadores de performance (%), com valores monetários como contexto secundário.
+| Antes | Depois |
+|-------|--------|
+| 5 cards apertados | 4 cards com mais espaco |
+| Hierarquia confusa | Valores claros e organizados |
+| Custo Total separado da Margem | Informacoes financeiras consolidadas |
+| Porcentagem como foco principal | Valores monetarios como foco, porcentagem como contexto |
