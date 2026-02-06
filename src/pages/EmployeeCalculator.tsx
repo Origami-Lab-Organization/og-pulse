@@ -13,6 +13,7 @@ export default function EmployeeCalculator() {
   const [beneficios, setBeneficios] = useState('');
   const [jornadaMensal, setJornadaMensal] = useState(DEFAULT_JORNADA.toString());
   const [dependentes, setDependentes] = useState('0');
+  const [pjBase, setPjBase] = useState<'total_cost' | 'gross_salary'>('total_cost');
 
   // Parse valores
   const salarioBrutoNum = parseCurrencyInput(salarioBruto);
@@ -85,6 +86,8 @@ export default function EmployeeCalculator() {
                 cltCost={cltCost}
                 cltNetSalary={cltNetSalary}
                 jornadaMensal={jornadaNum}
+                pjBase={pjBase}
+                setPjBase={setPjBase}
               />
             ) : (
               <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/20">
