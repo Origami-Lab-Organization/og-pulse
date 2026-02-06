@@ -21,8 +21,11 @@ import {
   INTEREST_LEVEL_LABELS,
   ORGANIZATION_OPTIONS,
   SPONSORSHIP_LEVEL_LABELS,
+  STAKEHOLDER_ACTION_LABELS,
   SponsorshipLevel,
+  StakeholderAction,
 } from '@/types/projectStakeholder';
+import { cn } from '@/lib/utils';
 import { StakeholderFormDialog } from '@/components/projects/stakeholders/StakeholderFormDialog';
 
 interface ProjectStakeholdersTabProps {
@@ -130,11 +133,15 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
       ) : (
         <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {stakeholders.map((stakeholder) => (
-            <Card key={stakeholder.id} className="relative group">
+            <Card 
+              key={stakeholder.id} 
+              className="relative group cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => handleEdit(stakeholder)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <span className="text-primary font-medium">
                         {stakeholder.name
                           .split(' ')
@@ -144,8 +151,11 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
                           .toUpperCase()}
                       </span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium">{stakeholder.name}</p>
+                      {stakeholder.job_title && (
+                        <p className="text-sm text-muted-foreground">{stakeholder.job_title}</p>
+                      )}
                       <p className="text-sm text-muted-foreground">{getRoleLabel(stakeholder.role)}</p>
                     </div>
                   </div>
@@ -155,17 +165,18 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEdit(stakeholder)}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(stakeholder); }}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => handleDelete(stakeholder)}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(stakeholder); }}
                         className="text-destructive"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -188,46 +199,49 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
                   )}
                 </div>
 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-1 text-xs text-muted-foreground mb-3">
                   <div className="flex items-center gap-4">
                     {stakeholder.influence_level && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground">Influência:</span>
+                      <span>
+                        Influência:{' '}
                         <Badge
                           variant="outline"
-                          className={getInfluenceColor(stakeholder.influence_level)}
+                          className={cn('text-xs', getInfluenceColor(stakeholder.influence_level))}
                         >
                           {INFLUENCE_LEVEL_LABELS[stakeholder.influence_level]}
                         </Badge>
-                      </div>
+                      </span>
                     )}
                     {stakeholder.interest_level && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground">Interesse:</span>
-                        <Badge variant="outline">
+                      <span>
+                        Interesse:{' '}
+                        <Badge variant="outline" className="text-xs">
                           {INTEREST_LEVEL_LABELS[stakeholder.interest_level]}
                         </Badge>
+                      </span>
+                    )}
+                  </div>
+                  {stakeholder.action && (
+                    <p>Ação: {STAKEHOLDER_ACTION_LABELS[stakeholder.action as StakeholderAction]}</p>
+                  )}
+                </div>
+
+                {(stakeholder.email || stakeholder.phone) && (
+                  <div className="pt-2 border-t space-y-1 text-sm text-muted-foreground">
+                    {stakeholder.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3.5 w-3.5" />
+                        <span className="truncate">{stakeholder.email}</span>
+                      </div>
+                    )}
+                    {stakeholder.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5" />
+                        <span>{stakeholder.phone}</span>
                       </div>
                     )}
                   </div>
-
-                  {(stakeholder.email || stakeholder.phone) && (
-                    <div className="pt-2 border-t space-y-1">
-                      {stakeholder.email && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate">{stakeholder.email}</span>
-                        </div>
-                      )}
-                      {stakeholder.phone && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          <span>{stakeholder.phone}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                )}
               </CardContent>
             </Card>
           ))}
