@@ -106,14 +106,10 @@ export default function ProjectDetail() {
           <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="okrs">OKRs</TabsTrigger>
-            <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
             <TabsTrigger value="costs">Custos</TabsTrigger>
             <TabsTrigger value="schedule">Cronograma</TabsTrigger>
-            {isPlanning ? (
-              <TabsTrigger value="expected">Resultado Esperado</TabsTrigger>
-            ) : (
-              <TabsTrigger value="financial">Financeiro</TabsTrigger>
-            )}
+            <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
+            <TabsTrigger value="financial">Financeiro</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
@@ -128,10 +124,6 @@ export default function ProjectDetail() {
             <ProjectOKRsTab project={project} />
           </TabsContent>
 
-          <TabsContent value="stakeholders" className="mt-6">
-            <ProjectStakeholdersTab project={project} />
-          </TabsContent>
-
           <TabsContent value="costs" className="mt-6">
             <ProjectCostsTab 
               project={project} 
@@ -144,15 +136,17 @@ export default function ProjectDetail() {
             <ProjectScheduleTab project={project} />
           </TabsContent>
 
-          {isPlanning ? (
-            <TabsContent value="expected" className="mt-6">
+          <TabsContent value="stakeholders" className="mt-6">
+            <ProjectStakeholdersTab project={project} />
+          </TabsContent>
+
+          <TabsContent value="financial" className="mt-6">
+            {isPlanning ? (
               <ProjectExpectedResultTab project={project} />
-            </TabsContent>
-          ) : (
-            <TabsContent value="financial" className="mt-6">
+            ) : (
               <ProjectFinancialTab project={project} />
-            </TabsContent>
-          )}
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
