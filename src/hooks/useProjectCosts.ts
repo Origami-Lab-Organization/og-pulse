@@ -49,17 +49,78 @@ export const useAddProjectSupplier = () => {
         .single();
 
       if (error) throw error;
-      return data;
+      return data as ProjectSupplierDB;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['project-suppliers', variables.projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+    onMutate: async (input) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['project', input.projectId] });
+      await queryClient.cancelQueries({ queryKey: ['project-suppliers', input.projectId] });
+
+      // Snapshot previous data
+      const previousProject = queryClient.getQueryData(['project', input.projectId]);
+      const previousSuppliers = queryClient.getQueryData(['project-suppliers', input.projectId]);
+
+      // Optimistically add supplier with temporary ID
+      const tempSupplier: ProjectSupplierDB = {
+        id: `temp-${Date.now()}`,
+        project_id: input.projectId,
+        name: input.name,
+        description: input.description || null,
+        monthly_value: input.monthlyValue,
+        supplier_id: input.supplierId || null,
+        budget_supplier_id: input.budgetSupplierId || null,
+        start_month: input.startMonth,
+        end_month: input.endMonth || null,
+        created_at: new Date().toISOString(),
+      };
+
+      // Update project cache
+      queryClient.setQueryData(['project', input.projectId], (old: { suppliers?: ProjectSupplierDB[] } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          suppliers: [...(old.suppliers || []), tempSupplier],
+        };
+      });
+
+      // Update suppliers cache
+      queryClient.setQueryData(['project-suppliers', input.projectId], (old: ProjectSupplierDB[] | undefined) => {
+        if (!old) return [tempSupplier];
+        return [...old, tempSupplier];
+      });
+
+      return { previousProject, previousSuppliers, projectId: input.projectId };
+    },
+    onSuccess: (newSupplier, input) => {
+      // Replace temp supplier with real one in cache
+      queryClient.setQueryData(['project', input.projectId], (old: { suppliers?: ProjectSupplierDB[] } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          suppliers: old.suppliers?.map((s) =>
+            s.id.startsWith('temp-') ? newSupplier : s
+          ) || [newSupplier],
+        };
+      });
+
+      queryClient.setQueryData(['project-suppliers', input.projectId], (old: ProjectSupplierDB[] | undefined) => {
+        if (!Array.isArray(old)) return [newSupplier];
+        return old.map((s) => (s.id.startsWith('temp-') ? newSupplier : s));
+      });
+
       toast({
         title: 'Fornecedor adicionado',
         description: 'O fornecedor foi adicionado ao projeto.',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _input, context) => {
+      // Rollback on error
+      if (context?.previousProject) {
+        queryClient.setQueryData(['project', context.projectId], context.previousProject);
+      }
+      if (context?.previousSuppliers) {
+        queryClient.setQueryData(['project-suppliers', context.projectId], context.previousSuppliers);
+      }
       toast({
         title: 'Erro ao adicionar fornecedor',
         description: error.message,
