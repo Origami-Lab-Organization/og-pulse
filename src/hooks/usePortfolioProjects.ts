@@ -29,9 +29,11 @@ export interface PortfolioProject {
 export const usePortfolioProjects = (searchQuery?: string) => {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
+  const isAdmin = employee?.isAdmin ?? false;
+  const employeeId = employee?.id;
 
   return useQuery({
-    queryKey: ['portfolio-projects', tenantId, searchQuery],
+    queryKey: ['portfolio-projects', tenantId, searchQuery, isAdmin, employeeId],
     queryFn: async () => {
       let query = supabase
         .from('projects')
@@ -41,18 +43,23 @@ export const usePortfolioProjects = (searchQuery?: string) => {
           total_value,
           start_date,
           portfolio_stage,
+          manager_id,
           client:clients(id, company_name, trading_name),
           manager:employees!projects_manager_id_fkey(id, nome, cargo),
           installments:project_installments(value, status)
         `)
-        .eq('tenant_id', tenantId!)
-        .order('created_at', { ascending: false });
+        .eq('tenant_id', tenantId!);
+
+      // Se não é admin, filtra apenas projetos onde é gerente
+      if (!isAdmin && employeeId) {
+        query = query.eq('manager_id', employeeId);
+      }
 
       if (searchQuery && searchQuery.length > 0) {
         query = query.or(`name.ilike.%${searchQuery}%`);
       }
 
-      const { data, error } = await query;
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching portfolio projects:', error);
