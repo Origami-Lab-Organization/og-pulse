@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { CalculatorInputs, parseCurrencyInput } from '@/components/calculator/CalculatorInputs';
 import { CalculatorResults } from '@/components/calculator/CalculatorResults';
-import { CalculatorBreakdown } from '@/components/calculator/CalculatorBreakdown';
 import { calculateEmployeeCost } from '@/lib/employeeCostCalculator';
 import { calculateNetSalary } from '@/lib/netSalaryCalculator';
 import { Calculator } from 'lucide-react';
@@ -53,7 +52,7 @@ export default function EmployeeCalculator() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Calculadora de Custos</h1>
             <p className="text-muted-foreground">
-              Simule os custos de contratação CLT vs PJ
+              Simule os custos de contratação CLT vs PJ (Simples Nacional)
             </p>
           </div>
         </div>
@@ -80,19 +79,13 @@ export default function EmployeeCalculator() {
           </div>
 
           {/* Resultados - Coluna direita */}
-          <div className="space-y-6">
+          <div>
             {hasValidInput ? (
-              <>
-                <CalculatorResults
-                  cltCost={cltCost}
-                  cltNetSalary={cltNetSalary}
-                  jornadaMensal={jornadaNum}
-                />
-                <CalculatorBreakdown
-                  cltCost={cltCost}
-                  cltNetSalary={cltNetSalary}
-                />
-              </>
+              <CalculatorResults
+                cltCost={cltCost}
+                cltNetSalary={cltNetSalary}
+                jornadaMensal={jornadaNum}
+              />
             ) : (
               <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/20">
                 <div className="text-center text-muted-foreground">
