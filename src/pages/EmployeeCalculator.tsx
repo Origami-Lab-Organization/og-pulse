@@ -58,9 +58,9 @@ export default function EmployeeCalculator() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[350px_1fr]">
-          {/* Inputs - Coluna esquerda */}
-          <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Inputs - Linha superior horizontal */}
+          <div>
             <CalculatorInputs
               salarioBruto={salarioBruto}
               setSalarioBruto={setSalarioBruto}
@@ -73,32 +73,30 @@ export default function EmployeeCalculator() {
             />
 
             {!hasValidInput && salarioBruto && (
-              <p className="text-sm text-amber-600 dark:text-amber-400">
+              <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
                 ⚠️ O salário mínimo em 2024 é R$ 1.412,00
               </p>
             )}
           </div>
 
-          {/* Resultados - Coluna direita */}
-          <div>
-            {hasValidInput ? (
-              <CalculatorResults
-                cltCost={cltCost}
-                cltNetSalary={cltNetSalary}
-                jornadaMensal={jornadaNum}
-                pjBase={pjBase}
-                setPjBase={setPjBase}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/20">
-                <div className="text-center text-muted-foreground">
-                  <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Informe o salário bruto CLT para ver os resultados</p>
-                  <p className="text-sm">(mínimo R$ 1.412,00)</p>
-                </div>
+          {/* Resultados - 3 colunas abaixo */}
+          {hasValidInput ? (
+            <CalculatorResults
+              cltCost={cltCost}
+              cltNetSalary={cltNetSalary}
+              jornadaMensal={jornadaNum}
+              pjBase={pjBase}
+              setPjBase={setPjBase}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-48 border rounded-lg bg-muted/20">
+              <div className="text-center text-muted-foreground">
+                <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Informe o salário bruto CLT para ver os resultados</p>
+                <p className="text-sm">(mínimo R$ 1.412,00)</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>

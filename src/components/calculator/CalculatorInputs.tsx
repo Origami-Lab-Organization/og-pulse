@@ -65,111 +65,113 @@ export function CalculatorInputs({
           Informe os dados para simular os custos de contratação
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Salário Bruto CLT */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="salario-bruto">Salário Bruto CLT</Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p>Salário mensal bruto do funcionário CLT, antes dos descontos.</p>
-              </TooltipContent>
-            </Tooltip>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Salário Bruto CLT */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="salario-bruto">Salário Bruto CLT</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Salário mensal bruto do funcionário CLT, antes dos descontos.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                R$
+              </span>
+              <Input
+                id="salario-bruto"
+                type="text"
+                inputMode="numeric"
+                placeholder="0,00"
+                value={salarioBruto}
+                onChange={(e) => handleCurrencyChange(e.target.value, setSalarioBruto)}
+                className="pl-10"
+              />
+            </div>
           </div>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              R$
-            </span>
+
+          {/* Benefícios Mensais */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="beneficios">Benefícios Mensais</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Soma dos benefícios mensais (VR, VT, plano de saúde, etc.)</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                R$
+              </span>
+              <Input
+                id="beneficios"
+                type="text"
+                inputMode="numeric"
+                placeholder="0,00"
+                value={beneficios}
+                onChange={(e) => handleCurrencyChange(e.target.value, setBeneficios)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Jornada Mensal */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="jornada">Jornada (horas/mês)</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Quantidade de horas trabalhadas por mês. Padrão: 168h (8h × 21 dias)</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <Input
-              id="salario-bruto"
-              type="text"
-              inputMode="numeric"
-              placeholder="0,00"
-              value={salarioBruto}
-              onChange={(e) => handleCurrencyChange(e.target.value, setSalarioBruto)}
-              className="pl-10"
+              id="jornada"
+              type="number"
+              min="1"
+              max="220"
+              placeholder="168"
+              value={jornadaMensal}
+              onChange={(e) => setJornadaMensal(e.target.value)}
             />
           </div>
-        </div>
 
-        {/* Benefícios Mensais */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="beneficios">Benefícios Mensais</Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p>Soma dos benefícios mensais (VR, VT, plano de saúde, etc.)</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              R$
-            </span>
+          {/* Dependentes IRRF */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="dependentes">Dependentes (IRRF)</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Número de dependentes para dedução do IRRF. Cada dependente reduz R$ 189,59 da base de cálculo.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <Input
-              id="beneficios"
-              type="text"
-              inputMode="numeric"
-              placeholder="0,00"
-              value={beneficios}
-              onChange={(e) => handleCurrencyChange(e.target.value, setBeneficios)}
-              className="pl-10"
+              id="dependentes"
+              type="number"
+              min="0"
+              max="10"
+              placeholder="0"
+              value={dependentes}
+              onChange={(e) => setDependentes(e.target.value)}
             />
           </div>
-        </div>
-
-        {/* Jornada Mensal */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="jornada">Jornada Mensal (horas)</Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p>Quantidade de horas trabalhadas por mês. Padrão: 168h (8h × 21 dias)</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <Input
-            id="jornada"
-            type="number"
-            min="1"
-            max="220"
-            placeholder="168"
-            value={jornadaMensal}
-            onChange={(e) => setJornadaMensal(e.target.value)}
-          />
-        </div>
-
-        {/* Dependentes IRRF */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="dependentes">Dependentes (IRRF)</Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p>Número de dependentes para dedução do IRRF. Cada dependente reduz R$ 189,59 da base de cálculo.</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <Input
-            id="dependentes"
-            type="number"
-            min="0"
-            max="10"
-            placeholder="0"
-            value={dependentes}
-            onChange={(e) => setDependentes(e.target.value)}
-          />
         </div>
       </CardContent>
     </Card>
