@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { Users, Truck, Package, TrendingUp, TrendingDown, Minus, DollarSign, Target, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Users, Truck, Package, DollarSign, Target, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProjectLaborSection } from '@/components/projects/detail/ProjectLaborSection';
 import { ProjectSuppliersSection } from '@/components/projects/detail/ProjectSuppliersSection';
@@ -28,7 +28,6 @@ interface CostCardProps {
   label: string;
   plannedValue: number;
   actualValue: number;
-  isTotal?: boolean;
   isPlanningMode?: boolean;
   budgetedValue?: number;
 }
@@ -39,58 +38,31 @@ function CostCard({
   label, 
   plannedValue, 
   actualValue, 
-  isTotal = false,
   isPlanningMode = false,
   budgetedValue = 0
 }: CostCardProps) {
-  // In planning mode: compare planned vs budgeted
-  // In execution mode: compare actual vs planned
+  // In planning mode: show planned vs budgeted
+  // In execution mode: show actual vs planned
   const baseValue = isPlanningMode ? budgetedValue : plannedValue;
   const compareValue = isPlanningMode ? plannedValue : actualValue;
   
-  const percentage = baseValue > 0 ? (compareValue / baseValue) * 100 : 0;
-  const diff = compareValue - baseValue;
-  
-  // Determine trend: over budget (bad), under budget (good), or on track
-  const isOverBudget = diff > 0 && baseValue > 0;
-  const isUnderBudget = diff < 0 && compareValue > 0;
-
-  // Determine color based on trend
-  const getTrendColor = () => {
-    if (isOverBudget) return 'text-destructive';
-    if (isUnderBudget) return 'text-green-600';
-    return 'text-muted-foreground';
-  };
-
-  const TrendIcon = isOverBudget ? TrendingUp : isUnderBudget ? TrendingDown : Minus;
-  
   return (
-    <Card className={cn(isTotal && 'bg-primary/5')}>
+    <Card>
       <CardContent className="pt-4">
-        <div className="flex items-start gap-2">
-          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
+        <div className="flex items-center gap-3">
+          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', iconBg)}>
             {icon}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <div className="mt-1">
-              {/* Linha 1: Percentual grande + valor base pequeno */}
-              <div className="flex items-baseline gap-2">
-                <div className="flex items-center gap-1">
-                  <TrendIcon className={cn('h-4 w-4 shrink-0', getTrendColor())} />
-                  <span className={cn('text-xl font-bold', getTrendColor())}>
-                    {percentage.toFixed(0)}%
-                  </span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {formatCurrency(baseValue)}
-                </span>
-              </div>
-              {/* Linha 2: Valor absoluto atual pequeno */}
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {formatCurrency(compareValue)}
-              </p>
-            </div>
+            <p className="text-sm font-medium text-muted-foreground">{label}</p>
+            {/* Valor principal (planejado ou realizado) */}
+            <p className="text-lg font-semibold">
+              {formatCurrency(compareValue)}
+            </p>
+            {/* Valor de referência (orçado ou planejado) */}
+            <p className="text-xs text-muted-foreground">
+              {isPlanningMode ? 'Orçado' : 'Planejado'}: {formatCurrency(baseValue)}
+            </p>
           </div>
         </div>
       </CardContent>
@@ -98,94 +70,106 @@ function CostCard({
   );
 }
 
-// Gross Margin Card Component for planning mode (Budgeted vs Planned)
-// Gross Margin = Revenue - Taxes - Project Costs (no admin expenses)
-interface MarginCardProps {
-  contractValue: number;
+// Financial Summary Card - combines Total Cost and Gross Margin
+interface FinancialSummaryCardProps {
   totalPlannedCost: number;
   totalBudgetedCost: number;
+  contractValue: number;
   taxesPercent: number;
   grossMarginTarget: number;
+  isPlanningMode: boolean;
+  totalActualCost: number;
 }
 
-function MarginCard({ 
-  contractValue, 
+function FinancialSummaryCard({ 
   totalPlannedCost, 
-  totalBudgetedCost,
-  taxesPercent,
+  totalBudgetedCost, 
+  contractValue, 
+  taxesPercent, 
   grossMarginTarget,
-}: MarginCardProps) {
+  isPlanningMode,
+  totalActualCost,
+}: FinancialSummaryCardProps) {
+  // Determine which cost value to show based on mode
+  const displayCost = isPlanningMode ? totalPlannedCost : totalActualCost;
+  const baseDisplayCost = isPlanningMode ? totalBudgetedCost : totalPlannedCost;
+  
+  const costPercent = baseDisplayCost > 0 
+    ? (displayCost / baseDisplayCost) * 100 
+    : 0;
+  
   // Calculate gross margin: Revenue - Taxes - Costs
   const taxes = contractValue * (taxesPercent / 100);
-  const revenueAfterTaxes = contractValue - taxes;
+  const grossMargin = contractValue - taxes - displayCost;
+  const marginPercent = contractValue > 0 
+    ? (grossMargin / contractValue) * 100 
+    : 0;
   
-  // Calculate gross margins
-  const grossMarginPlanned = revenueAfterTaxes - totalPlannedCost;
-  const grossMarginBudgeted = revenueAfterTaxes - totalBudgetedCost;
-  
-  // Calculate percentages based on contract value
-  const plannedPercent = contractValue > 0 ? (grossMarginPlanned / contractValue) * 100 : 0;
-  const budgetedPercent = contractValue > 0 ? (grossMarginBudgeted / contractValue) * 100 : 0;
-  
-  const isPlannedPositive = grossMarginPlanned >= 0;
-  
-  // Compare with target
-  const isAboveTarget = plannedPercent >= grossMarginTarget;
-  const gapToTarget = plannedPercent - grossMarginTarget;
+  const isAboveTarget = marginPercent >= grossMarginTarget;
+  const gap = marginPercent - grossMarginTarget;
   
   return (
     <Card className="bg-primary/5">
       <CardContent className="pt-4">
-        <div className="flex items-start gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
             <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground">Margem Bruta</p>
-            <div className="mt-1">
-              {/* Linha 1: Percentual grande + valor orçado pequeno */}
-              <div className="flex items-baseline gap-2">
-                <span className={cn(
-                  'text-xl font-bold',
-                  isPlannedPositive ? 'text-green-600' : 'text-destructive'
-                )}>
-                  {plannedPercent.toFixed(1)}%
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {budgetedPercent.toFixed(1)}% orçado
-                </span>
+          <div className="flex-1 min-w-0 space-y-3">
+            <p className="text-sm font-medium text-muted-foreground">Resumo Financeiro</p>
+            
+            {/* Duas colunas: Custo Total | Margem Bruta */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Custo Total */}
+              <div>
+                <p className="text-xs text-muted-foreground">Custo Total</p>
+                <p className="text-lg font-semibold">{formatCurrency(displayCost)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {costPercent.toFixed(0)}% do {isPlanningMode ? 'orçado' : 'planejado'}
+                </p>
               </div>
-              {/* Linha 2: Valor absoluto pequeno */}
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {formatCurrency(grossMarginPlanned)}
-              </p>
-              {/* Linha 3: Meta e gap */}
-              {grossMarginTarget > 0 && (
-                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+              
+              {/* Margem Bruta */}
+              <div>
+                <p className="text-xs text-muted-foreground">Margem Bruta</p>
+                <p className={cn(
+                  "text-lg font-semibold",
+                  grossMargin >= 0 ? "text-green-600" : "text-destructive"
+                )}>
+                  {marginPercent.toFixed(1)}%
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatCurrency(grossMargin)}
+                </p>
+              </div>
+            </div>
+            
+            {/* Meta indicator */}
+            {grossMarginTarget > 0 && (
+              <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                <div className="flex items-center gap-1">
+                  <Target className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground">
+                    Meta: {grossMarginTarget.toFixed(0)}%
+                  </span>
+                </div>
+                {isAboveTarget ? (
                   <div className="flex items-center gap-1">
-                    <Target className="h-3 w-3 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-muted-foreground">
-                      Meta: {grossMarginTarget.toFixed(0)}%
+                    <CheckCircle className="h-3 w-3 text-green-600 shrink-0" />
+                    <span className="text-xs font-medium text-green-600">
+                      +{gap.toFixed(1)}pp
                     </span>
                   </div>
-                  {isAboveTarget ? (
-                    <div className="flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3 text-green-600 shrink-0" />
-                      <span className="text-xs font-medium text-green-600">
-                        +{gapToTarget.toFixed(1)}pp
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
-                      <span className="text-xs font-medium text-amber-600">
-                        {gapToTarget.toFixed(1)}pp
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                    <span className="text-xs font-medium text-amber-600">
+                      {gap.toFixed(1)}pp
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -325,8 +309,8 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
 
   return (
     <div className="space-y-6">
-      {/* Costs Summary */}
-      <div className={cn("grid gap-3", isEditable ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4")}>
+      {/* Costs Summary - 4 cards grid */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <CostCard
           icon={<Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
           iconBg="bg-blue-100 dark:bg-blue-900/30"
@@ -357,27 +341,15 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
           budgetedValue={budgetedCosts.materials}
         />
 
-        <CostCard
-          icon={<Package className="h-5 w-5 text-primary" />}
-          iconBg="bg-primary/20"
-          label="Custo Total"
-          plannedValue={totalPlanned}
-          actualValue={totalActual}
-          isTotal
+        <FinancialSummaryCard
+          totalPlannedCost={totalPlanned}
+          totalBudgetedCost={budgetedCosts.total}
+          totalActualCost={totalActual}
+          contractValue={project.total_value}
+          taxesPercent={budget?.taxes_percent || 0}
+          grossMarginTarget={financialSettings?.gross_margin_target_percent || 0}
           isPlanningMode={isEditable}
-          budgetedValue={budgetedCosts.total}
         />
-
-        {/* Margin Card - only shown in planning mode */}
-        {isEditable && (
-          <MarginCard
-            contractValue={project.total_value}
-            totalPlannedCost={totalPlanned}
-            totalBudgetedCost={budgetedCosts.total}
-            taxesPercent={budget?.taxes_percent || 0}
-            grossMarginTarget={financialSettings?.gross_margin_target_percent || 0}
-          />
-        )}
       </div>
 
       {/* Labor Section */}
