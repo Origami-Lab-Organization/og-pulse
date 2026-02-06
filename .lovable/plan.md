@@ -1,167 +1,174 @@
 
-# Plano: Filtrar Timesheets/Projetos por Gerente do Projeto
+# Plano: Ajustes na Aba de Custos do Planejamento de Projetos
 
-## Entendimento do Problema
+## Resumo das Alterações
 
-Atualmente, todos os gerentes de projeto (`is_gerente = true`) conseguem ver **todos os projetos e timesheets** da organização. O requisito é:
+O usuário solicitou duas modificações:
 
-| Perfil | Projetos Visíveis | Timesheets Visíveis |
-|--------|-------------------|---------------------|
-| **Admin** (`user_roles.role = 'admin'`) | Todos da organização | Todos da organização |
-| **Gerente de Projeto** (`is_gerente = true` sem role admin) | Apenas onde é `manager_id` | Apenas dos projetos que gerencia |
+1. **Fornecedores inline** - Remover o modal de adição e usar edição inline na tabela (mesmo padrão da Alocação de Equipe)
+2. **Margem Líquida Planejada** - Calcular margem líquida real (receita - impostos - custos - despesas administrativas) e comparar orçado vs planejado
 
-## Arquitetura Atual
+---
 
-### Fluxo de Dados
-1. **Timesheets**: `useActiveProjectsWithMembers()` busca todos os projetos ativos sem filtro
-2. **Projetos**: `projectService.getAll()` busca todos os projetos do tenant
+## Ajuste 1: Fornecedores com Edição Inline
 
-### Campos Relevantes
-- `projects.manager_id` → UUID do funcionário que é gerente do projeto
-- `employees.id` → ID do funcionário logado
-- `employees.is_gerente` → Indica se é gerente
-- `user_roles.role = 'admin'` → Indica se é administrador
+### Comportamento Atual
+- Clique em "Adicionar Fornecedor" abre um modal
+- Modal tem dois modos: "Do Orçamento" e "Novo Fornecedor"
+- Valores mensais são editados diretamente na tabela após criação
 
-## Solução Proposta
+### Comportamento Desejado
+- Clique em "Adicionar Fornecedor" insere uma nova linha na tabela
+- A linha contém: Select de fornecedor + inputs de valores mensais
+- Ações na coluna final: Lápis (editar), Salvar (check), Cancelar (X), Excluir (lixeira)
+- Mesmo padrão da `ProjectLaborSection`
 
-### 1. Modificar `useActiveProjectsWithMembers` (Timesheets)
+### Fluxo de Adição Inline
 
-Adicionar parâmetros para filtrar por gerente:
+1. Usuário clica em "Adicionar Fornecedor"
+2. Nova linha aparece no topo/final da tabela com:
+   - **Coluna Fornecedor**: Select rico para escolher fornecedor (do orçamento ou cadastro)
+   - **Colunas de Mês**: Inputs vazios para valores mensais
+   - **Coluna Ações**: Botões Salvar (Check) e Cancelar (X)
+3. Ao selecionar fornecedor do orçamento, valores são pré-preenchidos
+4. Ao clicar Salvar: cria o registro e exibe linha normal
+5. Ao clicar Cancelar: remove a linha temporária
 
-```typescript
-export const useActiveProjectsWithMembers = (options?: { 
-  isAdmin?: boolean; 
-  employeeId?: string;
-}) => {
-  return useQuery({
-    queryFn: async () => {
-      let query = supabase
-        .from('projects')
-        .select(`...`)
-        .or('status.eq.active,portfolio_stage.neq.planning');
-
-      // Se não é admin, filtra apenas projetos onde é gerente
-      if (!options?.isAdmin && options?.employeeId) {
-        query = query.eq('manager_id', options.employeeId);
-      }
-      
-      // ...
-    }
-  });
-};
-```
-
-### 2. Modificar `projectService.getAll` (Projetos)
-
-Adicionar parâmetro opcional para filtrar:
-
-```typescript
-async getAll(tenantId: string, options?: { 
-  isAdmin?: boolean; 
-  managerId?: string;
-}): Promise<ProjectWithRelations[]> {
-  let query = supabase
-    .from('projects')
-    .select(`...`)
-    .eq('tenant_id', tenantId);
-  
-  // Filtra por gerente se não for admin
-  if (!options?.isAdmin && options?.managerId) {
-    query = query.eq('manager_id', options.managerId);
-  }
-  
-  // ...
-}
-```
-
-### 3. Atualizar `useProjects` Hook
-
-Passar informações do usuário logado:
-
-```typescript
-export const useProjects = () => {
-  const { employee } = useAuth();
-  const tenantId = employee?.tenant_id;
-  const isAdmin = employee?.isAdmin;
-  const employeeId = employee?.id;
-
-  return useQuery({
-    queryKey: ['projects', tenantId, isAdmin, employeeId],
-    queryFn: () => projectService.getAll(tenantId!, {
-      isAdmin,
-      managerId: isAdmin ? undefined : employeeId,
-    }),
-    enabled: !!tenantId,
-  });
-};
-```
-
-### 4. Atualizar Tela de Timesheets
-
-```typescript
-// Em Timesheets.tsx
-const { employee } = useAuth();
-const isAdmin = employee?.isAdmin ?? false;
-
-const { data: projects } = useActiveProjectsWithMembers({
-  isAdmin,
-  employeeId: employee?.id,
-});
-```
-
-### 5. Atualizar Portfolio (se necessário)
-
-A mesma lógica deve ser aplicada ao hook `usePortfolioProjects` para consistência.
-
-## Arquivos a Modificar
+### Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/hooks/useTimesheetData.ts` | Adicionar parâmetros de filtro em `useActiveProjectsWithMembers` |
-| `src/services/projectService.ts` | Adicionar parâmetros de filtro em `getAll` |
-| `src/hooks/useProjects.ts` | Passar `isAdmin` e `employeeId` para o service |
-| `src/pages/Timesheets.tsx` | Passar parâmetros de filtro para o hook |
-| `src/pages/Projects.tsx` | Garantir que usa o hook atualizado |
-| `src/hooks/usePortfolioProjects.ts` | Aplicar mesma lógica de filtro |
+| `src/components/projects/detail/ProjectSuppliersSection.tsx` | Refatorar para inline editing |
 
-## Fluxo Final
+### Implementação Técnica
 
+**Estados a adicionar:**
+- `isAddingNew: boolean` - Indica se está em modo de adição
+- `newSupplierData: { supplierId, budgetSupplierId, name, description }` - Dados da linha nova
+- `editingRowId: string | null` - ID da linha sendo editada (similar ao `editingHoursMemberId`)
+
+**UI da linha de adição:**
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                    Usuário Acessa /timesheets               │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      ▼
-          ┌───────────────────────┐
-          │   Verifica perfil     │
-          │   (isAdmin? / id?)    │
-          └───────────┬───────────┘
-                      │
-          ┌───────────┴───────────┐
-          ▼                       ▼
-    ┌───────────┐           ┌───────────────────┐
-    │  É Admin  │           │ É Gerente Projeto │
-    └─────┬─────┘           └─────────┬─────────┘
-          │                           │
-          ▼                           ▼
-    ┌───────────────┐         ┌──────────────────────┐
-    │ Busca TODOS   │         │ Busca apenas projetos│
-    │ os projetos   │         │ onde manager_id = id │
-    └───────────────┘         └──────────────────────┘
+┌─────────────────────┬─────────┬─────────┬─────────┬────────┬─────────┐
+│ [Select Fornecedor] │ [Input] │ [Input] │ [Input] │ [Soma] │ ✓ X     │
+│   Do orçamento ou   │  Mês 1  │  Mês 2  │  Mês 3  │ Total  │ Salvar  │
+│   cadastro central  │         │         │         │        │ Cancel  │
+└─────────────────────┴─────────┴─────────┴─────────┴────────┴─────────┘
 ```
 
-## Considerações de Segurança
+**Select Rico:**
+- Agrupa itens: "Do Orçamento" (se houver) e "Cadastro de Fornecedores"
+- Exibe nome e valor mensal orçado lado a lado
+- Ao selecionar do orçamento, preenche valores iniciais
 
-- O filtro é aplicado no frontend via queries ao Supabase
-- As RLS policies existentes garantem que usuários só acessam dados do próprio tenant
-- O campo `manager_id` é confiável pois vem da tabela de projetos protegida por RLS
+---
 
-## Impacto
+## Ajuste 2: Margem Líquida Planejada (Orçado vs Planejado)
 
-| Funcionalidade | Impactada |
-|----------------|-----------|
-| Timesheets | Sim - verá apenas projetos que gerencia |
-| Projetos | Sim - listagem filtrada |
-| Portfolio | Sim - kanban filtrado |
-| Detalhes do Projeto | Não - acesso direto via URL continua funcionando |
-| Orçamentos | Não - lógica separada |
+### Comportamento Atual
+- `MarginCard` mostra "Margem Planejada" = Contrato - Custo Total Planejado
+- Esta é a **margem bruta** (antes de impostos/despesas)
+- Não mostra comparação com o orçamento
+
+### Comportamento Desejado
+- Calcular **margem líquida**: `Receita - Impostos - Custo Total - Despesas Administrativas`
+- Mostrar orçado vs planejado (duas linhas)
+- Usar percentuais de impostos e despesas adm do orçamento vinculado
+
+### Fórmula de Cálculo
+
+**Margem Líquida = Receita Líquida - Custo Total**
+
+Onde:
+```
+Receita Líquida = Valor do Contrato - Impostos - Despesas Adm - Comissão
+Impostos = Contrato × (taxes_percent / 100)
+Despesas Adm = Contrato × (admin_expenses_percent / 100)
+Comissão = Contrato × (commission_percent / 100)
+```
+
+**Margem Líquida Planejada:**
+```
+Receita Líquida - (Custo Mão de Obra Planejado + Custo Fornecedores Planejado + Custo Materiais Planejado)
+```
+
+**Margem Líquida Orçada:**
+```
+Receita Líquida - (Custo Mão de Obra Orçado + Custo Fornecedores Orçado + Custo Materiais Orçado)
+```
+
+### Arquivos a Modificar
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/components/projects/detail/ProjectCostsTab.tsx` | Atualizar `MarginCard` com nova fórmula |
+
+### Atualização do MarginCard
+
+```typescript
+interface MarginCardProps {
+  contractValue: number;
+  totalPlannedCost: number;
+  totalBudgetedCost: number;
+  taxesPercent: number;
+  adminExpensesPercent: number;
+  commissionPercent: number;
+}
+
+function MarginCard({ 
+  contractValue, 
+  totalPlannedCost, 
+  totalBudgetedCost,
+  taxesPercent, 
+  adminExpensesPercent,
+  commissionPercent 
+}: MarginCardProps) {
+  // Deduções da receita
+  const taxes = contractValue * (taxesPercent / 100);
+  const adminExpenses = contractValue * (adminExpensesPercent / 100);
+  const commission = contractValue * (commissionPercent / 100);
+  const netRevenue = contractValue - taxes - adminExpenses - commission;
+  
+  // Margens líquidas
+  const netMarginPlanned = netRevenue - totalPlannedCost;
+  const netMarginBudgeted = netRevenue - totalBudgetedCost;
+  
+  // Percentuais
+  const plannedPercent = contractValue > 0 ? (netMarginPlanned / contractValue) * 100 : 0;
+  const budgetedPercent = contractValue > 0 ? (netMarginBudgeted / contractValue) * 100 : 0;
+  
+  // ...render com duas linhas: Planejado e Orçado
+}
+```
+
+### UI do MarginCard Atualizado
+
+```text
+┌────────────────────────────────────────┐
+│ 💰 Margem Líquida                      │
+│                                        │
+│ Planejada: R$ 25.000,00                │
+│            de R$ 30.000,00 (orçado)    │
+│                                        │
+│ ↘ 83% (do orçado)                      │
+└────────────────────────────────────────┘
+```
+
+---
+
+## Resumo de Alterações por Arquivo
+
+| Arquivo | Mudanças |
+|---------|----------|
+| `src/components/projects/detail/ProjectSuppliersSection.tsx` | Remover Dialog de adição; Adicionar estados `isAddingNew`, `newSupplierData`, `editingRowId`; Criar linha de adição inline com Select rico; Implementar ações Salvar/Cancelar/Editar/Excluir como em Labor |
+| `src/components/projects/detail/ProjectCostsTab.tsx` | Atualizar `MarginCard` para calcular margem líquida; Passar percentuais do orçamento; Mostrar comparação orçado vs planejado |
+
+---
+
+## Considerações Técnicas
+
+1. **Debounce nos inputs de valores**: Manter padrão de 500ms já usado na seção de Mão de Obra
+2. **Select Rico**: Usar `SelectContent` com `min-width` expandido para exibir metadados
+3. **Linha de adição**: Usar estado local antes de persistir (só salva ao clicar Check)
+4. **Percentuais do orçamento**: Obter de `budget.taxes_percent`, `budget.admin_expenses_percent`, `budget.commission_percent`
+5. **Fallback**: Se projeto não tiver orçamento vinculado, usar percentuais 0 ou buscar das configurações financeiras globais
