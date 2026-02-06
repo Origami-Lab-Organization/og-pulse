@@ -112,16 +112,44 @@ function CostCard({
   );
 }
 
-// Margin Card Component for planning mode
+// Net Margin Card Component for planning mode (Budgeted vs Planned)
 interface MarginCardProps {
   contractValue: number;
   totalPlannedCost: number;
+  totalBudgetedCost: number;
+  taxesPercent: number;
+  adminExpensesPercent: number;
+  commissionPercent: number;
 }
 
-function MarginCard({ contractValue, totalPlannedCost }: MarginCardProps) {
-  const grossMargin = contractValue - totalPlannedCost;
-  const marginPercent = contractValue > 0 ? (grossMargin / contractValue) * 100 : 0;
-  const isPositive = grossMargin >= 0;
+function MarginCard({ 
+  contractValue, 
+  totalPlannedCost, 
+  totalBudgetedCost,
+  taxesPercent,
+  adminExpensesPercent,
+  commissionPercent,
+}: MarginCardProps) {
+  // Calculate deductions from revenue
+  const taxes = contractValue * (taxesPercent / 100);
+  const adminExpenses = contractValue * (adminExpensesPercent / 100);
+  const commission = contractValue * (commissionPercent / 100);
+  const netRevenue = contractValue - taxes - adminExpenses - commission;
+  
+  // Calculate net margins
+  const netMarginPlanned = netRevenue - totalPlannedCost;
+  const netMarginBudgeted = netRevenue - totalBudgetedCost;
+  
+  // Calculate percentages based on contract value
+  const plannedPercent = contractValue > 0 ? (netMarginPlanned / contractValue) * 100 : 0;
+  
+  // Calculate variation (planned vs budgeted)
+  const variationPercent = netMarginBudgeted !== 0 
+    ? ((netMarginPlanned - netMarginBudgeted) / Math.abs(netMarginBudgeted)) * 100 
+    : 0;
+  
+  const isPlannedPositive = netMarginPlanned >= 0;
+  const isVariationPositive = netMarginPlanned >= netMarginBudgeted;
   
   return (
     <Card className="bg-primary/5">
@@ -131,32 +159,36 @@ function MarginCard({ contractValue, totalPlannedCost }: MarginCardProps) {
             <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground">Margem Planejada</p>
+            <p className="text-sm text-muted-foreground">Margem Líquida</p>
             <div className="mt-1">
-              {/* Main value - highlighted */}
+              {/* Planned margin - highlighted */}
               <p className={cn(
                 "text-lg font-bold leading-tight",
-                isPositive ? "text-green-600" : "text-destructive"
+                isPlannedPositive ? "text-green-600" : "text-destructive"
               )}>
-                {formatCurrency(grossMargin)}
+                {formatCurrency(netMarginPlanned)}
               </p>
-              {/* Contract value - smaller */}
+              {/* Budgeted margin - smaller */}
               <p className="text-xs text-muted-foreground mt-0.5">
-                de {formatCurrency(contractValue)}
+                de {formatCurrency(netMarginBudgeted)} (orçado)
               </p>
-              {/* Percentage indicator */}
+              {/* Variation indicator */}
               <div className="flex items-center gap-1 mt-1">
-                {isPositive ? (
-                  <TrendingUp className="h-3 w-3 text-green-600 shrink-0" />
+                {isVariationPositive ? (
+                  <>
+                    <TrendingUp className="h-3 w-3 text-green-600 shrink-0" />
+                    <span className="text-xs font-medium text-green-600">
+                      {plannedPercent.toFixed(1)}%
+                    </span>
+                  </>
                 ) : (
-                  <TrendingDown className="h-3 w-3 text-destructive shrink-0" />
+                  <>
+                    <TrendingDown className="h-3 w-3 text-destructive shrink-0" />
+                    <span className="text-xs font-medium text-destructive">
+                      {plannedPercent.toFixed(1)}%
+                    </span>
+                  </>
                 )}
-                <span className={cn(
-                  "text-xs font-medium",
-                  isPositive ? "text-green-600" : "text-destructive"
-                )}>
-                  {marginPercent.toFixed(1)}%
-                </span>
               </div>
             </div>
           </div>
@@ -342,6 +374,10 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
           <MarginCard
             contractValue={project.total_value}
             totalPlannedCost={totalPlanned}
+            totalBudgetedCost={budgetedCosts.total}
+            taxesPercent={budget?.taxes_percent || 0}
+            adminExpensesPercent={budget?.admin_expenses_percent || 0}
+            commissionPercent={budget?.commission_percent || 0}
           />
         )}
       </div>

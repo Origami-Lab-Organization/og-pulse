@@ -1,9 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Plus, Trash2, Truck, DollarSign, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Plus, Trash2, Truck, DollarSign, TrendingUp, TrendingDown, Minus, Pencil, Check, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -14,22 +13,14 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProjectSupplierDB, CreateProjectSupplierInput } from '@/types/project';
@@ -53,6 +44,16 @@ interface ProjectSuppliersSectionProps {
   availableSuppliers: Supplier[];
 }
 
+// New supplier row state
+interface NewSupplierRowData {
+  selectedValue: string; // "budget:ID" or "registry:ID"
+  name: string;
+  description: string;
+  budgetSupplierId?: string;
+  supplierId?: string;
+  monthlyValues: Record<number, number>;
+}
+
 export function ProjectSuppliersSection({
   projectId,
   suppliers,
@@ -63,19 +64,21 @@ export function ProjectSuppliersSection({
   budgetSuppliers,
   availableSuppliers,
 }: ProjectSuppliersSectionProps) {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [actualDialogOpen, setActualDialogOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<ProjectSupplierDB | null>(null);
-  const [selectedBudgetSupplier, setSelectedBudgetSupplier] = useState<string>('');
-  const [selectedRegistrySupplier, setSelectedRegistrySupplier] = useState<string>('');
-  const [useBudgetSupplier, setUseBudgetSupplier] = useState(true);
-  const [formData, setFormData] = useState<Omit<CreateProjectSupplierInput, 'projectId'>>({
+  // Inline add mode
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newSupplierData, setNewSupplierData] = useState<NewSupplierRowData>({
+    selectedValue: '',
     name: '',
     description: '',
-    monthlyValue: 0,
-    startMonth: 1,
-    endMonth: undefined,
+    monthlyValues: {},
   });
+  
+  // Edit mode per supplier
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  
+  // Actual dialog
+  const [actualDialogOpen, setActualDialogOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<ProjectSupplierDB | null>(null);
 
   const addSupplier = useAddProjectSupplier();
   const removeSupplier = useRemoveProjectSupplier();
@@ -87,6 +90,9 @@ export function ProjectSuppliersSection({
   // Local state for debounced planned value input
   const [localValues, setLocalValues] = useState<Record<string, number>>({});
   const pendingUpdates = useRef<Record<string, NodeJS.Timeout>>({});
+  
+  // Original values for cancel functionality
+  const [originalValues, setOriginalValues] = useState<Record<string, number>>({});
 
   // Sync local state when supplierMonths change
   useEffect(() => {
@@ -171,75 +177,154 @@ export function ProjectSuppliersSection({
     [upsertSupplierMonth]
   );
 
-  // Handle budget supplier selection
-  const handleBudgetSupplierSelect = (budgetSupplierId: string) => {
-    setSelectedBudgetSupplier(budgetSupplierId);
-    setSelectedRegistrySupplier('');
+  // Handle new supplier selection
+  const handleNewSupplierSelect = (value: string) => {
+    const [type, id] = value.split(':');
     
-    if (budgetSupplierId) {
-      const bs = budgetSuppliers.find(s => s.id === budgetSupplierId);
+    if (type === 'budget') {
+      const bs = budgetSuppliers.find(s => s.id === id);
       if (bs) {
-        setFormData({
-          ...formData,
+        const monthlyValues: Record<number, number> = {};
+        months.forEach(m => {
+          monthlyValues[m] = bs.monthly_value;
+        });
+        setNewSupplierData({
+          selectedValue: value,
           name: bs.name,
           description: bs.description || '',
-          monthlyValue: bs.monthly_value,
-          budgetSupplierId,
+          budgetSupplierId: id,
+          supplierId: undefined,
+          monthlyValues,
         });
       }
-    }
-  };
-
-  // Handle registry supplier selection
-  const handleRegistrySupplierSelect = (supplierId: string) => {
-    setSelectedRegistrySupplier(supplierId);
-    setSelectedBudgetSupplier('');
-    
-    if (supplierId) {
-      const supplier = availableSuppliers.find(s => s.id === supplierId);
+    } else if (type === 'registry') {
+      const supplier = availableSuppliers.find(s => s.id === id);
       if (supplier) {
-        setFormData({
-          ...formData,
+        setNewSupplierData({
+          selectedValue: value,
           name: supplier.tradingName || supplier.companyName,
           description: '',
-          monthlyValue: 0,
-          supplierId,
+          budgetSupplierId: undefined,
+          supplierId: id,
+          monthlyValues: {},
         });
       }
     }
   };
 
-  const handleSubmit = () => {
-    // Build input based on mode
-    const input: Omit<CreateProjectSupplierInput, 'projectId'> = useBudgetSupplier
+  // Handle new row monthly value change
+  const handleNewRowValueChange = (monthNumber: number, value: number) => {
+    setNewSupplierData(prev => ({
+      ...prev,
+      monthlyValues: { ...prev.monthlyValues, [monthNumber]: value },
+    }));
+  };
+
+  // Save new supplier
+  const handleSaveNewSupplier = async () => {
+    if (!newSupplierData.selectedValue) return;
+    
+    const [type, id] = newSupplierData.selectedValue.split(':');
+    
+    const input: Omit<CreateProjectSupplierInput, 'projectId'> = type === 'budget'
       ? {
-          name: formData.name,
-          description: formData.description,
-          monthlyValue: formData.monthlyValue,
+          name: newSupplierData.name,
+          description: newSupplierData.description,
+          monthlyValue: newSupplierData.monthlyValues[1] || 0,
           startMonth: 1,
           endMonth: undefined,
-          budgetSupplierId: selectedBudgetSupplier,
+          budgetSupplierId: id,
         }
       : {
-          name: availableSuppliers.find(s => s.id === selectedRegistrySupplier)?.tradingName 
-                || availableSuppliers.find(s => s.id === selectedRegistrySupplier)?.companyName
-                || formData.name,
-          description: formData.description,
-          monthlyValue: formData.monthlyValue,
+          name: newSupplierData.name,
+          description: newSupplierData.description,
+          monthlyValue: newSupplierData.monthlyValues[1] || 0,
           startMonth: 1,
           endMonth: undefined,
-          supplierId: selectedRegistrySupplier,
+          supplierId: id,
         };
 
     addSupplier.mutate(
       { projectId, ...input },
       {
-        onSuccess: () => {
-          setDialogOpen(false);
-          resetForm();
+        onSuccess: (newSupplier) => {
+          // After creation, save monthly values
+          Object.entries(newSupplierData.monthlyValues).forEach(([month, value]) => {
+            if (value > 0) {
+              upsertSupplierMonth.mutate({
+                projectSupplierId: newSupplier.id,
+                monthNumber: Number(month),
+                value,
+              });
+            }
+          });
+          handleCancelNewSupplier();
         },
       }
     );
+  };
+
+  // Cancel new supplier
+  const handleCancelNewSupplier = () => {
+    setIsAddingNew(false);
+    setNewSupplierData({
+      selectedValue: '',
+      name: '',
+      description: '',
+      monthlyValues: {},
+    });
+  };
+
+  // Start editing a row
+  const handleStartEdit = (supplierId: string) => {
+    // Save current values for cancel
+    const current: Record<string, number> = {};
+    months.forEach(m => {
+      const key = `${supplierId}-${m}`;
+      current[key] = getValueForMonth(supplierId, m);
+    });
+    setOriginalValues(current);
+    setEditingRowId(supplierId);
+  };
+
+  // Save edit for a supplier (just exit edit mode, values are already saved via debounce)
+  const handleSaveEdit = (supplierId: string) => {
+    // Clear pending timeouts for this supplier
+    Object.keys(pendingUpdates.current).forEach((key) => {
+      if (key.startsWith(supplierId)) {
+        clearTimeout(pendingUpdates.current[key]);
+        delete pendingUpdates.current[key];
+      }
+    });
+    setEditingRowId(null);
+    setOriginalValues({});
+  };
+
+  // Cancel edit and restore original values
+  const handleCancelEdit = (supplierId: string) => {
+    // Clear pending updates
+    Object.keys(pendingUpdates.current).forEach((key) => {
+      if (key.startsWith(supplierId)) {
+        clearTimeout(pendingUpdates.current[key]);
+        delete pendingUpdates.current[key];
+      }
+    });
+    
+    // Restore original values
+    setLocalValues(prev => ({ ...prev, ...originalValues }));
+    
+    // Persist original values back to DB
+    Object.entries(originalValues).forEach(([key, value]) => {
+      const [sid, monthStr] = key.split('-');
+      upsertSupplierMonth.mutate({
+        projectSupplierId: sid,
+        monthNumber: Number(monthStr),
+        value,
+      });
+    });
+    
+    setEditingRowId(null);
+    setOriginalValues({});
   };
 
   const handleDelete = (id: string) => {
@@ -326,28 +411,15 @@ export function ProjectSuppliersSection({
     return budgetSuppliers.filter(bs => !usedIds.includes(bs.id));
   }, [budgetSuppliers, suppliers]);
 
-  // Reset form
-  const resetForm = useCallback(() => {
-    setFormData({ name: '', description: '', monthlyValue: 0, startMonth: 1, endMonth: undefined });
-    setSelectedBudgetSupplier('');
-    setSelectedRegistrySupplier('');
-  }, []);
+  // Calculate new row total
+  const newRowTotal = useMemo(() => {
+    return Object.values(newSupplierData.monthlyValues).reduce((sum, v) => sum + (v || 0), 0);
+  }, [newSupplierData.monthlyValues]);
 
-  // Reset mode when dialog opens based on available budget suppliers
-  useEffect(() => {
-    if (dialogOpen) {
-      setUseBudgetSupplier(unusedBudgetSuppliers.length > 0);
-      resetForm();
-    }
-  }, [dialogOpen, unusedBudgetSuppliers.length, resetForm]);
-
-  // Validation for submit button
-  const canSubmit = useMemo(() => {
-    if (useBudgetSupplier) {
-      return !!selectedBudgetSupplier;
-    }
-    return !!selectedRegistrySupplier && formData.monthlyValue > 0;
-  }, [useBudgetSupplier, selectedBudgetSupplier, selectedRegistrySupplier, formData.monthlyValue]);
+  // Can save new row
+  const canSaveNewRow = useMemo(() => {
+    return !!newSupplierData.selectedValue;
+  }, [newSupplierData.selectedValue]);
 
   return (
     <>
@@ -362,15 +434,15 @@ export function ProjectSuppliersSection({
               Custos mensais recorrentes com fornecedores externos
             </CardDescription>
           </div>
-          {(isEditable || canEditActuals) && (
-            <Button onClick={() => setDialogOpen(true)}>
+          {(isEditable || canEditActuals) && !isAddingNew && (
+            <Button onClick={() => setIsAddingNew(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Adicionar Fornecedor
             </Button>
           )}
         </CardHeader>
         <CardContent>
-          {suppliers.length > 0 ? (
+          {suppliers.length > 0 || isAddingNew ? (
             <ScrollArea className="w-full whitespace-nowrap">
               <div className="rounded-md border">
                 <Table>
@@ -393,10 +465,99 @@ export function ProjectSuppliersSection({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
+                    {/* New Supplier Row (inline add) */}
+                    {isAddingNew && (
+                      <TableRow className="bg-muted/30">
+                        <TableCell className="sticky left-0 bg-muted/30 z-10">
+                          <Select
+                            value={newSupplierData.selectedValue}
+                            onValueChange={handleNewSupplierSelect}
+                          >
+                            <SelectTrigger className="w-full min-w-[180px]">
+                              <SelectValue placeholder="Selecionar fornecedor..." />
+                            </SelectTrigger>
+                            <SelectContent className="min-w-[360px]">
+                              {unusedBudgetSuppliers.length > 0 && (
+                                <SelectGroup>
+                                  <SelectLabel className="text-xs text-muted-foreground">Do Orçamento</SelectLabel>
+                                  {unusedBudgetSuppliers.map((bs) => (
+                                    <SelectItem key={`budget:${bs.id}`} value={`budget:${bs.id}`} className="py-2.5">
+                                      <div className="flex items-center justify-between w-full gap-4">
+                                        <span className="font-medium truncate max-w-[180px]">{bs.name}</span>
+                                        <span className="text-xs font-semibold text-primary whitespace-nowrap">
+                                          {formatCurrency(bs.monthly_value)}/mês
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )}
+                              <SelectGroup>
+                                <SelectLabel className="text-xs text-muted-foreground">Cadastro de Fornecedores</SelectLabel>
+                                {availableSuppliers.map((supplier) => (
+                                  <SelectItem key={`registry:${supplier.id}`} value={`registry:${supplier.id}`} className="py-2.5">
+                                    <div className="flex items-center justify-between w-full gap-4">
+                                      <span className="font-medium truncate max-w-[180px]">
+                                        {supplier.tradingName || supplier.companyName}
+                                      </span>
+                                      {supplier.category && (
+                                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                          {supplier.category}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        {months.map((monthNum) => (
+                          <TableCell key={monthNum} className="text-center p-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="w-20 h-8 text-center mx-auto"
+                              value={newSupplierData.monthlyValues[monthNum] || ''}
+                              onChange={(e) => handleNewRowValueChange(monthNum, Number(e.target.value))}
+                              placeholder="0"
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-center">
+                          <span className="font-medium">{formatCurrency(newRowTotal)}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={handleSaveNewSupplier}
+                              disabled={!canSaveNewRow || addSupplier.isPending}
+                              title="Salvar"
+                            >
+                              <Check className="h-4 w-4 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={handleCancelNewSupplier}
+                              title="Cancelar"
+                            >
+                              <X className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+
+                    {/* Existing Suppliers */}
                     {suppliers.map((supplier) => {
                       const supplierTotal = supplierTotals[supplier.id] || { planned: 0, actual: 0, budgeted: 0 };
                       const budgetedMonthly = getBudgetedValueForSupplier(supplier);
                       const linkedSupplier = availableSuppliers.find(s => s.id === supplier.supplier_id);
+                      const isEditingThis = editingRowId === supplier.id;
 
                       return (
                         <TableRow key={supplier.id}>
@@ -426,35 +587,43 @@ export function ProjectSuppliersSection({
                             return (
                               <TableCell key={monthNum} className="text-center p-2">
                                 {isEditable ? (
-                                  // Planning mode: show planned input with budgeted below
-                                  <div className="flex flex-col gap-0.5 items-center">
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            className="w-20 h-8 text-center mx-auto"
-                                            value={plannedValue || ''}
-                                            onChange={(e) =>
-                                              handleValueChange(
-                                                supplier.id,
-                                                monthNum,
-                                                Number(e.target.value)
-                                              )
-                                            }
-                                          />
-                                        </TooltipTrigger>
-                                        <TooltipContent>Valor Planejado</TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                    {budgetedMonthly > 0 && (
-                                      <span className="text-xs text-muted-foreground">
-                                        {formatCurrency(budgetedMonthly)}
+                                  // Planning mode
+                                  isEditingThis ? (
+                                    // Editing: show input
+                                    <div className="flex flex-col gap-0.5 items-center">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className="w-20 h-8 text-center mx-auto"
+                                        value={plannedValue || ''}
+                                        onChange={(e) =>
+                                          handleValueChange(
+                                            supplier.id,
+                                            monthNum,
+                                            Number(e.target.value)
+                                          )
+                                        }
+                                      />
+                                      {budgetedMonthly > 0 && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {formatCurrency(budgetedMonthly)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    // Not editing: show values as text
+                                    <div className="flex flex-col gap-0.5 items-center">
+                                      <span className="text-sm">
+                                        {plannedValue > 0 ? formatCurrency(plannedValue) : '-'}
                                       </span>
-                                    )}
-                                  </div>
+                                      {budgetedMonthly > 0 && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {formatCurrency(budgetedMonthly)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )
                                 ) : (
                                   // Execution mode: show read-only Plan | Real
                                   <div className="flex items-center justify-center gap-1 text-sm">
@@ -493,31 +662,76 @@ export function ProjectSuppliersSection({
                           {(isEditable || canEditActuals) && (
                             <TableCell>
                               <div className="flex items-center gap-1">
-                                {canEditActuals && !isEditable && (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          size="icon"
-                                          onClick={() => openActualDialog(supplier)}
-                                        >
-                                          <DollarSign className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Lançar custo realizado</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
+                                {isEditable && (
+                                  isEditingThis ? (
+                                    // Save/Cancel mode
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleSaveEdit(supplier.id)}
+                                        title="Salvar"
+                                      >
+                                        <Check className="h-4 w-4 text-green-600" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleCancelEdit(supplier.id)}
+                                        title="Cancelar"
+                                      >
+                                        <X className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    // Edit/Delete mode
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleStartEdit(supplier.id)}
+                                        title="Editar Valores"
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDelete(supplier.id)}
+                                        disabled={removeSupplier.isPending}
+                                        title="Excluir"
+                                      >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </>
+                                  )
                                 )}
-                                {(isEditable || canEditActuals) && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDelete(supplier.id)}
-                                    disabled={removeSupplier.isPending}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
+                                {canEditActuals && !isEditable && (
+                                  <>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => openActualDialog(supplier)}
+                                          >
+                                            <DollarSign className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Lançar custo realizado</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDelete(supplier.id)}
+                                      disabled={removeSupplier.isPending}
+                                      title="Excluir"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </>
                                 )}
                               </div>
                             </TableCell>
@@ -618,157 +832,6 @@ export function ProjectSuppliersSection({
           )}
         </CardContent>
       </Card>
-
-      {/* Add Supplier Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Adicionar Fornecedor</DialogTitle>
-            <DialogDescription>
-              Selecione um fornecedor do orçamento ou adicione um novo do cadastro.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Mode: From Budget */}
-            {unusedBudgetSuppliers.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="useBudgetSupplier"
-                  checked={useBudgetSupplier}
-                  onCheckedChange={(checked) => {
-                    setUseBudgetSupplier(!!checked);
-                    if (checked) {
-                      setSelectedRegistrySupplier('');
-                      setFormData({ ...formData, description: '', monthlyValue: 0 });
-                    } else {
-                      setSelectedBudgetSupplier('');
-                      setFormData({ ...formData, name: '', description: '', monthlyValue: 0 });
-                    }
-                  }}
-                />
-                <Label htmlFor="useBudgetSupplier" className="font-medium cursor-pointer">
-                  Do Orçamento
-                </Label>
-              </div>
-            )}
-
-            {useBudgetSupplier && unusedBudgetSuppliers.length > 0 ? (
-              <div className="space-y-3">
-                <Select value={selectedBudgetSupplier} onValueChange={handleBudgetSupplierSelect}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um serviço do orçamento..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {unusedBudgetSuppliers.map((bs) => (
-                      <SelectItem key={bs.id} value={bs.id}>
-                        <div className="flex items-center justify-between gap-4">
-                          <span>{bs.name}</span>
-                          <span className="text-muted-foreground text-sm">
-                            {formatCurrency(bs.monthly_value)}/mês
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Preview of inherited data */}
-                {selectedBudgetSupplier && (
-                  <div className="p-3 bg-muted rounded-md text-sm space-y-1">
-                    <p><strong>Serviço:</strong> {formData.name}</p>
-                    {formData.description && (
-                      <p><strong>Descrição:</strong> {formData.description}</p>
-                    )}
-                    <p><strong>Valor Mensal:</strong> {formatCurrency(formData.monthlyValue)}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Mode: New Supplier from Registry */
-              <div className="space-y-4">
-                {unusedBudgetSuppliers.length > 0 && (
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="useNewSupplier"
-                      checked={!useBudgetSupplier}
-                      onCheckedChange={(checked) => {
-                        setUseBudgetSupplier(!checked);
-                        if (checked) {
-                          setSelectedBudgetSupplier('');
-                          setFormData({ ...formData, name: '', description: '', monthlyValue: 0 });
-                        }
-                      }}
-                    />
-                    <Label htmlFor="useNewSupplier" className="font-medium cursor-pointer">
-                      Novo Fornecedor
-                    </Label>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label>Fornecedor</Label>
-                  <Select value={selectedRegistrySupplier} onValueChange={handleRegistrySupplierSelect}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um fornecedor cadastrado..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableSuppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id}>
-                          <div className="flex items-center justify-between gap-4">
-                            <span>{supplier.tradingName || supplier.companyName}</span>
-                            {supplier.category && (
-                              <span className="text-muted-foreground text-sm">
-                                {supplier.category}
-                              </span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição do Serviço</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description || ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Ex: Gestão de mídias sociais"
-                    rows={2}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="monthlyValue">Valor Mensal Inicial (R$)</Label>
-                  <Input
-                    id="monthlyValue"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.monthlyValue || ''}
-                    onChange={(e) => setFormData({ ...formData, monthlyValue: Number(e.target.value) })}
-                    placeholder="0,00"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Você poderá ajustar os valores por mês na tabela depois.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit} disabled={!canSubmit || addSupplier.isPending}>
-              Adicionar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Supplier Actual Dialog */}
       {selectedSupplier && (
