@@ -1,41 +1,167 @@
 
-# Plano: Trava de Timesheets por Projeto (em vez de Global) - ✅ IMPLEMENTADO
+# Plano: Filtrar Timesheets/Projetos por Gerente do Projeto
 
-## Resumo da Implementação
+## Entendimento do Problema
 
-A trava de edição de timesheets agora opera em nível de **projeto** em vez de global por semana. Isso permite que gerentes lancem horas em semanas passadas para projetos específicos que ainda não foram submetidos, mesmo que outros projetos da mesma semana já estejam travados.
+Atualmente, todos os gerentes de projeto (`is_gerente = true`) conseguem ver **todos os projetos e timesheets** da organização. O requisito é:
 
-## Mudanças Realizadas
+| Perfil | Projetos Visíveis | Timesheets Visíveis |
+|--------|-------------------|---------------------|
+| **Admin** (`user_roles.role = 'admin'`) | Todos da organização | Todos da organização |
+| **Gerente de Projeto** (`is_gerente = true` sem role admin) | Apenas onde é `manager_id` | Apenas dos projetos que gerencia |
 
-### 1. Banco de Dados
-- ✅ Criada tabela `project_timesheet_submissions` com chave única `(project_id, week_start)`
-- ✅ RLS policies configuradas para segurança
+## Arquitetura Atual
 
-### 2. Tipos TypeScript
-- ✅ Adicionada interface `ProjectTimesheetSubmission`
-- ✅ Adicionada interface `SubmitProjectWeekInput`
+### Fluxo de Dados
+1. **Timesheets**: `useActiveProjectsWithMembers()` busca todos os projetos ativos sem filtro
+2. **Projetos**: `projectService.getAll()` busca todos os projetos do tenant
 
-### 3. Hooks
-- ✅ `useProjectWeekSubmissions(weekStart, projectIds[])` - Busca status de submissão para múltiplos projetos
-- ✅ `useSubmitProjectWeek()` - Submete uma semana específica de um projeto
-- ✅ `useSubmitAllProjects()` - Submete todos os projetos pendentes de uma vez
+### Campos Relevantes
+- `projects.manager_id` → UUID do funcionário que é gerente do projeto
+- `employees.id` → ID do funcionário logado
+- `employees.is_gerente` → Indica se é gerente
+- `user_roles.role = 'admin'` → Indica se é administrador
 
-### 4. Componentes Atualizados
-- ✅ `TimesheetByProject.tsx` - Status individual por card com botão "Enviar" por projeto
-- ✅ `TimesheetByEmployee.tsx` - Mostra badge de status por projeto
-- ✅ `TimesheetWeekStatus.tsx` - Resumo "X de Y projetos enviados" com botão "Enviar Todos"
-- ✅ `SubmitWeekDialog.tsx` - Novos dialogs para projeto individual e todos
+## Solução Proposta
 
-### 5. Página Principal
-- ✅ `Timesheets.tsx` - Usa submissões por projeto em vez de global
+### 1. Modificar `useActiveProjectsWithMembers` (Timesheets)
 
-## Fluxo Atual
+Adicionar parâmetros para filtrar por gerente:
 
-1. Gerente acessa `/timesheets` e seleciona uma semana passada
-2. Projetos já enviados aparecem com badge verde "Enviado" e campos travados
-3. Projetos não enviados aparecem com badge "Rascunho" e campos editáveis
-4. Gerente pode lançar horas nos projetos não enviados
-5. Ao clicar "Enviar" no projeto, apenas aquele projeto fica travado
-6. Botão "Enviar Todos" permite submeter todos os projetos pendentes de uma vez
-7. Administrador pode usar "Editar" em projetos já enviados
+```typescript
+export const useActiveProjectsWithMembers = (options?: { 
+  isAdmin?: boolean; 
+  employeeId?: string;
+}) => {
+  return useQuery({
+    queryFn: async () => {
+      let query = supabase
+        .from('projects')
+        .select(`...`)
+        .or('status.eq.active,portfolio_stage.neq.planning');
 
+      // Se não é admin, filtra apenas projetos onde é gerente
+      if (!options?.isAdmin && options?.employeeId) {
+        query = query.eq('manager_id', options.employeeId);
+      }
+      
+      // ...
+    }
+  });
+};
+```
+
+### 2. Modificar `projectService.getAll` (Projetos)
+
+Adicionar parâmetro opcional para filtrar:
+
+```typescript
+async getAll(tenantId: string, options?: { 
+  isAdmin?: boolean; 
+  managerId?: string;
+}): Promise<ProjectWithRelations[]> {
+  let query = supabase
+    .from('projects')
+    .select(`...`)
+    .eq('tenant_id', tenantId);
+  
+  // Filtra por gerente se não for admin
+  if (!options?.isAdmin && options?.managerId) {
+    query = query.eq('manager_id', options.managerId);
+  }
+  
+  // ...
+}
+```
+
+### 3. Atualizar `useProjects` Hook
+
+Passar informações do usuário logado:
+
+```typescript
+export const useProjects = () => {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+  const isAdmin = employee?.isAdmin;
+  const employeeId = employee?.id;
+
+  return useQuery({
+    queryKey: ['projects', tenantId, isAdmin, employeeId],
+    queryFn: () => projectService.getAll(tenantId!, {
+      isAdmin,
+      managerId: isAdmin ? undefined : employeeId,
+    }),
+    enabled: !!tenantId,
+  });
+};
+```
+
+### 4. Atualizar Tela de Timesheets
+
+```typescript
+// Em Timesheets.tsx
+const { employee } = useAuth();
+const isAdmin = employee?.isAdmin ?? false;
+
+const { data: projects } = useActiveProjectsWithMembers({
+  isAdmin,
+  employeeId: employee?.id,
+});
+```
+
+### 5. Atualizar Portfolio (se necessário)
+
+A mesma lógica deve ser aplicada ao hook `usePortfolioProjects` para consistência.
+
+## Arquivos a Modificar
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/hooks/useTimesheetData.ts` | Adicionar parâmetros de filtro em `useActiveProjectsWithMembers` |
+| `src/services/projectService.ts` | Adicionar parâmetros de filtro em `getAll` |
+| `src/hooks/useProjects.ts` | Passar `isAdmin` e `employeeId` para o service |
+| `src/pages/Timesheets.tsx` | Passar parâmetros de filtro para o hook |
+| `src/pages/Projects.tsx` | Garantir que usa o hook atualizado |
+| `src/hooks/usePortfolioProjects.ts` | Aplicar mesma lógica de filtro |
+
+## Fluxo Final
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    Usuário Acessa /timesheets               │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+          ┌───────────────────────┐
+          │   Verifica perfil     │
+          │   (isAdmin? / id?)    │
+          └───────────┬───────────┘
+                      │
+          ┌───────────┴───────────┐
+          ▼                       ▼
+    ┌───────────┐           ┌───────────────────┐
+    │  É Admin  │           │ É Gerente Projeto │
+    └─────┬─────┘           └─────────┬─────────┘
+          │                           │
+          ▼                           ▼
+    ┌───────────────┐         ┌──────────────────────┐
+    │ Busca TODOS   │         │ Busca apenas projetos│
+    │ os projetos   │         │ onde manager_id = id │
+    └───────────────┘         └──────────────────────┘
+```
+
+## Considerações de Segurança
+
+- O filtro é aplicado no frontend via queries ao Supabase
+- As RLS policies existentes garantem que usuários só acessam dados do próprio tenant
+- O campo `manager_id` é confiável pois vem da tabela de projetos protegida por RLS
+
+## Impacto
+
+| Funcionalidade | Impactada |
+|----------------|-----------|
+| Timesheets | Sim - verá apenas projetos que gerencia |
+| Projetos | Sim - listagem filtrada |
+| Portfolio | Sim - kanban filtrado |
+| Detalhes do Projeto | Não - acesso direto via URL continua funcionando |
+| Orçamentos | Não - lógica separada |
