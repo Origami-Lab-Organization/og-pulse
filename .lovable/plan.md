@@ -1,125 +1,164 @@
 
-# Plano: Acelerar Exibição de Fornecedor na Tabela
+# Plano: Meta de Margem Bruta nas Configurações Financeiras
 
-## Diagnóstico do Problema
+## Resumo
 
-Quando você adiciona um fornecedor:
+Adicionar o campo "Meta de Margem Bruta" nas configurações financeiras. Esse valor (ex: 32%) será usado nos indicadores financeiros do projeto para ajudar no planejamento e execução.
 
-1. O toast aparece imediatamente (após o banco confirmar a inserção)
-2. A query `['project', projectId]` é invalidada
-3. O React Query **refetch** todo o projeto do banco (incluindo members, installments, suppliers, materials)
-4. Só quando essa query termina, a UI atualiza
+---
 
-Esse fluxo causa a demora de 1-3 segundos para o registro aparecer na tabela.
+## Alterações Necessárias
 
-## Solução: Optimistic Update
+### 1. Banco de Dados
 
-Vamos atualizar o cache do React Query **imediatamente** ao adicionar o fornecedor, antes mesmo da resposta do banco. Se houver erro, revertemos.
+Renomear o campo existente `net_margin_percent` para `gross_margin_target_percent` (ou adicionar novo campo):
 
-Esse padrão já é usado em `useRemoveProjectMember` (linhas 242-284) com sucesso.
+```sql
+ALTER TABLE financial_settings 
+  ADD COLUMN IF NOT EXISTS gross_margin_target_percent numeric DEFAULT 0;
 
-## Implementação
-
-### Hook `useAddProjectSupplier`
-
-**Antes:**
-```typescript
-onSuccess: (_, variables) => {
-  queryClient.invalidateQueries({ queryKey: ['project-suppliers'] });
-  queryClient.invalidateQueries({ queryKey: ['project'] });
-  toast({ ... });
-}
+-- Migrar dados existentes
+UPDATE financial_settings 
+SET gross_margin_target_percent = net_margin_percent 
+WHERE gross_margin_target_percent = 0;
 ```
 
-**Depois:**
-```typescript
-onMutate: async (input) => {
-  // Cancel outgoing refetches
-  await queryClient.cancelQueries({ queryKey: ['project', input.projectId] });
-  await queryClient.cancelQueries({ queryKey: ['project-suppliers', input.projectId] });
-  
-  // Snapshot previous data
-  const previousProject = queryClient.getQueryData(['project', input.projectId]);
-  const previousSuppliers = queryClient.getQueryData(['project-suppliers', input.projectId]);
-  
-  // Optimistically add supplier with temporary ID
-  const tempSupplier = {
-    id: `temp-${Date.now()}`,
-    project_id: input.projectId,
-    name: input.name,
-    description: input.description || null,
-    monthly_value: input.monthlyValue,
-    supplier_id: input.supplierId || null,
-    budget_supplier_id: input.budgetSupplierId || null,
-    start_month: input.startMonth,
-    end_month: input.endMonth || null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  
-  // Update project cache
-  queryClient.setQueryData(['project', input.projectId], (old) => {
-    if (!old) return old;
-    return {
-      ...old,
-      suppliers: [...(old.suppliers || []), tempSupplier],
-    };
-  });
-  
-  // Update suppliers cache
-  queryClient.setQueryData(['project-suppliers', input.projectId], (old) => {
-    if (!old) return [];
-    return [...old, tempSupplier];
-  });
-  
-  return { previousProject, previousSuppliers, projectId: input.projectId };
-},
-onSuccess: (newSupplier, input, context) => {
-  // Replace temp supplier with real one in cache
-  queryClient.setQueryData(['project', input.projectId], (old) => {
-    if (!old) return old;
-    return {
-      ...old,
-      suppliers: old.suppliers?.map((s) => 
-        s.id.startsWith('temp-') ? newSupplier : s
-      ) || [newSupplier],
-    };
-  });
-  
-  queryClient.setQueryData(['project-suppliers', input.projectId], (old) => {
-    if (!Array.isArray(old)) return [newSupplier];
-    return old.map((s) => s.id.startsWith('temp-') ? newSupplier : s);
-  });
-  
-  toast({ ... });
-},
-onError: (error, input, context) => {
-  // Rollback on error
-  if (context?.previousProject) {
-    queryClient.setQueryData(['project', context.projectId], context.previousProject);
-  }
-  if (context?.previousSuppliers) {
-    queryClient.setQueryData(['project-suppliers', context.projectId], context.previousSuppliers);
-  }
-  toast({ variant: 'destructive', ... });
-}
-```
-
-## Arquivo a Modificar
+### 2. Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/hooks/useProjectCosts.ts` | Adicionar optimistic update em `useAddProjectSupplier` |
+| `src/types/financialSettings.ts` | Adicionar `gross_margin_target_percent` ao tipo |
+| `src/services/financialSettingsService.ts` | Incluir novo campo no upsert |
+| `src/components/settings/FinancialSettingsForm.tsx` | Renomear campo para "Meta de Margem Bruta" |
+| `src/components/projects/detail/ProjectCostsTab.tsx` | Buscar configurações e passar meta para o `MarginCard` |
 
-## Resultado Esperado
+---
 
-| Antes | Depois |
-|-------|--------|
-| Toast → Espera 1-3s → Registro aparece | Toast + Registro aparecem ao mesmo tempo |
+### 3. Formulário de Configurações
+
+**Antes:**
+- Campo "Margem Líquida" (nome confuso)
+
+**Depois:**
+- Campo "Meta de Margem Bruta" com descrição clara
+- Rótulo: "Meta de Margem Bruta"
+- Descrição: "Meta de margem bruta sobre a receita (ex: 32%)"
+
+### 4. Indicador de Margem no Projeto
+
+O `MarginCard` receberá a meta e mostrará:
+
+**UI atualizada:**
+```text
+┌──────────────────────────────────────┐
+│ 💰 Margem Bruta                      │
+│                                      │
+│ R$ 25.000,00  (28,5%)                │
+│ de R$ 30.000,00 (orçado)             │
+│                                      │
+│ Meta: 32%  │  ⚠️ -3,5pp abaixo       │
+└──────────────────────────────────────┘
+```
+
+Indicadores visuais:
+- ✓ Verde: margem >= meta
+- ⚠️ Amarelo/Vermelho: margem < meta
+
+### 5. Implementação do MarginCard
+
+```typescript
+interface MarginCardProps {
+  contractValue: number;
+  totalPlannedCost: number;
+  totalBudgetedCost: number;
+  taxesPercent: number;
+  grossMarginTarget: number; // Nova prop: ex: 32
+}
+
+function MarginCard({ ..., grossMarginTarget }: MarginCardProps) {
+  // ...cálculo existente...
+  
+  // Compare com a meta
+  const isAboveTarget = plannedPercent >= grossMarginTarget;
+  const gapToTarget = plannedPercent - grossMarginTarget;
+  
+  return (
+    <Card>
+      {/* Valor da margem atual */}
+      <p>{formatCurrency(grossMarginPlanned)} ({plannedPercent.toFixed(1)}%)</p>
+      
+      {/* Meta e indicador de gap */}
+      <div className="flex items-center gap-2 mt-2">
+        <span className="text-xs text-muted-foreground">
+          Meta: {grossMarginTarget}%
+        </span>
+        {!isAboveTarget && (
+          <span className="text-xs text-amber-600">
+            {gapToTarget.toFixed(1)}pp abaixo
+          </span>
+        )}
+      </div>
+    </Card>
+  );
+}
+```
+
+### 6. Buscar Configurações no ProjectCostsTab
+
+```typescript
+import { useFinancialSettings } from '@/hooks/useFinancialSettings';
+
+export function ProjectCostsTab(...) {
+  const { data: financialSettings } = useFinancialSettings();
+  
+  return (
+    <>
+      {isEditable && (
+        <MarginCard
+          contractValue={project.total_value}
+          totalPlannedCost={totalPlanned}
+          totalBudgetedCost={budgetedCosts.total}
+          taxesPercent={budget?.taxes_percent || 0}
+          grossMarginTarget={financialSettings?.gross_margin_target_percent || 0}
+        />
+      )}
+    </>
+  );
+}
+```
+
+---
+
+## Fluxo
+
+```text
+┌───────────────────────────────────────────────────────────────┐
+│              Configurações → Financeiro                       │
+│                                                               │
+│  Meta de Margem Bruta: [32] %                                 │
+│  (Meta de margem bruta sobre a receita)                       │
+└───────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────────┐
+│              Projeto → Aba Custos                             │
+│                                                               │
+│  ┌────────────────────────────────────┐                       │
+│  │ Margem Bruta                       │                       │
+│  │                                    │                       │
+│  │ R$ 25.000,00  (28,5%)              │                       │
+│  │ de R$ 30.000,00 (orçado)           │                       │
+│  │                                    │                       │
+│  │ Meta: 32%  │  ⚠️ -3,5pp           │                       │
+│  └────────────────────────────────────┘                       │
+└───────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Benefícios
 
-1. **UX instantânea**: Registro aparece imediatamente
-2. **Rollback automático**: Se der erro, volta ao estado anterior
-3. **Consistência**: Toast e registro sincronizados
-4. **Padrão já existente**: Segue o mesmo padrão de `useRemoveProjectMember`
+1. **Visibilidade**: Gerente vê claramente se o projeto está acima ou abaixo da meta
+2. **Padronização**: Meta centralizada nas configurações
+3. **Tomada de decisão**: Ajuda a ajustar custos durante o planejamento
+4. **Consistência**: Mesmo indicador para todos os projetos da empresa
