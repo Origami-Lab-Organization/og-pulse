@@ -1,150 +1,174 @@
 
-# Plano: Ajustes na Calculadora de Custos
 
-## Alteracoes Solicitadas
+# Plano: Reorganizar Layout da Calculadora
 
-1. **Cores neutras nos cards** - Remover cores azul, verde e amber dos cards, usando uma paleta neutra
-2. **Aliquota Simples Nacional de 6%** - Alterar a taxa de 15% para 6%
-3. **Seletor de base PJ** - Permitir ao usuario escolher entre "Custo Total Empresa" ou "Salario Bruto" como base para o calculo do equivalente PJ
+## Objetivo
+
+Alterar o layout da calculadora de custos para:
+1. **Inputs na horizontal no topo** - Os campos de "Dados do Funcionário" dispostos lado a lado
+2. **3 colunas abaixo** - Seções 1, 2 e 3 em colunas paralelas
+
+## Nova Estrutura Visual
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Calculadora de Custos                                                               │
+│ Simule os custos de contratação CLT vs PJ (Simples Nacional)                       │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  ┌───────────────────────────────────────────────────────────────────────────────┐  │
+│  │  Dados do Funcionário                                                         │  │
+│  │  ┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐    │  │
+│  │  │ Salário Bruto   │ Benefícios      │ Jornada Mensal  │ Dependentes     │    │  │
+│  │  │ R$ 6.000,00     │ R$ 1.200,00     │ 168h            │ 0               │    │  │
+│  │  └─────────────────┴─────────────────┴─────────────────┴─────────────────┘    │  │
+│  └───────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                     │
+│  ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐      │
+│  │ 1. Custo Empresa     │  │ 2. Salário Líquido   │  │ 3. Equivalente PJ    │      │
+│  │                      │  │                      │  │                      │      │
+│  │ Base: R$ 6.000       │  │ Bruto: R$ 6.000      │  │ Comparar com:        │      │
+│  │ Encargos: R$ 2.148   │  │ (-) INSS: R$ 659     │  │ (x) Custo Total      │      │
+│  │ Provisões: R$ 1.167  │  │ (-) IRRF: R$ 465     │  │ ( ) Salário Bruto    │      │
+│  │ Benefícios: R$ 1.200 │  │ Líquido: R$ 4.876    │  │                      │      │
+│  │                      │  │ (+) Benef: R$ 1.200  │  │ Contrato: R$ 10.515  │      │
+│  │ Total: R$ 10.515     │  │ Total: R$ 6.076      │  │ Líquido: R$ 9.884    │      │
+│  │ Custo/h: R$ 62,59    │  │                      │  │                      │      │
+│  │                      │  │                      │  │                      │      │
+│  │ [Ver detalhamento]   │  │ [Ver detalhamento]   │  │ Diferença: +R$ 3.808 │      │
+│  └──────────────────────┘  └──────────────────────┘  └──────────────────────┘      │
+│                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteracao |
+| Arquivo | Alteração |
 |---------|-----------|
-| `src/lib/netSalaryCalculator.ts` | Alterar `PJ_SIMPLES_TAX_RATE` de 0.15 para 0.06 |
-| `src/components/calculator/CalculatorResults.tsx` | Remover cores e adicionar logica de selecao de base PJ |
-| `src/pages/EmployeeCalculator.tsx` | Adicionar estado para base PJ selecionada |
+| `src/components/calculator/CalculatorInputs.tsx` | Reformular para layout horizontal em grid de 4 colunas |
+| `src/components/calculator/CalculatorResults.tsx` | Alterar de vertical (`space-y-4`) para grid de 3 colunas |
+| `src/pages/EmployeeCalculator.tsx` | Reorganizar estrutura do layout (inputs em cima, resultados embaixo) |
 
-## Detalhes de Implementacao
+## Detalhes de Implementação
 
-### 1. Alterar Aliquota Simples Nacional
+### 1. CalculatorInputs.tsx - Layout Horizontal
 
-No arquivo `src/lib/netSalaryCalculator.ts`:
+Alterar o CardContent de `space-y-4` (vertical) para um grid de 4 colunas:
 
-```typescript
-// Antes
-export const PJ_SIMPLES_TAX_RATE = 0.15;
-
-// Depois
-export const PJ_SIMPLES_TAX_RATE = 0.06;
+**Antes:**
+```tsx
+<CardContent className="space-y-4">
+  {/* 4 campos empilhados verticalmente */}
+</CardContent>
 ```
 
-### 2. Cores Neutras nos Cards
-
-Substituir as cores especificas por classes neutras:
-
-| Elemento | Antes | Depois |
-|----------|-------|--------|
-| Card 1 (Custo Empresa) | `border-blue-200 bg-blue-50/50` | `border-border` |
-| Card 2 (Salario Liquido) | `border-green-200 bg-green-50/50` | `border-border` |
-| Card 3 (PJ) | `border-amber-200 bg-amber-50/50` | `border-border` |
-| Icones | Cores especificas | `text-primary` |
-| Destaques internos | `bg-blue-100`, `bg-green-100`, `bg-amber-100` | `bg-muted` |
-| Textos destacados | `text-blue-700`, `text-green-700`, `text-amber-700` | `text-foreground` |
-| Bordas nos collapsibles | `border-blue-200`, `border-green-200` | `border-border` |
-
-### 3. Seletor de Base para Calculo PJ
-
-Adicionar um RadioGroup no Card 3 permitindo escolher a base de comparacao:
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  3. Equivalente PJ (Simples Nacional)                       │
-│                                                             │
-│  Comparar com:                                              │
-│  ( ) Custo Total Empresa (R$ 8.145)                        │
-│  (x) Salario Bruto (R$ 5.000)                              │
-│                                                             │
-│  Valor do Contrato: R$ 5.000                               │
-│  (-) Impostos (~6% Simples): R$ 300                        │
-│  ─────────────────────────────────────────                 │
-│  Liquido Estimado: R$ 4.700                                │
-│                                                             │
-│  Comparativo com CLT:                                       │
-│  Diferenca no liquido: -R$ 303,96 (-6,1%)                  │
-└─────────────────────────────────────────────────────────────┘
+**Depois:**
+```tsx
+<CardContent>
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    {/* Campo 1: Salário Bruto */}
+    {/* Campo 2: Benefícios Mensais */}
+    {/* Campo 3: Jornada Mensal */}
+    {/* Campo 4: Dependentes */}
+  </div>
+</CardContent>
 ```
 
-**Implementacao:**
+### 2. CalculatorResults.tsx - Grid de 3 Colunas
 
-1. No `EmployeeCalculator.tsx`, adicionar estado:
-```typescript
-const [pjBase, setPjBase] = useState<'total_cost' | 'gross_salary'>('total_cost');
-```
+Alterar o container de cards de vertical para horizontal:
 
-2. Passar como prop para `CalculatorResults`:
-```typescript
-<CalculatorResults
-  cltCost={cltCost}
-  cltNetSalary={cltNetSalary}
-  jornadaMensal={jornadaNum}
-  pjBase={pjBase}
-  setPjBase={setPjBase}
-/>
-```
-
-3. No `CalculatorResults.tsx`, adicionar RadioGroup:
-```typescript
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-
-// No Card 3, antes do calculo
-<div className="space-y-2">
-  <p className="text-sm font-medium">Comparar com:</p>
-  <RadioGroup value={pjBase} onValueChange={setPjBase}>
-    <div className="flex items-center space-x-2">
-      <RadioGroupItem value="total_cost" id="total_cost" />
-      <Label htmlFor="total_cost">
-        Custo Total Empresa ({formatCurrency(cltCost.totalMonthlyCost)})
-      </Label>
-    </div>
-    <div className="flex items-center space-x-2">
-      <RadioGroupItem value="gross_salary" id="gross_salary" />
-      <Label htmlFor="gross_salary">
-        Salario Bruto ({formatCurrency(cltNetSalary.grossSalary)})
-      </Label>
-    </div>
-  </RadioGroup>
+**Antes:**
+```tsx
+<div className="space-y-4">
+  <Card>1. Custo Empresa</Card>
+  <Card>2. Salário Líquido</Card>
+  <Card>3. Equivalente PJ</Card>
 </div>
-
-// Calculo do PJ baseado na selecao
-const pjEquivalentValue = pjBase === 'total_cost' 
-  ? cltCost.totalMonthlyCost 
-  : cltNetSalary.grossSalary;
 ```
 
-## Resumo Visual das Mudancas
-
-### Antes (cores especificas)
-
-```text
-Card 1: Borda azul, fundo azul claro, icone azul
-Card 2: Borda verde, fundo verde claro, icone verde  
-Card 3: Borda amber, fundo amber claro, icone amber
+**Depois:**
+```tsx
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <Card>1. Custo Empresa</Card>
+  <Card>2. Salário Líquido</Card>
+  <Card>3. Equivalente PJ</Card>
+</div>
 ```
 
-### Depois (cores neutras)
+### 3. EmployeeCalculator.tsx - Nova Estrutura de Layout
 
-```text
-Card 1: Borda neutra, fundo neutro, icone primary
-Card 2: Borda neutra, fundo neutro, icone primary
-Card 3: Borda neutra, fundo neutro, icone primary + RadioGroup para selecao
+Reorganizar de 2 colunas lado a lado para estrutura vertical (inputs em cima, resultados embaixo):
+
+**Antes:**
+```tsx
+<div className="grid gap-6 lg:grid-cols-[350px_1fr]">
+  {/* Inputs - Coluna esquerda */}
+  <div className="space-y-4">
+    <CalculatorInputs ... />
+  </div>
+  {/* Resultados - Coluna direita */}
+  <div>
+    <CalculatorResults ... />
+  </div>
+</div>
 ```
 
-## Aviso do Simples Nacional
+**Depois:**
+```tsx
+<div className="space-y-6">
+  {/* Inputs - Linha superior horizontal */}
+  <div>
+    <CalculatorInputs ... />
+    {!hasValidInput && salarioBruto && (
+      <p className="mt-2 text-sm text-amber-600 ...">⚠️ Salário mínimo...</p>
+    )}
+  </div>
 
-Atualizar o texto do aviso no Card 3:
-
-```typescript
-// Antes
-<li>Aliquota de 15% e estimativa (varia por anexo/faturamento)</li>
-
-// Depois
-<li>Aliquota de 6% e estimativa (varia por anexo/faturamento)</li>
+  {/* Resultados - 3 colunas abaixo */}
+  {hasValidInput ? (
+    <CalculatorResults ... />
+  ) : (
+    <div className="flex items-center justify-center h-48 ...">
+      {/* Placeholder */}
+    </div>
+  )}
+</div>
 ```
 
-## Notas Tecnicas
+## Responsividade
 
-- Manter a responsividade existente nos grids
-- Os Collapsibles continuam funcionando normalmente
-- O comparativo de diferenca se adapta automaticamente a base selecionada
-- Usar componente `RadioGroup` ja existente no projeto
+| Breakpoint | Inputs | Resultados |
+|------------|--------|------------|
+| Mobile (<640px) | 1 coluna vertical | 1 coluna vertical |
+| Tablet (640-1023px) | 2 colunas | 1 coluna vertical |
+| Desktop (≥1024px) | 4 colunas lado a lado | 3 colunas lado a lado |
+
+## Classes Tailwind para Responsividade
+
+**Inputs:**
+```
+grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4
+```
+
+**Resultados:**
+```
+grid grid-cols-1 lg:grid-cols-3 gap-4
+```
+
+## Ajustes nos Cards de Resultado
+
+Com os 3 cards lado a lado, cada um ficará mais compacto. Ajustes necessários:
+
+1. **Reduzir padding**: De `pb-3` para `pb-2` nos CardHeader
+2. **Grid de componentes de custo**: Manter 2x2 para caber no espaço menor
+3. **Tipografia**: Verificar se os textos não ficam truncados
+4. **Collapsibles**: Continuam funcionando normalmente, expandindo dentro do card
+
+## Notas Técnicas
+
+- Manter a funcionalidade existente dos Collapsibles
+- Não alterar a lógica de cálculos
+- Preservar tooltips de ajuda nos campos
+- O placeholder quando não há input válido deve ocupar largura total
+
