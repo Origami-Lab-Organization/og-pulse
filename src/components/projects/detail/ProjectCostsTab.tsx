@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Users, Truck, Package, TrendingUp, TrendingDown, Minus, DollarSign } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProjectLaborSection } from '@/components/projects/detail/ProjectLaborSection';
@@ -228,29 +228,35 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
   const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
 
-  // Calculate PLANNED labor costs using real employee cost (total_monthly_cost_estimated / jornada_mensal)
+  // Helper to get hourly cost for a member (real employee cost or budget hourly rate as fallback)
+  const getMemberHourlyCost = useCallback((member: typeof project.members[0]) => {
+    if (member.employee) {
+      const totalMonthlyCost = member.employee.total_monthly_cost_estimated || 0;
+      const workHours = member.employee.jornada_mensal || 168;
+      return workHours > 0 ? totalMonthlyCost / workHours : 0;
+    }
+    // No employee: use the member's hourly_rate (from budget) as cost
+    return Number((member as any).hourly_rate) || 0;
+  }, []);
+
+  // Calculate PLANNED labor costs using real employee cost or budget hourly rate
   const laborCostsPlanned = useMemo(() => {
     if (!project.members || project.members.length === 0) return 0;
 
     let total = 0;
     project.members.forEach((member) => {
-      const employee = member.employee;
-      if (!employee) return;
-      
-      const totalMonthlyCost = employee.total_monthly_cost_estimated || 0;
-      const workHours = employee.jornada_mensal || 168;
-      const realHourlyCost = workHours > 0 ? totalMonthlyCost / workHours : 0;
+      const hourlyCost = getMemberHourlyCost(member);
 
       // Sum PLANNED hours across all months
       const memberHours = memberMonths
         .filter((mm) => mm.project_member_id === member.id)
         .reduce((sum, mm) => sum + Number(mm.hours), 0);
 
-      total += realHourlyCost * memberHours;
+      total += hourlyCost * memberHours;
     });
 
     return total;
-  }, [project.members, memberMonths]);
+  }, [project.members, memberMonths, getMemberHourlyCost]);
 
   // Calculate ACTUAL labor costs from timesheets
   const laborCostsActual = useMemo(() => {
@@ -258,23 +264,18 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
 
     let total = 0;
     project.members.forEach((member) => {
-      const employee = member.employee;
-      if (!employee) return;
-      
-      const totalMonthlyCost = employee.total_monthly_cost_estimated || 0;
-      const workHours = employee.jornada_mensal || 168;
-      const realHourlyCost = workHours > 0 ? totalMonthlyCost / workHours : 0;
+      const hourlyCost = getMemberHourlyCost(member);
 
       // Sum ACTUAL hours from timesheets
       const actualHours = timesheets
         .filter((ts) => ts.project_member_id === member.id)
         .reduce((sum, ts) => sum + Number(ts.hours), 0);
 
-      total += realHourlyCost * actualHours;
+      total += hourlyCost * actualHours;
     });
 
     return total;
-  }, [project.members, timesheets]);
+  }, [project.members, timesheets, getMemberHourlyCost]);
 
   // Calculate PLANNED supplier costs from monthly values
   const supplierCostsPlanned = useMemo(() => {

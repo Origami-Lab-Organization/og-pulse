@@ -111,6 +111,45 @@ export function useCloseBusinessDeal() {
         }
       }
 
+      // 6. Copy roles from budget to project_members
+      for (const role of budget.roles || []) {
+        const { data: projectMember, error: memberError } = await supabase
+          .from('project_members')
+          .insert({
+            project_id: project.id,
+            employee_id: null, // Sem funcionário inicialmente
+            role: role.role_name,
+            seniority: role.seniority,
+            hourly_rate: role.hourly_rate,
+            hours_per_month: 0,
+            budget_role_id: role.id,
+          })
+          .select()
+          .single();
+
+        if (memberError) {
+          console.error('Error copying role:', memberError);
+          continue;
+        }
+
+        // Copy monthly hours distribution
+        const monthlyHoursInserts = (role.months || []).map((month) => ({
+          project_member_id: projectMember.id,
+          month_number: month.month_number,
+          hours: month.hours,
+        }));
+
+        if (monthlyHoursInserts.length > 0) {
+          const { error: hoursError } = await supabase
+            .from('project_member_months')
+            .insert(monthlyHoursInserts);
+
+          if (hoursError) {
+            console.error('Error creating member months:', hoursError);
+          }
+        }
+      }
+
       return project;
     },
     onSuccess: (project) => {

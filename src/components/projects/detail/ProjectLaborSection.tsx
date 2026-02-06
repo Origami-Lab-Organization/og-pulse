@@ -132,11 +132,15 @@ export function ProjectLaborSection({
   }, []);
 
   // Get real hourly cost from employee's total_monthly_cost_estimated / jornada_mensal
+  // If no employee is assigned, use the member's hourly_rate (from budget) as cost
   const getRealHourlyCost = useCallback((member: typeof members[0]): number => {
-    if (!member.employee) return 0;
-    const totalCost = member.employee.total_monthly_cost_estimated || 0;
-    const workHours = member.employee.jornada_mensal || 168;
-    return workHours > 0 ? totalCost / workHours : 0;
+    if (member.employee) {
+      const totalCost = member.employee.total_monthly_cost_estimated || 0;
+      const workHours = member.employee.jornada_mensal || 168;
+      return workHours > 0 ? totalCost / workHours : 0;
+    }
+    // No employee: use hourly_rate as cost
+    return Number((member as any).hourly_rate) || 0;
   }, []);
 
   // Get hours prioritizing local state
@@ -614,10 +618,15 @@ export function ProjectLaborSection({
                           {/* Column 3: R$/h */}
                           <TableCell className="text-right p-2">
                             <div className="flex flex-col gap-0.5 items-end">
-                              <span className={member.employee ? "font-medium" : "text-muted-foreground"}>
-                                {member.employee ? formatCurrency(realCost) : '-'}
+                              <span className="font-medium">
+                                {formatCurrency(realCost)}
                               </span>
-                              {budgetData.budgetHourlyRate > 0 && (
+                              {!member.employee && (
+                                <span className="text-xs text-muted-foreground italic">
+                                  (orçado)
+                                </span>
+                              )}
+                              {member.employee && budgetData.budgetHourlyRate > 0 && (
                                 <span className="text-xs text-muted-foreground">
                                   {formatCurrency(budgetData.budgetHourlyRate)}
                                 </span>
