@@ -54,6 +54,15 @@ function CostCard({
   // Determine trend: over budget (bad), under budget (good), or on track
   const isOverBudget = diff > 0 && baseValue > 0;
   const isUnderBudget = diff < 0 && compareValue > 0;
+
+  // Determine color based on trend
+  const getTrendColor = () => {
+    if (isOverBudget) return 'text-destructive';
+    if (isUnderBudget) return 'text-green-600';
+    return 'text-muted-foreground';
+  };
+
+  const TrendIcon = isOverBudget ? TrendingUp : isUnderBudget ? TrendingDown : Minus;
   
   return (
     <Card className={cn(isTotal && 'bg-primary/5')}>
@@ -65,46 +74,22 @@ function CostCard({
           <div className="flex-1 min-w-0">
             <p className="text-sm text-muted-foreground">{label}</p>
             <div className="mt-1">
-              {/* Main value - highlighted */}
-              <p className="text-lg font-bold leading-tight">
+              {/* Linha 1: Percentual grande + valor base pequeno */}
+              <div className="flex items-baseline gap-2">
+                <div className="flex items-center gap-1">
+                  <TrendIcon className={cn('h-4 w-4 shrink-0', getTrendColor())} />
+                  <span className={cn('text-xl font-bold', getTrendColor())}>
+                    {percentage.toFixed(0)}%
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {formatCurrency(baseValue)}
+                </span>
+              </div>
+              {/* Linha 2: Valor absoluto atual pequeno */}
+              <p className="text-sm text-muted-foreground mt-0.5">
                 {formatCurrency(compareValue)}
               </p>
-              {/* Base value - smaller */}
-              <p className="text-xs text-muted-foreground mt-0.5">
-                de {formatCurrency(baseValue)}
-              </p>
-              {/* Trend indicator */}
-              {baseValue > 0 && (
-                <div className="flex items-center gap-1 mt-1">
-                  {isOverBudget ? (
-                    <>
-                      <TrendingUp className="h-3 w-3 text-destructive shrink-0" />
-                      <span className="text-xs font-medium text-destructive">
-                        {percentage.toFixed(0)}%
-                      </span>
-                    </>
-                  ) : isUnderBudget ? (
-                    <>
-                      <TrendingDown className="h-3 w-3 text-green-600 shrink-0" />
-                      <span className="text-xs font-medium text-green-600">
-                        {percentage.toFixed(0)}%
-                      </span>
-                    </>
-                  ) : compareValue === 0 ? (
-                    <>
-                      <Minus className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="text-xs text-muted-foreground">0%</span>
-                    </>
-                  ) : (
-                    <>
-                      <Minus className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="text-xs text-muted-foreground">
-                        {percentage.toFixed(0)}%
-                      </span>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -140,6 +125,7 @@ function MarginCard({
   
   // Calculate percentages based on contract value
   const plannedPercent = contractValue > 0 ? (grossMarginPlanned / contractValue) * 100 : 0;
+  const budgetedPercent = contractValue > 0 ? (grossMarginBudgeted / contractValue) * 100 : 0;
   
   const isPlannedPositive = grossMarginPlanned >= 0;
   
@@ -157,21 +143,23 @@ function MarginCard({
           <div className="flex-1 min-w-0">
             <p className="text-sm text-muted-foreground">Margem Bruta</p>
             <div className="mt-1">
-              {/* Planned margin - highlighted */}
-              <p className={cn(
-                "text-lg font-bold leading-tight",
-                isPlannedPositive ? "text-green-600" : "text-destructive"
-              )}>
-                {formatCurrency(grossMarginPlanned)}
-                <span className="text-sm font-medium ml-1">
-                  ({plannedPercent.toFixed(1)}%)
+              {/* Linha 1: Percentual grande + valor orçado pequeno */}
+              <div className="flex items-baseline gap-2">
+                <span className={cn(
+                  'text-xl font-bold',
+                  isPlannedPositive ? 'text-green-600' : 'text-destructive'
+                )}>
+                  {plannedPercent.toFixed(1)}%
                 </span>
+                <span className="text-xs text-muted-foreground">
+                  {budgetedPercent.toFixed(1)}% orçado
+                </span>
+              </div>
+              {/* Linha 2: Valor absoluto pequeno */}
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {formatCurrency(grossMarginPlanned)}
               </p>
-              {/* Budgeted margin - smaller */}
-              <p className="text-xs text-muted-foreground mt-0.5">
-                de {formatCurrency(grossMarginBudgeted)} (orçado)
-              </p>
-              {/* Target indicator */}
+              {/* Linha 3: Meta e gap */}
               {grossMarginTarget > 0 && (
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
                   <div className="flex items-center gap-1">
