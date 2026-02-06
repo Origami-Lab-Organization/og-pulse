@@ -261,7 +261,7 @@ export function FinancialSettingsForm() {
                       </div>
                     </FormControl>
                     <FormDescription>
-                      Meta de margem bruta sobre a receita (ex: 32%)
+                      Meta de margem bruta sobre a receita
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
