@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useFinancialSettings, useUpsertFinancialSettings } from '@/hooks/useFinancialSettings';
-import { Loader2, Save, Percent, Building2, Receipt, Users, TrendingUp } from 'lucide-react';
+import { Loader2, Save, Percent, Building2, Receipt, Users, TrendingUp, Target } from 'lucide-react';
 
 const formSchema = z.object({
   admin_expenses_percent: z.coerce
@@ -234,7 +234,22 @@ export function FinancialSettingsForm() {
                   </FormItem>
                 )}
               />
+            </div>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Metas de Projeto
+            </CardTitle>
+            <CardDescription>
+              Configure as metas financeiras para acompanhamento de projetos
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <FormField
                 control={form.control}
                 name="gross_margin_target_percent"
@@ -268,19 +283,19 @@ export function FinancialSettingsForm() {
                 )}
               />
             </div>
-
-            <div className="flex justify-end pt-4 border-t">
-              <Button type="submit" disabled={upsertMutation.isPending}>
-                {upsertMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Salvar Configurações
-              </Button>
-            </div>
           </CardContent>
         </Card>
+
+        <div className="flex justify-end">
+          <Button type="submit" disabled={upsertMutation.isPending}>
+            {upsertMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Salvar Configurações
+          </Button>
+        </div>
       </form>
     </Form>
   );
