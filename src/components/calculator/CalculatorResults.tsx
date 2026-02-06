@@ -58,23 +58,23 @@ export function CalculatorResults({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Grid com os 4 componentes de custo */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-            <div className="p-3 rounded-lg bg-muted">
+          {/* Grid com os 4 componentes de custo - 2x2 */}
+          <div className="grid grid-cols-2 gap-2 text-center">
+            <div className="p-2 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Base</p>
-              <p className="font-bold">{formatCurrency(cltCost.baseAmount)}</p>
+              <p className="text-sm font-bold">{formatCurrency(cltCost.baseAmount)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-muted">
+            <div className="p-2 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Encargos</p>
-              <p className="font-bold">{formatCurrency(cltCost.chargesAmount)}</p>
+              <p className="text-sm font-bold">{formatCurrency(cltCost.chargesAmount)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-muted">
+            <div className="p-2 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Provisões</p>
-              <p className="font-bold">{formatCurrency(cltCost.provisionsAmount)}</p>
+              <p className="text-sm font-bold">{formatCurrency(cltCost.provisionsAmount)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-muted">
+            <div className="p-2 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Benefícios</p>
-              <p className="font-bold">{formatCurrency(cltCost.benefitsAmount)}</p>
+              <p className="text-sm font-bold">{formatCurrency(cltCost.benefitsAmount)}</p>
             </div>
           </div>
 
