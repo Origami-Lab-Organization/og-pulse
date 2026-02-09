@@ -52,7 +52,7 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
   const getStatusIcon = (status: MilestoneStatus) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+        return <CheckCircle2 className="h-5 w-5 text-green-600 fill-green-100" />;
       case 'in_progress':
         return <Clock className="h-5 w-5 text-blue-500" />;
       case 'delayed':
@@ -65,7 +65,7 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
   const getStatusColor = (status: MilestoneStatus) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-500/10 text-green-600 border-green-500/20';
+        return 'bg-green-600 text-white border-green-700';
       case 'in_progress':
         return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
       case 'delayed':
