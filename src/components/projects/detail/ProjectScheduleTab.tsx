@@ -136,7 +136,7 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
           {/* Lista de marcos */}
           <div className="space-y-3">
             {milestones.map((milestone) => (
-              <Card key={milestone.id} className="group">
+              <Card key={milestone.id} className="group cursor-pointer hover:border-primary/40 transition-colors" onClick={() => handleEdit(milestone)}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     <div className="pt-1">
@@ -152,8 +152,8 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
                             </p>
                           )}
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                        <DropdownMenu modal={false}>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -162,7 +162,7 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenuItem onClick={() => handleEdit(milestone)}>
                               <Pencil className="mr-2 h-4 w-4" />
                               Editar
