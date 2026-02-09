@@ -25,6 +25,7 @@ import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
 import Portfolio from "./pages/Portfolio";
 import Timesheets from "./pages/Timesheets";
+import Analytics from "./pages/Analytics";
 
 const queryClient = new QueryClient();
 
@@ -111,6 +112,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <Timesheets />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/analytics" 
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <Analytics />
                   </RoleProtectedRoute>
                 } 
               />
