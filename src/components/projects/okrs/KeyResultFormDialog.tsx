@@ -32,10 +32,11 @@ interface KeyResultFormDialogProps {
   projectId: string;
   okrId: string;
   keyResult: ProjectKeyResult | null;
+  isPlanning?: boolean;
 }
 
 export function KeyResultFormDialog({
-  open, onOpenChange, projectId, okrId, keyResult,
+  open, onOpenChange, projectId, okrId, keyResult, isPlanning = false,
 }: KeyResultFormDialogProps) {
   const createKeyResult = useCreateKeyResult();
   const updateKeyResult = useUpdateKeyResult();
@@ -144,7 +145,7 @@ export function KeyResultFormDialog({
                 )}
               />
 
-              {isEditing && (
+              {isEditing && !isPlanning && (
                 <FormField
                   control={form.control}
                   name="currentValue"
@@ -181,7 +182,7 @@ export function KeyResultFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nível de Confiança</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isPlanning}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue />

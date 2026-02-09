@@ -199,7 +199,7 @@ export function ProjectOKRsTab({ project }: ProjectOKRsTabProps) {
       )}
 
       <OKRFormDialog open={okrDialogOpen} onOpenChange={setOkrDialogOpen} projectId={project.id} okr={editingOkr} />
-      <KeyResultFormDialog open={krDialogOpen} onOpenChange={setKrDialogOpen} projectId={project.id} okrId={selectedOkrId || ''} keyResult={editingKr} />
+      <KeyResultFormDialog open={krDialogOpen} onOpenChange={setKrDialogOpen} projectId={project.id} okrId={selectedOkrId || ''} keyResult={editingKr} isPlanning={project.portfolio_stage === 'planning'} />
     </div>
   );
 }
