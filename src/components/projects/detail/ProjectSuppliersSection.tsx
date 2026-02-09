@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Plus, Trash2, Truck, DollarSign, TrendingUp, TrendingDown, Minus, Pencil, Check, X } from 'lucide-react';
+import { Plus, Trash2, Truck, DollarSign, Pencil, Check, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -142,15 +142,6 @@ export function ProjectSuppliersSection({
     [supplierActuals]
   );
 
-  // Get BUDGETED value for a supplier
-  const getBudgetedValueForSupplier = useCallback(
-    (projectSupplier: ProjectSupplierDB): number => {
-      if (!projectSupplier.budget_supplier_id) return 0;
-      const budgetSupplier = budgetSuppliers.find(bs => bs.id === projectSupplier.budget_supplier_id);
-      return budgetSupplier?.monthly_value || 0;
-    },
-    [budgetSuppliers]
-  );
 
   // Debounced PLANNED value change handler
   const handleValueChange = useCallback(
@@ -337,58 +328,37 @@ export function ProjectSuppliersSection({
     setActualDialogOpen(true);
   };
 
-  // Calculate totals (Planned, Actual, and Budgeted)
+  // Calculate totals (Planned and Actual)
   const totals = useMemo(() => {
-    const byMonth: Record<number, { planned: number; actual: number; budgeted: number }> = {};
+    const byMonth: Record<number, { planned: number; actual: number }> = {};
     let totalPlanned = 0;
     let totalActual = 0;
-    let totalBudgeted = 0;
 
     months.forEach((m) => {
-      byMonth[m] = { planned: 0, actual: 0, budgeted: 0 };
+      byMonth[m] = { planned: 0, actual: 0 };
     });
 
     suppliers.forEach((supplier) => {
-      const budgetedMonthly = getBudgetedValueForSupplier(supplier);
-      
       months.forEach((monthNum) => {
         const planned = getValueForMonth(supplier.id, monthNum);
         const actual = getActualValueForMonth(supplier.id, monthNum);
         byMonth[monthNum].planned += planned;
         byMonth[monthNum].actual += actual;
-        byMonth[monthNum].budgeted += budgetedMonthly;
         totalPlanned += planned;
         totalActual += actual;
       });
-      
-      totalBudgeted += budgetedMonthly * durationMonths;
     });
 
-    return { byMonth, totalPlanned, totalActual, totalBudgeted };
-  }, [suppliers, months, getValueForMonth, getActualValueForMonth, getBudgetedValueForSupplier, durationMonths]);
+    return { byMonth, totalPlanned, totalActual };
+  }, [suppliers, months, getValueForMonth, getActualValueForMonth]);
 
-  // Calculate total budgeted from budget (for footer comparison)
-  const totalBudgetedFromBudget = useMemo(() => {
-    return budgetSuppliers.reduce((acc, bs) => acc + Number(bs.monthly_value) * durationMonths, 0);
-  }, [budgetSuppliers, durationMonths]);
 
-  // Calculate variation percentage
-  const variation = useMemo(() => {
-    if (totalBudgetedFromBudget === 0) return { percent: 0, isUnder: true };
-    const diff = totals.totalPlanned - totalBudgetedFromBudget;
-    return {
-      percent: Math.abs(diff / totalBudgetedFromBudget) * 100,
-      isUnder: diff <= 0,
-    };
-  }, [totals.totalPlanned, totalBudgetedFromBudget]);
-
-  // Calculate supplier totals (Planned, Actual, and Budgeted)
+  // Calculate supplier totals (Planned and Actual)
   const supplierTotals = useMemo(() => {
-    const result: Record<string, { planned: number; actual: number; budgeted: number }> = {};
+    const result: Record<string, { planned: number; actual: number }> = {};
     suppliers.forEach((supplier) => {
       let totalPlanned = 0;
       let totalActual = 0;
-      const budgetedMonthly = getBudgetedValueForSupplier(supplier);
       
       months.forEach((monthNum) => {
         totalPlanned += getValueForMonth(supplier.id, monthNum);
@@ -398,11 +368,10 @@ export function ProjectSuppliersSection({
       result[supplier.id] = { 
         planned: totalPlanned, 
         actual: totalActual,
-        budgeted: budgetedMonthly * durationMonths,
       };
     });
     return result;
-  }, [suppliers, months, getValueForMonth, getActualValueForMonth, getBudgetedValueForSupplier, durationMonths]);
+  }, [suppliers, months, getValueForMonth, getActualValueForMonth]);
 
   // Filter out already used budget suppliers
   const unusedBudgetSuppliers = useMemo(() => {
@@ -456,11 +425,19 @@ export function ProjectSuppliersSection({
                         <TableHead key={m} className="text-center min-w-[100px]">
                           <div className="flex flex-col">
                             <span>Mês {m}</span>
+                            {!isEditable && (
+                              <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                            )}
                           </div>
                         </TableHead>
                       ))}
                       <TableHead className="text-center min-w-[120px]">
-                        Total
+                        <div className="flex flex-col">
+                          <span>Total</span>
+                          {!isEditable && (
+                            <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
+                          )}
+                        </div>
                       </TableHead>
                       {(isEditable || canEditActuals) && <TableHead className="w-28">Ações</TableHead>}
                     </TableRow>
@@ -552,8 +529,7 @@ export function ProjectSuppliersSection({
 
                     {/* Existing Suppliers */}
                     {suppliers.map((supplier) => {
-                      const supplierTotal = supplierTotals[supplier.id] || { planned: 0, actual: 0, budgeted: 0 };
-                      const budgetedMonthly = getBudgetedValueForSupplier(supplier);
+                      const supplierTotal = supplierTotals[supplier.id] || { planned: 0, actual: 0 };
                       const linkedSupplier = availableSuppliers.find(s => s.id === supplier.supplier_id);
                       const isEditingThis = editingRowId === supplier.id;
 
@@ -588,33 +564,19 @@ export function ProjectSuppliersSection({
                                   // Planning mode
                                   isEditingThis ? (
                                     // Editing: show input
-                                    <div className="flex flex-col gap-0.5 items-center">
-                                      <CurrencyInput
-                                        compact
-                                        className="w-24 mx-auto"
-                                        value={plannedValue}
-                                        onValueChange={(v) =>
-                                          handleValueChange(supplier.id, monthNum, v)
-                                        }
-                                      />
-                                      {budgetedMonthly > 0 && (
-                                        <span className="text-xs text-muted-foreground">
-                                          {formatCurrency(budgetedMonthly)}
-                                        </span>
-                                      )}
-                                    </div>
+                                    <CurrencyInput
+                                      compact
+                                      className="w-24 mx-auto"
+                                      value={plannedValue}
+                                      onValueChange={(v) =>
+                                        handleValueChange(supplier.id, monthNum, v)
+                                      }
+                                    />
                                   ) : (
                                     // Not editing: show values as text
-                                    <div className="flex flex-col gap-0.5 items-center">
-                                      <span className="text-sm">
-                                        {plannedValue > 0 ? formatCurrency(plannedValue) : '-'}
-                                      </span>
-                                      {budgetedMonthly > 0 && (
-                                        <span className="text-xs text-muted-foreground">
-                                          {formatCurrency(budgetedMonthly)}
-                                        </span>
-                                      )}
-                                    </div>
+                                    <span className="text-sm">
+                                      {plannedValue > 0 ? formatCurrency(plannedValue) : '-'}
+                                    </span>
                                   )
                                 ) : canEditActuals && isEditingThis ? (
                                   // Execution mode + editing: show input for planned
@@ -650,15 +612,7 @@ export function ProjectSuppliersSection({
                           })}
                           <TableCell className="text-center">
                             {isEditable ? (
-                              // Planning mode: show planned total with budgeted below
-                              <div className="flex flex-col gap-0.5 items-center">
-                                <span className="font-medium">{formatCurrency(supplierTotal.planned)}</span>
-                                {supplierTotal.budgeted > 0 && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {formatCurrency(supplierTotal.budgeted)}
-                                  </span>
-                                )}
-                              </div>
+                              <span className="font-medium">{formatCurrency(supplierTotal.planned)}</span>
                             ) : (
                               // Execution mode: Plan | Real
                               <div className="flex items-center justify-center gap-1 text-sm">
@@ -784,19 +738,11 @@ export function ProjectSuppliersSection({
                         Total
                       </TableCell>
                       {months.map((monthNum) => {
-                        const monthData = totals.byMonth[monthNum] || { planned: 0, actual: 0, budgeted: 0 };
+                        const monthData = totals.byMonth[monthNum] || { planned: 0, actual: 0 };
                         return (
                           <TableCell key={monthNum} className="text-center">
                             {isEditable ? (
-                              // Planning mode: show planned with budgeted below
-                              <div className="flex flex-col gap-0.5 items-center">
-                                <span className="font-medium">{formatCurrency(monthData.planned)}</span>
-                                {monthData.budgeted > 0 && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {formatCurrency(monthData.budgeted)}
-                                  </span>
-                                )}
-                              </div>
+                              <span className="font-medium">{formatCurrency(monthData.planned)}</span>
                             ) : (
                               // Execution mode: Plan | Real
                               <div className="flex items-center justify-center gap-1 text-sm">
@@ -810,15 +756,7 @@ export function ProjectSuppliersSection({
                       })}
                       <TableCell className="text-center">
                         {isEditable ? (
-                          // Planning mode: show planned with budgeted below
-                          <div className="flex flex-col gap-0.5 items-center">
-                            <span className="font-semibold">{formatCurrency(totals.totalPlanned)}</span>
-                            {totalBudgetedFromBudget > 0 && (
-                              <span className="text-xs text-muted-foreground">
-                                {formatCurrency(totalBudgetedFromBudget)}
-                              </span>
-                            )}
-                          </div>
+                          <span className="font-semibold">{formatCurrency(totals.totalPlanned)}</span>
                         ) : (
                           // Execution mode: Plan | Real
                           <div className="flex items-center justify-center gap-1 text-sm">
@@ -829,33 +767,7 @@ export function ProjectSuppliersSection({
                         )}
                       </TableCell>
                       {(isEditable || canEditActuals) && (
-                        <TableCell>
-                          {/* Variation indicator in planning mode */}
-                          {isEditable && totalBudgetedFromBudget > 0 && (
-                            <div className="flex items-center gap-1">
-                              {variation.isUnder ? (
-                                <>
-                                  <TrendingDown className="h-4 w-4 text-green-600" />
-                                  <span className="text-xs font-medium text-green-600">
-                                    -{variation.percent.toFixed(0)}%
-                                  </span>
-                                </>
-                              ) : variation.percent > 0 ? (
-                                <>
-                                  <TrendingUp className="h-4 w-4 text-destructive" />
-                                  <span className="text-xs font-medium text-destructive">
-                                    +{variation.percent.toFixed(0)}%
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <Minus className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground">0%</span>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </TableCell>
+                        <TableCell />
                       )}
                     </TableRow>
                   </TableFooter>
