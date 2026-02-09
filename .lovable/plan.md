@@ -1,44 +1,92 @@
 
-# Plano: Corrigir Custos e Tabela de Parcelas na Aba Financeiro
+# Plano: Portal do Admin e Reorganizacao da Navegacao
 
-## 1. Corrigir Custo Planejado (ProjectExpectedResultTab.tsx)
+## Objetivo
 
-O calculo atual pula membros sem funcionario atribuido (`if (!employee) return`). A aba de Custos usa um fallback com `hourly_rate` do membro. Vamos alinhar.
+Mover "Tabela de Precos" e "Configuracoes" para dentro de um **Portal do Admin**, acessivel pelo avatar/circulo no canto superior direito. Remover a secao "Configuracoes" do menu lateral.
 
-**Mudanca no bloco de calculo (linhas 26-50):**
-- Remover o `if (!employee) return`
-- Quando nao houver `employee`, usar `member.hourly_rate` como custo/hora (mesmo padrao da aba Custos)
+## Mudancas
+
+### 1. Remover secao "Configuracoes" do sidebar
+
+**Arquivo:** `src/components/layout/AppSidebar.tsx`
+
+Remover o grupo `Configuracoes` (que contem "Tabela de Precos" e "Configuracoes") do array `navigationGroups`. Tambem remover imports nao utilizados (`DollarSign`, `Settings`).
+
+### 2. Criar pagina do Portal do Admin
+
+**Novo arquivo:** `src/pages/AdminPortal.tsx`
+
+Uma pagina com layout proprio (usando `AppLayout`) que consolida as configuracoes em abas:
+
+| Aba | Conteudo | Componente existente |
+|-----|----------|---------------------|
+| Tabela de Precos | Gestao de papeis e valores hora | Conteudo de `Pricing.tsx` (inline) |
+| Financeiro | Percentuais de markup e metas | `FinancialSettingsForm` |
+| Encargos/Folha | Configuracao de encargos | `PayrollProfileSettingsForm` |
+| Feriados/Folgas | Gestao de feriados | `HolidaysSettingsForm` |
+
+A pagina tera breadcrumbs indicando "Portal do Admin" e usara o componente `Tabs` existente.
+
+### 3. Adicionar opcao "Portal do Admin" no menu do usuario
+
+**Arquivo:** `src/components/layout/UserMenu.tsx`
+
+Adicionar um item de menu "Portal do Admin" (com icone `Shield` ou `Settings`) visivel apenas para admins (`employee.isAdmin`). Ao clicar, navega para `/admin`.
+
+### 4. Atualizar rotas
+
+**Arquivo:** `src/App.tsx`
+
+- Adicionar rota `/admin` com `RoleProtectedRoute requireAdmin`
+- Remover rotas `/pricing` e `/settings` (ou manter como redirect para `/admin`)
+
+### 5. Limpar arquivos obsoletos
+
+- `src/pages/Settings.tsx` - pode ser removido (conteudo movido para AdminPortal)
+- `src/pages/Pricing.tsx` - pode ser removido (conteudo movido para AdminPortal)
+
+## Detalhes Tecnicos
+
+### UserMenu.tsx - Nova opcao
 
 ```typescript
-project.members?.forEach((member) => {
-  let hourlyCost = 0;
-  if (member.employee) {
-    const totalMonthlyCost = member.employee.total_monthly_cost_estimated || 0;
-    const workHours = member.employee.jornada_mensal || 168;
-    hourlyCost = workHours > 0 ? totalMonthlyCost / workHours : 0;
-  } else {
-    hourlyCost = Number((member as any).hourly_rate) || 0;
-  }
-  // ... soma horas planejadas normalmente
-});
+// Visivel apenas para admins
+{employee.isAdmin && (
+  <>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem onClick={() => navigate('/admin')}>
+      <Shield className="mr-2 h-4 w-4" />
+      <span>Portal do Admin</span>
+    </DropdownMenuItem>
+  </>
+)}
 ```
 
-## 2. Reorganizar Tabela de Parcelas (PlanningInstallmentsTable.tsx)
+### AdminPortal.tsx - Estrutura
 
-Colunas atuais: Parcela, Valor, Vencimento, Emissao NF, Data Pagamento, Acoes
+A pagina usa `Tabs` com 4 abas. A aba "Tabela de Precos" incorpora toda a logica que hoje esta em `Pricing.tsx` (filtros, stats, tabela, dialogs). As demais abas reutilizam os componentes de formulario existentes.
 
-Novas colunas: **Parcela, Valor, Emissao NF, Vencimento NF, Acoes**
+### Rotas em App.tsx
 
-- Remover coluna "Data Pagamento"
-- Reordenar: Emissao NF antes de Vencimento NF
-- **Vencimento NF** (`due_date`): somente leitura, vem da criacao do projeto no fechamento do negocio
-- **Emissao NF** (`invoice_date`): editavel, pre-preenchido com `due_date` como sugestao (cor atenuada)
-- Estado de edicao simplificado: apenas `invoiceDate`
-- `saveEdit` envia apenas `invoiceDate`
+```typescript
+<Route
+  path="/admin"
+  element={
+    <RoleProtectedRoute requireAdmin>
+      <AdminPortal />
+    </RoleProtectedRoute>
+  }
+/>
+```
 
 ## Resumo de Arquivos
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/components/projects/detail/ProjectExpectedResultTab.tsx` | Incluir fallback `hourly_rate` para membros sem funcionario |
-| `src/components/projects/detail/PlanningInstallmentsTable.tsx` | Remover coluna Data Pagamento; reordenar colunas; simplificar edicao |
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/AdminPortal.tsx` | Criar (consolida Settings + Pricing) |
+| `src/components/layout/UserMenu.tsx` | Editar (adicionar link Portal do Admin) |
+| `src/components/layout/AppSidebar.tsx` | Editar (remover grupo Configuracoes) |
+| `src/App.tsx` | Editar (adicionar rota /admin, remover /pricing e /settings) |
+| `src/pages/Settings.tsx` | Remover |
+| `src/pages/Pricing.tsx` | Remover |
