@@ -1,57 +1,27 @@
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, Receipt, Wallet, Target, PiggyBank, FileText } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ProjectWithRelations, INSTALLMENT_STATUS_LABELS, PAYMENT_METHOD_OPTIONS } from '@/types/project';
+import { TrendingUp, TrendingDown, Minus, Wallet, Target, PiggyBank, FileText } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { ProjectWithRelations } from '@/types/project';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { ProjectCostBreakdownChart } from './ProjectCostBreakdownChart';
 import { ProjectPaymentsChart } from './ProjectPaymentsChart';
 import { ProjectTeamSection } from './ProjectTeamSection';
 import { ProjectTrendChart } from './ProjectTrendChart';
-import { useEmployees } from '@/hooks/useEmployees';
 
 interface ProjectOverviewTabProps {
   project: ProjectWithRelations;
 }
 
-const installmentStatusColors: Record<string, string> = {
-  pending: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-  invoiced: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  received: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  overdue: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-};
-
-const HOURS_PER_MONTH = 176;
-
 export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
-  const { data: employees = [] } = useEmployees();
-
-  const paymentMethodLabel = PAYMENT_METHOD_OPTIONS.find(
-    (opt) => opt.value === project.payment_method
-  )?.label || project.payment_method;
-
   // Calculate financial metrics
   const metrics = useMemo(() => {
-    // Labor cost
+    // Labor cost using real employee cost
     const laborCost = (project.members || []).reduce((acc, member) => {
-      const employee = employees.find((e) => e.id === member.employee_id);
+      const employee = member.employee;
       if (!employee) return acc;
-      const totalCost =
-        employee.salarioMensal +
-        employee.beneficios +
-        employee.encargos +
-        (employee.totalToolsCost || 0);
-      const hourlyCost = totalCost / HOURS_PER_MONTH;
+      const totalCost = employee.total_monthly_cost_estimated || 0;
+      const workHours = employee.jornada_mensal || 168;
+      const hourlyCost = workHours > 0 ? totalCost / workHours : 0;
       return acc + hourlyCost * Number(member.hours_per_month || 0);
     }, 0);
 
@@ -86,7 +56,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
       receivedValue,
       pendingValue,
     };
-  }, [project, employees]);
+  }, [project]);
 
   const marginTrend = metrics.margin >= 30 ? 'up' : metrics.margin >= 15 ? 'neutral' : 'down';
 
@@ -197,63 +167,6 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         members={project.members || []} 
         projectId={project.id} 
       />
-
-      {/* Payment Info / Installments */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Parcelas de Pagamento</CardTitle>
-          <CardDescription>
-            {paymentMethodLabel} • {project.installments_count} parcela(s) • Vencimento dia {project.due_day}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {project.installments && project.installments.length > 0 ? (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-20">Parcela</TableHead>
-                    <TableHead>Vencimento</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>NF</TableHead>
-                    <TableHead>Pagamento</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {project.installments.map((installment) => (
-                    <TableRow key={installment.id}>
-                      <TableCell className="font-medium">
-                        {installment.installment_number}/{project.installments_count}
-                      </TableCell>
-                      <TableCell>
-                        {format(parseISO(installment.due_date), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>{formatCurrency(installment.value)}</TableCell>
-                      <TableCell>
-                        <Badge className={installmentStatusColors[installment.status]}>
-                          {INSTALLMENT_STATUS_LABELS[installment.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {installment.invoice_number || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {installment.payment_date 
-                          ? format(parseISO(installment.payment_date), "dd/MM/yyyy", { locale: ptBR })
-                          : '-'
-                        }
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <p className="text-muted-foreground italic">Nenhuma parcela cadastrada.</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
