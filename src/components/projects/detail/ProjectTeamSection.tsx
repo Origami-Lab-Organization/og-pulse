@@ -121,11 +121,11 @@ export function ProjectTeamSection({ members, projectId, memberMonths = [], time
           </div>
         ) : (
           <TooltipProvider>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {members.map((member) => (
                 <Tooltip key={member.id}>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-default">
+                    <div className="flex items-center gap-4 p-4 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-default">
                       <Avatar className="h-10 w-10 border-2 border-background shadow-sm shrink-0">
                         {member.employee?.foto_url ? (
                           <AvatarImage src={member.employee.foto_url} />
@@ -141,7 +141,7 @@ export function ProjectTeamSection({ members, projectId, memberMonths = [], time
                         <p className="text-xs text-muted-foreground truncate">
                           {member.role}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">
+                        <p className="text-xs text-muted-foreground">
                           {(() => {
                             const planned = memberMonths
                               .filter(mm => mm.project_member_id === member.id)
