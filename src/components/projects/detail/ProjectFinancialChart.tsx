@@ -1,7 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ProjectWithRelations } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
-import { useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -13,37 +11,17 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-interface ProjectFinancialChartProps {
-  project: ProjectWithRelations;
-  plannedCosts: {
-    laborCost: number;
-    supplierCost: number;
-    materialCost: number;
-    monthlyRecurring: number;
-    oneTimeCosts: number;
-  };
-  projectDuration: number;
+interface ChartDataPoint {
+  name: string;
+  planejado: number;
+  realizado: number;
 }
 
-export function ProjectFinancialChart({ project, plannedCosts, projectDuration }: ProjectFinancialChartProps) {
-  const chartData = useMemo(() => {
-    const data = [];
-    const materialCostPerMonth = plannedCosts.materialCost / projectDuration;
+interface ProjectFinancialChartProps {
+  data: ChartDataPoint[];
+}
 
-    for (let i = 1; i <= projectDuration; i++) {
-      data.push({
-        name: `Mês ${i}`,
-        planejado: plannedCosts.monthlyRecurring + (i === 1 ? plannedCosts.materialCost : 0),
-        realizado: 0, // Would come from project_costs_actual table
-        laborCost: plannedCosts.laborCost,
-        supplierCost: plannedCosts.supplierCost,
-        materialCost: i === 1 ? plannedCosts.materialCost : 0,
-      });
-    }
-
-    return data;
-  }, [plannedCosts, projectDuration]);
-
+export function ProjectFinancialChart({ data }: ProjectFinancialChartProps) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -76,7 +54,7 @@ export function ProjectFinancialChart({ project, plannedCosts, projectDuration }
       <CardContent>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="name" 
