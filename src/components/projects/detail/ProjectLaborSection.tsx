@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { differenceInMonths, parseISO } from 'date-fns';
-import { Plus, Trash2, Users, Pencil, Check, X, TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { Plus, Trash2, Users, Pencil, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -400,25 +400,6 @@ export function ProjectLaborSection({
     return { byMonth, totalHours, totalValue, totalActualHours, totalActualValue };
   }, [members, months, getRealHourlyCost, getHoursForMonth, getActualHoursForMonth]);
 
-  // Calculate budget summary for comparison card
-  const budgetSummary = useMemo(() => {
-    let budgetHours = 0;
-    let budgetValue = 0;
-    budgetRoles.forEach(role => {
-      const hours = role.months?.reduce((sum, m) => sum + m.hours, 0) || 0;
-      budgetHours += hours;
-      budgetValue += hours * role.hourly_rate;
-    });
-    return { hours: budgetHours, value: budgetValue };
-  }, [budgetRoles]);
-
-  // Calculate variation between planned and budget
-  const budgetVariation = useMemo(() => {
-    if (budgetSummary.value === 0) return { percent: 0, isUnderBudget: true };
-    const diff = totals.totalValue - budgetSummary.value;
-    const percent = (diff / budgetSummary.value) * 100;
-    return { percent, isUnderBudget: percent <= 0 };
-  }, [totals.totalValue, budgetSummary.value]);
 
   // Calculate member totals using real employee cost (PLANNED + ACTUAL)
   const memberTotals = useMemo(() => {
@@ -452,38 +433,27 @@ export function ProjectLaborSection({
     return workHours > 0 ? totalCost / workHours : 0;
   }, []);
 
-  // Calculate budget data per member for comparison
+  // Calculate budget data per member (seniority + hourly rate only, for display)
   const budgetDataByMember = useMemo(() => {
     const result: Record<string, {
       budgetSeniority: string;
       budgetHourlyRate: number;
-      budgetHoursByMonth: Record<number, number>;
-      budgetTotalHours: number;
     }> = {};
     
     members.forEach(member => {
       if (member.budget_role_id) {
         const budgetRole = budgetRoles.find(r => r.id === member.budget_role_id);
         if (budgetRole) {
-          const hoursByMonth: Record<number, number> = {};
-          budgetRole.months?.forEach(m => {
-            hoursByMonth[m.month_number] = m.hours;
-          });
           result[member.id] = {
             budgetSeniority: budgetRole.seniority,
             budgetHourlyRate: budgetRole.hourly_rate,
-            budgetHoursByMonth: hoursByMonth,
-            budgetTotalHours: budgetRole.months?.reduce((sum, m) => sum + m.hours, 0) || 0,
           };
         }
       }
-      // If no budget role, values remain empty
       if (!result[member.id]) {
         result[member.id] = {
           budgetSeniority: '',
           budgetHourlyRate: 0,
-          budgetHoursByMonth: {},
-          budgetTotalHours: 0,
         };
       }
     });
@@ -627,11 +597,6 @@ export function ProjectLaborSection({
                                   (orçado)
                                 </span>
                               )}
-                              {member.employee && budgetData.budgetHourlyRate > 0 && (
-                                <span className="text-xs text-muted-foreground">
-                                  {formatCurrency(budgetData.budgetHourlyRate)}
-                                </span>
-                              )}
                             </div>
                           </TableCell>
                           
@@ -639,7 +604,7 @@ export function ProjectLaborSection({
                           {months.map((monthNum) => {
                             const plannedHours = getHoursForMonth(member.id, monthNum);
                             const actualHours = getActualHoursForMonth(member.id, monthNum);
-                            const budgetHours = budgetData.budgetHoursByMonth[monthNum] || 0;
+                            
                             
                             return (
                               <TableCell key={monthNum} className="text-center p-1">
@@ -700,11 +665,6 @@ export function ProjectLaborSection({
                                       </div>
                                     )
                                   )}
-                                  {budgetHours > 0 && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {budgetHours}h
-                                    </span>
-                                  )}
                                 </div>
                               </TableCell>
                             );
@@ -722,11 +682,6 @@ export function ProjectLaborSection({
                                   <span className="font-medium">{memberTotal.actualHours}h</span>
                                 </div>
                               )}
-                              {budgetData.budgetTotalHours > 0 && (
-                                <span className="text-xs text-muted-foreground">
-                                  {budgetData.budgetTotalHours}h
-                                </span>
-                              )}
                             </div>
                           </TableCell>
                           
@@ -741,11 +696,6 @@ export function ProjectLaborSection({
                                   <span className="text-muted-foreground">|</span>
                                   <span className="font-medium">{formatCurrency(memberTotal.actualValue)}</span>
                                 </div>
-                              )}
-                              {budgetData.budgetTotalHours > 0 && budgetData.budgetHourlyRate > 0 && (
-                                <span className="text-xs text-muted-foreground">
-                                  {formatCurrency(budgetData.budgetTotalHours * budgetData.budgetHourlyRate)}
-                                </span>
                               )}
                             </div>
                           </TableCell>
@@ -810,12 +760,6 @@ export function ProjectLaborSection({
                       <TableCell />
                       {months.map((monthNum) => {
                         const monthTotals = totals.byMonth[monthNum];
-                        // Calculate budget totals for this month
-                        let budgetHoursForMonth = 0;
-                        members.forEach(member => {
-                          const bd = budgetDataByMember[member.id];
-                          budgetHoursForMonth += bd.budgetHoursByMonth[monthNum] || 0;
-                        });
                         return (
                           <TableCell key={monthNum} className="text-center">
                             <div className="flex flex-col gap-0.5 items-center">
@@ -832,11 +776,6 @@ export function ProjectLaborSection({
                                   </span>
                                 </div>
                               )}
-                              {budgetHoursForMonth > 0 && (
-                                <span className="text-xs text-muted-foreground">
-                                  {budgetHoursForMonth}h
-                                </span>
-                              )}
                             </div>
                           </TableCell>
                         );
@@ -852,11 +791,6 @@ export function ProjectLaborSection({
                               <span className="font-semibold">{totals.totalActualHours}h</span>
                             </div>
                           )}
-                          {budgetSummary.hours > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              {budgetSummary.hours}h
-                            </span>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -870,38 +804,10 @@ export function ProjectLaborSection({
                               <span className="font-semibold">{formatCurrency(totals.totalActualValue)}</span>
                             </div>
                           )}
-                          {budgetSummary.value > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              {formatCurrency(budgetSummary.value)}
-                            </span>
-                          )}
                         </div>
                       </TableCell>
                       {isEditable && (
-                        <TableCell className="text-center">
-                          {budgetSummary.hours > 0 && (
-                            <div className={cn(
-                              "flex items-center justify-center gap-1 text-xs font-medium",
-                              budgetVariation.percent === 0 && "text-muted-foreground",
-                              budgetVariation.isUnderBudget && budgetVariation.percent !== 0 && "text-green-600 dark:text-green-400",
-                              !budgetVariation.isUnderBudget && "text-red-600 dark:text-red-400"
-                            )}>
-                              {budgetVariation.percent === 0 ? (
-                                <Minus className="h-3 w-3" />
-                              ) : budgetVariation.isUnderBudget ? (
-                                <TrendingDown className="h-3 w-3" />
-                              ) : (
-                                <TrendingUp className="h-3 w-3" />
-                              )}
-                              <span>
-                                {budgetVariation.percent === 0 
-                                  ? 'No orçamento' 
-                                  : `${Math.abs(budgetVariation.percent).toFixed(1)}%`
-                                }
-                              </span>
-                            </div>
-                          )}
-                        </TableCell>
+                        <TableCell />
                       )}
                     </TableRow>
                   </TableFooter>
