@@ -11,8 +11,10 @@ import ArchiveEmployeeDialog from '@/components/employees/ArchiveEmployeeDialog'
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Users } from 'lucide-react';
+import { Plus, Search, Users, Calculator } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import EmployeeCalculatorDialog from '@/components/employees/EmployeeCalculatorDialog';
 
 const Index = () => {
   const { data: employees = [], isLoading } = useEmployees();
@@ -26,6 +28,7 @@ const Index = () => {
   const addTool = useAddEmployeeTool();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [unblockDialogOpen, setUnblockDialogOpen] = useState(false);
@@ -145,10 +148,20 @@ const Index = () => {
   );
 
   const actions = (
-    <Button onClick={handleAddEmployee} className="gap-2">
-      <Plus className="h-4 w-4" />
-      Adicionar Funcionário
-    </Button>
+    <div className="flex items-center gap-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="outline" size="icon" onClick={() => setCalculatorOpen(true)}>
+            <Calculator className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Calculadora de Custos</TooltipContent>
+      </Tooltip>
+      <Button onClick={handleAddEmployee} className="gap-2">
+        <Plus className="h-4 w-4" />
+        Adicionar Funcionário
+      </Button>
+    </div>
   );
 
   if (isLoading) {
@@ -252,6 +265,11 @@ const Index = () => {
         employee={selectedEmployee}
         onConfirm={handleArchiveConfirm}
         isLoading={archiveEmployee.isPending}
+      />
+
+      <EmployeeCalculatorDialog
+        open={calculatorOpen}
+        onOpenChange={setCalculatorOpen}
       />
     </AppLayout>
   );
