@@ -52,9 +52,9 @@ export interface UpdateStakeholderInput {
 export const STAKEHOLDER_ROLES = [
   { value: 'decision_maker', label: 'Decisor' },
   { value: 'subject_expert', label: 'Especialista' },
-  { value: 'other', label: 'Outro' },
   { value: 'sponsor', label: 'Patrocinador' },
   { value: 'user', label: 'Usuário Final' },
+  { value: 'other', label: 'Outro' },
 ];
 
 export const INFLUENCE_LEVEL_LABELS: Record<InfluenceLevel, string> = {
