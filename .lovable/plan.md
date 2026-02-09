@@ -1,34 +1,43 @@
 
 
-# Ajustes na Tela de Projetos
+# Ajustes nos Cards de Projetos
 
-## 1. Card "Parcelas Atrasadas" - mostrar valor recebido e valor em atraso
+## 1. Card "Recebido no Ano" mostrando R$ 0,00
 
-O card ja calcula `receivedValue` e `overdueInstallments`. Vamos alterar para:
-- **Valor principal**: exibir o valor recebido formatado (ex: `R$ 50.000`)
-- **Texto menor**: informar se ha valor em atraso (ex: `R$ 10.000 em atraso` ou `Nenhum atraso`)
-- **Titulo**: renomear para "Recebido no Ano"
+**Causa raiz**: O calculo atual filtra parcelas pelo ano do `due_date` e depois verifica `status === 'received'`. Porem, parcelas com vencimento em 2025 que foram pagas em 2026 nao sao contabilizadas. Alem disso, o campo `payment_date` nao esta sendo carregado na query do `projectService.getAll`.
+
+**Solucao**: Mudar a logica para filtrar pelo ano do `payment_date` (data do pagamento efetivo), nao pelo `due_date`:
+
+- No `ProjectStats.tsx`:
+  - `receivedValue`: filtrar parcelas com `status === 'received'` E `payment_date` no ano corrente (independente do `due_date`)
+  - `overdueValue`: manter filtro por `due_date` no ano corrente com `status === 'overdue'`
 
 **Arquivo**: `src/components/projects/ProjectStats.tsx`
-- Calcular `overdueValue` (soma dos valores das parcelas atrasadas)
-- Alterar o stat de "Parcelas Atrasadas":
-  - `title`: "Recebido no Ano"
-  - `value`: `formatCurrency(receivedValue)`
-  - `description`: se `overdueValue > 0`, mostrar `"R$ X em atraso"`, senao `"Nenhum atraso"`
-  - `variant`: destructive se `overdueValue > 0`
+- Alterar calculo de `receivedValue` para:
+  ```
+  receivedValue = installments
+    .filter(i => i.status === 'received' && i.payment_date && new Date(i.payment_date).getFullYear() === currentYear)
+    .reduce(...)
+  ```
 
-## 2. Badge de status em uma unica linha
+## 2. Card "Projetos Ativos" contando apenas status `active`
 
-O texto "Em Planejamento" e "Em Andamento" sao longos e quebram em duas linhas dentro da badge.
+**Causa raiz**: A linha `projects.filter((p) => p.status === 'active')` so conta projetos com status exatamente `active`, excluindo `planning`.
 
-**Arquivo**: `src/components/projects/ProjectsTable.tsx`
-- Adicionar `whitespace-nowrap` na classe da Badge de status (linha 83)
+**Solucao**: Contar projetos com status `planning` ou `active` (excluir `completed`, `paused`, `cancelled`).
 
-## 3. Remover descricao do projeto na tabela
+**Arquivo**: `src/components/projects/ProjectStats.tsx`
+- Alterar filtro de `activeProjects`:
+  ```
+  const activeProjects = projects.filter(
+    (p) => p.status === 'planning' || p.status === 'active'
+  ).length;
+  ```
+- Atualizar description para "Em planejamento ou execucao"
 
-A coluna "Projeto" mostra nome + descricao. Vamos remover a descricao.
+## Arquivos a modificar
 
-**Arquivo**: `src/components/projects/ProjectsTable.tsx`
-- Remover o bloco condicional `{project.description && (...)}` (linhas 43-47)
-- Simplificar o cell para retornar apenas `<span className="font-medium">{project.name}</span>`
+| Arquivo | Mudanca |
+|---------|---------|
+| `ProjectStats.tsx` | Filtrar recebidos por `payment_date` no ano; contar projetos planning + active |
 
