@@ -69,7 +69,7 @@ const navigationGroups = [
       { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresManager: true },
       { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
       { title: 'Timesheets', url: '/timesheets', icon: Clock, requiresManager: true },
-      { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true, requiresManager: true },
+      { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
     ] as NavItem[],
   },
 ];
