@@ -1,25 +1,36 @@
 
-# Bloquear avanco de KRs na fase de Planejamento
+# Corrigir lancamento de custos reais e melhorar gestao de fornecedores em execucao
 
-## Contexto
+## Problemas Identificados
 
-O projeto ja possui a logica de `portfolio_stage` para distinguir Planejamento de Execucao. Na fase de planejamento, o usuario pode criar OKRs e KRs (definir descricao, meta e unidade), mas nao deve poder alterar o **valor atual** nem o **nivel de confianca** — esses campos so serao editaveis a partir do estagio "Entrega de Valor".
+### 1. Bug: Valor realizado nao esta sendo salvo
+O dialog de lancamento de custo real (`SupplierActualDialog`) possui um bug que impede o salvamento:
+- Na linha 49, o array `months` e recriado em cada render
+- Este array esta na lista de dependencias do `useEffect` da linha 52-69
+- Isso causa um loop: cada vez que o usuario digita um valor, o `useEffect` dispara novamente e reseta o valor para `0`
 
-## Mudancas
+### 2. UX: Gestao de fornecedores em execucao
+Atualmente, projetos em andamento mostram os valores planejados como somente leitura (Plan | Real). O usuario quer poder adicionar novos fornecedores e editar valores planejados tambem durante a execucao, usando a mesma logica inline do planejamento.
+
+## Plano de Mudancas
 
 | Arquivo | Acao |
 |---------|------|
-| `src/components/projects/detail/ProjectOKRsTab.tsx` | Passar prop `isPlanning` para o `KeyResultFormDialog` |
-| `src/components/projects/okrs/KeyResultFormDialog.tsx` | Receber `isPlanning` e desabilitar/ocultar os campos "Valor Atual" e "Nivel de Confianca" quando `true` |
+| `src/components/projects/detail/SupplierActualDialog.tsx` | Corrigir bug do loop infinito de re-render |
+| `src/components/projects/detail/ProjectSuppliersSection.tsx` | Permitir edicao inline de planejado tambem em modo execucao |
 
-### Detalhes
+### Detalhes Tecnicos
 
-**ProjectOKRsTab.tsx**
-- Calcular `isPlanning = project.portfolio_stage === 'planning'`
-- Passar `isPlanning` como prop para `KeyResultFormDialog`
+**SupplierActualDialog.tsx - Correcao do bug**
+- Memoizar o array `months` com `useMemo` para evitar recriacao a cada render
+- Remover `months` da dependencia do primeiro `useEffect` (usar `durationMonths` no lugar)
+- Isso impede que o `useEffect` resete o valor digitado pelo usuario
 
-**KeyResultFormDialog.tsx**
-- Adicionar prop `isPlanning?: boolean`
-- Campo "Valor Atual" (`currentValue`): ja aparece so na edicao; quando `isPlanning === true`, esconder o campo mesmo na edicao
-- Campo "Nivel de Confianca" (`confidenceLevel`): quando `isPlanning === true`, desabilitar o dropdown (manter o valor default "Medio" na criacao e o valor atual na edicao, sem permitir alteracao)
-- Isso impede que o usuario registre progresso ou mude a confianca antes do projeto entrar em execucao
+**ProjectSuppliersSection.tsx - Edicao inline em execucao**
+- Na coluna mensal, quando `canEditActuals` e `true` e o fornecedor esta em modo de edicao (`editingRowId`), exibir inputs para valores planejados (mesma logica do modo planejamento)
+- Quando nao esta editando, manter a visualizacao dual "Plan | Real"
+- Manter o botao de "$" para lançar o custo realizado via dialog
+- Habilitar os botoes de Editar (lapis) e Excluir para fornecedores existentes no modo execucao
+- Manter o botao "Adicionar Fornecedor" ja existente (que ja funciona em execucao)
+
+Isso unifica a experiencia: o usuario pode gerenciar fornecedores (adicionar, editar planejado, excluir) em ambas as fases, e lançar o realizado via dialog apenas na execucao.
