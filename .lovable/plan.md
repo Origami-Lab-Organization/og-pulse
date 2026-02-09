@@ -1,43 +1,37 @@
 
+# Mover Calculadora para Dentro da Tela de Funcionarios
 
-# Ajustes nos Cards de Projetos
+## Resumo
 
-## 1. Card "Recebido no Ano" mostrando R$ 0,00
+Remover a calculadora do menu lateral e da rota separada `/calculator`, e adiciona-la como um Dialog (modal) acessivel por um botao discreto com icone de calculadora na tela de funcionarios.
 
-**Causa raiz**: O calculo atual filtra parcelas pelo ano do `due_date` e depois verifica `status === 'received'`. Porem, parcelas com vencimento em 2025 que foram pagas em 2026 nao sao contabilizadas. Alem disso, o campo `payment_date` nao esta sendo carregado na query do `projectService.getAll`.
+## Mudancas
 
-**Solucao**: Mudar a logica para filtrar pelo ano do `payment_date` (data do pagamento efetivo), nao pelo `due_date`:
+### 1. Remover do menu lateral
+**Arquivo**: `src/components/layout/AppSidebar.tsx`
+- Remover o item `{ title: 'Calculadora', url: '/calculator', icon: Calculator }` do array de navegacao
+- Remover o import de `Calculator` se nao for mais usado
 
-- No `ProjectStats.tsx`:
-  - `receivedValue`: filtrar parcelas com `status === 'received'` E `payment_date` no ano corrente (independente do `due_date`)
-  - `overdueValue`: manter filtro por `due_date` no ano corrente com `status === 'overdue'`
+### 2. Remover a rota `/calculator`
+**Arquivo**: `src/App.tsx`
+- Remover a rota `/calculator` e o import de `EmployeeCalculator`
 
-**Arquivo**: `src/components/projects/ProjectStats.tsx`
-- Alterar calculo de `receivedValue` para:
-  ```
-  receivedValue = installments
-    .filter(i => i.status === 'received' && i.payment_date && new Date(i.payment_date).getFullYear() === currentYear)
-    .reduce(...)
-  ```
+### 3. Criar Dialog da Calculadora
+**Arquivo**: `src/components/employees/EmployeeCalculatorDialog.tsx` (novo)
+- Criar um Dialog que encapsula o conteudo da calculadora (inputs + results)
+- Reutilizar os componentes `CalculatorInputs` e `CalculatorResults` ja existentes
+- O Dialog tera titulo "Calculadora de Custos" e tamanho largo (`max-w-5xl`)
 
-## 2. Card "Projetos Ativos" contando apenas status `active`
+### 4. Adicionar botao de calculadora na tela de Funcionarios
+**Arquivo**: `src/pages/Index.tsx`
+- Importar o novo `EmployeeCalculatorDialog`
+- Adicionar estado `calculatorOpen`
+- Na area de `actions` (ao lado do botao "Adicionar Funcionario"), incluir um botao `variant="outline" size="icon"` com o icone `Calculator` e um Tooltip "Calculadora de Custos"
+- Renderizar o `EmployeeCalculatorDialog` controlado pelo estado
 
-**Causa raiz**: A linha `projects.filter((p) => p.status === 'active')` so conta projetos com status exatamente `active`, excluindo `planning`.
+### 5. Manter a pagina `EmployeeCalculator.tsx`
+- O arquivo pode ser mantido ou removido. Como o conteudo sera reutilizado no Dialog, ele pode ser removido para limpeza, mas nao e obrigatorio.
 
-**Solucao**: Contar projetos com status `planning` ou `active` (excluir `completed`, `paused`, `cancelled`).
+## Resultado
 
-**Arquivo**: `src/components/projects/ProjectStats.tsx`
-- Alterar filtro de `activeProjects`:
-  ```
-  const activeProjects = projects.filter(
-    (p) => p.status === 'planning' || p.status === 'active'
-  ).length;
-  ```
-- Atualizar description para "Em planejamento ou execucao"
-
-## Arquivos a modificar
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `ProjectStats.tsx` | Filtrar recebidos por `payment_date` no ano; contar projetos planning + active |
-
+O usuario vera um pequeno botao com icone de calculadora ao lado do botao "Adicionar Funcionario". Ao clicar, abre um modal com a calculadora completa de custos CLT vs PJ.
