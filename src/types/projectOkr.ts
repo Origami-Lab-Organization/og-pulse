@@ -1,5 +1,5 @@
 export type OKRStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
-export type KeyResultStatus = 'pending' | 'in_progress' | 'completed';
+export type KeyResultConfidenceLevel = 'very_high' | 'high' | 'medium' | 'low' | 'very_low';
 
 export interface ProjectOKR {
   id: string;
@@ -21,8 +21,17 @@ export interface ProjectKeyResult {
   target_value: number | null;
   current_value: number;
   unit: string | null;
-  status: KeyResultStatus;
+  confidence_level: KeyResultConfidenceLevel;
   created_at: string;
+}
+
+export interface KeyResultHistory {
+  id: string;
+  key_result_id: string;
+  current_value: number | null;
+  confidence_level: string | null;
+  changed_at: string;
+  changed_by: string | null;
 }
 
 export interface CreateOKRInput {
@@ -46,6 +55,7 @@ export interface CreateKeyResultInput {
   description: string;
   targetValue?: number;
   unit?: string;
+  confidenceLevel?: KeyResultConfidenceLevel;
 }
 
 export interface UpdateKeyResultInput {
@@ -53,7 +63,7 @@ export interface UpdateKeyResultInput {
   targetValue?: number;
   currentValue?: number;
   unit?: string;
-  status?: KeyResultStatus;
+  confidenceLevel?: KeyResultConfidenceLevel;
 }
 
 export const OKR_STATUS_LABELS: Record<OKRStatus, string> = {
@@ -63,8 +73,18 @@ export const OKR_STATUS_LABELS: Record<OKRStatus, string> = {
   cancelled: 'Cancelado',
 };
 
-export const KEY_RESULT_STATUS_LABELS: Record<KeyResultStatus, string> = {
-  pending: 'Pendente',
-  in_progress: 'Em Andamento',
-  completed: 'Concluído',
+export const CONFIDENCE_LEVEL_LABELS: Record<KeyResultConfidenceLevel, string> = {
+  very_high: 'Muito Alto',
+  high: 'Alto',
+  medium: 'Médio',
+  low: 'Baixo',
+  very_low: 'Muito Baixo',
+};
+
+export const CONFIDENCE_LEVEL_COLORS: Record<KeyResultConfidenceLevel, string> = {
+  very_high: 'bg-green-700/10 text-green-700 border-green-700/20',
+  high: 'bg-green-500/10 text-green-600 border-green-500/20',
+  medium: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+  low: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  very_low: 'bg-red-500/10 text-red-600 border-red-500/20',
 };
