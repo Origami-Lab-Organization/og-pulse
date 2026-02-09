@@ -1,37 +1,71 @@
 
-# Mover Calculadora para Dentro da Tela de Funcionarios
+# Alterar Jornada de Trabalho de Mensal para Diaria
 
 ## Resumo
 
-Remover a calculadora do menu lateral e da rota separada `/calculator`, e adiciona-la como um Dialog (modal) acessivel por um botao discreto com icone de calculadora na tela de funcionarios.
+Trocar o campo de jornada no cadastro de funcionarios de "horas/mes" para "horas/dia" (ex: 8, 6, 4). O valor mensal passa a ser calculado automaticamente com base nos dias uteis, permitindo estimativas mais precisas na gestao de projetos.
 
-## Mudancas
+## Impacto no Banco de Dados
 
-### 1. Remover do menu lateral
-**Arquivo**: `src/components/layout/AppSidebar.tsx`
-- Remover o item `{ title: 'Calculadora', url: '/calculator', icon: Calculator }` do array de navegacao
-- Remover o import de `Calculator` se nao for mais usado
+O campo `jornada_mensal` no banco continua armazenando o valor **mensal** calculado (para nao quebrar toda a logica existente de custo/hora). Vamos adicionar um novo campo `jornada_diaria` que armazena o valor digitado pelo usuario.
 
-### 2. Remover a rota `/calculator`
-**Arquivo**: `src/App.tsx`
-- Remover a rota `/calculator` e o import de `EmployeeCalculator`
+### Migracao SQL
+- Adicionar coluna `jornada_diaria` (integer, default 8, not null) na tabela `employees`
+- Adicionar coluna `jornada_diaria` (integer, default 8, not null) na tabela `employee_versions`
+- Preencher os registros existentes: `UPDATE employees SET jornada_diaria = ROUND(jornada_mensal / 22)` (estimativa)
 
-### 3. Criar Dialog da Calculadora
-**Arquivo**: `src/components/employees/EmployeeCalculatorDialog.tsx` (novo)
-- Criar um Dialog que encapsula o conteudo da calculadora (inputs + results)
-- Reutilizar os componentes `CalculatorInputs` e `CalculatorResults` ja existentes
-- O Dialog tera titulo "Calculadora de Custos" e tamanho largo (`max-w-5xl`)
+## Mudancas nos Arquivos
 
-### 4. Adicionar botao de calculadora na tela de Funcionarios
-**Arquivo**: `src/pages/Index.tsx`
-- Importar o novo `EmployeeCalculatorDialog`
-- Adicionar estado `calculatorOpen`
-- Na area de `actions` (ao lado do botao "Adicionar Funcionario"), incluir um botao `variant="outline" size="icon"` com o icone `Calculator` e um Tooltip "Calculadora de Custos"
-- Renderizar o `EmployeeCalculatorDialog` controlado pelo estado
+### 1. Formulario de Funcionario (`EmployeeFormDialog.tsx`)
+- Renomear o campo de "Jornada Mensal (horas)" para "Jornada Diaria (horas)"
+- Alterar placeholder de "168" para "8"
+- Alterar default de 168 para 8
+- Alterar validacao: `z.number().min(1).max(24)`
+- Renomear o campo no schema de `jornadaMensal` para `jornadaDiaria` (ou manter e converter)
+- Ao salvar, calcular `jornada_mensal = jornada_diaria * 22` (dias uteis padrao) e salvar ambos os campos
 
-### 5. Manter a pagina `EmployeeCalculator.tsx`
-- O arquivo pode ser mantido ou removido. Como o conteudo sera reutilizado no Dialog, ele pode ser removido para limpeza, mas nao e obrigatorio.
+### 2. Tipo Employee (`types/employee.ts`)
+- Adicionar campo `jornadaDiaria: number` na interface Employee
 
-## Resultado
+### 3. Servico (`services/employeeService.ts`)
+- Mapear `jornadaDiaria` para `jornada_diaria` no create/update
+- Ao mapear do DB para o front, incluir `jornada_diaria`
 
-O usuario vera um pequeno botao com icone de calculadora ao lado do botao "Adicionar Funcionario". Ao clicar, abre um modal com a calculadora completa de custos CLT vs PJ.
+### 4. Hook useEmployees (`hooks/useEmployees.ts`)
+- Incluir `jornadaDiaria` no mapeamento DB -> frontend
+
+### 5. Calculadora de Custos (`CalculatorInputs.tsx` e `EmployeeCalculatorDialog.tsx`)
+- Trocar label de "Jornada (horas/mes)" para "Jornada Diaria (horas)"
+- Placeholder de "168" para "8"
+- Default de 168 para 8
+- Converter para mensal ao passar para os calculos: `jornadaDiaria * 22`
+
+### 6. Tabela de Versoes (`EmployeeVersionsTable.tsx`)
+- Exibir jornada diaria ao inves de mensal (ou ambos: "8h/dia")
+
+### 7. Tabela de Funcionarios (`EmployeesTable.tsx`)
+- Ajustar calculo de custo/hora para usar `jornada_mensal` (que ja sera calculado corretamente)
+
+### 8. Custo/hora nos Projetos
+- Nenhuma mudanca necessaria nos arquivos de projetos (`ProjectLaborSection.tsx`, `ProjectOverviewTab.tsx`), pois eles ja usam `jornada_mensal` do banco, que continuara sendo calculado automaticamente
+
+## Logica de Conversao
+
+```text
+jornada_mensal = jornada_diaria * 22
+```
+
+O valor 22 e uma estimativa padrao de dias uteis/mes. No futuro, a gestao de projetos podera usar o calendario de feriados para calcular os dias uteis reais de cada mes.
+
+## Resumo dos Arquivos
+
+| Arquivo | Mudanca |
+|---------|---------|
+| Migracao SQL | Adicionar `jornada_diaria` em employees e employee_versions |
+| `types/employee.ts` | Adicionar `jornadaDiaria` |
+| `EmployeeFormDialog.tsx` | Input diario, converter para mensal ao salvar |
+| `services/employeeService.ts` | Mapear novo campo |
+| `hooks/useEmployees.ts` | Incluir no mapeamento |
+| `CalculatorInputs.tsx` | Label e default para diario |
+| `EmployeeCalculatorDialog.tsx` | Converter diario para mensal nos calculos |
+| `EmployeeVersionsTable.tsx` | Exibir jornada diaria |
