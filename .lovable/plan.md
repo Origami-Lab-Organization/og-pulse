@@ -1,92 +1,89 @@
 
-# Plano: Portal do Admin e Reorganizacao da Navegacao
+# Plano: Validacao de Checklist para Mover Projeto de Planejamento para Entrega de Valor
 
 ## Objetivo
 
-Mover "Tabela de Precos" e "Configuracoes" para dentro de um **Portal do Admin**, acessivel pelo avatar/circulo no canto superior direito. Remover a secao "Configuracoes" do menu lateral.
+Impedir que um projeto seja movido do estagio "Planejamento" para "Entrega de Valor" no Kanban de Portfolio se o checklist de preparacao nao estiver completo (OKRs, Stakeholders, Custos e Cronograma).
+
+## Abordagem
+
+A validacao sera feita no `handleDragEnd` do `PortfolioKanbanBoard`. Quando o usuario tentar mover um card de `planning` para `value_delivery`, o sistema fara uma consulta rapida ao banco para verificar se os 4 itens obrigatorios estao preenchidos. Se algum estiver faltando, exibe um toast de erro informando o que falta e bloqueia a movimentacao.
 
 ## Mudancas
 
-### 1. Remover secao "Configuracoes" do sidebar
+### 1. Criar hook de validacao: `useProjectPlanningReadiness`
 
-**Arquivo:** `src/components/layout/AppSidebar.tsx`
+**Novo arquivo:** `src/hooks/useProjectPlanningReadiness.ts`
 
-Remover o grupo `Configuracoes` (que contem "Tabela de Precos" e "Configuracoes") do array `navigationGroups`. Tambem remover imports nao utilizados (`DollarSign`, `Settings`).
+Um hook que recebe um `projectId` e retorna uma funcao async `checkReadiness()` que consulta:
+- `project_okrs` com `project_key_results` -- precisa de pelo menos 1 OKR com 1 KR
+- `project_stakeholders` -- pelo menos 1
+- `project_members` -- pelo menos 1 (custos/equipe alocada)
+- `project_milestones` -- pelo menos 1
 
-### 2. Criar pagina do Portal do Admin
+Retorna um objeto `{ ready: boolean, missing: string[] }` com os nomes dos itens faltantes.
 
-**Novo arquivo:** `src/pages/AdminPortal.tsx`
+### 2. Integrar validacao no Kanban Board
 
-Uma pagina com layout proprio (usando `AppLayout`) que consolida as configuracoes em abas:
+**Arquivo:** `src/components/portfolio/PortfolioKanbanBoard.tsx`
 
-| Aba | Conteudo | Componente existente |
-|-----|----------|---------------------|
-| Tabela de Precos | Gestao de papeis e valores hora | Conteudo de `Pricing.tsx` (inline) |
-| Financeiro | Percentuais de markup e metas | `FinancialSettingsForm` |
-| Encargos/Folha | Configuracao de encargos | `PayrollProfileSettingsForm` |
-| Feriados/Folgas | Gestao de feriados | `HolidaysSettingsForm` |
+No `handleDragEnd`, antes de chamar `updateStage.mutate()`:
+- Se a transicao for de `planning` para `value_delivery`, chamar `checkReadiness(projectId)`
+- Se `ready === false`, exibir toast destrutivo listando os itens faltantes e cancelar a movimentacao
+- Demais transicoes seguem sem validacao
 
-A pagina tera breadcrumbs indicando "Portal do Admin" e usara o componente `Tabs` existente.
+### 3. Feedback visual
 
-### 3. Adicionar opcao "Portal do Admin" no menu do usuario
-
-**Arquivo:** `src/components/layout/UserMenu.tsx`
-
-Adicionar um item de menu "Portal do Admin" (com icone `Shield` ou `Settings`) visivel apenas para admins (`employee.isAdmin`). Ao clicar, navega para `/admin`.
-
-### 4. Atualizar rotas
-
-**Arquivo:** `src/App.tsx`
-
-- Adicionar rota `/admin` com `RoleProtectedRoute requireAdmin`
-- Remover rotas `/pricing` e `/settings` (ou manter como redirect para `/admin`)
-
-### 5. Limpar arquivos obsoletos
-
-- `src/pages/Settings.tsx` - pode ser removido (conteudo movido para AdminPortal)
-- `src/pages/Pricing.tsx` - pode ser removido (conteudo movido para AdminPortal)
+O toast de erro listara exatamente o que falta, por exemplo:
+> "O projeto nao pode ser movido para Entrega de Valor. Itens pendentes: OKRs definidos, Cronograma definido."
 
 ## Detalhes Tecnicos
 
-### UserMenu.tsx - Nova opcao
+### useProjectPlanningReadiness.ts
 
 ```typescript
-// Visivel apenas para admins
-{employee.isAdmin && (
-  <>
-    <DropdownMenuSeparator />
-    <DropdownMenuItem onClick={() => navigate('/admin')}>
-      <Shield className="mr-2 h-4 w-4" />
-      <span>Portal do Admin</span>
-    </DropdownMenuItem>
-  </>
-)}
+// Consultas paralelas ao Supabase para verificar cada item
+const [okrs, stakeholders, members, milestones] = await Promise.all([
+  supabase.from('project_okrs').select('id, key_results:project_key_results(id)').eq('project_id', projectId),
+  supabase.from('project_stakeholders').select('id').eq('project_id', projectId).limit(1),
+  supabase.from('project_members').select('id').eq('project_id', projectId).limit(1),
+  supabase.from('project_milestones').select('id').eq('project_id', projectId).limit(1),
+]);
+
+const missing = [];
+if (!okrs.data?.some(o => o.key_results?.length > 0)) missing.push('OKRs definidos');
+if (!stakeholders.data?.length) missing.push('Stakeholders mapeados');
+if (!members.data?.length) missing.push('Equipe alocada');
+if (!milestones.data?.length) missing.push('Cronograma definido');
+
+return { ready: missing.length === 0, missing };
 ```
 
-### AdminPortal.tsx - Estrutura
-
-A pagina usa `Tabs` com 4 abas. A aba "Tabela de Precos" incorpora toda a logica que hoje esta em `Pricing.tsx` (filtros, stats, tabela, dialogs). As demais abas reutilizam os componentes de formulario existentes.
-
-### Rotas em App.tsx
+### PortfolioKanbanBoard.tsx - handleDragEnd modificado
 
 ```typescript
-<Route
-  path="/admin"
-  element={
-    <RoleProtectedRoute requireAdmin>
-      <AdminPortal />
-    </RoleProtectedRoute>
+const handleDragEnd = async (event: DragEndEvent) => {
+  // ... determinar targetStage ...
+
+  if (targetStage === 'value_delivery' && project.portfolio_stage === 'planning') {
+    const { ready, missing } = await checkReadiness(projectId);
+    if (!ready) {
+      toast({
+        title: 'Projeto nao pode ser movido',
+        description: `Itens pendentes: ${missing.join(', ')}`,
+        variant: 'destructive',
+      });
+      return; // bloqueia movimentacao
+    }
   }
-/>
+
+  updateStage.mutate({ projectId, newStage: targetStage });
+};
 ```
 
 ## Resumo de Arquivos
 
 | Arquivo | Acao |
 |---------|------|
-| `src/pages/AdminPortal.tsx` | Criar (consolida Settings + Pricing) |
-| `src/components/layout/UserMenu.tsx` | Editar (adicionar link Portal do Admin) |
-| `src/components/layout/AppSidebar.tsx` | Editar (remover grupo Configuracoes) |
-| `src/App.tsx` | Editar (adicionar rota /admin, remover /pricing e /settings) |
-| `src/pages/Settings.tsx` | Remover |
-| `src/pages/Pricing.tsx` | Remover |
+| `src/hooks/useProjectPlanningReadiness.ts` | Criar (validacao de checklist) |
+| `src/components/portfolio/PortfolioKanbanBoard.tsx` | Editar (integrar validacao no drag-and-drop) |
