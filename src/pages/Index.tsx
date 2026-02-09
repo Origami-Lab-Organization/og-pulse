@@ -62,13 +62,14 @@ const Index = () => {
   };
 
   const handleFormSubmit = async (data: EmployeeFormSubmitData) => {
-    const { localBenefits, localTools, createNewVersion, ...employeeData } = data;
+    const { localBenefits, localTools, createNewVersion, effectiveFrom, ...employeeData } = data;
     
     if (selectedEmployee) {
       await updateEmployee.mutateAsync({ 
         id: selectedEmployee.id, 
         updates: employeeData,
         createNewVersion: createNewVersion || false,
+        effectiveFrom,
       });
     } else {
       // Create employee first
