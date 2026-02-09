@@ -194,6 +194,28 @@ export const useUpdateKeyResult = () => {
         confidence_level: updates.confidenceLevel ?? (data as any).confidence_level,
       });
 
+      // Auto-update OKR progress based on all KRs
+      const okrId = (data as any).okr_id;
+      if (okrId) {
+        const { data: allKRs } = await supabase
+          .from('project_key_results')
+          .select('*')
+          .eq('okr_id', okrId);
+
+        if (allKRs && allKRs.length > 0) {
+          const avgProgress = allKRs.reduce((sum, kr) => {
+            const target = kr.target_value || 0;
+            const current = kr.current_value || 0;
+            return sum + (target > 0 ? Math.min(100, (current / target) * 100) : 0);
+          }, 0) / allKRs.length;
+
+          await supabase
+            .from('project_okrs')
+            .update({ progress_percent: Math.round(avgProgress), updated_at: new Date().toISOString() })
+            .eq('id', okrId);
+        }
+      }
+
       return { data, projectId };
     },
     onSuccess: (result) => {
