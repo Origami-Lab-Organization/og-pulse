@@ -3,6 +3,7 @@ import { Plus, Trash2, Truck, DollarSign, TrendingUp, TrendingDown, Minus, Penci
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import {
   Table,
   TableBody,
@@ -514,14 +515,11 @@ export function ProjectSuppliersSection({
                         </TableCell>
                         {months.map((monthNum) => (
                           <TableCell key={monthNum} className="text-center p-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="w-20 h-8 text-center mx-auto"
-                              value={newSupplierData.monthlyValues[monthNum] || ''}
-                              onChange={(e) => handleNewRowValueChange(monthNum, Number(e.target.value))}
-                              placeholder="0"
+                            <CurrencyInput
+                              compact
+                              className="w-24 mx-auto"
+                              value={newSupplierData.monthlyValues[monthNum] || 0}
+                              onValueChange={(v) => handleNewRowValueChange(monthNum, v)}
                             />
                           </TableCell>
                         ))}
@@ -591,18 +589,12 @@ export function ProjectSuppliersSection({
                                   isEditingThis ? (
                                     // Editing: show input
                                     <div className="flex flex-col gap-0.5 items-center">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        className="w-20 h-8 text-center mx-auto"
-                                        value={plannedValue || ''}
-                                        onChange={(e) =>
-                                          handleValueChange(
-                                            supplier.id,
-                                            monthNum,
-                                            Number(e.target.value)
-                                          )
+                                      <CurrencyInput
+                                        compact
+                                        className="w-24 mx-auto"
+                                        value={plannedValue}
+                                        onValueChange={(v) =>
+                                          handleValueChange(supplier.id, monthNum, v)
                                         }
                                       />
                                       {budgetedMonthly > 0 && (
@@ -627,18 +619,12 @@ export function ProjectSuppliersSection({
                                 ) : canEditActuals && isEditingThis ? (
                                   // Execution mode + editing: show input for planned
                                   <div className="flex flex-col gap-0.5 items-center">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      className="w-20 h-8 text-center mx-auto"
-                                      value={plannedValue || ''}
-                                      onChange={(e) =>
-                                        handleValueChange(
-                                          supplier.id,
-                                          monthNum,
-                                          Number(e.target.value)
-                                        )
+                                    <CurrencyInput
+                                      compact
+                                      className="w-24 mx-auto"
+                                      value={plannedValue}
+                                      onValueChange={(v) =>
+                                        handleValueChange(supplier.id, monthNum, v)
                                       }
                                     />
                                     {actualValue > 0 && (

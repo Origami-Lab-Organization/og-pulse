@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, Package } from 'lucide-react';
@@ -87,19 +88,10 @@ export const BudgetMaterialsEditor = forwardRef<HTMLDivElement, BudgetMaterialsE
                           />
                         </TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            placeholder="0,00"
-                            value={material.value || ''}
-                            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-                            onChange={(e) =>
-                              handleUpdateMaterial(
-                                material.tempId,
-                                'value',
-                                parseFloat(e.target.value) || 0
-                              )
+                          <CurrencyInput
+                            value={material.value}
+                            onValueChange={(v) =>
+                              handleUpdateMaterial(material.tempId, 'value', v)
                             }
                             className="text-right"
                           />

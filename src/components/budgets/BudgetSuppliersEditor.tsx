@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, Truck } from 'lucide-react';
@@ -105,19 +106,10 @@ export function BudgetSuppliersEditor({
                       />
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        placeholder="0,00"
-                        value={supplier.monthlyValue || ''}
-                        onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-                        onChange={(e) =>
-                          handleUpdateSupplier(
-                            supplier.tempId,
-                            'monthlyValue',
-                            parseFloat(e.target.value) || 0
-                          )
+                      <CurrencyInput
+                        value={supplier.monthlyValue}
+                        onValueChange={(v) =>
+                          handleUpdateSupplier(supplier.tempId, 'monthlyValue', v)
                         }
                         className="text-right"
                       />

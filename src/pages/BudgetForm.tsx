@@ -7,6 +7,7 @@ import { format, addDays } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -528,23 +529,10 @@ export default function BudgetForm() {
                   <Label>Desconto</Label>
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">R$</span>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={100}
+                    <CurrencyInput
                       className="w-32 text-right"
                       value={discountValue}
-                      onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) {
-                          setDiscountValue(value);
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        setDiscountValue(Math.max(0, Math.min(value, calculation.sellingPrice)));
-                      }}
+                      onValueChange={(v) => setDiscountValue(v)}
                     />
                   </div>
                 </div>

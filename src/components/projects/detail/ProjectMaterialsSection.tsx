@@ -3,6 +3,7 @@ import { Plus, Trash2, Package, Check } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -233,13 +234,11 @@ export function ProjectMaterialsSection({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="value">Valor (R$)</Label>
-                <Input
+                <CurrencyInput
                   id="value"
-                  type="number"
-                  step="0.01"
-                  value={formData.value || ''}
-                  onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
-                  placeholder="0,00"
+                  value={formData.value}
+                  onValueChange={(v) => setFormData({ ...formData, value: v })}
+                  showPrefix
                 />
               </div>
 

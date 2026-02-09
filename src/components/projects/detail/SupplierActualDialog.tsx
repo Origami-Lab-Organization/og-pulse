@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import {
   Dialog,
   DialogContent,
@@ -167,14 +167,11 @@ export function SupplierActualDialog({
 
             <div className="space-y-2">
               <Label htmlFor="value">Valor Realizado (R$) *</Label>
-              <Input
+              <CurrencyInput
                 id="value"
-                type="number"
-                min="0"
-                step="0.01"
-                value={value || ''}
-                onChange={(e) => setValue(Number(e.target.value))}
-                placeholder="0,00"
+                value={value}
+                onValueChange={setValue}
+                showPrefix
               />
             </div>
 
