@@ -12,13 +12,20 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
   const currentYear = new Date().getFullYear();
   const totalProjects = projects.length;
   const activeProjects = projects.filter((p) => p.status === 'active').length;
-  const totalValue = projects.reduce((acc, p) => {
-    const value = Number(p.total_value || 0);
-    if (p.is_continuous) {
-      return acc + (value * 12);
-    }
-    return acc + value;
-  }, 0);
+
+  // Receita do ano = soma das parcelas do ano corrente
+  const currentYearRevenue = installments
+    .filter((i) => new Date(i.due_date).getFullYear() === currentYear)
+    .reduce((acc, i) => acc + Number(i.value || 0), 0);
+
+  // Para projetos contínuos sem parcelas no ano, somar mensalidade x 12
+  const continuousRevenue = projects
+    .filter((p) => p.is_continuous && !(p.installments?.some(
+      (i) => new Date(i.due_date).getFullYear() === currentYear
+    )))
+    .reduce((acc, p) => acc + Number(p.total_value || 0) * 12, 0);
+
+  const totalYearRevenue = currentYearRevenue + continuousRevenue;
 
   const currentYearInstallments = installments.filter(
     (i) => new Date(i.due_date).getFullYear() === currentYear
@@ -44,8 +51,8 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
       description: 'Em andamento',
     },
     {
-      title: 'Valor Contratado',
-      value: formatCurrency(totalValue),
+      title: 'Receita no Ano',
+      value: formatCurrency(totalYearRevenue),
       icon: DollarSign,
       description: `Projeção ${currentYear}`,
     },
