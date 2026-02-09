@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,10 @@ export function SupplierActualDialog({
 
   const upsertActual = useUpsertSupplierActual();
 
-  const months = Array.from({ length: durationMonths }, (_, i) => i + 1);
+  const months = useMemo(
+    () => Array.from({ length: durationMonths }, (_, i) => i + 1),
+    [durationMonths]
+  );
 
   // Reset form when dialog opens with a new supplier
   useEffect(() => {
@@ -66,7 +69,7 @@ export function SupplierActualDialog({
       setValue(existingForMonth?.value || 0);
       setNotes(existingForMonth?.notes || '');
     }
-  }, [open, supplier, existingActuals, months]);
+  }, [open, supplier, existingActuals, durationMonths]);
 
   // Update value when month changes
   useEffect(() => {
