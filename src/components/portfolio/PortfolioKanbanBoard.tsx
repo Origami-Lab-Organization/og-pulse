@@ -14,6 +14,8 @@ import { PortfolioCard } from './PortfolioCard';
 import { PortfolioProject, useUpdatePortfolioStage } from '@/hooks/usePortfolioProjects';
 import { PORTFOLIO_COLUMNS, PortfolioStage } from '@/types/portfolio';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { useProjectPlanningReadiness } from '@/hooks/useProjectPlanningReadiness';
+import { useToast } from '@/hooks/use-toast';
 
 interface PortfolioKanbanBoardProps {
   projects: PortfolioProject[];
@@ -22,6 +24,8 @@ interface PortfolioKanbanBoardProps {
 export function PortfolioKanbanBoard({ projects }: PortfolioKanbanBoardProps) {
   const [activeProject, setActiveProject] = useState<PortfolioProject | null>(null);
   const updateStage = useUpdatePortfolioStage();
+  const { checkReadiness } = useProjectPlanningReadiness();
+  const { toast } = useToast();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -62,7 +66,7 @@ export function PortfolioKanbanBoard({ projects }: PortfolioKanbanBoardProps) {
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveProject(null);
 
@@ -87,6 +91,19 @@ export function PortfolioKanbanBoard({ projects }: PortfolioKanbanBoardProps) {
     }
 
     if (targetStage && targetStage !== project.portfolio_stage) {
+      // Validate planning → value_delivery transition
+      if (targetStage === 'value_delivery' && project.portfolio_stage === 'planning') {
+        const { ready, missing } = await checkReadiness(projectId);
+        if (!ready) {
+          toast({
+            title: 'Projeto não pode ser movido',
+            description: `Itens pendentes: ${missing.join(', ')}`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
       updateStage.mutate({ projectId, newStage: targetStage });
     }
   };
