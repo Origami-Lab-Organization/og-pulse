@@ -10,6 +10,7 @@ import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
 import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
+import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { parseISO, differenceInMonths, startOfMonth, addMonths } from 'date-fns';
 
 interface ProjectFinancialTabProps {
@@ -30,6 +31,8 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
+  const { data: financialSettings } = useFinancialSettings();
+  const marginTarget = financialSettings?.gross_margin_target_percent ?? 0;
 
   const projectDuration = useMemo(() => {
     if (project.is_continuous) return 12;
@@ -242,12 +245,12 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
           <CardContent className="pt-4 pb-4 px-4">
             <div className="flex items-center gap-2 mb-3">
               <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                kpiData.marginActual >= 30 ? 'bg-green-100 dark:bg-green-900/30' :
-                kpiData.marginActual >= 15 ? 'bg-muted' : 'bg-red-100 dark:bg-red-900/30'
+                kpiData.marginActual >= marginTarget ? 'bg-green-100 dark:bg-green-900/30' :
+                kpiData.marginActual < marginTarget * 0.5 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-muted'
               }`}>
-                {kpiData.marginActual >= 30 ? (
+                {kpiData.marginActual >= marginTarget ? (
                   <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-                ) : kpiData.marginActual < 15 ? (
+                ) : kpiData.marginActual < marginTarget * 0.5 ? (
                   <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
                 ) : (
                   <Minus className="h-4 w-4 text-muted-foreground" />
@@ -258,8 +261,8 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
             <div className="space-y-1">
               <div className="flex items-baseline justify-between">
                 <p className={`text-xl font-bold ${
-                  kpiData.marginActual >= 30 ? 'text-green-600 dark:text-green-400' :
-                  kpiData.marginActual < 15 ? 'text-red-600 dark:text-red-400' : ''
+                  kpiData.marginActual >= marginTarget ? 'text-green-600 dark:text-green-400' :
+                  kpiData.marginActual < marginTarget * 0.5 ? 'text-red-600 dark:text-red-400' : ''
                 }`}>
                   {formatPercent(kpiData.marginActual)}
                 </p>
@@ -268,6 +271,10 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
               <div className="flex items-baseline justify-between">
                 <p className="text-sm text-muted-foreground">{formatPercent(kpiData.marginPlanned)}</p>
                 <span className="text-xs text-muted-foreground">Planejado</span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm text-muted-foreground">{formatPercent(marginTarget)}</p>
+                <span className="text-xs text-muted-foreground">Meta</span>
               </div>
               <div className="pt-1">
                 <span className={`text-xs font-semibold ${kpiData.marginVar >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
