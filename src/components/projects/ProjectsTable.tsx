@@ -35,19 +35,9 @@ export function createProjectColumns({
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Projeto" />,
-      cell: ({ row }) => {
-        const project = row.original;
-        return (
-          <div className="flex flex-col">
-            <span className="font-medium">{project.name}</span>
-            {project.description && (
-              <span className="text-sm text-muted-foreground truncate max-w-[300px]">
-                {project.description}
-              </span>
-            )}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
     },
     {
       accessorKey: 'client',
@@ -80,7 +70,7 @@ export function createProjectColumns({
       cell: ({ row }) => {
         const status = row.original.status as ProjectStatus;
         return (
-          <Badge className={statusColors[status]} variant="outline">
+          <Badge className={`whitespace-nowrap ${statusColors[status]}`} variant="outline">
             {PROJECT_STATUS_LABELS[status]}
           </Badge>
         );
