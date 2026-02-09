@@ -1,75 +1,132 @@
 
-# Reorganizar abas Visao Geral e Financeiro do Projeto
+# Dashboard Executivo - Visao Geral do Projeto
 
-## Problemas identificados
+## Objetivo
+Transformar a aba "Visao Geral" (em projetos em execucao) em um painel profissional que permite ao gerente de projetos avaliar a saude do projeto em uma unica tela, consolidando informacoes de todas as dimensoes: projeto, OKRs, custos, cronograma e financeiro.
 
-### 1. Aba Financeiro nao permite gerenciar NF/Recebimentos
-A aba "Financeiro" em execucao mostra apenas KPIs de custos e graficos. Nao ha como lancar emissao de NF ou registrar recebimento. O componente `ProjectInstallmentsTable` (que permite editar status, numero NF, datas e valores) existe mas so e usado na aba "Visao Geral" em modo somente leitura.
+## Layout Proposto
 
-### 2. Analytics misturados com dados operacionais
-A aba "Visao Geral" em execucao contem graficos (composicao de custos, recebimentos, tendencia), KPIs financeiros e tabela de parcelas. O usuario quer que os analytics fiquem na Visao Geral e o gerenciamento financeiro fique na aba Financeiro.
+O dashboard sera organizado em secoes compactas e visuais, sem graficos pesados -- focado em indicadores rapidos com semaforos de saude.
 
-### 3. Calculos incorretos na Visao Geral
-- Usa `salarioMensal + beneficios + encargos + toolsCost` em vez de `total_monthly_cost_estimated`
-- Usa constante `HOURS_PER_MONTH = 176` em vez de `employee.jornada_mensal`
+```text
++---------------------------------------------------------------+
+| FAIXA DE KPIs FINANCEIROS (5 cards compactos)                 |
+| Contrato | Custo Plan. | Margem | Recebido | Pendente         |
++---------------------------------------------------------------+
+|                                                                |
+| +---------------------------+  +----------------------------+  |
+| | SAUDE DO PROJETO          |  | OKRs                       |  |
+| | Indicador geral com       |  | Progresso medio dos OKRs   |  |
+| | semaforo (verde/amarelo/  |  | Lista resumida: O1 45%     |  |
+| | vermelho) baseado nas     |  |                O2 80%     |  |
+| | 4 dimensoes               |  | Confianca predominante     |  |
+| +---------------------------+  +----------------------------+  |
+|                                                                |
+| +---------------------------+  +----------------------------+  |
+| | CRONOGRAMA                |  | CUSTOS                     |  |
+| | Marcos: 3/5 concluidos    |  | Mao de Obra: Plan vs Real  |  |
+| | Proximo marco + data      |  | Fornecedores: Plan vs Real |  |
+| | Marcos atrasados (alert)  |  | Materiais: Plan vs Real    |  |
+| +---------------------------+  +----------------------------+  |
+|                                                                |
+| +---------------------------+  +----------------------------+  |
+| | FINANCEIRO                |  | EQUIPE                     |  |
+| | Faturado vs Total         |  | Membros alocados + horas   |  |
+| | Parcelas atrasadas        |  | (componente existente)     |  |
+| | Barra de progresso receita|  |                            |  |
+| +---------------------------+  +----------------------------+  |
++---------------------------------------------------------------+
+```
 
-## Plano de mudancas
+## Detalhes de cada secao
 
-### Passo 1 - Reestruturar aba "Visao Geral" (execucao)
-Arquivo: `src/components/projects/detail/ProjectOverviewTab.tsx`
+### 1. Faixa de KPIs financeiros (manter existente)
+Os 5 cards ja existentes no topo: Contrato, Custo Planejado, Margem, Recebido, Pendente. Sem alteracoes.
 
-Manter apenas conteudo analitico/dashboard:
-- 5 cards de KPIs (Contrato, Custo Planejado, Margem, Recebido, Pendente)
-- Grafico de Composicao de Custos (pie chart)
-- Grafico de Recebimentos (barra de progresso)
-- Grafico de Tendencia (area chart)
-- Equipe do Projeto
+### 2. Card "Saude do Projeto"
+Indicador visual consolidado com 4 dimensoes, cada uma com semaforo (icone colorido):
+- **OKRs**: verde se progresso medio >= 70%, amarelo >= 40%, vermelho < 40%
+- **Cronograma**: verde se 0 marcos atrasados, amarelo se 1, vermelho se > 1
+- **Custos**: verde se custo real <= 100% do planejado, amarelo <= 110%, vermelho > 110%
+- **Financeiro**: verde se sem parcelas vencidas, amarelo se 1 atrasada, vermelho se > 1
 
-**Remover**: a tabela de "Parcelas de Pagamento" (sera movida para Financeiro)
+Indicador geral: verde se todas verdes, amarelo se alguma amarela, vermelho se alguma vermelha.
 
-**Corrigir calculos**:
-- Trocar `salarioMensal + beneficios + encargos + toolsCost` por `total_monthly_cost_estimated`
-- Trocar `HOURS_PER_MONTH = 176` por `employee.jornada_mensal`
+### 3. Card "OKRs" (resumo)
+- Progresso medio de todos os OKRs (barra de progresso)
+- Lista compacta: ate 5 OKRs mostrando nome + percentual + badge de status
+- Nivel de confianca predominante dos Key Results
 
-### Passo 2 - Reestruturar aba "Financeiro" (execucao)
-Arquivo: `src/components/projects/detail/ProjectFinancialTab.tsx`
+### 4. Card "Cronograma" (resumo)
+- Contagem: X de Y marcos concluidos
+- Barra de progresso de conclusao
+- Proximo marco pendente (titulo + data limite)
+- Alerta se houver marcos atrasados
 
-Reescrever para conter:
-- KPIs financeiros (Receita, Custo Planejado, Margem Bruta, Margem %)
-- Tabela editavel de parcelas usando o componente `ProjectInstallmentsTable` existente (permite editar status, NF, datas, valores)
-- Grafico Planejado vs Realizado (ja existente)
+### 5. Card "Custos" (resumo planejado vs realizado)
+- 3 linhas compactas: Mao de Obra, Fornecedores, Materiais
+- Cada linha: valor planejado | valor real | indicador % (verde/vermelho)
+- Total consolidado
 
-**Corrigir calculos**: usar `total_monthly_cost_estimated / jornada_mensal` (ja esta correto neste arquivo)
+### 6. Card "Financeiro" (resumo de faturamento)
+- Barra de progresso: valor recebido / valor contrato
+- Quantidade e valor de parcelas atrasadas
+- Proxima parcela pendente (valor + vencimento)
 
-### Passo 3 - Garantir consistencia no planejamento
-Arquivo: `src/components/projects/detail/ProjectExpectedResultTab.tsx`
+### 7. Equipe do Projeto (manter existente)
+Componente `ProjectTeamSection` ja existente, sem alteracoes.
 
-Manter como esta - ja permite editar data de emissao NF na `PlanningInstallmentsTable`.
+## Dados necessarios (hooks)
+- `useProjectOKRs(project.id)` -- ja disponivel
+- `useProjectMilestones(project.id)` -- ja disponivel
+- Custos reais: reutilizar logica do `ProjectCostsTab` (timesheets, supplier actuals, materials realizados)
+  - `useProjectMemberMonths` para horas planejadas
+  - `useTimesheetsByMembers` para horas reais
+  - `useProjectSupplierMonths` para fornecedores planejados
+  - `useProjectSupplierActuals` para fornecedores reais
+- Parcelas (installments) ja vem no `project.installments`
 
-## Resumo das mudancas por arquivo
+## Arquivos a modificar
 
 | Arquivo | Acao |
 |---------|------|
-| `ProjectOverviewTab.tsx` | Remover tabela de parcelas; corrigir calculo de custos |
-| `ProjectFinancialTab.tsx` | Adicionar `ProjectInstallmentsTable` editavel; reorganizar KPIs para foco em receita/margem |
+| `src/components/projects/detail/ProjectOverviewTab.tsx` | Reescrever completamente para o novo layout dashboard |
+
+Nenhum arquivo novo sera criado -- toda a logica ficara no componente existente, importando os hooks necessarios.
 
 ## Detalhes tecnicos
 
-### Correcao de custo na OverviewTab
+### Calculo de saude por dimensao
 ```text
-// ANTES (incorreto)
-const totalCost = employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0);
-const hourlyCost = totalCost / 176;
+// OKRs
+const avgProgress = okrs.reduce((sum, o) => sum + o.progress_percent, 0) / okrs.length;
+const okrHealth = avgProgress >= 70 ? 'green' : avgProgress >= 40 ? 'yellow' : 'red';
 
-// DEPOIS (correto)
-const totalCost = employee.total_monthly_cost_estimated || 0;
-const hourlyCost = totalCost / (employee.jornada_mensal || 168);
+// Cronograma
+const delayedCount = milestones.filter(m => m.status === 'delayed').length;
+const scheduleHealth = delayedCount === 0 ? 'green' : delayedCount === 1 ? 'yellow' : 'red';
+
+// Custos (totalActual vs totalPlanned)
+const costRatio = totalPlanned > 0 ? totalActual / totalPlanned : 0;
+const costHealth = costRatio <= 1.0 ? 'green' : costRatio <= 1.1 ? 'yellow' : 'red';
+
+// Financeiro (parcelas atrasadas)
+const overdueCount = installments.filter(i => i.status === 'overdue').length;
+const finHealth = overdueCount === 0 ? 'green' : overdueCount === 1 ? 'yellow' : 'red';
 ```
 
-### Adicao de parcelas editaveis na FinancialTab
-Importar e usar o `ProjectInstallmentsTable` existente que ja suporta:
-- Editar status (Pendente, NF Emitida, Recebido, Atrasado)
-- Numero da NF
-- Data de emissao
-- Data de pagamento
-- Valor da parcela
+### Hooks adicionais a importar
+```text
+import { useProjectOKRs } from '@/hooks/useProjectOKRs';
+import { useProjectMilestones } from '@/hooks/useProjectMilestones';
+import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
+import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
+import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
+import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
+```
+
+### Semaforo visual
+Usar circulos coloridos (verde/amarelo/vermelho) com icones lucide:
+- Verde: `CheckCircle2` com `text-green-500`
+- Amarelo: `AlertTriangle` com `text-amber-500`
+- Vermelho: `XCircle` com `text-red-500`
