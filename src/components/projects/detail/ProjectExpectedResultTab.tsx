@@ -1,9 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
-import { Progress } from '@/components/ui/progress';
-import { TrendingUp, TrendingDown, DollarSign, Percent, Users, Package, Truck } from 'lucide-react';
 import { useMemo } from 'react';
+import { TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useBudget } from '@/hooks/useBudgets';
@@ -68,10 +67,8 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
   const marginTarget = financialSettings?.gross_margin_target_percent || 0;
   const marginGap = marginPercent - marginTarget;
 
-  // Cost breakdown percentages
-  const laborPercent = totalCost > 0 ? (laborCost / totalCost) * 100 : 0;
-  const suppliersPercent = totalCost > 0 ? (suppliersCost / totalCost) * 100 : 0;
-  const materialsPercent = totalCost > 0 ? (materialsCost / totalCost) * 100 : 0;
+
+
 
   return (
     <div className="space-y-6">
@@ -143,69 +140,6 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
           </CardContent>
         </Card>
       </div>
-
-      {/* Cost Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Composição de Custos Planejados</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" />
-                <span className="text-sm">Mão de Obra</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">{formatCurrency(laborCost)}</span>
-                <span className="text-sm text-muted-foreground w-12 text-right">
-                  {laborPercent.toFixed(0)}%
-                </span>
-              </div>
-            </div>
-            <Progress value={laborPercent} className="h-2" />
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-primary" />
-                <span className="text-sm">Fornecedores</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">{formatCurrency(suppliersCost)}</span>
-                <span className="text-sm text-muted-foreground w-12 text-right">
-                  {suppliersPercent.toFixed(0)}%
-                </span>
-              </div>
-            </div>
-            <Progress value={suppliersPercent} className="h-2" />
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-primary" />
-                <span className="text-sm">Materiais</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">{formatCurrency(materialsCost)}</span>
-                <span className="text-sm text-muted-foreground w-12 text-right">
-                  {materialsPercent.toFixed(0)}%
-                </span>
-              </div>
-            </div>
-            <Progress value={materialsPercent} className="h-2" />
-          </div>
-
-          <div className="pt-3 border-t">
-            <div className="flex items-center justify-between font-medium">
-              <span>Total de Custos</span>
-              <span>{formatCurrency(totalCost)}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Installments table */}
       <Card>
