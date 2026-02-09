@@ -35,7 +35,6 @@ const formSchema = z.object({
   description: z.string().optional(),
   targetDate: z.string().optional(),
   status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']),
-  progressPercent: z.coerce.number().min(0).max(100).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -59,7 +58,6 @@ export function OKRFormDialog({ open, onOpenChange, projectId, okr }: OKRFormDia
       description: '',
       targetDate: '',
       status: 'pending',
-      progressPercent: 0,
     },
   });
 
@@ -71,7 +69,6 @@ export function OKRFormDialog({ open, onOpenChange, projectId, okr }: OKRFormDia
           description: okr.description || '',
           targetDate: okr.target_date || '',
           status: okr.status,
-          progressPercent: okr.progress_percent,
         });
       } else {
         form.reset({
@@ -79,7 +76,6 @@ export function OKRFormDialog({ open, onOpenChange, projectId, okr }: OKRFormDia
           description: '',
           targetDate: '',
           status: 'pending',
-          progressPercent: 0,
         });
       }
     }
@@ -96,7 +92,6 @@ export function OKRFormDialog({ open, onOpenChange, projectId, okr }: OKRFormDia
             description: data.description,
             targetDate: data.targetDate,
             status: data.status as OKRStatus,
-            progressPercent: data.progressPercent,
           },
         },
         { onSuccess: () => onOpenChange(false) }
@@ -194,22 +189,6 @@ export function OKRFormDialog({ open, onOpenChange, projectId, okr }: OKRFormDia
                 )}
               />
             </div>
-
-            {isEditing && (
-              <FormField
-                control={form.control}
-                name="progressPercent"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Progresso (%)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={0} max={100} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

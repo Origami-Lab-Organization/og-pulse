@@ -60,6 +60,13 @@ export function ProjectOKRsTab({ project }: ProjectOKRsTabProps) {
     return Math.min(100, (kr.current_value / kr.target_value) * 100);
   };
 
+  const calculateOkrProgress = (okr: ProjectOKR) => {
+    const krs = okr.key_results || [];
+    if (krs.length === 0) return 0;
+    const total = krs.reduce((sum, kr) => sum + calculateKeyResultProgress(kr), 0);
+    return Math.round(total / krs.length);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -149,8 +156,8 @@ export function ProjectOKRsTab({ project }: ProjectOKRsTabProps) {
                   )}
                   <div className="flex items-center gap-2 flex-1">
                     <span>Progresso:</span>
-                    <Progress value={okr.progress_percent} className="flex-1 max-w-32" />
-                    <span className="font-medium">{okr.progress_percent}%</span>
+                    <Progress value={calculateOkrProgress(okr)} className="flex-1 max-w-32" />
+                    <span className="font-medium">{calculateOkrProgress(okr)}%</span>
                   </div>
                 </div>
               </CardHeader>
