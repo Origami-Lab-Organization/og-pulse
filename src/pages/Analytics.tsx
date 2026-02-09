@@ -2,11 +2,8 @@ import { useState, useMemo } from 'react';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AnalyticsFilters } from '@/components/analytics/AnalyticsFilters';
 import { AnalyticsKPIs } from '@/components/analytics/AnalyticsKPIs';
-import { CostCompositionChart } from '@/components/analytics/CostCompositionChart';
-import { CostByProjectTable } from '@/components/analytics/CostByProjectTable';
 import { EmployeeUtilizationTable } from '@/components/analytics/EmployeeUtilizationTable';
 import { useAnalyticsData, useAnalyticsFilterOptions } from '@/hooks/useAnalyticsData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,7 +43,6 @@ export default function Analytics() {
       breadcrumbs={[{ label: 'Analytics' }]}
     >
       <div className="space-y-6">
-        {/* Filters */}
         <AnalyticsFilters
           currentMonth={currentMonth}
           onMonthChange={setCurrentMonth}
@@ -65,37 +61,18 @@ export default function Analytics() {
           </div>
         ) : analyticsData ? (
           <>
-            {/* KPIs */}
             <AnalyticsKPIs
-              revenue={analyticsData.revenue}
+              revenueActual={analyticsData.revenueActual}
+              revenueProjected={analyticsData.revenueProjected}
+              revenueDiff={analyticsData.revenueDiff}
               totalCosts={analyticsData.totalCosts}
+              taxesPercent={analyticsData.taxesPercent}
+              taxesValue={analyticsData.taxesValue}
               grossMargin={analyticsData.grossMargin}
               grossMarginTarget={analyticsData.grossMarginTarget}
             />
 
-            {/* Analytical Sections */}
-            <Tabs defaultValue="costs" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="costs">Composição de Custos</TabsTrigger>
-                <TabsTrigger value="utilization">Utilização da Equipe</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="costs" className="space-y-4">
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <CostCompositionChart
-                    laborCost={analyticsData.laborCost}
-                    supplierCost={analyticsData.supplierCost}
-                    materialCost={analyticsData.materialCost}
-                  />
-                  <div className="lg:col-span-1" />
-                </div>
-                <CostByProjectTable data={analyticsData.costsByProject} />
-              </TabsContent>
-
-              <TabsContent value="utilization">
-                <EmployeeUtilizationTable data={analyticsData.employeeUtilization} />
-              </TabsContent>
-            </Tabs>
+            <EmployeeUtilizationTable data={analyticsData.employeeUtilization} />
           </>
         ) : null}
       </div>

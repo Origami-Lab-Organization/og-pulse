@@ -31,11 +31,15 @@ export interface EmployeeUtilization {
 }
 
 export interface AnalyticsData {
-  revenue: number;
+  revenueActual: number;
+  revenueProjected: number;
+  revenueDiff: number;
   totalCosts: number;
   laborCost: number;
   supplierCost: number;
   materialCost: number;
+  taxesPercent: number;
+  taxesValue: number;
   grossMargin: number; // percentage
   grossMarginTarget: number | null;
   costsByProject: CostByProject[];
@@ -83,7 +87,9 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       if (projErr) throw projErr;
       if (!projects || projects.length === 0) {
         return {
-          revenue: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
+          revenueActual: 0, revenueProjected: 0, revenueDiff: 0,
+          totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
+          taxesPercent: 0, taxesValue: 0,
           grossMargin: 0, grossMarginTarget: null, costsByProject: [], employeeUtilization: [],
         } as AnalyticsData;
       }
@@ -91,14 +97,23 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const projectIds = projects.map(p => p.id);
 
       // 2. Fetch all data in parallel
-      const [installmentsRes, timesheetsRes, membersRes, suppliersRes, supplierActualsRes, materialsRes, settingsRes] = await Promise.all([
-        // Revenue: installments with payment_date in period
+      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, supplierActualsRes, materialsRes, settingsRes] = await Promise.all([
+        // Revenue actual: installments with status received and payment_date in period
         supabase
           .from('project_installments')
           .select('project_id, value, payment_date')
           .in('project_id', projectIds)
+          .eq('status', 'received')
           .gte('payment_date', startStr)
           .lte('payment_date', endStr),
+
+        // Revenue projected: all installments with due_date in period
+        supabase
+          .from('project_installments')
+          .select('project_id, value, due_date')
+          .in('project_id', projectIds)
+          .gte('due_date', startStr)
+          .lte('due_date', endStr),
 
         // Timesheets in period
         supabase
@@ -132,21 +147,23 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .in('project_id', projectIds)
           .eq('is_realized', true),
 
-        // Financial settings for margin target
+        // Financial settings for margin target and taxes
         supabase
           .from('financial_settings')
-          .select('gross_margin_target_percent')
+          .select('gross_margin_target_percent, taxes_percent')
           .eq('tenant_id', tenantId)
           .maybeSingle(),
       ]);
 
       const installments = installmentsRes.data || [];
+      const projectedInstallments = projectedInstallmentsRes.data || [];
       const timesheets = timesheetsRes.data || [];
       const members = (membersRes.data || []) as any[];
       const projectSuppliers = suppliersRes.data || [];
       const supplierActuals = supplierActualsRes.data || [];
       const materials = materialsRes.data || [];
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
+      const taxesPercent = settingsRes.data?.taxes_percent ?? 0;
 
       // Build lookup maps
       const projectMap = new Map(projects.map(p => [p.id, p]));
@@ -166,7 +183,9 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       }
 
       // 3. Calculate revenue
-      const revenue = installments.reduce((sum, i) => sum + Number(i.value), 0);
+      const revenueActual = installments.reduce((sum, i) => sum + Number(i.value), 0);
+      const revenueProjected = projectedInstallments.reduce((sum, i) => sum + Number(i.value), 0);
+      const revenueDiff = revenueActual - revenueProjected;
 
       // 4. Calculate labor cost per project + employee utilization
       const costsByProjectMap = new Map<string, CostByProject>();
@@ -256,7 +275,8 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       costsByProject.sort((a, b) => b.totalCost - a.totalCost);
 
       const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost;
-      const grossMargin = revenue > 0 ? ((revenue - totalCosts) / revenue) * 100 : 0;
+      const taxesValue = revenueActual * (Number(taxesPercent) / 100);
+      const grossMargin = revenueActual > 0 ? ((revenueActual - taxesValue - totalCosts) / revenueActual) * 100 : 0;
 
       // 7. Employee utilization
       // Also include employees allocated to projects but with 0 hours
@@ -309,11 +329,15 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       employeeUtilization.sort((a, b) => b.utilization - a.utilization);
 
       return {
-        revenue,
+        revenueActual,
+        revenueProjected,
+        revenueDiff,
         totalCosts,
         laborCost: totalLaborCost,
         supplierCost: totalSupplierCost,
         materialCost: totalMaterialCost,
+        taxesPercent: Number(taxesPercent),
+        taxesValue,
         grossMargin,
         grossMarginTarget,
         costsByProject,
