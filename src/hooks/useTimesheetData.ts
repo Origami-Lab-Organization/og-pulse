@@ -87,7 +87,8 @@ export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptio
             )
           )
         `)
-        .or('status.eq.active,portfolio_stage.neq.planning');
+        .or('status.eq.active,portfolio_stage.neq.planning')
+        .neq('portfolio_stage', 'completed');
 
       // Se não é admin, filtra apenas projetos onde é gerente
       if (!options?.isAdmin && options?.employeeId) {
