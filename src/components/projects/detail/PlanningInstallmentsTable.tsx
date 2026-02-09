@@ -24,19 +24,13 @@ export function PlanningInstallmentsTable({
   projectId,
 }: PlanningInstallmentsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState({
-    invoiceDate: '',
-    paymentDate: '',
-  });
+  const [editInvoiceDate, setEditInvoiceDate] = useState('');
 
   const updateInstallment = useUpdateInstallment();
 
   const startEdit = (installment: ProjectInstallmentDB) => {
     setEditingId(installment.id);
-    setEditData({
-      invoiceDate: installment.invoice_date || installment.due_date,
-      paymentDate: installment.payment_date || installment.due_date,
-    });
+    setEditInvoiceDate(installment.invoice_date || installment.due_date);
   };
 
   const cancelEdit = () => {
@@ -49,8 +43,7 @@ export function PlanningInstallmentsTable({
         id,
         projectId,
         updates: {
-          invoiceDate: editData.invoiceDate || undefined,
-          paymentDate: editData.paymentDate || undefined,
+          invoiceDate: editInvoiceDate || undefined,
         },
       },
       {
@@ -77,9 +70,8 @@ export function PlanningInstallmentsTable({
             <TableRow>
               <TableHead className="w-[60px]">Parcela</TableHead>
               <TableHead>Valor</TableHead>
-              <TableHead>Vencimento</TableHead>
-              <TableHead>Data Emissão NF</TableHead>
-              <TableHead>Data Pagamento</TableHead>
+              <TableHead>Emissão NF</TableHead>
+              <TableHead>Vencimento NF</TableHead>
               <TableHead className="w-[100px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -87,9 +79,7 @@ export function PlanningInstallmentsTable({
             {installments.map((installment) => {
               const isEditing = editingId === installment.id;
               const displayInvoiceDate = installment.invoice_date || installment.due_date;
-              const displayPaymentDate = installment.payment_date || installment.due_date;
               const isInvoiceSuggested = !installment.invoice_date;
-              const isPaymentSuggested = !installment.payment_date;
 
               return (
                 <TableRow key={installment.id}>
@@ -97,15 +87,12 @@ export function PlanningInstallmentsTable({
                     {installment.installment_number}
                   </TableCell>
                   <TableCell>{formatCurrency(Number(installment.value))}</TableCell>
-                  <TableCell>{formatDate(installment.due_date)}</TableCell>
                   <TableCell>
                     {isEditing ? (
                       <Input
                         type="date"
-                        value={editData.invoiceDate}
-                        onChange={(e) =>
-                          setEditData({ ...editData, invoiceDate: e.target.value })
-                        }
+                        value={editInvoiceDate}
+                        onChange={(e) => setEditInvoiceDate(e.target.value)}
                         className="w-[150px]"
                       />
                     ) : (
@@ -114,22 +101,7 @@ export function PlanningInstallmentsTable({
                       </span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    {isEditing ? (
-                      <Input
-                        type="date"
-                        value={editData.paymentDate}
-                        onChange={(e) =>
-                          setEditData({ ...editData, paymentDate: e.target.value })
-                        }
-                        className="w-[150px]"
-                      />
-                    ) : (
-                      <span className={isPaymentSuggested ? 'text-muted-foreground' : ''}>
-                        {formatDate(displayPaymentDate)}
-                      </span>
-                    )}
-                  </TableCell>
+                  <TableCell>{formatDate(installment.due_date)}</TableCell>
                   <TableCell>
                     {isEditing ? (
                       <div className="flex gap-1">
