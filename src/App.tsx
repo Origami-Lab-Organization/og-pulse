@@ -25,7 +25,6 @@ import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
 import Portfolio from "./pages/Portfolio";
 import Timesheets from "./pages/Timesheets";
-import EmployeeCalculator from "./pages/EmployeeCalculator";
 
 const queryClient = new QueryClient();
 
@@ -64,14 +63,6 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <Index />
-                  </RoleProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/calculator" 
-                element={
-                  <RoleProtectedRoute requireManager>
-                    <EmployeeCalculator />
                   </RoleProtectedRoute>
                 } 
               />

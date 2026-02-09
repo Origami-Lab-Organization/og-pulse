@@ -8,8 +8,7 @@ import {
   FileText, 
   BarChart3, 
   Truck,
-  Kanban,
-  Calculator
+  Kanban
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,7 +50,6 @@ const navigationGroups = [
     requiresManager: true,
     items: [
       { title: 'Funcionários', url: '/', icon: Users, requiresManager: true },
-      { title: 'Calculadora', url: '/calculator', icon: Calculator, requiresManager: true },
       { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
       { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
     ] as NavItem[],
