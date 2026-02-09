@@ -1,174 +1,78 @@
 
 
-# Plano: Reorganizar Layout da Calculadora
+# Plano: Ajustes na Calculadora de Custos
 
-## Objetivo
+## Alteracoes
 
-Alterar o layout da calculadora de custos para:
-1. **Inputs na horizontal no topo** - Os campos de "Dados do Funcionário" dispostos lado a lado
-2. **3 colunas abaixo** - Seções 1, 2 e 3 em colunas paralelas
-
-## Nova Estrutura Visual
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│ Calculadora de Custos                                                               │
-│ Simule os custos de contratação CLT vs PJ (Simples Nacional)                       │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                     │
-│  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │  Dados do Funcionário                                                         │  │
-│  │  ┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐    │  │
-│  │  │ Salário Bruto   │ Benefícios      │ Jornada Mensal  │ Dependentes     │    │  │
-│  │  │ R$ 6.000,00     │ R$ 1.200,00     │ 168h            │ 0               │    │  │
-│  │  └─────────────────┴─────────────────┴─────────────────┴─────────────────┘    │  │
-│  └───────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                     │
-│  ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐      │
-│  │ 1. Custo Empresa     │  │ 2. Salário Líquido   │  │ 3. Equivalente PJ    │      │
-│  │                      │  │                      │  │                      │      │
-│  │ Base: R$ 6.000       │  │ Bruto: R$ 6.000      │  │ Comparar com:        │      │
-│  │ Encargos: R$ 2.148   │  │ (-) INSS: R$ 659     │  │ (x) Custo Total      │      │
-│  │ Provisões: R$ 1.167  │  │ (-) IRRF: R$ 465     │  │ ( ) Salário Bruto    │      │
-│  │ Benefícios: R$ 1.200 │  │ Líquido: R$ 4.876    │  │                      │      │
-│  │                      │  │ (+) Benef: R$ 1.200  │  │ Contrato: R$ 10.515  │      │
-│  │ Total: R$ 10.515     │  │ Total: R$ 6.076      │  │ Líquido: R$ 9.884    │      │
-│  │ Custo/h: R$ 62,59    │  │                      │  │                      │      │
-│  │                      │  │                      │  │                      │      │
-│  │ [Ver detalhamento]   │  │ [Ver detalhamento]   │  │ Diferença: +R$ 3.808 │      │
-│  └──────────────────────┘  └──────────────────────┘  └──────────────────────┘      │
-│                                                                                     │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
+1. **Remover validacao de salario minimo** - Calcular a partir de 3 digitos (>= 100) em vez de >= 1412
+2. **Card 1 (Custo Empresa)**: Mostrar detalhamento completo (encargos e provisoes) sempre visivel, sem collapsible. Remover grid 2x2, usar formato de lista igual aos cards 2 e 3
+3. **Card 2 (Salario Liquido)**: Remover o collapsible "Ver detalhamento dos descontos"
+4. **Card 3 (Equivalente PJ)**: Remover o bloco de aviso "Importante"
+5. **Alinhar totais**: Usar `mt-auto` nos cards para empurrar os totais para o fundo, alinhando visualmente as 3 colunas
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteração |
+| Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/calculator/CalculatorInputs.tsx` | Reformular para layout horizontal em grid de 4 colunas |
-| `src/components/calculator/CalculatorResults.tsx` | Alterar de vertical (`space-y-4`) para grid de 3 colunas |
-| `src/pages/EmployeeCalculator.tsx` | Reorganizar estrutura do layout (inputs em cima, resultados embaixo) |
+| `src/pages/EmployeeCalculator.tsx` | Alterar threshold de 1412 para 100, remover mensagem de salario minimo |
+| `src/components/calculator/CalculatorResults.tsx` | Reestruturar Card 1, remover collapsibles e aviso |
 
-## Detalhes de Implementação
+## Detalhes
 
-### 1. CalculatorInputs.tsx - Layout Horizontal
+### EmployeeCalculator.tsx
 
-Alterar o CardContent de `space-y-4` (vertical) para um grid de 4 colunas:
+- Linha 43: `hasValidInput = salarioBrutoNum >= 1412` muda para `>= 100`
+- Linhas 75-79: Remover bloco de aviso sobre salario minimo
+- Linhas 96-97: Remover texto "(minimo R$ 1.412,00)" do placeholder
 
-**Antes:**
-```tsx
-<CardContent className="space-y-4">
-  {/* 4 campos empilhados verticalmente */}
-</CardContent>
+### CalculatorResults.tsx - Card 1
+
+Substituir o grid 2x2 + collapsible por uma lista vertical com todos os itens visiveis:
+
+```text
+1. Custo para a Empresa (CLT)
+  
+  Base (Salario)                    R$ 5.000,00
+  
+  Encargos sobre Salario
+    FGTS (8%)                       R$ 400,00
+    INSS Patronal (20%)             R$ 1.000,00
+    RAT (2%)                        R$ 100,00
+    Terceiros (5,8%)                R$ 290,00
+    Outros                          R$ 0,00
+  
+  Provisoes
+    13o Salario (1/12)              R$ 416,67
+    Ferias Base (1/12)              R$ 416,67
+    1/3 de Ferias                   R$ 138,89
+    Encargos s/ 13o                 R$ ...
+    Encargos s/ Ferias              R$ ...
+  
+  Beneficios                        R$ 0,00
+  
+  ┌─────────────────────────────────────┐
+  │ Custo Total Mensal    R$ 8.145,00   │  (fundo destacado)
+  │ Custo/Hora            R$ 48,48/h    │
+  └─────────────────────────────────────┘
 ```
 
-**Depois:**
-```tsx
-<CardContent>
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    {/* Campo 1: Salário Bruto */}
-    {/* Campo 2: Benefícios Mensais */}
-    {/* Campo 3: Jornada Mensal */}
-    {/* Campo 4: Dependentes */}
-  </div>
-</CardContent>
-```
+### CalculatorResults.tsx - Card 2
 
-### 2. CalculatorResults.tsx - Grid de 3 Colunas
+Remover linhas 211-280 (Collapsible inteiro de detalhamento INSS/IRRF).
 
-Alterar o container de cards de vertical para horizontal:
+### CalculatorResults.tsx - Card 3
 
-**Antes:**
-```tsx
-<div className="space-y-4">
-  <Card>1. Custo Empresa</Card>
-  <Card>2. Salário Líquido</Card>
-  <Card>3. Equivalente PJ</Card>
-</div>
-```
+Remover linhas 352-365 (bloco "Importante" com AlertTriangle).
 
-**Depois:**
-```tsx
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-  <Card>1. Custo Empresa</Card>
-  <Card>2. Salário Líquido</Card>
-  <Card>3. Equivalente PJ</Card>
-</div>
-```
+### Alinhamento dos Totais
 
-### 3. EmployeeCalculator.tsx - Nova Estrutura de Layout
+Para alinhar os totais das 3 colunas na mesma altura:
+- Cada Card recebe `className="flex flex-col"`
+- O CardContent recebe `className="flex-1 flex flex-col"`
+- O bloco de total de cada card recebe `className="mt-auto"` para empurrar para o fundo
 
-Reorganizar de 2 colunas lado a lado para estrutura vertical (inputs em cima, resultados embaixo):
+## Notas Tecnicas
 
-**Antes:**
-```tsx
-<div className="grid gap-6 lg:grid-cols-[350px_1fr]">
-  {/* Inputs - Coluna esquerda */}
-  <div className="space-y-4">
-    <CalculatorInputs ... />
-  </div>
-  {/* Resultados - Coluna direita */}
-  <div>
-    <CalculatorResults ... />
-  </div>
-</div>
-```
-
-**Depois:**
-```tsx
-<div className="space-y-6">
-  {/* Inputs - Linha superior horizontal */}
-  <div>
-    <CalculatorInputs ... />
-    {!hasValidInput && salarioBruto && (
-      <p className="mt-2 text-sm text-amber-600 ...">⚠️ Salário mínimo...</p>
-    )}
-  </div>
-
-  {/* Resultados - 3 colunas abaixo */}
-  {hasValidInput ? (
-    <CalculatorResults ... />
-  ) : (
-    <div className="flex items-center justify-center h-48 ...">
-      {/* Placeholder */}
-    </div>
-  )}
-</div>
-```
-
-## Responsividade
-
-| Breakpoint | Inputs | Resultados |
-|------------|--------|------------|
-| Mobile (<640px) | 1 coluna vertical | 1 coluna vertical |
-| Tablet (640-1023px) | 2 colunas | 1 coluna vertical |
-| Desktop (≥1024px) | 4 colunas lado a lado | 3 colunas lado a lado |
-
-## Classes Tailwind para Responsividade
-
-**Inputs:**
-```
-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4
-```
-
-**Resultados:**
-```
-grid grid-cols-1 lg:grid-cols-3 gap-4
-```
-
-## Ajustes nos Cards de Resultado
-
-Com os 3 cards lado a lado, cada um ficará mais compacto. Ajustes necessários:
-
-1. **Reduzir padding**: De `pb-3` para `pb-2` nos CardHeader
-2. **Grid de componentes de custo**: Manter 2x2 para caber no espaço menor
-3. **Tipografia**: Verificar se os textos não ficam truncados
-4. **Collapsibles**: Continuam funcionando normalmente, expandindo dentro do card
-
-## Notas Técnicas
-
-- Manter a funcionalidade existente dos Collapsibles
-- Não alterar a lógica de cálculos
-- Preservar tooltips de ajuda nos campos
-- O placeholder quando não há input válido deve ocupar largura total
-
+- Remover imports nao usados: `Collapsible`, `CollapsibleContent`, `CollapsibleTrigger`, `ChevronDown`, `ChevronUp`, `AlertTriangle`, `Button`, `DEPENDENT_DEDUCTION`
+- O estado `isOpenCost` e `isOpenNet` tambem podem ser removidos
+- Manter a logica de calculo inalterada
