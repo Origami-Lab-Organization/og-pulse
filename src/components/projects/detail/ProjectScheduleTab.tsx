@@ -16,6 +16,12 @@ import { MilestoneFormDialog } from '@/components/projects/schedule/MilestoneFor
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+// Parse YYYY-MM-DD as local date to avoid timezone shifts
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 interface ProjectScheduleTabProps {
   project: ProjectWithRelations;
 }
@@ -119,9 +125,9 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
                     {milestone.title}
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <span>{format(new Date(milestone.start_date), 'dd/MM', { locale: ptBR })}</span>
+                    <span>{format(parseLocalDate(milestone.start_date), 'dd/MM', { locale: ptBR })}</span>
                     <ArrowRight className="h-3 w-3" />
-                    <span>{format(new Date(milestone.end_date), 'dd/MM', { locale: ptBR })}</span>
+                    <span>{format(parseLocalDate(milestone.end_date), 'dd/MM', { locale: ptBR })}</span>
                   </div>
                 </div>
                 {index < milestones.length - 1 && (
@@ -181,16 +187,16 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <CalendarDays className="h-4 w-4" />
                           <span>
-                            Período: {format(new Date(milestone.start_date), 'dd/MM/yyyy', { locale: ptBR })}
+                            Período: {format(parseLocalDate(milestone.start_date), 'dd/MM/yyyy', { locale: ptBR })}
                             {' - '}
-                            {format(new Date(milestone.end_date), 'dd/MM/yyyy', { locale: ptBR })}
+                            {format(parseLocalDate(milestone.end_date), 'dd/MM/yyyy', { locale: ptBR })}
                           </span>
                         </div>
                         {milestone.completed_date && (
                           <div className="flex items-center gap-1 text-sm text-green-600">
                             <CheckCircle2 className="h-4 w-4" />
                             <span>
-                              Concluído: {format(new Date(milestone.completed_date), 'dd/MM/yyyy', { locale: ptBR })}
+                              Concluído: {format(parseLocalDate(milestone.completed_date), 'dd/MM/yyyy', { locale: ptBR })}
                             </span>
                           </div>
                         )}
