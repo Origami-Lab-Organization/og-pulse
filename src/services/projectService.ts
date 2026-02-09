@@ -61,7 +61,8 @@ export const projectService = {
       .select(`
         *,
         client:clients(id, company_name, trading_name),
-        manager:employees!projects_manager_id_fkey(id, nome, cargo)
+        manager:employees!projects_manager_id_fkey(id, nome, cargo),
+        installments:project_installments(id, installment_number, value, due_date, status, invoice_number, payment_date)
       `)
       .eq('tenant_id', tenantId);
 
