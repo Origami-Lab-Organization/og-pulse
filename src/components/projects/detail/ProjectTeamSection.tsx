@@ -39,9 +39,11 @@ interface ProjectTeamSectionProps {
     };
   })[];
   projectId: string;
+  memberMonths?: { project_member_id: string; hours: number }[];
+  timesheets?: { project_member_id: string; hours: number }[];
 }
 
-export function ProjectTeamSection({ members, projectId }: ProjectTeamSectionProps) {
+export function ProjectTeamSection({ members, projectId, memberMonths = [], timesheets = [] }: ProjectTeamSectionProps) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newMember, setNewMember] = useState({
     employeeId: '',
@@ -123,7 +125,7 @@ export function ProjectTeamSection({ members, projectId }: ProjectTeamSectionPro
               {members.map((member) => (
                 <Tooltip key={member.id}>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-3 p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-default">
+                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-default">
                       <Avatar className="h-10 w-10 border-2 border-background shadow-sm shrink-0">
                         {member.employee?.foto_url ? (
                           <AvatarImage src={member.employee.foto_url} />
@@ -137,7 +139,18 @@ export function ProjectTeamSection({ members, projectId }: ProjectTeamSectionPro
                           {member.employee?.nome?.split(' ')[0] || 'N/A'}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {member.hours_per_month}h/mês
+                          {member.role}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {(() => {
+                            const planned = memberMonths
+                              .filter(mm => mm.project_member_id === member.id)
+                              .reduce((s, mm) => s + mm.hours, 0);
+                            const actual = timesheets
+                              .filter(t => t.project_member_id === member.id)
+                              .reduce((s, t) => s + t.hours, 0);
+                            return `${planned}h plan. | ${actual}h real.`;
+                          })()}
                         </p>
                       </div>
                     </div>
@@ -145,8 +158,10 @@ export function ProjectTeamSection({ members, projectId }: ProjectTeamSectionPro
                   <TooltipContent>
                     <div className="text-sm">
                       <p className="font-medium">{member.employee?.nome}</p>
-                      <p className="text-muted-foreground">{member.role}</p>
-                      <p className="text-muted-foreground">{member.hours_per_month}h/mês</p>
+                      <p className="text-muted-foreground">{member.role} · {member.seniority}</p>
+                      <p className="text-muted-foreground">
+                        {memberMonths.filter(mm => mm.project_member_id === member.id).reduce((s, mm) => s + mm.hours, 0)}h planejadas · {timesheets.filter(t => t.project_member_id === member.id).reduce((s, t) => s + t.hours, 0)}h realizadas
+                      </p>
                     </div>
                   </TooltipContent>
                 </Tooltip>

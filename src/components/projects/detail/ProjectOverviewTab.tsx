@@ -303,7 +303,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
       </div>
 
       {/* Row 3: Team */}
-      <ProjectTeamSection members={project.members || []} projectId={project.id} />
+      <ProjectTeamSection members={project.members || []} projectId={project.id} memberMonths={memberMonths} timesheets={timesheets} />
     </div>
   );
 }
