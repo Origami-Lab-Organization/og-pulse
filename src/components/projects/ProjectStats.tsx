@@ -11,7 +11,9 @@ interface ProjectStatsProps {
 export function ProjectStats({ projects, installments = [] }: ProjectStatsProps) {
   const currentYear = new Date().getFullYear();
   const totalProjects = projects.length;
-  const activeProjects = projects.filter((p) => p.status === 'active').length;
+  const activeProjects = projects.filter(
+    (p) => p.status === 'planning' || p.status === 'active'
+  ).length;
 
   // Receita do ano = soma das parcelas do ano corrente
   const currentYearRevenue = installments
@@ -27,14 +29,14 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
 
   const totalYearRevenue = currentYearRevenue + continuousRevenue;
 
-  const currentYearInstallments = installments.filter(
-    (i) => new Date(i.due_date).getFullYear() === currentYear
-  );
-  const overdueValue = currentYearInstallments
-    .filter((i) => i.status === 'overdue')
+  // Recebido no ano = parcelas pagas com payment_date no ano corrente
+  const receivedValue = installments
+    .filter((i) => i.status === 'received' && i.payment_date && new Date(i.payment_date).getFullYear() === currentYear)
     .reduce((acc, i) => acc + Number(i.value || 0), 0);
-  const receivedValue = currentYearInstallments
-    .filter((i) => i.status === 'received')
+
+  // Atrasado = parcelas com due_date no ano corrente e status overdue
+  const overdueValue = installments
+    .filter((i) => new Date(i.due_date).getFullYear() === currentYear && i.status === 'overdue')
     .reduce((acc, i) => acc + Number(i.value || 0), 0);
 
   const stats = [
@@ -48,7 +50,7 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
       title: 'Projetos Ativos',
       value: activeProjects,
       icon: Clock,
-      description: 'Em andamento',
+      description: 'Em planejamento ou execução',
     },
     {
       title: 'Receita no Ano',
