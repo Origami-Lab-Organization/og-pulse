@@ -15,8 +15,7 @@ import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
-import Pricing from "./pages/Pricing";
-import Settings from "./pages/Settings";
+import AdminPortal from "./pages/AdminPortal";
 import Budgets from "./pages/Budgets";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
@@ -165,18 +164,10 @@ const App = () => (
                 } 
               />
               <Route 
-                path="/pricing" 
+                path="/admin" 
                 element={
                   <RoleProtectedRoute requireAdmin>
-                    <Pricing />
-                  </RoleProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/settings" 
-                element={
-                  <RoleProtectedRoute requireAdmin>
-                    <Settings />
+                    <AdminPortal />
                   </RoleProtectedRoute>
                 } 
               />

@@ -7,8 +7,6 @@ import {
   Clock, 
   FileText, 
   BarChart3, 
-  Settings,
-  DollarSign,
   Truck,
   Kanban,
   Calculator
@@ -74,14 +72,6 @@ const navigationGroups = [
       { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
       { title: 'Timesheets', url: '/timesheets', icon: Clock, requiresManager: true },
       { title: 'Analytics', url: '/analytics', icon: BarChart3, disabled: true, requiresManager: true },
-    ] as NavItem[],
-  },
-  {
-    label: 'Configurações',
-    requiresAdmin: true,
-    items: [
-      { title: 'Tabela de Preços', url: '/pricing', icon: DollarSign, requiresAdmin: true },
-      { title: 'Configurações', url: '/settings', icon: Settings, requiresAdmin: true },
     ] as NavItem[],
   },
 ];

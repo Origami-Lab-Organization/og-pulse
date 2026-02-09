@@ -1,4 +1,4 @@
-import { LogOut, KeyRound, Moon, Sun } from 'lucide-react';
+import { LogOut, KeyRound, Moon, Sun, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -91,6 +91,15 @@ export function UserMenu() {
           <KeyRound className="mr-2 h-4 w-4" />
           <span>Alterar Senha</span>
         </DropdownMenuItem>
+        {employee.isAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/admin')}>
+              <Shield className="mr-2 h-4 w-4" />
+              <span>Portal do Admin</span>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
           <LogOut className="mr-2 h-4 w-4" />
