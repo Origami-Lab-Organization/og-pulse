@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import {
   Table,
   TableBody,
@@ -1000,15 +1001,10 @@ export function ProjectLaborSection({
 
                   <div className="space-y-2">
                     <Label>Valor/Hora (R$)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={newRole.hourlyRate || ''}
-                      onChange={(e) =>
-                        setNewRole({ ...newRole, hourlyRate: Number(e.target.value) })
-                      }
-                      placeholder="0,00"
+                    <CurrencyInput
+                      value={newRole.hourlyRate}
+                      onValueChange={(v) => setNewRole({ ...newRole, hourlyRate: v })}
+                      showPrefix
                     />
                   </div>
                 </div>
@@ -1079,13 +1075,10 @@ export function ProjectLaborSection({
 
               <div className="space-y-2">
                 <Label>Valor/Hora (R$)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={editForm.hourlyRate || ''}
-                  onChange={(e) => setEditForm({ ...editForm, hourlyRate: Number(e.target.value) })}
-                  placeholder="0,00"
+                <CurrencyInput
+                  value={editForm.hourlyRate}
+                  onValueChange={(v) => setEditForm({ ...editForm, hourlyRate: v })}
+                  showPrefix
                 />
               </div>
             </div>
