@@ -55,12 +55,7 @@ export function createProjectColumns({
       cell: ({ row }) => {
         const client = row.original.client;
         return (
-          <div className="flex flex-col">
-            <span className="font-medium">{client?.company_name || '-'}</span>
-            {client?.trading_name && (
-              <span className="text-sm text-muted-foreground">{client.trading_name}</span>
-            )}
-          </div>
+          <span className="font-medium">{client?.trading_name || client?.company_name || '-'}</span>
         );
       },
     },
