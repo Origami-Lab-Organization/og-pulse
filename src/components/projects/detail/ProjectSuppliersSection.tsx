@@ -624,6 +624,29 @@ export function ProjectSuppliersSection({
                                       )}
                                     </div>
                                   )
+                                ) : canEditActuals && isEditingThis ? (
+                                  // Execution mode + editing: show input for planned
+                                  <div className="flex flex-col gap-0.5 items-center">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      className="w-20 h-8 text-center mx-auto"
+                                      value={plannedValue || ''}
+                                      onChange={(e) =>
+                                        handleValueChange(
+                                          supplier.id,
+                                          monthNum,
+                                          Number(e.target.value)
+                                        )
+                                      }
+                                    />
+                                    {actualValue > 0 && (
+                                      <span className="text-xs text-green-600">
+                                        Real: {formatCurrency(actualValue)}
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : (
                                   // Execution mode: show read-only Plan | Real
                                   <div className="flex items-center justify-center gap-1 text-sm">
@@ -707,31 +730,60 @@ export function ProjectSuppliersSection({
                                   )
                                 )}
                                 {canEditActuals && !isEditable && (
-                                  <>
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            variant="outline"
-                                            size="icon"
-                                            onClick={() => openActualDialog(supplier)}
-                                          >
-                                            <DollarSign className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Lançar custo realizado</TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleDelete(supplier.id)}
-                                      disabled={removeSupplier.isPending}
-                                      title="Excluir"
-                                    >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                  </>
+                                  isEditingThis ? (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleSaveEdit(supplier.id)}
+                                        title="Salvar"
+                                      >
+                                        <Check className="h-4 w-4 text-green-600" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleCancelEdit(supplier.id)}
+                                        title="Cancelar"
+                                      >
+                                        <X className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleStartEdit(supplier.id)}
+                                        title="Editar Valores Planejados"
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="outline"
+                                              size="icon"
+                                              onClick={() => openActualDialog(supplier)}
+                                            >
+                                              <DollarSign className="h-4 w-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Lançar custo realizado</TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDelete(supplier.id)}
+                                        disabled={removeSupplier.isPending}
+                                        title="Excluir"
+                                      >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </>
+                                  )
                                 )}
                               </div>
                             </TableCell>
