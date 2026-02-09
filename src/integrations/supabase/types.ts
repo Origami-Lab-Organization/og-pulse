@@ -752,6 +752,41 @@ export type Database = {
           },
         ]
       }
+      key_result_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          confidence_level: string | null
+          current_value: number | null
+          id: string
+          key_result_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          confidence_level?: string | null
+          current_value?: number | null
+          id?: string
+          key_result_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          confidence_level?: string | null
+          current_value?: number | null
+          id?: string
+          key_result_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "key_result_history_key_result_id_fkey"
+            columns: ["key_result_id"]
+            isOneToOne: false
+            referencedRelation: "project_key_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_profiles: {
         Row: {
           apply_fgts_on_13th: boolean
@@ -890,32 +925,32 @@ export type Database = {
       }
       project_key_results: {
         Row: {
+          confidence_level: string | null
           created_at: string | null
           current_value: number | null
           description: string
           id: string
           okr_id: string
-          status: string | null
           target_value: number | null
           unit: string | null
         }
         Insert: {
+          confidence_level?: string | null
           created_at?: string | null
           current_value?: number | null
           description: string
           id?: string
           okr_id: string
-          status?: string | null
           target_value?: number | null
           unit?: string | null
         }
         Update: {
+          confidence_level?: string | null
           created_at?: string | null
           current_value?: number | null
           description?: string
           id?: string
           okr_id?: string
-          status?: string | null
           target_value?: number | null
           unit?: string | null
         }

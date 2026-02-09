@@ -9,7 +9,8 @@ import {
   CreateKeyResultInput,
   UpdateKeyResultInput,
   OKRStatus,
-  KeyResultStatus,
+  KeyResultConfidenceLevel,
+  KeyResultHistory,
 } from '@/types/projectOkr';
 
 // OKR Hooks
@@ -25,7 +26,6 @@ export const useProjectOKRs = (projectId: string | undefined) => {
 
       if (error) throw error;
 
-      // Fetch key results for each OKR
       const okrIds = okrs.map((o) => o.id);
       const { data: keyResults, error: krError } = await supabase
         .from('project_key_results')
@@ -35,7 +35,6 @@ export const useProjectOKRs = (projectId: string | undefined) => {
 
       if (krError) throw krError;
 
-      // Map key results to OKRs
       return okrs.map((okr) => ({
         ...okr,
         status: okr.status as OKRStatus,
@@ -43,7 +42,7 @@ export const useProjectOKRs = (projectId: string | undefined) => {
           .filter((kr) => kr.okr_id === okr.id)
           .map((kr) => ({
             ...kr,
-            status: kr.status as KeyResultStatus,
+            confidence_level: (kr as any).confidence_level as KeyResultConfidenceLevel,
           })) as ProjectKeyResult[],
       })) as ProjectOKR[];
     },
@@ -74,17 +73,10 @@ export const useCreateOKR = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['project-okrs', variables.projectId] });
-      toast({
-        title: 'Objetivo criado',
-        description: 'O objetivo foi adicionado com sucesso.',
-      });
+      toast({ title: 'Objetivo criado', description: 'O objetivo foi adicionado com sucesso.' });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao criar objetivo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao criar objetivo', description: error.message, variant: 'destructive' });
     },
   });
 };
@@ -94,15 +86,7 @@ export const useUpdateOKR = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      projectId,
-      updates,
-    }: {
-      id: string;
-      projectId: string;
-      updates: UpdateOKRInput;
-    }) => {
+    mutationFn: async ({ id, projectId, updates }: { id: string; projectId: string; updates: UpdateOKRInput }) => {
       const { data, error } = await supabase
         .from('project_okrs')
         .update({
@@ -122,17 +106,10 @@ export const useUpdateOKR = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['project-okrs', variables.projectId] });
-      toast({
-        title: 'Objetivo atualizado',
-        description: 'O objetivo foi atualizado com sucesso.',
-      });
+      toast({ title: 'Objetivo atualizado', description: 'O objetivo foi atualizado com sucesso.' });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao atualizar objetivo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao atualizar objetivo', description: error.message, variant: 'destructive' });
     },
   });
 };
@@ -149,17 +126,10 @@ export const useDeleteOKR = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['project-okrs', data.projectId] });
-      toast({
-        title: 'Objetivo excluído',
-        description: 'O objetivo foi removido com sucesso.',
-      });
+      toast({ title: 'Objetivo excluído', description: 'O objetivo foi removido com sucesso.' });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao excluir objetivo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao excluir objetivo', description: error.message, variant: 'destructive' });
     },
   });
 };
@@ -170,13 +140,7 @@ export const useCreateKeyResult = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({
-      input,
-      projectId,
-    }: {
-      input: CreateKeyResultInput;
-      projectId: string;
-    }) => {
+    mutationFn: async ({ input, projectId }: { input: CreateKeyResultInput; projectId: string }) => {
       const { data, error } = await supabase
         .from('project_key_results')
         .insert({
@@ -184,7 +148,8 @@ export const useCreateKeyResult = () => {
           description: input.description,
           target_value: input.targetValue || null,
           unit: input.unit || null,
-        })
+          confidence_level: input.confidenceLevel || 'medium',
+        } as any)
         .select()
         .single();
 
@@ -193,17 +158,10 @@ export const useCreateKeyResult = () => {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['project-okrs', result.projectId] });
-      toast({
-        title: 'Key Result criado',
-        description: 'O resultado-chave foi adicionado com sucesso.',
-      });
+      toast({ title: 'Key Result criado', description: 'O resultado-chave foi adicionado com sucesso.' });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao criar Key Result',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao criar Key Result', description: error.message, variant: 'destructive' });
     },
   });
 };
@@ -213,15 +171,7 @@ export const useUpdateKeyResult = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      projectId,
-      updates,
-    }: {
-      id: string;
-      projectId: string;
-      updates: UpdateKeyResultInput;
-    }) => {
+    mutationFn: async ({ id, projectId, updates }: { id: string; projectId: string; updates: UpdateKeyResultInput }) => {
       const { data, error } = await supabase
         .from('project_key_results')
         .update({
@@ -229,28 +179,30 @@ export const useUpdateKeyResult = () => {
           target_value: updates.targetValue,
           current_value: updates.currentValue,
           unit: updates.unit,
-          status: updates.status,
-        })
+          confidence_level: updates.confidenceLevel,
+        } as any)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
+
+      // Insert history record
+      await supabase.from('key_result_history' as any).insert({
+        key_result_id: id,
+        current_value: updates.currentValue ?? (data as any).current_value,
+        confidence_level: updates.confidenceLevel ?? (data as any).confidence_level,
+      });
+
       return { data, projectId };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['project-okrs', result.projectId] });
-      toast({
-        title: 'Key Result atualizado',
-        description: 'O resultado-chave foi atualizado com sucesso.',
-      });
+      queryClient.invalidateQueries({ queryKey: ['key-result-history'] });
+      toast({ title: 'Key Result atualizado', description: 'O resultado-chave foi atualizado com sucesso.' });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao atualizar Key Result',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao atualizar Key Result', description: error.message, variant: 'destructive' });
     },
   });
 };
@@ -267,17 +219,29 @@ export const useDeleteKeyResult = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['project-okrs', data.projectId] });
-      toast({
-        title: 'Key Result excluído',
-        description: 'O resultado-chave foi removido com sucesso.',
-      });
+      toast({ title: 'Key Result excluído', description: 'O resultado-chave foi removido com sucesso.' });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Erro ao excluir Key Result',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao excluir Key Result', description: error.message, variant: 'destructive' });
     },
+  });
+};
+
+// History Hook
+export const useKeyResultHistory = (okrId: string | undefined, keyResultIds: string[]) => {
+  return useQuery({
+    queryKey: ['key-result-history', okrId, keyResultIds],
+    queryFn: async () => {
+      if (keyResultIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('key_result_history' as any)
+        .select('*')
+        .in('key_result_id', keyResultIds)
+        .order('changed_at', { ascending: true });
+
+      if (error) throw error;
+      return (data || []) as unknown as KeyResultHistory[];
+    },
+    enabled: !!okrId && keyResultIds.length > 0,
   });
 };

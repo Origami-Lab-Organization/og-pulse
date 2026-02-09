@@ -3,38 +3,25 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useCreateKeyResult, useUpdateKeyResult } from '@/hooks/useProjectOKRs';
-import { ProjectKeyResult, KEY_RESULT_STATUS_LABELS, KeyResultStatus } from '@/types/projectOkr';
+import { ProjectKeyResult, CONFIDENCE_LEVEL_LABELS, KeyResultConfidenceLevel } from '@/types/projectOkr';
 
 const formSchema = z.object({
   description: z.string().min(1, 'Descrição é obrigatória'),
   targetValue: z.coerce.number().optional(),
   currentValue: z.coerce.number().optional(),
   unit: z.string().optional(),
-  status: z.enum(['pending', 'in_progress', 'completed']),
+  confidenceLevel: z.enum(['very_high', 'high', 'medium', 'low', 'very_low']),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -48,11 +35,7 @@ interface KeyResultFormDialogProps {
 }
 
 export function KeyResultFormDialog({
-  open,
-  onOpenChange,
-  projectId,
-  okrId,
-  keyResult,
+  open, onOpenChange, projectId, okrId, keyResult,
 }: KeyResultFormDialogProps) {
   const createKeyResult = useCreateKeyResult();
   const updateKeyResult = useUpdateKeyResult();
@@ -65,7 +48,7 @@ export function KeyResultFormDialog({
       targetValue: undefined,
       currentValue: 0,
       unit: '',
-      status: 'pending',
+      confidenceLevel: 'medium',
     },
   });
 
@@ -77,7 +60,7 @@ export function KeyResultFormDialog({
           targetValue: keyResult.target_value ?? undefined,
           currentValue: keyResult.current_value,
           unit: keyResult.unit || '',
-          status: keyResult.status,
+          confidenceLevel: keyResult.confidence_level,
         });
       } else {
         form.reset({
@@ -85,7 +68,7 @@ export function KeyResultFormDialog({
           targetValue: undefined,
           currentValue: 0,
           unit: '',
-          status: 'pending',
+          confidenceLevel: 'medium',
         });
       }
     }
@@ -102,7 +85,7 @@ export function KeyResultFormDialog({
             targetValue: data.targetValue,
             currentValue: data.currentValue,
             unit: data.unit,
-            status: data.status as KeyResultStatus,
+            confidenceLevel: data.confidenceLevel as KeyResultConfidenceLevel,
           },
         },
         { onSuccess: () => onOpenChange(false) }
@@ -115,6 +98,7 @@ export function KeyResultFormDialog({
             description: data.description,
             targetValue: data.targetValue,
             unit: data.unit,
+            confidenceLevel: data.confidenceLevel as KeyResultConfidenceLevel,
           },
           projectId,
         },
@@ -191,32 +175,30 @@ export function KeyResultFormDialog({
               />
             </div>
 
-            {isEditing && (
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.entries(KEY_RESULT_STATUS_LABELS).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="confidenceLevel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nível de Confiança</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.entries(CONFIDENCE_LEVEL_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
