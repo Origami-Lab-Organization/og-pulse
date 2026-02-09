@@ -48,7 +48,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History, Calculator, AlertCircle, Camera, Upload, Trash2, Clock, Ban } from 'lucide-react';
+import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History, Calculator, AlertCircle, Camera, Upload, Trash2, Clock, Ban, CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, parse } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
@@ -117,6 +121,7 @@ export interface EmployeeFormSubmitData extends CreateEmployeeInput {
   localBenefits?: LocalBenefit[];
   localTools?: LocalTool[];
   createNewVersion?: boolean;
+  effectiveFrom?: string;
 }
 
 interface EmployeeFormDialogProps {
@@ -144,6 +149,9 @@ const EmployeeFormDialog = ({
   const isEditing = !!employee;
   const [currentStep, setCurrentStep] = useState(0);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [versionConfirmOpen, setVersionConfirmOpen] = useState(false);
+  const [versionEffectiveDate, setVersionEffectiveDate] = useState<Date>(new Date());
+  const [pendingSubmitData, setPendingSubmitData] = useState<EmployeeFormSubmitData | null>(null);
 
   // Get current user for tenant context
   const { employee: currentEmployee } = useAuth();
@@ -525,6 +533,24 @@ const EmployeeFormDialog = ({
     }
   };
 
+  const buildSubmitPayload = (data: FormData, hasVersionedChanges: boolean, effectiveFrom?: string): EmployeeFormSubmitData => {
+    const { status: _status, ...dataWithoutStatus } = data;
+    return {
+      ...dataWithoutStatus,
+      status: isEditing ? employee!.status : 'aguardando_confirmacao',
+      provisao13: costBreakdown?.details.provisao13 || 0,
+      provisaoFerias: costBreakdown?.details.provisaoFerias || 0,
+      provisaoRecesso: costBreakdown?.details.provisaoRecesso || 0,
+      totalMonthlyCostEstimated: costBreakdown?.totalMonthlyCost || 0,
+      totalAnnualCostEstimated: costBreakdown?.totalAnnualCost || 0,
+      breakdownJson: costBreakdown || undefined,
+      localBenefits: isEditing ? undefined : localBenefits,
+      localTools: isEditing ? undefined : localTools,
+      createNewVersion: hasVersionedChanges,
+      effectiveFrom,
+    } as EmployeeFormSubmitData;
+  };
+
   const handleSubmit = (data: FormData) => {
     // Detect if versioned fields changed (only for editing)
     let hasVersionedChanges = false;
@@ -543,25 +569,25 @@ const EmployeeFormDialog = ({
       }
     }
 
-    // Destructure to exclude status from submission (status is managed by actions only)
-    const { status: _status, ...dataWithoutStatus } = data;
-    
-    onSubmit({
-      ...dataWithoutStatus,
-      // Keep existing status for new employees (aguardando_confirmacao) or preserve current for edits
-      status: isEditing ? employee!.status : 'aguardando_confirmacao',
-      // Include calculated cost fields
-      provisao13: costBreakdown?.details.provisao13 || 0,
-      provisaoFerias: costBreakdown?.details.provisaoFerias || 0,
-      provisaoRecesso: costBreakdown?.details.provisaoRecesso || 0,
-      totalMonthlyCostEstimated: costBreakdown?.totalMonthlyCost || 0,
-      totalAnnualCostEstimated: costBreakdown?.totalAnnualCost || 0,
-      breakdownJson: costBreakdown || undefined,
-      localBenefits: isEditing ? undefined : localBenefits,
-      localTools: isEditing ? undefined : localTools,
-      createNewVersion: hasVersionedChanges,
-    } as EmployeeFormSubmitData);
-    // Reset happens via useEffect when open changes to false
+    if (hasVersionedChanges && isEditing) {
+      // Show confirmation dialog with date picker
+      const payload = buildSubmitPayload(data, true);
+      setPendingSubmitData(payload);
+      setVersionEffectiveDate(new Date());
+      setVersionConfirmOpen(true);
+      return;
+    }
+
+    onSubmit(buildSubmitPayload(data, false));
+  };
+
+  const handleVersionConfirm = () => {
+    if (pendingSubmitData) {
+      const dateStr = format(versionEffectiveDate, 'yyyy-MM-dd');
+      onSubmit({ ...pendingSubmitData, effectiveFrom: dateStr });
+    }
+    setVersionConfirmOpen(false);
+    setPendingSubmitData(null);
   };
 
   const renderStepIndicator = () => (
@@ -1350,6 +1376,57 @@ const EmployeeFormDialog = ({
             <AlertDialogCancel>Continuar editando</AlertDialogCancel>
             <AlertDialogAction onClick={confirmExit}>
               Sair sem salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Version Confirmation Dialog with Date Picker */}
+      <AlertDialog open={versionConfirmOpen} onOpenChange={(open) => {
+        setVersionConfirmOpen(open);
+        if (!open) setPendingSubmitData(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Novo Marco Financeiro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detectamos alterações em campos financeiros (jornada, salário, cargo, etc).
+              A partir de quando esta mudança é válida?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">Data de Vigência</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !versionEffectiveDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {versionEffectiveDate
+                    ? format(versionEffectiveDate, "dd/MM/yyyy", { locale: ptBR })
+                    : "Selecione uma data"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={versionEffectiveDate}
+                  onSelect={(date) => date && setVersionEffectiveDate(date)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleVersionConfirm}>
+              Confirmar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

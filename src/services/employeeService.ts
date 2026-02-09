@@ -144,7 +144,7 @@ export const employeeService = {
     return result.employee;
   },
 
-  async update(id: string, updates: Partial<CreateEmployeeInput>, createNewVersion: boolean = false): Promise<EmployeeDB> {
+  async update(id: string, updates: Partial<CreateEmployeeInput>, createNewVersion: boolean = false, effectiveFrom?: string): Promise<EmployeeDB> {
     const dbUpdates: Record<string, unknown> = {};
     
     if (updates.nome !== undefined) dbUpdates.nome = updates.nome;
@@ -199,6 +199,7 @@ export const employeeService = {
       try {
         await employeeVersionService.createVersion({
           employeeId: id,
+          effectiveFrom,
           salarioMensal: updatedEmployee.salario_mensal,
           salarioLiquido: updatedEmployee.salario_liquido,
           beneficios: updatedEmployee.beneficios,

@@ -150,13 +150,15 @@ export const useUpdateEmployee = () => {
     mutationFn: async ({ 
       id, 
       updates,
-      createNewVersion = false 
+      createNewVersion = false,
+      effectiveFrom,
     }: { 
       id: string; 
       updates: Partial<CreateEmployeeInput>;
       createNewVersion?: boolean;
+      effectiveFrom?: string;
     }) => {
-      return employeeService.update(id, updates, createNewVersion);
+      return employeeService.update(id, updates, createNewVersion, effectiveFrom);
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
