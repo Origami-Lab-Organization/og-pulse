@@ -83,6 +83,7 @@ const baseFormSchema = z.object({
   status: z.enum(['ativo', 'aguardando_confirmacao', 'bloqueado', 'arquivado']),
   tipoContratacao: z.enum(['SOCIO', 'CLT', 'PJ', 'MENOR_APRENDIZ', 'ESTAGIO'] as const),
   jornadaMensal: z.number().min(1, 'Jornada deve ser maior que 0'),
+  jornadaDiaria: z.number().min(1, 'Jornada deve ser maior que 0').max(24, 'Máximo 24 horas'),
   salarioMensal: z.number().min(0, 'Salário não pode ser negativo'),
   bolsaAuxilio: z.number().min(0, 'Bolsa-auxílio não pode ser negativa'),
   valorContratoPj: z.number().min(0, 'Valor do contrato não pode ser negativo'),
@@ -205,7 +206,8 @@ const EmployeeFormDialog = ({
       systemRole: 'user',
       status: 'aguardando_confirmacao',
       tipoContratacao: 'CLT',
-      jornadaMensal: 168,
+        jornadaMensal: 176,
+        jornadaDiaria: 8,
       salarioMensal: 0,
       bolsaAuxilio: 0,
       valorContratoPj: 0,
@@ -313,7 +315,8 @@ const EmployeeFormDialog = ({
         systemRole: employee.systemRole || 'user',
         status: employee.status,
         tipoContratacao: employee.tipoContratacao || 'CLT',
-        jornadaMensal: employee.jornadaMensal || 168,
+        jornadaMensal: employee.jornadaMensal || 176,
+        jornadaDiaria: employee.jornadaDiaria || 8,
         salarioMensal: employee.salarioMensal,
         bolsaAuxilio: employee.bolsaAuxilio || 0,
         valorContratoPj: employee.valorContratoPj || 0,
@@ -352,7 +355,8 @@ const EmployeeFormDialog = ({
         systemRole: 'user',
         status: 'aguardando_confirmacao',
         tipoContratacao: 'CLT',
-        jornadaMensal: 168,
+        jornadaMensal: 176,
+        jornadaDiaria: 8,
         salarioMensal: 0,
         bolsaAuxilio: 0,
         valorContratoPj: 0,
@@ -497,7 +501,7 @@ const EmployeeFormDialog = ({
     if (currentStep === 1) {
       // Validate based on contract type
       const tipo = form.getValues('tipoContratacao');
-      const fieldsToValidate: (keyof FormData)[] = ['tipoContratacao', 'jornadaMensal'];
+      const fieldsToValidate: (keyof FormData)[] = ['tipoContratacao', 'jornadaDiaria'];
       
       switch (tipo) {
         case 'CLT':
@@ -534,9 +538,12 @@ const EmployeeFormDialog = ({
   };
 
   const buildSubmitPayload = (data: FormData, hasVersionedChanges: boolean, effectiveFrom?: string): EmployeeFormSubmitData => {
-    const { status: _status, ...dataWithoutStatus } = data;
+    const { status: _status, jornadaDiaria, ...dataWithoutStatus } = data;
+    const jornadaMensalCalculated = jornadaDiaria * 22;
     return {
       ...dataWithoutStatus,
+      jornadaMensal: jornadaMensalCalculated,
+      jornadaDiaria,
       status: isEditing ? employee!.status : 'aguardando_confirmacao',
       provisao13: costBreakdown?.details.provisao13 || 0,
       provisaoFerias: costBreakdown?.details.provisaoFerias || 0,
@@ -558,7 +565,7 @@ const EmployeeFormDialog = ({
       const versionedFields = [
         'salarioMensal', 'bolsaAuxilio', 'valorContratoPj', 'beneficios', 'encargos',
         'fgts', 'inssEmpresa', 'decimoTerceiro', 'ferias', 
-        'proLabore', 'dividendos', 'jornadaMensal', 'tipoContratacao', 'cargo'
+        'proLabore', 'dividendos', 'jornadaDiaria', 'jornadaMensal', 'tipoContratacao', 'cargo'
       ] as const;
       
       for (const field of versionedFields) {
@@ -876,16 +883,22 @@ const EmployeeFormDialog = ({
 
             <FormField
               control={form.control}
-              name="jornadaMensal"
+              name="jornadaDiaria"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Jornada Mensal (horas) *</FormLabel>
+                  <FormLabel>Jornada Diária (horas) *</FormLabel>
                   <FormControl>
                     <Input 
                       type="number" 
-                      placeholder="168"
+                      placeholder="8"
+                      min={1}
+                      max={24}
                       {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const daily = parseInt(e.target.value) || 0;
+                        field.onChange(daily);
+                        form.setValue('jornadaMensal', daily * 22);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

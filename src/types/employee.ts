@@ -47,6 +47,7 @@ export interface Employee {
   encargos: number;
   tipoContratacao: ContractType;
   jornadaMensal: number;
+  jornadaDiaria: number;
   salarioLiquido: number;
   fgts: number;
   inssEmpresa: number;

@@ -6,19 +6,19 @@ import { calculateEmployeeCost } from '@/lib/employeeCostCalculator';
 import { calculateNetSalary } from '@/lib/netSalaryCalculator';
 import { Calculator } from 'lucide-react';
 
-const DEFAULT_JORNADA = 168;
+const DEFAULT_JORNADA_DIARIA = 8;
 
 export default function EmployeeCalculator() {
   const [salarioBruto, setSalarioBruto] = useState('');
   const [beneficios, setBeneficios] = useState('');
-  const [jornadaMensal, setJornadaMensal] = useState(DEFAULT_JORNADA.toString());
+  const [jornadaDiaria, setJornadaDiaria] = useState(DEFAULT_JORNADA_DIARIA.toString());
   const [dependentes, setDependentes] = useState('0');
   const [pjBase, setPjBase] = useState<'total_cost' | 'gross_salary'>('total_cost');
 
-  // Parse valores
   const salarioBrutoNum = parseCurrencyInput(salarioBruto);
   const beneficiosNum = parseCurrencyInput(beneficios);
-  const jornadaNum = parseInt(jornadaMensal) || DEFAULT_JORNADA;
+  const jornadaDiariaNum = parseInt(jornadaDiaria) || DEFAULT_JORNADA_DIARIA;
+  const jornadaMensalNum = jornadaDiariaNum * 22;
   const dependentesNum = parseInt(dependentes) || 0;
 
   // Calcular custos CLT
@@ -66,8 +66,8 @@ export default function EmployeeCalculator() {
               setSalarioBruto={setSalarioBruto}
               beneficios={beneficios}
               setBeneficios={setBeneficios}
-              jornadaMensal={jornadaMensal}
-              setJornadaMensal={setJornadaMensal}
+              jornadaDiaria={jornadaDiaria}
+              setJornadaDiaria={setJornadaDiaria}
               dependentes={dependentes}
               setDependentes={setDependentes}
             />
@@ -78,7 +78,7 @@ export default function EmployeeCalculator() {
             <CalculatorResults
               cltCost={cltCost}
               cltNetSalary={cltNetSalary}
-              jornadaMensal={jornadaNum}
+              jornadaMensal={jornadaMensalNum}
               pjBase={pjBase}
               setPjBase={setPjBase}
             />
