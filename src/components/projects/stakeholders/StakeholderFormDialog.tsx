@@ -79,7 +79,7 @@ export function StakeholderFormDialog({
     defaultValues: {
       name: '',
       jobTitle: '',
-      role: '',
+      role: 'decision_maker',
       organization: '',
       email: '',
       phone: '',
@@ -111,7 +111,7 @@ export function StakeholderFormDialog({
         form.reset({
           name: '',
           jobTitle: '',
-          role: '',
+          role: 'decision_maker',
           organization: '',
           email: '',
           phone: '',
