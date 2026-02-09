@@ -80,7 +80,8 @@ export function SupplierActualDialog({
       setValue(existingForMonth?.value || 0);
       setNotes(existingForMonth?.notes || '');
     }
-  }, [monthNumber, supplier, existingActuals]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthNumber]);
 
   const handleSubmit = () => {
     if (!supplier) return;
