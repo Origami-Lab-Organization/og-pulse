@@ -1,41 +1,25 @@
 
-# Correcao: Receita do Ano mostrando valor incorreto
+# Correcao: Fundo da Barra de Progresso de Verde para Cinza
 
 ## Problema
 
-O card "Receita no Ano" na pagina `/projects` esta mostrando R$60.000 quando deveria mostrar ~R$332.812.
-
-**Causa raiz:** A query `projectService.getAll()` nao inclui `project_installments` no `select`. Portanto, `project.installments` e sempre `undefined` na listagem. O calculo atual:
-
-1. Soma parcelas do ano corrente: **R$0** (pois nao ha parcelas carregadas)
-2. Para projetos continuos sem parcelas no ano, soma `total_value x 12`: "Gestao de Portfolio" = R$5.000 x 12 = **R$60.000**
-3. Prumo Obras (~R$327.812 em parcelas 2026) e completamente ignorado
+O componente `Progress` usa `bg-secondary` como cor de fundo da faixa nao preenchida. No design system atual, `--secondary` e um verde medio (`hsl(152, 40%, 50%)`), o que da a impressao de progresso mesmo quando o valor e 0%. Isso prejudica a leitura visual do usuario.
 
 ## Solucao
 
-Incluir `project_installments` no `select` da query `getAll` do `projectService`, seguindo o mesmo padrao ja usado no `getById`.
+Alterar a classe de fundo do componente `Progress` de `bg-secondary` para `bg-muted`, que e um tom neutro/cinza claro no tema light e escuro no tema dark. Isso faz com que a faixa nao preenchida apareca claramente como "sem progresso".
 
-## Mudancas
-
-### Arquivo: `src/services/projectService.ts`
-
-Alterar a query `getAll` para incluir a relacao com `project_installments`:
-
-```sql
--- De:
-*, client:clients(...), manager:employees!(...)
-
--- Para:
-*, client:clients(...), manager:employees!(...),
-installments:project_installments(id, installment_number, value, due_date, status, invoice_number, payment_date)
-```
-
-Isso fara com que cada projeto na listagem ja venha com suas parcelas, permitindo que o `ProjectStats` calcule corretamente:
-- Parcelas com vencimento em 2026 serao somadas (~R$327.812 do Prumo + R$5.000 do Gestao)
-- Projetos continuos sem parcelas no ano usarao o fallback `total_value x 12`
-
-### Apenas 1 arquivo editado
+## Mudanca
 
 | Arquivo | Acao |
 |---------|------|
-| `src/services/projectService.ts` | Editar query `getAll` para incluir `installments:project_installments(...)` |
+| `src/components/ui/progress.tsx` | Trocar `bg-secondary` por `bg-muted` na classe do `Root` |
+
+A alteracao e de uma unica palavra e afeta automaticamente todos os componentes que usam `<Progress>` no sistema (OKRs, Key Results, e qualquer outro lugar).
+
+### Valores de referencia
+
+- Light mode: `--muted: 145 25% 93%` (cinza esverdeado muito claro, quase branco)
+- Dark mode: `--muted: 160 30% 18%` (cinza escuro)
+
+Ambos contrastam bem com a barra verde de progresso (`bg-primary`).
