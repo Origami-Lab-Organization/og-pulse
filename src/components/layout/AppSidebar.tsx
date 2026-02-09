@@ -27,7 +27,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -201,16 +200,6 @@ export function AppSidebar() {
         })}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
-        {!collapsed && employee && (
-          <div className="px-3 py-2">
-            <p className="text-xs text-sidebar-foreground/70">Logado como</p>
-            <p className="text-sm font-medium text-sidebar-foreground truncate">
-              {employee.nome}
-            </p>
-          </div>
-        )}
-      </SidebarFooter>
     </Sidebar>
   );
 }
