@@ -6,22 +6,24 @@ import { TrendingUp, TrendingDown, DollarSign, Percent, Users, Package, Truck } 
 import { useMemo } from 'react';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
+import { useBudget } from '@/hooks/useBudgets';
+import { useFinancialSettings } from '@/hooks/useFinancialSettings';
+import { PlanningInstallmentsTable } from './PlanningInstallmentsTable';
 
 interface ProjectExpectedResultTabProps {
   project: ProjectWithRelations;
 }
 
 export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabProps) {
-  // Get member and supplier IDs for fetching monthly data
   const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
   const supplierIds = useMemo(() => (project.suppliers || []).map((s) => s.id), [project.suppliers]);
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
+  const { data: budget } = useBudget(project.budget_id);
+  const { data: financialSettings } = useFinancialSettings();
 
-  // Calculate costs from actual planned monthly data
   const costs = useMemo(() => {
-    // Labor cost: sum of (real hourly cost × planned hours per month)
     let laborCost = 0;
     project.members?.forEach((member) => {
       const employee = member.employee;
@@ -31,7 +33,6 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
       const workHours = employee.jornada_mensal || 168;
       const realHourlyCost = workHours > 0 ? totalMonthlyCost / workHours : 0;
 
-      // Sum all planned hours for this member from memberMonths
       const totalPlannedHours = memberMonths
         .filter((mm) => mm.project_member_id === member.id)
         .reduce((sum, mm) => sum + Number(mm.hours), 0);
@@ -39,10 +40,8 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
       laborCost += realHourlyCost * totalPlannedHours;
     });
 
-    // Suppliers cost: sum of all monthly values from supplierMonths
     const suppliersCost = supplierMonths.reduce((sum, sm) => sum + Number(sm.value), 0);
 
-    // Materials cost remains the same
     const materialsCost = project.materials?.reduce((total, material) => {
       return total + material.value;
     }, 0) || 0;
@@ -55,11 +54,19 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
   const suppliersCost = costs.suppliersCost;
   const materialsCost = costs.materialsCost;
   const totalCost = laborCost + suppliersCost + materialsCost;
-  const grossMargin = totalValue - totalCost;
+
+  // Tax deduction from linked budget
+  const taxesPercent = budget?.taxes_percent || 0;
+  const taxes = totalValue * (taxesPercent / 100);
+  const grossMargin = totalValue - taxes - totalCost;
   const marginPercent = totalValue > 0 ? (grossMargin / totalValue) * 100 : 0;
   const isPositiveMargin = grossMargin >= 0;
 
-  // Calculate cost breakdown percentages
+  // Margin target gap
+  const marginTarget = financialSettings?.gross_margin_target_percent || 0;
+  const marginGap = marginPercent - marginTarget;
+
+  // Cost breakdown percentages
   const laborPercent = totalCost > 0 ? (laborCost / totalCost) * 100 : 0;
   const suppliersPercent = totalCost > 0 ? (suppliersCost / totalCost) * 100 : 0;
   const materialsPercent = totalCost > 0 ? (materialsCost / totalCost) * 100 : 0;
@@ -82,6 +89,11 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
               Receita Total
             </div>
             <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
+            {taxesPercent > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Impostos ({taxesPercent}%): {formatCurrency(taxes)}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -104,6 +116,11 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
             <p className={`text-2xl font-bold ${isPositiveMargin ? 'text-green-600' : 'text-destructive'}`}>
               {formatCurrency(grossMargin)}
             </p>
+            {taxesPercent > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Receita − Impostos − Custos
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -116,6 +133,11 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
             <p className={`text-2xl font-bold ${isPositiveMargin ? 'text-green-600' : 'text-destructive'}`}>
               {marginPercent.toFixed(1)}%
             </p>
+            {marginTarget > 0 && (
+              <p className={`text-xs mt-1 ${marginGap >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                {marginGap >= 0 ? '+' : ''}{marginGap.toFixed(1)}pp vs meta ({marginTarget}%)
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -183,40 +205,16 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
         </CardContent>
       </Card>
 
-      {/* Installments projection */}
+      {/* Installments table */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Projeção de Recebimentos</CardTitle>
         </CardHeader>
         <CardContent>
-          {project.installments && project.installments.length > 0 ? (
-            <div className="space-y-2">
-              {project.installments.map((installment) => (
-                <div key={installment.id} className="flex items-center gap-4">
-                  <span className="text-sm text-muted-foreground w-24">
-                    Parcela {installment.installment_number}
-                  </span>
-                  <div className="flex-1">
-                    <Progress 
-                      value={(installment.value / totalValue) * 100} 
-                      className="h-6"
-                    />
-                  </div>
-                  <span className="text-sm font-medium w-32 text-right">
-                    {formatCurrency(installment.value)}
-                  </span>
-                </div>
-              ))}
-              <div className="pt-3 border-t flex items-center justify-between font-medium">
-                <span>Total</span>
-                <span>{formatCurrency(totalValue)}</span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma parcela definida. Configure o plano de pagamento no projeto.
-            </p>
-          )}
+          <PlanningInstallmentsTable
+            installments={project.installments || []}
+            projectId={project.id}
+          />
         </CardContent>
       </Card>
     </div>
