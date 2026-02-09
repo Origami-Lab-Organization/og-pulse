@@ -52,6 +52,7 @@ export interface UpdateStakeholderInput {
 export const STAKEHOLDER_ROLES = [
   { value: 'decision_maker', label: 'Decisor' },
   { value: 'subject_expert', label: 'Especialista' },
+  { value: 'interested', label: 'Interessado' },
   { value: 'sponsor', label: 'Patrocinador' },
   { value: 'user', label: 'Usuário Final' },
   { value: 'other', label: 'Outro' },
@@ -71,7 +72,6 @@ export const INTEREST_LEVEL_LABELS: Record<InterestLevel, string> = {
 
 export const ORGANIZATION_OPTIONS = [
   { value: 'client', label: 'Cliente' },
-  { value: 'internal', label: 'Interna' },
   { value: 'partner', label: 'Parceiro' },
   { value: 'other', label: 'Outro' },
 ];
