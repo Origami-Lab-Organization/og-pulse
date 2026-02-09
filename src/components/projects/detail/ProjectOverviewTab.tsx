@@ -185,11 +185,21 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
 
   // === Health calculations ===
   const health = useMemo(() => {
-    // OKRs
+    // OKRs - calculate progress from KRs
     let okrHealth: HealthStatus = 'gray';
+    let okrAvgProgress = 0;
     if (okrs.length > 0) {
-      const avgProgress = okrs.reduce((sum, o) => sum + (o.progress_percent || 0), 0) / okrs.length;
-      okrHealth = avgProgress >= 70 ? 'green' : avgProgress >= 40 ? 'yellow' : 'red';
+      const okrProgresses = okrs.map((o) => {
+        const krs = o.key_results || [];
+        if (krs.length === 0) return 0;
+        return krs.reduce((sum, kr) => {
+          const target = kr.target_value || 0;
+          const current = kr.current_value || 0;
+          return sum + (target > 0 ? Math.min(100, (current / target) * 100) : 0);
+        }, 0) / krs.length;
+      });
+      okrAvgProgress = okrProgresses.reduce((a, b) => a + b, 0) / okrProgresses.length;
+      okrHealth = okrAvgProgress >= 70 ? 'green' : okrAvgProgress >= 40 ? 'yellow' : 'red';
     }
 
     // Schedule
@@ -222,7 +232,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
       else overall = 'green';
     }
 
-    return { okrHealth, scheduleHealth, costHealth, finHealth, overall };
+    return { okrHealth, okrAvgProgress, scheduleHealth, costHealth, finHealth, overall };
   }, [okrs, milestones, costData, project.installments]);
 
   // === Schedule summary ===
@@ -408,7 +418,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
                 <div>
                   <p className="text-xs text-muted-foreground">OKRs</p>
                   <p className="text-xs font-medium">
-                    {okrs.length > 0 ? `${formatPercent(okrSummary.avgProgress, 0)} progresso` : 'Sem OKRs'}
+                    {okrs.length > 0 ? `${formatPercent(health.okrAvgProgress, 0)} progresso` : 'Sem OKRs'}
                   </p>
                 </div>
               </div>
