@@ -1,38 +1,41 @@
 
+# Remover dados de orcamento da alocacao de equipe
 
-# Corrigir bug: valor realizado de fornecedor salvo como zero
+## Objetivo
+Simplificar a tabela de alocacao de equipe para exibir apenas **Planejado vs Realizado**, removendo todas as referencias ao orcamento (orcado).
 
-## Problema Identificado
+## Mudancas no arquivo `src/components/projects/detail/ProjectLaborSection.tsx`
 
-O banco de dados confirma que o valor foi salvo como `0` (zero). A causa raiz esta no `SupplierActualDialog.tsx`, no `useEffect` da linha 75-83:
+### O que sera removido:
 
-```text
-useEffect(() => {
-  if (supplier) {
-    const existingForMonth = existingActuals.find(...);
-    setValue(existingForMonth?.value || 0);  // <-- Reseta o valor!
-  }
-}, [monthNumber, supplier, existingActuals]);
-```
+1. **Coluna R$/h**: Remover a linha secundaria que mostra o valor/hora do orcamento (linhas 630-634)
 
-Este efeito tem `existingActuals` como dependencia. Como `existingActuals` e um array passado como prop, qualquer re-render do componente pai gera uma nova referencia de array, disparando o efeito e resetando o valor digitado pelo usuario para `0` (pois nao existe registro salvo ainda no banco).
+2. **Colunas mensais**: Remover o texto auxiliar com as horas orcadas abaixo de cada celula mensal (linhas 703-707)
 
-**Sequencia do bug:**
-1. Usuario abre o dialog e digita um valor (ex: R$ 5.000,00)
-2. O componente pai re-renderiza (por qualquer motivo: estado, query, etc.)
-3. `existingActuals` recebe uma nova referencia de array
-4. O `useEffect` dispara e faz `setValue(0)` (pois nao encontra registro existente)
-5. Usuario clica "Salvar" e o sistema grava `value: 0`
+3. **Coluna Horas total**: Remover o texto auxiliar com total de horas orcadas (linhas 725-729)
 
-## Correcao
+4. **Coluna Custo total**: Remover o texto auxiliar com valor total orcado (linhas 745-749)
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/components/projects/detail/SupplierActualDialog.tsx` | Remover `existingActuals` da dependencia do segundo `useEffect` (que trata mudanca de mes), mantendo apenas `monthNumber` como trigger. O primeiro `useEffect` (que inicializa ao abrir o dialog) ja cuida do carregamento inicial corretamente. |
+5. **Rodape - colunas mensais**: Remover as horas orcadas abaixo do total mensal (linhas 835-839, incluindo calculo nas linhas 814-818)
 
-### Detalhe Tecnico
+6. **Rodape - Horas total**: Remover referencia ao budgetSummary.hours (linhas 855-859)
 
-O segundo `useEffect` (linha 75-83) deve reagir **apenas** quando o usuario troca o mes no dropdown. Portanto, a dependencia correta e apenas `monthNumber`. As variaveis `supplier` e `existingActuals` serao acessadas pelo closure sem necessidade de serem dependencias, ja que nao queremos que mudancas nelas resetem o formulario.
+7. **Rodape - Custo total**: Remover referencia ao budgetSummary.value (linhas 873-877)
 
-Alternativamente, para maior seguranca, usaremos uma flag `isUserEditing` ou simplesmente removeremos `existingActuals` do array de dependencias e manteremos `supplier` apenas como guard.
+8. **Rodape - Acao de variacao**: Remover o indicador de variacao percentual contra orcamento (linhas 882-904)
 
+### Codigo que pode ser simplificado (limpeza):
+
+Os seguintes calculos deixam de ser necessarios e podem ser removidos para manter o codigo limpo:
+- `budgetSummary` (useMemo linhas 404-413)
+- `budgetVariation` (useMemo linhas 416-421)
+- `budgetDataByMember` (useMemo linhas 456-492) - parcialmente, apenas os campos de horas por mes e total
+
+**Nota**: Os campos `budgetSeniority` e `budgetHourlyRate` dentro de `budgetDataByMember` ainda sao usados na coluna de Funcionario (exibe a senioridade do papel) e na coluna R$/h (quando nao ha funcionario atribuido, mostra "(orcado)"). Esses usos serao mantidos pois sao informativos sobre o papel, nao sobre comparacao orcamentaria.
+
+### Resultado esperado
+A tabela exibira apenas duas camadas de informacao:
+- **Planejado**: horas e custos definidos pelo gestor do projeto
+- **Realizado**: horas reais dos timesheets e custos calculados
+
+Sem nenhuma referencia a valores vindos do orcamento original.
