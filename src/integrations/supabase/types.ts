@@ -523,6 +523,7 @@ export type Database = {
           fgts: number
           id: string
           inss_empresa: number
+          jornada_diaria: number
           jornada_mensal: number
           pro_labore: number
           salario_liquido: number
@@ -542,6 +543,7 @@ export type Database = {
           fgts?: number
           id?: string
           inss_empresa?: number
+          jornada_diaria?: number
           jornada_mensal?: number
           pro_labore?: number
           salario_liquido?: number
@@ -561,6 +563,7 @@ export type Database = {
           fgts?: number
           id?: string
           inss_empresa?: number
+          jornada_diaria?: number
           jornada_mensal?: number
           pro_labore?: number
           salario_liquido?: number
@@ -598,6 +601,7 @@ export type Database = {
           id: string
           inss_empresa: number
           is_gerente: boolean
+          jornada_diaria: number
           jornada_mensal: number
           must_change_password: boolean
           nome: string
@@ -638,6 +642,7 @@ export type Database = {
           id?: string
           inss_empresa?: number
           is_gerente?: boolean
+          jornada_diaria?: number
           jornada_mensal?: number
           must_change_password?: boolean
           nome: string
@@ -678,6 +683,7 @@ export type Database = {
           id?: string
           inss_empresa?: number
           is_gerente?: boolean
+          jornada_diaria?: number
           jornada_mensal?: number
           must_change_password?: boolean
           nome?: string

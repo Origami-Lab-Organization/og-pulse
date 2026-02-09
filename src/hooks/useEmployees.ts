@@ -40,6 +40,7 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     encargos: Number(db.encargos),
     tipoContratacao: (db.tipo_contratacao || 'CLT') as ContractType,
     jornadaMensal: Number(db.jornada_mensal) || 168,
+    jornadaDiaria: Number((db as any).jornada_diaria) || 8,
     salarioLiquido: Number(db.salario_liquido) || 0,
     fgts: Number(db.fgts) || 0,
     inssEmpresa: Number(db.inss_empresa) || 0,

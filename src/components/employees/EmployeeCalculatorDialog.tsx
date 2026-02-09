@@ -12,18 +12,19 @@ interface EmployeeCalculatorDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const DEFAULT_JORNADA = 168;
+const DEFAULT_JORNADA_DIARIA = 8;
 
 export default function EmployeeCalculatorDialog({ open, onOpenChange }: EmployeeCalculatorDialogProps) {
   const [salarioBruto, setSalarioBruto] = useState('');
   const [beneficios, setBeneficios] = useState('');
-  const [jornadaMensal, setJornadaMensal] = useState(DEFAULT_JORNADA.toString());
+  const [jornadaDiaria, setJornadaDiaria] = useState(DEFAULT_JORNADA_DIARIA.toString());
   const [dependentes, setDependentes] = useState('0');
   const [pjBase, setPjBase] = useState<'total_cost' | 'gross_salary'>('total_cost');
 
   const salarioBrutoNum = parseCurrencyInput(salarioBruto);
   const beneficiosNum = parseCurrencyInput(beneficios);
-  const jornadaNum = parseInt(jornadaMensal) || DEFAULT_JORNADA;
+  const jornadaDiariaNum = parseInt(jornadaDiaria) || DEFAULT_JORNADA_DIARIA;
+  const jornadaMensalNum = jornadaDiariaNum * 22;
   const dependentesNum = parseInt(dependentes) || 0;
 
   const cltCost = useMemo(() => {
@@ -64,8 +65,8 @@ export default function EmployeeCalculatorDialog({ open, onOpenChange }: Employe
               setSalarioBruto={setSalarioBruto}
               beneficios={beneficios}
               setBeneficios={setBeneficios}
-              jornadaMensal={jornadaMensal}
-              setJornadaMensal={setJornadaMensal}
+              jornadaDiaria={jornadaDiaria}
+              setJornadaDiaria={setJornadaDiaria}
               dependentes={dependentes}
               setDependentes={setDependentes}
             />
@@ -74,7 +75,7 @@ export default function EmployeeCalculatorDialog({ open, onOpenChange }: Employe
               <CalculatorResults
                 cltCost={cltCost}
                 cltNetSalary={cltNetSalary}
-                jornadaMensal={jornadaNum}
+                jornadaMensal={jornadaMensalNum}
                 pjBase={pjBase}
                 setPjBase={setPjBase}
               />

@@ -76,7 +76,7 @@ export function EmployeeVersionsTable({ versions, isLoading }: EmployeeVersionsT
                   {formatCurrency(version.encargos)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {version.jornada_mensal}h
+                  {(version as any).jornada_diaria || Math.round(version.jornada_mensal / 22)}h/dia
                 </TableCell>
                 <TableCell>
                   {isActive ? (

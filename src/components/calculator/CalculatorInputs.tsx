@@ -9,8 +9,8 @@ interface CalculatorInputsProps {
   setSalarioBruto: (value: string) => void;
   beneficios: string;
   setBeneficios: (value: string) => void;
-  jornadaMensal: string;
-  setJornadaMensal: (value: string) => void;
+  jornadaDiaria: string;
+  setJornadaDiaria: (value: string) => void;
   dependentes: string;
   setDependentes: (value: string) => void;
 }
@@ -45,8 +45,8 @@ export function CalculatorInputs({
   setSalarioBruto,
   beneficios,
   setBeneficios,
-  jornadaMensal,
-  setJornadaMensal,
+  jornadaDiaria,
+  setJornadaDiaria,
   dependentes,
   setDependentes,
 }: CalculatorInputsProps) {
@@ -125,16 +125,16 @@ export function CalculatorInputs({
             </div>
           </div>
 
-          {/* Jornada Mensal */}
+          {/* Jornada Diária */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label htmlFor="jornada">Jornada (horas/mês)</Label>
+              <Label htmlFor="jornada">Jornada Diária (horas)</Label>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
-                  <p>Quantidade de horas trabalhadas por mês. Padrão: 168h (8h × 21 dias)</p>
+                  <p>Quantidade de horas trabalhadas por dia. Padrão: 8h. A jornada mensal será calculada automaticamente (× 22 dias úteis).</p>
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -142,10 +142,10 @@ export function CalculatorInputs({
               id="jornada"
               type="number"
               min="1"
-              max="220"
-              placeholder="168"
-              value={jornadaMensal}
-              onChange={(e) => setJornadaMensal(e.target.value)}
+              max="24"
+              placeholder="8"
+              value={jornadaDiaria}
+              onChange={(e) => setJornadaDiaria(e.target.value)}
             />
           </div>
 

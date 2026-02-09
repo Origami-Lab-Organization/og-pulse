@@ -20,6 +20,7 @@ export interface EmployeeDB {
   encargos: number;
   tipo_contratacao: string;
   jornada_mensal: number;
+  jornada_diaria: number;
   salario_liquido: number;
   fgts: number;
   inss_empresa: number;
@@ -61,6 +62,7 @@ export interface CreateEmployeeInput {
   encargos: number;
   tipoContratacao: ContractType;
   jornadaMensal: number;
+  jornadaDiaria?: number;
   salarioLiquido: number;
   fgts: number;
   inssEmpresa: number;
@@ -161,6 +163,7 @@ export const employeeService = {
     if (updates.encargos !== undefined) dbUpdates.encargos = updates.encargos;
     if (updates.tipoContratacao !== undefined) dbUpdates.tipo_contratacao = updates.tipoContratacao;
     if (updates.jornadaMensal !== undefined) dbUpdates.jornada_mensal = updates.jornadaMensal;
+    if (updates.jornadaDiaria !== undefined) dbUpdates.jornada_diaria = updates.jornadaDiaria;
     if (updates.salarioLiquido !== undefined) dbUpdates.salario_liquido = updates.salarioLiquido;
     if (updates.fgts !== undefined) dbUpdates.fgts = updates.fgts;
     if (updates.inssEmpresa !== undefined) dbUpdates.inss_empresa = updates.inssEmpresa;
