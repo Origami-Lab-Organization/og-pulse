@@ -1,54 +1,49 @@
 
-# Reformular KPIs do Dashboard - Planejado vs Realizado
+
+# Simplificar Visao Geral do Projeto em Andamento
 
 ## Objetivo
-Substituir os 5 cards simples do topo por 3 cards com comparativo **Realizado** (destaque) vs **Planejado** (menor) e a variacao entre eles para: Receita, Custos e Margem.
+Reestruturar a aba "Visao Geral" para projetos em andamento, mantendo apenas tres secoes: informacoes do projeto, KPIs comparativos e equipe.
 
-## Layout dos 3 Cards
+## Layout Final
 
 ```text
-+---------------------+  +---------------------+  +---------------------+
-| RECEITA             |  | CUSTOS              |  | MARGEM              |
-|                     |  |                     |  |                     |
-| R$ 40.800,00  Real  |  | R$ 8.500,00   Real  |  | 79.2%        Real   |
-| R$ 40.800,00  Plan  |  | R$ 7.200,00   Plan  |  | 82.4%        Plan   |
-| +0,0% variacao      |  | +18,1% variacao     |  | -3.2pp variacao     |
-+---------------------+  +---------------------+  +---------------------+
++-------------------------------+  +-------------------------------+
+| Informacoes do Projeto        |  | Informacoes Financeiras       |
+| Cliente, Gerente, Periodo,    |  | Valor Contrato, Forma Pgto,   |
+| Descricao                     |  | Parcelas, Dia Vencimento      |
++-------------------------------+  +-------------------------------+
+
++-------------------+  +-------------------+  +-------------------+
+| Receita           |  | Custos            |  | Margem            |
+| R$ xxx Realizado  |  | R$ xxx Realizado  |  | xx.x%  Realizado  |
+| R$ xxx Planejado  |  | R$ xxx Planejado  |  | xx.x%  Planejado  |
+| +x.x% variacao   |  | +x.x% variacao    |  | -x.xpp variacao   |
++-------------------+  +-------------------+  +-------------------+
+
++-------------------------------------------------------+
+| Equipe do Projeto                                     |
++-------------------------------------------------------+
 ```
 
-Cada card tera:
-- Icone + titulo no topo
-- Valor realizado em destaque (fonte grande, bold)
-- Valor planejado abaixo (fonte menor, muted)
-- Variacao com cor (verde se favoravel, vermelho se desfavoravel)
+## O que muda
 
-## Logica de calculo
-
-### Receita
-- **Planejado**: valor do contrato (`project.total_value`)
-- **Realizado**: soma das parcelas com status `received`
-- **Variacao**: `(realizado - planejado) / planejado * 100`
-
-### Custos
-- **Planejado**: `costData.totalPlanned` (ja calculado -- mao de obra + fornecedores + materiais)
-- **Realizado**: `costData.totalActual` (ja calculado -- timesheets + supplier actuals + materiais realizados)
-- **Variacao**: `(realizado - planejado) / planejado * 100` (verde se negativo = gastou menos)
-
-### Margem
-- **Planejada**: `(contrato - custoPlanned) / contrato * 100`
-- **Realizada**: `(recebido - custoActual) / recebido * 100` (ou baseada em contrato se recebido = 0)
-- **Variacao**: diferenca em pontos percentuais (pp)
+- **Adicionar**: Cards de "Informacoes do Projeto" e "Informacoes Financeiras" (reutilizar exatamente o layout da aba de planejamento, com icones e estrutura identicos)
+- **Manter**: Os 3 cards de KPI (Receita, Custos, Margem) com planejado vs realizado
+- **Manter**: Secao de Equipe (ProjectTeamSection)
+- **Remover**: Cards de Saude do Projeto, OKRs, Cronograma, Custos detalhados e Faturamento
 
 ## Arquivo a modificar
 
 | Arquivo | Acao |
 |---------|------|
-| `ProjectOverviewTab.tsx` | Substituir a grade de 5 cards (linhas 273-361) pelos 3 novos cards comparativos |
+| `src/components/projects/detail/ProjectOverviewTab.tsx` | Remover secoes de saude/OKR/cronograma/custos/faturamento e adicionar cards de informacoes do projeto e financeiras no topo |
 
 ## Detalhes tecnicos
 
-- Adicionar calculo de `revenueActual` (parcelas recebidas) e `revenuePlanned` (contrato) no `useMemo` existente
-- Adicionar calculo de margem realizada
-- Variacao com sinal: `+X%` ou `-X%`
-- Cores: receita e margem positiva = verde, negativa = vermelho; custos invertido (positivo = vermelho, pois gastou mais)
-- Manter os cards de "Recebido" e "Pendente" integrados no card de Receita (ou remover se redundantes com o novo layout)
+- Importar `format` de `date-fns`, `ptBR`, icones adicionais (`Building2`, `User`, `CreditCard`, `FileText`) e `PAYMENT_METHOD_OPTIONS`
+- Remover imports e hooks nao mais necessarios: `useProjectOKRs`, `useProjectMilestones`, `OKR_STATUS_LABELS`, `CONFIDENCE_LEVEL_LABELS`, `CONFIDENCE_LEVEL_COLORS`, `MILESTONE_STATUS_LABELS`, e as funcoes auxiliares `HealthIcon`, `HealthBadge`
+- Manter os hooks de custos (`useProjectMemberMonths`, `useTimesheetsByMembers`, `useProjectSupplierMonths`, `useProjectSupplierActuals`) pois alimentam os KPIs
+- Manter os `useMemo` de `metrics`, `costData` e `kpiData`; remover `health`, `scheduleSummary`, `okrSummary`, `financialSummary`
+- O componente `CostRow` auxiliar tambem sera removido
+
