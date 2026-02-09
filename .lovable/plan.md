@@ -1,27 +1,34 @@
 
 
-# Aumentar Card de Membro da Equipe
+# Ajustes na Tela de Projetos
 
-## Problema
-O card atual esta compacto demais, truncando o papel e as horas do membro. O grid usa muitas colunas (`grid-cols-6`) fazendo cada card ficar estreito.
+## 1. Card "Parcelas Atrasadas" - mostrar valor recebido e valor em atraso
 
-## Solucao
+O card ja calcula `receivedValue` e `overdueInstallments`. Vamos alterar para:
+- **Valor principal**: exibir o valor recebido formatado (ex: `R$ 50.000`)
+- **Texto menor**: informar se ha valor em atraso (ex: `R$ 10.000 em atraso` ou `Nenhum atraso`)
+- **Titulo**: renomear para "Recebido no Ano"
 
-Ajustar o layout do grid e o tamanho dos cards em `ProjectTeamSection.tsx`:
+**Arquivo**: `src/components/projects/ProjectStats.tsx`
+- Calcular `overdueValue` (soma dos valores das parcelas atrasadas)
+- Alterar o stat de "Parcelas Atrasadas":
+  - `title`: "Recebido no Ano"
+  - `value`: `formatCurrency(receivedValue)`
+  - `description`: se `overdueValue > 0`, mostrar `"R$ X em atraso"`, senao `"Nenhum atraso"`
+  - `variant`: destructive se `overdueValue > 0`
 
-1. **Reduzir colunas do grid** para dar mais espaco a cada card:
-   - De: `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6`
-   - Para: `grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4`
+## 2. Badge de status em uma unica linha
 
-2. **Aumentar padding e espacamento** do card:
-   - Padding de `p-3` para `p-4`
-   - Gap de `gap-3` para `gap-4`
+O texto "Em Planejamento" e "Em Andamento" sao longos e quebram em duas linhas dentro da badge.
 
-3. **Remover truncate** da linha de horas para garantir que `100h plan. | 136h real.` apareca completo
+**Arquivo**: `src/components/projects/ProjectsTable.tsx`
+- Adicionar `whitespace-nowrap` na classe da Badge de status (linha 83)
 
-## Arquivo a modificar
+## 3. Remover descricao do projeto na tabela
 
-| Arquivo | Acao |
-|---------|------|
-| `ProjectTeamSection.tsx` | Ajustar grid-cols, padding e remover truncate da linha de horas |
+A coluna "Projeto" mostra nome + descricao. Vamos remover a descricao.
+
+**Arquivo**: `src/components/projects/ProjectsTable.tsx`
+- Remover o bloco condicional `{project.description && (...)}` (linhas 43-47)
+- Simplificar o cell para retornar apenas `<span className="font-medium">{project.name}</span>`
 
