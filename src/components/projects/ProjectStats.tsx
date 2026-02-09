@@ -30,9 +30,9 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
   const currentYearInstallments = installments.filter(
     (i) => new Date(i.due_date).getFullYear() === currentYear
   );
-  const overdueInstallments = currentYearInstallments.filter(
-    (i) => i.status === 'overdue'
-  ).length;
+  const overdueValue = currentYearInstallments
+    .filter((i) => i.status === 'overdue')
+    .reduce((acc, i) => acc + Number(i.value || 0), 0);
   const receivedValue = currentYearInstallments
     .filter((i) => i.status === 'received')
     .reduce((acc, i) => acc + Number(i.value || 0), 0);
@@ -57,11 +57,11 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
       description: `Projeção ${currentYear}`,
     },
     {
-      title: 'Parcelas Atrasadas',
-      value: overdueInstallments,
+      title: 'Recebido no Ano',
+      value: formatCurrency(receivedValue),
       icon: AlertTriangle,
-      description: `Recebido: ${formatCurrency(receivedValue)}`,
-      variant: overdueInstallments > 0 ? 'destructive' : 'default',
+      description: overdueValue > 0 ? `${formatCurrency(overdueValue)} em atraso` : 'Nenhum atraso',
+      variant: overdueValue > 0 ? 'destructive' : 'default',
     },
   ];
 
