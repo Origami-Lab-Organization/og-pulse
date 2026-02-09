@@ -50,14 +50,11 @@ export interface UpdateStakeholderInput {
 }
 
 export const STAKEHOLDER_ROLES = [
-  { value: 'sponsor', label: 'Patrocinador' },
-  { value: 'product_owner', label: 'Product Owner' },
-  { value: 'tech_lead', label: 'Tech Lead' },
-  { value: 'decision_maker', label: 'Tomador de Decisão' },
-  { value: 'user', label: 'Usuário Final' },
+  { value: 'decision_maker', label: 'Decisor' },
   { value: 'subject_expert', label: 'Especialista' },
-  { value: 'project_manager', label: 'Gerente de Projeto' },
   { value: 'other', label: 'Outro' },
+  { value: 'sponsor', label: 'Patrocinador' },
+  { value: 'user', label: 'Usuário Final' },
 ];
 
 export const INFLUENCE_LEVEL_LABELS: Record<InfluenceLevel, string> = {
