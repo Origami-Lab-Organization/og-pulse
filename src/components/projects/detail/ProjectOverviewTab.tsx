@@ -120,7 +120,10 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
 
     const pendingValue = contractValue - receivedValue;
 
-    return { contractValue, plannedCost, margin, receivedValue, pendingValue, laborCost, supplierCost, materialCost };
+    // Revenue variation
+    const revenueVar = contractValue > 0 ? ((receivedValue - contractValue) / contractValue) * 100 : 0;
+
+    return { contractValue, plannedCost, margin, receivedValue, pendingValue, laborCost, supplierCost, materialCost, revenueVar };
   }, [project]);
 
   // === Cost actuals ===
@@ -258,6 +261,24 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     return { overdue, overdueValue, nextPending, revenueProgress };
   }, [project.installments, metrics]);
 
+  // === KPI comparativos ===
+  const kpiData = useMemo(() => {
+    const revenuePlanned = metrics.contractValue;
+    const revenueActual = metrics.receivedValue;
+    const revenueVar = revenuePlanned > 0 ? ((revenueActual - revenuePlanned) / revenuePlanned) * 100 : 0;
+
+    const costPlanned = costData.totalPlanned;
+    const costActual = costData.totalActual;
+    const costVar = costPlanned > 0 ? ((costActual - costPlanned) / costPlanned) * 100 : 0;
+
+    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - costPlanned) / revenuePlanned) * 100 : 0;
+    const marginActualBase = revenueActual > 0 ? revenueActual : revenuePlanned;
+    const marginActual = marginActualBase > 0 ? ((marginActualBase - costActual) / marginActualBase) * 100 : 0;
+    const marginVar = marginActual - marginPlanned; // em pp
+
+    return { revenuePlanned, revenueActual, revenueVar, costPlanned, costActual, costVar, marginPlanned, marginActual, marginVar };
+  }, [metrics, costData]);
+
   const marginTrend = metrics.margin >= 30 ? 'up' : metrics.margin >= 15 ? 'neutral' : 'down';
 
   const healthLabels: Record<HealthStatus, string> = {
@@ -269,91 +290,101 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Row 1: KPI Cards */}
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+      {/* Row 1: KPI Cards - Planejado vs Realizado */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+        {/* Receita */}
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                <FileText className="h-4 w-4 text-primary" />
+          <CardContent className="pt-4 pb-4 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <DollarSign className="h-4 w-4 text-primary" />
               </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Contrato</p>
-                <p className="text-lg font-bold truncate">{formatCurrency(metrics.contractValue)}</p>
+              <p className="text-sm font-semibold text-muted-foreground">Receita</p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <p className="text-xl font-bold">{formatCurrency(kpiData.revenueActual)}</p>
+                <span className="text-xs text-muted-foreground">Realizado</span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.revenuePlanned)}</p>
+                <span className="text-xs text-muted-foreground">Planejado</span>
+              </div>
+              <div className="pt-1">
+                <span className={`text-xs font-semibold ${kpiData.revenueVar >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {kpiData.revenueVar >= 0 ? '+' : ''}{kpiData.revenueVar.toFixed(1)}%
+                </span>
+                <span className="text-xs text-muted-foreground ml-1">variação</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Custos */}
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+          <CardContent className="pt-4 pb-4 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
                 <Target className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Custo Planejado</p>
-                <p className="text-lg font-bold truncate">{formatCurrency(metrics.plannedCost)}</p>
+              <p className="text-sm font-semibold text-muted-foreground">Custos</p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <p className="text-xl font-bold">{formatCurrency(kpiData.costActual)}</p>
+                <span className="text-xs text-muted-foreground">Realizado</span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.costPlanned)}</p>
+                <span className="text-xs text-muted-foreground">Planejado</span>
+              </div>
+              <div className="pt-1">
+                <span className={`text-xs font-semibold ${kpiData.costVar <= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {kpiData.costVar >= 0 ? '+' : ''}{kpiData.costVar.toFixed(1)}%
+                </span>
+                <span className="text-xs text-muted-foreground ml-1">variação</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Margem */}
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                marginTrend === 'up' ? 'bg-green-100 dark:bg-green-900/30' :
-                marginTrend === 'down' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-muted'
+          <CardContent className="pt-4 pb-4 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                kpiData.marginActual >= 30 ? 'bg-green-100 dark:bg-green-900/30' :
+                kpiData.marginActual >= 15 ? 'bg-muted' : 'bg-red-100 dark:bg-red-900/30'
               }`}>
-                {marginTrend === 'up' ? (
+                {kpiData.marginActual >= 30 ? (
                   <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-                ) : marginTrend === 'down' ? (
+                ) : kpiData.marginActual < 15 ? (
                   <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
                 ) : (
                   <Minus className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Margem</p>
-                <p className={`text-lg font-bold ${
-                  marginTrend === 'up' ? 'text-green-600 dark:text-green-400' :
-                  marginTrend === 'down' ? 'text-red-600 dark:text-red-400' : ''
+              <p className="text-sm font-semibold text-muted-foreground">Margem</p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <p className={`text-xl font-bold ${
+                  kpiData.marginActual >= 30 ? 'text-green-600 dark:text-green-400' :
+                  kpiData.marginActual < 15 ? 'text-red-600 dark:text-red-400' : ''
                 }`}>
-                  {formatPercent(metrics.margin)}
+                  {formatPercent(kpiData.marginActual)}
                 </p>
+                <span className="text-xs text-muted-foreground">Realizado</span>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                <Wallet className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm text-muted-foreground">{formatPercent(kpiData.marginPlanned)}</p>
+                <span className="text-xs text-muted-foreground">Planejado</span>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Recebido</p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400 truncate">
-                  {formatCurrency(metrics.receivedValue)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-2 sm:col-span-1">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <PiggyBank className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Pendente</p>
-                <p className="text-lg font-bold text-amber-600 dark:text-amber-400 truncate">
-                  {formatCurrency(metrics.pendingValue)}
-                </p>
+              <div className="pt-1">
+                <span className={`text-xs font-semibold ${kpiData.marginVar >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {kpiData.marginVar >= 0 ? '+' : ''}{kpiData.marginVar.toFixed(1)}pp
+                </span>
+                <span className="text-xs text-muted-foreground ml-1">variação</span>
               </div>
             </div>
           </CardContent>
