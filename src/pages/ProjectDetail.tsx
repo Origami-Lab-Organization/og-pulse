@@ -16,12 +16,15 @@ import { ProjectExpectedResultTab } from '@/components/projects/detail/ProjectEx
 import { ProjectFormDialog } from '@/components/projects/ProjectFormDialog';
 import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
 import { useProject, useUpdateProject, useDeleteProject } from '@/hooks/useProjects';
+import { useAuth } from '@/contexts/AuthContext';
 import { CreateProjectInput } from '@/types/project';
 import { useState } from 'react';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { employee } = useAuth();
+  const isAdmin = employee?.isAdmin ?? false;
   const { data: project, isLoading } = useProject(id);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -29,10 +32,10 @@ export default function ProjectDetail() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const handleUpdate = (data: CreateProjectInput) => {
+  const handleUpdate = (data: CreateProjectInput, justification?: string) => {
     if (!project) return;
     updateProject.mutate(
-      { id: project.id, updates: data },
+      { id: project.id, updates: data, justification },
       { onSuccess: () => setEditDialogOpen(false) }
     );
   };
@@ -84,6 +87,9 @@ export default function ProjectDetail() {
 
   // Determine if project is in planning phase
   const isPlanning = project.portfolio_stage === 'planning';
+  const isCompleted = project.portfolio_stage === 'completed';
+  const canEdit = isAdmin || !isCompleted;
+  const isReadOnly = isCompleted && !isAdmin;
 
   return (
     <AppLayout
@@ -93,10 +99,12 @@ export default function ProjectDetail() {
         { label: project.name },
       ]}
       actions={
-        <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-          <Edit className="mr-2 h-4 w-4" />
-          Editar
-        </Button>
+        canEdit ? (
+          <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar
+          </Button>
+        ) : undefined
       }
     >
       <div className="space-y-6">
@@ -121,23 +129,23 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="okrs" className="mt-6">
-            <ProjectOKRsTab project={project} />
+            <ProjectOKRsTab project={project} isReadOnly={isReadOnly} />
           </TabsContent>
 
           <TabsContent value="costs" className="mt-6">
             <ProjectCostsTab 
               project={project} 
-              isEditable={isPlanning} 
-              canEditActuals={!isPlanning && project.portfolio_stage !== 'completed'}
+              isEditable={isPlanning && !isReadOnly} 
+              canEditActuals={!isPlanning && !isReadOnly && project.portfolio_stage !== 'completed'}
             />
           </TabsContent>
 
           <TabsContent value="schedule" className="mt-6">
-            <ProjectScheduleTab project={project} />
+            <ProjectScheduleTab project={project} isReadOnly={isReadOnly} />
           </TabsContent>
 
           <TabsContent value="stakeholders" className="mt-6">
-            <ProjectStakeholdersTab project={project} />
+            <ProjectStakeholdersTab project={project} isReadOnly={isReadOnly} />
           </TabsContent>
 
           <TabsContent value="financial" className="mt-6">
@@ -156,6 +164,7 @@ export default function ProjectDetail() {
         project={project}
         onSubmit={handleUpdate}
         isSubmitting={updateProject.isPending}
+        requireJustification={isCompleted && isAdmin}
       />
 
       <DeleteProjectDialog

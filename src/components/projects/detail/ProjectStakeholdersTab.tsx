@@ -30,9 +30,10 @@ import { StakeholderFormDialog } from '@/components/projects/stakeholders/Stakeh
 
 interface ProjectStakeholdersTabProps {
   project: ProjectWithRelations;
+  isReadOnly?: boolean;
 }
 
-export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps) {
+export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectStakeholdersTabProps) {
   const { data: stakeholders = [], isLoading } = useProjectStakeholders(project.id);
   const deleteStakeholder = useDeleteStakeholder();
 
@@ -109,10 +110,12 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
             Partes interessadas e contatos importantes do projeto
           </p>
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Stakeholder
-        </Button>
+        {!isReadOnly && (
+          <Button onClick={handleAdd}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Stakeholder
+          </Button>
+        )}
       </div>
 
       {stakeholders.length === 0 ? (
@@ -124,10 +127,12 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
               <br />
               Identifique as partes interessadas do projeto.
             </p>
-            <Button variant="outline" className="mt-4" onClick={handleAdd}>
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar Stakeholder
-            </Button>
+            {!isReadOnly && (
+              <Button variant="outline" className="mt-4" onClick={handleAdd}>
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Stakeholder
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -135,8 +140,8 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
           {stakeholders.map((stakeholder) => (
             <Card 
               key={stakeholder.id} 
-              className="relative group cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => handleEdit(stakeholder)}
+              className={`relative group ${!isReadOnly ? 'cursor-pointer hover:border-primary/50' : ''} transition-colors`}
+              onClick={() => !isReadOnly && handleEdit(stakeholder)}
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
@@ -159,31 +164,33 @@ export function ProjectStakeholdersTab({ project }: ProjectStakeholdersTabProps)
                       <p className="text-sm text-muted-foreground">{getRoleLabel(stakeholder.role)}</p>
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(stakeholder); }}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => { e.stopPropagation(); handleDelete(stakeholder); }}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Remover
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {!isReadOnly && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(stakeholder); }}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => { e.stopPropagation(); handleDelete(stakeholder); }}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Remover
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-2 mb-3">
