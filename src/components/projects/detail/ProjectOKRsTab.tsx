@@ -18,9 +18,10 @@ import { ptBR } from 'date-fns/locale';
 
 interface ProjectOKRsTabProps {
   project: ProjectWithRelations;
+  isReadOnly?: boolean;
 }
 
-export function ProjectOKRsTab({ project }: ProjectOKRsTabProps) {
+export function ProjectOKRsTab({ project, isReadOnly = false }: ProjectOKRsTabProps) {
   const { data: okrs = [], isLoading } = useProjectOKRs(project.id);
   const deleteOKR = useDeleteOKR();
   const deleteKeyResult = useDeleteKeyResult();
@@ -84,10 +85,12 @@ export function ProjectOKRsTab({ project }: ProjectOKRsTabProps) {
             Objetivos e Resultados-Chave para medir o sucesso do projeto
           </p>
         </div>
-        <Button onClick={handleAddOkr}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Objetivo
-        </Button>
+        {!isReadOnly && (
+          <Button onClick={handleAddOkr}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Objetivo
+          </Button>
+        )}
       </div>
 
       {okrs.length === 0 ? (
@@ -98,10 +101,12 @@ export function ProjectOKRsTab({ project }: ProjectOKRsTabProps) {
               Nenhum OKR cadastrado ainda.<br />
               Comece adicionando os objetivos do projeto.
             </p>
-            <Button variant="outline" className="mt-4" onClick={handleAddOkr}>
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar Objetivo
-            </Button>
+            {!isReadOnly && (
+              <Button variant="outline" className="mt-4" onClick={handleAddOkr}>
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Objetivo
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -126,23 +131,25 @@ export function ProjectOKRsTab({ project }: ProjectOKRsTabProps) {
                     {okr.key_results && okr.key_results.length > 0 && (
                       <OKRHistoryPopover okrId={okr.id} keyResults={okr.key_results} />
                     )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditOkr(okr)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeleteOkr(okr)} className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {!isReadOnly && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditOkr(okr)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteOkr(okr)} className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
@@ -181,23 +188,27 @@ export function ProjectOKRsTab({ project }: ProjectOKRsTabProps) {
                         <Badge variant="outline" className={`${CONFIDENCE_LEVEL_COLORS[kr.confidence_level]} text-xs`}>
                           {CONFIDENCE_LEVEL_LABELS[kr.confidence_level]}
                         </Badge>
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEditKeyResult(kr, okr.id)}>
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteKeyResult(kr)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        {!isReadOnly && (
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEditKeyResult(kr, okr.id)}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteKeyResult(kr)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
                     <p className="text-sm text-muted-foreground italic">Nenhum Key Result cadastrado</p>
                   )}
-                  <Button variant="ghost" size="sm" className="w-full border-dashed border" onClick={() => handleAddKeyResult(okr.id)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Adicionar Key Result
-                  </Button>
+                  {!isReadOnly && (
+                    <Button variant="ghost" size="sm" className="w-full border-dashed border" onClick={() => handleAddKeyResult(okr.id)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar Key Result
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

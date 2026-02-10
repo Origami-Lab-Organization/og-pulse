@@ -78,9 +78,13 @@ export const useUpdatePortfolioStage = () => {
 
   return useMutation({
     mutationFn: async ({ projectId, newStage }: { projectId: string; newStage: PortfolioStage }) => {
+      const updateData: Record<string, unknown> = { portfolio_stage: newStage };
+      if (newStage === 'completed') {
+        updateData.status = 'completed';
+      }
       const { data, error } = await supabase
         .from('projects')
-        .update({ portfolio_stage: newStage })
+        .update(updateData)
         .eq('id', projectId)
         .select()
         .single();
@@ -94,6 +98,8 @@ export const useUpdatePortfolioStage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
       toast({
         title: 'Projeto movido',
         description: 'O estágio do projeto foi atualizado.',

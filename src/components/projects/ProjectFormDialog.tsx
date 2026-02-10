@@ -65,8 +65,9 @@ interface ProjectFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project?: ProjectWithRelations | null;
-  onSubmit: (data: CreateProjectInput) => void;
+  onSubmit: (data: CreateProjectInput, justification?: string) => void;
   isSubmitting?: boolean;
+  requireJustification?: boolean;
 }
 
 export function ProjectFormDialog({
@@ -75,8 +76,10 @@ export function ProjectFormDialog({
   project,
   onSubmit,
   isSubmitting,
+  requireJustification = false,
 }: ProjectFormDialogProps) {
   const [activeTab, setActiveTab] = useState('basic');
+  const [justification, setJustification] = useState('');
   const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
 
@@ -121,12 +124,16 @@ export function ProjectFormDialog({
         dueDay: project?.due_day || 10,
       });
       setActiveTab('basic');
+      setJustification('');
     }
   }, [open, project, form]);
 
   const isContinuous = form.watch('isContinuous');
 
   const handleSubmit = (values: ProjectFormValues) => {
+    if (requireJustification && justification.trim().length < 10) {
+      return;
+    }
     onSubmit({
       name: values.name,
       description: values.description,
@@ -141,7 +148,7 @@ export function ProjectFormDialog({
       installmentsCount: values.installmentsCount,
       firstInvoiceDate: values.firstInvoiceDate,
       dueDay: values.dueDay,
-    });
+    }, requireJustification ? justification.trim() : undefined);
   };
 
   return (
@@ -434,6 +441,23 @@ export function ProjectFormDialog({
               </TabsContent>
             </Tabs>
 
+            {requireJustification && (
+              <div className="space-y-2 pt-4 border-t">
+                <label className="text-sm font-medium">
+                  Justificativa da alteração *
+                </label>
+                <Textarea
+                  placeholder="Descreva o motivo da alteração neste projeto concluído (mínimo 10 caracteres)..."
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
+                  rows={3}
+                />
+                {justification.length > 0 && justification.trim().length < 10 && (
+                  <p className="text-sm text-destructive">A justificativa deve ter no mínimo 10 caracteres.</p>
+                )}
+              </div>
+            )}
+
             <div className="flex justify-end gap-3 pt-4 border-t">
               <Button
                 type="button"
@@ -443,7 +467,7 @@ export function ProjectFormDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || (requireJustification && justification.trim().length < 10)}>
                 {isSubmitting ? 'Salvando...' : project ? 'Atualizar' : 'Criar Projeto'}
               </Button>
             </div>

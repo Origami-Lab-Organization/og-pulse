@@ -876,6 +876,41 @@ export type Database = {
           },
         ]
       }
+      project_edit_logs: {
+        Row: {
+          changes_summary: string | null
+          edited_at: string
+          edited_by: string
+          id: string
+          justification: string
+          project_id: string
+        }
+        Insert: {
+          changes_summary?: string | null
+          edited_at?: string
+          edited_by: string
+          id?: string
+          justification: string
+          project_id: string
+        }
+        Update: {
+          changes_summary?: string | null
+          edited_at?: string
+          edited_by?: string
+          id?: string
+          justification?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_edit_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_installments: {
         Row: {
           created_at: string

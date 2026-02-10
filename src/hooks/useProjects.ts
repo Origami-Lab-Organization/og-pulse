@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '@/services/projectService';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -73,21 +74,37 @@ export const useCreateProject = () => {
 
 export const useUpdateProject = () => {
   const queryClient = useQueryClient();
+  const { employee, user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({
       id,
       updates,
+      justification,
     }: {
       id: string;
       updates: Partial<CreateProjectInput>;
+      justification?: string;
     }) => {
-      return projectService.update(id, updates);
+      const result = await projectService.update(id, updates);
+
+      // If justification is provided, insert audit log
+      if (justification && user?.id) {
+        await supabase.from('project_edit_logs').insert({
+          project_id: id,
+          edited_by: user.id,
+          justification,
+          changes_summary: `Projeto editado por ${employee?.nome || 'Admin'}`,
+        });
+      }
+
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
       toast({
         title: 'Projeto atualizado',
         description: 'O projeto foi atualizado com sucesso.',

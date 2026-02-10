@@ -24,9 +24,10 @@ function parseLocalDate(dateStr: string): Date {
 
 interface ProjectScheduleTabProps {
   project: ProjectWithRelations;
+  isReadOnly?: boolean;
 }
 
-export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
+export function ProjectScheduleTab({ project, isReadOnly = false }: ProjectScheduleTabProps) {
   const { data: milestones = [], isLoading } = useProjectMilestones(project.id);
   const deleteMilestone = useDeleteMilestone();
 
@@ -92,10 +93,12 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
             Marcos e entregas planejadas do projeto
           </p>
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Marco
-        </Button>
+        {!isReadOnly && (
+          <Button onClick={handleAdd}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Marco
+          </Button>
+        )}
       </div>
 
       {milestones.length === 0 ? (
@@ -107,10 +110,12 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
               <br />
               Defina os marcos e entregas do projeto.
             </p>
-            <Button variant="outline" className="mt-4" onClick={handleAdd}>
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar Marco
-            </Button>
+            {!isReadOnly && (
+              <Button variant="outline" className="mt-4" onClick={handleAdd}>
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Marco
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -142,7 +147,7 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
           {/* Lista de marcos */}
           <div className="space-y-3">
             {milestones.map((milestone) => (
-              <Card key={milestone.id} className="group cursor-pointer hover:border-primary/40 transition-colors" onClick={() => handleEdit(milestone)}>
+              <Card key={milestone.id} className={`group ${!isReadOnly ? 'cursor-pointer hover:border-primary/40' : ''} transition-colors`} onClick={() => !isReadOnly && handleEdit(milestone)}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     <div className="pt-1">
@@ -158,30 +163,32 @@ export function ProjectScheduleTab({ project }: ProjectScheduleTabProps) {
                             </p>
                           )}
                         </div>
-                        <DropdownMenu modal={false}>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem onClick={() => handleEdit(milestone)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(milestone)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {!isReadOnly && (
+                          <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenuItem onClick={() => handleEdit(milestone)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(milestone)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
