@@ -1,130 +1,92 @@
 
 
-# Bloqueio de Projetos Concluidos e Auditoria de Edicoes
+# Capacidade com Dias Uteis Reais (descontando finais de semana e feriados)
 
-## Resumo
+## Problema
 
-Quando um projeto for movido para o estagio "Concluido" no Portfolio, seu status sera automaticamente alterado para `completed`. As edicoes no projeto ficarao desabilitadas para todos os usuarios exceto administradores, que deverao fornecer uma justificativa obrigatoria ao salvar qualquer alteracao.
+Atualmente a capacidade e calculada como `jornada_diaria * 22` (fixo), sem considerar os feriados cadastrados. Todos os funcionarios mostram 176h (8h x 22) ou 132h (6h x 22), mesmo que o mes tenha feriados que reduzem os dias uteis.
+
+## Solucao
+
+Calcular os dias uteis reais do mes selecionado: contar dias de segunda a sexta, descontando feriados fixos e moveis que caiam em dias uteis.
 
 ## Mudancas
 
-### 1. Atualizar status do projeto ao mover para "Concluido" no Portfolio
+### Arquivo: `src/hooks/useAnalyticsData.ts`
 
-**Arquivo: `src/hooks/usePortfolioProjects.ts`**
+1. **Buscar feriados**: Adicionar uma query paralela para buscar `company_holidays` do tenant (ativos).
 
-Na mutation `useUpdatePortfolioStage`, quando o `newStage` for `'completed'`, atualizar tambem o campo `status` para `'completed'` na mesma operacao de update.
+2. **Criar funcao `countWorkingDays`**: Recebe a data inicio e fim do periodo + lista de feriados. Itera cada dia do intervalo, conta apenas dias uteis (seg-sex) que nao sejam feriados.
 
-### 2. Desabilitar edicoes para projetos concluidos (nao-admin)
+3. **Substituir `* 22` pelo calculo real**: Usar `countWorkingDays(startDate, endDate, holidays)` para obter os dias uteis do mes, e calcular `capacity = jornadaDiaria * diasUteis`.
 
-**Arquivo: `src/pages/ProjectDetail.tsx`**
+### Logica da funcao `countWorkingDays`
 
-- Criar uma variavel `isCompleted = project.portfolio_stage === 'completed'`.
-- Se `isCompleted && !isAdmin`: ocultar o botao "Editar" no header.
-- Se `isCompleted && isAdmin`: manter o botao "Editar" visivel.
-- Passar `isCompleted` para as abas de Custos, OKRs, Cronograma, Stakeholders e Financeiro para desabilitar edicoes inline (adicionar/remover membros, materiais, fornecedores, etc.).
-- Importar `useAuth` para verificar `isAdmin`.
-
-### 3. Criar tabela de auditoria para edicoes em projetos concluidos
-
-**Migracao SQL:**
-
-```sql
-CREATE TABLE public.project_edit_logs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  edited_by uuid NOT NULL,
-  justification text NOT NULL,
-  changes_summary text,
-  edited_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.project_edit_logs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admins can insert project edit logs"
-  ON public.project_edit_logs FOR INSERT
-  WITH CHECK (has_role(auth.uid(), get_project_tenant_id(project_id), 'admin'::app_role));
-
-CREATE POLICY "Admins and managers can view project edit logs"
-  ON public.project_edit_logs FOR SELECT
-  USING (is_admin_or_manager(auth.uid(), get_project_tenant_id(project_id)));
+```text
+Para cada dia entre startDate e endDate:
+  - Pular se for sabado (6) ou domingo (0)
+  - Pular se for feriado fixo (fixed_day/fixed_month coincide)
+  - Pular se for feriado movel/pontual (specific_date coincide)
+  - Senao, incrementar contador
+Retornar total de dias uteis
 ```
 
-### 4. Adicionar justificativa no formulario de edicao (admin + projeto concluido)
+### Exemplo pratico
 
-**Arquivo: `src/components/projects/ProjectFormDialog.tsx`**
-
-- Receber nova prop `requireJustification?: boolean`.
-- Quando `requireJustification = true`, exibir um campo de `Textarea` para "Justificativa" no rodape do formulario, antes dos botoes.
-- A justificativa sera obrigatoria (minimo 10 caracteres), seguindo o mesmo padrao ja usado no timesheet.
-- Passar a justificativa junto com o submit (nova prop `onSubmit` com justificativa opcional).
-
-### 5. Salvar justificativa na tabela de auditoria
-
-**Arquivo: `src/hooks/useProjects.ts`**
-
-- Atualizar `useUpdateProject` para aceitar um campo opcional `justification`.
-- Quando `justification` estiver presente, apos o update do projeto, inserir um registro em `project_edit_logs` com o `project_id`, `edited_by` (user atual), `justification` e um resumo das alteracoes.
-
-### 6. Desabilitar edicoes inline nas abas internas
-
-Os seguintes componentes receberao uma prop `isReadOnly?: boolean` que, quando `true`, oculta botoes de adicionar/editar/remover:
-
-| Componente | Controle |
-|------------|----------|
-| `ProjectCostsTab` | Ja recebe `isEditable` e `canEditActuals` - setar ambos como `false` quando concluido e nao-admin |
-| `ProjectOKRsTab` | Ocultar botoes de adicionar/editar OKRs e Key Results |
-| `ProjectScheduleTab` | Ocultar botoes de adicionar/editar milestones |
-| `ProjectStakeholdersTab` | Ocultar botoes de adicionar/editar stakeholders |
-| `ProjectFinancialTab` | Desabilitar edicao de parcelas |
-
-Para admin, essas edicoes continuam disponiveis. A justificativa sera exigida apenas no formulario principal de edicao do projeto (botao "Editar" no header). Edicoes granulares (OKRs, milestones, etc.) por admin nao exigirao justificativa individual nesta fase.
+Fevereiro 2026 tem 28 dias, 20 dias uteis (seg-sex). Se houver Carnaval (16 e 17 fev) caindo em dias uteis, ficam 18 dias uteis. Um funcionario com 8h/dia teria capacidade de 144h em vez de 176h.
 
 ## Arquivos Modificados
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/hooks/usePortfolioProjects.ts` | Atualizar `status` para `completed` ao mover para estagio concluido |
-| `src/pages/ProjectDetail.tsx` | Logica de bloqueio por `isCompleted` + `isAdmin` |
-| `src/components/projects/ProjectFormDialog.tsx` | Campo de justificativa condicional |
-| `src/hooks/useProjects.ts` | Inserir log de auditoria com justificativa |
-| `src/components/projects/detail/ProjectOKRsTab.tsx` | Prop `isReadOnly` |
-| `src/components/projects/detail/ProjectScheduleTab.tsx` | Prop `isReadOnly` |
-| `src/components/projects/detail/ProjectStakeholdersTab.tsx` | Prop `isReadOnly` |
-| Migracao SQL | Criar tabela `project_edit_logs` com RLS |
+| `src/hooks/useAnalyticsData.ts` | Buscar feriados, criar `countWorkingDays`, substituir `* 22` pelo calculo real |
 
 ## Detalhes Tecnicos
 
-### Fluxo ao mover para "Concluido" no Portfolio
-
-```text
-Drag para coluna "Concluido"
-  -> useUpdatePortfolioStage.mutate({ projectId, newStage: 'completed' })
-    -> UPDATE projects SET portfolio_stage = 'completed', status = 'completed' WHERE id = ?
-    -> Invalidar queries de portfolio E de projects
-```
-
-### Fluxo de edicao por admin em projeto concluido
-
-```text
-Admin clica "Editar"
-  -> ProjectFormDialog abre com requireJustification=true
-  -> Admin preenche campos + justificativa (min 10 chars)
-  -> Submit
-    -> useUpdateProject.mutate({ id, updates, justification })
-      -> UPDATE projects SET ... WHERE id = ?
-      -> INSERT INTO project_edit_logs (project_id, edited_by, justification, changes_summary)
-```
-
-### Interface atualizada do useUpdateProject
+### Query adicional de feriados (paralela)
 
 ```typescript
-mutationFn: async ({
-  id,
-  updates,
-  justification,
-}: {
-  id: string;
-  updates: Partial<CreateProjectInput>;
-  justification?: string;
-})
+supabase
+  .from('company_holidays')
+  .select('holiday_type, fixed_day, fixed_month, specific_date, is_active')
+  .eq('tenant_id', tenantId)
+  .eq('is_active', true)
 ```
+
+### Funcao countWorkingDays
+
+```typescript
+function countWorkingDays(start: Date, end: Date, holidays: any[]): number {
+  let count = 0;
+  const current = new Date(start);
+  while (current <= end) {
+    const dow = current.getDay();
+    if (dow !== 0 && dow !== 6) {
+      const day = current.getDate();
+      const month = current.getMonth() + 1;
+      const dateStr = format(current, 'yyyy-MM-dd');
+      const isHoliday = holidays.some(h =>
+        h.holiday_type === 'fixed'
+          ? h.fixed_day === day && h.fixed_month === month
+          : h.specific_date === dateStr
+      );
+      if (!isHoliday) count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+```
+
+### Substituicao no calculo de capacidade
+
+```typescript
+// Antes
+const capacity = jornadaDiaria * 22;
+
+// Depois
+const workingDays = countWorkingDays(filters.startDate, filters.endDate, holidays);
+const capacity = jornadaDiaria * workingDays;
+```
+
+O valor de `workingDays` e calculado uma unica vez e reutilizado para todos os funcionarios do mesmo periodo.
