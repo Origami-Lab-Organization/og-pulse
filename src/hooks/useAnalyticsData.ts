@@ -3,6 +3,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 
+function countWorkingDays(start: Date, end: Date, holidays: any[]): number {
+  let count = 0;
+  const current = new Date(start);
+  while (current <= end) {
+    const dow = current.getDay();
+    if (dow !== 0 && dow !== 6) {
+      const day = current.getDate();
+      const month = current.getMonth() + 1;
+      const dateStr = format(current, 'yyyy-MM-dd');
+      const isHoliday = holidays.some(h =>
+        h.holiday_type === 'fixed'
+          ? h.fixed_day === day && h.fixed_month === month
+          : h.specific_date === dateStr
+      );
+      if (!isHoliday) count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+
 export interface AnalyticsFilters {
   startDate: Date;
   endDate: Date;
@@ -24,7 +45,7 @@ export interface EmployeeUtilization {
   employeeName: string;
   cargo: string;
   jornadaDiaria: number;
-  capacity: number; // jornada_diaria * 22
+  capacity: number; // jornada_diaria * dias_uteis
   allocatedHours: number;
   utilization: number; // percentage
   status: 'overallocated' | 'adequate' | 'underallocated' | 'idle';
@@ -97,7 +118,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const projectIds = projects.map(p => p.id);
 
       // 2. Fetch all data in parallel
-      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, supplierActualsRes, materialsRes, settingsRes] = await Promise.all([
+      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, supplierActualsRes, materialsRes, settingsRes, holidaysRes] = await Promise.all([
         // Revenue actual: installments with status received and payment_date in period
         supabase
           .from('project_installments')
@@ -153,6 +174,13 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .select('gross_margin_target_percent, taxes_percent')
           .eq('tenant_id', tenantId)
           .maybeSingle(),
+
+        // Holidays for working days calculation
+        supabase
+          .from('company_holidays')
+          .select('holiday_type, fixed_day, fixed_month, specific_date')
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true),
       ]);
 
       const installments = installmentsRes.data || [];
@@ -164,6 +192,8 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const materials = materialsRes.data || [];
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
       const taxesPercent = settingsRes.data?.taxes_percent ?? 0;
+      const holidays = holidaysRes.data || [];
+      const workingDays = countWorkingDays(filters.startDate, filters.endDate, holidays);
 
       // Build lookup maps
       const projectMap = new Map(projects.map(p => [p.id, p]));
@@ -291,7 +321,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       // From timesheets
       employeeHoursMap.forEach(({ employee: emp, hours }) => {
         const jornadaDiaria = Number(emp.jornada_diaria) || 8;
-        const capacity = jornadaDiaria * 22;
+        const capacity = jornadaDiaria * workingDays;
         const utilization = capacity > 0 ? (hours / capacity) * 100 : 0;
         employeeUtilization.push({
           employeeId: emp.id,
@@ -311,7 +341,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         if (m.employee && !processedEmployees.has(m.employee.id)) {
           const emp = m.employee;
           const jornadaDiaria = Number(emp.jornada_diaria) || 8;
-          const capacity = jornadaDiaria * 22;
+          const capacity = jornadaDiaria * workingDays;
           employeeUtilization.push({
             employeeId: emp.id,
             employeeName: emp.nome,
