@@ -26,6 +26,7 @@ import CRM from "./pages/CRM";
 import Portfolio from "./pages/Portfolio";
 import Timesheets from "./pages/Timesheets";
 import Analytics from "./pages/Analytics";
+import Reimbursements from "./pages/Reimbursements";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,15 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <UnderConstruction />
+                  </ProtectedRoute>
+                } 
+              />
+              {/* Reimbursements - all authenticated users */}
+              <Route 
+                path="/reimbursements" 
+                element={
+                  <ProtectedRoute>
+                    <Reimbursements />
                   </ProtectedRoute>
                 } 
               />

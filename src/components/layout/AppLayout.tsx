@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { UserMenu } from './UserMenu';
+import { InboxButton } from './InboxButton';
 import { Separator } from '@/components/ui/separator';
 import {
   Breadcrumb,
@@ -56,7 +57,8 @@ export function AppLayout({
               </BreadcrumbList>
             </Breadcrumb>
 
-            {/* User Menu */}
+            {/* Inbox + User Menu */}
+            <InboxButton />
             <UserMenu />
           </header>
 
