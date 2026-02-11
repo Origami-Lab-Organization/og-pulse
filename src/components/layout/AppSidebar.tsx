@@ -8,7 +8,8 @@ import {
   FileText, 
   BarChart3, 
   Truck,
-  Kanban
+  Kanban,
+  Receipt
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,6 +44,12 @@ const navigationGroups = [
     label: 'Dashboard',
     items: [
       { title: 'Visão Geral', url: '/dashboard', icon: LayoutDashboard },
+    ] as NavItem[],
+  },
+  {
+    label: 'Meu Espaço',
+    items: [
+      { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
     ] as NavItem[],
   },
   {

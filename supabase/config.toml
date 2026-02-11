@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.parse-cnpj-card]
 verify_jwt = false
+
+[functions.send-reimbursement-email]
+verify_jwt = false
