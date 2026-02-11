@@ -253,19 +253,47 @@ export function useProjectApprovedReimbursements(projectId: string | undefined) 
       const requests = (data || []) as unknown as ReimbursementRequest[];
       if (requests.length === 0) return requests;
 
-      const ids = [...new Set(requests.map(r => r.requested_by))];
+      const requesterIds = [...new Set(requests.map(r => r.requested_by))];
+      const reviewerIds = [...new Set(requests.filter(r => r.reviewed_by).map(r => r.reviewed_by!))];
+      const allIds = [...new Set([...requesterIds, ...reviewerIds])];
+
       const { data: emps } = await supabase
         .from('employees')
         .select('id, nome')
-        .in('id', ids);
+        .in('id', allIds);
       const nameMap = new Map((emps || []).map(e => [e.id, e.nome]));
 
       return requests.map(r => ({
         ...r,
         requester_name: nameMap.get(r.requested_by) || 'Desconhecido',
+        reviewer_name: r.reviewed_by ? nameMap.get(r.reviewed_by) || 'Desconhecido' : undefined,
       }));
     },
     enabled: !!projectId,
+  });
+}
+
+export function useDeleteReimbursement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: { reimbursementId: string; reason: string }) => {
+      const { error } = await supabase
+        .from('reimbursement_requests' as any)
+        .delete()
+        .eq('id', params.reimbursementId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['my-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
+      toast.success('Reembolso excluído com sucesso.');
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao excluir reembolso: ' + error.message);
+    },
   });
 }
 
