@@ -1,98 +1,106 @@
 
-# Reembolsos na Aba de Custos do Projeto
+# Melhorias na Secao de Reembolsos do Projeto
 
 ## Resumo
 
-Adicionar uma nova secao "Reembolsos" na aba de Custos do projeto, exibindo os reembolsos aprovados vinculados ao projeto. Tambem adicionar um quinto card de resumo no topo (ou expandir o grid para 5 colunas).
+Adicionar coluna "Aprovado por" na tabela de reembolsos, permitir exclusao com justificativa (apenas gerentes/admins), e abrir modal de detalhes ao clicar na linha mostrando informacoes completas e anexos.
 
 ## Mudancas
 
-### 1. Hook para buscar reembolsos aprovados de um projeto
+### 1. Hook `useProjectApprovedReimbursements` - Enriquecer com nome do aprovador
 
-**Novo hook em `src/hooks/useReimbursements.ts`**
+**Arquivo: `src/hooks/useReimbursements.ts`**
 
-Adicionar `useProjectApprovedReimbursements(projectId)` que busca reembolsos com `status = 'approved'` e `project_id = projectId`.
+Buscar tambem os nomes dos aprovadores (`reviewed_by`) alem dos solicitantes, e retornar `reviewer_name` em cada registro.
 
-### 2. Card de Reembolso no topo da aba
+### 2. Hook `useDeleteReimbursement` - Novo hook para exclusao
+
+**Arquivo: `src/hooks/useReimbursements.ts`**
+
+Novo mutation que:
+- Recebe `reimbursementId` e `reason` (justificativa obrigatoria)
+- Deleta o registro de `reimbursement_requests` (cascade deleta attachments)
+- Invalida queries relevantes (`project-reimbursements`, `my-reimbursements`, etc.)
+
+### 3. Tabela de Reembolsos - Nova coluna + clique na linha + botao excluir
+
+**Arquivo: `src/components/projects/detail/ProjectReimbursementsSection.tsx`**
+
+- Adicionar coluna "Aprovado por" com o nome do aprovador
+- Tornar as linhas clicaveis (`cursor-pointer`) para abrir modal de detalhes
+- Adicionar coluna de acoes com botao de exclusao (visivel apenas para gerentes/admins)
+- Receber `isEditable` como prop para controlar visibilidade do botao de exclusao
+
+### 4. Modal de Detalhes do Reembolso
+
+**Novo arquivo: `src/components/projects/detail/ReimbursementDetailDialog.tsx`**
+
+Dialog que exibe ao clicar na linha:
+- Funcionario solicitante
+- Descricao
+- Valor total
+- Data de criacao e data de aprovacao
+- Aprovado por
+- Lista de anexos com links para download (usando URLs assinadas do Storage)
+
+### 5. Dialog de Exclusao com Justificativa
+
+**Novo arquivo: `src/components/projects/detail/DeleteReimbursementDialog.tsx`**
+
+Dialog com:
+- Mensagem de confirmacao
+- Campo de justificativa (Textarea obrigatoria)
+- Botoes Cancelar e Confirmar Exclusao
+
+### 6. Integracao no ProjectCostsTab
 
 **Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`**
 
-- Expandir o grid de 4 para 5 colunas: `lg:grid-cols-5`
-- Adicionar um novo `CostCard` com icone `Receipt` (cor laranja/rose) antes do card de Custo Total
-- O card mostra apenas o valor realizado (total dos reembolsos aprovados), sem comparativo planejado
-- Incluir o valor dos reembolsos no calculo de `totalActual` e `totalPlanned`
-
-### 3. Secao de Reembolsos (tabela)
-
-**Novo arquivo: `src/components/projects/detail/ProjectReimbursementsSection.tsx`**
-
-Secao somente leitura (sem adicionar/remover) exibindo os reembolsos aprovados do projeto em uma tabela com colunas:
-- Funcionario solicitante
-- Descricao
-- Valor
-- Data de aprovacao
-
-Seguindo o mesmo padrao visual das secoes de Materiais/Fornecedores (Card com CardHeader e CardTitle com icone `Receipt`).
-
-### 4. Integracao no ProjectCostsTab
-
-Renderizar `ProjectReimbursementsSection` apos a secao de Materiais.
+Passar `isEditable` (ou `canEditActuals`) para `ProjectReimbursementsSection`.
 
 ## Arquivos Modificados/Criados
 
 | Arquivo | Tipo | Descricao |
 |---------|------|-----------|
-| `src/hooks/useReimbursements.ts` | Editado | Adicionar `useProjectApprovedReimbursements` |
-| `src/components/projects/detail/ProjectCostsTab.tsx` | Editado | Card de reembolso + grid 5 colunas + incluir no total |
-| `src/components/projects/detail/ProjectReimbursementsSection.tsx` | Novo | Tabela de reembolsos aprovados |
+| `src/hooks/useReimbursements.ts` | Editado | Enriquecer com reviewer_name + novo hook useDeleteReimbursement |
+| `src/components/projects/detail/ProjectReimbursementsSection.tsx` | Editado | Coluna aprovador, clique na linha, botao excluir |
+| `src/components/projects/detail/ReimbursementDetailDialog.tsx` | Novo | Modal de detalhes com anexos |
+| `src/components/projects/detail/DeleteReimbursementDialog.tsx` | Novo | Dialog de exclusao com justificativa |
+| `src/components/projects/detail/ProjectCostsTab.tsx` | Editado | Passar props de permissao |
 
 ## Detalhes Tecnicos
 
-### Hook `useProjectApprovedReimbursements`
+### Enriquecimento com nome do aprovador
 
 ```typescript
-export function useProjectApprovedReimbursements(projectId: string | undefined) {
-  return useQuery({
-    queryKey: ['project-reimbursements', projectId],
-    queryFn: async () => {
-      if (!projectId) return [];
-      const { data, error } = await supabase
+// Em useProjectApprovedReimbursements
+const reviewerIds = [...new Set(requests.filter(r => r.reviewed_by).map(r => r.reviewed_by!))];
+const allIds = [...new Set([...requesterIds, ...reviewerIds])];
+// Busca unica de employees, monta nameMap
+// Retorna reviewer_name junto com requester_name
+```
+
+### Hook useDeleteReimbursement
+
+```typescript
+export function useDeleteReimbursement() {
+  return useMutation({
+    mutationFn: async (params: { reimbursementId: string; reason: string }) => {
+      // Deleta o reimbursement_request (cascade deleta attachments)
+      await supabase
         .from('reimbursement_requests')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-
-      // Enrich with requester names
-      const ids = [...new Set(data.map(r => r.requested_by))];
-      const { data: emps } = await supabase
-        .from('employees')
-        .select('id, nome')
-        .in('id', ids);
-      const nameMap = new Map(emps?.map(e => [e.id, e.nome]));
-
-      return data.map(r => ({
-        ...r,
-        requester_name: nameMap.get(r.requested_by) || 'Desconhecido',
-      }));
+        .delete()
+        .eq('id', params.reimbursementId);
     },
-    enabled: !!projectId,
+    onSuccess: () => {
+      // Invalidar project-reimbursements, my-reimbursements, etc.
+    },
   });
 }
 ```
 
-### Calculo no CostsTab
+A justificativa da exclusao nao sera persistida no banco (o registro sera deletado). Caso deseje manter historico, podemos adicionar um campo `deletion_reason` mas nao foi solicitado.
 
-```typescript
-const reimbursementCostsActual = useMemo(() => {
-  return approvedReimbursements.reduce((sum, r) => sum + Number(r.total_amount), 0);
-}, [approvedReimbursements]);
+### Modal de detalhes - Anexos
 
-// Reembolso nao tem planejado - so entra no realizado
-const totalActual = laborCostsActual + supplierCostsActual + materialCostsActual + reimbursementCostsActual;
-```
-
-### Grid de cards atualizado
-
-O grid passara de `lg:grid-cols-4` para `lg:grid-cols-5`, com o card de Reembolso usando icone `Receipt` e cores rose/pink, posicionado antes do card de Custo Total.
+Reutiliza o pattern existente do `AttachmentsDialog` no `ReimbursementInbox.tsx`, usando `useReimbursementAttachments` para buscar os anexos e `supabase.storage.createSignedUrl` para gerar links de download.
