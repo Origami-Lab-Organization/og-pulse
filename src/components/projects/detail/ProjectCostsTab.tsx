@@ -377,7 +377,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
       />
 
       {/* Reimbursements Section */}
-      <ProjectReimbursementsSection reimbursements={approvedReimbursements} />
+      <ProjectReimbursementsSection reimbursements={approvedReimbursements} isEditable={canEditActuals || isEditable} />
     </div>
   );
 }
