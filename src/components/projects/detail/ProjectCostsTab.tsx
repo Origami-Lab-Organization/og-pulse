@@ -1,9 +1,10 @@
 import { useMemo, useCallback } from 'react';
-import { Users, Truck, Package, DollarSign } from 'lucide-react';
+import { Users, Truck, Package, DollarSign, Receipt } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProjectLaborSection } from '@/components/projects/detail/ProjectLaborSection';
 import { ProjectSuppliersSection } from '@/components/projects/detail/ProjectSuppliersSection';
 import { ProjectMaterialsSection } from '@/components/projects/detail/ProjectMaterialsSection';
+import { ProjectReimbursementsSection } from '@/components/projects/detail/ProjectReimbursementsSection';
 import { ProjectWithRelations } from '@/types/project';
 import { formatCurrency } from '@/lib/formatters';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
@@ -15,6 +16,7 @@ import { useSuppliers } from '@/hooks/useSuppliers';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { differenceInMonths, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useProjectApprovedReimbursements } from '@/hooks/useReimbursements';
 
 interface ProjectCostsTabProps {
   project: ProjectWithRelations;
@@ -182,6 +184,9 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
   const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
 
+  // Fetch approved reimbursements for this project
+  const { data: approvedReimbursements = [] } = useProjectApprovedReimbursements(project.id);
+
   // Helper to get hourly cost for a member (real employee cost or budget hourly rate as fallback)
   const getMemberHourlyCost = useCallback((member: typeof project.members[0]) => {
     if (member.employee) {
@@ -255,8 +260,13 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
       .reduce((total, m) => total + Number(m.value), 0);
   }, [project.materials]);
 
+  // Calculate ACTUAL reimbursement costs (approved only, no planned value)
+  const reimbursementCostsActual = useMemo(() => {
+    return approvedReimbursements.reduce((sum, r) => sum + Number(r.total_amount), 0);
+  }, [approvedReimbursements]);
+
   const totalPlanned = laborCostsPlanned + supplierCostsPlanned + materialCostsPlanned;
-  const totalActual = laborCostsActual + supplierCostsActual + materialCostsActual;
+  const totalActual = laborCostsActual + supplierCostsActual + materialCostsActual + reimbursementCostsActual;
 
   // Calculate BUDGETED costs from linked budget (for planning mode comparison)
   const budgetedCosts = useMemo(() => {
@@ -281,8 +291,8 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
 
   return (
     <div className="space-y-6">
-      {/* Costs Summary - 4 cards grid */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Costs Summary - 5 cards grid */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         <CostCard
           icon={<Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
           iconBg="bg-blue-100 dark:bg-blue-900/30"
@@ -311,6 +321,16 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
           actualValue={materialCostsActual}
           isPlanningMode={isEditable}
           budgetedValue={budgetedCosts.materials}
+        />
+
+        <CostCard
+          icon={<Receipt className="h-5 w-5 text-rose-600 dark:text-rose-400" />}
+          iconBg="bg-rose-100 dark:bg-rose-900/30"
+          label="Reembolsos"
+          plannedValue={0}
+          actualValue={reimbursementCostsActual}
+          isPlanningMode={false}
+          budgetedValue={0}
         />
 
         <FinancialSummaryCard
@@ -355,6 +375,9 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
         isEditable={isEditable}
         canEditActuals={canEditActuals || isEditable}
       />
+
+      {/* Reimbursements Section */}
+      <ProjectReimbursementsSection reimbursements={approvedReimbursements} />
     </div>
   );
 }

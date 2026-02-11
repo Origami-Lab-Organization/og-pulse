@@ -237,6 +237,38 @@ export function useApproveReimbursement() {
   });
 }
 
+export function useProjectApprovedReimbursements(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ['project-reimbursements', projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const { data, error } = await supabase
+        .from('reimbursement_requests' as any)
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+
+      const requests = (data || []) as unknown as ReimbursementRequest[];
+      if (requests.length === 0) return requests;
+
+      const ids = [...new Set(requests.map(r => r.requested_by))];
+      const { data: emps } = await supabase
+        .from('employees')
+        .select('id, nome')
+        .in('id', ids);
+      const nameMap = new Map((emps || []).map(e => [e.id, e.nome]));
+
+      return requests.map(r => ({
+        ...r,
+        requester_name: nameMap.get(r.requested_by) || 'Desconhecido',
+      }));
+    },
+    enabled: !!projectId,
+  });
+}
+
 export function useRejectReimbursement() {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
