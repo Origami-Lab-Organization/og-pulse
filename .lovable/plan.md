@@ -1,195 +1,98 @@
 
-# Funcionalidade de Pedido de Reembolso
+# Reembolsos na Aba de Custos do Projeto
 
 ## Resumo
 
-Todos os funcionarios poderao solicitar reembolsos pelo menu lateral. O gerente do projeto (ou admin) recebera as solicitacoes em uma caixa de entrada no header, podendo aprovar ou rejeitar. Ao aprovar, um email sera enviado automaticamente para reembolso@origamilab.com.br com os dados e anexos.
+Adicionar uma nova secao "Reembolsos" na aba de Custos do projeto, exibindo os reembolsos aprovados vinculados ao projeto. Tambem adicionar um quinto card de resumo no topo (ou expandir o grid para 5 colunas).
 
 ## Mudancas
 
-### 1. Banco de Dados - Tabela `reimbursement_requests`
+### 1. Hook para buscar reembolsos aprovados de um projeto
 
-```sql
-CREATE TABLE public.reimbursement_requests (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL,
-  requested_by uuid NOT NULL,  -- employee.id
-  project_id uuid REFERENCES projects(id),  -- null se despesa interna
-  client_id uuid REFERENCES clients(id),    -- null se despesa interna
-  is_internal boolean NOT NULL DEFAULT false,
-  description text NOT NULL,
-  total_amount numeric NOT NULL DEFAULT 0,
-  status text NOT NULL DEFAULT 'pending',   -- pending, approved, rejected
-  reviewed_by uuid,                          -- employee.id do aprovador
-  reviewed_at timestamptz,
-  rejection_reason text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-```
+**Novo hook em `src/hooks/useReimbursements.ts`**
 
-**RLS:**
-- SELECT: funcionarios do mesmo tenant podem ver seus proprios pedidos; admins/managers veem todos do tenant
-- INSERT: qualquer funcionario do tenant
-- UPDATE: admins/managers do tenant (para aprovar/rejeitar)
-- DELETE: admins do tenant
+Adicionar `useProjectApprovedReimbursements(projectId)` que busca reembolsos com `status = 'approved'` e `project_id = projectId`.
 
-### 2. Banco de Dados - Tabela `reimbursement_attachments`
+### 2. Card de Reembolso no topo da aba
 
-```sql
-CREATE TABLE public.reimbursement_attachments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  reimbursement_id uuid NOT NULL REFERENCES reimbursement_requests(id) ON DELETE CASCADE,
-  file_name text NOT NULL,
-  file_url text NOT NULL,
-  file_size integer,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-```
+**Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`**
 
-**RLS:** mesma logica da tabela pai, via JOIN com reimbursement_requests.
+- Expandir o grid de 4 para 5 colunas: `lg:grid-cols-5`
+- Adicionar um novo `CostCard` com icone `Receipt` (cor laranja/rose) antes do card de Custo Total
+- O card mostra apenas o valor realizado (total dos reembolsos aprovados), sem comparativo planejado
+- Incluir o valor dos reembolsos no calculo de `totalActual` e `totalPlanned`
 
-### 3. Storage - Bucket `reimbursement-receipts`
+### 3. Secao de Reembolsos (tabela)
 
-Bucket privado para armazenar os comprovantes anexados. RLS para upload pelo solicitante e leitura por admins/managers.
+**Novo arquivo: `src/components/projects/detail/ProjectReimbursementsSection.tsx`**
 
-### 4. Menu Lateral - Adicionar "Reembolsos"
-
-**Arquivo: `src/components/layout/AppSidebar.tsx`**
-
-Adicionar novo grupo "Meu Espaco" visivel a todos os funcionarios (sem `requiresManager`), com o item:
-- "Reembolsos" -> `/reimbursements` -> icone `Receipt`
-
-### 5. Rota e Pagina de Reembolsos
-
-**Arquivo: `src/App.tsx`**
-
-Nova rota `/reimbursements` acessivel a qualquer usuario autenticado (ProtectedRoute).
-
-**Novo arquivo: `src/pages/Reimbursements.tsx`**
-
-Pagina com:
-- Botao "Novo Pedido de Reembolso"
-- Tabela listando os pedidos do funcionario logado com colunas: Data, Descricao, Projeto/Interno, Valor, Status (badge colorido)
-- Filtro por status
-
-### 6. Formulario de Pedido de Reembolso
-
-**Novo arquivo: `src/components/reimbursements/ReimbursementFormDialog.tsx`**
-
-Dialog com campos:
-- **Tipo**: Radio "Projeto" ou "Despesa Interna"
-- **Cliente**: Select (visivel se tipo = Projeto)
-- **Projeto**: Select filtrado pelo cliente (visivel se tipo = Projeto)
-- **Descricao**: Textarea obrigatoria
-- **Valor Total**: CurrencyInput (R$)
-- **Anexos**: Upload multiplo de arquivos (notas/comprovantes) - obrigatorio pelo menos 1
-
-### 7. Caixa de Entrada do Gerente (Inbox)
-
-**Novo arquivo: `src/components/layout/InboxButton.tsx`**
-
-Icone de caixa de entrada (Inbox) no header ao lado do UserMenu, visivel apenas para gerentes/admins. Mostra badge com contagem de pedidos pendentes.
-
-**Novo arquivo: `src/components/reimbursements/ReimbursementInbox.tsx`**
-
-Sheet/Dialog tipo email que abre ao clicar no icone. Lista os pedidos pendentes em formato de tabela:
+Secao somente leitura (sem adicionar/remover) exibindo os reembolsos aprovados do projeto em uma tabela com colunas:
 - Funcionario solicitante
-- Data
 - Descricao
-- Projeto ou "Interno"
 - Valor
-- Botoes de acao: Aprovar (verde) e Rejeitar (vermelho)
+- Data de aprovacao
 
-Ao rejeitar, exibir campo para motivo da rejeicao (obrigatorio).
+Seguindo o mesmo padrao visual das secoes de Materiais/Fornecedores (Card com CardHeader e CardTitle com icone `Receipt`).
 
-### 8. Edge Function - Envio de Email de Reembolso
+### 4. Integracao no ProjectCostsTab
 
-**Novo arquivo: `supabase/functions/send-reimbursement-email/index.ts`**
-
-Ao aprovar, chamar esta edge function que:
-- Recebe os dados do reembolso (descricao, valor, funcionario, projeto)
-- Busca os anexos no Storage e gera URLs assinadas
-- Envia email via Resend para `reembolso@origamilab.com.br` com:
-  - Assunto: "Reembolso Aprovado - [Nome Funcionario] - R$ [Valor]"
-  - Corpo: dados do reembolso, projeto/cliente, descricao
-  - Anexos: comprovantes (via URLs ou inline)
-
-### 9. Hooks
-
-**Novo arquivo: `src/hooks/useReimbursements.ts`**
-
-- `useMyReimbursements()` - lista pedidos do funcionario logado
-- `usePendingReimbursements()` - lista pedidos pendentes (para gerentes/admins)
-- `usePendingReimbursementsCount()` - contagem para o badge do inbox
-- `useCreateReimbursement()` - mutation para criar pedido + upload de anexos
-- `useApproveReimbursement()` - mutation que atualiza status + chama edge function de email
-- `useRejectReimbursement()` - mutation que atualiza status + motivo
+Renderizar `ProjectReimbursementsSection` apos a secao de Materiais.
 
 ## Arquivos Modificados/Criados
 
 | Arquivo | Tipo | Descricao |
 |---------|------|-----------|
-| Migracao SQL | Novo | Tabelas `reimbursement_requests`, `reimbursement_attachments`, bucket storage |
-| `src/components/layout/AppSidebar.tsx` | Editado | Novo grupo "Meu Espaco" com item "Reembolsos" |
-| `src/components/layout/AppLayout.tsx` | Editado | Adicionar InboxButton no header |
-| `src/App.tsx` | Editado | Nova rota `/reimbursements` |
-| `src/pages/Reimbursements.tsx` | Novo | Pagina principal de reembolsos |
-| `src/components/reimbursements/ReimbursementFormDialog.tsx` | Novo | Formulario de pedido |
-| `src/components/reimbursements/ReimbursementInbox.tsx` | Novo | Caixa de entrada do gerente |
-| `src/components/layout/InboxButton.tsx` | Novo | Botao com badge no header |
-| `src/hooks/useReimbursements.ts` | Novo | Hooks de dados |
-| `supabase/functions/send-reimbursement-email/index.ts` | Novo | Edge function de email |
-
-## Fluxo Completo
-
-```text
-Funcionario:
-  Menu lateral -> Reembolsos -> Novo Pedido
-    -> Preenche formulario (tipo, projeto/interno, descricao, valor)
-    -> Anexa comprovantes (upload ao Storage)
-    -> Envia -> INSERT em reimbursement_requests + reimbursement_attachments
-    -> Status: "pending"
-
-Gerente/Admin:
-  Header -> Icone Inbox (badge com contagem)
-    -> Abre caixa de entrada
-    -> Ve pedido pendente com detalhes
-    -> Aprovar:
-       -> UPDATE status = 'approved', reviewed_by, reviewed_at
-       -> Chama edge function send-reimbursement-email
-       -> Email enviado para reembolso@origamilab.com.br
-    -> Rejeitar:
-       -> Preenche motivo
-       -> UPDATE status = 'rejected', rejection_reason
-```
+| `src/hooks/useReimbursements.ts` | Editado | Adicionar `useProjectApprovedReimbursements` |
+| `src/components/projects/detail/ProjectCostsTab.tsx` | Editado | Card de reembolso + grid 5 colunas + incluir no total |
+| `src/components/projects/detail/ProjectReimbursementsSection.tsx` | Novo | Tabela de reembolsos aprovados |
 
 ## Detalhes Tecnicos
 
-### RLS para reimbursement_requests
+### Hook `useProjectApprovedReimbursements`
 
-```sql
--- Funcionario ve seus proprios pedidos
-CREATE POLICY "Users can view own reimbursements"
-  ON reimbursement_requests FOR SELECT
-  USING (
-    requested_by IN (
-      SELECT id FROM employees WHERE auth_id = auth.uid() AND tenant_id = reimbursement_requests.tenant_id
-    )
-    OR is_admin_or_manager(auth.uid(), tenant_id)
-  );
+```typescript
+export function useProjectApprovedReimbursements(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ['project-reimbursements', projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const { data, error } = await supabase
+        .from('reimbursement_requests')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
 
--- Qualquer funcionario do tenant pode criar
-CREATE POLICY "Users can create reimbursements"
-  ON reimbursement_requests FOR INSERT
-  WITH CHECK (user_belongs_to_tenant(auth.uid(), tenant_id));
+      // Enrich with requester names
+      const ids = [...new Set(data.map(r => r.requested_by))];
+      const { data: emps } = await supabase
+        .from('employees')
+        .select('id, nome')
+        .in('id', ids);
+      const nameMap = new Map(emps?.map(e => [e.id, e.nome]));
 
--- Gerentes/admins podem aprovar/rejeitar
-CREATE POLICY "Managers can update reimbursements"
-  ON reimbursement_requests FOR UPDATE
-  USING (is_admin_or_manager(auth.uid(), tenant_id));
+      return data.map(r => ({
+        ...r,
+        requester_name: nameMap.get(r.requested_by) || 'Desconhecido',
+      }));
+    },
+    enabled: !!projectId,
+  });
+}
 ```
 
-### Visibilidade no Inbox
+### Calculo no CostsTab
 
-Gerentes de projeto verao apenas reembolsos vinculados aos seus projetos (onde sao `manager_id`). Admins verao todos os reembolsos do tenant, incluindo despesas internas.
+```typescript
+const reimbursementCostsActual = useMemo(() => {
+  return approvedReimbursements.reduce((sum, r) => sum + Number(r.total_amount), 0);
+}, [approvedReimbursements]);
+
+// Reembolso nao tem planejado - so entra no realizado
+const totalActual = laborCostsActual + supplierCostsActual + materialCostsActual + reimbursementCostsActual;
+```
+
+### Grid de cards atualizado
+
+O grid passara de `lg:grid-cols-4` para `lg:grid-cols-5`, com o card de Reembolso usando icone `Receipt` e cores rose/pink, posicionado antes do card de Custo Total.
