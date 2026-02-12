@@ -216,6 +216,7 @@ export default function Timesheets() {
             canSubmit={canSubmit}
             onSubmitProject={handleSubmitProject}
             onAdminEditProject={handleAdminEditProject}
+            canEdit={canSubmit}
             isSubmitting={submitProjectWeek.isPending}
           />
         ) : (

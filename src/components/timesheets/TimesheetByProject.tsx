@@ -25,6 +25,7 @@ interface TimesheetByProjectProps {
   submissions: Map<string, ProjectTimesheetSubmission>;
   isAdmin?: boolean;
   canSubmit?: boolean;
+  canEdit?: boolean;
   onSubmitProject: (projectId: string, projectName: string, totalHours: number) => void;
   onAdminEditProject?: (projectId: string) => void;
   isSubmitting?: boolean;
@@ -38,6 +39,7 @@ export function TimesheetByProject({
   submissions,
   isAdmin = false,
   canSubmit = false,
+  canEdit = false,
   onSubmitProject,
   onAdminEditProject,
   isSubmitting = false,
@@ -103,7 +105,7 @@ export function TimesheetByProject({
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Enviado
                       </Badge>
-                      {isAdmin && onAdminEditProject && (
+                      {canEdit && onAdminEditProject && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
