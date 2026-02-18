@@ -49,6 +49,7 @@ const navigationGroups = [
   {
     label: 'Meu Espaço',
     items: [
+      { title: 'Minha Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
     ] as NavItem[],
   },

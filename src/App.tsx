@@ -27,6 +27,7 @@ import Portfolio from "./pages/Portfolio";
 import Timesheets from "./pages/Timesheets";
 import Analytics from "./pages/Analytics";
 import Reimbursements from "./pages/Reimbursements";
+import MyTimesheet from "./pages/MyTimesheet";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,15 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <UnderConstruction />
+                  </ProtectedRoute>
+                } 
+              />
+              {/* My Timesheet - all authenticated users */}
+              <Route 
+                path="/my-timesheet" 
+                element={
+                  <ProtectedRoute>
+                    <MyTimesheet />
                   </ProtectedRoute>
                 } 
               />

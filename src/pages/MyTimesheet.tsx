@@ -1,0 +1,175 @@
+import { useState, useMemo } from 'react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Building2, Loader2, CheckCircle2 } from 'lucide-react';
+import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
+import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMyProjectMemberships } from '@/hooks/useMyTimesheetData';
+import { useTimesheetsByDateRange, getWeekStart, getWeekDays } from '@/hooks/useTimesheetData';
+import { useProjectWeekSubmissions } from '@/hooks/useTimesheetSubmissions';
+import { useHolidays } from '@/hooks/useHolidays';
+import { Badge } from '@/components/ui/badge';
+import { format, addDays, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { isHoliday } from '@/hooks/useHolidays';
+import { Holiday } from '@/types/holiday';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+const MyTimesheet = () => {
+  const { employee } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const weekStart = getWeekStart(selectedDate);
+  const weekEnd = addDays(weekStart, 4);
+  const weekDays = getWeekDays(weekStart);
+  const startDate = format(weekStart, 'yyyy-MM-dd');
+  const endDate = format(weekEnd, 'yyyy-MM-dd');
+
+  const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(employee?.id);
+  const { data: timesheetEntries = [], isLoading: loadingEntries } = useTimesheetsByDateRange(startDate, endDate);
+
+  const projectIds = useMemo(() => projects.map(p => p.projectId), [projects]);
+  const { data: submissions = new Map() } = useProjectWeekSubmissions(startDate, projectIds);
+
+  const { data: holidays = [] } = useHolidays();
+
+  const isLoading = loadingProjects || loadingEntries;
+
+  const getHolidayForDate = (dateStr: string): Holiday | null => {
+    const date = parseISO(dateStr);
+    return isHoliday(date, holidays);
+  };
+
+  const weekSelectorAction = (
+    <TimesheetWeekSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
+  );
+
+  return (
+    <AppLayout
+      title="Minha Timesheet"
+      description="Lance suas horas nos projetos em que você está alocado"
+      actions={weekSelectorAction}
+    >
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : projects.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>Você não está alocado em nenhum projeto ativo.</p>
+          <p className="text-sm">Quando for incluído em um projeto, ele aparecerá aqui.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {projects.map((project) => {
+            const submission = submissions.get(project.projectId);
+            const isLocked = submission?.status === 'submitted';
+
+            const projectEntries = timesheetEntries.filter(e => e.projectId === project.projectId);
+            const projectTotalHours = projectEntries.reduce((sum, e) => sum + e.hours, 0);
+
+            return (
+              <Card
+                key={project.projectId}
+                className={cn(isLocked && "border-green-200 dark:border-green-800")}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">{project.clientName}</span>
+                      <span>/</span>
+                      <span>{project.projectName}</span>
+                    </CardTitle>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-sm text-muted-foreground">Total: </span>
+                        <span className="font-semibold">{projectTotalHours.toFixed(1)}h</span>
+                      </div>
+                      {isLocked ? (
+                        <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Enviado
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Rascunho</Badge>
+                      )}
+                    </div>
+                  </div>
+                  {isLocked && submission?.submitted_at && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enviado em {format(new Date(submission.submitted_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {/* Header Row */}
+                  <div className="grid grid-cols-[1fr_repeat(5,60px)_80px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
+                    <div>Projeto</div>
+                    {weekDays.map((day) => {
+                      const holiday = getHolidayForDate(day.date);
+                      const isHolidayDay = !!holiday;
+                      return (
+                        <TooltipProvider key={day.date}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={cn(
+                                "text-center rounded-md py-1",
+                                isHolidayDay && "bg-destructive/10 text-destructive"
+                              )}>
+                                {format(new Date(day.date + 'T12:00:00'), 'EEE', { locale: ptBR })}
+                                <br />
+                                <span className="text-[10px]">
+                                  {format(new Date(day.date + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
+                                </span>
+                                {isHolidayDay && <span className="text-[8px] block">*</span>}
+                              </div>
+                            </TooltipTrigger>
+                            {isHolidayDay && (
+                              <TooltipContent>
+                                <p>{holiday.name}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    })}
+                    <div className="text-right pr-2">Total</div>
+                  </div>
+
+                  {/* Single row for the employee */}
+                  {project.members.map((member) => (
+                    <TimesheetWeekRow
+                      key={member.memberId}
+                      label={member.employeeName}
+                      subLabel={member.role}
+                      avatarUrl={member.employeePhoto}
+                      projectId={project.projectId}
+                      projectName={project.projectName}
+                      memberId={member.memberId}
+                      weekDays={weekDays}
+                      existingEntries={timesheetEntries}
+                      holidays={holidays}
+                      isLocked={isLocked}
+                      isAdmin={false}
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </AppLayout>
+  );
+};
+
+export default MyTimesheet;
