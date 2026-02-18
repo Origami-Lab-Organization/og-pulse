@@ -49,7 +49,7 @@ const navigationGroups = [
   {
     label: 'Meu Espaço',
     items: [
-      { title: 'Minha Timesheet', url: '/my-timesheet', icon: Clock },
+      { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
     ] as NavItem[],
   },
@@ -76,7 +76,7 @@ const navigationGroups = [
     items: [
       { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresManager: true },
       { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
-      { title: 'Timesheets', url: '/timesheets', icon: Clock, requiresManager: true },
+      { title: 'Alocação', url: '/timesheets', icon: Clock, requiresManager: true },
       { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
     ] as NavItem[],
   },
