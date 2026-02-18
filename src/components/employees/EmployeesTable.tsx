@@ -132,10 +132,20 @@ export const createEmployeeColumns = ({
     ),
     cell: ({ row }) => {
       const employee = row.original;
-      // Use totalMonthlyCostEstimated if available, otherwise calculate fallback
-      const custoTotal = employee.totalMonthlyCostEstimated > 0 
-        ? employee.totalMonthlyCostEstimated 
-        : employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0) + (employee.totalBenefitsCost || 0);
+      const custoTotal = (() => {
+        const estimated = employee.totalMonthlyCostEstimated;
+        const benefitsFromQuery = employee.totalBenefitsCost || 0;
+        const toolsFromQuery = employee.totalToolsCost || 0;
+        if (estimated > 0) {
+          const breakdown = employee.breakdownJson;
+          const storedBenefits = breakdown && typeof breakdown === 'object' && 'benefitsAmount' in breakdown
+            ? Number((breakdown as any).benefitsAmount) : 0;
+          const storedTools = breakdown && typeof breakdown === 'object' && 'toolsAmount' in breakdown
+            ? Number((breakdown as any).toolsAmount) : 0;
+          return estimated + (benefitsFromQuery - storedBenefits) + (toolsFromQuery - storedTools);
+        }
+        return employee.salarioMensal + employee.beneficios + employee.encargos + benefitsFromQuery + toolsFromQuery;
+      })();
       const custoHora = custoTotal / (employee.jornadaMensal || 176);
       return (
         <div className="flex flex-col">
@@ -149,13 +159,21 @@ export const createEmployeeColumns = ({
       );
     },
     sortingFn: (rowA, rowB) => {
-      const custoA = rowA.original.totalMonthlyCostEstimated > 0 
-        ? rowA.original.totalMonthlyCostEstimated 
-        : rowA.original.salarioMensal + rowA.original.beneficios + rowA.original.encargos + (rowA.original.totalToolsCost || 0) + (rowA.original.totalBenefitsCost || 0);
-      const custoB = rowB.original.totalMonthlyCostEstimated > 0 
-        ? rowB.original.totalMonthlyCostEstimated 
-        : rowB.original.salarioMensal + rowB.original.beneficios + rowB.original.encargos + (rowB.original.totalToolsCost || 0) + (rowB.original.totalBenefitsCost || 0);
-      return custoA - custoB;
+      const calcCost = (emp: typeof rowA.original) => {
+        const estimated = emp.totalMonthlyCostEstimated;
+        const benefitsFromQuery = emp.totalBenefitsCost || 0;
+        const toolsFromQuery = emp.totalToolsCost || 0;
+        if (estimated > 0) {
+          const breakdown = emp.breakdownJson;
+          const storedBenefits = breakdown && typeof breakdown === 'object' && 'benefitsAmount' in breakdown
+            ? Number((breakdown as any).benefitsAmount) : 0;
+          const storedTools = breakdown && typeof breakdown === 'object' && 'toolsAmount' in breakdown
+            ? Number((breakdown as any).toolsAmount) : 0;
+          return estimated + (benefitsFromQuery - storedBenefits) + (toolsFromQuery - storedTools);
+        }
+        return emp.salarioMensal + emp.beneficios + emp.encargos + benefitsFromQuery + toolsFromQuery;
+      };
+      return calcCost(rowA.original) - calcCost(rowB.original);
     },
   },
   {

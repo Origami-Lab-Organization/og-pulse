@@ -1,4 +1,4 @@
-import { Employee } from '@/types/employee';
+import { Employee } from '@/hooks/useEmployees';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,8 +11,23 @@ interface EmployeeCardProps {
 }
 
 const EmployeeCard = ({ employee, onEdit, onDelete }: EmployeeCardProps) => {
-  const custoTotal = employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0);
-  const custoHora = (custoTotal / 176).toFixed(2); // 176 = 8h * 22 dias
+  const custoTotal = (() => {
+    const estimated = employee.totalMonthlyCostEstimated;
+    const benefitsFromQuery = employee.totalBenefitsCost || 0;
+    const toolsFromQuery = employee.totalToolsCost || 0;
+    
+    if (estimated > 0) {
+      const breakdown = employee.breakdownJson;
+      const storedBenefits = breakdown && typeof breakdown === 'object' && 'benefitsAmount' in breakdown
+        ? Number((breakdown as any).benefitsAmount) : 0;
+      const storedTools = breakdown && typeof breakdown === 'object' && 'toolsAmount' in breakdown
+        ? Number((breakdown as any).toolsAmount) : 0;
+      return estimated + (benefitsFromQuery - storedBenefits) + (toolsFromQuery - storedTools);
+    }
+    
+    return employee.salarioMensal + employee.beneficios + employee.encargos + benefitsFromQuery + toolsFromQuery;
+  })();
+  const custoHora = custoTotal / (employee.jornadaMensal || 176);
 
   return (
     <Card className="group animate-fade-in transition-all duration-200 hover:shadow-card-hover">
