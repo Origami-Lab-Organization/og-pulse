@@ -1,6 +1,7 @@
 import { Building2, Calendar, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { ProjectWithRelations, PROJECT_STATUS_LABELS } from '@/types/project';
+import { ProjectWithRelations } from '@/types/project';
+import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -8,12 +9,13 @@ interface ProjectHeaderProps {
   project: ProjectWithRelations;
 }
 
-const statusColors: Record<string, string> = {
-  planning: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  paused: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-  completed: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+const stageColors: Record<PortfolioStage, string> = {
+  planning: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  value_delivery: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  results_presentation: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  value_book: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  learning_case: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
 };
 
 export function ProjectHeader({ project }: ProjectHeaderProps) {
@@ -37,8 +39,8 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-      <Badge className={statusColors[project.status]}>
-        {PROJECT_STATUS_LABELS[project.status]}
+      <Badge className={stageColors[(project.portfolio_stage || 'planning') as PortfolioStage]}>
+        {PORTFOLIO_STAGE_LABELS[(project.portfolio_stage || 'planning') as PortfolioStage]}
       </Badge>
       <span className="hidden sm:inline text-muted-foreground/50">•</span>
       <span className="flex items-center gap-1.5">
