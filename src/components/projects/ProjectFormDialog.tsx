@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -275,19 +277,22 @@ export function ProjectFormDialog({
                   control={form.control}
                   name="isContinuous"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                       <FormControl>
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Projeto Contínuo</FormLabel>
-                        <p className="text-sm text-muted-foreground">
-                          Marque esta opção para projetos sem prazo de término definido
-                        </p>
-                      </div>
+                      <FormLabel className="font-normal cursor-pointer">Projeto Contínuo</FormLabel>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[220px]">
+                          <p>Marque esta opção para projetos sem prazo de término definido</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </FormItem>
                   )}
                 />
