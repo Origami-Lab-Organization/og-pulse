@@ -48,6 +48,7 @@ const projectSchema = z.object({
   startDate: z.string().min(1, 'Data de início é obrigatória'),
   endDate: z.string().optional(),
   isContinuous: z.boolean().default(false),
+  renewalDate: z.string().optional(),
   status: z.string().default('planning'),
   totalValue: z.coerce.number().min(0, 'Valor deve ser positivo'),
   paymentMethod: z.string().default('mensal'),
@@ -57,6 +58,9 @@ const projectSchema = z.object({
 }).refine((data) => data.isContinuous || (data.endDate && data.endDate.length > 0), {
   message: 'Data de fim é obrigatória para projetos com prazo determinado',
   path: ['endDate'],
+}).refine((data) => !data.isContinuous || (data.renewalDate && data.renewalDate.length > 0), {
+  message: 'Data de renovação é obrigatória para projetos contínuos',
+  path: ['renewalDate'],
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -96,6 +100,7 @@ export function ProjectFormDialog({
       startDate: '',
       endDate: '',
       isContinuous: false,
+      renewalDate: '',
       status: 'planning',
       totalValue: 0,
       paymentMethod: 'mensal',
@@ -116,6 +121,7 @@ export function ProjectFormDialog({
         startDate: project?.start_date || '',
         endDate: project?.end_date || '',
         isContinuous: project?.is_continuous || false,
+        renewalDate: (project as any)?.renewal_date || '',
         status: project?.status || 'planning',
         totalValue: Number(project?.total_value) || 0,
         paymentMethod: project?.payment_method || 'mensal',
@@ -142,6 +148,7 @@ export function ProjectFormDialog({
       startDate: values.startDate,
       endDate: values.isContinuous ? undefined : values.endDate,
       isContinuous: values.isContinuous,
+      renewalDate: values.isContinuous ? values.renewalDate : undefined,
       status: values.status as ProjectStatus,
       totalValue: values.totalValue,
       paymentMethod: values.paymentMethod,
@@ -305,7 +312,26 @@ export function ProjectFormDialog({
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
-                        />
+                />
+
+                {isContinuous && (
+                  <FormField
+                    control={form.control}
+                    name="renewalDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data de Renovação *</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <p className="text-sm text-muted-foreground">
+                          Data de renovação automática do contrato. Será gerada uma NF por mês até esta data.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>Projeto Contínuo</FormLabel>

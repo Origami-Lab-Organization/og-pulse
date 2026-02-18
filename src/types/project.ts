@@ -20,6 +20,7 @@ export interface ProjectDB {
   status: ProjectStatus;
   contract_url: string | null;
   duration_months: number;
+  renewal_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -94,6 +95,7 @@ export interface CreateProjectInput {
   status?: ProjectStatus;
   contractUrl?: string;
   durationMonths?: number;
+  renewalDate?: string;
 }
 
 export interface CreateProjectMemberInput {

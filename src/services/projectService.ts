@@ -15,14 +15,27 @@ function generateInstallments(
   totalValue: number,
   installmentsCount: number,
   firstInvoiceDate: string,
-  dueDay: number
+  dueDay: number,
+  isContinuous: boolean = false,
+  renewalDate?: string
 ): Omit<ProjectInstallmentDB, 'id' | 'created_at' | 'updated_at'>[] {
   const installments: Omit<ProjectInstallmentDB, 'id' | 'created_at' | 'updated_at'>[] = [];
-  const valuePerInstallment = totalValue / installmentsCount;
+  
+  let count = installmentsCount;
+  let valuePerInstallment = totalValue / installmentsCount;
+
+  // For continuous projects, calculate months between first invoice and renewal date
+  if (isContinuous && renewalDate) {
+    const start = new Date(firstInvoiceDate);
+    const end = new Date(renewalDate);
+    const monthsDiff = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+    count = Math.max(1, monthsDiff);
+    valuePerInstallment = totalValue; // Full monthly value per installment
+  }
+
   let currentDate = new Date(firstInvoiceDate);
 
-  for (let i = 1; i <= installmentsCount; i++) {
-    // Adjust to due day
+  for (let i = 1; i <= count; i++) {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
@@ -42,7 +55,6 @@ function generateInstallments(
       notes: null,
     });
 
-    // Move to next month
     currentDate.setMonth(currentDate.getMonth() + 1);
   }
 
@@ -158,6 +170,7 @@ export const projectService = {
         status: input.status || 'planning',
         contract_url: input.contractUrl || null,
         duration_months: input.durationMonths || 1,
+        renewal_date: input.renewalDate || null,
       })
       .select()
       .single();
@@ -167,23 +180,30 @@ export const projectService = {
       throw projectError;
     }
 
-    // Generate and insert installments if payment info is provided
-    if (input.firstInvoiceDate && input.installmentsCount > 0) {
-      const installments = generateInstallments(
-        project.id,
-        input.totalValue,
-        input.installmentsCount,
-        input.firstInvoiceDate,
-        input.dueDay
-      );
+    // Generate installments
+    if (input.firstInvoiceDate) {
+      const isContinuous = input.isContinuous || false;
+      const installmentsCount = isContinuous ? 1 : input.installmentsCount;
+      
+      if (isContinuous ? input.renewalDate : installmentsCount > 0) {
+        const installments = generateInstallments(
+          project.id,
+          input.totalValue,
+          installmentsCount,
+          input.firstInvoiceDate,
+          input.dueDay,
+          isContinuous,
+          input.renewalDate
+        );
 
-      const { error: installmentsError } = await supabase
-        .from('project_installments')
-        .insert(installments);
+        const { error: installmentsError } = await supabase
+          .from('project_installments')
+          .insert(installments);
 
-      if (installmentsError) {
-        console.error('Error creating installments:', installmentsError);
-        // Don't throw - project was created successfully
+        if (installmentsError) {
+          console.error('Error creating installments:', installmentsError);
+          // Don't throw - project was created successfully
+        }
       }
     }
 
@@ -208,6 +228,7 @@ export const projectService = {
     if (updates.dueDay !== undefined) updateData.due_day = updates.dueDay;
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.contractUrl !== undefined) updateData.contract_url = updates.contractUrl;
+    if (updates.renewalDate !== undefined) updateData.renewal_date = updates.renewalDate;
     if (updates.durationMonths !== undefined) updateData.duration_months = updates.durationMonths;
 
     const { data, error } = await supabase
