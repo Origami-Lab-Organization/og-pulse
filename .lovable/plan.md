@@ -1,88 +1,71 @@
 
-# Corrigir Custo Mensal de Funcionarios (Card + Tabela + Dados)
+# Projetos Continuos: Gerar NFs Mensais com Data de Renovacao
 
-## Problema
+## Resumo
 
-O custo mensal exibido no card e na tabela de funcionarios nao inclui os beneficios da tabela `employee_benefits`. Isso acontece em 3 pontos:
+Para projetos continuos, o sistema deve gerar automaticamente uma NF (parcela) por mes ate a data de renovacao do contrato, em vez de nao gerar parcelas. O formulario de projeto precisa de um campo "Data de Renovacao" que aparece quando o projeto e marcado como continuo.
 
-1. **EmployeeCard** (linha 14): calcula `salarioMensal + beneficios + encargos + totalToolsCost` -- falta `totalBenefitsCost`
-2. **EmployeesTable**: o campo `totalMonthlyCostEstimated` no banco esta desatualizado (nao inclui beneficios) para todos os funcionarios existentes
-3. **EmployeeCard** usa jornada fixa de 176h em vez do `jornadaMensal` real do funcionario
+## Mudancas no Banco de Dados
 
-## Solucao
+Adicionar coluna `renewal_date` na tabela `projects`:
 
-### 1. Corrigir `EmployeeCard.tsx`
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| `renewal_date` | date, nullable | Data de renovacao automatica do contrato |
 
-Usar a mesma logica da tabela: priorizar `totalMonthlyCostEstimated`, com fallback incluindo `totalBenefitsCost`. Usar `jornadaMensal` em vez de 176 fixo.
+## Logica de Geracao de Parcelas para Projetos Continuos
 
-```typescript
-const custoTotal = employee.totalMonthlyCostEstimated > 0
-  ? employee.totalMonthlyCostEstimated
-  : employee.salarioMensal + employee.beneficios + employee.encargos 
-    + (employee.totalToolsCost || 0) + (employee.totalBenefitsCost || 0);
-const custoHora = custoTotal / (employee.jornadaMensal || 176);
-```
-
-### 2. Recalcular custos no banco para todos os funcionarios existentes
-
-Chamar a edge function `recalculate-employee-costs` ou criar uma migracao SQL que recalcula os valores. Como a logica de calculo e complexa (depende do payroll profile e tipo de contratacao), a melhor abordagem e disparar o recalculo via edge function para cada funcionario.
-
-Alternativa mais simples: ajustar o fallback nos componentes para SEMPRE somar `totalBenefitsCost` dos dados da query (ja disponivel via join), e nao depender exclusivamente do `totalMonthlyCostEstimated` salvo no banco. Isso garante que mesmo sem recalcular o banco, a UI mostra o valor correto.
-
-### Abordagem escolhida: Fallback inteligente na UI
-
-Em vez de depender do `totalMonthlyCostEstimated` (que pode estar desatualizado), somar sempre os beneficios e ferramentas da query ao valor base. Isso e mais seguro e imediato.
+Quando um projeto e continuo e tem `first_invoice_date` e `renewal_date`:
+- Gerar uma parcela por mes, desde `first_invoice_date` ate o mes da `renewal_date`
+- O valor de cada parcela = `total_value` (valor recorrente mensal)
+- Exemplo: inicio em janeiro, renovacao em dezembro = 12 parcelas
 
 ## Arquivos Modificados
 
 | Arquivo | Descricao |
 |---------|-----------|
-| `src/components/employees/EmployeeCard.tsx` | Incluir `totalBenefitsCost` no calculo e usar `jornadaMensal` |
-| `src/components/employees/EmployeesTable.tsx` | Ajustar logica para sempre adicionar `totalBenefitsCost` e `totalToolsCost` ao valor do banco quando o breakdown nao inclui esses valores |
+| **Migration SQL** | Adicionar coluna `renewal_date` na tabela `projects` |
+| `src/types/project.ts` | Adicionar `renewalDate` ao `CreateProjectInput` e `renewal_date` ao `ProjectDB` |
+| `src/components/projects/ProjectFormDialog.tsx` | Exibir campo "Data de Renovacao" quando `isContinuous` e true |
+| `src/services/projectService.ts` | Alterar `generateInstallments` e logica de create/update para lidar com projetos continuos (1 parcela/mes ate renovacao) |
 
 ## Detalhes Tecnicos
 
-### EmployeeCard.tsx (linha 14-15)
+### Migration
 
-Trocar:
-```typescript
-const custoTotal = employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0);
-const custoHora = (custoTotal / 176).toFixed(2);
+```text
+ALTER TABLE projects ADD COLUMN renewal_date date;
 ```
 
-Por:
-```typescript
-const custoTotal = employee.totalMonthlyCostEstimated > 0
-  ? employee.totalMonthlyCostEstimated
-  : employee.salarioMensal + employee.beneficios + employee.encargos 
-    + (employee.totalToolsCost || 0) + (employee.totalBenefitsCost || 0);
-const custoHora = custoTotal / (employee.jornadaMensal || 176);
+### Formulario (ProjectFormDialog)
+
+Quando `isContinuous = true`:
+- Esconder campo "Quantidade de Parcelas" (ja esconde)
+- Mostrar campo "Data de Renovacao" (novo) -- input type="date"
+- O label de valor ja mostra "Valor Recorrente Mensal" (ja funciona)
+- Adicionar `renewalDate` ao schema zod com validacao condicional (obrigatorio quando continuo)
+
+### Servico (projectService)
+
+No `create()` e `update()`, quando `is_continuous = true`:
+- Calcular quantidade de meses entre `first_invoice_date` e `renewal_date`
+- Gerar uma parcela por mes com valor = `total_value`
+- Usar a mesma logica de `generateInstallments` mas com valor fixo por parcela (sem dividir)
+
+### Tipo (project.ts)
+
+Adicionar:
+```text
+// Em CreateProjectInput
+renewalDate?: string;
+
+// Em ProjectDB
+renewal_date: string | null;
 ```
 
-### EmployeesTable.tsx (linhas 136-138 e 152-155)
+### Fluxo
 
-Manter a logica atual que ja foi corrigida no ultimo commit (ja inclui `totalBenefitsCost` no fallback). Porem, adicionar uma verificacao extra: se `totalMonthlyCostEstimated > 0` mas o `breakdownJson` nao tem `benefitsAmount` (ou e zero) e o funcionario TEM beneficios na query, somar a diferenca. Isso corrige os dados historicos sem precisar de migracao.
-
-```typescript
-const custoTotal = (() => {
-  const estimated = employee.totalMonthlyCostEstimated;
-  const benefitsFromQuery = employee.totalBenefitsCost || 0;
-  const toolsFromQuery = employee.totalToolsCost || 0;
-  
-  if (estimated > 0) {
-    // Check if stored value already includes benefits
-    const breakdown = employee.breakdownJson;
-    const storedBenefits = breakdown && typeof breakdown === 'object' && 'benefitsAmount' in breakdown
-      ? (breakdown.benefitsAmount as number) : 0;
-    const storedTools = breakdown && typeof breakdown === 'object' && 'toolsAmount' in breakdown
-      ? (breakdown.toolsAmount as number) : 0;
-    
-    // Add missing benefits/tools not in the stored calculation
-    return estimated + (benefitsFromQuery - storedBenefits) + (toolsFromQuery - storedTools);
-  }
-  
-  return employee.salarioMensal + employee.beneficios + employee.encargos + benefitsFromQuery + toolsFromQuery;
-})();
-```
-
-A mesma logica sera aplicada no `sortingFn` para manter a ordenacao consistente.
+1. Usuario marca "Projeto Continuo"
+2. Preenche valor recorrente mensal, data primeira NF, dia vencimento e data de renovacao
+3. Ao salvar, sistema gera N parcelas (1 por mes) do primeiro mes ate a renovacao
+4. Cada parcela tem o valor mensal cheio (nao dividido)
