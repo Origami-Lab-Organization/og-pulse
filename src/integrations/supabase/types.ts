@@ -1537,6 +1537,7 @@ export type Database = {
           name: string
           payment_method: string
           portfolio_stage: string | null
+          renewal_date: string | null
           start_date: string
           status: Database["public"]["Enums"]["project_status"]
           tenant_id: string
@@ -1560,6 +1561,7 @@ export type Database = {
           name: string
           payment_method?: string
           portfolio_stage?: string | null
+          renewal_date?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["project_status"]
           tenant_id: string
@@ -1583,6 +1585,7 @@ export type Database = {
           name?: string
           payment_method?: string
           portfolio_stage?: string | null
+          renewal_date?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["project_status"]
           tenant_id?: string
