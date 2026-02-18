@@ -271,38 +271,6 @@ export function ProjectFormDialog({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="startDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Data de Início *</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {!isContinuous && (
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Data de Fim *</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </div>
-
                 <FormField
                   control={form.control}
                   name="isContinuous"
@@ -324,23 +292,56 @@ export function ProjectFormDialog({
                   )}
                 />
 
-                {isContinuous && (
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="renewalDate"
+                    name="startDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Data de Renovação *</FormLabel>
+                        <FormLabel>Data de Início *</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
-                        <p className="text-sm text-muted-foreground">
-                          Data de renovação automática do contrato. Será gerada uma NF por mês até esta data.
-                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  {isContinuous ? (
+                    <FormField
+                      control={form.control}
+                      name="renewalDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data de Renovação *</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : (
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data de Fim *</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </div>
+
+                {isContinuous && (
+                  <p className="text-sm text-muted-foreground">
+                    Data de renovação automática do contrato. Será gerada uma NF por mês até esta data.
+                  </p>
                 )}
 
                 <FormField
