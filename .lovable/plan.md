@@ -1,46 +1,130 @@
 
+# Liberar Timesheet para Funcionarios no "Meu Espaco"
 
-# Corrigir casas decimais nos campos de horas
+## Resumo
 
-## Problema
+Permitir que todos os funcionarios (independente do perfil) acessem uma pagina de timesheet pessoal na secao "Meu Espaco" do sidebar, onde poderao lancar horas nos projetos em que estao alocados. Apenas seus proprios projetos e linhas serao visiveis.
 
-Dois problemas combinados causam a exibicao de valores com muitas casas decimais na aba de custos dos projetos:
+## Mudancas necessarias
 
-1. **Dados no banco**: Existem 40 registros na tabela `project_timesheets` com valores como 5.56, 4.67, 0.44 (mais de 1 casa decimal), gerados antes da restricao no frontend
-2. **Acumulo de ponto flutuante**: Ao somar horas de timesheet por membro/mes no JavaScript, ocorrem erros de precisao (ex: 83.80000000000003 em vez de 83.8)
+### 1. Migracao SQL - Novas politicas RLS
 
-## Solucao
-
-### 1. Migracao SQL - Corrigir dados existentes
-
-Arredondar todos os valores de horas existentes para 1 casa decimal em todas as tabelas relevantes:
+Adicionar politicas para permitir que funcionarios insiram e atualizem **seus proprios** registros de timesheet (onde o `project_member_id` referencia um `project_member` vinculado ao seu `employee_id`).
 
 ```sql
-UPDATE project_timesheets SET hours = ROUND(hours::numeric, 1) WHERE hours != ROUND(hours::numeric, 1);
-UPDATE project_member_months SET hours = ROUND(hours::numeric, 1) WHERE hours != ROUND(hours::numeric, 1);
-UPDATE budget_role_months SET hours = ROUND(hours::numeric, 1) WHERE hours != ROUND(hours::numeric, 1);
+-- Permitir que funcionarios insiram timesheets dos seus proprios memberships
+CREATE POLICY "Employees can insert own timesheets"
+ON public.project_timesheets
+FOR INSERT
+WITH CHECK (
+  EXISTS (
+    SELECT 1
+    FROM project_members pm
+    JOIN employees e ON e.id = pm.employee_id
+    WHERE pm.id = project_timesheets.project_member_id
+    AND e.auth_id = auth.uid()
+  )
+);
+
+-- Permitir que funcionarios atualizem timesheets dos seus proprios memberships (apenas nao travados)
+CREATE POLICY "Employees can update own timesheets"
+ON public.project_timesheets
+FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1
+    FROM project_members pm
+    JOIN employees e ON e.id = pm.employee_id
+    WHERE pm.id = project_timesheets.project_member_id
+    AND e.auth_id = auth.uid()
+  )
+  AND is_locked = false
+);
 ```
 
-### 2. Frontend - Arredondar valores acumulados na exibicao
+### 2. Nova pagina - `src/pages/MyTimesheet.tsx`
 
-Arquivo: `src/components/projects/detail/ProjectLaborSection.tsx`
+Criar uma pagina simplificada de timesheet pessoal que:
+- Busca apenas os projetos onde o funcionario logado esta alocado como membro (`project_members.employee_id = employee.id`)
+- Mostra a visao "por projeto" com apenas a linha do proprio funcionario (sem ver colegas)
+- Usa o mesmo `TimesheetWeekSelector` para navegar entre semanas
+- Usa o mesmo `TimesheetWeekRow` para editar horas
+- Respeita feriados e trava de semanas enviadas (read-only quando `is_locked` ou submission `submitted`)
+- Nao exibe botoes de "Enviar" ou "Editar Admin" (funcionarios apenas lancam, nao submetem)
 
-- **Linha 334**: No calculo de `actualHoursByMember`, arredondar o acumulo:
-  `result[ts.project_member_id] = Math.round((result[ts.project_member_id] + Number(ts.hours)) * 10) / 10`
+### 3. Hook de dados - `src/hooks/useMyTimesheetData.ts`
 
-- **Linha 356**: No calculo de `actualHoursByMemberAndMonth`, arredondar o acumulo:
-  `result[ts.project_member_id][monthNumber] = Math.round((result[ts.project_member_id][monthNumber] + Number(ts.hours)) * 10) / 10`
+Criar um hook dedicado para buscar:
+- Projetos ativos onde o funcionario logado e membro (`project_members` com `employee_id` do usuario)
+- Retorna apenas o membership do proprio funcionario (sem expor dados de colegas)
 
-- **Linhas 388-396**: No calculo de `totals`, arredondar os acumulos de horas por mes e totais gerais
+```typescript
+export const useMyProjectMemberships = (employeeId: string | undefined) => {
+  return useQuery({
+    queryKey: ['my-project-memberships', employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_members')
+        .select(`
+          id,
+          role,
+          project_id,
+          projects!inner (
+            id, name, status, portfolio_stage,
+            clients!inner (id, company_name)
+          )
+        `)
+        .eq('employee_id', employeeId)
+        .neq('projects.portfolio_stage', 'completed');
+      // mapear para formato compativel com TimesheetWeekRow
+    },
+    enabled: !!employeeId,
+  });
+};
+```
 
-- **Linhas 410-411**: No calculo de `memberTotals`, arredondar `plannedHours` acumulado
+### 4. Sidebar - `src/components/layout/AppSidebar.tsx`
 
-- **Linhas 661, 665, 679, 682, 684**: Nos renders de horas, aplicar `.toFixed(1)` ou arredondamento para garantir exibicao limpa (ex: `{actualHours > 0 ? Math.round(actualHours * 10) / 10 : '-'}`)
+Adicionar "Minha Timesheet" na secao "Meu Espaco" (sem `requiresManager`):
 
-### Resumo de arquivos
+```typescript
+{
+  label: 'Meu Espaco',
+  items: [
+    { title: 'Minha Timesheet', url: '/my-timesheet', icon: Clock },
+    { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
+  ] as NavItem[],
+},
+```
 
-| Arquivo | Mudanca |
-|---------|---------|
-| Migracao SQL | Arredondar dados existentes em 3 tabelas |
-| `src/components/projects/detail/ProjectLaborSection.tsx` | Arredondar acumulos de horas nos useMemo e na exibicao |
+### 5. Rota - `src/App.tsx`
 
+Adicionar rota protegida (sem `requireManager`):
+
+```tsx
+<Route
+  path="/my-timesheet"
+  element={
+    <ProtectedRoute>
+      <MyTimesheet />
+    </ProtectedRoute>
+  }
+/>
+```
+
+## Seguranca
+
+- Funcionarios so podem inserir/atualizar timesheets vinculados ao seu proprio `project_member_id`
+- Timesheets travados (`is_locked = true`) nao podem ser alterados por funcionarios
+- A submissao de semanas continua restrita a gerentes e admins
+- A pagina de Timesheets completa (com visao de todos os funcionarios) continua restrita a gerentes/admins
+
+## Arquivos a criar/modificar
+
+| Arquivo | Acao |
+|---------|------|
+| Migracao SQL | Criar 2 novas politicas RLS |
+| `src/hooks/useMyTimesheetData.ts` | Criar hook para dados do proprio funcionario |
+| `src/pages/MyTimesheet.tsx` | Criar pagina de timesheet pessoal |
+| `src/components/layout/AppSidebar.tsx` | Adicionar link "Minha Timesheet" |
+| `src/App.tsx` | Adicionar rota `/my-timesheet` |
