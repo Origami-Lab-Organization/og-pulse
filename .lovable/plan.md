@@ -1,71 +1,48 @@
 
-# Projetos Continuos: Gerar NFs Mensais com Data de Renovacao
 
-## Resumo
+# Corrigir erro "React.Children.only" no ProjectFormDialog
 
-Para projetos continuos, o sistema deve gerar automaticamente uma NF (parcela) por mes ate a data de renovacao do contrato, em vez de nao gerar parcelas. O formulario de projeto precisa de um campo "Data de Renovacao" que aparece quando o projeto e marcado como continuo.
+## Problema
 
-## Mudancas no Banco de Dados
+O campo "Data de Renovacao" foi colocado **dentro** do `FormControl` do checkbox "Projeto Continuo". O `FormControl` usa o componente `Slot` do Radix, que aceita apenas UM filho. Quando `isContinuous = true`, ele recebe dois filhos (Checkbox + FormField da data de renovacao), causando o crash.
 
-Adicionar coluna `renewal_date` na tabela `projects`:
+## Solucao
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| `renewal_date` | date, nullable | Data de renovacao automatica do contrato |
+### 1. Corrigir estrutura do formulario (`ProjectFormDialog.tsx`)
 
-## Logica de Geracao de Parcelas para Projetos Continuos
+Mover o bloco condicional `{isContinuous && <FormField name="renewalDate" .../>}` para **fora** do FormField do checkbox `isContinuous`. Ele deve ficar como um campo independente logo apos o bloco do checkbox.
 
-Quando um projeto e continuo e tem `first_invoice_date` e `renewal_date`:
-- Gerar uma parcela por mes, desde `first_invoice_date` ate o mes da `renewal_date`
-- O valor de cada parcela = `total_value` (valor recorrente mensal)
-- Exemplo: inicio em janeiro, renovacao em dezembro = 12 parcelas
+Estrutura correta:
+
+```text
+<FormField name="isContinuous">
+  <FormItem>
+    <FormControl>
+      <Checkbox />          <-- unico filho do FormControl
+    </FormControl>
+    <div>labels...</div>
+  </FormItem>
+</FormField>
+
+{isContinuous && (
+  <FormField name="renewalDate">
+    ...                     <-- campo independente, fora do FormField anterior
+  </FormField>
+)}
+```
+
+### 2. Atualizar dados no banco
+
+Definir `renewal_date = '2026-12-31'` para o projeto "Gestao de Portfolio" (id: `bf5657e4-e706-4c5a-83b8-e08b0612ff80`).
+
+### 3. Aplicar mesmo fix no `dialog.tsx`
+
+O `DialogPortal` tambem tem o mesmo problema (ja foi corrigido com Fragment no ultimo commit para alert-dialog, mas o dialog.tsx original tem dois filhos diretos no Portal). Verificar se precisa do mesmo fix -- pela analise, o dialog.tsx atual ja funciona porque o `DialogPortal` do `@radix-ui/react-dialog` aceita multiplos filhos (diferente do alert-dialog).
 
 ## Arquivos Modificados
 
 | Arquivo | Descricao |
 |---------|-----------|
-| **Migration SQL** | Adicionar coluna `renewal_date` na tabela `projects` |
-| `src/types/project.ts` | Adicionar `renewalDate` ao `CreateProjectInput` e `renewal_date` ao `ProjectDB` |
-| `src/components/projects/ProjectFormDialog.tsx` | Exibir campo "Data de Renovacao" quando `isContinuous` e true |
-| `src/services/projectService.ts` | Alterar `generateInstallments` e logica de create/update para lidar com projetos continuos (1 parcela/mes ate renovacao) |
+| `src/components/projects/ProjectFormDialog.tsx` | Mover campo renewalDate para fora do FormControl do checkbox |
+| Banco de dados (UPDATE) | Setar renewal_date para o projeto especifico |
 
-## Detalhes Tecnicos
-
-### Migration
-
-```text
-ALTER TABLE projects ADD COLUMN renewal_date date;
-```
-
-### Formulario (ProjectFormDialog)
-
-Quando `isContinuous = true`:
-- Esconder campo "Quantidade de Parcelas" (ja esconde)
-- Mostrar campo "Data de Renovacao" (novo) -- input type="date"
-- O label de valor ja mostra "Valor Recorrente Mensal" (ja funciona)
-- Adicionar `renewalDate` ao schema zod com validacao condicional (obrigatorio quando continuo)
-
-### Servico (projectService)
-
-No `create()` e `update()`, quando `is_continuous = true`:
-- Calcular quantidade de meses entre `first_invoice_date` e `renewal_date`
-- Gerar uma parcela por mes com valor = `total_value`
-- Usar a mesma logica de `generateInstallments` mas com valor fixo por parcela (sem dividir)
-
-### Tipo (project.ts)
-
-Adicionar:
-```text
-// Em CreateProjectInput
-renewalDate?: string;
-
-// Em ProjectDB
-renewal_date: string | null;
-```
-
-### Fluxo
-
-1. Usuario marca "Projeto Continuo"
-2. Preenche valor recorrente mensal, data primeira NF, dia vencimento e data de renovacao
-3. Ao salvar, sistema gera N parcelas (1 por mes) do primeiro mes ate a renovacao
-4. Cada parcela tem o valor mensal cheio (nao dividido)
