@@ -331,7 +331,7 @@ export function ProjectLaborSection({
       if (!result[ts.project_member_id]) {
         result[ts.project_member_id] = 0;
       }
-      result[ts.project_member_id] += Number(ts.hours);
+      result[ts.project_member_id] = Math.round((result[ts.project_member_id] + Number(ts.hours)) * 10) / 10;
     });
     return result;
   }, [timesheets]);
@@ -353,7 +353,7 @@ export function ProjectLaborSection({
       if (!result[ts.project_member_id][monthNumber]) {
         result[ts.project_member_id][monthNumber] = 0;
       }
-      result[ts.project_member_id][monthNumber] += Number(ts.hours);
+      result[ts.project_member_id][monthNumber] = Math.round((result[ts.project_member_id][monthNumber] + Number(ts.hours)) * 10) / 10;
     });
     
     return result;
@@ -385,14 +385,14 @@ export function ProjectLaborSection({
         const plannedHours = getHoursForMonth(member.id, monthNum);
         const actualHours = getActualHoursForMonth(member.id, monthNum);
         
-        byMonth[monthNum].plannedHours += plannedHours;
+        byMonth[monthNum].plannedHours = Math.round((byMonth[monthNum].plannedHours + plannedHours) * 10) / 10;
         byMonth[monthNum].plannedValue += plannedHours * realCost;
-        byMonth[monthNum].actualHours += actualHours;
+        byMonth[monthNum].actualHours = Math.round((byMonth[monthNum].actualHours + actualHours) * 10) / 10;
         byMonth[monthNum].actualValue += actualHours * realCost;
         
-        totalHours += plannedHours;
+        totalHours = Math.round((totalHours + plannedHours) * 10) / 10;
         totalValue += plannedHours * realCost;
-        totalActualHours += actualHours;
+        totalActualHours = Math.round((totalActualHours + actualHours) * 10) / 10;
         totalActualValue += actualHours * realCost;
       });
     });
@@ -408,7 +408,7 @@ export function ProjectLaborSection({
       const realCost = getRealHourlyCost(member);
       let plannedHours = 0;
       months.forEach((monthNum) => {
-        plannedHours += getHoursForMonth(member.id, monthNum);
+        plannedHours = Math.round((plannedHours + getHoursForMonth(member.id, monthNum)) * 10) / 10;
       });
       const actualHours = actualHoursByMember[member.id] || 0;
       result[member.id] = { 
@@ -651,18 +651,18 @@ export function ProjectLaborSection({
                                         />
                                         {actualHours > 0 && (
                                           <span className="text-xs text-muted-foreground">
-                                            Real: {actualHours}
+                                            Real: {Math.round(actualHours * 10) / 10}
                                           </span>
                                         )}
                                       </>
                                     ) : (
                                       <div className="flex items-center justify-center gap-1 text-sm">
                                         <span className="text-muted-foreground">
-                                          {plannedHours > 0 ? plannedHours : '-'}
+                                          {plannedHours > 0 ? Math.round(plannedHours * 10) / 10 : '-'}
                                         </span>
                                         <span className="text-muted-foreground">|</span>
                                         <span className="font-medium">
-                                          {actualHours > 0 ? actualHours : '-'}
+                                          {actualHours > 0 ? Math.round(actualHours * 10) / 10 : '-'}
                                         </span>
                                       </div>
                                     )
@@ -676,12 +676,12 @@ export function ProjectLaborSection({
                           <TableCell className="text-center p-2">
                             <div className="flex flex-col gap-0.5 items-center">
                               {isInPlanningMode ? (
-                                <span className="font-medium">{memberTotal.plannedHours}h</span>
+                                <span className="font-medium">{Math.round(memberTotal.plannedHours * 10) / 10}h</span>
                               ) : (
                                 <div className="flex items-center justify-center gap-1">
-                                  <span className="text-muted-foreground">{memberTotal.plannedHours}h</span>
+                                  <span className="text-muted-foreground">{Math.round(memberTotal.plannedHours * 10) / 10}h</span>
                                   <span className="text-muted-foreground">|</span>
-                                  <span className="font-medium">{memberTotal.actualHours}h</span>
+                                  <span className="font-medium">{Math.round(memberTotal.actualHours * 10) / 10}h</span>
                                 </div>
                               )}
                             </div>
