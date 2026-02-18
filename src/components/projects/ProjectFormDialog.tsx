@@ -324,6 +324,25 @@ export function ProjectFormDialog({
                   )}
                 />
 
+                {isContinuous && (
+                  <FormField
+                    control={form.control}
+                    name="renewalDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data de Renovação *</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <p className="text-sm text-muted-foreground">
+                          Data de renovação automática do contrato. Será gerada uma NF por mês até esta data.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
                 <FormField
                   control={form.control}
                   name="status"
