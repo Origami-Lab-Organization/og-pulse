@@ -399,12 +399,25 @@ export const useAddEmployeeBenefit = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (input: CreateEmployeeBenefitInput) => {
-      return employeeService.addBenefit(input);
+    mutationFn: async (input: CreateEmployeeBenefitInput & { effectiveFrom?: string; recalculate?: boolean }) => {
+      const result = await employeeService.addBenefit(input);
+      
+      if (input.recalculate) {
+        await employeeService.recalculateAndUpdateCost(
+          input.employeeId,
+          undefined,
+          input.effectiveFrom
+        );
+      }
+      
+      return result;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-benefits', variables.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      if (variables.effectiveFrom) {
+        queryClient.invalidateQueries({ queryKey: ['employee-versions', variables.employeeId] });
+      }
       toast({
         title: 'Benefício adicionado',
         description: 'O benefício foi adicionado com sucesso.',
@@ -459,13 +472,25 @@ export const useDeleteEmployeeBenefit = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, employeeId }: { id: string; employeeId: string }) => {
+    mutationFn: async ({ id, employeeId, effectiveFrom, recalculate }: { id: string; employeeId: string; effectiveFrom?: string; recalculate?: boolean }) => {
       await employeeService.deleteBenefit(id);
-      return { employeeId };
+      
+      if (recalculate) {
+        await employeeService.recalculateAndUpdateCost(
+          employeeId,
+          undefined,
+          effectiveFrom
+        );
+      }
+      
+      return { employeeId, effectiveFrom };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['employee-benefits', data.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      if (data.effectiveFrom) {
+        queryClient.invalidateQueries({ queryKey: ['employee-versions', data.employeeId] });
+      }
       toast({
         title: 'Benefício removido',
         description: 'O benefício foi removido com sucesso.',
