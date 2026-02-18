@@ -615,13 +615,14 @@ export function ProjectLaborSection({
                                       <Input
                                         type="number"
                                         min="0"
+                                        step={0.1}
                                         className="w-16 h-8 text-center mx-auto"
                                         value={plannedHours || ''}
                                         onChange={(e) =>
                                           handleHoursChange(
                                             member.id,
                                             monthNum,
-                                            Number(e.target.value)
+                                            Math.round((Number(e.target.value) || 0) * 10) / 10
                                           )
                                         }
                                       />
@@ -637,13 +638,14 @@ export function ProjectLaborSection({
                                         <Input
                                           type="number"
                                           min="0"
+                                          step={0.1}
                                           className="w-16 h-8 text-center mx-auto"
                                           value={plannedHours || ''}
                                           onChange={(e) =>
                                             handleHoursChange(
                                               member.id,
                                               monthNum,
-                                              Number(e.target.value)
+                                              Math.round((Number(e.target.value) || 0) * 10) / 10
                                             )
                                           }
                                         />
