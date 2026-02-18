@@ -8,7 +8,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Eye, Pencil, Trash2 } from 'lucide-react';
-import { ProjectWithRelations, PROJECT_STATUS_LABELS, ProjectStatus } from '@/types/project';
+import { ProjectWithRelations } from '@/types/project';
+import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
 
@@ -18,12 +19,13 @@ interface ProjectColumnsProps {
   onDelete: (project: ProjectWithRelations) => void;
 }
 
-const statusColors: Record<ProjectStatus, string> = {
-  planning: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  paused: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-  completed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+const stageColors: Record<PortfolioStage, string> = {
+  planning: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  value_delivery: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  results_presentation: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  value_book: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  learning_case: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
 };
 
 export function createProjectColumns({
@@ -65,13 +67,13 @@ export function createProjectColumns({
       },
     },
     {
-      accessorKey: 'status',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+      accessorKey: 'portfolio_stage',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Estágio" />,
       cell: ({ row }) => {
-        const status = row.original.status as ProjectStatus;
+        const stage = (row.original.portfolio_stage || 'planning') as PortfolioStage;
         return (
-          <Badge className={`whitespace-nowrap ${statusColors[status]}`} variant="outline">
-            {PROJECT_STATUS_LABELS[status]}
+          <Badge className={`whitespace-nowrap ${stageColors[stage]}`} variant="outline">
+            {PORTFOLIO_STAGE_LABELS[stage]}
           </Badge>
         );
       },
