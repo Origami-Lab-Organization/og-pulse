@@ -1,34 +1,46 @@
 
-# Permitir Gerentes de Projeto Editarem Timesheets Enviados
+
+# Atualizar Cores dos Status de Projeto (Portfolio Stage)
 
 ## Resumo
 
-Atualmente, apenas administradores podem editar timesheets de semanas ja enviadas. A mudanca consiste em estender essa permissao para gerentes de projeto (`is_gerente`), mantendo a mesma exigencia de justificativa obrigatoria.
+Trocar o campo exibido de `project.status` para `project.portfolio_stage` em todos os pontos visuais, e aplicar o novo esquema de cores: cinza para Planejamento, azul para os estagios intermediarios (Entrega de Valor ate Aprendizado e Case), e verde para Concluido.
 
-## Mudancas
+## Novo Mapa de Cores
 
-### 1. Botao de editar visivel para gerentes
-
-**Arquivo: `src/components/timesheets/TimesheetByProject.tsx`**
-
-Alterar a condicao do botao de edicao de `isAdmin` para uma nova prop `canEdit` (que sera `true` para admins e gerentes).
-
-- Linha 106: trocar `{isAdmin && onAdminEditProject && (` por `{canEdit && onAdminEditProject && (`
-- Adicionar prop `canEdit` na interface
-
-### 2. Passar `canEdit` para o componente
-
-**Arquivo: `src/pages/Timesheets.tsx`**
-
-Passar `canEdit={canSubmit}` (que ja e `employee?.is_gerente || isAdmin`) para `TimesheetByProject`, permitindo que gerentes vejam e usem o botao de edicao.
+| Estagio | Cor |
+|---------|-----|
+| planning (Planejamento) | Cinza |
+| value_delivery (Entrega de Valor) | Azul |
+| results_presentation (Apresentacao de Resultados) | Azul |
+| value_book (Value Book) | Azul |
+| learning_case (Aprendizado e Case) | Azul |
+| completed (Concluido) | Verde |
 
 ## Arquivos Modificados
 
 | Arquivo | Descricao |
 |---------|-----------|
-| `src/components/timesheets/TimesheetByProject.tsx` | Adicionar prop `canEdit`, usar no lugar de `isAdmin` para exibir botao de edicao |
-| `src/pages/Timesheets.tsx` | Passar `canEdit={canSubmit}` ao componente |
+| `src/components/projects/detail/ProjectHeader.tsx` | Trocar `project.status` por `project.portfolio_stage`, importar `PORTFOLIO_STAGE_LABELS`, aplicar novas cores |
+| `src/components/projects/ProjectsTable.tsx` | Trocar coluna status para usar `portfolio_stage`, importar `PORTFOLIO_STAGE_LABELS`, aplicar novas cores |
+| `src/components/projects/ProjectDetailDialog.tsx` | Trocar badge de status para usar `portfolio_stage`, importar `PORTFOLIO_STAGE_LABELS`, aplicar novas cores |
 
 ## Detalhes Tecnicos
 
-A logica de edicao (dialog, salvamento com justificativa, logs) ja esta toda implementada no `AdminWeekEditDialog` e no hook `useAdminBatchEditTimesheets`. A unica barreira e a condicao de exibicao do botao no frontend. As RLS policies do banco ja permitem que gerentes facam update em `project_timesheets` (via `is_admin_or_manager`), entao nenhuma mudanca no backend e necessaria.
+O mesmo mapa de cores sera usado nos 3 arquivos, substituindo o `statusColors` atual:
+
+```typescript
+import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
+
+const stageColors: Record<PortfolioStage, string> = {
+  planning: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  value_delivery: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  results_presentation: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  value_book: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  learning_case: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+};
+```
+
+Em cada arquivo, as referencias `project.status` e `PROJECT_STATUS_LABELS` serao substituidas por `project.portfolio_stage` e `PORTFOLIO_STAGE_LABELS`.
+
