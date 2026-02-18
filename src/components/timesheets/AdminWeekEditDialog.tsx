@@ -105,8 +105,9 @@ export function AdminWeekEditDialog({
   };
 
   const handleHoursChange = (memberId: string, date: string, value: string) => {
-    const numValue = value === '' ? 0 : parseFloat(value);
-    if (isNaN(numValue) || numValue < 0 || numValue > 24) return;
+    const raw = value === '' ? 0 : parseFloat(value);
+    if (isNaN(raw) || raw < 0 || raw > 24) return;
+    const numValue = Math.round(raw * 10) / 10;
     
     setHours((prev) => ({
       ...prev,
@@ -270,7 +271,7 @@ export function AdminWeekEditDialog({
                             type="number"
                             min={0}
                             max={24}
-                            step={0.5}
+                            step={0.1}
                             value={currentValue || ''}
                             onChange={(e) => handleHoursChange(member.memberId, day.date, e.target.value)}
                             className={cn(
