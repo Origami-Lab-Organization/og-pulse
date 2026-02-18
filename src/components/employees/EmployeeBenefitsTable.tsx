@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -25,7 +26,7 @@ import {
   useAddEmployeeBenefit,
   useDeleteEmployeeBenefit,
 } from '@/hooks/useEmployees';
-import { Plus, Trash2, Check, X, Heart } from 'lucide-react';
+import { Plus, Trash2, Check, X, Heart, CalendarIcon } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 const BENEFIT_OPTIONS = [
   { value: 'vale_refeicao', label: 'Vale Refeição' },
@@ -58,6 +71,10 @@ interface EmployeeBenefitsTableProps {
   employeeName: string;
 }
 
+type PendingAction = 
+  | { type: 'add'; name: string; monthlyValue: number }
+  | { type: 'delete'; benefitId: string };
+
 export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBenefitsTableProps) {
   const { data: benefits = [], isLoading } = useEmployeeBenefits(employeeId);
   const addBenefit = useAddEmployeeBenefit();
@@ -65,6 +82,9 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
 
   const [isAdding, setIsAdding] = useState(false);
   const [deleteBenefitId, setDeleteBenefitId] = useState<string | null>(null);
+  const [effectiveDateDialogOpen, setEffectiveDateDialogOpen] = useState(false);
+  const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(new Date());
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   
   const [newBenefit, setNewBenefit] = useState({
     selectedValue: '',
@@ -75,7 +95,6 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
 
   const totalValue = benefits.reduce((sum, benefit) => sum + Number(benefit.monthly_value), 0);
 
-  // Filter out benefits that are already added
   const availableBenefits = BENEFIT_OPTIONS.filter(
     opt => !benefits.some(b => b.name === opt.label)
   );
@@ -92,32 +111,56 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
   const handleAdd = () => {
     if (!newBenefit.name.trim()) return;
     
-    addBenefit.mutate(
-      {
-        employeeId,
-        name: newBenefit.name.trim(),
-        monthlyValue: newBenefit.monthlyValue,
-      },
-      {
-        onSuccess: () => {
-          setIsAdding(false);
-          setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
-        },
-      }
-    );
+    // Open effective date dialog
+    setPendingAction({ type: 'add', name: newBenefit.name.trim(), monthlyValue: newBenefit.monthlyValue });
+    setEffectiveDate(new Date());
+    setEffectiveDateDialogOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDeleteConfirm = () => {
     if (!deleteBenefitId) return;
     
-    deleteBenefit.mutate(
-      { id: deleteBenefitId, employeeId },
-      {
-        onSuccess: () => {
-          setDeleteBenefitId(null);
+    // Open effective date dialog
+    setPendingAction({ type: 'delete', benefitId: deleteBenefitId });
+    setDeleteBenefitId(null);
+    setEffectiveDate(new Date());
+    setEffectiveDateDialogOpen(true);
+  };
+
+  const handleEffectiveDateConfirm = () => {
+    if (!pendingAction || !effectiveDate) return;
+    
+    const effectiveFromStr = format(effectiveDate, 'yyyy-MM-dd');
+
+    if (pendingAction.type === 'add') {
+      addBenefit.mutate(
+        {
+          employeeId,
+          name: pendingAction.name,
+          monthlyValue: pendingAction.monthlyValue,
+          effectiveFrom: effectiveFromStr,
+          recalculate: true,
         },
-      }
-    );
+        {
+          onSuccess: () => {
+            setIsAdding(false);
+            setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
+            setEffectiveDateDialogOpen(false);
+            setPendingAction(null);
+          },
+        }
+      );
+    } else if (pendingAction.type === 'delete') {
+      deleteBenefit.mutate(
+        { id: pendingAction.benefitId, employeeId, effectiveFrom: effectiveFromStr, recalculate: true },
+        {
+          onSuccess: () => {
+            setEffectiveDateDialogOpen(false);
+            setPendingAction(null);
+          },
+        }
+      );
+    }
   };
 
   if (isLoading) {
@@ -256,22 +299,81 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
         )}
       </CardContent>
 
+      {/* Delete confirmation dialog */}
       <AlertDialog open={!!deleteBenefitId} onOpenChange={() => setDeleteBenefitId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir benefício?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita.
+              Esta ação não pode ser desfeita. O custo do funcionário será recalculado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Effective date dialog */}
+      <Dialog open={effectiveDateDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setEffectiveDateDialogOpen(false);
+          setPendingAction(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Data de Vigência</DialogTitle>
+            <DialogDescription>
+              Selecione a data a partir da qual esta alteração de benefício entra em vigor. 
+              Isso criará um novo marco financeiro para o funcionário.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label className="mb-2 block">Data de vigência</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !effectiveDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {effectiveDate ? format(effectiveDate, "dd/MM/yyyy") : "Selecione uma data"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={effectiveDate}
+                  onSelect={setEffectiveDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setEffectiveDateDialogOpen(false);
+              setPendingAction(null);
+            }}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleEffectiveDateConfirm}
+              disabled={!effectiveDate || addBenefit.isPending || deleteBenefit.isPending}
+            >
+              {addBenefit.isPending || deleteBenefit.isPending ? 'Salvando...' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

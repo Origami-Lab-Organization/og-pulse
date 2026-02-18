@@ -135,7 +135,7 @@ export const createEmployeeColumns = ({
       // Use totalMonthlyCostEstimated if available, otherwise calculate fallback
       const custoTotal = employee.totalMonthlyCostEstimated > 0 
         ? employee.totalMonthlyCostEstimated 
-        : employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0);
+        : employee.salarioMensal + employee.beneficios + employee.encargos + (employee.totalToolsCost || 0) + (employee.totalBenefitsCost || 0);
       const custoHora = custoTotal / (employee.jornadaMensal || 176);
       return (
         <div className="flex flex-col">
@@ -151,10 +151,10 @@ export const createEmployeeColumns = ({
     sortingFn: (rowA, rowB) => {
       const custoA = rowA.original.totalMonthlyCostEstimated > 0 
         ? rowA.original.totalMonthlyCostEstimated 
-        : rowA.original.salarioMensal + rowA.original.beneficios + rowA.original.encargos + (rowA.original.totalToolsCost || 0);
+        : rowA.original.salarioMensal + rowA.original.beneficios + rowA.original.encargos + (rowA.original.totalToolsCost || 0) + (rowA.original.totalBenefitsCost || 0);
       const custoB = rowB.original.totalMonthlyCostEstimated > 0 
         ? rowB.original.totalMonthlyCostEstimated 
-        : rowB.original.salarioMensal + rowB.original.beneficios + rowB.original.encargos + (rowB.original.totalToolsCost || 0);
+        : rowB.original.salarioMensal + rowB.original.beneficios + rowB.original.encargos + (rowB.original.totalToolsCost || 0) + (rowB.original.totalBenefitsCost || 0);
       return custoA - custoB;
     },
   },

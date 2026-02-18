@@ -1,7 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeTool, CreateEmployeeToolInput, EmployeeBenefit, CreateEmployeeBenefitInput, ContractType, SystemRole } from '@/types/employee';
 import { employeeVersionService } from './employeeVersionService';
-import { CostBreakdown } from '@/lib/employeeCostCalculator';
+import { CostBreakdown, calculateEmployeeCost } from '@/lib/employeeCostCalculator';
+import { PayrollProfile, DEFAULT_PAYROLL_PROFILE } from '@/types/payrollProfile';
 import { Json } from '@/integrations/supabase/types';
 
 export interface EmployeeDB {
@@ -455,6 +456,92 @@ export const employeeService = {
     if (error) {
       console.error('Error deleting employee benefit:', error);
       throw error;
+    }
+  },
+
+  async recalculateAndUpdateCost(
+    employeeId: string,
+    payrollProfile?: Partial<PayrollProfile>,
+    effectiveFrom?: string
+  ): Promise<void> {
+    // 1. Fetch employee data
+    const employee = await this.getById(employeeId);
+    if (!employee) throw new Error('Employee not found');
+
+    // 2. Fetch benefits total
+    const { data: benefits } = await supabase
+      .from('employee_benefits')
+      .select('monthly_value')
+      .eq('employee_id', employeeId)
+      .eq('is_active', true);
+    const benefitsTotal = (benefits || []).reduce((s, b) => s + Number(b.monthly_value), 0);
+
+    // 3. Fetch tools total
+    const { data: tools } = await supabase
+      .from('employee_tools')
+      .select('monthly_cost')
+      .eq('employee_id', employeeId)
+      .eq('is_active', true);
+    const toolsTotal = (tools || []).reduce((s, t) => s + Number(t.monthly_cost), 0);
+
+    // 4. Calculate cost
+    const breakdown = calculateEmployeeCost({
+      tipoContratacao: employee.tipo_contratacao as ContractType,
+      salarioBruto: Number(employee.salario_mensal),
+      bolsaAuxilio: Number(employee.bolsa_auxilio),
+      valorContratoPj: Number(employee.valor_contrato_pj),
+      proLabore: Number(employee.pro_labore),
+      dividendos: Number(employee.dividendos),
+      benefitsTotalMonthly: benefitsTotal,
+      toolsTotalMonthly: toolsTotal,
+      payrollProfile: payrollProfile || undefined,
+    });
+
+    // 5. Update employee record
+    const { error: updateError } = await supabase
+      .from('employees')
+      .update({
+        beneficios: benefitsTotal,
+        total_monthly_cost_estimated: breakdown.totalMonthlyCost,
+        total_annual_cost_estimated: breakdown.totalAnnualCost,
+        breakdown_json: breakdown as unknown as Json,
+        encargos: breakdown.chargesAmount,
+        fgts: breakdown.details.fgts,
+        inss_empresa: breakdown.details.inss,
+        decimo_terceiro: breakdown.details.provisao13,
+        ferias: breakdown.details.provisaoFerias,
+        provisao_13: breakdown.details.provisao13,
+        provisao_ferias: breakdown.details.provisaoFerias,
+      })
+      .eq('id', employeeId);
+
+    if (updateError) {
+      console.error('Error updating employee cost:', updateError);
+      throw updateError;
+    }
+
+    // 6. Create version if effectiveFrom provided
+    if (effectiveFrom) {
+      try {
+        await employeeVersionService.createVersion({
+          employeeId,
+          effectiveFrom,
+          salarioMensal: Number(employee.salario_mensal),
+          salarioLiquido: Number(employee.salario_liquido),
+          beneficios: benefitsTotal,
+          encargos: breakdown.chargesAmount,
+          fgts: breakdown.details.fgts,
+          inssEmpresa: breakdown.details.inss,
+          decimoTerceiro: breakdown.details.provisao13,
+          ferias: breakdown.details.provisaoFerias,
+          proLabore: Number(employee.pro_labore),
+          jornadaMensal: Number(employee.jornada_mensal),
+          tipoContratacao: employee.tipo_contratacao,
+          cargo: employee.cargo,
+        });
+      } catch (versionError) {
+        console.error('Error creating employee version:', versionError);
+      }
     }
   },
 };
