@@ -1,48 +1,36 @@
 
+# Reorganizar campos do formulario de projeto
 
-# Corrigir erro "React.Children.only" no ProjectFormDialog
+## O que muda
 
-## Problema
+Reordenar os campos na aba "Dados Basicos" do formulario de projeto para que:
 
-O campo "Data de Renovacao" foi colocado **dentro** do `FormControl` do checkbox "Projeto Continuo". O `FormControl` usa o componente `Slot` do Radix, que aceita apenas UM filho. Quando `isContinuous = true`, ele recebe dois filhos (Checkbox + FormField da data de renovacao), causando o crash.
+1. O checkbox "Projeto Continuo" venha **antes** das datas
+2. As datas fiquem lado a lado em um grid de 2 colunas:
+   - Se **continuo**: Data de Inicio + Data de Renovacao
+   - Se **nao continuo**: Data de Inicio + Data de Fim (como ja funciona)
+3. O helper text da Data de Renovacao fica abaixo do grid
 
-## Solucao
-
-### 1. Corrigir estrutura do formulario (`ProjectFormDialog.tsx`)
-
-Mover o bloco condicional `{isContinuous && <FormField name="renewalDate" .../>}` para **fora** do FormField do checkbox `isContinuous`. Ele deve ficar como um campo independente logo apos o bloco do checkbox.
-
-Estrutura correta:
+## Layout resultante
 
 ```text
-<FormField name="isContinuous">
-  <FormItem>
-    <FormControl>
-      <Checkbox />          <-- unico filho do FormControl
-    </FormControl>
-    <div>labels...</div>
-  </FormItem>
-</FormField>
-
-{isContinuous && (
-  <FormField name="renewalDate">
-    ...                     <-- campo independente, fora do FormField anterior
-  </FormField>
-)}
+[Cliente]              [Gerente]
+[x] Projeto Continuo
+[Data de Inicio]       [Data de Renovacao *]   <-- se continuo
+  "Data de renovacao automatica do contrato..."
+[Data de Inicio]       [Data de Fim *]         <-- se nao continuo
+[Status]
 ```
 
-### 2. Atualizar dados no banco
+## Detalhes tecnicos
 
-Definir `renewal_date = '2026-12-31'` para o projeto "Gestao de Portfolio" (id: `bf5657e4-e706-4c5a-83b8-e08b0612ff80`).
+### Arquivo: `src/components/projects/ProjectFormDialog.tsx`
 
-### 3. Aplicar mesmo fix no `dialog.tsx`
+Trocar a ordem dos blocos na TabsContent "basic" (linhas ~274-344):
 
-O `DialogPortal` tambem tem o mesmo problema (ja foi corrigido com Fragment no ultimo commit para alert-dialog, mas o dialog.tsx original tem dois filhos diretos no Portal). Verificar se precisa do mesmo fix -- pela analise, o dialog.tsx atual ja funciona porque o `DialogPortal` do `@radix-ui/react-dialog` aceita multiplos filhos (diferente do alert-dialog).
-
-## Arquivos Modificados
-
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/components/projects/ProjectFormDialog.tsx` | Mover campo renewalDate para fora do FormControl do checkbox |
-| Banco de dados (UPDATE) | Setar renewal_date para o projeto especifico |
-
+1. Mover o `FormField` do `isContinuous` (checkbox) para **antes** do grid de datas
+2. No grid de datas (`grid grid-cols-2 gap-4`):
+   - Coluna 1: sempre `startDate`
+   - Coluna 2: se `isContinuous` mostra `renewalDate`, senao mostra `endDate`
+3. Se `isContinuous`, adicionar o texto explicativo abaixo do grid (fora do grid)
+4. Remover o bloco standalone de `renewalDate` que esta apos o checkbox (linhas 327-344)
