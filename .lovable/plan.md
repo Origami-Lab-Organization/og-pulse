@@ -1,99 +1,48 @@
 
+# Mostrar Meses Reais na Visao de Alocacao
 
-# Ajustes na Sessao de Alocacao e Badges de Analytics
+## Problema atual
 
-## 1. Renomear rota `/timesheets` para `/alocacao`
+A aba "Visao de Alocacao" mostra colunas como "Mes 1", "Mes 2", "Mes 3", etc. Esses numeros sao relativos ao inicio de cada projeto e nao representam meses do calendario.
+
+## Solucao
+
+Converter o `month_number` de cada projeto para o mes/ano real do calendario, usando o `start_date` do projeto. Exemplo: se o projeto comeca em marco/2026, o mes 1 = marco/2026, mes 2 = abril/2026, etc.
+
+As colunas da tabela passam a mostrar "Jan", "Fev", "Mar", etc. com o ano quando necessario.
+
+## Arquivo a modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/App.tsx` | Rota de `/timesheets` para `/alocacao` (linha 131) |
-| `src/components/layout/AppSidebar.tsx` | URL do item "Alocacao" de `/timesheets` para `/alocacao` (linha 79) |
-
-## 2. Atualizar titulo e descricao da pagina
-
-- **`src/pages/Timesheets.tsx`**: Titulo de "Timesheets" para "Alocacao", descricao e breadcrumb atualizados
-
-## 3. Campo de pesquisa por projeto
-
-- **`src/pages/Timesheets.tsx`**: Adicionar um `Input` com icone de busca para filtrar projetos por nome ou cliente. Aplicado antes de passar dados para `TimesheetByProject` e `TimesheetByEmployee`
-
-## 4. Bloquear navegacao para semanas futuras
-
-- **`src/components/timesheets/TimesheetWeekSelector.tsx`**: Desabilitar o botao de proxima semana quando a semana seguinte estaria no futuro (comparando com a semana atual do calendario)
-
-## 5. Nova aba "Visao de Alocacao"
-
-- **Novo componente** `src/components/timesheets/AllocationOverview.tsx`: Tabela matricial com funcionarios nas linhas e meses nas colunas, mostrando horas planejadas vs capacidade mensal com indicadores visuais
-- **`src/pages/Timesheets.tsx`**: Adicionar terceira aba `allocation` ao lado de "Por Projeto" e "Por Funcionario"
-
-## 6. Cores de alocacao ajustadas (NOVO vs plano anterior)
-
-As cores seguem a logica de maximizar alocacao:
-
-| Faixa | Cor | Status |
-|-------|-----|--------|
-| 80-100% | Verde | Adequado (meta ideal) |
-| Abaixo de 80% | Amarelo | Subalocado |
-| Acima de 100% | Vermelho | Sobrealocado |
-| 0 horas | Cinza | Ocioso |
-
-Isso se aplica a:
-- **`src/components/timesheets/AllocationOverview.tsx`** (novo componente)
-- **`src/hooks/useAnalyticsData.ts`** (funcao `getUtilizationStatus` - ja esta correto com esses ranges)
-- **`src/components/analytics/EmployeeUtilizationTable.tsx`** - Ajustar as cores dos badges:
-  - `overallocated` (>100%): variant `destructive` (vermelho) -- ja esta correto
-  - `adequate` (80-100%): mudar para verde (usar variant `default` com classe verde)
-  - `underallocated` (<80%): mudar para amarelo/warning
-  - `idle` (0h): manter cinza/outline
+| `src/components/timesheets/AllocationOverview.tsx` | Converter month_number para mes calendario real, agrupar por mes/ano, exibir nomes dos meses |
 
 ## Detalhes tecnicos
 
-### Bloqueio de semana futura (TimesheetWeekSelector.tsx)
+### Mapeamento de month_number para mes calendario
+
+Dentro do `queryFn`, ao processar `memberMonths`, precisamos saber de qual projeto cada `project_member_id` vem para usar o `start_date` correto:
 
 ```text
-const currentWeekStart = getWeekStart(new Date());
-const nextWeekStart = getWeekStart(addWeeks(selectedDate, 1));
-const canGoForward = nextWeekStart <= currentWeekStart;
-// Botao de avancar fica disabled={!canGoForward}
+// Para cada member_month:
+//   1. Encontrar o projeto do membro (via memberToProject map)
+//   2. Pegar o start_date do projeto
+//   3. Calcular: calendarDate = addMonths(startDate, monthNumber - 1)
+//   4. Chave do mes = "YYYY-MM" (ex: "2026-03")
 ```
 
-### Filtro de busca (Timesheets.tsx)
+### Estrutura do EmployeeAllocation ajustada
 
-```text
-const [searchQuery, setSearchQuery] = useState('');
-const filteredProjects = (projects || []).filter(p => {
-  if (!searchQuery) return true;
-  const q = searchQuery.toLowerCase();
-  return p.projectName.toLowerCase().includes(q) 
-    || p.clientName.toLowerCase().includes(q);
-});
-```
+O `months` passa de `Map<number, number>` (monthNumber -> hours) para `Map<string, number>` (chave "YYYY-MM" -> hours).
 
-### Cores dos badges (EmployeeUtilizationTable.tsx)
+### Colunas da tabela
 
-```text
-overallocated: variant 'destructive' (vermelho)
-adequate: classe customizada verde (bg-green-100 text-green-800)
-underallocated: classe customizada amarelo (bg-yellow-100 text-yellow-800) 
-idle: variant 'outline' (cinza)
-```
+Em vez de gerar colunas fixas de 1 a maxMonth, coletar todas as chaves "YYYY-MM" encontradas, ordena-las cronologicamente, e exibir como:
 
-### AllocationOverview.tsx - Estrutura
+- "Jan/26", "Fev/26", "Mar/26", etc.
 
-Busca `project_member_months` para todos os membros dos projetos ativos. Cruza com `jornada_mensal` do funcionario. Tabela mostra:
-- Linhas: funcionarios
-- Colunas: meses do projeto
-- Celulas: barra de progresso colorida (verde 80-100%, amarelo <80%, vermelho >100%)
-- Totalizador por funcionario com horas disponiveis
+Usar `format(date, "MMM/yy", { locale: ptBR })` do date-fns para exibir os nomes abreviados em portugues.
 
-## Arquivos a criar/modificar
+### Calculo do status geral
 
-| Arquivo | Acao |
-|---------|------|
-| `src/App.tsx` | Alterar rota |
-| `src/components/layout/AppSidebar.tsx` | Atualizar URL |
-| `src/pages/Timesheets.tsx` | Titulo, busca, nova aba |
-| `src/components/timesheets/TimesheetWeekSelector.tsx` | Bloquear semanas futuras |
-| `src/components/timesheets/AllocationOverview.tsx` | **Novo** - Visao de alocacao |
-| `src/components/analytics/EmployeeUtilizationTable.tsx` | Ajustar cores dos badges |
-
+Permanece igual -- soma de todas as horas alocadas nos meses vs capacidade total (jornada mensal x quantidade de meses).
