@@ -1,130 +1,63 @@
 
-# Liberar Timesheet para Funcionarios no "Meu Espaco"
 
-## Resumo
+# Ajuste dos KPIs de Receita, Custos e Margem
 
-Permitir que todos os funcionarios (independente do perfil) acessem uma pagina de timesheet pessoal na secao "Meu Espaco" do sidebar, onde poderao lancar horas nos projetos em que estao alocados. Apenas seus proprios projetos e linhas serao visiveis.
+## Objetivo
 
-## Mudancas necessarias
+Alterar os cartoes de KPI nos dois locais (Visao Geral e Financeiro) para:
 
-### 1. Migracao SQL - Novas politicas RLS
+1. **Receita e Custos**: mostrar "% executado" (quanto do planejado ja foi realizado) em vez de "variacao" (diferenca percentual entre planejado e realizado)
+2. **Margem**: quando nao houver receita recebida, mostrar margem 0% em vez de usar o valor planejado como base de calculo
 
-Adicionar politicas para permitir que funcionarios insiram e atualizem **seus proprios** registros de timesheet (onde o `project_member_id` referencia um `project_member` vinculado ao seu `employee_id`).
+## Logica de calculo
 
-```sql
--- Permitir que funcionarios insiram timesheets dos seus proprios memberships
-CREATE POLICY "Employees can insert own timesheets"
-ON public.project_timesheets
-FOR INSERT
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM project_members pm
-    JOIN employees e ON e.id = pm.employee_id
-    WHERE pm.id = project_timesheets.project_member_id
-    AND e.auth_id = auth.uid()
-  )
-);
+### Receita
+- **Antes**: variacao = ((realizado - planejado) / planejado) * 100
+- **Depois**: executado = (realizado / planejado) * 100 (ex: R$0 de R$444k = 0% executado)
 
--- Permitir que funcionarios atualizem timesheets dos seus proprios memberships (apenas nao travados)
-CREATE POLICY "Employees can update own timesheets"
-ON public.project_timesheets
-FOR UPDATE
-USING (
-  EXISTS (
-    SELECT 1
-    FROM project_members pm
-    JOIN employees e ON e.id = pm.employee_id
-    WHERE pm.id = project_timesheets.project_member_id
-    AND e.auth_id = auth.uid()
-  )
-  AND is_locked = false
-);
+### Custos
+- **Antes**: variacao = ((realizado - planejado) / planejado) * 100
+- **Depois**: executado = (realizado / planejado) * 100 (ex: R$2.5k de R$181k = 1.4% executado)
+
+### Margem
+- **Antes**: se revenueActual = 0, usava revenuePlanned como base
+- **Depois**: se revenueActual = 0, margem realizada = 0% (margem so conta a partir dos recebimentos)
+
+## Arquivos a modificar
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/components/projects/detail/ProjectOverviewTab.tsx` | Alterar calculo de kpiData (margem) e substituir "variacao" por "executado" nos 2 cartoes de Receita e Custos |
+| `src/components/projects/detail/ProjectFinancialTab.tsx` | Mesmas alteracoes acima |
+
+## Detalhes tecnicos
+
+### Calculo da margem realizada (ambos arquivos)
+
+```text
+Antes:
+  marginActualBase = revenueActual > 0 ? revenueActual : revenuePlanned
+  marginActual = ((marginActualBase - costActual) / marginActualBase) * 100
+
+Depois:
+  marginActual = revenueActual > 0
+    ? ((revenueActual - costActual) / revenueActual) * 100
+    : 0
 ```
 
-### 2. Nova pagina - `src/pages/MyTimesheet.tsx`
+### Indicador de execucao (ambos arquivos)
 
-Criar uma pagina simplificada de timesheet pessoal que:
-- Busca apenas os projetos onde o funcionario logado esta alocado como membro (`project_members.employee_id = employee.id`)
-- Mostra a visao "por projeto" com apenas a linha do proprio funcionario (sem ver colegas)
-- Usa o mesmo `TimesheetWeekSelector` para navegar entre semanas
-- Usa o mesmo `TimesheetWeekRow` para editar horas
-- Respeita feriados e trava de semanas enviadas (read-only quando `is_locked` ou submission `submitted`)
-- Nao exibe botoes de "Enviar" ou "Editar Admin" (funcionarios apenas lancam, nao submetem)
+Nos cartoes de Receita e Custos, substituir a linha de "variacao" por "executado":
 
-### 3. Hook de dados - `src/hooks/useMyTimesheetData.ts`
+```text
+Antes:
+  -98.6% variacao  (vermelho/verde baseado em positivo/negativo)
 
-Criar um hook dedicado para buscar:
-- Projetos ativos onde o funcionario logado e membro (`project_members` com `employee_id` do usuario)
-- Retorna apenas o membership do proprio funcionario (sem expor dados de colegas)
-
-```typescript
-export const useMyProjectMemberships = (employeeId: string | undefined) => {
-  return useQuery({
-    queryKey: ['my-project-memberships', employeeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('project_members')
-        .select(`
-          id,
-          role,
-          project_id,
-          projects!inner (
-            id, name, status, portfolio_stage,
-            clients!inner (id, company_name)
-          )
-        `)
-        .eq('employee_id', employeeId)
-        .neq('projects.portfolio_stage', 'completed');
-      // mapear para formato compativel com TimesheetWeekRow
-    },
-    enabled: !!employeeId,
-  });
-};
+Depois:
+  1.4% executado   (cor neutra, apenas informativo)
 ```
 
-### 4. Sidebar - `src/components/layout/AppSidebar.tsx`
+A formula do percentual executado:
+- `revenueExecuted = revenuePlanned > 0 ? (revenueActual / revenuePlanned) * 100 : 0`
+- `costExecuted = costPlanned > 0 ? (costActual / costPlanned) * 100 : 0`
 
-Adicionar "Minha Timesheet" na secao "Meu Espaco" (sem `requiresManager`):
-
-```typescript
-{
-  label: 'Meu Espaco',
-  items: [
-    { title: 'Minha Timesheet', url: '/my-timesheet', icon: Clock },
-    { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
-  ] as NavItem[],
-},
-```
-
-### 5. Rota - `src/App.tsx`
-
-Adicionar rota protegida (sem `requireManager`):
-
-```tsx
-<Route
-  path="/my-timesheet"
-  element={
-    <ProtectedRoute>
-      <MyTimesheet />
-    </ProtectedRoute>
-  }
-/>
-```
-
-## Seguranca
-
-- Funcionarios so podem inserir/atualizar timesheets vinculados ao seu proprio `project_member_id`
-- Timesheets travados (`is_locked = true`) nao podem ser alterados por funcionarios
-- A submissao de semanas continua restrita a gerentes e admins
-- A pagina de Timesheets completa (com visao de todos os funcionarios) continua restrita a gerentes/admins
-
-## Arquivos a criar/modificar
-
-| Arquivo | Acao |
-|---------|------|
-| Migracao SQL | Criar 2 novas politicas RLS |
-| `src/hooks/useMyTimesheetData.ts` | Criar hook para dados do proprio funcionario |
-| `src/pages/MyTimesheet.tsx` | Criar pagina de timesheet pessoal |
-| `src/components/layout/AppSidebar.tsx` | Adicionar link "Minha Timesheet" |
-| `src/App.tsx` | Adicionar rota `/my-timesheet` |
