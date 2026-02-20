@@ -128,7 +128,7 @@ const App = () => (
                 } 
               />
               <Route 
-                path="/timesheets" 
+                path="/alocacao"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Timesheets />

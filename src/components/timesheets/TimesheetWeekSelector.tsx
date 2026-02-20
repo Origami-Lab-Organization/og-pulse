@@ -13,12 +13,18 @@ export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetW
   const weekStart = getWeekStart(selectedDate);
   const weekEnd = getWeekEnd(selectedDate);
 
+  const currentWeekStart = getWeekStart(new Date());
+  const nextWeekStart = getWeekStart(addWeeks(selectedDate, 1));
+  const canGoForward = nextWeekStart <= currentWeekStart;
+
   const handlePreviousWeek = () => {
     onDateChange(subWeeks(selectedDate, 1));
   };
 
   const handleNextWeek = () => {
-    onDateChange(addWeeks(selectedDate, 1));
+    if (canGoForward) {
+      onDateChange(addWeeks(selectedDate, 1));
+    }
   };
 
   const handleCurrentWeek = () => {
@@ -37,7 +43,7 @@ export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetW
         </span>
       </div>
       
-      <Button variant="outline" size="icon" onClick={handleNextWeek}>
+      <Button variant="outline" size="icon" onClick={handleNextWeek} disabled={!canGoForward}>
         <ChevronRight className="h-4 w-4" />
       </Button>
       

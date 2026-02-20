@@ -1,14 +1,17 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
+import { Search } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetByProject } from '@/components/timesheets/TimesheetByProject';
 import { TimesheetByEmployee } from '@/components/timesheets/TimesheetByEmployee';
 import { TimesheetWeekStatus } from '@/components/timesheets/TimesheetWeekStatus';
 import { SubmitProjectDialog, SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
 import { AdminWeekEditDialog } from '@/components/timesheets/AdminWeekEditDialog';
+import { AllocationOverview } from '@/components/timesheets/AllocationOverview';
 import {
   useActiveProjectsWithMembers,
   useTimesheetsByDateRange,
@@ -27,11 +30,12 @@ import {
 } from '@/hooks/useTimesheetSubmissions';
 import { BatchEditChange } from '@/types/timesheetSubmission';
 
-type ViewMode = 'project' | 'employee';
+type ViewMode = 'project' | 'employee' | 'allocation';
 
 export default function Timesheets() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('project');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showSubmitProjectDialog, setShowSubmitProjectDialog] = useState(false);
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false);
   const [showAdminEditDialog, setShowAdminEditDialog] = useState(false);
@@ -58,11 +62,22 @@ export default function Timesheets() {
     endDateStr
   );
   const { data: holidays = [] } = useHolidays();
+
+  // Filter projects by search query
+  const filteredProjects = useMemo(() => {
+    if (!projects) return [];
+    if (!searchQuery) return projects;
+    const q = searchQuery.toLowerCase();
+    return projects.filter(p =>
+      p.projectName.toLowerCase().includes(q) ||
+      p.clientName.toLowerCase().includes(q)
+    );
+  }, [projects, searchQuery]);
   
   // Get all project IDs for fetching submissions
   const projectIds = useMemo(() => {
-    return (projects || []).map(p => p.projectId);
-  }, [projects]);
+    return filteredProjects.map(p => p.projectId);
+  }, [filteredProjects]);
   
   const { data: submissions = new Map(), isLoading: isLoadingSubmissions } = useProjectWeekSubmissions(
     startDateStr, 
@@ -74,9 +89,8 @@ export default function Timesheets() {
   const adminBatchEdit = useAdminBatchEditTimesheets();
 
   const employees = useMemo(() => {
-    if (!projects) return [];
-    return groupByEmployee(projects);
-  }, [projects]);
+    return groupByEmployee(filteredProjects);
+  }, [filteredProjects]);
 
   const totalHours = useMemo(() => {
     return (timesheetEntries || []).reduce((sum, e) => sum + e.hours, 0);
@@ -84,9 +98,9 @@ export default function Timesheets() {
 
   // Calculate pending projects (those not yet submitted)
   const pendingProjects = useMemo(() => {
-    if (!projects || !timesheetEntries) return [];
+    if (!filteredProjects || !timesheetEntries) return [];
     
-    return projects
+    return filteredProjects
       .filter(p => {
         const submission = submissions.get(p.projectId);
         return !submission || submission.status !== 'submitted';
@@ -101,7 +115,7 @@ export default function Timesheets() {
         };
       })
       .filter(p => p.totalHours > 0);
-  }, [projects, timesheetEntries, submissions]);
+  }, [filteredProjects, timesheetEntries, submissions]);
 
   const isLoading = isLoadingProjects || isLoadingTimesheets || isLoadingSubmissions;
 
@@ -166,28 +180,42 @@ export default function Timesheets() {
 
   return (
     <AppLayout 
-      title="Timesheets"
-      description="Registre as horas trabalhadas pelos funcionários nos projetos"
-      breadcrumbs={[{ label: 'Timesheets' }]}
+      title="Alocação"
+      description="Gerencie alocação de horas e lançamentos dos projetos"
+      breadcrumbs={[{ label: 'Alocação' }]}
     >
       <div className="space-y-6">
         {/* Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <TimesheetWeekSelector
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-          />
+          <div className="flex items-center gap-4">
+            {viewMode !== 'allocation' && (
+              <TimesheetWeekSelector
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+              />
+            )}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar projeto ou cliente..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-[250px]"
+              />
+            </div>
+          </div>
 
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
             <TabsList>
               <TabsTrigger value="project">Por Projeto</TabsTrigger>
               <TabsTrigger value="employee">Por Funcionário</TabsTrigger>
+              <TabsTrigger value="allocation">Visão de Alocação</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
         {/* Week Status */}
-        {!isLoading && (
+        {!isLoading && viewMode !== 'allocation' && (
           <TimesheetWeekStatus
             submissions={submissions}
             totalProjects={projectIds.length}
@@ -199,7 +227,9 @@ export default function Timesheets() {
         )}
 
         {/* Content */}
-        {isLoading ? (
+        {viewMode === 'allocation' ? (
+          <AllocationOverview searchQuery={searchQuery} />
+        ) : isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-40 w-full" />
@@ -207,7 +237,7 @@ export default function Timesheets() {
           </div>
         ) : viewMode === 'project' ? (
           <TimesheetByProject
-            projects={projects || []}
+            projects={filteredProjects}
             weekDays={weekDays}
             timesheetEntries={timesheetEntries || []}
             holidays={holidays}
