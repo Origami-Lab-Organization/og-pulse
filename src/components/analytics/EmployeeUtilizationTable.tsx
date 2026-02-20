@@ -15,11 +15,11 @@ interface EmployeeUtilizationTableProps {
   data: EmployeeUtilization[];
 }
 
-const statusConfig: Record<EmployeeUtilization['status'], { label: string; variant: 'destructive' | 'default' | 'secondary' | 'outline' }> = {
-  overallocated: { label: 'Sobrealocado', variant: 'destructive' },
-  adequate: { label: 'Adequado', variant: 'default' },
-  underallocated: { label: 'Subalocado', variant: 'secondary' },
-  idle: { label: 'Ocioso', variant: 'outline' },
+const statusConfig: Record<EmployeeUtilization['status'], { label: string; className: string }> = {
+  overallocated: { label: 'Sobrealocado', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
+  adequate: { label: 'Adequado', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
+  underallocated: { label: 'Subalocado', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' },
+  idle: { label: 'Ocioso', className: 'bg-muted text-muted-foreground' },
 };
 
 export function EmployeeUtilizationTable({ data }: EmployeeUtilizationTableProps) {
@@ -68,7 +68,7 @@ export function EmployeeUtilizationTable({ data }: EmployeeUtilizationTableProps
                   <TableCell className="text-right">{row.allocatedHours.toFixed(1)}h</TableCell>
                   <TableCell className="text-right">{formatPercent(row.utilization)}</TableCell>
                   <TableCell className="text-center">
-                    <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                    <Badge className={cfg.className}>{cfg.label}</Badge>
                   </TableCell>
                 </TableRow>
               );
