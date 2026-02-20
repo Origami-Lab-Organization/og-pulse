@@ -309,17 +309,17 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
                                 <span className="text-muted-foreground">Plan.</span>
                                 <span className="font-medium">{planned}h / {emp.jornadaMensal}h</span>
                               </div>
-                              {/* Single segmented bar: actual (blue) | planned remaining (green) | unallocated (gray bg) */}
-                              <div className="h-2 w-full rounded-full bg-muted flex overflow-hidden">
-                                <div
-                                  className="bg-blue-500 h-full transition-all"
-                                  style={{ width: `${Math.min(capacity > 0 ? (actual / capacity) * 100 : 0, 100)}%` }}
-                                />
-                                <div
-                                  className="bg-green-500 h-full transition-all"
-                                  style={{ width: `${Math.min(capacity > 0 ? (Math.max(planned - actual, 0) / capacity) * 100 : 0, 100)}%` }}
-                                />
-                              </div>
+                               {/* Single segmented bar: actual (dark green) | planned remaining (light green) | unallocated (gray bg) */}
+                               <div className="h-2 w-full rounded-full bg-muted flex overflow-hidden">
+                                 <div
+                                   className="bg-green-700 h-full transition-all"
+                                   style={{ width: `${Math.min(capacity > 0 ? (actual / capacity) * 100 : 0, 100)}%` }}
+                                 />
+                                 <div
+                                   className="bg-green-300 h-full transition-all"
+                                   style={{ width: `${Math.min(capacity > 0 ? (Math.max(planned - actual, 0) / capacity) * 100 : 0, 100)}%` }}
+                                 />
+                               </div>
                               <span className="text-[10px] text-muted-foreground">
                                 {allocPercent.toFixed(0)}% aloc. {planned > 0 ? `· ${realizedPercent.toFixed(0)}% real.` : ''}
                               </span>
