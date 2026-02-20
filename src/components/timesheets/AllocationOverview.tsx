@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -10,10 +10,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { addMonths, format, parse } from 'date-fns';
+import { addMonths, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface EmployeeAllocation {
@@ -21,7 +22,8 @@ interface EmployeeAllocation {
   employeeName: string;
   cargo: string;
   jornadaMensal: number;
-  months: Map<string, number>; // "YYYY-MM" -> total hours across all projects
+  months: Map<string, number>;
+  actualMonths: Map<string, number>;
 }
 
 function getAllocationStatus(percent: number, hours: number) {
@@ -52,6 +54,7 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
   const tenantId = employee?.tenant_id;
   const isAdmin = employee?.isAdmin ?? false;
   const currentEmployeeId = employee?.id;
+  const [periodFilter, setPeriodFilter] = useState<'month' | 'year'>('month');
 
   const { data, isLoading } = useQuery({
     queryKey: ['allocation-overview', tenantId, isAdmin, currentEmployeeId],
@@ -81,7 +84,7 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
       const { data: projects, error: projErr } = await projectsQuery;
       if (projErr) throw projErr;
 
-      if (!projects || projects.length === 0) return { employees: [] as EmployeeAllocation[], monthKeys: [] as string[], projects: [] };
+      if (!projects || projects.length === 0) return { employees: [] as EmployeeAllocation[], monthKeys: [] as string[] };
 
       const allMemberIds: string[] = [];
       const memberToProject = new Map<string, { startDate: string }>();
@@ -93,19 +96,29 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         });
       });
 
-      if (allMemberIds.length === 0) return { employees: [] as EmployeeAllocation[], monthKeys: [] as string[], projects: [] };
+      if (allMemberIds.length === 0) return { employees: [] as EmployeeAllocation[], monthKeys: [] as string[] };
 
-      const { data: memberMonths, error: mmErr } = await supabase
-        .from('project_member_months')
-        .select('project_member_id, month_number, hours')
-        .in('project_member_id', allMemberIds);
+      // Fetch planned and actual hours in parallel
+      const [memberMonthsRes, timesheetsRes] = await Promise.all([
+        supabase
+          .from('project_member_months')
+          .select('project_member_id, month_number, hours')
+          .in('project_member_id', allMemberIds),
+        supabase
+          .from('project_timesheets')
+          .select('project_member_id, work_date, hours')
+          .in('project_member_id', allMemberIds),
+      ]);
 
-      if (mmErr) throw mmErr;
+      if (memberMonthsRes.error) throw memberMonthsRes.error;
+      if (timesheetsRes.error) throw timesheetsRes.error;
+
+      const memberMonths = memberMonthsRes.data;
+      const timesheets = timesheetsRes.data;
 
       const employeeMap = new Map<string, EmployeeAllocation>();
       const allMonthKeys = new Set<string>();
 
-      // Map member_id -> employee
       const memberToEmployee = new Map<string, any>();
       projects.forEach((p: any) => {
         (p.project_members || []).forEach((m: any) => {
@@ -115,7 +128,21 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         });
       });
 
-      // Process member months – convert month_number to calendar key
+      const getOrCreateEmployee = (emp: any): EmployeeAllocation => {
+        if (!employeeMap.has(emp.id)) {
+          employeeMap.set(emp.id, {
+            employeeId: emp.id,
+            employeeName: emp.nome,
+            cargo: emp.cargo,
+            jornadaMensal: Number(emp.jornada_mensal) || 176,
+            months: new Map(),
+            actualMonths: new Map(),
+          });
+        }
+        return employeeMap.get(emp.id)!;
+      };
+
+      // Process planned hours
       (memberMonths || []).forEach((mm: any) => {
         const emp = memberToEmployee.get(mm.project_member_id);
         const proj = memberToProject.get(mm.project_member_id);
@@ -126,52 +153,51 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         const monthKey = format(calendarDate, 'yyyy-MM');
         allMonthKeys.add(monthKey);
 
-        if (!employeeMap.has(emp.id)) {
-          employeeMap.set(emp.id, {
-            employeeId: emp.id,
-            employeeName: emp.nome,
-            cargo: emp.cargo,
-            jornadaMensal: Number(emp.jornada_mensal) || 176,
-            months: new Map(),
-          });
-        }
-
-        const allocation = employeeMap.get(emp.id)!;
+        const allocation = getOrCreateEmployee(emp);
         const current = allocation.months.get(monthKey) || 0;
         allocation.months.set(monthKey, current + Number(mm.hours));
+      });
+
+      // Process actual (timesheet) hours
+      (timesheets || []).forEach((ts: any) => {
+        const emp = memberToEmployee.get(ts.project_member_id);
+        if (!emp) return;
+
+        const monthKey = ts.work_date.substring(0, 7);
+        allMonthKeys.add(monthKey);
+
+        const allocation = getOrCreateEmployee(emp);
+        const current = allocation.actualMonths.get(monthKey) || 0;
+        allocation.actualMonths.set(monthKey, current + Number(ts.hours));
       });
 
       // Add employees with 0 hours
       projects.forEach((p: any) => {
         (p.project_members || []).forEach((m: any) => {
-          if (m.employees && !employeeMap.has(m.employees.id)) {
-            employeeMap.set(m.employees.id, {
-              employeeId: m.employees.id,
-              employeeName: m.employees.nome,
-              cargo: m.employees.cargo,
-              jornadaMensal: Number(m.employees.jornada_mensal) || 176,
-              months: new Map(),
-            });
-          }
+          if (m.employees) getOrCreateEmployee(m.employees);
         });
       });
 
       const sortedMonthKeys = Array.from(allMonthKeys).sort();
-
       const employees = Array.from(employeeMap.values()).sort((a, b) =>
         a.employeeName.localeCompare(b.employeeName)
       );
 
-      const projectList = projects.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        clientName: (p.clients as any)?.company_name || '',
-      }));
-
-      return { employees, monthKeys: sortedMonthKeys, projects: projectList };
+      return { employees, monthKeys: sortedMonthKeys };
     },
     enabled: !!tenantId,
   });
+
+  const currentMonthKey = format(new Date(), 'yyyy-MM');
+  const currentYear = new Date().getFullYear();
+  const allMonthKeys = data?.monthKeys || [];
+
+  const visibleMonthKeys = useMemo(() => {
+    if (periodFilter === 'month') {
+      return allMonthKeys.filter(k => k === currentMonthKey);
+    }
+    return allMonthKeys.filter(k => k.startsWith(String(currentYear)));
+  }, [allMonthKeys, periodFilter, currentMonthKey, currentYear]);
 
   const filteredEmployees = useMemo(() => {
     if (!data?.employees) return [];
@@ -183,15 +209,13 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
     );
   }, [data?.employees, searchQuery]);
 
-  const monthKeys = data?.monthKeys || [];
-
   const monthLabels = useMemo(() => {
-    return monthKeys.map(key => {
+    return visibleMonthKeys.map(key => {
       const [y, m] = key.split('-').map(Number);
       const d = new Date(y, m - 1, 1);
       return format(d, "MMM/yy", { locale: ptBR });
     });
-  }, [monthKeys]);
+  }, [visibleMonthKeys]);
 
   if (isLoading) {
     return (
@@ -218,72 +242,111 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Visão de Alocação por Funcionário</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Horas planejadas vs capacidade mensal de cada funcionário em todos os projetos ativos
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-base">Visão de Alocação por Funcionário</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Horas realizadas e planejadas vs capacidade mensal
+            </p>
+          </div>
+          <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as 'month' | 'year')}>
+            <TabsList>
+              <TabsTrigger value="month">Mês Atual</TabsTrigger>
+              <TabsTrigger value="year">Ano Todo</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[180px]">Funcionário</TableHead>
-                <TableHead>Cargo</TableHead>
-                <TableHead className="text-right">Jornada</TableHead>
-                {monthKeys.map((key, i) => (
-                  <TableHead key={key} className="text-center min-w-[120px] capitalize">
-                    {monthLabels[i]}
-                  </TableHead>
-                ))}
-                <TableHead className="text-center min-w-[100px]">Status Geral</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredEmployees.map((emp) => {
-                const totalAllocated = monthKeys.reduce((sum, k) => sum + (emp.months.get(k) || 0), 0);
-                const totalCapacity = emp.jornadaMensal * monthKeys.length;
-                const overallPercent = totalCapacity > 0 ? (totalAllocated / totalCapacity) * 100 : 0;
-                const overallStatus = getAllocationStatus(overallPercent, totalAllocated);
+        {visibleMonthKeys.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Nenhuma alocação encontrada para o período selecionado.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[180px]">Funcionário</TableHead>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead className="text-right">Jornada</TableHead>
+                  {visibleMonthKeys.map((key, i) => (
+                    <TableHead key={key} className="text-center min-w-[140px] capitalize">
+                      {monthLabels[i]}
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-center min-w-[100px]">Status Geral</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredEmployees.map((emp) => {
+                  const totalPlanned = visibleMonthKeys.reduce((sum, k) => sum + (emp.months.get(k) || 0), 0);
+                  const totalActual = visibleMonthKeys.reduce((sum, k) => sum + (emp.actualMonths.get(k) || 0), 0);
+                  const totalCapacity = emp.jornadaMensal * visibleMonthKeys.length;
+                  const overallPercent = totalCapacity > 0 ? (totalPlanned / totalCapacity) * 100 : 0;
+                  const overallStatus = getAllocationStatus(overallPercent, totalPlanned);
 
-                return (
-                  <TableRow key={emp.employeeId}>
-                    <TableCell className="font-medium">{emp.employeeName}</TableCell>
-                    <TableCell className="text-muted-foreground">{emp.cargo}</TableCell>
-                    <TableCell className="text-right">{emp.jornadaMensal}h</TableCell>
-                    {monthKeys.map((key) => {
-                      const hours = emp.months.get(key) || 0;
-                      const percent = emp.jornadaMensal > 0 ? (hours / emp.jornadaMensal) * 100 : 0;
-                      const colorClass = getProgressColor(percent, hours);
+                  return (
+                    <TableRow key={emp.employeeId}>
+                      <TableCell className="font-medium">{emp.employeeName}</TableCell>
+                      <TableCell className="text-muted-foreground">{emp.cargo}</TableCell>
+                      <TableCell className="text-right">{emp.jornadaMensal}h</TableCell>
+                      {visibleMonthKeys.map((key) => {
+                        const planned = emp.months.get(key) || 0;
+                        const actual = emp.actualMonths.get(key) || 0;
+                        const allocPercent = emp.jornadaMensal > 0 ? (planned / emp.jornadaMensal) * 100 : 0;
+                        const realizedPercent = planned > 0 ? (actual / planned) * 100 : 0;
+                        const allocColor = getProgressColor(allocPercent, planned);
 
-                      return (
-                        <TableCell key={key} className="text-center">
-                          <div className="space-y-1">
-                            <span className="text-xs font-medium">
-                              {hours}h / {emp.jornadaMensal}h
-                            </span>
-                            <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
-                              <div
-                                className={`h-full rounded-full transition-all ${colorClass}`}
-                                style={{ width: `${Math.min(percent, 100)}%` }}
-                              />
+                        return (
+                          <TableCell key={key} className="text-center">
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">Real.</span>
+                                <span className="font-medium">{actual}h</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">Plan.</span>
+                                <span className="font-medium">{planned}h / {emp.jornadaMensal}h</span>
+                              </div>
+                              {/* Allocation bar (planned vs capacity) */}
+                              <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className={`h-full rounded-full transition-all ${allocColor}`}
+                                  style={{ width: `${Math.min(allocPercent, 100)}%` }}
+                                />
+                              </div>
+                              {/* Realized bar (actual vs planned) */}
+                              {planned > 0 && (
+                                <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                  <div
+                                    className="h-full rounded-full transition-all bg-blue-500"
+                                    style={{ width: `${Math.min(realizedPercent, 100)}%` }}
+                                  />
+                                </div>
+                              )}
+                              <span className="text-[10px] text-muted-foreground">
+                                {allocPercent.toFixed(0)}% aloc. {planned > 0 ? `· ${realizedPercent.toFixed(0)}% real.` : ''}
+                              </span>
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {percent.toFixed(0)}%
-                            </span>
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-center">
+                        <div className="space-y-1">
+                          <Badge className={overallStatus.className}>{overallStatus.label}</Badge>
+                          <div className="text-[10px] text-muted-foreground">
+                            {totalActual}h / {totalPlanned}h
                           </div>
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell className="text-center">
-                      <Badge className={overallStatus.className}>{overallStatus.label}</Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
