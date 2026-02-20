@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import {
   Table,
   TableBody,
@@ -14,13 +13,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { addMonths, format, parse } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface EmployeeAllocation {
   employeeId: string;
   employeeName: string;
   cargo: string;
   jornadaMensal: number;
-  months: Map<number, number>; // monthNumber -> total hours across all projects
+  months: Map<string, number>; // "YYYY-MM" -> total hours across all projects
 }
 
 function getAllocationStatus(percent: number, hours: number) {
@@ -35,6 +36,11 @@ function getProgressColor(percent: number, hours: number): string {
   if (percent > 100) return 'bg-red-500';
   if (percent >= 80) return 'bg-green-500';
   return 'bg-yellow-500';
+}
+
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
 }
 
 interface AllocationOverviewProps {
@@ -52,7 +58,6 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
     queryFn: async () => {
       if (!tenantId) throw new Error('No tenant');
 
-      // Fetch active projects with members and their monthly allocations
       let projectsQuery = supabase
         .from('projects')
         .select(`
@@ -76,19 +81,20 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
       const { data: projects, error: projErr } = await projectsQuery;
       if (projErr) throw projErr;
 
-      if (!projects || projects.length === 0) return { employees: [] as EmployeeAllocation[], maxMonth: 0, projects: [] };
+      if (!projects || projects.length === 0) return { employees: [] as EmployeeAllocation[], monthKeys: [] as string[], projects: [] };
 
-      // Collect all member IDs
       const allMemberIds: string[] = [];
+      const memberToProject = new Map<string, { startDate: string }>();
+
       projects.forEach((p: any) => {
         (p.project_members || []).forEach((m: any) => {
           allMemberIds.push(m.id);
+          memberToProject.set(m.id, { startDate: p.start_date });
         });
       });
 
-      if (allMemberIds.length === 0) return { employees: [] as EmployeeAllocation[], maxMonth: 0, projects: [] };
+      if (allMemberIds.length === 0) return { employees: [] as EmployeeAllocation[], monthKeys: [] as string[], projects: [] };
 
-      // Fetch member months in batches (supabase limit)
       const { data: memberMonths, error: mmErr } = await supabase
         .from('project_member_months')
         .select('project_member_id, month_number, hours')
@@ -96,9 +102,8 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
 
       if (mmErr) throw mmErr;
 
-      // Build employee allocation map
       const employeeMap = new Map<string, EmployeeAllocation>();
-      let maxMonth = 0;
+      const allMonthKeys = new Set<string>();
 
       // Map member_id -> employee
       const memberToEmployee = new Map<string, any>();
@@ -110,12 +115,16 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         });
       });
 
-      // Process member months
+      // Process member months – convert month_number to calendar key
       (memberMonths || []).forEach((mm: any) => {
         const emp = memberToEmployee.get(mm.project_member_id);
-        if (!emp) return;
+        const proj = memberToProject.get(mm.project_member_id);
+        if (!emp || !proj) return;
 
-        if (mm.month_number > maxMonth) maxMonth = mm.month_number;
+        const startDate = parseLocalDate(proj.startDate);
+        const calendarDate = addMonths(startDate, mm.month_number - 1);
+        const monthKey = format(calendarDate, 'yyyy-MM');
+        allMonthKeys.add(monthKey);
 
         if (!employeeMap.has(emp.id)) {
           employeeMap.set(emp.id, {
@@ -128,11 +137,11 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         }
 
         const allocation = employeeMap.get(emp.id)!;
-        const current = allocation.months.get(mm.month_number) || 0;
-        allocation.months.set(mm.month_number, current + Number(mm.hours));
+        const current = allocation.months.get(monthKey) || 0;
+        allocation.months.set(monthKey, current + Number(mm.hours));
       });
 
-      // Also add employees with 0 hours allocated
+      // Add employees with 0 hours
       projects.forEach((p: any) => {
         (p.project_members || []).forEach((m: any) => {
           if (m.employees && !employeeMap.has(m.employees.id)) {
@@ -147,8 +156,7 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         });
       });
 
-      // If no months found, default to showing at least month 1
-      if (maxMonth === 0) maxMonth = 1;
+      const sortedMonthKeys = Array.from(allMonthKeys).sort();
 
       const employees = Array.from(employeeMap.values()).sort((a, b) =>
         a.employeeName.localeCompare(b.employeeName)
@@ -160,7 +168,7 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         clientName: (p.clients as any)?.company_name || '',
       }));
 
-      return { employees, maxMonth, projects: projectList };
+      return { employees, monthKeys: sortedMonthKeys, projects: projectList };
     },
     enabled: !!tenantId,
   });
@@ -175,8 +183,15 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
     );
   }, [data?.employees, searchQuery]);
 
-  const maxMonth = data?.maxMonth || 1;
-  const monthColumns = Array.from({ length: Math.min(maxMonth, 12) }, (_, i) => i + 1);
+  const monthKeys = data?.monthKeys || [];
+
+  const monthLabels = useMemo(() => {
+    return monthKeys.map(key => {
+      const [y, m] = key.split('-').map(Number);
+      const d = new Date(y, m - 1, 1);
+      return format(d, "MMM/yy", { locale: ptBR });
+    });
+  }, [monthKeys]);
 
   if (isLoading) {
     return (
@@ -216,9 +231,9 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
                 <TableHead className="min-w-[180px]">Funcionário</TableHead>
                 <TableHead>Cargo</TableHead>
                 <TableHead className="text-right">Jornada</TableHead>
-                {monthColumns.map((m) => (
-                  <TableHead key={m} className="text-center min-w-[120px]">
-                    Mês {m}
+                {monthKeys.map((key, i) => (
+                  <TableHead key={key} className="text-center min-w-[120px] capitalize">
+                    {monthLabels[i]}
                   </TableHead>
                 ))}
                 <TableHead className="text-center min-w-[100px]">Status Geral</TableHead>
@@ -226,9 +241,8 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
             </TableHeader>
             <TableBody>
               {filteredEmployees.map((emp) => {
-                // Calculate overall allocation
-                const totalAllocated = monthColumns.reduce((sum, m) => sum + (emp.months.get(m) || 0), 0);
-                const totalCapacity = emp.jornadaMensal * monthColumns.length;
+                const totalAllocated = monthKeys.reduce((sum, k) => sum + (emp.months.get(k) || 0), 0);
+                const totalCapacity = emp.jornadaMensal * monthKeys.length;
                 const overallPercent = totalCapacity > 0 ? (totalAllocated / totalCapacity) * 100 : 0;
                 const overallStatus = getAllocationStatus(overallPercent, totalAllocated);
 
@@ -237,13 +251,13 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
                     <TableCell className="font-medium">{emp.employeeName}</TableCell>
                     <TableCell className="text-muted-foreground">{emp.cargo}</TableCell>
                     <TableCell className="text-right">{emp.jornadaMensal}h</TableCell>
-                    {monthColumns.map((m) => {
-                      const hours = emp.months.get(m) || 0;
+                    {monthKeys.map((key) => {
+                      const hours = emp.months.get(key) || 0;
                       const percent = emp.jornadaMensal > 0 ? (hours / emp.jornadaMensal) * 100 : 0;
                       const colorClass = getProgressColor(percent, hours);
 
                       return (
-                        <TableCell key={m} className="text-center">
+                        <TableCell key={key} className="text-center">
                           <div className="space-y-1">
                             <span className="text-xs font-medium">
                               {hours}h / {emp.jornadaMensal}h
