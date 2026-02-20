@@ -292,11 +292,11 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
                       <TableCell className="text-muted-foreground">{emp.cargo}</TableCell>
                       <TableCell className="text-right">{emp.jornadaMensal}h</TableCell>
                       {visibleMonthKeys.map((key) => {
-                        const planned = emp.months?.get(key) || 0;
-                        const actual = emp.actualMonths?.get(key) || 0;
-                        const allocPercent = emp.jornadaMensal > 0 ? (planned / emp.jornadaMensal) * 100 : 0;
-                        const realizedPercent = planned > 0 ? (actual / planned) * 100 : 0;
-                        const allocColor = getProgressColor(allocPercent, planned);
+                         const planned = emp.months?.get(key) || 0;
+                         const actual = emp.actualMonths?.get(key) || 0;
+                         const capacity = emp.jornadaMensal;
+                         const allocPercent = capacity > 0 ? (planned / capacity) * 100 : 0;
+                         const realizedPercent = planned > 0 ? (actual / planned) * 100 : 0;
 
                         return (
                           <TableCell key={key} className="text-center">
@@ -309,22 +309,17 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
                                 <span className="text-muted-foreground">Plan.</span>
                                 <span className="font-medium">{planned}h / {emp.jornadaMensal}h</span>
                               </div>
-                              {/* Allocation bar (planned vs capacity) */}
-                              <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                              {/* Single segmented bar: actual (blue) | planned remaining (green) | unallocated (gray bg) */}
+                              <div className="h-2 w-full rounded-full bg-muted flex overflow-hidden">
                                 <div
-                                  className={`h-full rounded-full transition-all ${allocColor}`}
-                                  style={{ width: `${Math.min(allocPercent, 100)}%` }}
+                                  className="bg-blue-500 h-full transition-all"
+                                  style={{ width: `${Math.min(capacity > 0 ? (actual / capacity) * 100 : 0, 100)}%` }}
+                                />
+                                <div
+                                  className="bg-green-500 h-full transition-all"
+                                  style={{ width: `${Math.min(capacity > 0 ? (Math.max(planned - actual, 0) / capacity) * 100 : 0, 100)}%` }}
                                 />
                               </div>
-                              {/* Realized bar (actual vs planned) */}
-                              {planned > 0 && (
-                                <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                                  <div
-                                    className="h-full rounded-full transition-all bg-blue-500"
-                                    style={{ width: `${Math.min(realizedPercent, 100)}%` }}
-                                  />
-                                </div>
-                              )}
                               <span className="text-[10px] text-muted-foreground">
                                 {allocPercent.toFixed(0)}% aloc. {planned > 0 ? `· ${realizedPercent.toFixed(0)}% real.` : ''}
                               </span>
