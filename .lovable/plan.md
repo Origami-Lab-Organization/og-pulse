@@ -1,63 +1,99 @@
 
 
-# Ajuste dos KPIs de Receita, Custos e Margem
+# Ajustes na Sessao de Alocacao e Badges de Analytics
 
-## Objetivo
+## 1. Renomear rota `/timesheets` para `/alocacao`
 
-Alterar os cartoes de KPI nos dois locais (Visao Geral e Financeiro) para:
-
-1. **Receita e Custos**: mostrar "% executado" (quanto do planejado ja foi realizado) em vez de "variacao" (diferenca percentual entre planejado e realizado)
-2. **Margem**: quando nao houver receita recebida, mostrar margem 0% em vez de usar o valor planejado como base de calculo
-
-## Logica de calculo
-
-### Receita
-- **Antes**: variacao = ((realizado - planejado) / planejado) * 100
-- **Depois**: executado = (realizado / planejado) * 100 (ex: R$0 de R$444k = 0% executado)
-
-### Custos
-- **Antes**: variacao = ((realizado - planejado) / planejado) * 100
-- **Depois**: executado = (realizado / planejado) * 100 (ex: R$2.5k de R$181k = 1.4% executado)
-
-### Margem
-- **Antes**: se revenueActual = 0, usava revenuePlanned como base
-- **Depois**: se revenueActual = 0, margem realizada = 0% (margem so conta a partir dos recebimentos)
-
-## Arquivos a modificar
-
-| Arquivo | Descricao |
+| Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/projects/detail/ProjectOverviewTab.tsx` | Alterar calculo de kpiData (margem) e substituir "variacao" por "executado" nos 2 cartoes de Receita e Custos |
-| `src/components/projects/detail/ProjectFinancialTab.tsx` | Mesmas alteracoes acima |
+| `src/App.tsx` | Rota de `/timesheets` para `/alocacao` (linha 131) |
+| `src/components/layout/AppSidebar.tsx` | URL do item "Alocacao" de `/timesheets` para `/alocacao` (linha 79) |
+
+## 2. Atualizar titulo e descricao da pagina
+
+- **`src/pages/Timesheets.tsx`**: Titulo de "Timesheets" para "Alocacao", descricao e breadcrumb atualizados
+
+## 3. Campo de pesquisa por projeto
+
+- **`src/pages/Timesheets.tsx`**: Adicionar um `Input` com icone de busca para filtrar projetos por nome ou cliente. Aplicado antes de passar dados para `TimesheetByProject` e `TimesheetByEmployee`
+
+## 4. Bloquear navegacao para semanas futuras
+
+- **`src/components/timesheets/TimesheetWeekSelector.tsx`**: Desabilitar o botao de proxima semana quando a semana seguinte estaria no futuro (comparando com a semana atual do calendario)
+
+## 5. Nova aba "Visao de Alocacao"
+
+- **Novo componente** `src/components/timesheets/AllocationOverview.tsx`: Tabela matricial com funcionarios nas linhas e meses nas colunas, mostrando horas planejadas vs capacidade mensal com indicadores visuais
+- **`src/pages/Timesheets.tsx`**: Adicionar terceira aba `allocation` ao lado de "Por Projeto" e "Por Funcionario"
+
+## 6. Cores de alocacao ajustadas (NOVO vs plano anterior)
+
+As cores seguem a logica de maximizar alocacao:
+
+| Faixa | Cor | Status |
+|-------|-----|--------|
+| 80-100% | Verde | Adequado (meta ideal) |
+| Abaixo de 80% | Amarelo | Subalocado |
+| Acima de 100% | Vermelho | Sobrealocado |
+| 0 horas | Cinza | Ocioso |
+
+Isso se aplica a:
+- **`src/components/timesheets/AllocationOverview.tsx`** (novo componente)
+- **`src/hooks/useAnalyticsData.ts`** (funcao `getUtilizationStatus` - ja esta correto com esses ranges)
+- **`src/components/analytics/EmployeeUtilizationTable.tsx`** - Ajustar as cores dos badges:
+  - `overallocated` (>100%): variant `destructive` (vermelho) -- ja esta correto
+  - `adequate` (80-100%): mudar para verde (usar variant `default` com classe verde)
+  - `underallocated` (<80%): mudar para amarelo/warning
+  - `idle` (0h): manter cinza/outline
 
 ## Detalhes tecnicos
 
-### Calculo da margem realizada (ambos arquivos)
+### Bloqueio de semana futura (TimesheetWeekSelector.tsx)
 
 ```text
-Antes:
-  marginActualBase = revenueActual > 0 ? revenueActual : revenuePlanned
-  marginActual = ((marginActualBase - costActual) / marginActualBase) * 100
-
-Depois:
-  marginActual = revenueActual > 0
-    ? ((revenueActual - costActual) / revenueActual) * 100
-    : 0
+const currentWeekStart = getWeekStart(new Date());
+const nextWeekStart = getWeekStart(addWeeks(selectedDate, 1));
+const canGoForward = nextWeekStart <= currentWeekStart;
+// Botao de avancar fica disabled={!canGoForward}
 ```
 
-### Indicador de execucao (ambos arquivos)
-
-Nos cartoes de Receita e Custos, substituir a linha de "variacao" por "executado":
+### Filtro de busca (Timesheets.tsx)
 
 ```text
-Antes:
-  -98.6% variacao  (vermelho/verde baseado em positivo/negativo)
-
-Depois:
-  1.4% executado   (cor neutra, apenas informativo)
+const [searchQuery, setSearchQuery] = useState('');
+const filteredProjects = (projects || []).filter(p => {
+  if (!searchQuery) return true;
+  const q = searchQuery.toLowerCase();
+  return p.projectName.toLowerCase().includes(q) 
+    || p.clientName.toLowerCase().includes(q);
+});
 ```
 
-A formula do percentual executado:
-- `revenueExecuted = revenuePlanned > 0 ? (revenueActual / revenuePlanned) * 100 : 0`
-- `costExecuted = costPlanned > 0 ? (costActual / costPlanned) * 100 : 0`
+### Cores dos badges (EmployeeUtilizationTable.tsx)
+
+```text
+overallocated: variant 'destructive' (vermelho)
+adequate: classe customizada verde (bg-green-100 text-green-800)
+underallocated: classe customizada amarelo (bg-yellow-100 text-yellow-800) 
+idle: variant 'outline' (cinza)
+```
+
+### AllocationOverview.tsx - Estrutura
+
+Busca `project_member_months` para todos os membros dos projetos ativos. Cruza com `jornada_mensal` do funcionario. Tabela mostra:
+- Linhas: funcionarios
+- Colunas: meses do projeto
+- Celulas: barra de progresso colorida (verde 80-100%, amarelo <80%, vermelho >100%)
+- Totalizador por funcionario com horas disponiveis
+
+## Arquivos a criar/modificar
+
+| Arquivo | Acao |
+|---------|------|
+| `src/App.tsx` | Alterar rota |
+| `src/components/layout/AppSidebar.tsx` | Atualizar URL |
+| `src/pages/Timesheets.tsx` | Titulo, busca, nova aba |
+| `src/components/timesheets/TimesheetWeekSelector.tsx` | Bloquear semanas futuras |
+| `src/components/timesheets/AllocationOverview.tsx` | **Novo** - Visao de alocacao |
+| `src/components/analytics/EmployeeUtilizationTable.tsx` | Ajustar cores dos badges |
 
