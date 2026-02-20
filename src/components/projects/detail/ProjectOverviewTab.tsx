@@ -99,18 +99,17 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
   const kpiData = useMemo(() => {
     const revenuePlanned = metrics.contractValue;
     const revenueActual = metrics.receivedValue;
-    const revenueVar = revenuePlanned > 0 ? ((revenueActual - revenuePlanned) / revenuePlanned) * 100 : 0;
+    const revenueExecuted = revenuePlanned > 0 ? (revenueActual / revenuePlanned) * 100 : 0;
 
     const costPlanned = costData.totalPlanned;
     const costActual = costData.totalActual;
-    const costVar = costPlanned > 0 ? ((costActual - costPlanned) / costPlanned) * 100 : 0;
+    const costExecuted = costPlanned > 0 ? (costActual / costPlanned) * 100 : 0;
 
     const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - costPlanned) / revenuePlanned) * 100 : 0;
-    const marginActualBase = revenueActual > 0 ? revenueActual : revenuePlanned;
-    const marginActual = marginActualBase > 0 ? ((marginActualBase - costActual) / marginActualBase) * 100 : 0;
+    const marginActual = revenueActual > 0 ? ((revenueActual - costActual) / revenueActual) * 100 : 0;
     const marginVar = marginActual - marginPlanned;
 
-    return { revenuePlanned, revenueActual, revenueVar, costPlanned, costActual, costVar, marginPlanned, marginActual, marginVar };
+    return { revenuePlanned, revenueActual, revenueExecuted, costPlanned, costActual, costExecuted, marginPlanned, marginActual, marginVar };
   }, [metrics, costData]);
 
   const getPaymentMethodLabel = (method: string) => {
@@ -222,10 +221,10 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
                 <span className="text-xs text-muted-foreground">Planejado</span>
               </div>
               <div className="pt-1">
-                <span className={`text-xs font-semibold ${kpiData.revenueVar >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {kpiData.revenueVar >= 0 ? '+' : ''}{kpiData.revenueVar.toFixed(1)}%
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {kpiData.revenueExecuted.toFixed(1)}%
                 </span>
-                <span className="text-xs text-muted-foreground ml-1">variação</span>
+                <span className="text-xs text-muted-foreground ml-1">executado</span>
               </div>
             </div>
           </CardContent>
@@ -250,10 +249,10 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
                 <span className="text-xs text-muted-foreground">Planejado</span>
               </div>
               <div className="pt-1">
-                <span className={`text-xs font-semibold ${kpiData.costVar <= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {kpiData.costVar >= 0 ? '+' : ''}{kpiData.costVar.toFixed(1)}%
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {kpiData.costExecuted.toFixed(1)}%
                 </span>
-                <span className="text-xs text-muted-foreground ml-1">variação</span>
+                <span className="text-xs text-muted-foreground ml-1">executado</span>
               </div>
             </div>
           </CardContent>
