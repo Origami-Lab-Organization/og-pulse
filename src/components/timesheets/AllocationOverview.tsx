@@ -280,8 +280,8 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
               </TableHeader>
               <TableBody>
                 {filteredEmployees.map((emp) => {
-                  const totalPlanned = visibleMonthKeys.reduce((sum, k) => sum + (emp.months.get(k) || 0), 0);
-                  const totalActual = visibleMonthKeys.reduce((sum, k) => sum + (emp.actualMonths.get(k) || 0), 0);
+                  const totalPlanned = visibleMonthKeys.reduce((sum, k) => sum + (emp.months?.get(k) || 0), 0);
+                  const totalActual = visibleMonthKeys.reduce((sum, k) => sum + (emp.actualMonths?.get(k) || 0), 0);
                   const totalCapacity = emp.jornadaMensal * visibleMonthKeys.length;
                   const overallPercent = totalCapacity > 0 ? (totalPlanned / totalCapacity) * 100 : 0;
                   const overallStatus = getAllocationStatus(overallPercent, totalPlanned);
@@ -292,8 +292,8 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
                       <TableCell className="text-muted-foreground">{emp.cargo}</TableCell>
                       <TableCell className="text-right">{emp.jornadaMensal}h</TableCell>
                       {visibleMonthKeys.map((key) => {
-                        const planned = emp.months.get(key) || 0;
-                        const actual = emp.actualMonths.get(key) || 0;
+                        const planned = emp.months?.get(key) || 0;
+                        const actual = emp.actualMonths?.get(key) || 0;
                         const allocPercent = emp.jornadaMensal > 0 ? (planned / emp.jornadaMensal) * 100 : 0;
                         const realizedPercent = planned > 0 ? (actual / planned) * 100 : 0;
                         const allocColor = getProgressColor(allocPercent, planned);
