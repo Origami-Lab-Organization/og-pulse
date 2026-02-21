@@ -1,38 +1,77 @@
 
-
-# Criar Leads para Orcamentos Existentes da Origami Lab
+# Refatorar Interacao dos Cards de Lead no CRM
 
 ## Resumo
 
-Inserir 5 registros de leads na tabela `leads`, cada um vinculado ao respectivo orcamento e cliente existente, posicionados na coluna correta do Kanban CRM.
+Substituir os botoes de editar/arquivar visíveis no card por um comportamento onde:
+1. **Clicar no card** abre um dialog de detalhes do lead (com todas as informacoes e possibilidade de edicao)
+2. **Menu de 3 pontinhos** no topo do dialog contem a opcao de arquivar (e outras acoes futuras)
+3. Os botoes de Pencil e Archive sao removidos do card
 
-## Dados a inserir
+## Alteracoes
 
-| Lead (name) | Empresa (company_name) | client_id | budget_id | Coluna CRM |
-|---|---|---|---|---|
-| Plataforma Bry - Discovery | Bry | 150a61d9... | 1a1b4ebb... (ORC-2026-0001) | closed |
-| Gestao de Portfolio - Fase 2 | Prumo Engenharia | b488935c... | 13d2d715... (ORC-2026-0002) | negotiation |
-| Prumo Obras - Fase 2 | Prumo Engenharia | b488935c... | 443646a9... (ORC-2026-0003) | closed |
-| Marketing-Leg Growth | Syngular Id | 0700da9b... | 3d6e525c... (ORC-2026-0004) | closed |
-| Plataforma Bty | Bry | 150a61d9... | 86e250e9... (ORC-2026-0005) | closed |
+### 1. Criar novo componente: `LeadDetailDialog.tsx`
 
-## Implementacao
+Dialog modal que exibe os detalhes completos do lead:
+- **Header**: Nome do lead + menu de 3 pontinhos (DropdownMenu) com opcao "Arquivar"
+- **Corpo**: Informacoes do lead (empresa, contato, email, telefone, origem, notas)
+- **Orcamento**: Se houver orcamento vinculado, exibir badge clicavel com numero e valor
+- **Footer**: Botao "Editar" que abre o `LeadFormDialog` existente, e botao "Fechar"
 
-Criar uma edge function temporaria `seed-leads` que usa a service role key para inserir os 5 leads diretamente no banco, contornando RLS. Cada lead tera:
+O menu de 3 pontinhos (MoreVertical icon) tera:
+- "Arquivar Lead" -- abre o `ArchiveLeadDialog` existente
 
-- `tenant_id` da Origami Lab
-- `client_id` vinculado ao cliente existente
-- `budget_id` vinculado ao orcamento existente
-- `crm_stage` baseado no status do orcamento (`active` -> `closed`, `negotiation` -> `negotiation`)
-- `estimated_value` = 0 (valor vem do orcamento vinculado)
-- `created_by` = mesmo criador do orcamento original
+### 2. Simplificar `LeadKanbanCard.tsx`
 
-Apos execucao e confirmacao dos dados, a edge function sera removida do projeto.
+- Remover botoes de Pencil e Archive do card
+- Remover props `onArchive` e `onEdit`
+- Adicionar prop `onClick` para abrir o dialog de detalhes
+- Manter apenas: nome, empresa, valor (se orcamento vinculado), badge do orcamento, icone de lock
 
-## Arquivos
+### 3. Atualizar `LeadKanbanColumn.tsx`
 
-- **Criar**: `supabase/functions/seed-leads/index.ts` (temporario)
-- **Remover apos uso**: `supabase/functions/seed-leads/index.ts`
+- Remover props `onArchive` e `onEdit`
+- Adicionar prop `onCardClick` para propagar o clique
 
-Nenhuma alteracao em codigo frontend necessaria -- os cards aparecerao automaticamente no Kanban CRM apos a insercao.
+### 4. Atualizar `LeadKanbanBoard.tsx`
 
+- Adicionar estado para o `LeadDetailDialog` (open + lead selecionado)
+- Passar `onCardClick` para as colunas
+- Renderizar o `LeadDetailDialog`
+- As acoes de editar e arquivar agora sao disparadas a partir do dialog de detalhes
+
+## Detalhes tecnicos
+
+### LeadDetailDialog - estrutura
+
+```text
++----------------------------------------------+
+| Nome do Lead                    [...]  [X]   |
++----------------------------------------------+
+| Empresa: Bry Tecnologia S.A                  |
+| Contato: Joao Silva                          |
+| Email: joao@bry.com                          |
+| Telefone: (48) 99999-0000                    |
+| Origem: Indicacao                            |
+| Observacoes: ...                             |
+|                                              |
+| Orcamento: [ORC-2026-0001]  R$ 40.800,00    |
+| Etapa: Negocio Fechado                       |
+|                                              |
++----------------------------------------------+
+|                    [Editar]    [Fechar]       |
++----------------------------------------------+
+```
+
+O menu `[...]` (MoreVertical) contem:
+- Arquivar Lead (abre ArchiveLeadDialog)
+
+### Componentes reutilizados
+- `ArchiveLeadDialog` -- sem alteracoes
+- `LeadFormDialog` -- sem alteracoes (aberto pelo botao Editar do dialog de detalhes)
+
+### Arquivos modificados
+- **Criar**: `src/components/crm/LeadDetailDialog.tsx`
+- **Editar**: `src/components/crm/LeadKanbanCard.tsx` (remover botoes, adicionar onClick)
+- **Editar**: `src/components/crm/LeadKanbanColumn.tsx` (trocar props)
+- **Editar**: `src/components/crm/LeadKanbanBoard.tsx` (adicionar estado do dialog de detalhes)
