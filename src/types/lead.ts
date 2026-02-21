@@ -51,6 +51,7 @@ export interface LeadDB {
   created_at: string;
   updated_at: string;
   service_line: string | null;
+  responsible_id: string | null;
 }
 
 export interface LeadWithBudget extends LeadDB {
@@ -67,6 +68,10 @@ export interface LeadWithBudget extends LeadDB {
     start_date: string;
   } | null;
   creator?: {
+    id: string;
+    nome: string;
+  } | null;
+  responsible?: {
     id: string;
     nome: string;
   } | null;

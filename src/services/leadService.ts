@@ -7,7 +7,8 @@ export async function fetchLeads(tenantId: string): Promise<LeadWithBudget[]> {
     .select(`
       *,
       budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date),
-      creator:employees!leads_created_by_fkey(id, nome)
+      creator:employees!leads_created_by_fkey(id, nome),
+      responsible:employees!leads_responsible_id_fkey(id, nome)
     `)
     .eq('tenant_id', tenantId)
     .eq('archived', false)
@@ -23,7 +24,8 @@ export async function fetchLeadById(id: string): Promise<LeadWithBudget | null> 
     .select(`
       *,
       budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date),
-      creator:employees!leads_created_by_fkey(id, nome)
+      creator:employees!leads_created_by_fkey(id, nome),
+      responsible:employees!leads_responsible_id_fkey(id, nome)
     `)
     .eq('id', id)
     .maybeSingle();
@@ -45,6 +47,7 @@ export interface CreateLeadInput {
   notes?: string;
   created_by?: string;
   service_line?: string;
+  responsible_id?: string;
 }
 
 export async function createLead(input: CreateLeadInput) {
