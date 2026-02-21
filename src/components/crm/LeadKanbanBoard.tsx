@@ -74,8 +74,9 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     // Locked leads can't move
     if (lead.crm_stage === 'closed') return;
 
-    // Can't move past proposal without budget
-    if ((newStage === 'negotiation' || newStage === 'closed') && !lead.budget_id) {
+    // Can't move past proposal without budget (except Financiamento da Inovação)
+    const isFinInovacao = lead.service_line === 'financiamento_inovacao';
+    if ((newStage === 'negotiation' || newStage === 'closed') && !lead.budget_id && !isFinInovacao) {
       toast({ title: 'Orçamento necessário', description: 'Atribua um orçamento ao lead antes de avançar para esta etapa.', variant: 'destructive' });
       return;
     }
@@ -99,14 +100,27 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     paymentMethod: string;
     installmentsCount: number;
     dueDay: number;
-    firstInvoiceDate: string;
+    firstInvoiceDate?: string;
     startDate: string;
     endDate: string;
+    projectName?: string;
+    clientId?: string;
+    totalValue?: number;
   }) => {
-    if (!leadToClose || !budgetForClose) return;
+    if (!leadToClose) return;
+
+    // Allow closing without budget for Financiamento da Inovação
+    const budget = budgetForClose || null;
 
     closeBusinessDeal.mutate(
-      { budget: budgetForClose, ...formData, serviceLine: leadToClose.service_line || undefined },
+      {
+        budget,
+        ...formData,
+        serviceLine: leadToClose.service_line || undefined,
+        projectName: formData.projectName || leadToClose.name,
+        clientId: formData.clientId || leadToClose.client_id || '',
+        totalValue: formData.totalValue || leadToClose.estimated_value || 0,
+      },
       {
         onSuccess: () => {
           updateStage.mutate({ id: leadToClose.id, stage: 'closed' });
@@ -150,6 +164,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
         open={closeDialogOpen}
         onOpenChange={(open) => { setCloseDialogOpen(open); if (!open) setLeadToClose(null); }}
         budget={budgetForClose || null}
+        lead={leadToClose}
         onConfirm={handleCloseBusinessConfirm}
         isSubmitting={closeBusinessDeal.isPending}
       />

@@ -31,19 +31,27 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { BudgetWithDetails } from '@/types/budget';
+import { LeadWithBudget } from '@/types/lead';
 import { PAYMENT_METHOD_OPTIONS } from '@/types/project';
 import { useEmployees } from '@/hooks/useEmployees';
+import { useClients } from '@/hooks/useClients';
 import { formatCurrency as formatCurrencyValue } from '@/lib/formatters';
 import { Briefcase, Calendar, DollarSign, User, Building2 } from 'lucide-react';
+import { CurrencyInput } from '@/components/ui/currency-input';
 
+// Schema with conditional validation - invoice fields optional when no budget
 const closeBusinessSchema = z.object({
   managerId: z.string().min(1, 'Gerente é obrigatório'),
   paymentMethod: z.string().default('mensal'),
-  installmentsCount: z.coerce.number().min(1, 'Mínimo de 1 parcela'),
+  installmentsCount: z.coerce.number().min(1).default(1),
   dueDay: z.coerce.number().min(1).max(31).default(10),
-  firstInvoiceDate: z.string().min(1, 'Data da primeira NF é obrigatória'),
+  firstInvoiceDate: z.string().optional().default(''),
   startDate: z.string().min(1, 'Data de início é obrigatória'),
   endDate: z.string().min(1, 'Data de fim é obrigatória'),
+  // Fields for no-budget mode
+  projectName: z.string().optional(),
+  clientId: z.string().optional(),
+  totalValue: z.coerce.number().optional(),
 });
 
 type CloseBusinessFormValues = z.infer<typeof closeBusinessSchema>;
@@ -52,6 +60,7 @@ interface CloseBusinessDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   budget: BudgetWithDetails | null;
+  lead?: LeadWithBudget | null;
   onConfirm: (data: CloseBusinessFormValues) => void;
   isSubmitting?: boolean;
 }
@@ -60,12 +69,16 @@ export function CloseBusinessDialog({
   open,
   onOpenChange,
   budget,
+  lead,
   onConfirm,
   isSubmitting,
 }: CloseBusinessDialogProps) {
   const { data: employees = [] } = useEmployees();
+  const { data: clients = [] } = useClients();
 
-  // Filter managers - employees who have manager or admin role
+  const hasBudget = !!budget;
+
+  // Filter managers
   const managers = useMemo(() => {
     return employees.filter((e) => e.systemRole === 'manager' || e.systemRole === 'admin');
   }, [employees]);
@@ -80,31 +93,52 @@ export function CloseBusinessDialog({
       firstInvoiceDate: '',
       startDate: '',
       endDate: '',
+      projectName: '',
+      clientId: '',
+      totalValue: 0,
     },
   });
 
   // Watch startDate to auto-calculate endDate
   const startDateValue = form.watch('startDate');
 
-  // Reset form when budget changes
+  // Reset form when budget/lead changes
   useEffect(() => {
-    if (open && budget) {
-      const start = budget.start_date;
-      const end = addMonths(new Date(start), budget.duration_months).toISOString().split('T')[0];
-      
-      form.reset({
-        managerId: '',
-        paymentMethod: 'mensal',
-        installmentsCount: budget.duration_months || 1,
-        dueDay: 10,
-        firstInvoiceDate: start,
-        startDate: start,
-        endDate: end,
-      });
+    if (open) {
+      if (budget) {
+        const start = budget.start_date;
+        const end = addMonths(new Date(start), budget.duration_months).toISOString().split('T')[0];
+        
+        form.reset({
+          managerId: '',
+          paymentMethod: 'mensal',
+          installmentsCount: budget.duration_months || 1,
+          dueDay: 10,
+          firstInvoiceDate: start,
+          startDate: start,
+          endDate: end,
+          projectName: budget.title,
+          clientId: budget.client_id || '',
+          totalValue: budget.final_total,
+        });
+      } else if (lead) {
+        form.reset({
+          managerId: '',
+          paymentMethod: 'mensal',
+          installmentsCount: 1,
+          dueDay: 10,
+          firstInvoiceDate: '',
+          startDate: '',
+          endDate: '',
+          projectName: lead.name,
+          clientId: lead.client_id || '',
+          totalValue: lead.estimated_value || 0,
+        });
+      }
     }
-  }, [open, budget, form]);
+  }, [open, budget, lead, form]);
 
-  // Auto-recalculate endDate when startDate changes
+  // Auto-recalculate endDate when startDate changes (only with budget)
   useEffect(() => {
     if (startDateValue && budget && open) {
       const newEndDate = addMonths(new Date(startDateValue), budget.duration_months);
@@ -116,11 +150,12 @@ export function CloseBusinessDialog({
     onConfirm(values);
   };
 
-  if (!budget) return null;
+  // Allow rendering without budget if lead exists
+  if (!budget && !lead) return null;
 
-  // Calculate end date preview
-  const startDate = budget.start_date ? new Date(budget.start_date) : new Date();
-  const endDate = addMonths(startDate, budget.duration_months);
+  // Calculate end date preview for budget mode
+  const startDate = budget?.start_date ? new Date(budget.start_date) : new Date();
+  const endDate = budget ? addMonths(startDate, budget.duration_months) : new Date();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,51 +166,120 @@ export function CloseBusinessDialog({
             Fechar Negócio
           </DialogTitle>
           <DialogDescription>
-            Um projeto será criado automaticamente com os dados do orçamento
+            {hasBudget
+              ? 'Um projeto será criado automaticamente com os dados do orçamento'
+              : 'Preencha os dados do projeto para fechar o negócio'}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Budget Summary */}
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Orçamento</span>
-            <Badge variant="secondary">{budget.budget_number}</Badge>
-          </div>
-          
-          <h3 className="font-semibold text-lg">{budget.title}</h3>
-          
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-muted-foreground" />
-              <span>{budget.client?.company_name || budget.lead_name || 'Sem cliente'}</span>
+        {/* Budget Summary - only shown when budget exists */}
+        {hasBudget && budget && (
+          <>
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Orçamento</span>
+                <Badge variant="secondary">{budget.budget_number}</Badge>
+              </div>
+              
+              <h3 className="font-semibold text-lg">{budget.title}</h3>
+              
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span>{budget.client?.company_name || budget.lead_name || 'Sem cliente'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium text-primary">
+                    {formatCurrencyValue(budget.final_total)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span>
+                    {format(startDate, 'MMM/yyyy', { locale: ptBR })} - {format(endDate, 'MMM/yyyy', { locale: ptBR })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span>{budget.duration_months} meses</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium text-primary">
-                {formatCurrencyValue(budget.final_total)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>
-                {format(startDate, 'MMM/yyyy', { locale: ptBR })} - {format(endDate, 'MMM/yyyy', { locale: ptBR })}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span>{budget.duration_months} meses</span>
-            </div>
-          </div>
-        </div>
 
-        <Separator />
+            <Separator />
+          </>
+        )}
 
-        {/* Form for additional project data */}
+        {/* Form for project data */}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Complete as informações abaixo para criar o projeto:
+              {hasBudget
+                ? 'Complete as informações abaixo para criar o projeto:'
+                : 'Informe os dados do projeto:'}
             </p>
+
+            {/* No-budget mode: show project name, client, and value */}
+            {!hasBudget && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="projectName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do Projeto *</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Nome do projeto" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="clientId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cliente *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o cliente" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.companyName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="totalValue"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor Total do Contrato *</FormLabel>
+                      <FormControl>
+                        <CurrencyInput
+                          value={field.value || 0}
+                          onValueChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
             <FormField
               control={form.control}
@@ -240,76 +344,81 @@ export function CloseBusinessDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="paymentMethod"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Forma de Pagamento</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {PAYMENT_METHOD_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* Invoice fields - only shown when budget exists */}
+            {hasBudget && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Forma de Pagamento</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PAYMENT_METHOD_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="installmentsCount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Parcelas</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="1" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  <FormField
+                    control={form.control}
+                    name="installmentsCount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Parcelas</FormLabel>
+                        <FormControl>
+                          <Input type="number" min="1" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="firstInvoiceDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data Primeira NF *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstInvoiceDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data Primeira NF *</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="dueDay"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Dia de Vencimento</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="1" max="31" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  <FormField
+                    control={form.control}
+                    name="dueDay"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Dia de Vencimento</FormLabel>
+                        <FormControl>
+                          <Input type="number" min="1" max="31" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </>
+            )}
 
             <Separator />
 
