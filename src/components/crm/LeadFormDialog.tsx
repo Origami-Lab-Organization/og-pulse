@@ -12,11 +12,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useCreateLead, useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { LeadDB, SERVICE_LINE_OPTIONS } from '@/types/lead';
 import { formatPhone } from '@/lib/masks';
+import { supabase } from '@/integrations/supabase/client';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -68,13 +70,46 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
   });
 
   const clientType = form.watch('client_type');
+  const clientId = form.watch('client_id');
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
+  const { data: previousStakeholders = [] } = useQuery({
+    queryKey: ['client-stakeholders', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_stakeholders')
+        .select('name, email, phone, job_title, project_id, created_at')
+        .in(
+          'project_id',
+          (await supabase.from('projects').select('id').eq('client_id', clientId!)).data?.map((p) => p.id) || []
+        )
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      // Deduplicate by name, keeping most recent
+      const seen = new Set<string>();
+      return (data || []).filter((s) => {
+        if (seen.has(s.name)) return false;
+        seen.add(s.name);
+        return true;
+      });
+    },
+    enabled: clientType === 'existing' && !!clientId,
+  });
 
   const handleClientSelect = (clientId: string) => {
     form.setValue('client_id', clientId);
     const client = clients.find((c) => c.id === clientId);
     if (client) {
       form.setValue('company_name', client.tradingName || client.companyName);
+    }
+  };
+
+  const handleStakeholderSelect = (stakeholderName: string) => {
+    const stakeholder = previousStakeholders.find((s) => s.name === stakeholderName);
+    if (stakeholder) {
+      form.setValue('contact_name', stakeholder.name || '');
+      form.setValue('contact_email', stakeholder.email || '');
+      form.setValue('contact_phone', stakeholder.phone || '');
     }
   };
 
@@ -222,6 +257,24 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                   <FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl>
                 </FormItem>
               )} />
+            )}
+
+            {clientType === 'existing' && previousStakeholders.length > 0 && (
+              <div>
+                <Label>Contato de projeto anterior</Label>
+                <Select onValueChange={handleStakeholderSelect}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione ou preencha manualmente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {previousStakeholders.map((s) => (
+                      <SelectItem key={s.name} value={s.name}>
+                        {s.name}{s.job_title ? ` — ${s.job_title}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
 
             <div className="grid grid-cols-2 gap-3">
