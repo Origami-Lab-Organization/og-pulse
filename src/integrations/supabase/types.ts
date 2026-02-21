@@ -793,6 +793,87 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          archive_notes: string | null
+          archive_reason: string | null
+          archived: boolean
+          archived_at: string | null
+          budget_id: string | null
+          company_name: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          crm_stage: string
+          estimated_value: number
+          id: string
+          name: string
+          notes: string | null
+          source: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          archive_notes?: string | null
+          archive_reason?: string | null
+          archived?: boolean
+          archived_at?: string | null
+          budget_id?: string | null
+          company_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          crm_stage?: string
+          estimated_value?: number
+          id?: string
+          name: string
+          notes?: string | null
+          source?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          archive_notes?: string | null
+          archive_reason?: string | null
+          archived?: boolean
+          archived_at?: string | null
+          budget_id?: string | null
+          company_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          crm_stage?: string
+          estimated_value?: number
+          id?: string
+          name?: string
+          notes?: string | null
+          source?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_profiles: {
         Row: {
           apply_fgts_on_13th: boolean
