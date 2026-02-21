@@ -15,6 +15,7 @@ export interface PortfolioProject {
     company_name: string;
     trading_name: string | null;
   };
+  service_line?: string;
   manager?: {
     id: string;
     nome: string;
@@ -43,6 +44,7 @@ export const usePortfolioProjects = (searchQuery?: string) => {
           total_value,
           start_date,
           portfolio_stage,
+          service_line,
           manager_id,
           client:clients(id, company_name, trading_name),
           manager:employees!projects_manager_id_fkey(id, nome, cargo),

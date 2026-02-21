@@ -1,11 +1,12 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
-import { Building2, User, Calendar } from 'lucide-react';
+import { Building2, User, Calendar, Layers } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PortfolioProject } from '@/hooks/usePortfolioProjects';
+import { SERVICE_LINE_LABELS } from '@/types/lead';
 import { useNavigate } from 'react-router-dom';
 
 interface PortfolioCardProps {
@@ -75,6 +76,12 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
           <User className="h-3 w-3 flex-shrink-0" />
           <span className="truncate">{managerName}</span>
         </div>
+        {project.service_line && (
+          <div className="flex items-center gap-1.5">
+            <Layers className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{SERVICE_LINE_LABELS[project.service_line] || project.service_line}</span>
+          </div>
+        )}
       </div>
 
       <div className="mt-3 pt-2 border-t border-border">
