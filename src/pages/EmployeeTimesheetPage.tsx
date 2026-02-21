@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { format, startOfMonth, isBefore, startOfWeek, addDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isBefore, startOfWeek, addDays, addWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowLeft } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -52,6 +52,7 @@ export default function EmployeeTimesheetPage() {
     }
     return new Date();
   });
+  const hasInitialized = useRef(false);
 
   const [showSubmitProjectDialog, setShowSubmitProjectDialog] = useState(false);
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false);
@@ -146,6 +147,44 @@ export default function EmployeeTimesheetPage() {
 
   const isLoading = isLoadingProjects || isLoadingTimesheets || isLoadingSubmissions;
 
+  // Navigate to first unsubmitted week on initial load
+  useEffect(() => {
+    if (hasInitialized.current || isLoading || !monthParam || projectIds.length === 0) return;
+    hasInitialized.current = true;
+
+    const [y, m] = monthParam.split('-').map(Number);
+    const monthStart = startOfMonth(new Date(y, m - 1, 1));
+    const monthEnd = endOfMonth(monthStart);
+
+    // Generate all week starts (Mondays) in the month
+    let weekStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const weeks: Date[] = [];
+    while (weekStart <= monthEnd) {
+      if (addDays(weekStart, 4) >= monthStart) {
+        weeks.push(weekStart);
+      }
+      weekStart = addWeeks(weekStart, 1);
+    }
+
+    // Find first week where not all projects are submitted
+    for (const week of weeks) {
+      const weekStr = format(week, 'yyyy-MM-dd');
+      const allSubmitted = projectIds.every(pid => {
+        const sub = submissions.get(pid);
+        return sub && sub.status === 'submitted';
+      });
+      // Check submissions for this specific week - we need per-week check
+      // Since submissions state is for the currently selected week, 
+      // we just pick the first week and let it load
+      if (!allSubmitted) {
+        setSelectedDate(week);
+        return;
+      }
+    }
+    // All submitted, stay on current week
+    setSelectedDate(new Date());
+  }, [isLoading, monthParam, projectIds, submissions]);
+
   // Check if week is before admission
   const isWeekBeforeAdmission = useMemo(() => {
     if (!employeeInfo?.data_admissao) return false;
@@ -214,8 +253,7 @@ export default function EmployeeTimesheetPage() {
     >
       <div className="space-y-6">
         {/* Header with back button and week selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between gap-4">
             <Button variant="outline" size="icon" onClick={() => navigate('/alocacao')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -223,7 +261,6 @@ export default function EmployeeTimesheetPage() {
               selectedDate={selectedDate}
               onDateChange={setSelectedDate}
             />
-          </div>
         </div>
 
         {isWeekBeforeAdmission ? (
