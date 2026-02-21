@@ -15,6 +15,7 @@ import { Loader2 } from 'lucide-react';
 import { useCreateLead, useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { LeadDB, SERVICE_LINE_OPTIONS } from '@/types/lead';
+import { formatPhone } from '@/lib/masks';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -205,7 +206,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
               <FormField control={form.control} name="contact_email" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Email</FormLabel>
-                  <FormControl><Input placeholder="email@..." {...field} /></FormControl>
+                  <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} /></FormControl>
                 </FormItem>
               )} />
             </div>
@@ -214,7 +215,13 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
               <FormField control={form.control} name="contact_phone" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
-                  <FormControl><Input placeholder="(00) 00000-0000" {...field} /></FormControl>
+                  <FormControl>
+                    <Input
+                      placeholder="(00) 00000-0000"
+                      value={field.value}
+                      onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                    />
+                  </FormControl>
                 </FormItem>
               )} />
               <FormField control={form.control} name="source" render={({ field }) => (
