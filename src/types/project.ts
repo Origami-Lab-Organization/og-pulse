@@ -23,6 +23,7 @@ export interface ProjectDB {
   renewal_date: string | null;
   created_at: string;
   updated_at: string;
+  service_line: string | null;
 }
 
 export interface ProjectMemberDB {
@@ -96,6 +97,7 @@ export interface CreateProjectInput {
   contractUrl?: string;
   durationMonths?: number;
   renewalDate?: string;
+  serviceLine?: string;
 }
 
 export interface CreateProjectMemberInput {

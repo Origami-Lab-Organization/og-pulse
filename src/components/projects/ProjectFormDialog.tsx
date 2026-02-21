@@ -38,12 +38,14 @@ import {
   PAYMENT_METHOD_OPTIONS,
   ProjectStatus,
 } from '@/types/project';
+import { SERVICE_LINE_OPTIONS } from '@/types/lead';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { formatCurrency, parseCurrency } from '@/lib/masks';
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
+  serviceLine: z.string().optional(),
   description: z.string().optional(),
   clientId: z.string().min(1, 'Cliente é obrigatório'),
   managerId: z.string().min(1, 'Gerente é obrigatório'),
@@ -96,6 +98,7 @@ export function ProjectFormDialog({
     resolver: zodResolver(projectSchema),
     defaultValues: {
       name: '',
+      serviceLine: '',
       description: '',
       clientId: '',
       managerId: '',
@@ -117,6 +120,7 @@ export function ProjectFormDialog({
     if (open) {
       form.reset({
         name: project?.name || '',
+        serviceLine: project?.service_line || '',
         description: project?.description || '',
         clientId: project?.client_id || '',
         managerId: project?.manager_id || '',
@@ -144,6 +148,7 @@ export function ProjectFormDialog({
     }
     onSubmit({
       name: values.name,
+      serviceLine: values.serviceLine || undefined,
       description: values.description,
       clientId: values.clientId,
       managerId: values.managerId,
@@ -190,6 +195,29 @@ export function ProjectFormDialog({
                       <FormControl>
                         <Input placeholder="Ex: Website Corporativo" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="serviceLine"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Linha de Serviço</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a linha de serviço" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {SERVICE_LINE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

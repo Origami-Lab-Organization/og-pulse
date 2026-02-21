@@ -15,6 +15,7 @@ interface CloseBusinessInput {
   firstInvoiceDate: string;
   startDate: string;
   endDate: string;
+  serviceLine?: string;
 }
 
 export function useCloseBusinessDeal() {
@@ -27,7 +28,7 @@ export function useCloseBusinessDeal() {
     mutationFn: async (input: CloseBusinessInput) => {
       if (!tenantId) throw new Error('Tenant não encontrado');
 
-      const { budget, managerId, paymentMethod, installmentsCount, dueDay, firstInvoiceDate, startDate, endDate } = input;
+      const { budget, managerId, paymentMethod, installmentsCount, dueDay, firstInvoiceDate, startDate, endDate, serviceLine } = input;
 
       // 1. Update budget status to 'active'
       await budgetService.updateStatus(budget.id, 'active');
@@ -49,6 +50,7 @@ export function useCloseBusinessDeal() {
           firstInvoiceDate,
           status: 'planning',
           durationMonths: budget.duration_months,
+          serviceLine: serviceLine || undefined,
         },
         tenantId
       );

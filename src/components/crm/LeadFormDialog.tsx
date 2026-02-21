@@ -14,10 +14,11 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useCreateLead, useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
-import { LeadDB } from '@/types/lead';
+import { LeadDB, SERVICE_LINE_OPTIONS } from '@/types/lead';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
+  service_line: z.string().min(1, 'Linha de serviço é obrigatória'),
   client_type: z.enum(['existing', 'new']),
   client_id: z.string().optional(),
   company_name: z.string().optional(),
@@ -49,6 +50,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
     resolver: zodResolver(schema),
     defaultValues: {
       name: lead?.name || '',
+      service_line: lead?.service_line || '',
       client_type: lead?.client_id ? 'existing' : 'new',
       client_id: lead?.client_id || '',
       company_name: lead?.company_name || '',
@@ -74,6 +76,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
   const onSubmit = (values: FormValues) => {
     const payload: any = {
       name: values.name,
+      service_line: values.service_line,
       company_name: values.company_name || null,
       client_id: values.client_type === 'existing' ? values.client_id : null,
       contact_name: values.contact_name || null,
@@ -110,6 +113,25 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
               <FormItem>
                 <FormLabel>Nome da Oportunidade *</FormLabel>
                 <FormControl><Input placeholder="Ex: Projeto Website ABC" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="service_line" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Linha de Serviço *</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a linha de serviço" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {SERVICE_LINE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )} />

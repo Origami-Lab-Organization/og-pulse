@@ -10,6 +10,7 @@ import {
 import { MoreHorizontal, Eye, Pencil, Trash2 } from 'lucide-react';
 import { ProjectWithRelations } from '@/types/project';
 import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
+import { SERVICE_LINE_LABELS } from '@/types/lead';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
 
@@ -75,6 +76,18 @@ export function createProjectColumns({
           <Badge className={`whitespace-nowrap ${stageColors[stage]}`} variant="outline">
             {PORTFOLIO_STAGE_LABELS[stage]}
           </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'service_line',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Linha de Serviço" />,
+      cell: ({ row }) => {
+        const sl = row.original.service_line;
+        return sl ? (
+          <span className="text-sm">{SERVICE_LINE_LABELS[sl] || sl}</span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
         );
       },
     },
