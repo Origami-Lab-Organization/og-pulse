@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, DollarSign, Lock, Archive, FileText, Pencil } from 'lucide-react';
+import { Building2, DollarSign, Lock, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { LeadWithBudget, CRMStage } from '@/types/lead';
 import { cn } from '@/lib/utils';
@@ -13,11 +13,10 @@ interface LeadKanbanCardProps {
   lead: LeadWithBudget;
   isDragging?: boolean;
   currentStage: CRMStage;
-  onArchive: (lead: LeadWithBudget) => void;
-  onEdit: (lead: LeadWithBudget) => void;
+  onClick?: () => void;
 }
 
-export function LeadKanbanCard({ lead, isDragging, currentStage, onArchive, onEdit }: LeadKanbanCardProps) {
+export function LeadKanbanCard({ lead, isDragging, currentStage, onClick }: LeadKanbanCardProps) {
   const navigate = useNavigate();
   const isLocked = currentStage === 'closed';
   const canCreateBudget = !lead.budget_id && ['proposal', 'negotiation'].includes(currentStage);
@@ -39,12 +38,20 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onArchive, onEd
     if (lead.budget_id) navigate(`/budgets/${lead.budget_id}`);
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Only open detail if not dragging
+    if (!transform && onClick) {
+      onClick();
+    }
+  };
+
   return (
     <Card
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
+      onClick={handleClick}
       className={cn(
         'transition-all hover:shadow-md border-l-4',
         isDragging && 'opacity-50 rotate-2 shadow-lg',
@@ -55,21 +62,7 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onArchive, onEd
         {/* Header */}
         <div className="flex items-center justify-between">
           <h4 className="font-medium text-sm line-clamp-1 flex-1">{lead.name}</h4>
-          <div className="flex items-center gap-1 ml-2">
-            {isLocked && <Lock className="h-3.5 w-3.5 text-chart-2" />}
-            <Button
-              variant="ghost" size="icon" className="h-6 w-6"
-              onClick={(e) => { e.stopPropagation(); onEdit(lead); }}
-            >
-              <Pencil className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost" size="icon" className="h-6 w-6"
-              onClick={(e) => { e.stopPropagation(); onArchive(lead); }}
-            >
-              <Archive className="h-3 w-3" />
-            </Button>
-          </div>
+          {isLocked && <Lock className="h-3.5 w-3.5 text-chart-2 ml-2" />}
         </div>
 
         {/* Company */}

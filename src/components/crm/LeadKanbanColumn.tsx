@@ -15,11 +15,10 @@ interface LeadKanbanColumnProps {
   column: ColumnConfig;
   leads: LeadWithBudget[];
   activeId: string | null;
-  onArchive: (lead: LeadWithBudget) => void;
-  onEdit: (lead: LeadWithBudget) => void;
+  onCardClick: (lead: LeadWithBudget) => void;
 }
 
-export function LeadKanbanColumn({ column, leads, activeId, onArchive, onEdit }: LeadKanbanColumnProps) {
+export function LeadKanbanColumn({ column, leads, activeId, onCardClick }: LeadKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
@@ -45,8 +44,7 @@ export function LeadKanbanColumn({ column, leads, activeId, onArchive, onEdit }:
               lead={lead}
               isDragging={activeId === lead.id}
               currentStage={column.id}
-              onArchive={onArchive}
-              onEdit={onEdit}
+              onClick={() => onCardClick(lead)}
             />
           ))}
           {leads.length === 0 && (
