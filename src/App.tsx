@@ -25,6 +25,7 @@ import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
 import Portfolio from "./pages/Portfolio";
 import Timesheets from "./pages/Timesheets";
+import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import Analytics from "./pages/Analytics";
 import Reimbursements from "./pages/Reimbursements";
 import MyTimesheet from "./pages/MyTimesheet";
@@ -132,6 +133,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <Timesheets />
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/alocacao/:employeeId"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <EmployeeTimesheetPage />
                   </RoleProtectedRoute>
                 } 
               />
