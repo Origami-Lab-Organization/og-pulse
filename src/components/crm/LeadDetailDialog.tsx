@@ -305,11 +305,10 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="indicacao">Indicação</SelectItem>
-                        <SelectItem value="site">Site</SelectItem>
-                        <SelectItem value="linkedin">LinkedIn</SelectItem>
                         <SelectItem value="evento">Evento</SelectItem>
-                        <SelectItem value="cold_call">Cold Call</SelectItem>
                         <SelectItem value="parceiro">Parceiro</SelectItem>
+                        <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
+                        <SelectItem value="expansao">Expansão</SelectItem>
                         <SelectItem value="outro">Outro</SelectItem>
                       </SelectContent>
                     </Select>
