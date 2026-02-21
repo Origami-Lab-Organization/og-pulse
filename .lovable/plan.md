@@ -2,42 +2,38 @@
 
 ## Adaptar informacoes financeiras para projetos de Financiamento da Inovacao
 
-### Problema
+### Resumo
 
-Projetos do tipo "Financiamento da Inovacao" possuem um modelo financeiro diferente dos demais:
-- O pagamento e feito X dias corridos apos emissao da NF (nao tem "dia de vencimento" fixo no mes)
-- Existe um percentual de sucesso (success fee) cobrado sobre o valor do beneficio obtido, que precisa ser cadastrado no projeto
-- As informacoes financeiras exibidas na visao geral (Forma de Pagamento Mensal, parcelas, Dia de Vencimento) nao fazem sentido para esse tipo
+Projetos do tipo "Financiamento da Inovacao" possuem um modelo financeiro diferente: pagamento em dias corridos apos NF (nao tem dia fixo no mes) e cobram um percentual de sucesso (success fee). As telas de formulario e visao geral precisam ser adaptadas.
 
-### Solucao
+### Etapas
 
-**1. Nova coluna no banco de dados**
+**1. Migracao no banco de dados**
+- Adicionar coluna `success_fee_percent` (numeric, nullable, default null) na tabela `projects`
 
-Adicionar `success_fee_percent` (numeric, nullable, default null) na tabela `projects` para armazenar o percentual de sucesso cobrado.
+**2. Atualizar tipos (`src/types/project.ts`)**
+- Adicionar `success_fee_percent` em `ProjectDB`
+- Adicionar `successFeePercent` em `CreateProjectInput`
 
-**2. Formulario de criacao/edicao do projeto (`ProjectFormDialog.tsx`)**
+**3. Atualizar servico (`src/services/projectService.ts`)**
+- Mapear `success_fee_percent` no create e update
 
-Quando `serviceLine === 'financiamento_inovacao'`:
-- Exibir campo "Percentual de Sucesso (%)" na aba Financeiro
-- Trocar o label "Dia de Vencimento" por "Prazo de Pagamento (dias)" com placeholder "Ex: 30" (representando dias corridos apos NF)
-- Ocultar campos que nao se aplicam: Forma de Pagamento e Quantidade de Parcelas
+**4. Adaptar formulario (`src/components/projects/ProjectFormDialog.tsx`)**
+- Adicionar campo `successFeePercent` no schema zod (number, opcional)
+- Quando `serviceLine === 'financiamento_inovacao'`:
+  - Exibir campo "Percentual de Sucesso (%)"
+  - Trocar label "Dia de Vencimento" por "Prazo de Pagamento (dias)" com max ate 90
+  - Ocultar campos Forma de Pagamento e Quantidade de Parcelas
+- Passar `successFeePercent` no submit
+- Carregar valor existente no edit
 
-Quando nao for financiamento: comportamento atual mantido.
+**5. Adaptar Visao Geral ativa (`src/components/projects/detail/ProjectOverviewTab.tsx`)**
+- Quando `service_line === 'financiamento_inovacao'`:
+  - Trocar "Forma de Pagamento / parcelas" por "Pagamento em X dias apos NF"
+  - Trocar "Dia de Vencimento" por "Percentual de Sucesso: X%" (se existir)
 
-**3. Visao Geral do projeto (`ProjectOverviewTab.tsx`)**
-
-Quando `service_line === 'financiamento_inovacao'`:
-- Trocar "Forma de Pagamento / X parcela(s)" por "Pagamento em X dias apos NF"
-- Trocar "Dia de Vencimento" por exibicao do "Percentual de Sucesso: X%"
-- Se nao houver success fee cadastrado, nao exibir essa linha
-
-Quando nao for financiamento: exibicao atual mantida.
-
-**4. Tipos e servico**
-
-- Adicionar `successFeePercent` em `CreateProjectInput` e `ProjectDB` (`src/types/project.ts`)
-- Mapear o campo no `projectService.ts` (create e update)
-- Adicionar no schema zod do formulario
+**6. Adaptar Visao Geral planning (`src/components/projects/detail/ProjectPlanningOverviewTab.tsx`)**
+- Mesma logica condicional do item 5
 
 ### Detalhes tecnicos
 
@@ -46,11 +42,13 @@ Quando nao for financiamento: exibicao atual mantida.
 ALTER TABLE projects ADD COLUMN success_fee_percent numeric DEFAULT NULL;
 ```
 
-**Arquivos modificados:**
-- `src/types/project.ts` - adicionar `success_fee_percent` em ProjectDB e `successFeePercent` em CreateProjectInput
-- `src/services/projectService.ts` - mapear novo campo no create e update
-- `src/components/projects/ProjectFormDialog.tsx` - campo condicional de success fee, adaptar labels e visibilidade por service line
-- `src/components/projects/detail/ProjectOverviewTab.tsx` - adaptar card de informacoes financeiras por service line
+**Reaproveitamento do campo `due_day`:**
+Para financiamento, `due_day` sera reinterpretado como "prazo em dias corridos apos NF". O schema zod tera max ajustado para 90 quando for financiamento.
 
-**Logica do campo `due_day` reaproveitado:**
-Para financiamento, o campo `due_day` sera reinterpretado como "prazo em dias corridos apos NF" (ja e um integer 1-31, sera flexibilizado para aceitar ate 90 dias). Isso evita criar outra coluna, ja que o conceito e similar (prazo de pagamento).
+**Arquivos modificados:**
+- `src/types/project.ts`
+- `src/services/projectService.ts`
+- `src/components/projects/ProjectFormDialog.tsx`
+- `src/components/projects/detail/ProjectOverviewTab.tsx`
+- `src/components/projects/detail/ProjectPlanningOverviewTab.tsx`
+
