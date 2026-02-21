@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -28,6 +28,7 @@ import { useClients } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets';
+import { useLead, useLinkBudgetToLead } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
@@ -56,14 +57,19 @@ const WIZARD_STEPS = [
 export default function BudgetForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const leadId = searchParams.get('leadId');
   const isEditing = !!id;
 
   const { data: budget, isLoading: budgetLoading } = useBudget(id || null);
   const { data: clients = [] } = useClients();
   const { data: roleRates = [] } = useActiveRoleRates();
   const { data: financialSettings } = useFinancialSettings();
+  const { data: leadData } = useLead(leadId);
   const createMutation = useCreateBudget();
   const updateMutation = useUpdateBudget();
+  const linkBudgetToLead = useLinkBudgetToLead();
+  const isFromLead = !!leadId;
 
   const [currentStep, setCurrentStep] = useState(1);
   const [roles, setRoles] = useState<BudgetRoleInput[]>([]);
@@ -111,6 +117,17 @@ export default function BudgetForm() {
       form.setValue('validUntil', newValidUntil);
     }
   }, [startDate, isEditing, form]);
+
+  // Pre-fill from lead data
+  useEffect(() => {
+    if (leadData && !isEditing) {
+      form.setValue('clientType', 'lead');
+      form.setValue('title', leadData.name);
+      form.setValue('leadName', leadData.company_name || leadData.name);
+      const contactParts = [leadData.contact_email, leadData.contact_phone].filter(Boolean);
+      form.setValue('leadContact', contactParts.join(' / '));
+    }
+  }, [leadData, isEditing, form]);
 
   const calculation = useMemo(() =>
     calculateBudgetTotals(
@@ -213,7 +230,18 @@ export default function BudgetForm() {
     if (isEditing && id) {
       updateMutation.mutate({ id, input }, { onSuccess: () => navigate('/budgets') });
     } else {
-      createMutation.mutate(input, { onSuccess: () => navigate('/budgets') });
+      createMutation.mutate(input, {
+        onSuccess: (data: any) => {
+          if (isFromLead && leadId && data?.id) {
+            linkBudgetToLead.mutate(
+              { leadId, budgetId: data.id },
+              { onSuccess: () => navigate('/crm') }
+            );
+          } else {
+            navigate('/budgets');
+          }
+        },
+      });
     }
   };
 
@@ -273,7 +301,7 @@ export default function BudgetForm() {
                 <FormItem>
                   <FormLabel>Tipo de Cliente</FormLabel>
                   <FormControl>
-                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4" disabled={isFromLead}>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="client" id="client" />
                         <Label htmlFor="client">Cliente Existente</Label>
@@ -315,14 +343,14 @@ export default function BudgetForm() {
                   <FormField control={form.control} name="leadName" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Nome do Lead</FormLabel>
-                      <FormControl><Input placeholder="Nome da empresa ou pessoa" {...field} /></FormControl>
+                      <FormControl><Input placeholder="Nome da empresa ou pessoa" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="leadContact" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Contato</FormLabel>
-                      <FormControl><Input placeholder="Email ou telefone" {...field} /></FormControl>
+                      <FormControl><Input placeholder="Email ou telefone" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
                     </FormItem>
                   )} />
                 </div>
@@ -557,7 +585,7 @@ export default function BudgetForm() {
       title={isEditing ? 'Editar Orçamento' : 'Novo Orçamento'}
       description={isEditing ? `Editando: ${budget?.title}` : 'Crie uma nova proposta comercial'}
       breadcrumbs={[
-        { label: 'Orçamentos', href: '/budgets' },
+        { label: isFromLead ? 'CRM' : 'Orçamentos', href: isFromLead ? '/crm' : '/budgets' },
         { label: isEditing ? 'Editar' : 'Novo' },
       ]}
     >
@@ -641,7 +669,7 @@ export default function BudgetForm() {
                 isSubmitting={isSubmitting}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
-                onCancel={() => navigate('/budgets')}
+                onCancel={() => navigate(isFromLead ? '/crm' : '/budgets')}
                 onSubmit={() => form.handleSubmit(handleSubmit)()}
               />
             </>

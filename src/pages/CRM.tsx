@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Plus, Search } from 'lucide-react';
-import { KanbanBoard } from '@/components/crm/KanbanBoard';
-import { useBudgets } from '@/hooks/useBudgets';
+import { LeadKanbanBoard } from '@/components/crm/LeadKanbanBoard';
+import { LeadFormDialog } from '@/components/crm/LeadFormDialog';
+import { useLeads } from '@/hooks/useLeads';
 
 export default function CRM() {
-  const navigate = useNavigate();
-  const { data: budgets = [], isLoading } = useBudgets();
+  const { data: leads = [], isLoading } = useLeads();
   const [searchTerm, setSearchTerm] = useState('');
+  const [newLeadOpen, setNewLeadOpen] = useState(false);
 
   return (
     <AppLayout
@@ -18,18 +18,17 @@ export default function CRM() {
       description="Funil de vendas"
       breadcrumbs={[{ label: 'CRM' }]}
       actions={
-        <Button onClick={() => navigate('/budgets/new')}>
+        <Button onClick={() => setNewLeadOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Novo Orçamento
+          Novo Lead
         </Button>
       }
     >
-      {/* Search bar */}
       <div className="mb-4">
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar orçamentos..."
+            placeholder="Buscar leads..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -42,8 +41,10 @@ export default function CRM() {
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       ) : (
-        <KanbanBoard budgets={budgets} searchTerm={searchTerm} />
+        <LeadKanbanBoard leads={leads} searchTerm={searchTerm} />
       )}
+
+      <LeadFormDialog open={newLeadOpen} onOpenChange={setNewLeadOpen} />
     </AppLayout>
   );
 }

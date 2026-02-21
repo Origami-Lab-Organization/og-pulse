@@ -1,0 +1,106 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
+import {
+  fetchLeads,
+  fetchLeadById,
+  createLead,
+  updateLeadStage,
+  updateLead,
+  archiveLead,
+  linkBudgetToLead,
+  CreateLeadInput,
+  ArchiveLeadInput,
+} from '@/services/leadService';
+import { CRMStage } from '@/types/lead';
+
+export function useLeads() {
+  const { employee } = useAuth();
+  return useQuery({
+    queryKey: ['leads', employee?.tenant_id],
+    queryFn: () => fetchLeads(employee!.tenant_id),
+    enabled: !!employee?.tenant_id,
+  });
+}
+
+export function useLead(id: string | null) {
+  return useQuery({
+    queryKey: ['lead', id],
+    queryFn: () => fetchLeadById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCreateLead() {
+  const qc = useQueryClient();
+  const { employee } = useAuth();
+  return useMutation({
+    mutationFn: (input: Omit<CreateLeadInput, 'tenant_id' | 'created_by'>) =>
+      createLead({
+        ...input,
+        tenant_id: employee!.tenant_id,
+        created_by: employee!.id,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      toast({ title: 'Lead criado com sucesso' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao criar lead', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateLeadStage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, stage }: { id: string; stage: CRMStage }) =>
+      updateLeadStage(id, stage),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao mover lead', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...updates }: { id: string } & Partial<CreateLeadInput>) =>
+      updateLead(id, updates),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      toast({ title: 'Lead atualizado' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao atualizar lead', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useArchiveLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ArchiveLeadInput) => archiveLead(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      toast({ title: 'Lead arquivado' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao arquivar lead', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useLinkBudgetToLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leadId, budgetId }: { leadId: string; budgetId: string }) =>
+      linkBudgetToLead(leadId, budgetId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
