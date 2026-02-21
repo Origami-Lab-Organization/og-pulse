@@ -6,7 +6,7 @@ import { useUpsertTimesheet } from '@/hooks/useProjectTimesheets';
 import { cn } from '@/lib/utils';
 import { Holiday } from '@/types/holiday';
 import { isHoliday } from '@/hooks/useHolidays';
-import { parseISO } from 'date-fns';
+import { parseISO, isAfter, startOfDay } from 'date-fns';
 import {
   Tooltip,
   TooltipContent,
@@ -153,6 +153,7 @@ export function TimesheetWeekRow({
       {weekDays.map((day) => {
         const holiday = getHolidayForDate(day.date);
         const isHolidayDay = !!holiday;
+        const isFutureDay = isAfter(startOfDay(parseISO(day.date)), startOfDay(new Date()));
 
         // Holiday cell - always disabled
         if (isHolidayDay) {
@@ -166,6 +167,24 @@ export function TimesheetWeekRow({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{holiday.name}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
+
+        // Future day cell - disabled
+        if (isFutureDay) {
+          return (
+            <TooltipProvider key={day.date}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-md border cursor-not-allowed">
+                    —
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Não é possível lançar horas em dias futuros</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
