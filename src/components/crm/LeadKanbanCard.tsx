@@ -3,10 +3,29 @@ import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, DollarSign, Lock, FileText, User } from 'lucide-react';
+import { Building2, Clock, DollarSign, Lock, FileText, User } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { LeadWithBudget, CRMStage, SERVICE_LINE_LABELS } from '@/types/lead';
 import { cn } from '@/lib/utils';
+
+function formatElapsedTime(createdAt: string, endDate?: string | null): string {
+  const start = new Date(createdAt).getTime();
+  const end = endDate ? new Date(endDate).getTime() : Date.now();
+  const diffMs = Math.max(0, end - start);
+  const minutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const weeks = Math.floor(days / 7);
+  const months = Math.floor(days / 30);
+  const years = Math.floor(days / 365);
+
+  if (years >= 1) return `${years}a`;
+  if (months >= 1) return `${months}m`;
+  if (weeks >= 1) return `${weeks}sem`;
+  if (days >= 1) return `${days}d`;
+  if (hours >= 1) return `${hours}h`;
+  return `${Math.max(1, minutes)}min`;
+}
 
 interface LeadKanbanCardProps {
   lead: LeadWithBudget;
@@ -37,8 +56,14 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onClick }: Lead
     if (lead.budget_id) navigate(`/budgets/${lead.budget_id}`);
   };
 
+  const getEndDate = () => {
+    if (currentStage === 'closed') return lead.closed_at || lead.updated_at;
+    if (lead.archived) return lead.archived_at;
+    return null;
+  };
+  const elapsedTime = formatElapsedTime(lead.created_at, getEndDate());
+
   const handleClick = (e: React.MouseEvent) => {
-    // Only open detail if not dragging
     if (!transform && onClick) {
       onClick();
     }
@@ -59,9 +84,15 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onClick }: Lead
     >
       <CardContent className="p-3 space-y-2">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-1">
           <h4 className="font-medium text-sm line-clamp-1 flex-1">{lead.name}</h4>
-          {isLocked && <Lock className="h-3.5 w-3.5 text-chart-2 ml-2" />}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {elapsedTime}
+            </span>
+            {isLocked && <Lock className="h-3.5 w-3.5 text-chart-2" />}
+          </div>
         </div>
 
         {/* Company */}

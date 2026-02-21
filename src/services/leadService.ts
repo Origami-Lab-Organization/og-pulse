@@ -65,9 +65,13 @@ export async function createLead(input: CreateLeadInput) {
 }
 
 export async function updateLeadStage(id: string, stage: CRMStage) {
+  const updates: Record<string, any> = { crm_stage: stage };
+  if (stage === 'closed') {
+    updates.closed_at = new Date().toISOString();
+  }
   const { error } = await supabase
     .from('leads')
-    .update({ crm_stage: stage })
+    .update(updates)
     .eq('id', id);
 
   if (error) throw error;
