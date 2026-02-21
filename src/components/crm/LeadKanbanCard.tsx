@@ -3,7 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, DollarSign, Lock, FileText } from 'lucide-react';
+import { Building2, DollarSign, Lock, FileText, User } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { LeadWithBudget, CRMStage, SERVICE_LINE_LABELS } from '@/types/lead';
 import { cn } from '@/lib/utils';
@@ -77,6 +77,14 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onClick }: Lead
           <span className="text-xs text-muted-foreground">
             {SERVICE_LINE_LABELS[lead.service_line] || lead.service_line}
           </span>
+        )}
+
+        {/* Responsible */}
+        {lead.creator?.nome && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <User className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{lead.creator.nome}</span>
+          </div>
         )}
 
         {/* Value - only show when budget is linked */}
