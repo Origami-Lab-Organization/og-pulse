@@ -2,7 +2,6 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Building2, DollarSign, Lock, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
@@ -81,17 +80,6 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onClick }: Lead
           </div>
         )}
 
-        {/* Budget badge */}
-        {lead.budget && (
-          <Badge
-            variant="outline"
-            className="text-xs font-mono cursor-pointer hover:bg-accent"
-            onClick={handleViewBudget}
-          >
-            <FileText className="h-3 w-3 mr-1" />
-            {lead.budget.budget_number}
-          </Badge>
-        )}
 
         {/* Create budget button */}
         {canCreateBudget && (
