@@ -1,0 +1,1 @@
+ALTER TABLE public.leads ADD COLUMN client_id uuid REFERENCES public.clients(id);

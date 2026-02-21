@@ -21,7 +21,6 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onArchive, onEd
   const navigate = useNavigate();
   const isLocked = currentStage === 'closed';
   const canCreateBudget = !lead.budget_id && ['proposal', 'negotiation'].includes(currentStage);
-  const displayValue = lead.budget?.final_total ?? lead.estimated_value;
 
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: lead.id,
@@ -81,11 +80,13 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onArchive, onEd
           </div>
         )}
 
-        {/* Value */}
-        <div className="flex items-center gap-1 text-xs font-semibold text-primary">
-          <DollarSign className="h-3 w-3" />
-          {formatCurrency(displayValue)}
-        </div>
+        {/* Value - only show when budget is linked */}
+        {lead.budget?.final_total != null && (
+          <div className="flex items-center gap-1 text-xs font-semibold text-primary">
+            <DollarSign className="h-3 w-3" />
+            {formatCurrency(lead.budget.final_total)}
+          </div>
+        )}
 
         {/* Budget badge */}
         {lead.budget && (
