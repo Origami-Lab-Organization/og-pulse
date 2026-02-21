@@ -1,47 +1,30 @@
 
+## Simplificar selecao de contato no formulario de Lead
 
-## Sugerir stakeholders de projetos anteriores ao selecionar cliente existente
+### Problema atual
 
-### O que muda
+Quando um stakeholder de projeto anterior e selecionado, os campos Contato, Email e Telefone continuam visiveis e repetem a mesma informacao, gerando redundancia visual.
 
-Quando o usuario seleciona um cliente existente no formulario de criacao de lead, o sistema buscara os stakeholders cadastrados em projetos anteriores daquele cliente. Esses contatos aparecerao em um seletor logo abaixo do campo de cliente, permitindo preencher automaticamente os campos de contato (nome, email, telefone) com um clique.
+### Solucao
 
-### Como funciona
+Transformar a secao de contato em um fluxo unificado:
 
-1. **Busca de stakeholders** - Ao selecionar um cliente, uma query buscara stakeholders de todos os projetos vinculados aquele `client_id`, eliminando duplicatas por nome
-2. **Seletor de contato** - Um Select opcional aparecera com a lista de stakeholders encontrados (nome + cargo). Ao selecionar um, os campos contato, email e telefone serao preenchidos automaticamente
-3. **Preenchimento opcional** - O usuario pode ignorar a sugestao e preencher manualmente
+1. Quando o cliente existente for selecionado e houver stakeholders anteriores, exibir um unico dropdown com as opcoes:
+   - Stakeholders encontrados (ex: "Angela Capellari -- Diretora Geral")
+   - Opcao final: "+ Novo contato" para preencher manualmente
+
+2. Quando um stakeholder for selecionado no dropdown, os campos Contato/Email/Telefone ficam **ocultos** (os valores sao preenchidos via `form.setValue` internamente, mas nao aparecem duplicados na tela)
+
+3. Quando "+ Novo contato" for selecionado, os campos Contato/Email/Telefone voltam a aparecer vazios para preenchimento manual
+
+4. Quando nao houver stakeholders anteriores ou o cliente for novo, os campos de contato aparecem normalmente (comportamento atual)
 
 ### Detalhes tecnicos
 
-**Novo hook ou query inline no `LeadFormDialog.tsx`:**
+**Arquivo: `src/components/crm/LeadFormDialog.tsx`**
 
-Quando `client_id` mudar e `clientType === 'existing'`, executar:
-
-```sql
-SELECT DISTINCT ON (name) ps.name, ps.email, ps.phone, ps.job_title
-FROM project_stakeholders ps
-JOIN projects p ON p.id = ps.project_id
-WHERE p.client_id = '<selected_client_id>'
-ORDER BY name, ps.created_at DESC
-```
-
-Isso retorna os stakeholders mais recentes de cada nome unico.
-
-**Alteracoes no `LeadFormDialog.tsx`:**
-
-- Adicionar `useQuery` com a busca de stakeholders, habilitado quando `clientType === 'existing'` e `clientId` estiver preenchido
-- Adicionar um Select condicional entre o campo de cliente e os campos de contato, com label "Contato de projeto anterior" e placeholder "Selecione ou preencha manualmente"
-- Ao selecionar um stakeholder, chamar `form.setValue` para `contact_name`, `contact_email` e `contact_phone`
-
-**Fluxo visual:**
-
-```text
-[Cliente *]          -> Seleciona "Empresa ABC"
-[Contato anterior]   -> Select com: "João Silva — Decisor", "Maria — Sponsor"
-                     -> Seleciona "João Silva"
-[Contato] João Silva    [Email] joao@abc.com
-[Telefone] (11)...      [Origem] ...
-```
-
-Nenhuma migracao de banco necessaria - os dados ja existem nas tabelas `project_stakeholders` e `projects`.
+- Adicionar estado local `contactMode`: `'manual'` | `'stakeholder'` (default `'manual'`)
+- Ao selecionar um stakeholder do dropdown, setar `contactMode = 'stakeholder'` e preencher os valores via `form.setValue`
+- Ao selecionar "+ Novo contato", setar `contactMode = 'manual'`, limpar os campos de contato e exibir os inputs
+- Condicionar a exibicao dos campos Contato/Email/Telefone: so aparecem quando `contactMode === 'manual'` ou quando nao ha stakeholders disponiveis
+- Resetar `contactMode` para `'manual'` quando o `clientId` mudar (para nao manter estado stale)
