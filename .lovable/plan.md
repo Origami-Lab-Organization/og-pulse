@@ -1,89 +1,45 @@
 
-# Simplificacao da Pagina de Alocacao
 
-## Resumo
-
-Remover os toggles de modo de visualizacao (Alocacao / Por Projeto / Por Funcionario) e o toggle Mes/Ano Todo. A pagina principal mostra apenas a visao de alocacao por funcionario, navegavel mes a mes. Ao clicar na linha de um funcionario, abre uma nova pagina com a visao semanal de timesheet daquele funcionario (identica ao que existia na aba "Por Funcionario"), permitindo ao gerente editar horas.
+# Ajustes na Tela do Funcionario
 
 ## Alteracoes
 
-### 1. Pagina principal `Timesheets.tsx` - Simplificar
+### 1. Seletor de semanas alinhado a direita
 
-- **Remover** todo o estado e logica de `viewMode` (project/employee/allocation)
-- **Remover** o estado `allocationViewMode` (month/year)
-- **Remover** os toggles/tabs de modo de visualizacao
-- **Remover** toda a logica de week selector, submissions, submit dialogs, admin edit dialog (isso nao faz mais parte da pagina principal)
-- Manter apenas: `MonthSelector` + campo de busca + `AllocationOverview`
-- A pagina fica minimalista: navega por mes e mostra a tabela de alocacao
+Mover o `TimesheetWeekSelector` para o lado direito do header, mantendo o botao de voltar a esquerda. Ajustar o layout flex com `justify-between`.
 
-### 2. `AllocationOverview.tsx` - Simplificar
+### 2. Abrir na primeira semana nao enviada
 
-- **Remover** a prop `viewMode` (nao existe mais visualizacao de "ano todo")
-- Sempre mostrar apenas o mes selecionado (via prop `selectedMonth`)
-- Ao clicar numa linha, navegar para `/alocacao/:employeeId?month=yyyy-MM` ao inves de abrir o dialog atual
+Ao abrir a pagina, ao inves de iniciar sempre na primeira segunda-feira do mes (ou semana atual), buscar as submissoes do mes e identificar a primeira semana que ainda nao foi enviada para esse funcionario. Se todas as semanas estiverem enviadas, abrir na semana atual.
 
-### 3. Nova pagina `EmployeeTimesheetPage.tsx`
+## Arquivo a modificar
 
-- Rota: `/alocacao/:employeeId`
-- Recebe o `employeeId` da URL e opcionalmente `?month=yyyy-MM`
-- Busca os projetos do funcionario (via `groupByEmployee` + dados existentes)
-- Exibe:
-  - Header com nome do funcionario, cargo, botao de voltar
-  - `TimesheetWeekSelector` para navegar entre semanas
-  - A mesma visualizacao de `TimesheetByEmployee` mas para um unico funcionario
-  - Status de submissao e botoes de envio (logica que existia na pagina principal)
-- Respeita a data de admissao do funcionario (semanas anteriores ficam desabilitadas ou ocultas)
-
-### 4. Rota em `App.tsx`
-
-- Adicionar rota `/alocacao/:employeeId` apontando para `EmployeeTimesheetPage`
-
-### 5. Remover `EmployeeAllocationDialog.tsx`
-
-- Substituido pela nova pagina; o dialog nao sera mais usado
-
-## Arquivos
-
-| Arquivo | Acao |
-|---------|------|
-| `src/pages/Timesheets.tsx` | Simplificar: remover tabs, viewMode, week logic, dialogs |
-| `src/components/timesheets/AllocationOverview.tsx` | Remover prop `viewMode`, navegar para pagina ao clicar |
-| `src/pages/EmployeeTimesheetPage.tsx` | **Criar**: pagina de timesheet do funcionario |
-| `src/App.tsx` | Adicionar rota `/alocacao/:employeeId` |
-| `src/components/timesheets/EmployeeAllocationDialog.tsx` | Remover (substituido pela pagina) |
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/EmployeeTimesheetPage.tsx` | (1) Reposicionar week selector a direita. (2) Adicionar logica para identificar primeira semana pendente e usala como `selectedDate` inicial |
 
 ## Detalhes tecnicos
 
-### Timesheets.tsx simplificado
+### Layout do header (linhas 217-227)
+
+Separar o botao de voltar (esquerda) do seletor de semanas (direita):
 
 ```text
-Estado:
-- selectedMonth (Date)
-- searchQuery (string)
-
-Componentes renderizados:
-- MonthSelector (navegar entre meses)
-- Input de busca (filtrar por funcionario)
-- AllocationOverview (recebe selectedMonth e searchQuery)
+<div className="flex items-center justify-between gap-4">
+  <Button variant="outline" size="icon" onClick={...}>
+    <ArrowLeft />
+  </Button>
+  <TimesheetWeekSelector ... />
+</div>
 ```
 
-### AllocationOverview - navegacao ao clicar
+### Logica da semana inicial
 
-```text
-import { useNavigate } from 'react-router-dom';
+- Buscar `project_timesheet_submissions` do mes para os projetos do funcionario
+- Gerar todas as semanas do mes (cada segunda-feira)
+- Encontrar a primeira semana onde nem todos os projetos possuem `status = 'submitted'`
+- Se encontrar, usar essa semana como `selectedDate` inicial
+- Caso contrario, usar a semana atual
 
-// No onClick da TableRow:
-onClick={() => navigate(`/alocacao/${emp.employeeId}?month=${selectedMonth}`)}
-```
+Como os dados de projetos e submissoes dependem de queries async, o `selectedDate` sera atualizado via `useEffect` apos os dados carregarem, apenas na primeira renderizacao (com um flag `hasInitialized`).
 
-### EmployeeTimesheetPage
-
-```text
-- useParams() para pegar employeeId
-- useSearchParams() para pegar month
-- Busca projetos do funcionario via query similar a useActiveProjectsWithMembers filtrada por employee
-- Usa TimesheetWeekSelector para navegar semanas
-- Renderiza TimesheetByEmployee para um unico funcionario
-- Inclui logica de submissions e botao de envio
-- Valida data de admissao para desabilitar semanas anteriores
-```
