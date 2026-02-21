@@ -14,12 +14,14 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useCreateLead, useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
+import { useEmployees } from '@/hooks/useEmployees';
 import { LeadDB, SERVICE_LINE_OPTIONS } from '@/types/lead';
 import { formatPhone } from '@/lib/masks';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   service_line: z.string().min(1, 'Linha de serviço é obrigatória'),
+  responsible_id: z.string().min(1, 'Responsável é obrigatório'),
   client_type: z.enum(['existing', 'new']),
   client_id: z.string().optional(),
   company_name: z.string().optional(),
@@ -45,6 +47,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
   const createMutation = useCreateLead();
   const updateMutation = useUpdateLead();
   const { data: clients = [] } = useClients();
+  const { data: employees = [] } = useEmployees();
   const isEditing = !!lead;
 
   const form = useForm<FormValues>({
@@ -52,6 +55,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
     defaultValues: {
       name: lead?.name || '',
       service_line: lead?.service_line || '',
+      responsible_id: lead?.responsible_id || '',
       client_type: lead?.client_id ? 'existing' : 'new',
       client_id: lead?.client_id || '',
       company_name: lead?.company_name || '',
@@ -78,6 +82,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
     const payload: any = {
       name: values.name,
       service_line: values.service_line,
+      responsible_id: values.responsible_id || null,
       company_name: values.company_name || null,
       client_id: values.client_type === 'existing' ? values.client_id : null,
       contact_name: values.contact_name || null,
@@ -131,6 +136,29 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                     {SERVICE_LINE_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="responsible_id" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Responsável *</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o responsável" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {employees
+                      .filter((e) => e.status === 'ativo')
+                      .map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.nome} — {emp.cargo}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />

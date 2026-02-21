@@ -80,10 +80,10 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onClick }: Lead
         )}
 
         {/* Responsible */}
-        {lead.creator?.nome && (
+        {(lead.responsible?.nome || lead.creator?.nome) && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <User className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{lead.creator.nome}</span>
+            <span className="truncate">{lead.responsible?.nome || lead.creator?.nome}</span>
           </div>
         )}
 

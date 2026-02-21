@@ -812,6 +812,7 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          responsible_id: string | null
           service_line: string | null
           source: string | null
           tenant_id: string
@@ -835,6 +836,7 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          responsible_id?: string | null
           service_line?: string | null
           source?: string | null
           tenant_id: string
@@ -858,6 +860,7 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          responsible_id?: string | null
           service_line?: string | null
           source?: string | null
           tenant_id?: string
@@ -876,6 +879,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_responsible_id_fkey"
+            columns: ["responsible_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
