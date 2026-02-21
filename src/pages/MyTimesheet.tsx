@@ -51,15 +51,10 @@ const MyTimesheet = () => {
     return isHoliday(date, holidays);
   };
 
-  const weekSelectorAction = (
-    <TimesheetWeekSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
-  );
-
   return (
     <AppLayout
       title="Minha Timesheet"
       description="Lance suas horas nos projetos em que você está alocado"
-      actions={weekSelectorAction}
     >
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -73,21 +68,24 @@ const MyTimesheet = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          <ToggleGroup
-            type="single"
-            value={activeSection}
-            onValueChange={(val) => { if (val) setActiveSection(val); }}
-            className="justify-start"
-          >
-            <ToggleGroupItem value="allocation" className="gap-1.5">
-              <BarChart3 className="h-4 w-4" />
-              Minha Alocação
-            </ToggleGroupItem>
-            <ToggleGroupItem value="timesheet" className="gap-1.5">
-              <Clock className="h-4 w-4" />
-              Lançar Horas
-            </ToggleGroupItem>
-          </ToggleGroup>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <ToggleGroup
+              type="single"
+              value={activeSection}
+              onValueChange={(val) => { if (val) setActiveSection(val); }}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="allocation" className="gap-1.5">
+                <BarChart3 className="h-4 w-4" />
+                Minha Alocação
+              </ToggleGroupItem>
+              <ToggleGroupItem value="timesheet" className="gap-1.5">
+                <Clock className="h-4 w-4" />
+                Lançar Horas
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <TimesheetWeekSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
+          </div>
 
           {activeSection === 'allocation' && (
             <MyTimesheetAllocation employeeId={employee?.id} monthKey={monthKey} />
