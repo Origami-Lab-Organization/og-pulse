@@ -1,29 +1,62 @@
 
 
-# Remover botao de voltar e reposicionar seletor de semanas
+# Simplificar celula de alocacao com tooltip
 
 ## Resumo
 
-Remover o botao de seta (ArrowLeft) da pagina do funcionario, ja que os breadcrumbs do AppLayout ("Alocacao > Nome do Funcionario") ja fornecem navegacao de volta. Mover o seletor de semanas de volta para a esquerda.
+Remover os textos "Real." e "Plan." com horas que aparecem acima da barra de progresso na tabela de alocacao. Manter apenas a barra de progresso e os percentuais abaixo dela. Ao passar o mouse sobre a celula, exibir um tooltip com as informacoes detalhadas: horas realizadas, horas planejadas e capacidade total.
 
 ## Alteracoes
 
-### `src/pages/EmployeeTimesheetPage.tsx`
+### `src/components/timesheets/AllocationOverview.tsx`
 
-- Remover o botao `<Button variant="outline" size="icon">` com `<ArrowLeft>`
-- Remover a import de `ArrowLeft` do lucide-react
-- Simplificar o header para mostrar apenas o `TimesheetWeekSelector` alinhado a esquerda
-- Os breadcrumbs ja configurados no `AppLayout` (`Alocacao > Nome`) continuam como mecanismo de navegacao de volta
+**Remover** as duas divs com "Real." e "Plan." que ficam acima da barra:
+```text
+// Remover estas linhas:
+<div className="flex justify-between text-xs">
+  <span className="text-muted-foreground">Real.</span>
+  <span className="font-medium">{actual}h</span>
+</div>
+<div className="flex justify-between text-xs">
+  <span className="text-muted-foreground">Plan.</span>
+  <span className="font-medium">{planned}h / {emp.jornadaMensal}h</span>
+</div>
+```
 
-### Layout resultante
+**Adicionar** um `Tooltip` envolvendo o conteudo da celula com as informacoes detalhadas:
 
 ```text
-Breadcrumb: Alocacao > Enzo Rodrigues Pieroni
-Titulo: Enzo Rodrigues Pieroni
-Subtitulo: Engenheiro de Software - Jornada: 132h/mes
+<Tooltip>
+  <TooltipTrigger asChild>
+    <div className="space-y-1.5">
+      (barra de progresso)
+      (percentuais)
+    </div>
+  </TooltipTrigger>
+  <TooltipContent>
+    <div className="text-xs space-y-1">
+      <div>Realizado: {actual}h</div>
+      <div>Planejado: {planned}h</div>
+      <div>Capacidade: {emp.jornadaMensal}h</div>
+    </div>
+  </TooltipContent>
+</Tooltip>
+```
 
-[ < ]  16/02 - 20/02/2026  [ > ]  Hoje
+**Envolver** a `Table` com `TooltipProvider` para que os tooltips funcionem.
 
-(conteudo da semana)
+### Resultado visual
+
+Celula do mes mostrara apenas:
+```text
+[===barra de progresso===]
+95% aloc. · 28% real.
+```
+
+Ao passar o mouse:
+```text
+Realizado: 35h
+Planejado: 126h
+Capacidade: 132h
 ```
 
