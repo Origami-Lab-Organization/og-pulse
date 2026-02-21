@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -250,6 +251,7 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
           </p>
         ) : (
           <div className="overflow-x-auto">
+            <TooltipProvider>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -298,29 +300,32 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
 
                         return (
                           <TableCell key={key} className="text-center">
-                            <div className="space-y-1.5">
-                              <div className="flex justify-between text-xs">
-                                <span className="text-muted-foreground">Real.</span>
-                                <span className="font-medium">{actual}h</span>
-                              </div>
-                              <div className="flex justify-between text-xs">
-                                <span className="text-muted-foreground">Plan.</span>
-                                <span className="font-medium">{planned}h / {emp.jornadaMensal}h</span>
-                              </div>
-                              <div className="h-2 w-full rounded-full bg-muted flex overflow-hidden">
-                                <div
-                                  className="bg-green-700 h-full transition-all"
-                                  style={{ width: `${Math.min(capacity > 0 ? (actual / capacity) * 100 : 0, 100)}%` }}
-                                />
-                                <div
-                                  className="bg-green-300 h-full transition-all"
-                                  style={{ width: `${Math.min(capacity > 0 ? (Math.max(planned - actual, 0) / capacity) * 100 : 0, 100)}%` }}
-                                />
-                              </div>
-                              <span className="text-[10px] text-muted-foreground">
-                                {allocPercent.toFixed(0)}% aloc. {planned > 0 ? `· ${realizedPercent.toFixed(0)}% real.` : ''}
-                              </span>
-                            </div>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="space-y-1.5">
+                                  <div className="h-2 w-full rounded-full bg-muted flex overflow-hidden">
+                                    <div
+                                      className="bg-green-700 h-full transition-all"
+                                      style={{ width: `${Math.min(capacity > 0 ? (actual / capacity) * 100 : 0, 100)}%` }}
+                                    />
+                                    <div
+                                      className="bg-green-300 h-full transition-all"
+                                      style={{ width: `${Math.min(capacity > 0 ? (Math.max(planned - actual, 0) / capacity) * 100 : 0, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {allocPercent.toFixed(0)}% aloc. {planned > 0 ? `· ${realizedPercent.toFixed(0)}% real.` : ''}
+                                  </span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="text-xs space-y-1">
+                                  <div>Realizado: {actual}h</div>
+                                  <div>Planejado: {planned}h</div>
+                                  <div>Capacidade: {emp.jornadaMensal}h</div>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
                           </TableCell>
                         );
                       })}
@@ -337,6 +342,7 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
                 })}
               </TableBody>
             </Table>
+            </TooltipProvider>
           </div>
         )}
       </CardContent>
