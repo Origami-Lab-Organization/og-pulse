@@ -1,107 +1,89 @@
 
-
-# Reestruturacao da Pagina de Alocacao
+# Simplificacao da Pagina de Alocacao
 
 ## Resumo
 
-Transformar a "Visao de Alocacao" na visao principal da pagina, com navegacao por mes (nao por semana), clique na linha do funcionario para ver detalhes de alocacao por projeto, e considerar data de admissao.
+Remover os toggles de modo de visualizacao (Alocacao / Por Projeto / Por Funcionario) e o toggle Mes/Ano Todo. A pagina principal mostra apenas a visao de alocacao por funcionario, navegavel mes a mes. Ao clicar na linha de um funcionario, abre uma nova pagina com a visao semanal de timesheet daquele funcionario (identica ao que existia na aba "Por Funcionario"), permitindo ao gerente editar horas.
 
 ## Alteracoes
 
-### 1. Pagina principal (`src/pages/Timesheets.tsx`)
+### 1. Pagina principal `Timesheets.tsx` - Simplificar
 
-- Alterar o `viewMode` padrao de `'project'` para `'allocation'`
-- Quando em modo `allocation`, mostrar um seletor de mes (anterior/proximo) no lugar do seletor de semana
-- Passar o mes selecionado para o `AllocationOverview`
-- Remover o toggle Mes Atual/Ano Todo de dentro do AllocationOverview (ja que a navegacao sera feita na pagina pai)
+- **Remover** todo o estado e logica de `viewMode` (project/employee/allocation)
+- **Remover** o estado `allocationViewMode` (month/year)
+- **Remover** os toggles/tabs de modo de visualizacao
+- **Remover** toda a logica de week selector, submissions, submit dialogs, admin edit dialog (isso nao faz mais parte da pagina principal)
+- Manter apenas: `MonthSelector` + campo de busca + `AllocationOverview`
+- A pagina fica minimalista: navega por mes e mostra a tabela de alocacao
 
-### 2. Navegacao por mes no AllocationOverview
+### 2. `AllocationOverview.tsx` - Simplificar
 
-- Criar um componente `MonthSelector` simples (botoes anterior/proximo + label do mes, ex: "Fevereiro 2026") que sera exibido na area de controles da pagina
-- Substituir o toggle "Mes Atual / Ano Todo" por esse seletor de mes na pagina pai
-- O AllocationOverview recebe um `selectedMonth` (formato `yyyy-MM`) como prop e filtra os dados para esse mes
-- Manter a opcao "Ano Todo" como um botao/tab ao lado do seletor de mes
+- **Remover** a prop `viewMode` (nao existe mais visualizacao de "ano todo")
+- Sempre mostrar apenas o mes selecionado (via prop `selectedMonth`)
+- Ao clicar numa linha, navegar para `/alocacao/:employeeId?month=yyyy-MM` ao inves de abrir o dialog atual
 
-### 3. Clique na linha do funcionario (`AllocationOverview`)
+### 3. Nova pagina `EmployeeTimesheetPage.tsx`
 
-- Tornar cada `TableRow` clicavel (cursor pointer + hover)
-- Ao clicar, abrir um **Dialog** (modal) mostrando a alocacao do funcionario nos projetos:
-  - Nome do funcionario, cargo, jornada
-  - Lista de projetos onde ele esta alocado
-  - Para cada projeto: horas planejadas no mes e horas realizadas
-  - Permitir que o gerente veja e entenda onde o funcionario esta alocado
+- Rota: `/alocacao/:employeeId`
+- Recebe o `employeeId` da URL e opcionalmente `?month=yyyy-MM`
+- Busca os projetos do funcionario (via `groupByEmployee` + dados existentes)
+- Exibe:
+  - Header com nome do funcionario, cargo, botao de voltar
+  - `TimesheetWeekSelector` para navegar entre semanas
+  - A mesma visualizacao de `TimesheetByEmployee` mas para um unico funcionario
+  - Status de submissao e botoes de envio (logica que existia na pagina principal)
+- Respeita a data de admissao do funcionario (semanas anteriores ficam desabilitadas ou ocultas)
 
-### 4. Novo componente: `EmployeeAllocationDialog`
+### 4. Rota em `App.tsx`
 
-- Arquivo: `src/components/timesheets/EmployeeAllocationDialog.tsx`
-- Recebe: `employeeId`, `employeeName`, `selectedMonth`, `open`, `onOpenChange`
-- Busca `project_members` do funcionario com os respectivos `project_member_months` e `project_timesheets` do mes selecionado
-- Exibe tabela com colunas: Projeto, Horas Planejadas, Horas Realizadas, Barra de progresso
-- O gerente pode navegar para o projeto ou para a visao de timesheet do projeto
+- Adicionar rota `/alocacao/:employeeId` apontando para `EmployeeTimesheetPage`
 
-### 5. Data de admissao
+### 5. Remover `EmployeeAllocationDialog.tsx`
 
-- No `AllocationOverview`, buscar tambem `data_admissao` dos funcionarios (adicionar ao select de employees)
-- No `EmployeeAllocationDialog`, usar `data_admissao` para:
-  - Desabilitar meses anteriores a admissao (mostrar como "N/A" ou cinza)
-  - Indicar visualmente que o funcionario nao estava na empresa naquele periodo
+- Substituido pela nova pagina; o dialog nao sera mais usado
 
-### 6. Novo componente: `MonthSelector`
+## Arquivos
 
-- Arquivo: `src/components/timesheets/MonthSelector.tsx`
-- Similar ao `TimesheetWeekSelector` mas navega por meses
-- Botoes anterior/proximo, label com nome do mes/ano
-- Botao "Hoje" para voltar ao mes atual
-- Nao permite navegar alem do mes atual
-
-## Arquivos a criar
-
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/components/timesheets/MonthSelector.tsx` | Seletor de navegacao por mes |
-| `src/components/timesheets/EmployeeAllocationDialog.tsx` | Dialog de detalhes de alocacao do funcionario por projeto |
-
-## Arquivos a modificar
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/Timesheets.tsx` | viewMode padrao `allocation`, adicionar MonthSelector, passar selectedMonth ao AllocationOverview |
-| `src/components/timesheets/AllocationOverview.tsx` | Receber selectedMonth como prop, remover toggle interno, buscar data_admissao, tornar linhas clicaveis, abrir EmployeeAllocationDialog |
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/Timesheets.tsx` | Simplificar: remover tabs, viewMode, week logic, dialogs |
+| `src/components/timesheets/AllocationOverview.tsx` | Remover prop `viewMode`, navegar para pagina ao clicar |
+| `src/pages/EmployeeTimesheetPage.tsx` | **Criar**: pagina de timesheet do funcionario |
+| `src/App.tsx` | Adicionar rota `/alocacao/:employeeId` |
+| `src/components/timesheets/EmployeeAllocationDialog.tsx` | Remover (substituido pela pagina) |
 
 ## Detalhes tecnicos
 
-### MonthSelector
+### Timesheets.tsx simplificado
 
 ```text
-Props: selectedMonth: Date, onMonthChange: (date: Date) => void
-- Botao "<" para mes anterior
-- Label: format(selectedMonth, "MMMM yyyy", { locale: ptBR })
-- Botao ">" para proximo mes (desabilitado se >= mes atual)
-- Botao "Hoje"
+Estado:
+- selectedMonth (Date)
+- searchQuery (string)
+
+Componentes renderizados:
+- MonthSelector (navegar entre meses)
+- Input de busca (filtrar por funcionario)
+- AllocationOverview (recebe selectedMonth e searchQuery)
 ```
 
-### AllocationOverview - novas props
+### AllocationOverview - navegacao ao clicar
 
 ```text
-interface AllocationOverviewProps {
-  searchQuery?: string;
-  selectedMonth: string; // "yyyy-MM"
-  viewMode: 'month' | 'year';
-}
+import { useNavigate } from 'react-router-dom';
+
+// No onClick da TableRow:
+onClick={() => navigate(`/alocacao/${emp.employeeId}?month=${selectedMonth}`)}
 ```
 
-### EmployeeAllocationDialog - query
+### EmployeeTimesheetPage
 
 ```text
-- Busca project_members onde employee_id = X
-- Para cada project_member, busca project_member_months do mes correspondente
-- Para cada project_member, busca project_timesheets do mes correspondente
-- Agrupa por projeto e exibe
+- useParams() para pegar employeeId
+- useSearchParams() para pegar month
+- Busca projetos do funcionario via query similar a useActiveProjectsWithMembers filtrada por employee
+- Usa TimesheetWeekSelector para navegar semanas
+- Renderiza TimesheetByEmployee para um unico funcionario
+- Inclui logica de submissions e botao de envio
+- Valida data de admissao para desabilitar semanas anteriores
 ```
-
-### Consideracao de data_admissao
-
-- Adicionar `data_admissao` ao select de employees na query do AllocationOverview
-- Se o mes selecionado for anterior ao mes de admissao do funcionario, exibir a celula como "N/A" em cinza
-- No EmployeeAllocationDialog, indicar se o funcionario ainda nao havia sido admitido
-
