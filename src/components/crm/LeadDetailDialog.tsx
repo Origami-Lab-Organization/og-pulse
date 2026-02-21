@@ -276,7 +276,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                 <>
                   <Separator />
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-0.5">
                         <p className="text-xs text-muted-foreground">Custo Total</p>
                         <p className="font-medium">{formatCurrency(lead.budget.subtotal)}</p>
@@ -284,6 +284,14 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                       <div className="space-y-0.5">
                         <p className="text-xs text-muted-foreground">Preço de Venda</p>
                         <p className="font-medium">{formatCurrency(lead.budget.total_with_fees)}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">Margem</p>
+                        <p className="font-medium">
+                          {lead.budget.total_with_fees > 0
+                            ? `${(((lead.budget.total_with_fees - lead.budget.subtotal) / lead.budget.total_with_fees) * 100).toFixed(1)}%`
+                            : '0%'}
+                        </p>
                       </div>
                     </div>
 
