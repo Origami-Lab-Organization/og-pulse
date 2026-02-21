@@ -19,6 +19,7 @@ import { useEmployees } from '@/hooks/useEmployees';
 import { LeadDB, SERVICE_LINE_OPTIONS } from '@/types/lead';
 import { formatPhone } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect } from 'react';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -51,6 +52,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
   const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
   const isEditing = !!lead;
+  const [contactMode, setContactMode] = useState<'manual' | 'stakeholder'>('manual');
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -72,6 +74,14 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
   const clientType = form.watch('client_type');
   const clientId = form.watch('client_id');
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
+  // Reset contactMode when clientId changes
+  useEffect(() => {
+    setContactMode('manual');
+    form.setValue('contact_name', '');
+    form.setValue('contact_email', '');
+    form.setValue('contact_phone', '');
+  }, [clientId]);
 
   const { data: previousStakeholders = [] } = useQuery({
     queryKey: ['client-stakeholders', clientId],
@@ -104,9 +114,17 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
     }
   };
 
-  const handleStakeholderSelect = (stakeholderName: string) => {
-    const stakeholder = previousStakeholders.find((s) => s.name === stakeholderName);
+  const handleStakeholderSelect = (value: string) => {
+    if (value === '__new__') {
+      setContactMode('manual');
+      form.setValue('contact_name', '');
+      form.setValue('contact_email', '');
+      form.setValue('contact_phone', '');
+      return;
+    }
+    const stakeholder = previousStakeholders.find((s) => s.name === value);
     if (stakeholder) {
+      setContactMode('stakeholder');
       form.setValue('contact_name', stakeholder.name || '');
       form.setValue('contact_email', stakeholder.email || '');
       form.setValue('contact_phone', stakeholder.phone || '');
@@ -261,10 +279,10 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
 
             {clientType === 'existing' && previousStakeholders.length > 0 && (
               <div>
-                <Label>Contato de projeto anterior</Label>
+                <Label>Contato</Label>
                 <Select onValueChange={handleStakeholderSelect}>
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Selecione ou preencha manualmente" />
+                    <SelectValue placeholder="Selecione um contato" />
                   </SelectTrigger>
                   <SelectContent>
                     {previousStakeholders.map((s) => (
@@ -272,60 +290,64 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                         {s.name}{s.job_title ? ` — ${s.job_title}` : ''}
                       </SelectItem>
                     ))}
+                    <SelectItem value="__new__">+ Novo contato</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="contact_name" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Contato</FormLabel>
-                  <FormControl><Input placeholder="Nome" {...field} /></FormControl>
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="contact_email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} /></FormControl>
-                </FormItem>
-              )} />
-            </div>
+            {(contactMode === 'manual' || !(clientType === 'existing' && previousStakeholders.length > 0)) && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField control={form.control} name="contact_name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contato</FormLabel>
+                      <FormControl><Input placeholder="Nome" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="contact_email" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="contact_phone" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Telefone</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="(00) 00000-0000"
-                      value={field.value}
-                      onChange={(e) => field.onChange(formatPhone(e.target.value))}
-                    />
-                  </FormControl>
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="source" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Origem</FormLabel>
-                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                <FormField control={form.control} name="contact_phone" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a origem" />
-                      </SelectTrigger>
+                      <Input
+                        placeholder="(00) 00000-0000"
+                        value={field.value}
+                        onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="indicacao">Indicação</SelectItem>
-                      <SelectItem value="evento">Evento</SelectItem>
-                      <SelectItem value="parceiro">Parceiro</SelectItem>
-                      <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
-                      <SelectItem value="expansao">Expansão</SelectItem>
-                      <SelectItem value="outro">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )} />
-            </div>
+                  </FormItem>
+                )} />
+              </>
+            )}
+
+            <FormField control={form.control} name="source" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Origem</FormLabel>
+                <Select value={field.value || ''} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a origem" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="indicacao">Indicação</SelectItem>
+                    <SelectItem value="evento">Evento</SelectItem>
+                    <SelectItem value="parceiro">Parceiro</SelectItem>
+                    <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
+                    <SelectItem value="expansao">Expansão</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )} />
 
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>
