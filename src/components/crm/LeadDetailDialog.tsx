@@ -97,6 +97,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
     }
   }, [open, lead]);
 
+  const { isDirty } = form.formState;
   const clientType = form.watch('client_type');
 
   const handleClientSelect = (clientId: string) => {
@@ -108,7 +109,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen && lead && form.formState.isDirty) {
+    if (!newOpen && lead && isDirty) {
       const values = form.getValues();
       const payload: any = {
         id: lead.id,
