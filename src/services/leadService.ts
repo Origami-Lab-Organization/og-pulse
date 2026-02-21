@@ -6,7 +6,7 @@ export async function fetchLeads(tenantId: string): Promise<LeadWithBudget[]> {
     .from('leads')
     .select(`
       *,
-      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status)
+      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date)
     `)
     .eq('tenant_id', tenantId)
     .eq('archived', false)
@@ -21,7 +21,7 @@ export async function fetchLeadById(id: string): Promise<LeadWithBudget | null> 
     .from('leads')
     .select(`
       *,
-      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status)
+      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date)
     `)
     .eq('id', id)
     .maybeSingle();
