@@ -23,12 +23,15 @@ import { LeadWithBudget, SERVICE_LINE_OPTIONS } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
+import { useEmployees } from '@/hooks/useEmployees';
 import { formatCurrency } from '@/lib/formatters';
+import { formatPhone } from '@/lib/masks';
 import { useState } from 'react';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   service_line: z.string().optional(),
+  responsible_id: z.string().optional(),
   client_type: z.enum(['existing', 'new']),
   client_id: z.string().optional(),
   company_name: z.string().optional(),
@@ -55,6 +58,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
   const [archiveOpen, setArchiveOpen] = useState(false);
   const updateLead = useUpdateLead();
   const { data: clients = [] } = useClients();
+  const { data: employees = [] } = useEmployees();
   const formRef = useRef<FormValues | null>(null);
 
   const form = useForm<FormValues>({
@@ -62,6 +66,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
     defaultValues: {
       name: '',
       service_line: '',
+      responsible_id: '',
       client_type: 'new',
       client_id: '',
       company_name: '',
@@ -79,6 +84,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
       form.reset({
         name: lead.name || '',
         service_line: lead.service_line || '',
+        responsible_id: lead.responsible_id || '',
         client_type: lead.client_id ? 'existing' : 'new',
         client_id: lead.client_id || '',
         company_name: lead.company_name || '',
@@ -108,6 +114,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
         id: lead.id,
         name: values.name,
         service_line: values.service_line || null,
+        responsible_id: values.responsible_id || null,
         company_name: values.company_name || null,
         client_id: values.client_type === 'existing' ? values.client_id : null,
         contact_name: values.contact_name || null,
@@ -176,6 +183,24 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                     <SelectContent>
                       {SERVICE_LINE_OPTIONS.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="responsible_id" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Responsável</FormLabel>
+                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o responsável" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {employees.filter(e => e.status === 'ativo').map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -260,7 +285,13 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                 <FormField control={form.control} name="contact_phone" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
-                    <FormControl><Input placeholder="(00) 00000-0000" {...field} /></FormControl>
+                    <FormControl>
+                      <Input 
+                        placeholder="(00) 00000-0000" 
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                      />
+                    </FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="source" render={({ field }) => (
