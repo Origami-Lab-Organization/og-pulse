@@ -1,26 +1,17 @@
 
-# Adicionar Scroll ao Dialog de Lead
+# Simplificar Secao Financeira do Dialog de Lead
 
-## Problema
+## Resumo
 
-O `DialogContent` do lead nao tem altura maxima nem overflow, entao quando o conteudo e grande (formulario + secao financeira), ele ultrapassa os limites da tela.
+Tres ajustes no `LeadDetailDialog.tsx`:
 
-## Solucao
+1. **Remover a Badge do orcamento** (linhas 280-287) e o **nome/titulo ao lado** (linha 288) -- ja existe o botao "Abrir Orcamento" que cumpre essa funcao
+2. **Manter** apenas os valores financeiros (Custo Total, Preco de Venda, Desconto, Valor Final) e o botao "Abrir Orcamento"
 
-Adicionar `max-h-[85vh] overflow-y-auto` ao `DialogContent` no `LeadDetailDialog.tsx` para limitar a altura a 85% da viewport e habilitar scroll vertical quando necessario.
+## Detalhes tecnicos
 
-## Alteracao
+### Arquivo: `src/components/crm/LeadDetailDialog.tsx`
 
-**Arquivo**: `src/components/crm/LeadDetailDialog.tsx` (linha 132)
-
-Alterar:
-```
-<DialogContent className="max-w-lg [&>button:last-child]:hidden">
-```
-
-Para:
-```
-<DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto [&>button:last-child]:hidden">
-```
-
-Nenhum outro arquivo precisa ser alterado.
+- Remover o bloco das linhas 279-289 (o `div` com a Badge clicavel e o span do titulo)
+- Remover imports nao mais usados: `Badge`, `FileText`
+- O restante da secao financeira (grid de valores, card de valor final, botao abrir orcamento) permanece inalterado
