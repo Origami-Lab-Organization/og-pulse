@@ -46,5 +46,11 @@ export interface LeadWithBudget extends LeadDB {
     budget_number: string;
     final_total: number;
     status: string;
+    title: string;
+    subtotal: number;
+    total_with_fees: number;
+    discount_value: number;
+    duration_months: number;
+    start_date: string;
   } | null;
 }
