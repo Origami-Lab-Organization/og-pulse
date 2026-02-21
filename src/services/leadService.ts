@@ -42,6 +42,7 @@ export interface CreateLeadInput {
   source?: string;
   notes?: string;
   created_by?: string;
+  service_line?: string;
 }
 
 export async function createLead(input: CreateLeadInput) {

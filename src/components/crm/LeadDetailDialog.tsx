@@ -19,7 +19,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MoreVertical, Archive, DollarSign, ExternalLink } from 'lucide-react';
-import { LeadWithBudget } from '@/types/lead';
+import { LeadWithBudget, SERVICE_LINE_OPTIONS } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
@@ -28,6 +28,7 @@ import { useState } from 'react';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
+  service_line: z.string().optional(),
   client_type: z.enum(['existing', 'new']),
   client_id: z.string().optional(),
   company_name: z.string().optional(),
@@ -60,6 +61,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
     resolver: zodResolver(schema),
     defaultValues: {
       name: '',
+      service_line: '',
       client_type: 'new',
       client_id: '',
       company_name: '',
@@ -76,6 +78,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
     if (open && lead) {
       form.reset({
         name: lead.name || '',
+        service_line: lead.service_line || '',
         client_type: lead.client_id ? 'existing' : 'new',
         client_id: lead.client_id || '',
         company_name: lead.company_name || '',
@@ -104,6 +107,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
       const payload: any = {
         id: lead.id,
         name: values.name,
+        service_line: values.service_line || null,
         company_name: values.company_name || null,
         client_id: values.client_type === 'existing' ? values.client_id : null,
         contact_name: values.contact_name || null,
@@ -157,6 +161,24 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                   <FormLabel>Nome da Oportunidade *</FormLabel>
                   <FormControl><Input placeholder="Ex: Projeto Website ABC" {...field} /></FormControl>
                   <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="service_line" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Linha de Serviço</FormLabel>
+                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {SERVICE_LINE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </FormItem>
               )} />
 

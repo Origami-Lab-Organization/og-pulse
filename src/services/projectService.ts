@@ -171,6 +171,7 @@ export const projectService = {
         contract_url: input.contractUrl || null,
         duration_months: input.durationMonths || 1,
         renewal_date: input.renewalDate || null,
+        service_line: input.serviceLine || null,
       })
       .select()
       .single();
@@ -230,6 +231,7 @@ export const projectService = {
     if (updates.contractUrl !== undefined) updateData.contract_url = updates.contractUrl;
     if (updates.renewalDate !== undefined) updateData.renewal_date = updates.renewalDate;
     if (updates.durationMonths !== undefined) updateData.duration_months = updates.durationMonths;
+    if (updates.serviceLine !== undefined) updateData.service_line = updates.serviceLine;
 
     const { data, error } = await supabase
       .from('projects')

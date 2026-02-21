@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building2, DollarSign, Lock, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
-import { LeadWithBudget, CRMStage } from '@/types/lead';
+import { LeadWithBudget, CRMStage, SERVICE_LINE_LABELS } from '@/types/lead';
 import { cn } from '@/lib/utils';
 
 interface LeadKanbanCardProps {
@@ -70,6 +70,13 @@ export function LeadKanbanCard({ lead, isDragging, currentStage, onClick }: Lead
             <Building2 className="h-3 w-3 flex-shrink-0" />
             <span className="truncate">{lead.company_name}</span>
           </div>
+        )}
+
+        {/* Service Line */}
+        {lead.service_line && (
+          <span className="text-xs text-muted-foreground">
+            {SERVICE_LINE_LABELS[lead.service_line] || lead.service_line}
+          </span>
         )}
 
         {/* Value - only show when budget is linked */}

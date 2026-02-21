@@ -812,6 +812,7 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          service_line: string | null
           source: string | null
           tenant_id: string
           updated_at: string
@@ -834,6 +835,7 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          service_line?: string | null
           source?: string | null
           tenant_id: string
           updated_at?: string
@@ -856,6 +858,7 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          service_line?: string | null
           source?: string | null
           tenant_id?: string
           updated_at?: string
@@ -1629,6 +1632,7 @@ export type Database = {
           payment_method: string
           portfolio_stage: string | null
           renewal_date: string | null
+          service_line: string | null
           start_date: string
           status: Database["public"]["Enums"]["project_status"]
           tenant_id: string
@@ -1653,6 +1657,7 @@ export type Database = {
           payment_method?: string
           portfolio_stage?: string | null
           renewal_date?: string | null
+          service_line?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["project_status"]
           tenant_id: string
@@ -1677,6 +1682,7 @@ export type Database = {
           payment_method?: string
           portfolio_stage?: string | null
           renewal_date?: string | null
+          service_line?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["project_status"]
           tenant_id?: string

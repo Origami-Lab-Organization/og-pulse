@@ -1,5 +1,17 @@
 export type CRMStage = 'screening' | 'qualification' | 'proposal' | 'negotiation' | 'closed';
 
+export const SERVICE_LINE_OPTIONS = [
+  { value: 'financiamento_inovacao', label: 'Financiamento da Inovação' },
+  { value: 'consultoria_estrategica', label: 'Consultoria Estratégica' },
+  { value: 'product_studio', label: 'Product Studio' },
+  { value: 'educacao_corporativa', label: 'Educação Corporativa' },
+  { value: 'ventures', label: 'Ventures' },
+] as const;
+
+export const SERVICE_LINE_LABELS: Record<string, string> = Object.fromEntries(
+  SERVICE_LINE_OPTIONS.map((o) => [o.value, o.label])
+);
+
 export const CRM_LEAD_COLUMNS = [
   { id: 'screening' as CRMStage, label: 'Triagem', color: 'bg-muted text-muted-foreground' },
   { id: 'qualification' as CRMStage, label: 'Qualificação', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
@@ -38,6 +50,7 @@ export interface LeadDB {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  service_line: string | null;
 }
 
 export interface LeadWithBudget extends LeadDB {

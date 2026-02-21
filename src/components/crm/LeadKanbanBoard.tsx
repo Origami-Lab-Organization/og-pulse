@@ -105,7 +105,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     if (!leadToClose || !budgetForClose) return;
 
     closeBusinessDeal.mutate(
-      { budget: budgetForClose, ...formData },
+      { budget: budgetForClose, ...formData, serviceLine: leadToClose.service_line || undefined },
       {
         onSuccess: () => {
           updateStage.mutate({ id: leadToClose.id, stage: 'closed' });
