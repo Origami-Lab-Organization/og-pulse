@@ -1,76 +1,38 @@
 
 
-# Ajustes no Formulario de Lead: Remover Valor Estimado + Radio Button Cliente
+# Criar Leads para Orcamentos Existentes da Origami Lab
 
-## Resumo das mudancas
+## Resumo
 
-Duas alteracoes no fluxo de criacao/edicao de leads:
+Inserir 5 registros de leads na tabela `leads`, cada um vinculado ao respectivo orcamento e cliente existente, posicionados na coluna correta do Kanban CRM.
 
-1. **Remover campo "Valor Estimado"** do formulario de lead -- esse valor so existe a partir da criacao do orcamento
-2. **Adicionar radio button "Cliente existente / Nova empresa"** -- se for cliente existente, exibir um select/combobox com a lista de clientes cadastrados; se for nova empresa, manter o campo texto livre para digitar o nome
+## Dados a inserir
 
-## Alteracoes no banco de dados
+| Lead (name) | Empresa (company_name) | client_id | budget_id | Coluna CRM |
+|---|---|---|---|---|
+| Plataforma Bry - Discovery | Bry | 150a61d9... | 1a1b4ebb... (ORC-2026-0001) | closed |
+| Gestao de Portfolio - Fase 2 | Prumo Engenharia | b488935c... | 13d2d715... (ORC-2026-0002) | negotiation |
+| Prumo Obras - Fase 2 | Prumo Engenharia | b488935c... | 443646a9... (ORC-2026-0003) | closed |
+| Marketing-Leg Growth | Syngular Id | 0700da9b... | 3d6e525c... (ORC-2026-0004) | closed |
+| Plataforma Bty | Bry | 150a61d9... | 86e250e9... (ORC-2026-0005) | closed |
 
-Adicionar coluna `client_id` (uuid, nullable, FK -> clients.id) na tabela `leads` para vincular a um cliente existente quando selecionado.
+## Implementacao
 
-## Alteracoes no formulario (LeadFormDialog)
+Criar uma edge function temporaria `seed-leads` que usa a service role key para inserir os 5 leads diretamente no banco, contornando RLS. Cada lead tera:
 
-**Campos do formulario revisado:**
-- Nome da Oportunidade (obrigatorio)
-- Radio button: "Cliente existente" | "Nova empresa"
-  - Se "Cliente existente": Select/combobox com clientes do tenant (usando `useClients`). Ao selecionar, preenche automaticamente `company_name` e `client_id`
-  - Se "Nova empresa": Campo de texto livre para digitar o nome da empresa
-- Contato (nome, email, telefone)
-- Origem
-- Observacoes
+- `tenant_id` da Origami Lab
+- `client_id` vinculado ao cliente existente
+- `budget_id` vinculado ao orcamento existente
+- `crm_stage` baseado no status do orcamento (`active` -> `closed`, `negotiation` -> `negotiation`)
+- `estimated_value` = 0 (valor vem do orcamento vinculado)
+- `created_by` = mesmo criador do orcamento original
 
-**Campos removidos:**
-- Valor Estimado (sera exibido apenas quando houver orcamento vinculado)
+Apos execucao e confirmacao dos dados, a edge function sera removida do projeto.
 
-## Alteracoes no card (LeadKanbanCard)
+## Arquivos
 
-- Remover exibicao do `estimated_value` quando nao houver orcamento vinculado
-- Exibir valor somente quando houver `budget.final_total`
-- Manter exibicao de `company_name` normalmente
+- **Criar**: `supabase/functions/seed-leads/index.ts` (temporario)
+- **Remover apos uso**: `supabase/functions/seed-leads/index.ts`
 
-## Alteracoes nos tipos e servicos
-
-- `src/types/lead.ts`: adicionar `client_id` ao tipo `LeadDB`
-- `src/services/leadService.ts`: incluir `client_id` no `CreateLeadInput`
-- `src/hooks/useLeads.ts`: sem mudancas estruturais
-
-## Detalhes tecnicos
-
-### Migracao SQL
-
-```sql
-ALTER TABLE public.leads ADD COLUMN client_id uuid REFERENCES public.clients(id);
-```
-
-### LeadFormDialog - novo schema
-
-```
-schema = z.object({
-  name: z.string().min(1),
-  client_type: z.enum(['existing', 'new']),
-  client_id: z.string().optional(),
-  company_name: z.string().optional(),
-  contact_name, contact_email, contact_phone, source, notes
-})
-```
-
-Logica condicional:
-- Se `client_type === 'existing'`, `client_id` e obrigatorio via `refine`
-- Se `client_type === 'new'`, `company_name` pode ser preenchido livremente
-- Ao selecionar um cliente existente, `company_name` e preenchido automaticamente com o `trading_name` ou `company_name` do cliente
-
-### LeadKanbanCard - exibicao de valor
-
-Atualmente exibe `lead.budget?.final_total ?? lead.estimated_value`. Sera alterado para exibir valor **somente** quando houver orcamento vinculado (`lead.budget?.final_total`). Sem orcamento, nao exibe valor.
-
-### Compatibilidade
-
-- O campo `estimated_value` permanece na tabela (default 0) para nao quebrar dados existentes
-- A coluna `client_id` permite vincular o lead a um cliente ja cadastrado, facilitando futura rastreabilidade
-- Leads existentes sem `client_id` continuam funcionando normalmente
+Nenhuma alteracao em codigo frontend necessaria -- os cards aparecerao automaticamente no Kanban CRM apos a insercao.
 
