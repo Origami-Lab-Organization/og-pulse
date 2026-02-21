@@ -882,6 +882,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "leads_responsible_id_fkey"
             columns: ["responsible_id"]
             isOneToOne: false
