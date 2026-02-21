@@ -34,6 +34,7 @@ export interface CreateLeadInput {
   tenant_id: string;
   name: string;
   company_name?: string;
+  client_id?: string;
   contact_name?: string;
   contact_email?: string;
   contact_phone?: string;

@@ -800,6 +800,7 @@ export type Database = {
           archived: boolean
           archived_at: string | null
           budget_id: string | null
+          client_id: string | null
           company_name: string | null
           contact_email: string | null
           contact_name: string | null
@@ -821,6 +822,7 @@ export type Database = {
           archived?: boolean
           archived_at?: string | null
           budget_id?: string | null
+          client_id?: string | null
           company_name?: string | null
           contact_email?: string | null
           contact_name?: string | null
@@ -842,6 +844,7 @@ export type Database = {
           archived?: boolean
           archived_at?: string | null
           budget_id?: string | null
+          client_id?: string | null
           company_name?: string | null
           contact_email?: string | null
           contact_name?: string | null
@@ -863,6 +866,13 @@ export type Database = {
             columns: ["budget_id"]
             isOneToOne: false
             referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {

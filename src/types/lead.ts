@@ -22,6 +22,7 @@ export interface LeadDB {
   tenant_id: string;
   name: string;
   company_name: string | null;
+  client_id: string | null;
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
