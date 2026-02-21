@@ -1,77 +1,45 @@
 
-# Refatorar Interacao dos Cards de Lead no CRM
+# Enriquecer o Dialog de Detalhes do Lead com Dados Financeiros do Orcamento
 
 ## Resumo
 
-Substituir os botoes de editar/arquivar visíveis no card por um comportamento onde:
-1. **Clicar no card** abre um dialog de detalhes do lead (com todas as informacoes e possibilidade de edicao)
-2. **Menu de 3 pontinhos** no topo do dialog contem a opcao de arquivar (e outras acoes futuras)
-3. Os botoes de Pencil e Archive sao removidos do card
+Atualizar o `LeadDetailDialog` para exibir informacoes financeiras detalhadas do orcamento vinculado (custo total, preco de venda, valor final) e adicionar um botao para abrir a pagina completa do orcamento. Tambem expandir os campos retornados na query de leads para incluir os dados financeiros necessarios.
 
 ## Alteracoes
 
-### 1. Criar novo componente: `LeadDetailDialog.tsx`
+### 1. Expandir query de leads (`leadService.ts`)
 
-Dialog modal que exibe os detalhes completos do lead:
-- **Header**: Nome do lead + menu de 3 pontinhos (DropdownMenu) com opcao "Arquivar"
-- **Corpo**: Informacoes do lead (empresa, contato, email, telefone, origem, notas)
-- **Orcamento**: Se houver orcamento vinculado, exibir badge clicavel com numero e valor
-- **Footer**: Botao "Editar" que abre o `LeadFormDialog` existente, e botao "Fechar"
+Adicionar mais campos do budget na query select:
+- `subtotal` (custo total)
+- `total_with_fees` (preco de venda)
+- `discount_value` (desconto)
+- `duration_months`
+- `start_date`
+- `title`
 
-O menu de 3 pontinhos (MoreVertical icon) tera:
-- "Arquivar Lead" -- abre o `ArchiveLeadDialog` existente
+### 2. Atualizar tipo `LeadWithBudget` (`types/lead.ts`)
 
-### 2. Simplificar `LeadKanbanCard.tsx`
+Adicionar os novos campos ao tipo `budget` dentro de `LeadWithBudget`:
+- `title`, `subtotal`, `total_with_fees`, `discount_value`, `duration_months`, `start_date`
 
-- Remover botoes de Pencil e Archive do card
-- Remover props `onArchive` e `onEdit`
-- Adicionar prop `onClick` para abrir o dialog de detalhes
-- Manter apenas: nome, empresa, valor (se orcamento vinculado), badge do orcamento, icone de lock
+### 3. Redesenhar `LeadDetailDialog.tsx`
 
-### 3. Atualizar `LeadKanbanColumn.tsx`
+Manter a estrutura atual (header com 3 pontinhos, footer com Editar/Fechar) mas enriquecer o corpo com:
 
-- Remover props `onArchive` e `onEdit`
-- Adicionar prop `onCardClick` para propagar o clique
+**Secao de informacoes do lead** (igual ao atual):
+- Empresa, Contato, Email, Telefone, Origem, Notas
 
-### 4. Atualizar `LeadKanbanBoard.tsx`
+**Secao financeira do orcamento** (nova):
+- Badge do orcamento clicavel com numero
+- Linha: Custo Total | Preco de Venda
+- Linha: Desconto (se houver)
+- Destaque: Valor Final em card com fundo primary/10
+- Botao "Abrir Orcamento" que navega para `/budgets/{id}`
 
-- Adicionar estado para o `LeadDetailDialog` (open + lead selecionado)
-- Passar `onCardClick` para as colunas
-- Renderizar o `LeadDetailDialog`
-- As acoes de editar e arquivar agora sao disparadas a partir do dialog de detalhes
-
-## Detalhes tecnicos
-
-### LeadDetailDialog - estrutura
-
-```text
-+----------------------------------------------+
-| Nome do Lead                    [...]  [X]   |
-+----------------------------------------------+
-| Empresa: Bry Tecnologia S.A                  |
-| Contato: Joao Silva                          |
-| Email: joao@bry.com                          |
-| Telefone: (48) 99999-0000                    |
-| Origem: Indicacao                            |
-| Observacoes: ...                             |
-|                                              |
-| Orcamento: [ORC-2026-0001]  R$ 40.800,00    |
-| Etapa: Negocio Fechado                       |
-|                                              |
-+----------------------------------------------+
-|                    [Editar]    [Fechar]       |
-+----------------------------------------------+
-```
-
-O menu `[...]` (MoreVertical) contem:
-- Arquivar Lead (abre ArchiveLeadDialog)
-
-### Componentes reutilizados
-- `ArchiveLeadDialog` -- sem alteracoes
-- `LeadFormDialog` -- sem alteracoes (aberto pelo botao Editar do dialog de detalhes)
+**Secao de etapa** (igual ao atual):
+- Badge da etapa com a cor correspondente da coluna CRM
 
 ### Arquivos modificados
-- **Criar**: `src/components/crm/LeadDetailDialog.tsx`
-- **Editar**: `src/components/crm/LeadKanbanCard.tsx` (remover botoes, adicionar onClick)
-- **Editar**: `src/components/crm/LeadKanbanColumn.tsx` (trocar props)
-- **Editar**: `src/components/crm/LeadKanbanBoard.tsx` (adicionar estado do dialog de detalhes)
+- **Editar**: `src/services/leadService.ts` (expandir select do budget)
+- **Editar**: `src/types/lead.ts` (adicionar campos ao tipo budget)
+- **Editar**: `src/components/crm/LeadDetailDialog.tsx` (adicionar secao financeira e botao abrir orcamento)
