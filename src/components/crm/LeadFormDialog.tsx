@@ -173,7 +173,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
               )} />
             )}
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <FormField control={form.control} name="contact_name" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Contato</FormLabel>
@@ -186,20 +186,37 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                   <FormControl><Input placeholder="email@..." {...field} /></FormControl>
                 </FormItem>
               )} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <FormField control={form.control} name="contact_phone" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
                   <FormControl><Input placeholder="(00) 00000-0000" {...field} /></FormControl>
                 </FormItem>
               )} />
+              <FormField control={form.control} name="source" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Origem</FormLabel>
+                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a origem" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="indicacao">Indicação</SelectItem>
+                      <SelectItem value="site">Site</SelectItem>
+                      <SelectItem value="linkedin">LinkedIn</SelectItem>
+                      <SelectItem value="evento">Evento</SelectItem>
+                      <SelectItem value="cold_call">Cold Call</SelectItem>
+                      <SelectItem value="parceiro">Parceiro</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )} />
             </div>
-
-            <FormField control={form.control} name="source" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Origem</FormLabel>
-                <FormControl><Input placeholder="Indicação, site..." {...field} /></FormControl>
-              </FormItem>
-            )} />
 
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>
