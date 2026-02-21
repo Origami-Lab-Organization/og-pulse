@@ -1,45 +1,90 @@
 
-# Enriquecer o Dialog de Detalhes do Lead com Dados Financeiros do Orcamento
+# Redesenhar o Dialog de Lead como Formulario Editavel Inline com Auto-Save
 
 ## Resumo
 
-Atualizar o `LeadDetailDialog` para exibir informacoes financeiras detalhadas do orcamento vinculado (custo total, preco de venda, valor final) e adicionar um botao para abrir a pagina completa do orcamento. Tambem expandir os campos retornados na query de leads para incluir os dados financeiros necessarios.
+Substituir o `LeadDetailDialog` atual (que exibe dados somente leitura + botao Editar que abre outro dialog) por um unico modal que:
 
-## Alteracoes
+1. Exibe os **mesmos campos editaveis** do formulario de criacao de lead (nome, tipo empresa, cliente/empresa, contato, email, telefone, origem, observacoes)
+2. **Salva automaticamente** ao fechar o modal (clicar fora ou fechar)
+3. **Nao tem botao X** de fechar no canto superior direito
+4. Mantem o **menu de 3 pontinhos** com opcao de arquivar
+5. Adiciona uma **secao financeira** do orcamento vinculado (valor total, desconto, margem, botao abrir orcamento)
 
-### 1. Expandir query de leads (`leadService.ts`)
+## Detalhes tecnicos
 
-Adicionar mais campos do budget na query select:
-- `subtotal` (custo total)
-- `total_with_fees` (preco de venda)
-- `discount_value` (desconto)
-- `duration_months`
-- `start_date`
-- `title`
+### Arquivo: `src/components/crm/LeadDetailDialog.tsx` (reescrever)
 
-### 2. Atualizar tipo `LeadWithBudget` (`types/lead.ts`)
+O componente sera transformado em um formulario completo usando `react-hook-form` + `zod` (mesmo schema do `LeadFormDialog`), porem:
 
-Adicionar os novos campos ao tipo `budget` dentro de `LeadWithBudget`:
-- `title`, `subtotal`, `total_with_fees`, `discount_value`, `duration_months`, `start_date`
+- **Sem botao X**: O `DialogContent` tera classe customizada para esconder o botao close nativo do Radix (`[&>button:last-child]:hidden` ou similar)
+- **Auto-save no close**: Ao fechar o dialog (`onOpenChange(false)`), se o form estiver dirty (campos alterados), chama `updateLead.mutate()` automaticamente
+- **Header**: Titulo "Editar Lead" + menu MoreVertical com "Arquivar Lead"
+- **Corpo do formulario**: Identico ao `LeadFormDialog` -- Nome da Oportunidade, Radio de tipo empresa, Select de cliente ou Input de empresa, grid 2 colunas com contato/email e telefone/origem, textarea de observacoes
+- **Secao financeira** (apos Separator, somente se houver budget vinculado):
+  - Badge do orcamento clicavel
+  - Grid com Valor Total e Desconto
+  - Card destacado com Valor Final e duracao
+  - Botao "Abrir Orcamento"
+- **Footer**: Nenhum botao de Salvar/Fechar/Cancelar -- o save e automatico
 
-### 3. Redesenhar `LeadDetailDialog.tsx`
+### Arquivo: `src/components/crm/LeadFormDialog.tsx` (sem alteracao)
 
-Manter a estrutura atual (header com 3 pontinhos, footer com Editar/Fechar) mas enriquecer o corpo com:
+Continua existindo para criacao de novos leads. Nao sera alterado.
 
-**Secao de informacoes do lead** (igual ao atual):
-- Empresa, Contato, Email, Telefone, Origem, Notas
+### Arquivo: `src/components/crm/LeadKanbanBoard.tsx` (sem alteracao)
 
-**Secao financeira do orcamento** (nova):
-- Badge do orcamento clicavel com numero
-- Linha: Custo Total | Preco de Venda
-- Linha: Desconto (se houver)
-- Destaque: Valor Final em card com fundo primary/10
-- Botao "Abrir Orcamento" que navega para `/budgets/{id}`
+Ja passa o `selectedLead` para o `LeadDetailDialog`, nao precisa mudar.
 
-**Secao de etapa** (igual ao atual):
-- Badge da etapa com a cor correspondente da coluna CRM
+### Comportamento de auto-save
+
+```text
+Usuario clica no card
+  -> Abre dialog com formulario preenchido
+  -> Usuario edita campos
+  -> Clica fora do modal (ou ESC)
+  -> onOpenChange(false) dispara
+  -> Se form.formState.isDirty: chama updateLead.mutate()
+  -> Dialog fecha
+```
+
+### Estrutura visual do dialog
+
+```text
++----------------------------------------------+
+| Editar Lead                          [...]   |
++----------------------------------------------+
+| Nome da Oportunidade *                       |
+| [_________________________________]          |
+|                                              |
+| Tipo de Empresa:  (o) Existente  (o) Nova    |
+| Cliente: [Dropdown_____________]             |
+|                                              |
+| Contato          | Email                     |
+| [______________] | [______________]          |
+|                                              |
+| Telefone         | Origem                    |
+| [______________] | [Dropdown_____]           |
+|                                              |
+| Observacoes                                  |
+| [__________________________________]         |
+|                                              |
+| ------------------------------------------- |
+| Orcamento                                    |
+| [ORC-2026-0001]         Plataforma Bry       |
+|                                              |
+| Valor Total        Desconto                  |
+| R$ 40.800,00       R$ 0,00                   |
+|                                              |
+| +------------------------------------------+|
+| | Valor Final              3 meses         ||
+| | R$ 40.800,00                             ||
+| +------------------------------------------+|
+|                                              |
+| [       Abrir Orcamento       ]              |
++----------------------------------------------+
+```
 
 ### Arquivos modificados
-- **Editar**: `src/services/leadService.ts` (expandir select do budget)
-- **Editar**: `src/types/lead.ts` (adicionar campos ao tipo budget)
-- **Editar**: `src/components/crm/LeadDetailDialog.tsx` (adicionar secao financeira e botao abrir orcamento)
+- **Reescrever**: `src/components/crm/LeadDetailDialog.tsx`
+- Nenhum outro arquivo precisa ser alterado
