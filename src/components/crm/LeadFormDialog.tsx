@@ -159,7 +159,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
           <DialogDescription>
@@ -167,7 +167,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 overflow-y-auto flex-1 pr-1">
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem>
                 <FormLabel>Nome da Oportunidade *</FormLabel>
