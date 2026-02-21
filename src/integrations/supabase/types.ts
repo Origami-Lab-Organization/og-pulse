@@ -801,6 +801,7 @@ export type Database = {
           archived_at: string | null
           budget_id: string | null
           client_id: string | null
+          closed_at: string | null
           company_name: string | null
           contact_email: string | null
           contact_name: string | null
@@ -825,6 +826,7 @@ export type Database = {
           archived_at?: string | null
           budget_id?: string | null
           client_id?: string | null
+          closed_at?: string | null
           company_name?: string | null
           contact_email?: string | null
           contact_name?: string | null
@@ -849,6 +851,7 @@ export type Database = {
           archived_at?: string | null
           budget_id?: string | null
           client_id?: string | null
+          closed_at?: string | null
           company_name?: string | null
           contact_email?: string | null
           contact_name?: string | null

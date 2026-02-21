@@ -52,6 +52,7 @@ export interface LeadDB {
   updated_at: string;
   service_line: string | null;
   responsible_id: string | null;
+  closed_at: string | null;
 }
 
 export interface LeadWithBudget extends LeadDB {
