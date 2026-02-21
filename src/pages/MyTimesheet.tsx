@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Loader2, CheckCircle2 } from 'lucide-react';
+import { Building2, Loader2, CheckCircle2, BarChart3, Clock } from 'lucide-react';
 import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAllocation';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
@@ -11,6 +11,7 @@ import { useTimesheetsByDateRange, getWeekStart, getWeekDays } from '@/hooks/use
 import { useProjectWeekSubmissions } from '@/hooks/useTimesheetSubmissions';
 import { useHolidays } from '@/hooks/useHolidays';
 import { Badge } from '@/components/ui/badge';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { format, addDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -26,6 +27,7 @@ import {
 const MyTimesheet = () => {
   const { employee } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [activeSection, setActiveSection] = useState<string>('timesheet');
 
   const weekStart = getWeekStart(selectedDate);
   const weekEnd = addDays(weekStart, 4);
@@ -71,8 +73,27 @@ const MyTimesheet = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          <MyTimesheetAllocation employeeId={employee?.id} monthKey={monthKey} />
-          {projects.map((project) => {
+          <ToggleGroup
+            type="single"
+            value={activeSection}
+            onValueChange={(val) => { if (val) setActiveSection(val); }}
+            className="justify-start"
+          >
+            <ToggleGroupItem value="allocation" className="gap-1.5">
+              <BarChart3 className="h-4 w-4" />
+              Minha Alocação
+            </ToggleGroupItem>
+            <ToggleGroupItem value="timesheet" className="gap-1.5">
+              <Clock className="h-4 w-4" />
+              Lançar Horas
+            </ToggleGroupItem>
+          </ToggleGroup>
+
+          {activeSection === 'allocation' && (
+            <MyTimesheetAllocation employeeId={employee?.id} monthKey={monthKey} />
+          )}
+
+          {activeSection === 'timesheet' && projects.map((project) => {
             const submission = submissions.get(project.projectId);
             const isLocked = submission?.status === 'submitted';
 
@@ -170,6 +191,7 @@ const MyTimesheet = () => {
             );
           })}
         </div>
+
       )}
     </AppLayout>
   );
