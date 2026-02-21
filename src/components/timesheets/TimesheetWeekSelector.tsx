@@ -33,6 +33,10 @@ export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetW
 
   return (
     <div className="flex items-center gap-2">
+      <Button variant="ghost" size="sm" onClick={handleCurrentWeek}>
+        Hoje
+      </Button>
+      
       <Button variant="outline" size="icon" onClick={handlePreviousWeek}>
         <ChevronLeft className="h-4 w-4" />
       </Button>
@@ -45,10 +49,6 @@ export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetW
       
       <Button variant="outline" size="icon" onClick={handleNextWeek} disabled={!canGoForward}>
         <ChevronRight className="h-4 w-4" />
-      </Button>
-      
-      <Button variant="ghost" size="sm" onClick={handleCurrentWeek}>
-        Hoje
       </Button>
     </div>
   );
