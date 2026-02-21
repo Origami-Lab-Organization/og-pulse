@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { format, addMonths, subMonths, startOfMonth, isSameMonth } from 'date-fns';
+import { format, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface MonthSelectorProps {
@@ -10,7 +10,6 @@ interface MonthSelectorProps {
 
 export function MonthSelector({ selectedMonth, onMonthChange }: MonthSelectorProps) {
   const now = new Date();
-  const canGoForward = !isSameMonth(selectedMonth, now) && startOfMonth(addMonths(selectedMonth, 1)) <= startOfMonth(now);
 
   return (
     <div className="flex items-center gap-2">
@@ -24,7 +23,7 @@ export function MonthSelector({ selectedMonth, onMonthChange }: MonthSelectorPro
         </span>
       </div>
 
-      <Button variant="outline" size="icon" onClick={() => onMonthChange(addMonths(selectedMonth, 1))} disabled={!canGoForward}>
+      <Button variant="outline" size="icon" onClick={() => onMonthChange(addMonths(selectedMonth, 1))}>
         <ChevronRight className="h-4 w-4" />
       </Button>
 
