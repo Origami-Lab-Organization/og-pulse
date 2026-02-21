@@ -7,15 +7,19 @@ import { BudgetWithDetails } from '@/types/budget';
 import { supabase } from '@/integrations/supabase/client';
 
 interface CloseBusinessInput {
-  budget: BudgetWithDetails;
+  budget: BudgetWithDetails | null;
   managerId: string;
   paymentMethod: string;
   installmentsCount: number;
   dueDay: number;
-  firstInvoiceDate: string;
+  firstInvoiceDate?: string;
   startDate: string;
   endDate: string;
   serviceLine?: string;
+  // No-budget mode fields
+  projectName?: string;
+  clientId?: string;
+  totalValue?: number;
 }
 
 export function useCloseBusinessDeal() {
@@ -30,10 +34,46 @@ export function useCloseBusinessDeal() {
 
       const { budget, managerId, paymentMethod, installmentsCount, dueDay, firstInvoiceDate, startDate, endDate, serviceLine } = input;
 
+      // --- No-budget mode (e.g. Financiamento da Inovação) ---
+      if (!budget) {
+        const projectName = input.projectName;
+        const clientId = input.clientId;
+        const totalValue = input.totalValue || 0;
+
+        if (!projectName || !clientId) {
+          throw new Error('Nome do projeto e cliente são obrigatórios');
+        }
+
+        const project = await projectService.create(
+          {
+            name: projectName,
+            clientId,
+            managerId,
+            budgetId: undefined,
+            startDate,
+            endDate,
+            isContinuous: false,
+            totalValue,
+            paymentMethod,
+            installmentsCount,
+            dueDay,
+            firstInvoiceDate: undefined, // No installments generated
+            status: 'planning',
+            durationMonths: 1,
+            serviceLine: serviceLine || undefined,
+          },
+          tenantId
+        );
+
+        return project;
+      }
+
+      // --- Standard mode (with budget) ---
+
       // 1. Update budget status to 'active'
       await budgetService.updateStatus(budget.id, 'active');
 
-      // 2. Create project linked to budget with dates from form
+      // 2. Create project linked to budget
       const project = await projectService.create(
         {
           name: budget.title,
@@ -47,7 +87,7 @@ export function useCloseBusinessDeal() {
           paymentMethod,
           installmentsCount,
           dueDay,
-          firstInvoiceDate,
+          firstInvoiceDate: firstInvoiceDate || undefined,
           status: 'planning',
           durationMonths: budget.duration_months,
           serviceLine: serviceLine || undefined,
@@ -75,7 +115,6 @@ export function useCloseBusinessDeal() {
           continue;
         }
 
-        // Create monthly values for each month
         const monthInserts = [];
         for (let month = 1; month <= budget.duration_months; month++) {
           monthInserts.push({
@@ -119,7 +158,7 @@ export function useCloseBusinessDeal() {
           .from('project_members')
           .insert({
             project_id: project.id,
-            employee_id: null, // Sem funcionário inicialmente
+            employee_id: null,
             role: role.role_name,
             seniority: role.seniority,
             hourly_rate: role.hourly_rate,
@@ -134,7 +173,6 @@ export function useCloseBusinessDeal() {
           continue;
         }
 
-        // Copy monthly hours distribution
         const monthlyHoursInserts = (role.months || []).map((month) => ({
           project_member_id: projectMember.id,
           month_number: month.month_number,
@@ -155,13 +193,13 @@ export function useCloseBusinessDeal() {
       return project;
     },
     onSuccess: (project) => {
-      // Invalidate both budgets and projects queries
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
 
       toast({
         title: 'Negócio fechado com sucesso!',
-        description: `O projeto "${project.name}" foi criado automaticamente com custos do orçamento.`,
+        description: `O projeto "${project.name}" foi criado automaticamente.`,
       });
     },
     onError: (error: Error) => {
