@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { format, startOfMonth, endOfMonth, isBefore, startOfWeek, addDays, addWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowLeft } from 'lucide-react';
+
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -253,15 +253,10 @@ export default function EmployeeTimesheetPage() {
     >
       <div className="space-y-6">
         {/* Header with back button and week selector */}
-        <div className="flex items-center justify-between gap-4">
-            <Button variant="outline" size="icon" onClick={() => navigate('/alocacao')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <TimesheetWeekSelector
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-            />
-        </div>
+        <TimesheetWeekSelector
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+        />
 
         {isWeekBeforeAdmission ? (
           <div className="text-center py-12 text-muted-foreground">
