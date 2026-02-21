@@ -1,70 +1,47 @@
 
 
-## Adaptar fluxo para projetos de Financiamento da Inovacao
+## Sugerir stakeholders de projetos anteriores ao selecionar cliente existente
 
-### Contexto
+### O que muda
 
-Projetos do tipo "Financiamento da Inovacao" atuam no sucesso do cliente e, portanto:
-1. Nao possuem orcamento atrelado (podem avancar no CRM sem budget)
-2. As NFs (parcelas) devem ser cadastradas manualmente durante a execucao, nao geradas automaticamente no planejamento
+Quando o usuario seleciona um cliente existente no formulario de criacao de lead, o sistema buscara os stakeholders cadastrados em projetos anteriores daquele cliente. Esses contatos aparecerao em um seletor logo abaixo do campo de cliente, permitindo preencher automaticamente os campos de contato (nome, email, telefone) com um clique.
 
-### Alteracoes
+### Como funciona
 
-**1. CRM - Permitir avancar sem orcamento (LeadKanbanBoard.tsx)**
-
-A validacao atual bloqueia leads sem `budget_id` de avancar para "Negociacao" e "Fechado". Para leads com `service_line === 'financiamento_inovacao'`, essa validacao sera ignorada.
-
-Quando um lead de Financiamento da Inovacao for arrastado para "Fechado" e nao tiver orcamento, o sistema abrira um dialog simplificado (sem resumo de orcamento) pedindo apenas os dados essenciais do projeto: gerente, datas de inicio/fim e valor contratual.
-
-**2. CloseBusinessDialog - Modo sem orcamento**
-
-O dialog "Fechar Negocio" sera adaptado para funcionar em dois modos:
-- **Com orcamento** (fluxo atual): exibe resumo do orcamento, copia roles/suppliers/materials
-- **Sem orcamento** (Financiamento da Inovacao): exibe campos para nome do projeto, cliente, valor total, gerente e datas. Os campos de NF (data primeira NF, parcelas, dia vencimento, forma de pagamento) serao ocultados
-
-**3. useCloseBusinessDeal - Suportar criacao sem orcamento**
-
-O hook sera adaptado para aceitar um input alternativo quando nao houver orcamento:
-- Criar o projeto com `budget_id: null`
-- Nao gerar installments automaticamente (pular a logica de `firstInvoiceDate`)
-- Nao copiar roles/suppliers/materials (nao ha orcamento fonte)
-
-**4. projectService.create - Nao gerar parcelas quando nao houver firstInvoiceDate**
-
-O servico ja possui a condicao `if (input.firstInvoiceDate)` antes de gerar installments. Basta garantir que o input envie `firstInvoiceDate` como `undefined` para projetos de Financiamento da Inovacao, e nenhuma parcela sera gerada.
+1. **Busca de stakeholders** - Ao selecionar um cliente, uma query buscara stakeholders de todos os projetos vinculados aquele `client_id`, eliminando duplicatas por nome
+2. **Seletor de contato** - Um Select opcional aparecera com a lista de stakeholders encontrados (nome + cargo). Ao selecionar um, os campos contato, email e telefone serao preenchidos automaticamente
+3. **Preenchimento opcional** - O usuario pode ignorar a sugestao e preencher manualmente
 
 ### Detalhes tecnicos
 
-**LeadKanbanBoard.tsx** - Linha 77-80:
-```text
-// Antes (bloqueia sempre sem budget):
-if ((newStage === 'negotiation' || newStage === 'closed') && !lead.budget_id) { ... }
+**Novo hook ou query inline no `LeadFormDialog.tsx`:**
 
-// Depois (permite se for Financiamento da Inovacao):
-const isFinInovacao = lead.service_line === 'financiamento_inovacao';
-if ((newStage === 'negotiation' || newStage === 'closed') && !lead.budget_id && !isFinInovacao) { ... }
+Quando `client_id` mudar e `clientType === 'existing'`, executar:
+
+```sql
+SELECT DISTINCT ON (name) ps.name, ps.email, ps.phone, ps.job_title
+FROM project_stakeholders ps
+JOIN projects p ON p.id = ps.project_id
+WHERE p.client_id = '<selected_client_id>'
+ORDER BY name, ps.created_at DESC
 ```
 
-**CloseBusinessDialog.tsx** - Recebera uma prop `lead` opcional para obter dados quando nao houver orcamento:
-- Se `budget` for null e `lead` existir: exibir campos de nome, cliente e valor
-- Tornar campos de NF condicionais (ocultos quando nao ha orcamento)
-- Schema zod adaptado: `firstInvoiceDate`, `installmentsCount`, `dueDay` opcionais
+Isso retorna os stakeholders mais recentes de cada nome unico.
 
-**useCloseBusinessDeal.ts** - O input ganhara campos opcionais:
-- `leadName`, `clientId`, `totalValue` para quando nao houver budget
-- Logica condicional: se `budget` for null, nao tenta copiar roles/suppliers/materials
-- Nao chama `budgetService.updateStatus` quando nao ha budget
+**Alteracoes no `LeadFormDialog.tsx`:**
 
-**Fluxo resumido:**
+- Adicionar `useQuery` com a busca de stakeholders, habilitado quando `clientType === 'existing'` e `clientId` estiver preenchido
+- Adicionar um Select condicional entre o campo de cliente e os campos de contato, com label "Contato de projeto anterior" e placeholder "Selecione ou preencha manualmente"
+- Ao selecionar um stakeholder, chamar `form.setValue` para `contact_name`, `contact_email` e `contact_phone`
+
+**Fluxo visual:**
 
 ```text
-Lead "Fin. Inovacao" arrastado para Fechado
-  -> Sem budget? OK (permitido)
-  -> Abre CloseBusinessDialog simplificado
-  -> Usuario preenche: gerente, datas, valor
-  -> Cria projeto sem budget_id, sem parcelas
-  -> Parcelas serao cadastradas manualmente na aba Financeiro durante execucao
+[Cliente *]          -> Seleciona "Empresa ABC"
+[Contato anterior]   -> Select com: "João Silva — Decisor", "Maria — Sponsor"
+                     -> Seleciona "João Silva"
+[Contato] João Silva    [Email] joao@abc.com
+[Telefone] (11)...      [Origem] ...
 ```
 
-Nenhuma migracao de banco necessaria - os campos `budget_id` e `first_invoice_date` ja sao nullable.
-
+Nenhuma migracao de banco necessaria - os dados ja existem nas tabelas `project_stakeholders` e `projects`.
