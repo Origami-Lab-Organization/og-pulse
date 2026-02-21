@@ -129,7 +129,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-lg [&>button:last-child]:hidden">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto [&>button:last-child]:hidden">
           <DialogHeader>
             <div className="flex items-center justify-between pr-2">
               <DialogTitle className="text-lg">Editar Lead</DialogTitle>
