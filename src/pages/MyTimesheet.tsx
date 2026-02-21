@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, Loader2, CheckCircle2 } from 'lucide-react';
+import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAllocation';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +32,7 @@ const MyTimesheet = () => {
   const weekDays = getWeekDays(weekStart);
   const startDate = format(weekStart, 'yyyy-MM-dd');
   const endDate = format(weekEnd, 'yyyy-MM-dd');
+  const monthKey = format(weekStart, 'yyyy-MM');
 
   const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(employee?.id);
   const { data: timesheetEntries = [], isLoading: loadingEntries } = useTimesheetsByDateRange(startDate, endDate);
@@ -69,6 +71,7 @@ const MyTimesheet = () => {
         </div>
       ) : (
         <div className="space-y-4">
+          <MyTimesheetAllocation employeeId={employee?.id} monthKey={monthKey} />
           {projects.map((project) => {
             const submission = submissions.get(project.projectId);
             const isLocked = submission?.status === 'submitted';
