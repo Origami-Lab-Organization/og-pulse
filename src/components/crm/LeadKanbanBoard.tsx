@@ -74,12 +74,13 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     // Locked leads can't move
     if (lead.crm_stage === 'closed') return;
 
-    // Can't move to closed without budget
+    // Can't move past proposal without budget
+    if ((newStage === 'negotiation' || newStage === 'closed') && !lead.budget_id) {
+      toast({ title: 'Orçamento necessário', description: 'Atribua um orçamento ao lead antes de avançar para esta etapa.', variant: 'destructive' });
+      return;
+    }
+
     if (newStage === 'closed') {
-      if (!lead.budget_id) {
-        toast({ title: 'Orçamento necessário', description: 'Crie um orçamento antes de fechar o negócio.', variant: 'destructive' });
-        return;
-      }
       setLeadToClose(lead);
       setCloseDialogOpen(true);
       return;
