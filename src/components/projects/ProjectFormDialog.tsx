@@ -371,7 +371,7 @@ export function ProjectFormDialog({
                   )}
                 </div>
 
-                {isContinuous && (
+                {isContinuous && form.watch('serviceLine') !== 'financiamento_inovacao' && (
                   <p className="text-sm text-muted-foreground">
                     Data de renovação automática do contrato. Será gerada uma NF por mês até esta data.
                   </p>
