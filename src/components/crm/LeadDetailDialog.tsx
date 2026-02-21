@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Archive, FileText, DollarSign, ExternalLink } from 'lucide-react';
+import { MoreVertical, Archive, DollarSign, ExternalLink } from 'lucide-react';
 import { LeadWithBudget } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { useUpdateLead } from '@/hooks/useLeads';
@@ -276,18 +276,6 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                 <>
                   <Separator />
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge
-                        variant="outline"
-                        className="font-mono cursor-pointer hover:bg-accent"
-                        onClick={handleViewBudget}
-                      >
-                        <FileText className="h-3 w-3 mr-1" />
-                        {lead.budget.budget_number}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{lead.budget.title}</span>
-                    </div>
-
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-0.5">
                         <p className="text-xs text-muted-foreground">Custo Total</p>
