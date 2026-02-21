@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 import { Search } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,6 +12,7 @@ import { TimesheetWeekStatus } from '@/components/timesheets/TimesheetWeekStatus
 import { SubmitProjectDialog, SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
 import { AdminWeekEditDialog } from '@/components/timesheets/AdminWeekEditDialog';
 import { AllocationOverview } from '@/components/timesheets/AllocationOverview';
+import { MonthSelector } from '@/components/timesheets/MonthSelector';
 import {
   useActiveProjectsWithMembers,
   useTimesheetsByDateRange,
@@ -34,7 +35,9 @@ type ViewMode = 'project' | 'employee' | 'allocation';
 
 export default function Timesheets() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>('project');
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>('allocation');
+  const [allocationViewMode, setAllocationViewMode] = useState<'month' | 'year'>('month');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSubmitProjectDialog, setShowSubmitProjectDialog] = useState(false);
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false);
@@ -188,7 +191,20 @@ export default function Timesheets() {
         {/* Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            {viewMode !== 'allocation' && (
+            {viewMode === 'allocation' ? (
+              <>
+                <MonthSelector
+                  selectedMonth={selectedMonth}
+                  onMonthChange={setSelectedMonth}
+                />
+                <Tabs value={allocationViewMode} onValueChange={(v) => setAllocationViewMode(v as 'month' | 'year')}>
+                  <TabsList>
+                    <TabsTrigger value="month">Mês</TabsTrigger>
+                    <TabsTrigger value="year">Ano Todo</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </>
+            ) : (
               <TimesheetWeekSelector
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}
@@ -197,7 +213,7 @@ export default function Timesheets() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar projeto ou cliente..."
+                placeholder={viewMode === 'allocation' ? "Buscar funcionário..." : "Buscar projeto ou cliente..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 w-[250px]"
@@ -207,9 +223,9 @@ export default function Timesheets() {
 
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
             <TabsList>
+              <TabsTrigger value="allocation">Alocação</TabsTrigger>
               <TabsTrigger value="project">Por Projeto</TabsTrigger>
               <TabsTrigger value="employee">Por Funcionário</TabsTrigger>
-              <TabsTrigger value="allocation">Visão de Alocação</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -228,7 +244,7 @@ export default function Timesheets() {
 
         {/* Content */}
         {viewMode === 'allocation' ? (
-          <AllocationOverview searchQuery={searchQuery} />
+          <AllocationOverview searchQuery={searchQuery} selectedMonth={format(selectedMonth, 'yyyy-MM')} viewMode={allocationViewMode} />
         ) : isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (

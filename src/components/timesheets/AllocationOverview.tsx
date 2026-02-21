@@ -14,14 +14,16 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { addMonths, format } from 'date-fns';
+import { addMonths, format, startOfMonth, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { EmployeeAllocationDialog } from './EmployeeAllocationDialog';
 
 interface EmployeeAllocation {
   employeeId: string;
   employeeName: string;
   cargo: string;
   jornadaMensal: number;
+  dataAdmissao?: string;
   months: Map<string, number>;
   actualMonths: Map<string, number>;
 }
@@ -33,13 +35,6 @@ function getAllocationStatus(percent: number, hours: number) {
   return { label: 'Subalocado', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' };
 }
 
-function getProgressColor(percent: number, hours: number): string {
-  if (hours === 0) return 'bg-muted-foreground/30';
-  if (percent > 100) return 'bg-red-500';
-  if (percent >= 80) return 'bg-green-500';
-  return 'bg-yellow-500';
-}
-
 function parseLocalDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -47,14 +42,17 @@ function parseLocalDate(dateStr: string): Date {
 
 interface AllocationOverviewProps {
   searchQuery?: string;
+  selectedMonth: string; // "yyyy-MM"
+  viewMode: 'month' | 'year';
 }
 
-export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps) {
+export function AllocationOverview({ searchQuery = '', selectedMonth, viewMode }: AllocationOverviewProps) {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const isAdmin = employee?.isAdmin ?? false;
   const currentEmployeeId = employee?.id;
-  const [periodFilter, setPeriodFilter] = useState<'month' | 'year'>('month');
+
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeAllocation | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['allocation-overview', tenantId, isAdmin, currentEmployeeId],
@@ -70,7 +68,7 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
             id,
             employee_id,
             role,
-            employees (id, nome, cargo, jornada_mensal)
+            employees (id, nome, cargo, jornada_mensal, data_admissao)
           )
         `)
         .eq('tenant_id', tenantId)
@@ -98,7 +96,6 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
 
       if (allMemberIds.length === 0) return { employees: [] as EmployeeAllocation[], monthKeys: [] as string[] };
 
-      // Fetch planned and actual hours in parallel
       const [memberMonthsRes, timesheetsRes] = await Promise.all([
         supabase
           .from('project_member_months')
@@ -135,6 +132,7 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
             employeeName: emp.nome,
             cargo: emp.cargo,
             jornadaMensal: Number(emp.jornada_mensal) || 176,
+            dataAdmissao: emp.data_admissao,
             months: new Map(),
             actualMonths: new Map(),
           });
@@ -142,7 +140,6 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         return employeeMap.get(emp.id)!;
       };
 
-      // Process planned hours
       (memberMonths || []).forEach((mm: any) => {
         const emp = memberToEmployee.get(mm.project_member_id);
         const proj = memberToProject.get(mm.project_member_id);
@@ -158,7 +155,6 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         allocation.months.set(monthKey, current + Number(mm.hours));
       });
 
-      // Process actual (timesheet) hours
       (timesheets || []).forEach((ts: any) => {
         const emp = memberToEmployee.get(ts.project_member_id);
         if (!emp) return;
@@ -171,7 +167,6 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
         allocation.actualMonths.set(monthKey, current + Number(ts.hours));
       });
 
-      // Add employees with 0 hours
       projects.forEach((p: any) => {
         (p.project_members || []).forEach((m: any) => {
           if (m.employees) getOrCreateEmployee(m.employees);
@@ -188,16 +183,16 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
     enabled: !!tenantId,
   });
 
-  const currentMonthKey = format(new Date(), 'yyyy-MM');
-  const currentYear = new Date().getFullYear();
   const allMonthKeys = data?.monthKeys || [];
+  const currentYear = new Date().getFullYear();
 
   const visibleMonthKeys = useMemo(() => {
-    if (periodFilter === 'month') {
-      return allMonthKeys.filter(k => k === currentMonthKey);
+    if (viewMode === 'month') {
+      // Show only the selected month
+      return allMonthKeys.filter(k => k === selectedMonth);
     }
     return allMonthKeys.filter(k => k.startsWith(String(currentYear)));
-  }, [allMonthKeys, periodFilter, currentMonthKey, currentYear]);
+  }, [allMonthKeys, viewMode, selectedMonth, currentYear]);
 
   const filteredEmployees = useMemo(() => {
     if (!data?.employees) return [];
@@ -239,110 +234,136 @@ export function AllocationOverview({ searchQuery = '' }: AllocationOverviewProps
     );
   }
 
+  const isMonthBeforeAdmission = (emp: EmployeeAllocation, monthKey: string): boolean => {
+    if (!emp.dataAdmissao) return false;
+    const admMonth = startOfMonth(parseLocalDate(emp.dataAdmissao));
+    const [y, m] = monthKey.split('-').map(Number);
+    const cellMonth = new Date(y, m - 1, 1);
+    return isBefore(cellMonth, admMonth);
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-2">
+    <>
+      <Card>
+        <CardHeader>
           <div>
             <CardTitle className="text-base">Visão de Alocação por Funcionário</CardTitle>
             <p className="text-sm text-muted-foreground">
               Horas realizadas e planejadas vs capacidade mensal
             </p>
           </div>
-          <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as 'month' | 'year')}>
-            <TabsList>
-              <TabsTrigger value="month">Mês Atual</TabsTrigger>
-              <TabsTrigger value="year">Ano Todo</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {visibleMonthKeys.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Nenhuma alocação encontrada para o período selecionado.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[180px]">Funcionário</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead className="text-right">Jornada</TableHead>
-                  {visibleMonthKeys.map((key, i) => (
-                    <TableHead key={key} className="text-center min-w-[140px] capitalize">
-                      {monthLabels[i]}
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-center min-w-[100px]">Status Geral</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEmployees.map((emp) => {
-                  const totalPlanned = visibleMonthKeys.reduce((sum, k) => sum + (emp.months?.get(k) || 0), 0);
-                  const totalActual = visibleMonthKeys.reduce((sum, k) => sum + (emp.actualMonths?.get(k) || 0), 0);
-                  const totalCapacity = emp.jornadaMensal * visibleMonthKeys.length;
-                  const overallPercent = totalCapacity > 0 ? (totalPlanned / totalCapacity) * 100 : 0;
-                  const overallStatus = getAllocationStatus(overallPercent, totalPlanned);
+        </CardHeader>
+        <CardContent>
+          {visibleMonthKeys.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhuma alocação encontrada para o período selecionado.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[180px]">Funcionário</TableHead>
+                    <TableHead>Cargo</TableHead>
+                    <TableHead className="text-right">Jornada</TableHead>
+                    {visibleMonthKeys.map((key, i) => (
+                      <TableHead key={key} className="text-center min-w-[140px] capitalize">
+                        {monthLabels[i]}
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-center min-w-[100px]">Status Geral</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEmployees.map((emp) => {
+                    const totalPlanned = visibleMonthKeys.reduce((sum, k) => sum + (emp.months?.get(k) || 0), 0);
+                    const totalActual = visibleMonthKeys.reduce((sum, k) => sum + (emp.actualMonths?.get(k) || 0), 0);
+                    const totalCapacity = emp.jornadaMensal * visibleMonthKeys.length;
+                    const overallPercent = totalCapacity > 0 ? (totalPlanned / totalCapacity) * 100 : 0;
+                    const overallStatus = getAllocationStatus(overallPercent, totalPlanned);
 
-                  return (
-                    <TableRow key={emp.employeeId}>
-                      <TableCell className="font-medium">{emp.employeeName}</TableCell>
-                      <TableCell className="text-muted-foreground">{emp.cargo}</TableCell>
-                      <TableCell className="text-right">{emp.jornadaMensal}h</TableCell>
-                      {visibleMonthKeys.map((key) => {
-                         const planned = emp.months?.get(key) || 0;
-                         const actual = emp.actualMonths?.get(key) || 0;
-                         const capacity = emp.jornadaMensal;
-                         const allocPercent = capacity > 0 ? (planned / capacity) * 100 : 0;
-                         const realizedPercent = planned > 0 ? (actual / planned) * 100 : 0;
+                    return (
+                      <TableRow
+                        key={emp.employeeId}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setSelectedEmployee(emp)}
+                      >
+                        <TableCell className="font-medium">{emp.employeeName}</TableCell>
+                        <TableCell className="text-muted-foreground">{emp.cargo}</TableCell>
+                        <TableCell className="text-right">{emp.jornadaMensal}h</TableCell>
+                        {visibleMonthKeys.map((key) => {
+                          if (isMonthBeforeAdmission(emp, key)) {
+                            return (
+                              <TableCell key={key} className="text-center">
+                                <span className="text-xs text-muted-foreground">N/A</span>
+                              </TableCell>
+                            );
+                          }
 
-                        return (
-                          <TableCell key={key} className="text-center">
-                            <div className="space-y-1.5">
-                              <div className="flex justify-between text-xs">
-                                <span className="text-muted-foreground">Real.</span>
-                                <span className="font-medium">{actual}h</span>
+                          const planned = emp.months?.get(key) || 0;
+                          const actual = emp.actualMonths?.get(key) || 0;
+                          const capacity = emp.jornadaMensal;
+                          const allocPercent = capacity > 0 ? (planned / capacity) * 100 : 0;
+                          const realizedPercent = planned > 0 ? (actual / planned) * 100 : 0;
+
+                          return (
+                            <TableCell key={key} className="text-center">
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">Real.</span>
+                                  <span className="font-medium">{actual}h</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">Plan.</span>
+                                  <span className="font-medium">{planned}h / {emp.jornadaMensal}h</span>
+                                </div>
+                                <div className="h-2 w-full rounded-full bg-muted flex overflow-hidden">
+                                  <div
+                                    className="bg-green-700 h-full transition-all"
+                                    style={{ width: `${Math.min(capacity > 0 ? (actual / capacity) * 100 : 0, 100)}%` }}
+                                  />
+                                  <div
+                                    className="bg-green-300 h-full transition-all"
+                                    style={{ width: `${Math.min(capacity > 0 ? (Math.max(planned - actual, 0) / capacity) * 100 : 0, 100)}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {allocPercent.toFixed(0)}% aloc. {planned > 0 ? `· ${realizedPercent.toFixed(0)}% real.` : ''}
+                                </span>
                               </div>
-                              <div className="flex justify-between text-xs">
-                                <span className="text-muted-foreground">Plan.</span>
-                                <span className="font-medium">{planned}h / {emp.jornadaMensal}h</span>
-                              </div>
-                               {/* Single segmented bar: actual (dark green) | planned remaining (light green) | unallocated (gray bg) */}
-                               <div className="h-2 w-full rounded-full bg-muted flex overflow-hidden">
-                                 <div
-                                   className="bg-green-700 h-full transition-all"
-                                   style={{ width: `${Math.min(capacity > 0 ? (actual / capacity) * 100 : 0, 100)}%` }}
-                                 />
-                                 <div
-                                   className="bg-green-300 h-full transition-all"
-                                   style={{ width: `${Math.min(capacity > 0 ? (Math.max(planned - actual, 0) / capacity) * 100 : 0, 100)}%` }}
-                                 />
-                               </div>
-                              <span className="text-[10px] text-muted-foreground">
-                                {allocPercent.toFixed(0)}% aloc. {planned > 0 ? `· ${realizedPercent.toFixed(0)}% real.` : ''}
-                              </span>
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="text-center">
+                          <div className="space-y-1">
+                            <Badge className={overallStatus.className}>{overallStatus.label}</Badge>
+                            <div className="text-[10px] text-muted-foreground">
+                              {totalActual}h / {totalPlanned}h
                             </div>
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell className="text-center">
-                        <div className="space-y-1">
-                          <Badge className={overallStatus.className}>{overallStatus.label}</Badge>
-                          <div className="text-[10px] text-muted-foreground">
-                            {totalActual}h / {totalPlanned}h
                           </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedEmployee && (
+        <EmployeeAllocationDialog
+          open={!!selectedEmployee}
+          onOpenChange={(open) => { if (!open) setSelectedEmployee(null); }}
+          employeeId={selectedEmployee.employeeId}
+          employeeName={selectedEmployee.employeeName}
+          cargo={selectedEmployee.cargo}
+          jornadaMensal={selectedEmployee.jornadaMensal}
+          selectedMonth={selectedMonth}
+          dataAdmissao={selectedEmployee.dataAdmissao}
+        />
+      )}
+    </>
   );
 }
