@@ -1,0 +1,1 @@
+ALTER TABLE projects ADD COLUMN success_fee_percent numeric DEFAULT NULL;

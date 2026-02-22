@@ -1655,6 +1655,7 @@ export type Database = {
           service_line: string | null
           start_date: string
           status: Database["public"]["Enums"]["project_status"]
+          success_fee_percent: number | null
           tenant_id: string
           total_value: number
           updated_at: string
@@ -1680,6 +1681,7 @@ export type Database = {
           service_line?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["project_status"]
+          success_fee_percent?: number | null
           tenant_id: string
           total_value?: number
           updated_at?: string
@@ -1705,6 +1707,7 @@ export type Database = {
           service_line?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["project_status"]
+          success_fee_percent?: number | null
           tenant_id?: string
           total_value?: number
           updated_at?: string

@@ -58,7 +58,8 @@ const projectSchema = z.object({
   paymentMethod: z.string().default('mensal'),
   installmentsCount: z.coerce.number().min(1, 'Mínimo de 1 parcela'),
   firstInvoiceDate: z.string().optional(),
-  dueDay: z.coerce.number().min(1).max(31).default(10),
+  dueDay: z.coerce.number().min(1).max(90).default(10),
+  successFeePercent: z.coerce.number().min(0).max(100).optional(),
 }).refine((data) => data.isContinuous || (data.endDate && data.endDate.length > 0), {
   message: 'Data de fim é obrigatória para projetos com prazo determinado',
   path: ['endDate'],
@@ -112,6 +113,7 @@ export function ProjectFormDialog({
       installmentsCount: 1,
       firstInvoiceDate: '',
       dueDay: 10,
+      successFeePercent: undefined,
     },
   });
 
@@ -134,6 +136,7 @@ export function ProjectFormDialog({
         installmentsCount: project?.installments_count || 1,
         firstInvoiceDate: project?.first_invoice_date || '',
         dueDay: project?.due_day || 10,
+        successFeePercent: (project as any)?.success_fee_percent ?? undefined,
       });
       setActiveTab('basic');
       setJustification('');
@@ -141,6 +144,8 @@ export function ProjectFormDialog({
   }, [open, project, form]);
 
   const isContinuous = form.watch('isContinuous');
+  const watchedServiceLine = form.watch('serviceLine');
+  const isFinanciamento = watchedServiceLine === 'financiamento_inovacao';
 
   const handleSubmit = (values: ProjectFormValues) => {
     if (requireJustification && justification.trim().length < 10) {
@@ -162,6 +167,7 @@ export function ProjectFormDialog({
       installmentsCount: values.installmentsCount,
       firstInvoiceDate: values.firstInvoiceDate,
       dueDay: values.dueDay,
+      successFeePercent: values.successFeePercent,
     }, requireJustification ? justification.trim() : undefined);
   };
 
@@ -402,6 +408,7 @@ export function ProjectFormDialog({
                   )}
                 />
 
+                {!isFinanciamento && (
                 <div className={`grid ${isContinuous ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                   <FormField
                     control={form.control}
@@ -444,6 +451,23 @@ export function ProjectFormDialog({
                     />
                   )}
                 </div>
+                )}
+
+                {isFinanciamento && (
+                  <FormField
+                    control={form.control}
+                    name="successFeePercent"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Percentual de Sucesso (%)</FormLabel>
+                        <FormControl>
+                          <Input type="number" min="0" max="100" step="0.1" placeholder="Ex: 10" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -465,9 +489,9 @@ export function ProjectFormDialog({
                     name="dueDay"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Dia de Vencimento</FormLabel>
+                        <FormLabel>{isFinanciamento ? 'Prazo de Pagamento (dias)' : 'Dia de Vencimento'}</FormLabel>
                         <FormControl>
-                          <Input type="number" min="1" max="31" {...field} />
+                          <Input type="number" min="1" max={isFinanciamento ? 90 : 31} placeholder={isFinanciamento ? 'Ex: 30' : undefined} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

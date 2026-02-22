@@ -172,7 +172,8 @@ export const projectService = {
         duration_months: input.durationMonths || 1,
         renewal_date: input.renewalDate || null,
         service_line: input.serviceLine || null,
-      })
+        success_fee_percent: input.successFeePercent ?? null,
+      } as any)
       .select()
       .single();
 
@@ -232,6 +233,7 @@ export const projectService = {
     if (updates.renewalDate !== undefined) updateData.renewal_date = updates.renewalDate;
     if (updates.durationMonths !== undefined) updateData.duration_months = updates.durationMonths;
     if (updates.serviceLine !== undefined) updateData.service_line = updates.serviceLine;
+    if (updates.successFeePercent !== undefined) updateData.success_fee_percent = updates.successFeePercent;
 
     const { data, error } = await supabase
       .from('projects')

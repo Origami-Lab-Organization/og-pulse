@@ -179,23 +179,46 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
                 <p className="text-2xl font-bold">{formatCurrency(project.total_value)}</p>
               </div>
             </div>
-            <div className="flex items-start gap-3">
-              <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Forma de Pagamento</p>
-                <p className="font-medium">{getPaymentMethodLabel(project.payment_method)}</p>
-                <p className="text-sm text-muted-foreground">
-                  {project.installments_count} parcela(s)
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Dia de Vencimento</p>
-                <p className="font-medium">Dia {project.due_day}</p>
-              </div>
-            </div>
+            {project.service_line === 'financiamento_inovacao' ? (
+              <>
+                <div className="flex items-start gap-3">
+                  <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Prazo de Pagamento</p>
+                    <p className="font-medium">Pagamento em {project.due_day} dias após NF</p>
+                  </div>
+                </div>
+                {(project as any).success_fee_percent != null && (
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Percentual de Sucesso</p>
+                      <p className="font-medium">{(project as any).success_fee_percent}%</p>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex items-start gap-3">
+                  <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Forma de Pagamento</p>
+                    <p className="font-medium">{getPaymentMethodLabel(project.payment_method)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {project.installments_count} parcela(s)
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dia de Vencimento</p>
+                    <p className="font-medium">Dia {project.due_day}</p>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
