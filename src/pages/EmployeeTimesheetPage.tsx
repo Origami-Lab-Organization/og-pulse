@@ -135,17 +135,18 @@ export default function EmployeeTimesheetPage() {
     if (employeeData.length === 0 || !timesheetEntries) return [];
     return employeeData[0].projects
       .filter(p => {
-        const submission = submissions.get(p.projectId);
-        return !submission || submission.status !== 'submitted';
+        // Check if employee's own entries are locked, not project submission
+        const memberEntries = timesheetEntries.filter(e => e.projectMemberId === p.memberId);
+        return memberEntries.length === 0 || memberEntries.some(e => !e.isLocked);
       })
       .map(p => {
         const projectHours = timesheetEntries
           .filter(e => e.projectMemberId === p.memberId)
           .reduce((sum, e) => sum + e.hours, 0);
-        return { projectId: p.projectId, totalHours: projectHours };
+        return { projectId: p.projectId, totalHours: projectHours, memberIds: [p.memberId] };
       })
       .filter(p => p.totalHours > 0);
-  }, [employeeData, timesheetEntries, submissions]);
+  }, [employeeData, timesheetEntries]);
 
   const isLoading = isLoadingProjects || isLoadingTimesheets || isLoadingSubmissions;
 
@@ -200,11 +201,16 @@ export default function EmployeeTimesheetPage() {
   };
 
   const handleConfirmSubmitProject = () => {
-    if (!selectedProject) return;
+    if (!selectedProject || employeeData.length === 0) return;
+    // Get member IDs for this employee in this project to scope the lock
+    const memberIdsForProject = employeeData[0].projects
+      .filter(p => p.projectId === selectedProject.id)
+      .map(p => p.memberId);
     submitProjectWeek.mutate({
       projectId: selectedProject.id,
       weekStart: startDateStr,
       totalHours: selectedProject.hours,
+      memberIds: memberIdsForProject,
     }, {
       onSuccess: () => {
         setShowSubmitProjectDialog(false);

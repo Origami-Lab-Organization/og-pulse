@@ -80,10 +80,15 @@ const MyTimesheet = () => {
 
   const pendingProjects = useMemo(() => {
     return projects.filter(p => {
-      const submission = submissions.get(p.projectId);
-      return submission?.status !== 'submitted';
+      const member = p.members[0];
+      if (!member) return true;
+      const memberEntries = timesheetEntries.filter(
+        e => e.projectMemberId === member.memberId
+      );
+      // Not locked if no entries or any entry is not locked
+      return memberEntries.length === 0 || memberEntries.some(e => !e.isLocked);
     });
-  }, [projects, submissions]);
+  }, [projects, timesheetEntries]);
 
   const getHolidayForDate = (dateStr: string): Holiday | null => {
     const date = parseISO(dateStr);
@@ -94,6 +99,7 @@ const MyTimesheet = () => {
     const projectsToSubmit = pendingProjects.map(p => ({
       projectId: p.projectId,
       totalHours: projectHoursMap.get(p.projectId) || 0,
+      memberIds: p.members.map(m => m.memberId),
     }));
     submitAllProjects.mutate({
       projects: projectsToSubmit,
@@ -195,10 +201,13 @@ const MyTimesheet = () => {
                   {/* Uma linha por projeto */}
                   {projects.map((project) => {
                     const submission = submissions.get(project.projectId);
-                    const isLocked = submission?.status === 'submitted';
-                    const projectTotalHours = projectHoursMap.get(project.projectId) || 0;
                     const member = project.members[0];
-
+                    // Check lock based on actual entry is_locked, not project submission
+                    const memberEntries = timesheetEntries.filter(
+                      e => e.projectMemberId === member.memberId
+                    );
+                    const isLocked = memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
+                    const projectTotalHours = projectHoursMap.get(project.projectId) || 0;
                     const actionContent = isLocked ? (
                       <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap">
                         <CheckCircle2 className="h-3 w-3 mr-1" />

@@ -85,9 +85,9 @@ export function TimesheetByEmployee({
     return total;
   };
 
-  const isProjectLocked = (projectId: string): boolean => {
-    const submission = submissions.get(projectId);
-    return submission?.status === 'submitted';
+  const isProjectLocked = (memberId: string): boolean => {
+    const memberEntries = timesheetEntries.filter(e => e.projectMemberId === memberId);
+    return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
   };
 
   const startEditing = (memberId: string, projectId: string) => {
@@ -177,7 +177,7 @@ export function TimesheetByEmployee({
 
         const totalHours = getEmployeeTotalHours(employee.projects);
 
-        const hasActionSlot = employee.projects.some(p => isProjectLocked(p.projectId));
+        const hasActionSlot = employee.projects.some(p => isProjectLocked(p.memberId));
 
         return (
           <Card key={employee.employeeId}>
@@ -238,7 +238,7 @@ export function TimesheetByEmployee({
               
               {/* Project Rows */}
               {employee.projects.map((project) => {
-                const projectLocked = isProjectLocked(project.projectId);
+                const projectLocked = isProjectLocked(project.memberId);
                 const editKey = `${project.memberId}__${project.projectId}`;
                 const isEditing = editingProjectKey === editKey;
                 
