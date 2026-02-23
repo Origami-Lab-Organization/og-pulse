@@ -1,31 +1,60 @@
 
 
-## Adicionar Botoes de Envio na Minha Timesheet
+## Filtrar Projetos na Timesheet por Data de Inicio e Fim
 
-### Objetivo
+### Problema
 
-Adicionar botoes de envio por projeto e envio de todos os projetos na pagina "Minha Timesheet" (`/my-timesheet`), permitindo que o funcionario submeta suas horas diretamente.
+Atualmente, projetos aparecem na timesheet do funcionario apenas com base no `portfolio_stage` (nao ser "completed"). Porem, projetos que ainda nao comecaram ou ja terminaram tambem aparecem, permitindo lancamentos fora do periodo valido.
 
-### O que sera feito
+### Solucao
 
-**1. Botao "Enviar" por projeto** -- dentro de cada card de projeto, ao lado do badge "Rascunho", adicionar um botao "Enviar" que abre o dialog de confirmacao para enviar apenas aquele projeto.
+Filtrar projetos na timesheet com base na semana selecionada, mostrando apenas projetos cuja data de inicio/fim se sobreponha a semana em questao.
 
-**2. Barra de resumo com "Enviar Todos"** -- acima dos cards, reutilizar o componente `TimesheetWeekStatus` que ja exibe o resumo da semana e o botao "Enviar Todos".
+### Regras de negocio
+
+- Projeto aparece se: `start_date <= fim_da_semana` E (`end_date >= inicio_da_semana` OU `is_continuous = true`)
+- Projetos sem `start_date` continuam aparecendo (para nao quebrar dados existentes)
+- Projetos com `is_continuous = true` nao sao filtrados por `end_date`
+
+### Alteracoes
+
+**1. `src/hooks/useMyTimesheetData.ts`**
+
+- Receber parametros `weekStart` e `weekEnd` (strings yyyy-MM-dd)
+- Incluir `start_date`, `end_date`, `is_continuous` no select dos projetos
+- Apos receber os dados, filtrar no lado do cliente: manter apenas projetos cujo periodo se sobreponha a semana selecionada
+
+**2. `src/hooks/useTimesheetData.ts` (useActiveProjectsWithMembers)**
+
+- Mesma logica: receber `weekStart`/`weekEnd` opcionais e incluir os campos de data no select
+- Filtrar no cliente apos receber os dados
+
+**3. `src/pages/MyTimesheet.tsx`**
+
+- Passar `startDate` e `endDate` para o hook `useMyProjectMemberships`
+
+**4. `src/pages/Timesheets.tsx`**
+
+- Passar `startDate` e `endDate` para o hook `useActiveProjectsWithMembers`
 
 ### Detalhes tecnicos
 
-**Arquivo modificado:** `src/pages/MyTimesheet.tsx`
+Filtragem no cliente (apos o fetch):
 
-Alteracoes:
-- Importar `useSubmitProjectWeek`, `useSubmitAllProjects` do hook existente
-- Importar `SubmitProjectDialog`, `SubmitAllProjectsDialog` dos componentes existentes
-- Importar `TimesheetWeekStatus` para a barra de resumo
-- Adicionar estados para controlar os dialogs (`showSubmitProjectDialog`, `showSubmitAllDialog`, `selectedProject`)
-- Calcular `pendingProjects` (projetos com horas > 0 e nao enviados)
-- Verificar permissao de envio via `employee?.is_gerente || isAdmin` (campo `canSubmit`)
-- Adicionar botao `Send` em cada card nao enviado (quando `canSubmit`)
-- Renderizar `TimesheetWeekStatus` acima dos cards
-- Renderizar os dois dialogs de confirmacao
+```typescript
+const weekStartDate = parseISO(weekStart);
+const weekEndDate = parseISO(weekEnd);
 
-Nenhuma alteracao em banco de dados ou novos componentes necessarios -- toda a infraestrutura (hooks, dialogs, componente de status) ja existe e esta pronta para uso.
+const filtered = projects.filter(p => {
+  if (!p.startDate) return true; // sem data de inicio, mostra
+  const projStart = parseISO(p.startDate);
+  if (projStart > weekEndDate) return false; // projeto ainda nao comecou
+  if (p.isContinuous) return true; // continuo, sem fim
+  if (!p.endDate) return true; // sem data fim, mostra
+  const projEnd = parseISO(p.endDate);
+  return projEnd >= weekStartDate; // projeto ja terminou?
+});
+```
+
+A interface `ProjectWithMembers` ganhara campos opcionais `startDate?`, `endDate?`, `isContinuous?` para suportar essa filtragem.
 
