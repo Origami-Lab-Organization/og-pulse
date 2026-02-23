@@ -298,6 +298,8 @@ export default function EmployeeTimesheetPage() {
                 holidays={holidays}
                 submissions={submissions}
                 isAdmin={isAdmin}
+                canEdit={canSubmit}
+                onAdminEditProject={handleAdminEditProject}
               />
             )}
           </>

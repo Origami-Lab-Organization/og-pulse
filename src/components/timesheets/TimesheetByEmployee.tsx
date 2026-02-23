@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, CheckCircle2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { User, CheckCircle2, Edit2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { TimesheetWeekRow } from './TimesheetWeekRow';
 import { EmployeeWithProjects, WeekDay, TimesheetEntry } from '@/hooks/useTimesheetData';
@@ -24,6 +25,8 @@ interface TimesheetByEmployeeProps {
   holidays?: Holiday[];
   submissions: Map<string, ProjectTimesheetSubmission>;
   isAdmin?: boolean;
+  canEdit?: boolean;
+  onAdminEditProject?: (projectId: string) => void;
 }
 
 export function TimesheetByEmployee({ 
@@ -33,6 +36,8 @@ export function TimesheetByEmployee({
   holidays = [],
   submissions,
   isAdmin = false,
+  canEdit = false,
+  onAdminEditProject,
 }: TimesheetByEmployeeProps) {
   if (employees.length === 0) {
     return (
@@ -139,7 +144,7 @@ export function TimesheetByEmployee({
                 return (
                   <div key={project.memberId} className="relative">
                     {projectLocked && (
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1">
                         <Badge 
                           variant="secondary" 
                           className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] py-0"
@@ -147,6 +152,16 @@ export function TimesheetByEmployee({
                           <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
                           Enviado
                         </Badge>
+                        {canEdit && onAdminEditProject && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-5 w-5 p-0"
+                            onClick={() => onAdminEditProject(project.projectId)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     )}
                     <TimesheetWeekRow
