@@ -7,11 +7,11 @@ import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAlloca
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
 import { TimesheetWeekStatus } from '@/components/timesheets/TimesheetWeekStatus';
-import { SubmitProjectDialog, SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
+import { SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyProjectMemberships } from '@/hooks/useMyTimesheetData';
 import { useTimesheetsByDateRange, getWeekStart, getWeekDays } from '@/hooks/useTimesheetData';
-import { useProjectWeekSubmissions, useSubmitProjectWeek, useSubmitAllProjects } from '@/hooks/useTimesheetSubmissions';
+import { useProjectWeekSubmissions, useSubmitAllProjects } from '@/hooks/useTimesheetSubmissions';
 import { useHolidays } from '@/hooks/useHolidays';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -33,9 +33,7 @@ const MyTimesheet = () => {
   const [activeSection, setActiveSection] = useState<string>('timesheet');
 
   // Dialog states
-  const [showSubmitProjectDialog, setShowSubmitProjectDialog] = useState(false);
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false);
-  const [selectedProjectForSubmit, setSelectedProjectForSubmit] = useState<{ projectId: string; projectName: string; totalHours: number } | null>(null);
 
   const weekStart = getWeekStart(selectedDate);
   const weekEnd = addDays(weekStart, 4);
@@ -52,7 +50,6 @@ const MyTimesheet = () => {
 
   const { data: holidays = [] } = useHolidays();
 
-  const submitProjectWeek = useSubmitProjectWeek();
   const submitAllProjects = useSubmitAllProjects();
 
   const isLoading = loadingProjects || loadingEntries;
@@ -80,25 +77,13 @@ const MyTimesheet = () => {
   const pendingProjects = useMemo(() => {
     return projects.filter(p => {
       const submission = submissions.get(p.projectId);
-      const hours = projectHoursMap.get(p.projectId) || 0;
-      return submission?.status !== 'submitted' && hours > 0;
+      return submission?.status !== 'submitted';
     });
-  }, [projects, submissions, projectHoursMap]);
+  }, [projects, submissions]);
 
   const getHolidayForDate = (dateStr: string): Holiday | null => {
     const date = parseISO(dateStr);
     return isHoliday(date, holidays);
-  };
-
-  const handleSubmitProject = () => {
-    if (!selectedProjectForSubmit) return;
-    submitProjectWeek.mutate({
-      projectId: selectedProjectForSubmit.projectId,
-      weekStart: startDate,
-      totalHours: selectedProjectForSubmit.totalHours,
-    }, {
-      onSuccess: () => setShowSubmitProjectDialog(false),
-    });
   };
 
   const handleSubmitAll = () => {
@@ -215,27 +200,7 @@ const MyTimesheet = () => {
                         Enviado
                       </Badge>
                     ) : (
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="secondary" className="whitespace-nowrap">Rascunho</Badge>
-                        {canSubmit && projectTotalHours > 0 && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 h-6 px-2 text-xs"
-                            onClick={() => {
-                              setSelectedProjectForSubmit({
-                                projectId: project.projectId,
-                                projectName: project.projectName,
-                                totalHours: projectTotalHours,
-                              });
-                              setShowSubmitProjectDialog(true);
-                            }}
-                          >
-                            <Send className="h-3 w-3" />
-                            Enviar
-                          </Button>
-                        )}
-                      </div>
+                      <Badge variant="secondary" className="whitespace-nowrap">Rascunho</Badge>
                     );
 
                     return (
@@ -259,20 +224,6 @@ const MyTimesheet = () => {
             </>
           )}
         </div>
-      )}
-
-      {/* Dialogs */}
-      {selectedProjectForSubmit && (
-        <SubmitProjectDialog
-          open={showSubmitProjectDialog}
-          onOpenChange={setShowSubmitProjectDialog}
-          projectName={selectedProjectForSubmit.projectName}
-          weekStart={weekStart}
-          weekEnd={weekEnd}
-          totalHours={selectedProjectForSubmit.totalHours}
-          onConfirm={handleSubmitProject}
-          isSubmitting={submitProjectWeek.isPending}
-        />
       )}
 
       <SubmitAllProjectsDialog

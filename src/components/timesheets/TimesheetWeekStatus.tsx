@@ -93,7 +93,7 @@ export function TimesheetWeekStatus({
             {canSubmit && pendingCount > 0 && (
               <Button
                 onClick={onSubmitAll}
-                disabled={isSubmitting || totalHours === 0}
+                disabled={isSubmitting}
                 className="gap-2"
               >
                 <Send className="h-4 w-4" />
