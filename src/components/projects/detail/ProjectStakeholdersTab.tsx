@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Users, Mail, Phone, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Users, Mail, Phone, MoreHorizontal, Pencil, Trash2, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,7 @@ import {
 } from '@/types/projectStakeholder';
 import { cn } from '@/lib/utils';
 import { StakeholderFormDialog } from '@/components/projects/stakeholders/StakeholderFormDialog';
+import { ImportStakeholdersDialog } from '@/components/projects/stakeholders/ImportStakeholdersDialog';
 
 interface ProjectStakeholdersTabProps {
   project: ProjectWithRelations;
@@ -38,6 +39,7 @@ export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectS
   const deleteStakeholder = useDeleteStakeholder();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingStakeholder, setEditingStakeholder] = useState<ProjectStakeholder | null>(null);
 
   const handleAdd = () => {
@@ -111,10 +113,16 @@ export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectS
           </p>
         </div>
         {!isReadOnly && (
-          <Button onClick={handleAdd}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Stakeholder
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+              <Download className="mr-2 h-4 w-4" />
+              Importar do Cliente
+            </Button>
+            <Button onClick={handleAdd}>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Stakeholder
+            </Button>
+          </div>
         )}
       </div>
 
@@ -263,6 +271,14 @@ export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectS
         onOpenChange={setDialogOpen}
         projectId={project.id}
         stakeholder={editingStakeholder}
+      />
+
+      <ImportStakeholdersDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        projectId={project.id}
+        clientId={project.client_id}
+        currentStakeholders={stakeholders}
       />
     </div>
   );
