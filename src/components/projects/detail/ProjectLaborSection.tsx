@@ -58,7 +58,10 @@ interface ProjectLaborSectionProps {
   budgetRoles: BudgetRoleWithMonths[];
   timesheets?: ProjectTimesheetDB[];
   projectStartDate: string;
+  serviceLine?: string | null;
 }
+
+const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 export function ProjectLaborSection({
   projectId,
@@ -68,7 +71,9 @@ export function ProjectLaborSection({
   budgetRoles,
   timesheets = [],
   projectStartDate,
+  serviceLine,
 }: ProjectLaborSectionProps) {
+  const isFinanciamento = serviceLine === 'financiamento_inovacao';
   const [dialogOpen, setDialogOpen] = useState(false);
   const [useBudgetRole, setUseBudgetRole] = useState(budgetRoles.length > 0);
   const [newRole, setNewRole] = useState({
@@ -76,6 +81,7 @@ export function ProjectLaborSection({
     seniority: 'pleno',
     budgetRoleId: '',
     hourlyRate: 0,
+    employeeId: '',
   });
 
   const { data: employees = [] } = useEmployees();
@@ -288,6 +294,31 @@ export function ProjectLaborSection({
   };
 
   const handleAddRole = () => {
+    if (isFinanciamento) {
+      // Simplified mode: employee is required, role auto-filled from cargo
+      if (!newRole.employeeId) return;
+      const selectedEmp = availableEmployees.find(e => e.id === newRole.employeeId);
+      if (!selectedEmp) return;
+
+      addMember.mutate(
+        {
+          projectId,
+          employeeId: newRole.employeeId,
+          role: selectedEmp.cargo || 'Membro',
+          seniority: 'pleno',
+          hoursPerMonth: 0,
+          hourlyRate: 0,
+        },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            setNewRole({ role: '', seniority: 'pleno', budgetRoleId: '', hourlyRate: 0, employeeId: '' });
+          },
+        }
+      );
+      return;
+    }
+
     if (!newRole.role) return;
 
     // Get monthly hours from budget role if selected
@@ -302,7 +333,6 @@ export function ProjectLaborSection({
     addMember.mutate(
       {
         projectId,
-        // No employee assigned initially
         role: newRole.role,
         seniority: newRole.seniority,
         hoursPerMonth: 0,
@@ -313,7 +343,7 @@ export function ProjectLaborSection({
       {
         onSuccess: () => {
           setDialogOpen(false);
-          setNewRole({ role: '', seniority: 'pleno', budgetRoleId: '', hourlyRate: 0 });
+          setNewRole({ role: '', seniority: 'pleno', budgetRoleId: '', hourlyRate: 0, employeeId: '' });
           setUseBudgetRole(budgetRoles.length > 0);
         },
       }
@@ -471,13 +501,15 @@ export function ProjectLaborSection({
               Alocação de Equipe
             </CardTitle>
             <CardDescription>
-              Defina os papéis do projeto e atribua funcionários
+              {isFinanciamento 
+                ? 'Selecione os funcionários e defina as horas por mês'
+                : 'Defina os papéis do projeto e atribua funcionários'}
             </CardDescription>
           </div>
           {isEditable && (
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Adicionar Papel
+              {isFinanciamento ? 'Adicionar Membro' : 'Adicionar Papel'}
             </Button>
           )}
         </CardHeader>
@@ -492,12 +524,14 @@ export function ProjectLaborSection({
                       <TableHead className="sticky left-0 bg-background z-10 min-w-[220px]">
                         Funcionário
                       </TableHead>
-                      
-                      <TableHead className="text-right min-w-[100px]">R$/h</TableHead>
+                       
+                      {!isFinanciamento && (
+                        <TableHead className="text-right min-w-[100px]">R$/h</TableHead>
+                      )}
                       {months.map((m) => (
                         <TableHead key={m} className="text-center min-w-[80px]">
                           <div className="flex flex-col">
-                            <span>Mês {m}</span>
+                            <span>{isFinanciamento ? MONTH_LABELS[(m - 1) % 12] : `Mês ${m}`}</span>
                             {!isInPlanningMode && (
                               <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
                             )}
@@ -579,26 +613,30 @@ export function ProjectLaborSection({
                                   {member.employee?.nome || <span className="text-muted-foreground italic">Não atribuído</span>}
                                 </span>
                               )}
-                              <span className="text-xs font-semibold text-muted-foreground">
-                                {member.role}{budgetSeniorityLabel ? ` ${budgetSeniorityLabel}` : ''}
-                              </span>
+                              {!isFinanciamento && (
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  {member.role}{budgetSeniorityLabel ? ` ${budgetSeniorityLabel}` : ''}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           
                           
                           {/* Column 3: R$/h */}
-                          <TableCell className="text-right p-2">
-                            <div className="flex flex-col gap-0.5 items-end">
-                              <span className="font-medium">
-                                {formatCurrency(realCost)}
-                              </span>
-                              {!member.employee && (
-                                <span className="text-xs text-muted-foreground italic">
-                                  (orçado)
+                          {!isFinanciamento && (
+                            <TableCell className="text-right p-2">
+                              <div className="flex flex-col gap-0.5 items-end">
+                                <span className="font-medium">
+                                  {formatCurrency(realCost)}
                                 </span>
-                              )}
-                            </div>
-                          </TableCell>
+                                {!member.employee && (
+                                  <span className="text-xs text-muted-foreground italic">
+                                    (orçado)
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
                           
                           {/* Month columns */}
                           {months.map((monthNum) => {
@@ -759,7 +797,7 @@ export function ProjectLaborSection({
                       <TableCell className="sticky left-0 bg-muted z-10 font-semibold">
                         Total
                       </TableCell>
-                      <TableCell />
+                      {!isFinanciamento && <TableCell />}
                       {months.map((monthNum) => {
                         const monthTotals = totals.byMonth[monthNum];
                         return (
@@ -819,7 +857,9 @@ export function ProjectLaborSection({
             </ScrollArea>
           ) : (
             <p className="text-muted-foreground italic text-center py-8">
-              Nenhum papel definido. Adicione papéis para planejar a equipe do projeto.
+              {isFinanciamento 
+                ? 'Nenhum membro alocado. Adicione membros para planejar as horas do projeto.'
+                : 'Nenhum papel definido. Adicione papéis para planejar a equipe do projeto.'}
             </p>
           )}
         </CardContent>
@@ -830,45 +870,29 @@ export function ProjectLaborSection({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Adicionar Papel</DialogTitle>
+            <DialogTitle>{isFinanciamento ? 'Adicionar Membro' : 'Adicionar Papel'}</DialogTitle>
             <DialogDescription>
-              Defina um papel para o projeto. Você poderá atribuir um funcionário depois.
+              {isFinanciamento 
+                ? 'Selecione o funcionário que participará do projeto.'
+                : 'Defina um papel para o projeto. Você poderá atribuir um funcionário depois.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {budgetRoles.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="useBudgetRole"
-                  checked={useBudgetRole}
-                  onCheckedChange={(checked) => {
-                    setUseBudgetRole(checked === true);
-                    if (!checked) {
-                      setNewRole({ ...newRole, budgetRoleId: '', hourlyRate: 0 });
-                    }
-                  }}
-                />
-                <Label htmlFor="useBudgetRole" className="text-sm font-normal">
-                  Herdar de papel do orçamento
-                </Label>
-              </div>
-            )}
-
-            {useBudgetRole && budgetRoles.length > 0 ? (
+            {isFinanciamento ? (
               <div className="space-y-2">
-                <Label>Papel do Orçamento</Label>
+                <Label>Funcionário</Label>
                 <Select
-                  value={newRole.budgetRoleId}
-                  onValueChange={handleBudgetRoleChange}
+                  value={newRole.employeeId}
+                  onValueChange={(value) => setNewRole({ ...newRole, employeeId: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione um papel" />
+                    <SelectValue placeholder="Selecione um funcionário" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
-                    {budgetRoles.map((role) => (
-                      <SelectItem key={role.id} value={role.id}>
-                        {role.role_name} ({role.seniority}) - {formatCurrency(role.hourly_rate)}/h
+                    {availableEmployees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.nome} - {emp.cargo}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -876,46 +900,87 @@ export function ProjectLaborSection({
               </div>
             ) : (
               <>
-                <div className="space-y-2">
-                  <Label>Papel no Projeto</Label>
-                  <Input
-                    value={newRole.role}
-                    onChange={(e) => setNewRole({ ...newRole, role: e.target.value })}
-                    placeholder="Ex: Desenvolvedor Frontend"
-                  />
-                </div>
+                {budgetRoles.length > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="useBudgetRole"
+                      checked={useBudgetRole}
+                      onCheckedChange={(checked) => {
+                        setUseBudgetRole(checked === true);
+                        if (!checked) {
+                          setNewRole({ ...newRole, budgetRoleId: '', hourlyRate: 0 });
+                        }
+                      }}
+                    />
+                    <Label htmlFor="useBudgetRole" className="text-sm font-normal">
+                      Herdar de papel do orçamento
+                    </Label>
+                  </div>
+                )}
 
-                <div className="grid grid-cols-2 gap-4">
+                {useBudgetRole && budgetRoles.length > 0 ? (
                   <div className="space-y-2">
-                    <Label>Senioridade</Label>
+                    <Label>Papel do Orçamento</Label>
                     <Select
-                      value={newRole.seniority}
-                      onValueChange={(value) =>
-                        setNewRole({ ...newRole, seniority: value })
-                      }
+                      value={newRole.budgetRoleId}
+                      onValueChange={handleBudgetRoleChange}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Selecione um papel" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
-                        {SENIORITY_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
+                        {budgetRoles.map((role) => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.role_name} ({role.seniority}) - {formatCurrency(role.hourly_rate)}/h
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Papel no Projeto</Label>
+                      <Input
+                        value={newRole.role}
+                        onChange={(e) => setNewRole({ ...newRole, role: e.target.value })}
+                        placeholder="Ex: Desenvolvedor Frontend"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label>Valor/Hora (R$)</Label>
-                    <CurrencyInput
-                      value={newRole.hourlyRate}
-                      onValueChange={(v) => setNewRole({ ...newRole, hourlyRate: v })}
-                      showPrefix
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Senioridade</Label>
+                        <Select
+                          value={newRole.seniority}
+                          onValueChange={(value) =>
+                            setNewRole({ ...newRole, seniority: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            {SENIORITY_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Valor/Hora (R$)</Label>
+                        <CurrencyInput
+                          value={newRole.hourlyRate}
+                          onValueChange={(v) => setNewRole({ ...newRole, hourlyRate: v })}
+                          showPrefix
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -926,7 +991,7 @@ export function ProjectLaborSection({
             </Button>
             <Button
               onClick={handleAddRole}
-              disabled={!newRole.role || addMember.isPending}
+              disabled={(isFinanciamento ? !newRole.employeeId : !newRole.role) || addMember.isPending}
             >
               {addMember.isPending ? 'Adicionando...' : 'Adicionar'}
             </Button>
@@ -952,44 +1017,48 @@ export function ProjectLaborSection({
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label>Papel no Projeto</Label>
-              <Input
-                value={editForm.role}
-                onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                placeholder="Ex: Desenvolvedor Frontend"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+            {!isFinanciamento && (
               <div className="space-y-2">
-                <Label>Senioridade</Label>
-                <Select
-                  value={editForm.seniority}
-                  onValueChange={(value) => setEditForm({ ...editForm, seniority: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    {SENIORITY_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Valor/Hora (R$)</Label>
-                <CurrencyInput
-                  value={editForm.hourlyRate}
-                  onValueChange={(v) => setEditForm({ ...editForm, hourlyRate: v })}
-                  showPrefix
+                <Label>Papel no Projeto</Label>
+                <Input
+                  value={editForm.role}
+                  onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                  placeholder="Ex: Desenvolvedor Frontend"
                 />
               </div>
-            </div>
+            )}
+
+            {!isFinanciamento && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Senioridade</Label>
+                  <Select
+                    value={editForm.seniority}
+                    onValueChange={(value) => setEditForm({ ...editForm, seniority: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      {SENIORITY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Valor/Hora (R$)</Label>
+                  <CurrencyInput
+                    value={editForm.hourlyRate}
+                    onValueChange={(v) => setEditForm({ ...editForm, hourlyRate: v })}
+                    showPrefix
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -998,7 +1067,7 @@ export function ProjectLaborSection({
             </Button>
             <Button
               onClick={handleUpdateMember}
-              disabled={!editForm.role || updateMember.isPending}
+              disabled={(!isFinanciamento && !editForm.role) || updateMember.isPending}
             >
               {updateMember.isPending ? 'Salvando...' : 'Salvar'}
             </Button>
