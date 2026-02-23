@@ -1,78 +1,74 @@
 
 
-## Importar Stakeholders de Outros Projetos do Mesmo Cliente
+## Simplificar Alocacao de Equipe para Projetos de Financiamento da Inovacao
 
-### Objetivo
+### Contexto
 
-Ao adicionar stakeholders a um projeto, permitir que o usuario selecione stakeholders ja cadastrados em outros projetos do mesmo cliente. Ao importar, todos os dados do stakeholder (nome, cargo, papel, organizacao, email, telefone, influencia, interesse, patrocinio) sao copiados automaticamente, e o usuario precisa apenas definir a **acao** do stakeholder para o novo projeto.
+Projetos de "Financiamento da Inovacao" nao possuem orcamento associado, portanto o modelo atual de "adicionar papel > atribuir funcionario" nao faz sentido. Para esses projetos, a alocacao deve ser simplificada: escolher diretamente o funcionario e definir horas por mes dentro do ano corrente.
 
-### Experiencia do Usuario
+### O que muda
 
-1. Na aba Stakeholders, alem do botao "Novo Stakeholder", sera adicionado um botao "Importar do Cliente"
-2. Ao clicar, abre um dialog listando todos os stakeholders cadastrados em outros projetos do mesmo cliente (excluindo os ja presentes no projeto atual)
-3. O usuario seleciona um ou mais stakeholders da lista (com checkbox)
-4. Para cada stakeholder selecionado, o usuario escolhe a "Acao" (manter satisfeito, manter informado, etc.)
-5. Ao confirmar, os stakeholders sao criados no projeto atual com todos os dados copiados
+**Modelo atual (projetos normais):**
+- Adicionar Papel (role, senioridade, valor/hora)
+- Opcionalmente herdar do orcamento
+- Atribuir funcionario ao papel
+- Definir horas por mes ao longo da duracao do projeto
+
+**Modelo simplificado (financiamento da inovacao):**
+- Selecionar funcionario diretamente
+- Definir horas por mes (meses dentro do ano corrente, ex: Jan-Dez)
+- Sem campo de papel, senioridade ou valor/hora
+- Sem referencia ao orcamento
 
 ### Etapas Tecnicas
 
-**1. Novo hook `useClientStakeholders`**
+**1. Passar `serviceLine` para o `ProjectLaborSection`**
 
-Criar um hook que busca stakeholders de outros projetos do mesmo cliente:
-- Query: buscar `project_stakeholders` onde `project_id` pertence a projetos com o mesmo `client_id`, excluindo o projeto atual
-- Agrupar/deduzir por nome+email para evitar duplicatas entre projetos
-- Filtrar stakeholders que ja existem no projeto atual
+Modificar `ProjectCostsTab.tsx` para passar `serviceLine={project.service_line}` como nova prop ao `ProjectLaborSection`.
 
-**2. Novo componente `ImportStakeholdersDialog`**
+**2. Adaptar `ProjectLaborSection.tsx`**
 
-- Recebe `projectId` e `clientId` como props
-- Lista os stakeholders disponiveis com nome, cargo, papel, organizacao
-- Checkbox para selecao multipla
-- Para cada selecionado, exibir dropdown de "Acao"
-- Botao "Importar" que cria todos os stakeholders selecionados via `useCreateStakeholder`
+Receber nova prop `serviceLine?: string | null`.
 
-**3. Atualizar `ProjectStakeholdersTab`**
+Quando `serviceLine === 'financiamento_inovacao'`:
 
-- Adicionar botao "Importar do Cliente" ao lado de "Novo Stakeholder"
-- Controlar estado de abertura do novo dialog
-- Passar `clientId` do projeto para o dialog
+- **Botao de adicionar**: trocar label de "Adicionar Papel" para "Adicionar Membro"
+- **Dialog de adicionar**: modo simplificado
+  - Exibir apenas select de funcionario (direto, sem campo de papel/senioridade/valor hora)
+  - Ao selecionar funcionario, preencher `role` automaticamente com o cargo do funcionario
+  - Sem checkbox de "herdar do orcamento"
+- **Colunas da tabela**: ocultar coluna "R$/h" (nao ha valor/hora orçado)
+- **Meses**: usar meses do ano corrente (Jan a Dez ou conforme o periodo do projeto) em vez de "Mes 1, Mes 2..."
+- **Dialog de edicao**: ocultar campos de senioridade e valor/hora
 
-### Arquivos a criar/modificar
+Quando nao for financiamento: comportamento atual 100% mantido.
 
-- **Criar**: `src/components/projects/stakeholders/ImportStakeholdersDialog.tsx` - dialog de importacao
-- **Criar**: `src/hooks/useClientStakeholders.ts` - hook para buscar stakeholders de outros projetos do cliente
-- **Modificar**: `src/components/projects/detail/ProjectStakeholdersTab.tsx` - adicionar botao de importacao
+**3. Adaptar `ProjectTeamSection.tsx` (visao geral)**
 
-### Detalhes tecnicos
+Quando for financiamento, ocultar referencia a senioridade no tooltip.
 
-**Query para buscar stakeholders do cliente (hook):**
+### Arquivos modificados
 
-```sql
--- Logica equivalente no Supabase JS:
--- 1. Buscar project_ids onde client_id = X e id != projetoAtual
--- 2. Buscar project_stakeholders desses projetos
--- 3. Deduzir por nome+email no frontend
+- `src/components/projects/detail/ProjectCostsTab.tsx` - passar `serviceLine` para `ProjectLaborSection`
+- `src/components/projects/detail/ProjectLaborSection.tsx` - logica condicional para modo simplificado
+- `src/components/projects/detail/ProjectTeamSection.tsx` - ajuste menor no tooltip
+
+### Detalhes de implementacao
+
+**Dialog simplificado (financiamento):**
+```
+[Select: Funcionario]  -->  auto-preenche role com cargo
+[Confirmar]
 ```
 
-```typescript
-// useClientStakeholders.ts
-const { data: clientProjects } = await supabase
-  .from('projects')
-  .select('id')
-  .eq('client_id', clientId)
-  .neq('id', currentProjectId);
-
-const projectIds = clientProjects.map(p => p.id);
-
-const { data: stakeholders } = await supabase
-  .from('project_stakeholders')
-  .select('*')
-  .in('project_id', projectIds);
+**Colunas da tabela (financiamento):**
+```
+Funcionario | Jan | Fev | Mar | ... | Dez | Horas | Custo | Acoes
 ```
 
-**Deduplicacao no frontend:** agrupar por `name + email`, pegando o registro mais recente de cada stakeholder unico.
+**Colunas da tabela (normal - sem mudanca):**
+```
+Funcionario | R$/h | Mes 1 | Mes 2 | ... | Horas | Custo | Acoes
+```
 
-**Importacao:** para cada stakeholder selecionado, chamar `useCreateStakeholder` com todos os dados copiados + a acao escolhida pelo usuario. O campo `notes` pode ser limpo ou copiado (copiar por padrao).
-
-Nao sao necessarias alteracoes no banco de dados, pois a estrutura da tabela `project_stakeholders` ja comporta todos os dados necessarios.
-
+O campo `role` continua sendo preenchido (com o cargo do funcionario), mantendo compatibilidade com o banco de dados que exige esse campo. O `seniority` sera preenchido com valor padrao 'pleno' e `hourly_rate` com 0.
