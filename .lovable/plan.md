@@ -1,66 +1,51 @@
 
 
-## Adicionar cartoes de KPI ao CRM
+## Permitir Replanejamento de Equipe em Projetos em Andamento
 
-### Objetivo
+### Problema
 
-Adicionar 4 cartoes de resumo acima do Kanban na pagina do CRM:
+Atualmente, a secao de "Alocacao de Equipe" na aba Custos so permite edicao quando o projeto esta na fase de Planejamento (`portfolio_stage === 'planning'`). Uma vez que o projeto avanca para "Entrega de Valor" ou outros estagios, nao e possivel:
 
-1. **Projetos Ganhos** - Quantidade de leads em "Negocio Fechado" no ano corrente
-2. **Total Ganho no Ano** - Soma do `final_total` dos orcamentos vinculados aos leads fechados no ano corrente
-3. **Recebido no Ano** - Soma das parcelas pagas (status `received`) dos projetos vinculados aos orcamentos dos leads fechados
-4. **Pipeline** - Soma dos valores dos leads em "Proposta" e "Negociacao" (usando `budget.final_total` quando disponivel, senao `estimated_value`)
+- Adicionar ou remover membros da equipe
+- Replanejar as horas alocadas por mes
+- Atribuir/desatribuir funcionarios aos papeis
+
+As horas ja lancadas via timesheet continuam sendo apenas visualizadas (somente leitura), editaveis apenas na secao de Alocacao -- isso ja funciona assim e nao muda.
+
+### Solucao
+
+A alteracao e pontual: no componente `ProjectCostsTab`, o prop `isEditable` passado ao `ProjectLaborSection` sera expandido para incluir tambem o estagio de execucao.
 
 ### Alteracoes
 
-**Novo arquivo: `src/components/crm/CRMStats.tsx`**
+**Arquivo: `src/components/projects/detail/ProjectCostsTab.tsx`**
 
-- Componente que recebe os leads e calcula os 4 KPIs
-- Para os 3 primeiros KPIs, filtra leads com `crm_stage === 'closed'` cujo `closed_at` esta no ano corrente (se `closed_at` for nulo, considera todos os leads fechados como do ano corrente, ja que dados historicos nao tem essa data preenchida)
-- Para "Recebido no Ano", sera necessario buscar installments dos projetos vinculados aos budgets dos leads fechados
-- Layout em grid de 4 colunas seguindo o padrao visual dos outros Stats (ClientStats, BudgetStats)
+Alterar a linha que passa `isEditable` ao `ProjectLaborSection` (linha 352):
 
-**Novo hook ou query adicional no `useLeads`**
-
-- Criar uma funcao `fetchCRMReceivedValue` no `leadService.ts` que busca o total recebido no ano para projetos vinculados aos orcamentos dos leads fechados
-- Ou incluir essa logica diretamente no componente via query separada
-
-**Arquivo: `src/pages/CRM.tsx`**
-
-- Importar e renderizar `CRMStats` acima da barra de busca, passando os leads
-
-### Detalhes tecnicos
-
-Logica dos KPIs:
-
-```text
-Projetos Ganhos = leads.filter(stage === 'closed').length
-Total Ganho = leads.filter(stage === 'closed').sum(budget?.final_total || estimated_value)
-Pipeline = leads.filter(stage in ['proposal','negotiation']).sum(budget?.final_total || estimated_value)
+De:
+```
+isEditable={isEditable}
 ```
 
-Para "Recebido no Ano", query separada:
-
-```sql
-SELECT COALESCE(SUM(pi.value), 0) as total_received
-FROM project_installments pi
-JOIN projects p ON pi.project_id = p.id
-JOIN leads l ON p.budget_id = l.budget_id
-WHERE l.tenant_id = $tenant_id
-  AND l.crm_stage = 'closed'
-  AND pi.status = 'received'
-  AND EXTRACT(YEAR FROM pi.payment_date) = EXTRACT(YEAR FROM NOW())
+Para:
+```
+isEditable={isEditable || canEditActuals}
 ```
 
-Essa query sera executada via Supabase RPC ou diretamente via joins no client. Como o Supabase JS nao suporta facilmente esse join triplo, criaremos uma database function `get_crm_received_value(p_tenant_id uuid)` para encapsular essa logica.
+Isso faz com que, em qualquer estagio que nao seja "Concluido" (e desde que o usuario tenha permissao), ele possa:
+- Adicionar novos papeis/membros
+- Remover membros
+- Editar horas planejadas por mes
+- Atribuir/desatribuir funcionarios
 
-### Resumo das alteracoes
+As horas reais (timesheets) continuam sendo apenas exibidas na tabela, sem possibilidade de edicao nesta tela.
 
-| Arquivo | Acao |
-|---|---|
-| Migration SQL | Criar funcao `get_crm_received_value` |
-| `src/services/leadService.ts` | Adicionar `fetchCRMReceivedValue` |
-| `src/hooks/useLeads.ts` | Adicionar `useCRMReceivedValue` |
-| `src/components/crm/CRMStats.tsx` | Novo componente com 4 cartoes |
-| `src/pages/CRM.tsx` | Renderizar CRMStats acima do Kanban |
+### Resumo
+
+| Cenario | Antes | Depois |
+|---|---|---|
+| Projeto em Planejamento | Pode editar equipe | Pode editar equipe (sem mudanca) |
+| Projeto em Entrega de Valor | Equipe somente leitura | Pode editar equipe |
+| Projeto Concluido (admin) | Equipe somente leitura | Equipe somente leitura (sem mudanca) |
+| Horas de timesheet | Somente leitura | Somente leitura (sem mudanca) |
 
