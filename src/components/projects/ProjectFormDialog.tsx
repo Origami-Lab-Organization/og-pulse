@@ -307,6 +307,7 @@ export function ProjectFormDialog({
                   />
                 </div>
 
+                {watchedServiceLine !== 'ventures' && (
                 <FormField
                   control={form.control}
                   name="isContinuous"
@@ -330,6 +331,7 @@ export function ProjectFormDialog({
                     </FormItem>
                   )}
                 />
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -377,7 +379,7 @@ export function ProjectFormDialog({
                   ) : null}
                 </div>
 
-                {isContinuous && form.watch('serviceLine') !== 'financiamento_inovacao' && (
+                {isContinuous && watchedServiceLine !== 'financiamento_inovacao' && watchedServiceLine !== 'ventures' && (
                   <p className="text-sm text-muted-foreground">
                     Data de renovação automática do contrato. Será gerada uma NF por mês até esta data.
                   </p>
