@@ -165,121 +165,97 @@ const MyTimesheet = () => {
                 canSubmit={canSubmit}
               />
 
-              {projects.map((project) => {
-                const submission = submissions.get(project.projectId);
-                const isLocked = submission?.status === 'submitted';
-                const projectTotalHours = projectHoursMap.get(project.projectId) || 0;
+              <Card>
+                <CardContent className="pt-4">
+                  {/* Header único */}
+                  <div className="grid grid-cols-[1fr_repeat(5,60px)_80px_140px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
+                    <div>Projeto</div>
+                    {weekDays.map((day) => {
+                      const holiday = getHolidayForDate(day.date);
+                      const isHolidayDay = !!holiday;
+                      return (
+                        <TooltipProvider key={day.date}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={cn(
+                                "text-center rounded-md py-1",
+                                isHolidayDay && "bg-destructive/10 text-destructive"
+                              )}>
+                                {format(new Date(day.date + 'T12:00:00'), 'EEE', { locale: ptBR })}
+                                <br />
+                                <span className="text-[10px]">
+                                  {format(new Date(day.date + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
+                                </span>
+                                {isHolidayDay && <span className="text-[8px] block">*</span>}
+                              </div>
+                            </TooltipTrigger>
+                            {isHolidayDay && (
+                              <TooltipContent>
+                                <p>{holiday.name}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    })}
+                    <div className="text-right pr-2">Total</div>
+                    <div className="text-right pr-2">Status</div>
+                  </div>
 
-                return (
-                  <Card
-                    key={project.projectId}
-                    className={cn(isLocked && "border-green-200 dark:border-green-800")}
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">{project.clientName}</span>
-                          <span>/</span>
-                          <span>{project.projectName}</span>
-                        </CardTitle>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <span className="text-sm text-muted-foreground">Total: </span>
-                            <span className="font-semibold">{projectTotalHours.toFixed(1)}h</span>
-                          </div>
-                          {isLocked ? (
-                            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Enviado
-                            </Badge>
-                          ) : (
-                            <>
-                              <Badge variant="secondary">Rascunho</Badge>
-                              {canSubmit && projectTotalHours > 0 && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1.5"
-                                  onClick={() => {
-                                    setSelectedProjectForSubmit({
-                                      projectId: project.projectId,
-                                      projectName: project.projectName,
-                                      totalHours: projectTotalHours,
-                                    });
-                                    setShowSubmitProjectDialog(true);
-                                  }}
-                                >
-                                  <Send className="h-3.5 w-3.5" />
-                                  Enviar
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      {isLocked && submission?.submitted_at && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Enviado em {format(new Date(submission.submitted_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                        </p>
-                      )}
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      {/* Header Row */}
-                      <div className="grid grid-cols-[1fr_repeat(5,60px)_80px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
-                        <div>Projeto</div>
-                        {weekDays.map((day) => {
-                          const holiday = getHolidayForDate(day.date);
-                          const isHolidayDay = !!holiday;
-                          return (
-                            <TooltipProvider key={day.date}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className={cn(
-                                    "text-center rounded-md py-1",
-                                    isHolidayDay && "bg-destructive/10 text-destructive"
-                                  )}>
-                                    {format(new Date(day.date + 'T12:00:00'), 'EEE', { locale: ptBR })}
-                                    <br />
-                                    <span className="text-[10px]">
-                                      {format(new Date(day.date + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
-                                    </span>
-                                    {isHolidayDay && <span className="text-[8px] block">*</span>}
-                                  </div>
-                                </TooltipTrigger>
-                                {isHolidayDay && (
-                                  <TooltipContent>
-                                    <p>{holiday.name}</p>
-                                  </TooltipContent>
-                                )}
-                              </Tooltip>
-                            </TooltipProvider>
-                          );
-                        })}
-                        <div className="text-right pr-2">Total</div>
-                      </div>
+                  {/* Uma linha por projeto */}
+                  {projects.map((project) => {
+                    const submission = submissions.get(project.projectId);
+                    const isLocked = submission?.status === 'submitted';
+                    const projectTotalHours = projectHoursMap.get(project.projectId) || 0;
+                    const member = project.members[0];
 
-                      {/* Single row for the employee */}
-                      {project.members.map((member) => (
-                        <TimesheetWeekRow
-                          key={member.memberId}
-                          label={member.employeeName}
-                          subLabel={member.role}
-                          avatarUrl={member.employeePhoto}
-                          projectId={project.projectId}
-                          projectName={project.projectName}
-                          memberId={member.memberId}
-                          weekDays={weekDays}
-                          existingEntries={timesheetEntries}
-                          holidays={holidays}
-                          isLocked={isLocked}
-                          isAdmin={false}
-                        />
-                      ))}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                    const actionContent = isLocked ? (
+                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Enviado
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="secondary" className="whitespace-nowrap">Rascunho</Badge>
+                        {canSubmit && projectTotalHours > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 h-6 px-2 text-xs"
+                            onClick={() => {
+                              setSelectedProjectForSubmit({
+                                projectId: project.projectId,
+                                projectName: project.projectName,
+                                totalHours: projectTotalHours,
+                              });
+                              setShowSubmitProjectDialog(true);
+                            }}
+                          >
+                            <Send className="h-3 w-3" />
+                            Enviar
+                          </Button>
+                        )}
+                      </div>
+                    );
+
+                    return (
+                      <TimesheetWeekRow
+                        key={member.memberId}
+                        label={project.projectName}
+                        subLabel={project.clientName}
+                        projectId={project.projectId}
+                        memberId={member.memberId}
+                        weekDays={weekDays}
+                        existingEntries={timesheetEntries}
+                        holidays={holidays}
+                        isLocked={isLocked}
+                        isAdmin={false}
+                        actionSlot={actionContent}
+                      />
+                    );
+                  })}
+                </CardContent>
+              </Card>
             </>
           )}
         </div>
