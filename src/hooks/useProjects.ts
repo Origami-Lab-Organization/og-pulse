@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   CreateProjectInput,
   CreateProjectMemberInput,
+  CreateInstallmentInput,
   UpdateInstallmentInput,
 } from '@/types/project';
 
@@ -339,6 +340,59 @@ export const useUpdateInstallment = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao atualizar parcela',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useCreateInstallment = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: CreateInstallmentInput) => {
+      return projectService.createInstallment(input);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['project-installments', variables.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+      toast({
+        title: 'Parcela criada',
+        description: 'A nova parcela foi cadastrada com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao criar parcela',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useDeleteInstallment = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
+      await projectService.deleteInstallment(id);
+      return { projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['project-installments', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', data.projectId] });
+      toast({
+        title: 'Parcela excluída',
+        description: 'A parcela foi excluída com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao excluir parcela',
         description: error.message,
         variant: 'destructive',
       });

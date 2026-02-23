@@ -5,6 +5,7 @@ import {
   ProjectInstallmentDB,
   CreateProjectInput,
   CreateProjectMemberInput,
+  CreateInstallmentInput,
   UpdateInstallmentInput,
   ProjectWithRelations,
   InstallmentStatus,
@@ -182,8 +183,8 @@ export const projectService = {
       throw projectError;
     }
 
-    // Generate installments
-    if (input.firstInvoiceDate) {
+    // Generate installments (skip for financiamento_inovacao - manual installments)
+    if (input.firstInvoiceDate && input.serviceLine !== 'financiamento_inovacao') {
       const isContinuous = input.isContinuous || false;
       const installmentsCount = isContinuous ? 1 : input.installmentsCount;
       
@@ -256,7 +257,8 @@ export const projectService = {
       updates.renewalDate !== undefined ||
       updates.isContinuous !== undefined;
 
-    if (shouldRegenerateInstallments) {
+    // Skip auto-regeneration for financiamento_inovacao projects
+    if (shouldRegenerateInstallments && data.service_line !== 'financiamento_inovacao') {
       // Use the updated project data (from the UPDATE result)
       const projectIsContinuous = updates.isContinuous !== undefined ? updates.isContinuous : data.is_continuous;
       const projectFirstInvoiceDate = updates.firstInvoiceDate || data.first_invoice_date;
@@ -478,6 +480,7 @@ export const projectService = {
     if (updates.paymentDate !== undefined) updateData.payment_date = updates.paymentDate;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
     if (updates.value !== undefined) updateData.value = updates.value;
+    if (updates.dueDate !== undefined) updateData.due_date = updates.dueDate;
 
     const { data, error } = await supabase
       .from('project_installments')
@@ -513,6 +516,50 @@ export const projectService = {
       .getPublicUrl(fileName);
 
     return urlData.publicUrl;
+  },
+
+  async createInstallment(input: CreateInstallmentInput): Promise<ProjectInstallmentDB> {
+    // Get the next installment number
+    const { data: existing } = await supabase
+      .from('project_installments')
+      .select('installment_number')
+      .eq('project_id', input.projectId)
+      .order('installment_number', { ascending: false })
+      .limit(1);
+
+    const nextNumber = (existing && existing.length > 0 ? existing[0].installment_number : 0) + 1;
+
+    const { data, error } = await supabase
+      .from('project_installments')
+      .insert({
+        project_id: input.projectId,
+        installment_number: nextNumber,
+        value: input.value,
+        due_date: input.dueDate,
+        status: 'pending' as InstallmentStatus,
+        notes: input.notes || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating installment:', error);
+      throw error;
+    }
+
+    return data as unknown as ProjectInstallmentDB;
+  },
+
+  async deleteInstallment(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('project_installments')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting installment:', error);
+      throw error;
+    }
   },
 
   async search(query: string, tenantId: string): Promise<ProjectWithRelations[]> {
