@@ -7,7 +7,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
-import { TimesheetByEmployee } from '@/components/timesheets/TimesheetByEmployee';
+import { TimesheetByEmployee, AdminEditChange } from '@/components/timesheets/TimesheetByEmployee';
 import { TimesheetWeekStatus } from '@/components/timesheets/TimesheetWeekStatus';
 import { SubmitProjectDialog, SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
 import { AdminWeekEditDialog } from '@/components/timesheets/AdminWeekEditDialog';
@@ -224,9 +224,9 @@ export default function EmployeeTimesheetPage() {
     });
   };
 
-  const handleAdminEditProject = (projectId: string) => {
-    setAdminEditProjectId(projectId);
-    setShowAdminEditDialog(true);
+  const handleAdminInlineSave = (changes: AdminEditChange[], justification: string) => {
+    // Map AdminEditChange to BatchEditChange (same shape)
+    adminBatchEdit.mutate({ changes, justification });
   };
 
   const handleAdminBatchSave = (changes: BatchEditChange[], justification: string) => {
@@ -299,7 +299,8 @@ export default function EmployeeTimesheetPage() {
                 submissions={submissions}
                 isAdmin={isAdmin}
                 canEdit={canSubmit}
-                onAdminEditProject={handleAdminEditProject}
+                onAdminSaveEdit={handleAdminInlineSave}
+                isSavingEdit={adminBatchEdit.isPending}
               />
             )}
           </>
