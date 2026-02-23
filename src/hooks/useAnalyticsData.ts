@@ -147,7 +147,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         // Members with employee cost data
         supabase
           .from('project_members')
-          .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria)')
+          .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria, data_admissao)')
           .in('project_id', projectIds),
 
         // Project suppliers (to map month_number)
@@ -320,8 +320,13 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       // From timesheets
       employeeHoursMap.forEach(({ employee: emp, hours }) => {
+        const admDate = emp.data_admissao ? parseISO(emp.data_admissao) : null;
+        if (admDate && admDate > filters.endDate) return;
+
         const jornadaDiaria = Number(emp.jornada_diaria) || 8;
-        const capacity = jornadaDiaria * workingDays;
+        const effectiveStart = admDate && admDate > filters.startDate ? admDate : filters.startDate;
+        const effectiveWorkingDays = countWorkingDays(effectiveStart, filters.endDate, holidays);
+        const capacity = jornadaDiaria * effectiveWorkingDays;
         const utilization = capacity > 0 ? (hours / capacity) * 100 : 0;
         employeeUtilization.push({
           employeeId: emp.id,
@@ -340,8 +345,13 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       members.forEach(m => {
         if (m.employee && !processedEmployees.has(m.employee.id)) {
           const emp = m.employee;
+          const admDate = emp.data_admissao ? parseISO(emp.data_admissao) : null;
+          if (admDate && admDate > filters.endDate) return;
+
           const jornadaDiaria = Number(emp.jornada_diaria) || 8;
-          const capacity = jornadaDiaria * workingDays;
+          const effectiveStart = admDate && admDate > filters.startDate ? admDate : filters.startDate;
+          const effectiveWorkingDays = countWorkingDays(effectiveStart, filters.endDate, holidays);
+          const capacity = jornadaDiaria * effectiveWorkingDays;
           employeeUtilization.push({
             employeeId: emp.id,
             employeeName: emp.nome,
