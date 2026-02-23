@@ -29,6 +29,7 @@ interface TimesheetWeekRowProps {
   isLocked?: boolean;
   isAdmin?: boolean;
   actionSlot?: ReactNode;
+  statusSlot?: ReactNode;
 }
 
 export function TimesheetWeekRow({
@@ -43,6 +44,7 @@ export function TimesheetWeekRow({
   isLocked = false,
   isAdmin = false,
   actionSlot,
+  statusSlot,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
   
@@ -139,7 +141,7 @@ export function TimesheetWeekRow({
   return (
     <div className={cn(
       "grid gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md",
-      actionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_140px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+      (statusSlot || actionSlot) ? "grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
     )}>
       <div className="flex items-center gap-2 min-w-0">
         {avatarUrl !== undefined && (
@@ -239,8 +241,13 @@ export function TimesheetWeekRow({
       <div className="text-right font-medium text-sm pr-2">
         {totalHours.toFixed(1)}h
       </div>
+      {statusSlot && (
+        <div className="flex items-center justify-center">
+          {statusSlot}
+        </div>
+      )}
       {actionSlot && (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-center">
           {actionSlot}
         </div>
       )}
