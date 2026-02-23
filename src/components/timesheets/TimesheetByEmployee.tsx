@@ -199,7 +199,7 @@ export function TimesheetByEmployee({
               {/* Header Row */}
               <div className={cn(
                 "grid gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground",
-                hasActionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_140px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+                hasActionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
               )}>
                 <div>Cliente / Projeto</div>
                 {weekDays.map((day) => {
@@ -232,7 +232,8 @@ export function TimesheetByEmployee({
                   );
                 })}
                 <div className="text-right pr-2">Total</div>
-                {hasActionSlot && <div className="text-right pr-2">Status</div>}
+                {hasActionSlot && <div className="text-center">Status</div>}
+                {hasActionSlot && <div className="text-center">Ação</div>}
               </div>
               
               {/* Project Rows */}
@@ -248,7 +249,7 @@ export function TimesheetByEmployee({
                       <div className="border border-primary/30 rounded-lg my-1 bg-primary/5">
                         <div className={cn(
                           "grid gap-2 items-center py-2 px-3",
-                          hasActionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_140px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+                          hasActionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
                         )}>
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{project.projectName}</p>
@@ -296,6 +297,7 @@ export function TimesheetByEmployee({
                           <div className="text-right font-medium text-sm pr-2">
                             {Object.values(editHours).reduce((s, h) => s + (h || 0), 0).toFixed(1)}h
                           </div>
+                          {hasActionSlot && <div />}
                           {hasActionSlot && <div />}
                         </div>
 
@@ -350,27 +352,24 @@ export function TimesheetByEmployee({
                         holidays={holidays}
                         isLocked={projectLocked}
                         isAdmin={isAdmin}
-                        actionSlot={projectLocked ? (
-                          <>
-                            <Badge 
-                              variant="secondary" 
-                              className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] py-0"
-                            >
-                              <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
-                              Enviado
-                            </Badge>
-                            {canEdit && onAdminSaveEdit && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-xs gap-1"
-                                onClick={() => startEditing(project.memberId, project.projectId)}
-                              >
-                                <Pencil className="h-3 w-3" />
-                                Editar
-                              </Button>
-                            )}
-                          </>
+                        statusSlot={projectLocked ? (
+                          <Badge 
+                            variant="secondary" 
+                            className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] py-0"
+                          >
+                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                            Enviado
+                          </Badge>
+                        ) : undefined}
+                        actionSlot={projectLocked && canEdit && onAdminSaveEdit ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => startEditing(project.memberId, project.projectId)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                         ) : undefined}
                       />
                     )}
