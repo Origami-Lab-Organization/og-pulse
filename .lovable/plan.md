@@ -1,53 +1,66 @@
 
 
-## Ajustar Analytics para considerar data de admissao do funcionario
+## Adicionar cartoes de KPI ao CRM
 
-### Problema
+### Objetivo
 
-Na tabela de "Utilizacao de Funcionarios" do Analytics, a capacidade e calculada como `jornada_diaria * dias_uteis_do_mes` para todos os funcionarios igualmente, sem considerar:
+Adicionar 4 cartoes de resumo acima do Kanban na pagina do CRM:
 
-1. Funcionarios admitidos **apos** o mes selecionado nao deveriam aparecer
-2. Funcionarios admitidos **durante** o mes selecionado deveriam ter a capacidade proporcional (apenas dias uteis a partir da data de admissao)
+1. **Projetos Ganhos** - Quantidade de leads em "Negocio Fechado" no ano corrente
+2. **Total Ganho no Ano** - Soma do `final_total` dos orcamentos vinculados aos leads fechados no ano corrente
+3. **Recebido no Ano** - Soma das parcelas pagas (status `received`) dos projetos vinculados aos orcamentos dos leads fechados
+4. **Pipeline** - Soma dos valores dos leads em "Proposta" e "Negociacao" (usando `budget.final_total` quando disponivel, senao `estimated_value`)
 
 ### Alteracoes
 
-**Arquivo: `src/hooks/useAnalyticsData.ts`**
+**Novo arquivo: `src/components/crm/CRMStats.tsx`**
 
-1. Adicionar `data_admissao` ao select da query de `project_members` (linha 150):
-   - Alterar o select para incluir `data_admissao` nos campos do employee
+- Componente que recebe os leads e calcula os 4 KPIs
+- Para os 3 primeiros KPIs, filtra leads com `crm_stage === 'closed'` cujo `closed_at` esta no ano corrente (se `closed_at` for nulo, considera todos os leads fechados como do ano corrente, ja que dados historicos nao tem essa data preenchida)
+- Para "Recebido no Ano", sera necessario buscar installments dos projetos vinculados aos budgets dos leads fechados
+- Layout em grid de 4 colunas seguindo o padrao visual dos outros Stats (ClientStats, BudgetStats)
 
-2. Filtrar funcionarios cuja `data_admissao` e posterior ao fim do periodo selecionado (nao devem aparecer)
+**Novo hook ou query adicional no `useLeads`**
 
-3. Calcular capacidade proporcional: se `data_admissao` cai dentro do mes selecionado, contar dias uteis apenas a partir da data de admissao ate o fim do mes (usando a funcao `countWorkingDays` ja existente)
+- Criar uma funcao `fetchCRMReceivedValue` no `leadService.ts` que busca o total recebido no ano para projetos vinculados aos orcamentos dos leads fechados
+- Ou incluir essa logica diretamente no componente via query separada
+
+**Arquivo: `src/pages/CRM.tsx`**
+
+- Importar e renderizar `CRMStats` acima da barra de busca, passando os leads
 
 ### Detalhes tecnicos
 
-No select de members (linha 150):
-```typescript
-.select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria, data_admissao)')
+Logica dos KPIs:
+
+```text
+Projetos Ganhos = leads.filter(stage === 'closed').length
+Total Ganho = leads.filter(stage === 'closed').sum(budget?.final_total || estimated_value)
+Pipeline = leads.filter(stage in ['proposal','negotiation']).sum(budget?.final_total || estimated_value)
 ```
 
-Na secao de employee utilization (linhas 311-357), ao calcular capacity:
-```typescript
-// Determinar data de inicio efetiva do funcionario no periodo
-const admDate = emp.data_admissao ? parseISO(emp.data_admissao) : null;
+Para "Recebido no Ano", query separada:
 
-// Se admissao e apos o fim do periodo, pular funcionario
-if (admDate && admDate > filters.endDate) continue;
-
-// Se admissao e durante o periodo, ajustar dias uteis
-const effectiveStart = admDate && admDate > filters.startDate ? admDate : filters.startDate;
-const effectiveWorkingDays = countWorkingDays(effectiveStart, filters.endDate, holidays);
-const capacity = jornadaDiaria * effectiveWorkingDays;
+```sql
+SELECT COALESCE(SUM(pi.value), 0) as total_received
+FROM project_installments pi
+JOIN projects p ON pi.project_id = p.id
+JOIN leads l ON p.budget_id = l.budget_id
+WHERE l.tenant_id = $tenant_id
+  AND l.crm_stage = 'closed'
+  AND pi.status = 'received'
+  AND EXTRACT(YEAR FROM pi.payment_date) = EXTRACT(YEAR FROM NOW())
 ```
 
-Essa mesma logica sera aplicada tanto para funcionarios com horas (timesheets) quanto para funcionarios ociosos (allocated but no hours).
+Essa query sera executada via Supabase RPC ou diretamente via joins no client. Como o Supabase JS nao suporta facilmente esse join triplo, criaremos uma database function `get_crm_received_value(p_tenant_id uuid)` para encapsular essa logica.
 
-### Resumo
+### Resumo das alteracoes
 
-| Aspecto | Antes | Depois |
-|---|---|---|
-| Query members | Sem `data_admissao` | Com `data_admissao` |
-| Funcionario admitido apos o mes | Aparece com capacidade cheia | Nao aparece |
-| Funcionario admitido no meio do mes | Capacidade cheia (ex: 168h) | Capacidade proporcional (ex: 80h) |
+| Arquivo | Acao |
+|---|---|
+| Migration SQL | Criar funcao `get_crm_received_value` |
+| `src/services/leadService.ts` | Adicionar `fetchCRMReceivedValue` |
+| `src/hooks/useLeads.ts` | Adicionar `useCRMReceivedValue` |
+| `src/components/crm/CRMStats.tsx` | Novo componente com 4 cartoes |
+| `src/pages/CRM.tsx` | Renderizar CRMStats acima do Kanban |
 
