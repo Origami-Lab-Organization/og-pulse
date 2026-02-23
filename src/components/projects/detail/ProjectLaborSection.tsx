@@ -35,7 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectMemberDB, SENIORITY_OPTIONS } from '@/types/project';
 import { BudgetRoleWithMonths } from '@/types/budget';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useAddProjectMember, useRemoveProjectMember, useUpdateProjectMember, useAssignMemberEmployee } from '@/hooks/useProjects';
 import { useProjectMemberMonths, useUpsertMemberMonth } from '@/hooks/useProjectMemberMonths';
@@ -62,6 +62,7 @@ interface ProjectLaborSectionProps {
 }
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+// Note: MONTH_LABELS kept for financiamento mode, getProjectMonthLabel used for project months
 
 export function ProjectLaborSection({
   projectId,
@@ -531,7 +532,7 @@ export function ProjectLaborSection({
                       {months.map((m) => (
                         <TableHead key={m} className="text-center min-w-[80px]">
                           <div className="flex flex-col">
-                            <span>{isFinanciamento ? MONTH_LABELS[(m - 1) % 12] : `Mês ${m}`}</span>
+                            <span>{isFinanciamento ? MONTH_LABELS[(m - 1) % 12] : getProjectMonthLabel(m, projectStartDate)}</span>
                             {!isInPlanningMode && (
                               <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
                             )}

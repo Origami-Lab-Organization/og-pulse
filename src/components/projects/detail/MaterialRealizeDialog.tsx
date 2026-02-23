@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ProjectMaterialDB } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
 import { useUpdateProjectMaterial } from '@/hooks/useProjectCosts';
 
 interface MaterialRealizeDialogProps {
@@ -20,6 +20,7 @@ interface MaterialRealizeDialogProps {
   onOpenChange: (open: boolean) => void;
   materials: ProjectMaterialDB[];
   projectId: string;
+  projectStartDate: string;
 }
 
 export function MaterialRealizeDialog({
@@ -27,6 +28,7 @@ export function MaterialRealizeDialog({
   onOpenChange,
   materials,
   projectId,
+  projectStartDate,
 }: MaterialRealizeDialogProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
@@ -141,7 +143,7 @@ export function MaterialRealizeDialog({
                       <div>
                         <p className="font-medium">{material.description}</p>
                         <p className="text-xs text-muted-foreground">
-                          Mês {material.month_number || 1}
+                          {getProjectMonthLabel(material.month_number || 1, projectStartDate)}
                         </p>
                       </div>
                       <span className="font-medium">

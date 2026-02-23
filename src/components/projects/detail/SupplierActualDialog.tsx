@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ProjectSupplierDB } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
 import { useUpsertSupplierActual, ProjectSupplierActualDB } from '@/hooks/useProjectSupplierActuals';
 
 interface SupplierActualDialogProps {
@@ -30,6 +30,7 @@ interface SupplierActualDialogProps {
   durationMonths: number;
   existingActuals: ProjectSupplierActualDB[];
   getPlannedValueForMonth: (supplierId: string, monthNumber: number) => number;
+  projectStartDate: string;
 }
 
 export function SupplierActualDialog({
@@ -39,6 +40,7 @@ export function SupplierActualDialog({
   durationMonths,
   existingActuals,
   getPlannedValueForMonth,
+  projectStartDate,
 }: SupplierActualDialogProps) {
   const [monthNumber, setMonthNumber] = useState<number>(1);
   const [value, setValue] = useState<number>(0);
@@ -143,7 +145,7 @@ export function SupplierActualDialog({
                     return (
                       <SelectItem key={m} value={String(m)}>
                         <span className="flex items-center gap-2">
-                          Mês {m}
+                          {getProjectMonthLabel(m, projectStartDate)}
                           {planned > 0 && (
                             <span className="text-xs text-muted-foreground">
                               (Plan: {formatCurrency(planned)})
