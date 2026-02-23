@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, Target, DollarSign, Receipt, Wallet } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
-import { formatCurrency, formatPercent } from '@/lib/formatters';
+import { formatCurrency, formatPercent, getProjectMonthLabel } from '@/lib/formatters';
 import { ProjectFinancialChart } from './ProjectFinancialChart';
 import { ProjectTrendChart } from './ProjectTrendChart';
 import { ProjectInstallmentsTable } from '@/components/projects/ProjectInstallmentsTable';
@@ -172,7 +172,7 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
         .reduce((s, m) => s + Number(m.value || 0), 0);
 
       return {
-        name: `Mês ${monthNum}`,
+        name: getProjectMonthLabel(monthNum, project.start_date),
         planejado: laborPlan + supplierPlan + materialPlan,
         realizado: laborReal + supplierReal + materialReal,
       };

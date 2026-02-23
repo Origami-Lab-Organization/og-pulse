@@ -366,6 +366,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
         supplierActuals={supplierActuals}
         budgetSuppliers={budget?.suppliers || []}
         availableSuppliers={availableSuppliers}
+        projectStartDate={project.start_date}
       />
 
       {/* Materials Section */}
@@ -375,6 +376,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
         durationMonths={durationMonths}
         isEditable={isEditable}
         canEditActuals={canEditActuals || isEditable}
+        projectStartDate={project.start_date}
       />
 
       {/* Reimbursements Section */}

@@ -92,4 +92,24 @@ export function parseDateString(dateStr: string): Date {
   return new Date(dateStr);
 }
 
+const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+/**
+ * Converte o número do mês do projeto (1-based) para o label do mês calendário
+ * baseado na data de início do projeto.
+ * Ex: projectStartDate='2026-01-15', monthNumber=1 → 'Jan/26'
+ *     projectStartDate='2026-03-01', monthNumber=2 → 'Abr/26'
+ */
+export function getProjectMonthLabel(monthNumber: number, projectStartDate: string): string {
+  const startDate = parseDateString(projectStartDate);
+  const startMonth = startDate.getMonth(); // 0-based
+  const startYear = startDate.getFullYear();
+  
+  const targetMonth = (startMonth + monthNumber - 1) % 12;
+  const targetYear = startYear + Math.floor((startMonth + monthNumber - 1) / 12);
+  const yearShort = String(targetYear).slice(-2);
+  
+  return `${MONTH_NAMES_SHORT[targetMonth]}/${yearShort}`;
+}
+
 export { cn };

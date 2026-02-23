@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ProjectSupplierDB, CreateProjectSupplierInput } from '@/types/project';
 import { BudgetSupplierDB } from '@/types/budget';
 import { Supplier } from '@/types/supplier';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
 import { useAddProjectSupplier, useRemoveProjectSupplier } from '@/hooks/useProjectCosts';
 import { useProjectSupplierMonths, useUpsertSupplierMonth } from '@/hooks/useProjectSupplierMonths';
 import { ProjectSupplierActualDB } from '@/hooks/useProjectSupplierActuals';
@@ -43,6 +43,7 @@ interface ProjectSuppliersSectionProps {
   supplierActuals?: ProjectSupplierActualDB[];
   budgetSuppliers: BudgetSupplierDB[];
   availableSuppliers: Supplier[];
+  projectStartDate: string;
 }
 
 // New supplier row state
@@ -64,6 +65,7 @@ export function ProjectSuppliersSection({
   supplierActuals = [],
   budgetSuppliers,
   availableSuppliers,
+  projectStartDate,
 }: ProjectSuppliersSectionProps) {
   // Inline add mode
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -424,7 +426,7 @@ export function ProjectSuppliersSection({
                       {months.map((m) => (
                         <TableHead key={m} className="text-center min-w-[100px]">
                           <div className="flex flex-col">
-                            <span>Mês {m}</span>
+                            <span>{getProjectMonthLabel(m, projectStartDate)}</span>
                             {!isEditable && (
                               <span className="text-xs font-normal text-muted-foreground">Plan | Real</span>
                             )}
@@ -792,6 +794,7 @@ export function ProjectSuppliersSection({
           durationMonths={durationMonths}
           existingActuals={supplierActuals.filter(sa => sa.project_supplier_id === selectedSupplier.id)}
           getPlannedValueForMonth={getValueForMonth}
+          projectStartDate={projectStartDate}
         />
       )}
     </>

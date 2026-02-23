@@ -32,7 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectMaterialDB, CreateProjectMaterialInput } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
 import { useAddProjectMaterial, useRemoveProjectMaterial } from '@/hooks/useProjectCosts';
 import { MaterialRealizeDialog } from './MaterialRealizeDialog';
 
@@ -42,6 +42,7 @@ interface ProjectMaterialsSectionProps {
   durationMonths: number;
   isEditable: boolean;
   canEditActuals?: boolean;
+  projectStartDate: string;
 }
 
 export function ProjectMaterialsSection({
@@ -50,6 +51,7 @@ export function ProjectMaterialsSection({
   durationMonths,
   isEditable,
   canEditActuals = false,
+  projectStartDate,
 }: ProjectMaterialsSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [realizeDialogOpen, setRealizeDialogOpen] = useState(false);
@@ -138,7 +140,7 @@ export function ProjectMaterialsSection({
               <div className="flex flex-wrap gap-2">
                 {months.map((m) => (
                   <Badge key={m} variant="secondary" className="text-xs">
-                    Mês {m}: {formatCurrency(materialsByMonth[m] || 0)}
+                    {getProjectMonthLabel(m, projectStartDate)}: {formatCurrency(materialsByMonth[m] || 0)}
                   </Badge>
                 ))}
               </div>
@@ -159,7 +161,7 @@ export function ProjectMaterialsSection({
                       <TableRow key={material.id}>
                         <TableCell className="font-medium">{material.description}</TableCell>
                         <TableCell className="text-center">
-                          <Badge variant="outline">Mês {material.month_number || 1}</Badge>
+                          <Badge variant="outline">{getProjectMonthLabel(material.month_number || 1, projectStartDate)}</Badge>
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(material.value)}</TableCell>
                         <TableCell className="text-center">
@@ -256,7 +258,7 @@ export function ProjectMaterialsSection({
                   <SelectContent>
                     {months.map((m) => (
                       <SelectItem key={m} value={String(m)}>
-                        Mês {m}
+                        {getProjectMonthLabel(m, projectStartDate)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -293,6 +295,7 @@ export function ProjectMaterialsSection({
         onOpenChange={setRealizeDialogOpen}
         materials={materials}
         projectId={projectId}
+        projectStartDate={projectStartDate}
       />
     </>
   );
