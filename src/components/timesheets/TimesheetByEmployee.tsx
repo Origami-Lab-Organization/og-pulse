@@ -177,6 +177,8 @@ export function TimesheetByEmployee({
 
         const totalHours = getEmployeeTotalHours(employee.projects);
 
+        const hasActionSlot = employee.projects.some(p => isProjectLocked(p.projectId));
+
         return (
           <Card key={employee.employeeId}>
             <CardHeader className="pb-2">
@@ -195,7 +197,10 @@ export function TimesheetByEmployee({
             </CardHeader>
             <CardContent className="pt-0">
               {/* Header Row */}
-              <div className="grid grid-cols-[1fr_repeat(5,60px)_80px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
+              <div className={cn(
+                "grid gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground",
+                hasActionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_140px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+              )}>
                 <div>Cliente / Projeto</div>
                 {weekDays.map((day) => {
                   const holiday = getHolidayForDate(day.date);
@@ -227,6 +232,7 @@ export function TimesheetByEmployee({
                   );
                 })}
                 <div className="text-right pr-2">Total</div>
+                {hasActionSlot && <div className="text-right pr-2">Status</div>}
               </div>
               
               {/* Project Rows */}
@@ -240,7 +246,10 @@ export function TimesheetByEmployee({
                     {isEditing ? (
                       /* Inline edit mode */
                       <div className="border border-primary/30 rounded-lg my-1 bg-primary/5">
-                        <div className="grid grid-cols-[1fr_repeat(5,60px)_80px] gap-2 items-center py-2 px-3">
+                        <div className={cn(
+                          "grid gap-2 items-center py-2 px-3",
+                          hasActionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_140px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+                        )}>
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{project.projectName}</p>
                             <p className="text-xs text-muted-foreground truncate">{project.clientName}</p>
@@ -287,6 +296,7 @@ export function TimesheetByEmployee({
                           <div className="text-right font-medium text-sm pr-2">
                             {Object.values(editHours).reduce((s, h) => s + (h || 0), 0).toFixed(1)}h
                           </div>
+                          {hasActionSlot && <div />}
                         </div>
 
                         {/* Justification + actions bar */}
@@ -330,9 +340,18 @@ export function TimesheetByEmployee({
                       </div>
                     ) : (
                       /* Normal display mode */
-                      <div className="relative">
-                        {projectLocked && (
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1">
+                      <TimesheetWeekRow
+                        label={project.projectName}
+                        subLabel={project.clientName}
+                        projectId={project.projectId}
+                        memberId={project.memberId}
+                        weekDays={weekDays}
+                        existingEntries={timesheetEntries}
+                        holidays={holidays}
+                        isLocked={projectLocked}
+                        isAdmin={isAdmin}
+                        actionSlot={projectLocked ? (
+                          <>
                             <Badge 
                               variant="secondary" 
                               className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] py-0"
@@ -351,20 +370,9 @@ export function TimesheetByEmployee({
                                 Editar
                               </Button>
                             )}
-                          </div>
-                        )}
-                        <TimesheetWeekRow
-                          label={project.projectName}
-                          subLabel={project.clientName}
-                          projectId={project.projectId}
-                          memberId={project.memberId}
-                          weekDays={weekDays}
-                          existingEntries={timesheetEntries}
-                          holidays={holidays}
-                          isLocked={projectLocked}
-                          isAdmin={isAdmin}
-                        />
-                      </div>
+                          </>
+                        ) : undefined}
+                      />
                     )}
                   </div>
                 );
