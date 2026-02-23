@@ -1,60 +1,38 @@
 
-
-## Filtrar Projetos na Timesheet por Data de Inicio e Fim
+## Corrigir Totais na Minha Timesheet
 
 ### Problema
 
-Atualmente, projetos aparecem na timesheet do funcionario apenas com base no `portfolio_stage` (nao ser "completed"). Porem, projetos que ainda nao comecaram ou ja terminaram tambem aparecem, permitindo lancamentos fora do periodo valido.
+Os totais exibidos no cabecalho de cada card de projeto ("Total: X.0h") e no resumo da semana somam as horas de **todos os funcionarios** do projeto, nao apenas as do funcionario logado. Isso acontece porque:
+
+1. `useTimesheetsByDateRange` busca **todas** as entradas da semana (sem filtro por funcionario)
+2. `projectHoursMap` filtra apenas por `projectId`, somando horas de todos os membros
 
 ### Solucao
 
-Filtrar projetos na timesheet com base na semana selecionada, mostrando apenas projetos cuja data de inicio/fim se sobreponha a semana em questao.
+Filtrar o calculo dos totais para considerar apenas os `memberId`s do funcionario logado.
 
-### Regras de negocio
+### Alteracao
 
-- Projeto aparece se: `start_date <= fim_da_semana` E (`end_date >= inicio_da_semana` OU `is_continuous = true`)
-- Projetos sem `start_date` continuam aparecendo (para nao quebrar dados existentes)
-- Projetos com `is_continuous = true` nao sao filtrados por `end_date`
+**Arquivo: `src/pages/MyTimesheet.tsx`**
 
-### Alteracoes
-
-**1. `src/hooks/useMyTimesheetData.ts`**
-
-- Receber parametros `weekStart` e `weekEnd` (strings yyyy-MM-dd)
-- Incluir `start_date`, `end_date`, `is_continuous` no select dos projetos
-- Apos receber os dados, filtrar no lado do cliente: manter apenas projetos cujo periodo se sobreponha a semana selecionada
-
-**2. `src/hooks/useTimesheetData.ts` (useActiveProjectsWithMembers)**
-
-- Mesma logica: receber `weekStart`/`weekEnd` opcionais e incluir os campos de data no select
-- Filtrar no cliente apos receber os dados
-
-**3. `src/pages/MyTimesheet.tsx`**
-
-- Passar `startDate` e `endDate` para o hook `useMyProjectMemberships`
-
-**4. `src/pages/Timesheets.tsx`**
-
-- Passar `startDate` e `endDate` para o hook `useActiveProjectsWithMembers`
-
-### Detalhes tecnicos
-
-Filtragem no cliente (apos o fetch):
+No calculo de `projectHoursMap`, trocar o filtro de `projectId` para `memberId`:
 
 ```typescript
-const weekStartDate = parseISO(weekStart);
-const weekEndDate = parseISO(weekEnd);
-
-const filtered = projects.filter(p => {
-  if (!p.startDate) return true; // sem data de inicio, mostra
-  const projStart = parseISO(p.startDate);
-  if (projStart > weekEndDate) return false; // projeto ainda nao comecou
-  if (p.isContinuous) return true; // continuo, sem fim
-  if (!p.endDate) return true; // sem data fim, mostra
-  const projEnd = parseISO(p.endDate);
-  return projEnd >= weekStartDate; // projeto ja terminou?
-});
+const projectHoursMap = useMemo(() => {
+  const map = new Map<string, number>();
+  for (const project of projects) {
+    const memberIds = project.members.map(m => m.memberId);
+    const hours = timesheetEntries
+      .filter(e => memberIds.includes(e.projectMemberId))
+      .reduce((sum, e) => sum + e.hours, 0);
+    map.set(project.projectId, hours);
+  }
+  return map;
+}, [projects, timesheetEntries]);
 ```
 
-A interface `ProjectWithMembers` ganhara campos opcionais `startDate?`, `endDate?`, `isContinuous?` para suportar essa filtragem.
-
+Isso garante que:
+- O total no cabecalho de cada card mostra apenas as horas do funcionario logado
+- O total geral no "Resumo da Semana" reflete apenas as horas do funcionario
+- O valor enviado no dialog de submissao tambem sera correto
