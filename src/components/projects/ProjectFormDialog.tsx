@@ -63,7 +63,7 @@ const projectSchema = z.object({
 }).refine((data) => data.isContinuous || (data.endDate && data.endDate.length > 0), {
   message: 'Data de fim é obrigatória para projetos com prazo determinado',
   path: ['endDate'],
-}).refine((data) => !data.isContinuous || (data.renewalDate && data.renewalDate.length > 0), {
+}).refine((data) => !data.isContinuous || data.serviceLine === 'ventures' || (data.renewalDate && data.renewalDate.length > 0), {
   message: 'Data de renovação é obrigatória para projetos contínuos',
   path: ['renewalDate'],
 });
@@ -160,12 +160,12 @@ export function ProjectFormDialog({
       startDate: values.startDate,
       endDate: values.isContinuous ? undefined : values.endDate,
       isContinuous: values.isContinuous,
-      renewalDate: values.isContinuous ? values.renewalDate : undefined,
+      renewalDate: values.isContinuous && values.serviceLine !== 'ventures' ? values.renewalDate : undefined,
       status: values.status as ProjectStatus,
       totalValue: values.totalValue,
       paymentMethod: values.paymentMethod,
       installmentsCount: values.installmentsCount,
-      firstInvoiceDate: values.firstInvoiceDate,
+      firstInvoiceDate: values.firstInvoiceDate || undefined,
       dueDay: values.dueDay,
       successFeePercent: values.successFeePercent,
     }, requireJustification ? justification.trim() : undefined);
@@ -346,7 +346,7 @@ export function ProjectFormDialog({
                     )}
                   />
 
-                  {isContinuous ? (
+                  {isContinuous && watchedServiceLine !== 'ventures' ? (
                     <FormField
                       control={form.control}
                       name="renewalDate"
@@ -360,7 +360,7 @@ export function ProjectFormDialog({
                         </FormItem>
                       )}
                     />
-                  ) : (
+                  ) : !isContinuous ? (
                     <FormField
                       control={form.control}
                       name="endDate"
@@ -374,7 +374,7 @@ export function ProjectFormDialog({
                         </FormItem>
                       )}
                     />
-                  )}
+                  ) : null}
                 </div>
 
                 {isContinuous && form.watch('serviceLine') !== 'financiamento_inovacao' && (
