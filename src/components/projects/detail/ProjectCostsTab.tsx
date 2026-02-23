@@ -353,6 +353,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
         budgetRoles={budget?.roles || []}
         timesheets={timesheets}
         projectStartDate={project.start_date}
+        serviceLine={project.service_line}
       />
 
       {/* Suppliers Section */}
