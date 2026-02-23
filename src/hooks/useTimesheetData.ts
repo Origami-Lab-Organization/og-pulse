@@ -28,6 +28,7 @@ export interface TimesheetEntry {
   workDate: string;
   hours: number;
   description: string | null;
+  isLocked: boolean;
 }
 
 export interface WeekDay {
@@ -166,6 +167,7 @@ export const useTimesheetsByDateRange = (startDate: string, endDate: string) => 
         workDate: entry.work_date,
         hours: entry.hours,
         description: entry.description,
+        isLocked: entry.is_locked,
       })) as TimesheetEntry[];
     },
     enabled: !!startDate && !!endDate,

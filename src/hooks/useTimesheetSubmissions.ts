@@ -154,7 +154,7 @@ export const useSubmitProjectWeek = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ projectId, weekStart, totalHours }: SubmitProjectWeekInput) => {
+    mutationFn: async ({ projectId, weekStart, totalHours, memberIds }: SubmitProjectWeekInput) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
@@ -181,13 +181,19 @@ export const useSubmitProjectWeek = () => {
 
       if (submissionError) throw submissionError;
 
-      // Lock timesheets for this specific project in this week
-      const { error: lockError } = await supabase
+      // Lock timesheets - scoped to specific members if provided
+      let lockQuery = supabase
         .from('project_timesheets')
         .update({ is_locked: true, updated_by: user.id })
         .eq('project_id', projectId)
         .gte('work_date', weekStart)
         .lte('work_date', weekEndStr);
+
+      if (memberIds && memberIds.length > 0) {
+        lockQuery = lockQuery.in('project_member_id', memberIds);
+      }
+
+      const { error: lockError } = await lockQuery;
 
       if (lockError) throw lockError;
 
@@ -221,7 +227,7 @@ export const useSubmitAllProjects = () => {
       projects, 
       weekStart 
     }: { 
-      projects: { projectId: string; totalHours: number }[]; 
+      projects: { projectId: string; totalHours: number; memberIds?: string[] }[]; 
       weekStart: string;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -252,12 +258,19 @@ export const useSubmitAllProjects = () => {
 
         if (submissionError) throw submissionError;
 
-        const { error: lockError } = await supabase
+        // Lock timesheets - scoped to specific members if provided
+        let lockQuery = supabase
           .from('project_timesheets')
           .update({ is_locked: true, updated_by: user.id })
           .eq('project_id', project.projectId)
           .gte('work_date', weekStart)
           .lte('work_date', weekEndStr);
+
+        if (project.memberIds && project.memberIds.length > 0) {
+          lockQuery = lockQuery.in('project_member_id', project.memberIds);
+        }
+
+        const { error: lockError } = await lockQuery;
 
         if (lockError) throw lockError;
 

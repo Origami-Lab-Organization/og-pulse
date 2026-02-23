@@ -47,6 +47,7 @@ export interface SubmitProjectWeekInput {
   projectId: string;
   weekStart: string;
   totalHours: number;
+  memberIds?: string[]; // When provided, only lock entries for these members
 }
 
 export interface AdminEditInput {
