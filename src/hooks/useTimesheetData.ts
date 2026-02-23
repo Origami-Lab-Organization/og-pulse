@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfWeek, endOfWeek, eachDayOfInterval, format, addDays } from 'date-fns';
+import { startOfWeek, endOfWeek, eachDayOfInterval, format, addDays, parseISO } from 'date-fns';
 
 export interface ProjectMemberWithDetails {
   memberId: string;
@@ -16,6 +16,9 @@ export interface ProjectWithMembers {
   clientId: string;
   clientName: string;
   members: ProjectMemberWithDetails[];
+  startDate?: string;
+  endDate?: string | null;
+  isContinuous?: boolean;
 }
 
 export interface TimesheetEntry {
@@ -59,11 +62,13 @@ export const getWeekEnd = (date: Date): Date => {
 export interface ActiveProjectsFilterOptions {
   isAdmin?: boolean;
   employeeId?: string;
+  weekStart?: string;
+  weekEnd?: string;
 }
 
 export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptions) => {
   return useQuery({
-    queryKey: ['active-projects-with-members', options?.isAdmin, options?.employeeId],
+    queryKey: ['active-projects-with-members', options?.isAdmin, options?.employeeId, options?.weekStart, options?.weekEnd],
     queryFn: async () => {
       let query = supabase
         .from('projects')
@@ -72,6 +77,9 @@ export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptio
           name,
           client_id,
           manager_id,
+          start_date,
+          end_date,
+          is_continuous,
           clients!inner (
             id,
             company_name
@@ -104,6 +112,9 @@ export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptio
         projectName: project.name,
         clientId: project.clients.id,
         clientName: project.clients.company_name,
+        startDate: project.start_date,
+        endDate: project.end_date,
+        isContinuous: project.is_continuous,
         members: (project.project_members || []).map((member: any) => ({
           memberId: member.id,
           employeeId: member.employee_id,
@@ -112,6 +123,21 @@ export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptio
           role: member.role,
         })),
       }));
+
+      // Filter by week overlap
+      if (options?.weekStart && options?.weekEnd) {
+        const weekStartDate = parseISO(options.weekStart);
+        const weekEndDate = parseISO(options.weekEnd);
+        return projects.filter(p => {
+          if (!p.startDate) return true;
+          const projStart = parseISO(p.startDate);
+          if (projStart > weekEndDate) return false;
+          if (p.isContinuous) return true;
+          if (!p.endDate) return true;
+          const projEnd = parseISO(p.endDate);
+          return projEnd >= weekStartDate;
+        });
+      }
 
       return projects;
     },

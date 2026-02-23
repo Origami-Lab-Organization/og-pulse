@@ -90,6 +90,8 @@ export default function EmployeeTimesheetPage() {
   const { data: projects, isLoading: isLoadingProjects } = useActiveProjectsWithMembers({
     isAdmin,
     employeeId: authEmployee?.id,
+    weekStart: startDateStr,
+    weekEnd: endDateStr,
   });
 
   const { data: timesheetEntries, isLoading: isLoadingTimesheets } = useTimesheetsByDateRange(

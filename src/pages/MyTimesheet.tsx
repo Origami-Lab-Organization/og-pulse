@@ -44,7 +44,7 @@ const MyTimesheet = () => {
   const endDate = format(weekEnd, 'yyyy-MM-dd');
   const monthKey = format(weekStart, 'yyyy-MM');
 
-  const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(employee?.id);
+  const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(employee?.id, startDate, endDate);
   const { data: timesheetEntries = [], isLoading: loadingEntries } = useTimesheetsByDateRange(startDate, endDate);
 
   const projectIds = useMemo(() => projects.map(p => p.projectId), [projects]);
