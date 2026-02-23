@@ -1,79 +1,31 @@
 
 
-## Parcelas Manuais para Projetos de Financiamento da Inovacao
+## Adicionar Botoes de Envio na Minha Timesheet
 
-### Contexto
+### Objetivo
 
-Projetos de "Financiamento da Inovacao" nao possuem parcelas automaticas, pois o faturamento depende do beneficio gerado ao cliente. As parcelas devem ser cadastradas manualmente pelo usuario, com valor, data de vencimento e descricao.
+Adicionar botoes de envio por projeto e envio de todos os projetos na pagina "Minha Timesheet" (`/my-timesheet`), permitindo que o funcionario submeta suas horas diretamente.
 
-### O que muda
+### O que sera feito
 
-**Projetos normais (sem mudanca):** parcelas sao geradas automaticamente ao criar/editar o projeto, com base em valor total, qtd parcelas, e data de vencimento.
+**1. Botao "Enviar" por projeto** -- dentro de cada card de projeto, ao lado do badge "Rascunho", adicionar um botao "Enviar" que abre o dialog de confirmacao para enviar apenas aquele projeto.
 
-**Projetos de financiamento:** parcelas nao sao geradas automaticamente. O usuario cadastra cada parcela manualmente na aba Financeiro, informando valor, data de vencimento e descricao. Tambem pode excluir parcelas.
-
-### Etapas
-
-**1. Atualizar tipos (`src/types/project.ts`)**
-- Criar interface `CreateInstallmentInput` com campos: `projectId`, `value`, `dueDate`, `notes?`
-
-**2. Atualizar servico (`src/services/projectService.ts`)**
-- Adicionar metodo `createInstallment(input)` que insere na tabela `project_installments` com `installment_number` automatico (proximo numero sequencial)
-- Adicionar metodo `deleteInstallment(id)`
-- Na criacao e atualizacao de projetos: pular geracao automatica de parcelas quando `service_line === 'financiamento_inovacao'`
-
-**3. Atualizar hooks (`src/hooks/useProjects.ts`)**
-- Adicionar `useCreateInstallment` mutation
-- Adicionar `useDeleteInstallment` mutation
-
-**4. Atualizar `ProjectInstallmentsTable` (`src/components/projects/ProjectInstallmentsTable.tsx`)**
-- Receber nova prop `isManualInstallments?: boolean`
-- Quando `isManualInstallments`:
-  - Exibir botao "Nova Parcela" no topo
-  - Ao clicar, exibir formulario inline ou dialog simples com campos: Valor, Data de Vencimento, Descricao (opcional)
-  - Adicionar botao de excluir (icone lixeira) nas acoes de cada parcela
-  - A coluna "Vencimento" se torna editavel no modo edicao
-
-**5. Atualizar `ProjectFinancialTab` (`src/components/projects/detail/ProjectFinancialTab.tsx`)**
-- Passar `isManualInstallments={project.service_line === 'financiamento_inovacao'}` para o `ProjectInstallmentsTable`
+**2. Barra de resumo com "Enviar Todos"** -- acima dos cards, reutilizar o componente `TimesheetWeekStatus` que ja exibe o resumo da semana e o botao "Enviar Todos".
 
 ### Detalhes tecnicos
 
-**CreateInstallmentInput:**
-```typescript
-export interface CreateInstallmentInput {
-  projectId: string;
-  value: number;
-  dueDate: string;
-  notes?: string;
-}
-```
+**Arquivo modificado:** `src/pages/MyTimesheet.tsx`
 
-**createInstallment no servico:**
-```typescript
-// Buscar maior installment_number existente para o projeto
-// Inserir com installment_number = max + 1
-// Status inicial: 'pending'
-```
+Alteracoes:
+- Importar `useSubmitProjectWeek`, `useSubmitAllProjects` do hook existente
+- Importar `SubmitProjectDialog`, `SubmitAllProjectsDialog` dos componentes existentes
+- Importar `TimesheetWeekStatus` para a barra de resumo
+- Adicionar estados para controlar os dialogs (`showSubmitProjectDialog`, `showSubmitAllDialog`, `selectedProject`)
+- Calcular `pendingProjects` (projetos com horas > 0 e nao enviados)
+- Verificar permissao de envio via `employee?.is_gerente || isAdmin` (campo `canSubmit`)
+- Adicionar botao `Send` em cada card nao enviado (quando `canSubmit`)
+- Renderizar `TimesheetWeekStatus` acima dos cards
+- Renderizar os dois dialogs de confirmacao
 
-**Pular geracao automatica:**
-No `projectService.create()` e `projectService.update()`, envolver a logica de geracao de parcelas com:
-```typescript
-if (input.serviceLine !== 'financiamento_inovacao') {
-  // gerar parcelas automaticamente
-}
-```
+Nenhuma alteracao em banco de dados ou novos componentes necessarios -- toda a infraestrutura (hooks, dialogs, componente de status) ja existe e esta pronta para uso.
 
-**Formulario de nova parcela (inline):**
-Uma nova linha no topo da tabela com inputs de Valor (mascara monetaria), Data de Vencimento (date picker), e Descricao (texto livre), com botoes Confirmar e Cancelar.
-
-**Exclusao de parcela:**
-Botao de lixeira ao lado do botao de edicao. Exibe confirmacao antes de excluir. Apenas parcelas com status 'pending' podem ser excluidas.
-
-### Arquivos modificados
-
-- `src/types/project.ts` - nova interface
-- `src/services/projectService.ts` - novos metodos + condicional na geracao
-- `src/hooks/useProjects.ts` - novos hooks
-- `src/components/projects/ProjectInstallmentsTable.tsx` - botao nova parcela, exclusao, edicao de vencimento
-- `src/components/projects/detail/ProjectFinancialTab.tsx` - passar prop
