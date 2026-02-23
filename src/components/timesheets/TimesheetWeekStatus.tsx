@@ -2,6 +2,7 @@ import { FileText, CheckCircle2, Send } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProjectTimesheetSubmission } from '@/types/timesheetSubmission';
 
 interface TimesheetWeekStatusProps {
@@ -11,6 +12,7 @@ interface TimesheetWeekStatusProps {
   onSubmitAll: () => void;
   isSubmitting: boolean;
   canSubmit: boolean;
+  allWeekDaysReady?: boolean;
 }
 
 export function TimesheetWeekStatus({
@@ -20,6 +22,7 @@ export function TimesheetWeekStatus({
   onSubmitAll,
   isSubmitting,
   canSubmit,
+  allWeekDaysReady = true,
 }: TimesheetWeekStatusProps) {
   const submittedCount = Array.from(submissions.values()).filter(
     s => s.status === 'submitted'
@@ -91,14 +94,25 @@ export function TimesheetWeekStatus({
               </p>
             </div>
             {canSubmit && pendingCount > 0 && (
-              <Button
-                onClick={onSubmitAll}
-                disabled={isSubmitting}
-                className="gap-2"
-              >
-                <Send className="h-4 w-4" />
-                Enviar ({pendingCount})
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      onClick={onSubmitAll}
+                      disabled={isSubmitting || !allWeekDaysReady}
+                      className="gap-2"
+                    >
+                      <Send className="h-4 w-4" />
+                      Enviar ({pendingCount})
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!allWeekDaysReady && (
+                  <TooltipContent>
+                    <p>Aguarde todos os dias da semana para enviar</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             )}
           </div>
         </div>

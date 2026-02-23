@@ -42,6 +42,10 @@ const MyTimesheet = () => {
   const endDate = format(weekEnd, 'yyyy-MM-dd');
   const monthKey = format(weekStart, 'yyyy-MM');
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const allWeekDaysReady = weekEnd <= today;
+
   const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(employee?.id, startDate, endDate);
   const { data: timesheetEntries = [], isLoading: loadingEntries } = useTimesheetsByDateRange(startDate, endDate);
 
@@ -148,6 +152,7 @@ const MyTimesheet = () => {
                 onSubmitAll={() => setShowSubmitAllDialog(true)}
                 isSubmitting={submitAllProjects.isPending}
                 canSubmit={canSubmit}
+                allWeekDaysReady={allWeekDaysReady}
               />
 
               <Card>
