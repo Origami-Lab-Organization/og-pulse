@@ -1,65 +1,53 @@
 
 
-## Corrigir erro de data e logica de projetos Ventures
+## Ajustar Analytics para considerar data de admissao do funcionario
 
-### Problema 1: Erro "invalid input syntax for type date"
+### Problema
 
-Ao salvar o projeto, o campo `first_invoice_date` envia uma string vazia `""` para o banco quando deveria enviar `null`. Isso causa o erro do Postgres.
+Na tabela de "Utilizacao de Funcionarios" do Analytics, a capacidade e calculada como `jornada_diaria * dias_uteis_do_mes` para todos os funcionarios igualmente, sem considerar:
 
-### Problema 2: Projetos Ventures nao precisam de data de renovacao
-
-Projetos de "Ventures" nao possuem data de renovacao, pois sao investimentos e nao contratos recorrentes. Quando a linha de servico for "ventures", o campo "Projeto Continuo" nao deve ser exigido nem a data de renovacao.
+1. Funcionarios admitidos **apos** o mes selecionado nao deveriam aparecer
+2. Funcionarios admitidos **durante** o mes selecionado deveriam ter a capacidade proporcional (apenas dias uteis a partir da data de admissao)
 
 ### Alteracoes
 
-**Arquivo: `src/services/projectService.ts`**
+**Arquivo: `src/hooks/useAnalyticsData.ts`**
 
-- Na funcao `update`, tratar `firstInvoiceDate` vazia como `null`:
-  - Linha ~230: `updateData.first_invoice_date = updates.firstInvoiceDate || null;`
-- Mesmo tratamento para outros campos de data opcionais que podem chegar como string vazia (`renewalDate`, `endDate`, `contractUrl`)
+1. Adicionar `data_admissao` ao select da query de `project_members` (linha 150):
+   - Alterar o select para incluir `data_admissao` nos campos do employee
 
-**Arquivo: `src/components/projects/ProjectFormDialog.tsx`**
+2. Filtrar funcionarios cuja `data_admissao` e posterior ao fim do periodo selecionado (nao devem aparecer)
 
-- No `handleSubmit`, garantir que `firstInvoiceDate` envia `undefined` em vez de `""`:
-  - `firstInvoiceDate: values.firstInvoiceDate || undefined`
-- Para projetos Ventures (`serviceLine === 'ventures'`):
-  - Desmarcar automaticamente "Projeto Continuo" quando Ventures for selecionado (ou esconder o checkbox)
-  - Nao exigir data de renovacao
-- Ajustar o schema de validacao para nao exigir `renewalDate` quando a linha de servico for "ventures"
+3. Calcular capacidade proporcional: se `data_admissao` cai dentro do mes selecionado, contar dias uteis apenas a partir da data de admissao ate o fim do mes (usando a funcao `countWorkingDays` ja existente)
 
 ### Detalhes tecnicos
 
-No `handleSubmit` (linha ~150-171):
-
+No select de members (linha 150):
 ```typescript
-firstInvoiceDate: values.firstInvoiceDate || undefined,
-renewalDate: values.isContinuous && values.serviceLine !== 'ventures' 
-  ? values.renewalDate 
-  : undefined,
+.select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria, data_admissao)')
 ```
 
-No schema zod (linha ~63-68), ajustar o refine de `renewalDate`:
-
+Na secao de employee utilization (linhas 311-357), ao calcular capacity:
 ```typescript
-.refine((data) => !data.isContinuous || data.serviceLine === 'ventures' || (data.renewalDate && data.renewalDate.length > 0), {
-  message: 'Data de renovacao e obrigatoria para projetos continuos',
-  path: ['renewalDate'],
-})
+// Determinar data de inicio efetiva do funcionario no periodo
+const admDate = emp.data_admissao ? parseISO(emp.data_admissao) : null;
+
+// Se admissao e apos o fim do periodo, pular funcionario
+if (admDate && admDate > filters.endDate) continue;
+
+// Se admissao e durante o periodo, ajustar dias uteis
+const effectiveStart = admDate && admDate > filters.startDate ? admDate : filters.startDate;
+const effectiveWorkingDays = countWorkingDays(effectiveStart, filters.endDate, holidays);
+const capacity = jornadaDiaria * effectiveWorkingDays;
 ```
 
-No template, esconder o campo de renovacao quando for Ventures:
+Essa mesma logica sera aplicada tanto para funcionarios com horas (timesheets) quanto para funcionarios ociosos (allocated but no hours).
 
-```typescript
-{isContinuous && watchedServiceLine !== 'ventures' ? (
-  // Campo de Data de Renovacao
-) : !isContinuous ? (
-  // Campo de Data de Fim
-) : null}
-```
+### Resumo
 
-No `projectService.ts` update (linha ~230):
-
-```typescript
-if (updates.firstInvoiceDate !== undefined) updateData.first_invoice_date = updates.firstInvoiceDate || null;
-```
+| Aspecto | Antes | Depois |
+|---|---|---|
+| Query members | Sem `data_admissao` | Com `data_admissao` |
+| Funcionario admitido apos o mes | Aparece com capacidade cheia | Nao aparece |
+| Funcionario admitido no meio do mes | Capacidade cheia (ex: 168h) | Capacidade proporcional (ex: 80h) |
 
