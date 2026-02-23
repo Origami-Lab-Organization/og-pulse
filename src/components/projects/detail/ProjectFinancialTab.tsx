@@ -298,6 +298,7 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
           <ProjectInstallmentsTable
             installments={project.installments || []}
             projectId={project.id}
+            isManualInstallments={project.service_line === 'financiamento_inovacao'}
           />
         </CardContent>
       </Card>

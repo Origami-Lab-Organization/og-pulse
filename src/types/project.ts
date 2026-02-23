@@ -133,6 +133,13 @@ export interface CreateProjectMaterialInput {
   monthNumber?: number;
 }
 
+export interface CreateInstallmentInput {
+  projectId: string;
+  value: number;
+  dueDate: string;
+  notes?: string;
+}
+
 export interface UpdateInstallmentInput {
   status?: InstallmentStatus;
   invoiceNumber?: string;
@@ -140,6 +147,7 @@ export interface UpdateInstallmentInput {
   paymentDate?: string;
   notes?: string;
   value?: number;
+  dueDate?: string;
 }
 
 // Extended types with relations
