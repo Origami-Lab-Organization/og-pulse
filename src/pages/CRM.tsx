@@ -6,6 +6,7 @@ import { Loader2, Plus, Search } from 'lucide-react';
 import { LeadKanbanBoard } from '@/components/crm/LeadKanbanBoard';
 import { LeadFormDialog } from '@/components/crm/LeadFormDialog';
 import { useLeads } from '@/hooks/useLeads';
+import CRMStats from '@/components/crm/CRMStats';
 
 export default function CRM() {
   const { data: leads = [], isLoading } = useLeads();
@@ -24,6 +25,8 @@ export default function CRM() {
         </Button>
       }
     >
+      <CRMStats leads={leads} />
+
       <div className="mb-4">
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
