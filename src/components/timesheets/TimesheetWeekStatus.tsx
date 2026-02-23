@@ -97,7 +97,7 @@ export function TimesheetWeekStatus({
                 className="gap-2"
               >
                 <Send className="h-4 w-4" />
-                Enviar Todos ({pendingCount})
+                Enviar ({pendingCount})
               </Button>
             )}
           </div>
