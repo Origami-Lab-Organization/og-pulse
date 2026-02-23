@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Lock } from 'lucide-react';
+import { ReactNode } from 'react';
 
 interface TimesheetWeekRowProps {
   label: string;
@@ -27,6 +28,7 @@ interface TimesheetWeekRowProps {
   holidays?: Holiday[];
   isLocked?: boolean;
   isAdmin?: boolean;
+  actionSlot?: ReactNode;
 }
 
 export function TimesheetWeekRow({
@@ -40,6 +42,7 @@ export function TimesheetWeekRow({
   holidays = [],
   isLocked = false,
   isAdmin = false,
+  actionSlot,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
   
@@ -134,7 +137,10 @@ export function TimesheetWeekRow({
   };
 
   return (
-    <div className="grid grid-cols-[1fr_repeat(5,60px)_80px] gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md">
+    <div className={cn(
+      "grid gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md",
+      actionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_140px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+    )}>
       <div className="flex items-center gap-2 min-w-0">
         {avatarUrl !== undefined && (
           <Avatar className="h-8 w-8 flex-shrink-0">
@@ -233,6 +239,11 @@ export function TimesheetWeekRow({
       <div className="text-right font-medium text-sm pr-2">
         {totalHours.toFixed(1)}h
       </div>
+      {actionSlot && (
+        <div className="flex items-center justify-end gap-2">
+          {actionSlot}
+        </div>
+      )}
     </div>
   );
 }
