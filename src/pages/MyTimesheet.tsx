@@ -62,8 +62,9 @@ const MyTimesheet = () => {
   const projectHoursMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const project of projects) {
+      const memberIds = project.members.map(m => m.memberId);
       const hours = timesheetEntries
-        .filter(e => e.projectId === project.projectId)
+        .filter(e => memberIds.includes(e.projectMemberId))
         .reduce((sum, e) => sum + e.hours, 0);
       map.set(project.projectId, hours);
     }
