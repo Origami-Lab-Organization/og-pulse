@@ -1,74 +1,79 @@
 
 
-## Simplificar Alocacao de Equipe para Projetos de Financiamento da Inovacao
+## Parcelas Manuais para Projetos de Financiamento da Inovacao
 
 ### Contexto
 
-Projetos de "Financiamento da Inovacao" nao possuem orcamento associado, portanto o modelo atual de "adicionar papel > atribuir funcionario" nao faz sentido. Para esses projetos, a alocacao deve ser simplificada: escolher diretamente o funcionario e definir horas por mes dentro do ano corrente.
+Projetos de "Financiamento da Inovacao" nao possuem parcelas automaticas, pois o faturamento depende do beneficio gerado ao cliente. As parcelas devem ser cadastradas manualmente pelo usuario, com valor, data de vencimento e descricao.
 
 ### O que muda
 
-**Modelo atual (projetos normais):**
-- Adicionar Papel (role, senioridade, valor/hora)
-- Opcionalmente herdar do orcamento
-- Atribuir funcionario ao papel
-- Definir horas por mes ao longo da duracao do projeto
+**Projetos normais (sem mudanca):** parcelas sao geradas automaticamente ao criar/editar o projeto, com base em valor total, qtd parcelas, e data de vencimento.
 
-**Modelo simplificado (financiamento da inovacao):**
-- Selecionar funcionario diretamente
-- Definir horas por mes (meses dentro do ano corrente, ex: Jan-Dez)
-- Sem campo de papel, senioridade ou valor/hora
-- Sem referencia ao orcamento
+**Projetos de financiamento:** parcelas nao sao geradas automaticamente. O usuario cadastra cada parcela manualmente na aba Financeiro, informando valor, data de vencimento e descricao. Tambem pode excluir parcelas.
 
-### Etapas Tecnicas
+### Etapas
 
-**1. Passar `serviceLine` para o `ProjectLaborSection`**
+**1. Atualizar tipos (`src/types/project.ts`)**
+- Criar interface `CreateInstallmentInput` com campos: `projectId`, `value`, `dueDate`, `notes?`
 
-Modificar `ProjectCostsTab.tsx` para passar `serviceLine={project.service_line}` como nova prop ao `ProjectLaborSection`.
+**2. Atualizar servico (`src/services/projectService.ts`)**
+- Adicionar metodo `createInstallment(input)` que insere na tabela `project_installments` com `installment_number` automatico (proximo numero sequencial)
+- Adicionar metodo `deleteInstallment(id)`
+- Na criacao e atualizacao de projetos: pular geracao automatica de parcelas quando `service_line === 'financiamento_inovacao'`
 
-**2. Adaptar `ProjectLaborSection.tsx`**
+**3. Atualizar hooks (`src/hooks/useProjects.ts`)**
+- Adicionar `useCreateInstallment` mutation
+- Adicionar `useDeleteInstallment` mutation
 
-Receber nova prop `serviceLine?: string | null`.
+**4. Atualizar `ProjectInstallmentsTable` (`src/components/projects/ProjectInstallmentsTable.tsx`)**
+- Receber nova prop `isManualInstallments?: boolean`
+- Quando `isManualInstallments`:
+  - Exibir botao "Nova Parcela" no topo
+  - Ao clicar, exibir formulario inline ou dialog simples com campos: Valor, Data de Vencimento, Descricao (opcional)
+  - Adicionar botao de excluir (icone lixeira) nas acoes de cada parcela
+  - A coluna "Vencimento" se torna editavel no modo edicao
 
-Quando `serviceLine === 'financiamento_inovacao'`:
+**5. Atualizar `ProjectFinancialTab` (`src/components/projects/detail/ProjectFinancialTab.tsx`)**
+- Passar `isManualInstallments={project.service_line === 'financiamento_inovacao'}` para o `ProjectInstallmentsTable`
 
-- **Botao de adicionar**: trocar label de "Adicionar Papel" para "Adicionar Membro"
-- **Dialog de adicionar**: modo simplificado
-  - Exibir apenas select de funcionario (direto, sem campo de papel/senioridade/valor hora)
-  - Ao selecionar funcionario, preencher `role` automaticamente com o cargo do funcionario
-  - Sem checkbox de "herdar do orcamento"
-- **Colunas da tabela**: ocultar coluna "R$/h" (nao ha valor/hora orçado)
-- **Meses**: usar meses do ano corrente (Jan a Dez ou conforme o periodo do projeto) em vez de "Mes 1, Mes 2..."
-- **Dialog de edicao**: ocultar campos de senioridade e valor/hora
+### Detalhes tecnicos
 
-Quando nao for financiamento: comportamento atual 100% mantido.
+**CreateInstallmentInput:**
+```typescript
+export interface CreateInstallmentInput {
+  projectId: string;
+  value: number;
+  dueDate: string;
+  notes?: string;
+}
+```
 
-**3. Adaptar `ProjectTeamSection.tsx` (visao geral)**
+**createInstallment no servico:**
+```typescript
+// Buscar maior installment_number existente para o projeto
+// Inserir com installment_number = max + 1
+// Status inicial: 'pending'
+```
 
-Quando for financiamento, ocultar referencia a senioridade no tooltip.
+**Pular geracao automatica:**
+No `projectService.create()` e `projectService.update()`, envolver a logica de geracao de parcelas com:
+```typescript
+if (input.serviceLine !== 'financiamento_inovacao') {
+  // gerar parcelas automaticamente
+}
+```
+
+**Formulario de nova parcela (inline):**
+Uma nova linha no topo da tabela com inputs de Valor (mascara monetaria), Data de Vencimento (date picker), e Descricao (texto livre), com botoes Confirmar e Cancelar.
+
+**Exclusao de parcela:**
+Botao de lixeira ao lado do botao de edicao. Exibe confirmacao antes de excluir. Apenas parcelas com status 'pending' podem ser excluidas.
 
 ### Arquivos modificados
 
-- `src/components/projects/detail/ProjectCostsTab.tsx` - passar `serviceLine` para `ProjectLaborSection`
-- `src/components/projects/detail/ProjectLaborSection.tsx` - logica condicional para modo simplificado
-- `src/components/projects/detail/ProjectTeamSection.tsx` - ajuste menor no tooltip
-
-### Detalhes de implementacao
-
-**Dialog simplificado (financiamento):**
-```
-[Select: Funcionario]  -->  auto-preenche role com cargo
-[Confirmar]
-```
-
-**Colunas da tabela (financiamento):**
-```
-Funcionario | Jan | Fev | Mar | ... | Dez | Horas | Custo | Acoes
-```
-
-**Colunas da tabela (normal - sem mudanca):**
-```
-Funcionario | R$/h | Mes 1 | Mes 2 | ... | Horas | Custo | Acoes
-```
-
-O campo `role` continua sendo preenchido (com o cargo do funcionario), mantendo compatibilidade com o banco de dados que exige esse campo. O `seniority` sera preenchido com valor padrao 'pleno' e `hourly_rate` com 0.
+- `src/types/project.ts` - nova interface
+- `src/services/projectService.ts` - novos metodos + condicional na geracao
+- `src/hooks/useProjects.ts` - novos hooks
+- `src/components/projects/ProjectInstallmentsTable.tsx` - botao nova parcela, exclusao, edicao de vencimento
+- `src/components/projects/detail/ProjectFinancialTab.tsx` - passar prop
