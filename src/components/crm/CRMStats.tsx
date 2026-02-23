@@ -44,6 +44,12 @@ const CRMStats = ({ leads }: CRMStatsProps) => {
       color: 'bg-success/10 text-success',
     },
     {
+      label: 'Pipeline',
+      value: formatCurrency(pipelineValue),
+      icon: Target,
+      color: 'bg-accent/50 text-accent-foreground',
+    },
+    {
       label: 'Total Ganho no Ano',
       value: formatCurrency(totalWon),
       icon: TrendingUp,
@@ -54,12 +60,6 @@ const CRMStats = ({ leads }: CRMStatsProps) => {
       value: formatCurrency(receivedValue),
       icon: Wallet,
       color: 'bg-secondary/10 text-secondary',
-    },
-    {
-      label: 'Pipeline',
-      value: formatCurrency(pipelineValue),
-      icon: Target,
-      color: 'bg-accent/50 text-accent-foreground',
     },
   ];
 
