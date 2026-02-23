@@ -1,77 +1,52 @@
 
+## Corrigir Layout da Linha de Projeto com Badge "Enviado" e Botao "Editar"
 
-## Habilitar Edicao de Horas pelo Admin/Gerente na Pagina de Alocacao do Funcionario
+### Problema
 
-### Contexto
+O badge "Enviado" e o botao "Editar" estao posicionados com `absolute`, sobrepondo os campos de horas e o total. O grid do header tem 7 colunas mas a linha de dados nao tem espaco para os controles adicionais.
 
-A pagina de alocacao do funcionario (`/alocacao/:employeeId`) ja possui toda a infraestrutura para edicao administrativa de timesheets (o `AdminWeekEditDialog` e o hook `useAdminBatchEditTimesheets` ja estao implementados). Porem, nao existe um botao na interface para ativar essa funcionalidade. O botao de edicao admin so existe no componente `TimesheetByProject`, que nao e usado nesta pagina.
+### Solucao
+
+Usar o prop `actionSlot` que o `TimesheetWeekRow` ja suporta nativamente. Quando `actionSlot` e passado, o componente automaticamente adiciona uma coluna extra de 140px ao grid. Isso elimina a necessidade de posicionamento absoluto.
 
 ### Alteracoes
 
 **Arquivo: `src/components/timesheets/TimesheetByEmployee.tsx`**
 
-1. Adicionar uma prop `onAdminEditProject` e `canEdit` ao componente
-2. Ao lado do badge "Enviado" em cada projeto travado, exibir um botao de edicao (icone de lapis) visivel apenas para admin/gerentes
-3. Ao clicar, chamar `onAdminEditProject(projectId)` que acionara o dialog de edicao ja existente na pagina pai
+1. Remover o wrapper `<div className="relative">` e o bloco com posicionamento absoluto
+2. Passar o badge "Enviado" e o botao "Editar" como `actionSlot` do `TimesheetWeekRow`
+3. Ajustar o grid do header para incluir a coluna extra quando houver projetos travados com permissao de edicao
 
-**Arquivo: `src/pages/EmployeeTimesheetPage.tsx`**
+**De (modo normal, linhas 332-367):**
 
-1. Passar as novas props `canEdit` e `onAdminEditProject` para o componente `TimesheetByEmployee`
-2. Conectar ao handler `handleAdminEditProject` que ja existe no componente
-
-### Detalhes Tecnicos
-
-No `TimesheetByEmployee.tsx`, adicionar as props:
-
-```typescript
-interface TimesheetByEmployeeProps {
-  // ... existentes
-  canEdit?: boolean;
-  onAdminEditProject?: (projectId: string) => void;
-}
+```
+<div className="relative">
+  {projectLocked && (
+    <div className="absolute right-2 top-1/2 ...">
+      <Badge>Enviado</Badge>
+      <Button>Editar</Button>
+    </div>
+  )}
+  <TimesheetWeekRow ... />
+</div>
 ```
 
-No trecho do badge "Enviado", adicionar o botao de edicao:
+**Para:**
 
-```typescript
-{projectLocked && (
-  <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1">
-    <Badge ...>Enviado</Badge>
-    {canEdit && onAdminEditProject && (
-      <Button variant="outline" size="sm" onClick={() => onAdminEditProject(project.projectId)}>
-        <Edit2 className="h-3 w-3" />
-      </Button>
-    )}
-  </div>
-)}
 ```
-
-No `EmployeeTimesheetPage.tsx`, passar as props:
-
-```typescript
-<TimesheetByEmployee
-  employees={employeeData}
-  weekDays={weekDays}
-  timesheetEntries={timesheetEntries || []}
-  holidays={holidays}
-  submissions={submissions}
-  isAdmin={isAdmin}
-  canEdit={canSubmit}
-  onAdminEditProject={handleAdminEditProject}
+<TimesheetWeekRow
+  ...
+  actionSlot={projectLocked ? (
+    <> 
+      <Badge>Enviado</Badge>
+      {canEdit && onAdminSaveEdit && (
+        <Button onClick={startEditing}>Editar</Button>
+      )}
+    </>
+  ) : undefined}
 />
 ```
 
-### Fluxo do Usuario
+4. Atualizar o grid do header para usar a mesma quantidade de colunas (`grid-cols-[1fr_repeat(5,60px)_80px_140px]`) quando existir algum projeto com acoes visiveis, mantendo o alinhamento
 
-1. Admin/Gerente acessa a pagina de Alocacao
-2. Clica em um funcionario (ja funciona, navega para `/alocacao/:employeeId`)
-3. Na pagina do funcionario, ao lado de projetos com status "Enviado", aparece um botao de edicao
-4. Ao clicar, abre o dialog `AdminWeekEditDialog` com os campos de horas editaveis
-5. O usuario ajusta as horas e preenche a justificativa obrigatoria (minimo 10 caracteres)
-6. Ao salvar, as alteracoes sao registradas com log de auditoria na tabela `timesheet_edit_logs`
-
-### O que nao muda
-
-- Nenhuma alteracao de banco de dados necessaria (tabelas e RLS ja existem)
-- A logica de salvamento e auditoria ja esta implementada no hook `useAdminBatchEditTimesheets`
-- O dialog `AdminWeekEditDialog` ja esta funcional e integrado
+5. Tambem ajustar o grid do modo de edicao inline para incluir a coluna extra, mantendo consistencia visual
