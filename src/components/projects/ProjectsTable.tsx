@@ -109,7 +109,16 @@ export function createProjectColumns({
     {
       accessorKey: 'total_value',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Valor" />,
-      cell: ({ row }) => formatCurrency(Number(row.original.total_value)),
+      cell: ({ row }) => {
+        const project = row.original;
+        if (project.service_line === 'financiamento_inovacao') {
+          const invoicedTotal = (project.installments || [])
+            .filter(i => i.status === 'invoiced' || i.status === 'received')
+            .reduce((sum, i) => sum + Number(i.value || 0), 0);
+          return formatCurrency(invoicedTotal);
+        }
+        return formatCurrency(Number(project.total_value));
+      },
     },
     {
       id: 'actions',

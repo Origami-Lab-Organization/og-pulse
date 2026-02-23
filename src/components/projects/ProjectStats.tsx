@@ -22,9 +22,11 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
 
   // Para projetos contínuos sem parcelas no ano, somar mensalidade x 12
   const continuousRevenue = projects
-    .filter((p) => p.is_continuous && !(p.installments?.some(
-      (i) => new Date(i.due_date).getFullYear() === currentYear
-    )))
+    .filter((p) => p.is_continuous 
+      && p.service_line !== 'financiamento_inovacao'
+      && !(p.installments?.some(
+        (i) => new Date(i.due_date).getFullYear() === currentYear
+      )))
     .reduce((acc, p) => acc + Number(p.total_value || 0) * 12, 0);
 
   const totalYearRevenue = currentYearRevenue + continuousRevenue;
