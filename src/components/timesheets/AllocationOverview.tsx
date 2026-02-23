@@ -333,7 +333,7 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
                         <div className="space-y-1">
                           <Badge className={overallStatus.className}>{overallStatus.label}</Badge>
                           <div className="text-[10px] text-muted-foreground">
-                            {totalActual}h / {totalPlanned}h
+                            {Math.round(totalActual * 10) / 10}h / {Math.round(totalPlanned * 10) / 10}h
                           </div>
                         </div>
                       </TableCell>
