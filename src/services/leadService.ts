@@ -114,3 +114,12 @@ export async function archiveLead(input: ArchiveLeadInput) {
 
   if (error) throw error;
 }
+
+export async function fetchCRMReceivedValue(tenantId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('get_crm_received_value', {
+    p_tenant_id: tenantId,
+  });
+
+  if (error) throw error;
+  return (data as number) || 0;
+}

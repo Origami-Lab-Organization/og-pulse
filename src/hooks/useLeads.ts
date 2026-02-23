@@ -9,6 +9,7 @@ import {
   updateLead,
   archiveLead,
   linkBudgetToLead,
+  fetchCRMReceivedValue,
   CreateLeadInput,
   ArchiveLeadInput,
 } from '@/services/leadService';
@@ -102,5 +103,13 @@ export function useLinkBudgetToLead() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['leads'] });
     },
+  });
+}
+
+export function useCRMReceivedValue(tenantId?: string) {
+  return useQuery({
+    queryKey: ['crm-received-value', tenantId],
+    queryFn: () => fetchCRMReceivedValue(tenantId!),
+    enabled: !!tenantId,
   });
 }
