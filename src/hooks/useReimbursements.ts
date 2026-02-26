@@ -167,7 +167,11 @@ export function useCreateReimbursement() {
 
       // 2. Upload files and create attachments
       for (const file of params.files) {
-        const filePath = `${employee.tenant_id}/${requestId}/${Date.now()}-${file.name}`;
+        // Sanitize filename: remove accents, replace spaces/special chars
+        const sanitizedName = file.name
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `${employee.tenant_id}/${requestId}/${Date.now()}-${sanitizedName}`;
         const { error: uploadError } = await supabase.storage
           .from('reimbursement-receipts')
           .upload(filePath, file);
