@@ -159,6 +159,12 @@ const MyTimesheet = () => {
                 isSubmitting={submitAllProjects.isPending}
                 canSubmit={canSubmit}
                 allWeekDaysReady={allWeekDaysReady}
+                lockedProjectCount={projects.filter(p => {
+                  const member = p.members[0];
+                  if (!member) return false;
+                  const memberEntries = timesheetEntries.filter(e => e.projectMemberId === member.memberId);
+                  return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
+                }).length}
               />
 
               <Card>

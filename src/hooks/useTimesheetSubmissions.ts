@@ -163,6 +163,18 @@ export const useSubmitProjectWeek = () => {
       weekEndDate.setDate(weekEndDate.getDate() + 4);
       const weekEndStr = weekEndDate.toISOString().split('T')[0];
 
+      // Calculate total locked hours for all members in this project for this week
+      const { data: allLockedEntries } = await supabase
+        .from('project_timesheets')
+        .select('hours')
+        .eq('project_id', projectId)
+        .eq('is_locked', true)
+        .gte('work_date', weekStart)
+        .lte('work_date', weekEndStr);
+
+      const existingLockedHours = (allLockedEntries || []).reduce((sum, e) => sum + e.hours, 0);
+      const newTotalHours = existingLockedHours + totalHours;
+
       // Upsert project submission
       const { data: submission, error: submissionError } = await supabase
         .from('project_timesheet_submissions')
@@ -172,7 +184,7 @@ export const useSubmitProjectWeek = () => {
           status: 'submitted',
           submitted_at: new Date().toISOString(),
           submitted_by: user.id,
-          total_hours: totalHours,
+          total_hours: newTotalHours,
         }, {
           onConflict: 'project_id,week_start',
         })
@@ -241,6 +253,18 @@ export const useSubmitAllProjects = () => {
       const results = [];
 
       for (const project of projects) {
+        // Calculate total locked hours for all members in this project
+        const { data: allLockedEntries } = await supabase
+          .from('project_timesheets')
+          .select('hours')
+          .eq('project_id', project.projectId)
+          .eq('is_locked', true)
+          .gte('work_date', weekStart)
+          .lte('work_date', weekEndStr);
+
+        const existingLockedHours = (allLockedEntries || []).reduce((sum, e) => sum + e.hours, 0);
+        const newTotalHours = existingLockedHours + project.totalHours;
+
         const { data: submission, error: submissionError } = await supabase
           .from('project_timesheet_submissions')
           .upsert({
@@ -249,7 +273,7 @@ export const useSubmitAllProjects = () => {
             status: 'submitted',
             submitted_at: new Date().toISOString(),
             submitted_by: user.id,
-            total_hours: project.totalHours,
+            total_hours: newTotalHours,
           }, {
             onConflict: 'project_id,week_start',
           })

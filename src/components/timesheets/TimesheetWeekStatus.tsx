@@ -13,6 +13,7 @@ interface TimesheetWeekStatusProps {
   isSubmitting: boolean;
   canSubmit: boolean;
   allWeekDaysReady?: boolean;
+  lockedProjectCount?: number;
 }
 
 export function TimesheetWeekStatus({
@@ -23,10 +24,11 @@ export function TimesheetWeekStatus({
   isSubmitting,
   canSubmit,
   allWeekDaysReady = true,
+  lockedProjectCount,
 }: TimesheetWeekStatusProps) {
-  const submittedCount = Array.from(submissions.values()).filter(
-    s => s.status === 'submitted'
-  ).length;
+  const submittedCount = lockedProjectCount !== undefined
+    ? lockedProjectCount
+    : Array.from(submissions.values()).filter(s => s.status === 'submitted').length;
   
   const pendingCount = totalProjects - submittedCount;
   const allSubmitted = submittedCount === totalProjects && totalProjects > 0;
