@@ -149,7 +149,7 @@ export function ProjectTeamSection({ members, projectId, memberMonths = [], time
                             const actual = timesheets
                               .filter(t => t.project_member_id === member.id)
                               .reduce((s, t) => s + t.hours, 0);
-                            return `${planned}h plan. | ${actual}h real.`;
+                            return `${Math.round(planned * 10) / 10}h plan. | ${Math.round(actual * 10) / 10}h real.`;
                           })()}
                         </p>
                       </div>
@@ -160,7 +160,7 @@ export function ProjectTeamSection({ members, projectId, memberMonths = [], time
                       <p className="font-medium">{member.employee?.nome}</p>
                       <p className="text-muted-foreground">{member.role} · {member.seniority}</p>
                       <p className="text-muted-foreground">
-                        {memberMonths.filter(mm => mm.project_member_id === member.id).reduce((s, mm) => s + mm.hours, 0)}h planejadas · {timesheets.filter(t => t.project_member_id === member.id).reduce((s, t) => s + t.hours, 0)}h realizadas
+                        {Math.round(memberMonths.filter(mm => mm.project_member_id === member.id).reduce((s, mm) => s + mm.hours, 0) * 10) / 10}h planejadas · {Math.round(timesheets.filter(t => t.project_member_id === member.id).reduce((s, t) => s + t.hours, 0) * 10) / 10}h realizadas
                       </p>
                     </div>
                   </TooltipContent>
