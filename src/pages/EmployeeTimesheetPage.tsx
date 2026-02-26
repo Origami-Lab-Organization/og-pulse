@@ -286,6 +286,13 @@ export default function EmployeeTimesheetPage() {
                 onSubmitAll={handleSubmitAll}
                 isSubmitting={submitAllProjects.isPending}
                 canSubmit={canSubmit}
+                lockedProjectCount={(() => {
+                  if (employeeData.length === 0 || !timesheetEntries) return 0;
+                  return employeeData[0].projects.filter(p => {
+                    const memberEntries = timesheetEntries.filter(e => e.projectMemberId === p.memberId);
+                    return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
+                  }).length;
+                })()}
               />
             )}
 
