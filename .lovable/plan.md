@@ -1,52 +1,56 @@
 
-## Corrigir Layout da Linha de Projeto com Badge "Enviado" e Botao "Editar"
+## Corrigir Status de Submissao por Funcionario
 
-### Problema
+### Problema Identificado
 
-O badge "Enviado" e o botao "Editar" estao posicionados com `absolute`, sobrepondo os campos de horas e o total. O grid do header tem 7 colunas mas a linha de dados nao tem espaco para os controles adicionais.
+O status "Enviado" na pagina de cada funcionario e determinado pela tabela `project_timesheet_submissions`, que e **por projeto**, nao **por funcionario**. Quando o Victor envia suas horas no projeto "Gestao de Portfolio", um registro de submissao e criado para aquele projeto. Quando a Cecilia abre sua pagina, o sistema ve esse mesmo registro e mostra "Todos os Projetos Enviados" - mesmo que ela nao tenha submetido suas horas.
+
+Alem disso, o `total_hours` na tabela `project_timesheet_submissions` e sobrescrito a cada envio com apenas as horas do ultimo funcionario que submeteu.
 
 ### Solucao
 
-Usar o prop `actionSlot` que o `TimesheetWeekRow` ja suporta nativamente. Quando `actionSlot` e passado, o componente automaticamente adiciona uma coluna extra de 140px ao grid. Isso elimina a necessidade de posicionamento absoluto.
+Mudar a logica de status para usar o campo `is_locked` dos registros individuais (`project_timesheets`) ao inves da tabela `project_timesheet_submissions`. Isso ja foi parcialmente feito na linha de cada projeto, mas o componente `TimesheetWeekStatus` (o banner verde no topo) ainda depende dos registros de submissao.
 
 ### Alteracoes
 
-**Arquivo: `src/components/timesheets/TimesheetByEmployee.tsx`**
+**1. `src/components/timesheets/TimesheetWeekStatus.tsx`**
+- Adicionar prop opcional `lockedProjectCount` (numero de projetos cujas entries estao todas locked)
+- Quando fornecido, usar esse valor ao inves de contar `submissions` para determinar quantos projetos estao "enviados"
 
-1. Remover o wrapper `<div className="relative">` e o bloco com posicionamento absoluto
-2. Passar o badge "Enviado" e o botao "Editar" como `actionSlot` do `TimesheetWeekRow`
-3. Ajustar o grid do header para incluir a coluna extra quando houver projetos travados com permissao de edicao
+**2. `src/pages/EmployeeTimesheetPage.tsx`**
+- Calcular `lockedProjectCount` baseado nos entries do funcionario: um projeto conta como "enviado" se todos os entries daquele membro estao com `is_locked = true` e existem entries
+- Passar `lockedProjectCount` para `TimesheetWeekStatus`
 
-**De (modo normal, linhas 332-367):**
+**3. `src/pages/MyTimesheet.tsx`**
+- Mesma logica: calcular `lockedProjectCount` baseado nos entries do usuario logado
+- Passar para `TimesheetWeekStatus`
 
-```
-<div className="relative">
-  {projectLocked && (
-    <div className="absolute right-2 top-1/2 ...">
-      <Badge>Enviado</Badge>
-      <Button>Editar</Button>
-    </div>
-  )}
-  <TimesheetWeekRow ... />
-</div>
-```
+**4. `src/hooks/useTimesheetSubmissions.ts`**
+- No `useSubmitProjectWeek` e `useSubmitAllProjects`, ao fazer upsert no `project_timesheet_submissions`, primeiro buscar o `total_hours` existente e somar as novas horas, ao inves de sobrescrever
 
-**Para:**
+### Detalhes Tecnicos
 
-```
-<TimesheetWeekRow
-  ...
-  actionSlot={projectLocked ? (
-    <> 
-      <Badge>Enviado</Badge>
-      {canEdit && onAdminSaveEdit && (
-        <Button onClick={startEditing}>Editar</Button>
-      )}
-    </>
-  ) : undefined}
-/>
+A mudanca principal e no `TimesheetWeekStatus`:
+
+```text
+Antes: submittedCount = submissions com status 'submitted'
+Depois: submittedCount = lockedProjectCount (calculado via is_locked nos entries)
 ```
 
-4. Atualizar o grid do header para usar a mesma quantidade de colunas (`grid-cols-[1fr_repeat(5,60px)_80px_140px]`) quando existir algum projeto com acoes visiveis, mantendo o alinhamento
+Para o calculo do `lockedProjectCount`:
 
-5. Tambem ajustar o grid do modo de edicao inline para incluir a coluna extra, mantendo consistencia visual
+```text
+Para cada projeto do funcionario:
+  - Buscar entries onde projectMemberId = memberId
+  - Se entries.length > 0 AND todas entries.isLocked = true -> conta como enviado
+```
+
+Para correcao do `total_hours` na submissao:
+
+```text
+Antes do upsert:
+  1. Buscar total_hours atual da submissao existente
+  2. Buscar soma das horas ja locked para outros membros
+  3. Somar com as horas do membro atual
+  4. Usar esse total no upsert
+```
