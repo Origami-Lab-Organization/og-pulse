@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useAllMyReimbursements, ReimbursementRequest } from '@/hooks/useReimbursements';
 import { ReimbursementFormDialog } from '@/components/reimbursements/ReimbursementFormDialog';
@@ -27,23 +27,58 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string }> = {
-  pending: { label: 'Pendente', variant: 'outline' },
-  approved: { label: 'Aprovado', variant: 'secondary', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
-  rejected: { label: 'Rejeitado', variant: 'destructive' },
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string; priority: number }> = {
+  pending: { label: 'Pendente', variant: 'outline', priority: 0 },
+  rejected: { label: 'Rejeitado', variant: 'destructive', priority: 1 },
+  approved: { label: 'Aprovado', variant: 'secondary', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300', priority: 2 },
 };
+
+type SortKey = 'date' | 'amount' | 'status';
+type SortDir = 'asc' | 'desc';
+
+function SortableHead({ label, sortKey, currentKey, currentDir, onSort, className }: {
+  label: string; sortKey: SortKey; currentKey: SortKey; currentDir: SortDir; onSort: (k: SortKey) => void; className?: string;
+}) {
+  const active = currentKey === sortKey;
+  return (
+    <TableHead
+      className={`cursor-pointer select-none hover:bg-muted/50 transition-colors ${className || ''}`}
+      onClick={() => onSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {active ? (
+          currentDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-foreground" /> : <ArrowDown className="h-3.5 w-3.5 text-foreground" />
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+        )}
+      </div>
+    </TableHead>
+  );
+}
 
 export default function Reimbursements() {
   const [formOpen, setFormOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReimbursement, setSelectedReimbursement] = useState<(ReimbursementRequest & { requester_name?: string; reviewer_name?: string; project_name?: string; client_name?: string }) | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const { employee } = useAuth();
   const { data: reimbursements = [], isLoading } = useAllMyReimbursements();
   const isManager = employee?.is_gerente || employee?.isAdmin;
 
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'date' ? 'desc' : 'asc');
+    }
+  };
+
   const filtered = useMemo(() => {
-    let result = reimbursements;
+    let result = [...reimbursements];
     if (statusFilter !== 'all') {
       result = result.filter(r => r.status === statusFilter);
     }
@@ -61,8 +96,27 @@ export default function Reimbursements() {
         );
       });
     }
+
+    // Sort
+    const dir = sortDir === 'asc' ? 1 : -1;
+    result.sort((a, b) => {
+      switch (sortKey) {
+        case 'date':
+          return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        case 'amount':
+          return dir * (a.total_amount - b.total_amount);
+        case 'status': {
+          const pa = (statusConfig[a.status]?.priority ?? 9);
+          const pb = (statusConfig[b.status]?.priority ?? 9);
+          return dir * (pa - pb);
+        }
+        default:
+          return 0;
+      }
+    });
+
     return result;
-  }, [reimbursements, statusFilter, searchQuery]);
+  }, [reimbursements, statusFilter, searchQuery, sortKey, sortDir]);
 
   return (
     <TooltipProvider>
@@ -105,13 +159,13 @@ export default function Reimbursements() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
+                <SortableHead label="Data" sortKey="date" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                 {isManager && <TableHead>Solicitante</TableHead>}
                 <TableHead>Descrição</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Projeto</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Status</TableHead>
+                <SortableHead label="Valor" sortKey="amount" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-right" />
+                <SortableHead label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
