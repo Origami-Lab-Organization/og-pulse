@@ -48,7 +48,7 @@ const navigationGroups = [
   {
     label: 'Meu Espaço',
     items: [
-      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+      { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
     ] as NavItem[],
@@ -65,7 +65,7 @@ const navigationGroups = [
     ] as NavItem[],
   },
   {
-    label: 'Operações',
+    label: 'Gestão de Projetos',
     requiresManager: true,
     items: [
       { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
