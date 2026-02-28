@@ -102,6 +102,9 @@ const MyTimesheet = () => {
   // Track local (unsaved) totals per member for real-time footer
   const [localTotals, setLocalTotals] = useState<Record<string, number>>({});
 
+  // Track per-day hours from each member row for daily totals footer
+  const [localDayHours, setLocalDayHours] = useState<Record<string, Record<string, number>>>({});
+
   // Track save status from all rows
   const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatusInfo>>({});
 
@@ -110,6 +113,10 @@ const MyTimesheet = () => {
       if (prev[memberId] === total) return prev;
       return { ...prev, [memberId]: total };
     });
+  }, []);
+
+  const handleLocalDayHoursChange = useCallback((memberId: string, dayHours: Record<string, number>) => {
+    setLocalDayHours(prev => ({ ...prev, [memberId]: dayHours }));
   }, []);
 
   const handleSaveStatusChange = useCallback((memberId: string, info: SaveStatusInfo) => {
@@ -147,6 +154,30 @@ const MyTimesheet = () => {
     }
     return total;
   }, [projects, localTotals, projectHoursMap]);
+
+  // Compute real-time daily totals across all projects using local day hours
+  const realTimeDailyTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const day of weekDays) {
+      let dayTotal = 0;
+      for (const project of projects) {
+        const member = project.members[0];
+        if (!member) continue;
+        const memberDayHours = localDayHours[member.memberId];
+        if (memberDayHours && memberDayHours[day.date] !== undefined) {
+          dayTotal += memberDayHours[day.date];
+        } else {
+          // Fall back to server entries
+          const entry = timesheetEntries.find(
+            e => e.projectMemberId === member.memberId && e.workDate === day.date
+          );
+          dayTotal += entry?.hours ?? 0;
+        }
+      }
+      totals[day.date] = dayTotal;
+    }
+    return totals;
+  }, [weekDays, projects, localDayHours, timesheetEntries]);
 
   const allProjectsLocked = useMemo(() => {
     return projects.every(p => {
@@ -292,10 +323,38 @@ const MyTimesheet = () => {
                     allDailyTotals={allDailyTotals}
                     dailyWorkHours={employee?.jornada_diaria ?? 8}
                     onLocalTotalChange={handleLocalTotalChange}
+                    onLocalDayHoursChange={handleLocalDayHoursChange}
                     onSaveStatusChange={handleSaveStatusChange}
                   />
                 );
               })}
+
+              {/* Daily totals row */}
+              <div className="grid grid-cols-[1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-t bg-muted/30">
+                <div className="text-xs italic text-muted-foreground">Total/dia</div>
+                {weekDays.map((day) => {
+                  const dayTotal = realTimeDailyTotals[day.date] ?? 0;
+                  const jornada = employee?.jornada_diaria ?? 8;
+                  const diff = dayTotal - jornada;
+                  let colorClass = 'text-muted-foreground'; // 0h
+                  if (dayTotal > 0 && diff <= 0) {
+                    colorClass = 'text-emerald-700 dark:text-emerald-400'; // within jornada
+                  }
+                  if (diff > 0 && diff <= 2) {
+                    colorClass = 'text-amber-600 dark:text-amber-400'; // slightly over
+                  }
+                  if (diff > 2) {
+                    colorClass = 'text-red-600 dark:text-red-400'; // way over
+                  }
+                  return (
+                    <div key={day.date} className={cn("text-center text-sm font-semibold tabular-nums", colorClass)}>
+                      {dayTotal > 0 ? `${dayTotal.toFixed(1)}` : '0'}
+                    </div>
+                  );
+                })}
+                <div />
+                <div />
+              </div>
 
               {/* Footer: total + enviar */}
               <div className="border-t mt-2 pt-3 px-3 flex items-center justify-between">
