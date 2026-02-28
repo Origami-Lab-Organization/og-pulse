@@ -24,6 +24,15 @@ export interface ReimbursementRequest {
   client_name?: string;
 }
 
+export interface ReimbursementItem {
+  id: string;
+  reimbursement_id: string;
+  expense_date: string;
+  description: string;
+  amount: number;
+  created_at: string;
+}
+
 export interface ReimbursementAttachment {
   id: string;
   reimbursement_id: string;
@@ -67,7 +76,6 @@ export function usePendingReimbursements() {
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      // Enrich with names
       const requests = (data || []) as unknown as ReimbursementRequest[];
       if (requests.length === 0) return requests;
 
@@ -132,6 +140,23 @@ export function useReimbursementAttachments(reimbursementId: string | null) {
   });
 }
 
+export function useReimbursementItems(reimbursementId: string | null) {
+  return useQuery({
+    queryKey: ['reimbursement-items', reimbursementId],
+    queryFn: async () => {
+      if (!reimbursementId) return [];
+      const { data, error } = await supabase
+        .from('reimbursement_items' as any)
+        .select('*')
+        .eq('reimbursement_id', reimbursementId)
+        .order('expense_date', { ascending: true });
+      if (error) throw error;
+      return (data || []) as unknown as ReimbursementItem[];
+    },
+    enabled: !!reimbursementId,
+  });
+}
+
 export function useCreateReimbursement() {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
@@ -144,6 +169,7 @@ export function useCreateReimbursement() {
       description: string;
       total_amount: number;
       files: File[];
+      items?: { expense_date: string; description: string; amount: number }[];
     }) => {
       if (!employee) throw new Error('Não autenticado');
 
@@ -165,9 +191,23 @@ export function useCreateReimbursement() {
 
       const requestId = (request as any).id;
 
-      // 2. Upload files and create attachments
+      // 2. Insert expense items
+      if (params.items && params.items.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('reimbursement_items' as any)
+          .insert(
+            params.items.map(it => ({
+              reimbursement_id: requestId,
+              expense_date: it.expense_date,
+              description: it.description,
+              amount: it.amount,
+            })) as any
+          );
+        if (itemsError) throw itemsError;
+      }
+
+      // 3. Upload files and create attachments
       for (const file of params.files) {
-        // Sanitize filename: remove accents, replace spaces/special chars
         const sanitizedName = file.name
           .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
           .replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -194,6 +234,7 @@ export function useCreateReimbursement() {
       queryClient.invalidateQueries({ queryKey: ['my-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
+      queryClient.invalidateQueries({ queryKey: ['all-my-reimbursements'] });
       toast.success('Pedido de reembolso enviado com sucesso!');
     },
     onError: (error: any) => {
@@ -220,19 +261,18 @@ export function useApproveReimbursement() {
         .eq('id', reimbursementId);
       if (error) throw error;
 
-      // Call edge function to send email
       const { error: fnError } = await supabase.functions.invoke('send-reimbursement-email', {
         body: { reimbursement_id: reimbursementId },
       });
       if (fnError) {
         console.error('Error sending reimbursement email:', fnError);
-        // Don't throw - approval succeeded even if email fails
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
       queryClient.invalidateQueries({ queryKey: ['my-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['all-my-reimbursements'] });
       toast.success('Reembolso aprovado com sucesso!');
     },
     onError: (error: any) => {
@@ -311,17 +351,28 @@ export function useAllMyReimbursements() {
       const projectIds = [...new Set(requests.filter(r => r.project_id).map(r => r.project_id!))];
       const clientIds = [...new Set(requests.filter(r => r.client_id).map(r => r.client_id!))];
 
-      const [empRes, projRes, clientRes, tenantRes] = await Promise.all([
+      // Also fetch items to get earliest expense_date
+      const requestIds = requests.map(r => r.id);
+      const [empRes, projRes, clientRes, tenantRes, itemsRes] = await Promise.all([
         supabase.from('employees').select('id, nome').in('id', employeeIds),
         projectIds.length > 0 ? supabase.from('projects').select('id, name').in('id', projectIds) : { data: [] },
         clientIds.length > 0 ? supabase.from('clients').select('id, company_name').in('id', clientIds) : { data: [] },
         supabase.from('tenants' as any).select('id, name').eq('id', employee.tenant_id).maybeSingle(),
+        supabase.from('reimbursement_items' as any).select('reimbursement_id, expense_date').in('reimbursement_id', requestIds).order('expense_date', { ascending: true }),
       ]);
 
       const empMap = new Map<string, string>((empRes.data || []).map(e => [e.id, e.nome]));
       const projMap = new Map<string, string>(((projRes as any).data || []).map((p: any) => [p.id, p.name as string]));
       const clientMap = new Map<string, string>(((clientRes as any).data || []).map((c: any) => [c.id, c.company_name as string]));
       const tenantName = (tenantRes as any)?.data?.name || '';
+
+      // Build map of earliest expense_date per reimbursement
+      const expenseDateMap = new Map<string, string>();
+      for (const item of ((itemsRes as any).data || []) as any[]) {
+        if (!expenseDateMap.has(item.reimbursement_id)) {
+          expenseDateMap.set(item.reimbursement_id, item.expense_date);
+        }
+      }
 
       return requests.map(r => ({
         ...r,
@@ -330,6 +381,7 @@ export function useAllMyReimbursements() {
         project_name: r.project_id ? projMap.get(r.project_id) || '' : '',
         client_name: r.client_id ? clientMap.get(r.client_id) || '' : '',
         tenant_name: tenantName,
+        earliest_expense_date: expenseDateMap.get(r.id) || null,
       }));
     },
     enabled: !!employee,
@@ -352,6 +404,7 @@ export function useDeleteReimbursement() {
       queryClient.invalidateQueries({ queryKey: ['my-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
+      queryClient.invalidateQueries({ queryKey: ['all-my-reimbursements'] });
       toast.success('Reembolso excluído com sucesso.');
     },
     onError: (error: any) => {
@@ -383,6 +436,7 @@ export function useRejectReimbursement() {
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
       queryClient.invalidateQueries({ queryKey: ['my-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['all-my-reimbursements'] });
       toast.success('Reembolso rejeitado.');
     },
     onError: (error: any) => {
