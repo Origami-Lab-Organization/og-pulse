@@ -108,21 +108,45 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
 
   useEffect(() => {
     if (!open || !employee) return;
-    supabase
-      .from('clients')
-      .select('id, company_name')
-      .eq('tenant_id', employee.tenant_id)
-      .eq('status', 'active')
-      .order('company_name')
-      .then(({ data }) => setClients(data || []));
 
-    supabase
-      .from('projects')
-      .select('id, name, client_id')
-      .eq('tenant_id', employee.tenant_id)
-      .in('status', ['active', 'planning'])
-      .order('name')
-      .then(({ data }) => setProjects(data || []));
+    const loadData = async () => {
+      // 1. Get project IDs where employee is a member
+      const { data: memberRows } = await supabase
+        .from('project_members')
+        .select('project_id')
+        .eq('employee_id', employee.id);
+
+      const memberProjectIds = (memberRows || []).map(r => r.project_id);
+
+      // 2. Get projects where user is manager OR member
+      const { data: allProjects } = await supabase
+        .from('projects')
+        .select('id, name, client_id, manager_id')
+        .eq('tenant_id', employee.tenant_id)
+        .in('status', ['active', 'planning'])
+        .order('name');
+
+      const filtered = (allProjects || []).filter(p =>
+        p.manager_id === employee.id || memberProjectIds.includes(p.id)
+      );
+
+      setProjects(filtered.map(({ id, name, client_id }) => ({ id, name, client_id })));
+
+      // 3. Derive clients from filtered projects
+      const clientIds = [...new Set(filtered.map(p => p.client_id).filter(Boolean))];
+      if (clientIds.length > 0) {
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('id, company_name')
+          .in('id', clientIds)
+          .order('company_name');
+        setClients(clientData || []);
+      } else {
+        setClients([]);
+      }
+    };
+
+    loadData();
   }, [open, employee]);
 
   const filteredProjects = clientId
@@ -506,7 +530,7 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
 
           {/* Files */}
           <div className="space-y-2" ref={filesRef}>
-            <Label>Comprovantes * (mínimo 1 arquivo)</Label>
+            <Label>Comprovantes *</Label>
             <TooltipProvider>
             <div
               className={cn(
@@ -518,32 +542,34 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              {isDragging ? (
-                <div className="flex flex-col items-center gap-2 py-4">
-                  <Upload className="h-8 w-8 text-primary" />
-                  <p className="text-sm text-primary font-medium">Solte os arquivos aqui</p>
-                </div>
-              ) : (
-                <>
-                  <Button type="button" variant="outline" size="sm" asChild>
-                    <label className="cursor-pointer">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Anexar arquivo
-                      <Input
-                        type="file"
-                        multiple
-                        accept=".jpg,.jpeg,.png,.pdf"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                    </label>
-                  </Button>
-                  <p className="text-[12px] text-muted-foreground mt-2">
-                    Formatos aceitos: JPG, PNG, PDF. Tamanho máximo: 5MB por arquivo. Máximo de {MAX_FILES} arquivos.
-                  </p>
-                  <p className="text-[12px] text-muted-foreground mt-1">ou arraste e solte aqui</p>
-                </>
-              )}
+              <div className="flex flex-col items-center gap-2 py-6">
+                {isDragging ? (
+                  <>
+                    <Upload className="h-8 w-8 text-primary" />
+                    <p className="text-sm text-primary font-medium">Solte os arquivos aqui</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-8 w-8 text-muted-foreground" />
+                    <Button type="button" variant="outline" size="sm" asChild>
+                      <label className="cursor-pointer">
+                        Anexar arquivo
+                        <Input
+                          type="file"
+                          multiple
+                          accept=".jpg,.jpeg,.png,.pdf"
+                          className="hidden"
+                          onChange={handleFileChange}
+                        />
+                      </label>
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      ou arraste e solte aqui<br />
+                      JPG, PNG, PDF — máx. 5MB — até {MAX_FILES} arquivos
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
             {errors.files && <p className={errorText}>{errors.files}</p>}
             {fileError && <p className={errorText}>{fileError}</p>}
