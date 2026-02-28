@@ -48,8 +48,8 @@ const SegmentedBar = ({
           </div>
           {expectedPercent !== undefined && expectedPercent > 0 && (
             <div
-              className="absolute top-[-3px] bottom-[-3px] w-0.5 bg-foreground/70 z-10 rounded-full"
-              style={{ left: `${Math.min(expectedPercent, 100)}%` }}
+              className="absolute top-[-3px] bottom-[-3px] w-0.5 bg-red-500 z-10 rounded-full"
+              style={expectedPercent >= 100 ? { right: 0 } : { left: `${expectedPercent}%` }}
             />
           )}
         </div>
@@ -123,7 +123,7 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-700 dark:bg-green-600" /> Realizado</span>
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-300 dark:bg-green-800" /> Plan. restante</span>
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-muted border" /> Livre</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-[2px] h-3 rounded-full bg-foreground/70" /> Esperado</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-[2px] h-3 rounded-full bg-red-500" /> Esperado</span>
           </div>
         </div>
 
