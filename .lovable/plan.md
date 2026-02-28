@@ -1,28 +1,71 @@
 
+# Reembolsos - Lista Completa com Detalhes e Acoes
 
-# Corrigir Status de Semana Enviada e Erro de FK
+## Resumo
 
-## Problema 1: "Rascunho" aparece mesmo apos envio
-A logica atual verifica se existem entradas no banco (`memberEntries.length > 0`) e se todas estao travadas. Projetos sem horas lancadas (como "Lei do Bem") nao tem entradas, entao sempre mostram "Rascunho".
+Transformar a pagina de Reembolsos para mostrar todos os reembolsos relevantes ao usuario (solicitados por ele + revisados por ele para admins/managers), com busca textual, dialog de detalhes ao clicar, e botoes de aprovar/rejeitar para gerentes e admins.
 
-**Solucao**: Usar a tabela `project_timesheet_submissions` (ja carregada via `useProjectWeekSubmissions`) como fonte de verdade para o status. Se o submission do projeto para aquela semana tem `status === 'submitted'`, mostrar "Enviado" independentemente de ter entradas ou nao.
+## Mudancas
 
-## Problema 2: Erro de FK ao criar entradas com 0 horas
-O campo `created_by` na tabela `project_timesheets` tem FK para `employees(id)`, mas o codigo insere `user.id` (que e o `auth.uid()`, UUID do auth, nao o ID do employee). Isso causa o erro de foreign key.
+### 1. Novo hook `useAllMyReimbursements` em `src/hooks/useReimbursements.ts`
 
-**Solucao**: No hook `useSubmitAllProjects`, ao criar entradas de 0 horas para dias faltantes, nao preencher `created_by` (deixar null) ou buscar o `employee.id` correto. A opcao mais simples e remover o `created_by` do insert, ja que o campo aceita null.
+Criar um novo hook que busca:
+- Para usuarios comuns: apenas seus proprios reembolsos (`requested_by = employee.id`)
+- Para admins/managers: todos os reembolsos do tenant (a RLS ja permite isso)
+
+Enriquecer com nomes do solicitante, projeto e cliente (similar ao `usePendingReimbursements`).
+
+### 2. Reescrever `src/pages/Reimbursements.tsx`
+
+- Usar o novo hook em vez de `useMyReimbursements`
+- Adicionar campo de busca (Input com icone Search) que filtra em todos os campos visiveis (descricao, nome do solicitante, projeto, cliente, status label, valor)
+- Manter filtro de status (Select)
+- Adicionar colunas: "Solicitante" (para admins/managers), "Projeto/Interno"
+- Linhas clicaveis que abrem um Dialog de detalhes
+- Ordenar do mais recente para o mais antigo (ja feito no backend)
+
+### 3. Novo componente `src/components/reimbursements/ReimbursementDetailDialog.tsx`
+
+Dialog que mostra todos os detalhes do reembolso:
+- Solicitante, data, descricao, valor, tipo (interno/projeto), cliente, projeto
+- Status atual com badge
+- Motivo de rejeicao (se rejeitado)
+- Lista de anexos com links para download
+- Botoes de acao (Aprovar / Rejeitar) visiveis apenas para admins/managers e apenas quando status = pending
+- Rejeitar abre sub-dialog para informar motivo
+
+### 4. Filtro de busca
+
+- Um `Input` com placeholder "Buscar reembolsos..." ao lado do Select de status
+- Filtra client-side em: descricao, requester_name, project_name, client_name, valor formatado
 
 ## Detalhes Tecnicos
 
-### Arquivo: `src/pages/MyTimesheet.tsx`
+### `src/hooks/useReimbursements.ts`
 
-1. **Status por projeto (linhas 169-180)**: Usar `submissions.get(project.projectId)` para determinar o status. Se `submission?.status === 'submitted'`, mostrar badge "Enviado" e travar a linha.
+Adicionar `useAllMyReimbursements()`:
+- Se admin/manager: busca todos do tenant sem filtro de status
+- Se usuario comum: busca apenas `requested_by = employee.id`
+- Enriquece com nomes (requester_name, project_name, client_name) usando joins manuais
+- Ordena por `created_at desc`
 
-2. **allProjectsLocked (linhas 80-89)**: Ajustar para considerar submissions: um projeto esta "locked" se tem submission com status `submitted` OU se todas as entradas estao locked.
+### `src/pages/Reimbursements.tsx`
 
-3. **Botao Enviar (linha 208)**: Desabilitar quando todos os projetos ja tem submission `submitted`.
+- State: `searchQuery`, `statusFilter`, `selectedReimbursement`
+- Filtragem: primeiro por status, depois por texto (toLowerCase includes em campos)
+- Tabela com colunas: Data, Solicitante (condicional para managers), Descricao, Tipo, Valor, Status
+- `onClick` na `TableRow` abre `ReimbursementDetailDialog`
 
-### Arquivo: `src/hooks/useTimesheetSubmissions.ts`
+### `src/components/reimbursements/ReimbursementDetailDialog.tsx`
 
-1. **useSubmitAllProjects**: Remover `created_by: user.id` dos inserts de entradas de 0 horas (linhas ~275-281), pois `created_by` tem FK para `employees(id)` e `user.id` e um auth UUID.
+- Props: `reimbursement`, `open`, `onOpenChange`
+- Usa `useReimbursementAttachments` para buscar anexos
+- Usa `useApproveReimbursement` e `useRejectReimbursement` para acoes
+- Sub-dialog de rejeicao com Textarea para motivo
+- Botao de download de anexos via signed URL
 
+### Arquivos impactados
+
+- `src/hooks/useReimbursements.ts` -- novo hook
+- `src/pages/Reimbursements.tsx` -- reescrita
+- `src/components/reimbursements/ReimbursementDetailDialog.tsx` -- novo arquivo
