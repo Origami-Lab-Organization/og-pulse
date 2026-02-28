@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, Loader2, CheckCircle2, BarChart3, Clock, Send } from 'lucide-react';
+import { Building2, Loader2, CheckCircle2, Send } from 'lucide-react';
 import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAllocation';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
@@ -14,7 +14,6 @@ import { useTimesheetsByDateRange, getWeekStart, getWeekDays } from '@/hooks/use
 import { useProjectWeekSubmissions, useSubmitAllProjects } from '@/hooks/useTimesheetSubmissions';
 import { useHolidays } from '@/hooks/useHolidays';
 import { Badge } from '@/components/ui/badge';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { format, addDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -30,7 +29,6 @@ import {
 const MyTimesheet = () => {
   const { employee } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [activeSection, setActiveSection] = useState<string>('timesheet');
 
   // Dialog states
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false);
@@ -59,7 +57,6 @@ const MyTimesheet = () => {
   const isLoading = loadingProjects || loadingEntries;
   const canSubmit = !!(employee?.is_gerente || employee?.isAdmin);
 
-  // Calculate per-project hours
   const projectHoursMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const project of projects) {
@@ -85,7 +82,6 @@ const MyTimesheet = () => {
       const memberEntries = timesheetEntries.filter(
         e => e.projectMemberId === member.memberId
       );
-      // Not locked if no entries or any entry is not locked
       return memberEntries.length === 0 || memberEntries.some(e => !e.isLocked);
     });
   }, [projects, timesheetEntries]);
@@ -126,121 +122,100 @@ const MyTimesheet = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <ToggleGroup
-              type="single"
-              value={activeSection}
-              onValueChange={(val) => { if (val) setActiveSection(val); }}
-              className="justify-start"
-            >
-              <ToggleGroupItem value="allocation" className="gap-1.5">
-                <BarChart3 className="h-4 w-4" />
-                Minha Alocação
-              </ToggleGroupItem>
-              <ToggleGroupItem value="timesheet" className="gap-1.5">
-                <Clock className="h-4 w-4" />
-                Lançar Horas
-              </ToggleGroupItem>
-            </ToggleGroup>
+          <div className="flex items-center justify-end">
             <TimesheetWeekSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
           </div>
 
-          {activeSection === 'allocation' && (
-            <MyTimesheetAllocation employeeId={employee?.id} monthKey={monthKey} />
-          )}
+          <Card>
+            <CardContent className="pt-4">
+              {/* Header único */}
+              <div className="grid grid-cols-[1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
+                <div>Projeto</div>
+                {weekDays.map((day) => {
+                  const holiday = getHolidayForDate(day.date);
+                  const isHolidayDay = !!holiday;
+                  return (
+                    <TooltipProvider key={day.date}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={cn(
+                            "text-center rounded-md py-1",
+                            isHolidayDay && "bg-destructive/10 text-destructive"
+                          )}>
+                            {format(new Date(day.date + 'T12:00:00'), 'EEE', { locale: ptBR })}
+                            <br />
+                            <span className="text-[10px]">
+                              {format(new Date(day.date + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
+                            </span>
+                            {isHolidayDay && <span className="text-[8px] block">*</span>}
+                          </div>
+                        </TooltipTrigger>
+                        {isHolidayDay && (
+                          <TooltipContent>
+                            <p>{holiday.name}</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                })}
+                <div className="text-right pr-2">Total</div>
+                <div className="text-center">Status</div>
+              </div>
 
-          {activeSection === 'timesheet' && (
-            <>
-              <Card>
-                <CardContent className="pt-4">
-                  {/* Header único */}
-                  <div className="grid grid-cols-[1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
-                    <div>Projeto</div>
-                    {weekDays.map((day) => {
-                      const holiday = getHolidayForDate(day.date);
-                      const isHolidayDay = !!holiday;
-                      return (
-                        <TooltipProvider key={day.date}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className={cn(
-                                "text-center rounded-md py-1",
-                                isHolidayDay && "bg-destructive/10 text-destructive"
-                              )}>
-                                {format(new Date(day.date + 'T12:00:00'), 'EEE', { locale: ptBR })}
-                                <br />
-                                <span className="text-[10px]">
-                                  {format(new Date(day.date + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
-                                </span>
-                                {isHolidayDay && <span className="text-[8px] block">*</span>}
-                              </div>
-                            </TooltipTrigger>
-                            {isHolidayDay && (
-                              <TooltipContent>
-                                <p>{holiday.name}</p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    })}
-                    <div className="text-right pr-2">Total</div>
-                    <div className="text-center">Status</div>
-                  </div>
+              {/* Uma linha por projeto */}
+              {projects.map((project) => {
+                const member = project.members[0];
+                const memberEntries = timesheetEntries.filter(
+                  e => e.projectMemberId === member.memberId
+                );
+                const isLocked = memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
+                const actionContent = isLocked ? (
+                  <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Enviado
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="whitespace-nowrap">Rascunho</Badge>
+                );
 
-                  {/* Uma linha por projeto */}
-                  {projects.map((project) => {
-                    const member = project.members[0];
-                    const memberEntries = timesheetEntries.filter(
-                      e => e.projectMemberId === member.memberId
-                    );
-                    const isLocked = memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
-                    const actionContent = isLocked ? (
-                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Enviado
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="whitespace-nowrap">Rascunho</Badge>
-                    );
+                return (
+                  <TimesheetWeekRow
+                    key={member.memberId}
+                    label={project.projectName}
+                    subLabel={project.clientName}
+                    projectId={project.projectId}
+                    memberId={member.memberId}
+                    weekDays={weekDays}
+                    existingEntries={timesheetEntries}
+                    holidays={holidays}
+                    isLocked={isLocked}
+                    isAdmin={false}
+                    actionSlot={actionContent}
+                  />
+                );
+              })}
 
-                    return (
-                      <TimesheetWeekRow
-                        key={member.memberId}
-                        label={project.projectName}
-                        subLabel={project.clientName}
-                        projectId={project.projectId}
-                        memberId={member.memberId}
-                        weekDays={weekDays}
-                        existingEntries={timesheetEntries}
-                        holidays={holidays}
-                        isLocked={isLocked}
-                        isAdmin={false}
-                        actionSlot={actionContent}
-                      />
-                    );
-                  })}
+              {/* Footer: total + enviar */}
+              <div className="border-t mt-2 pt-3 px-3 flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total da Semana: <span className="text-foreground font-semibold">{totalHoursAllProjects.toFixed(1)}h</span>
+                </p>
+                {canSubmit && (
+                  <Button
+                    size="sm"
+                    onClick={() => setShowSubmitAllDialog(true)}
+                    disabled={!allWeekDaysReady || pendingProjects.length === 0 || submitAllProjects.isPending}
+                  >
+                    <Send className="h-4 w-4 mr-1.5" />
+                    Enviar ({pendingProjects.length})
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-                  {/* Footer: total + enviar */}
-                  <div className="border-t mt-2 pt-3 px-3 flex items-center justify-between">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total da Semana: <span className="text-foreground font-semibold">{totalHoursAllProjects.toFixed(1)}h</span>
-                    </p>
-                    {canSubmit && (
-                      <Button
-                        size="sm"
-                        onClick={() => setShowSubmitAllDialog(true)}
-                        disabled={!allWeekDaysReady || pendingProjects.length === 0 || submitAllProjects.isPending}
-                      >
-                        <Send className="h-4 w-4 mr-1.5" />
-                        Enviar ({pendingProjects.length})
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
+          <MyTimesheetAllocation employeeId={employee?.id} monthKey={monthKey} />
         </div>
       )}
 
