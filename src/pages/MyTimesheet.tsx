@@ -77,14 +77,14 @@ const MyTimesheet = () => {
     return total;
   }, [projectHoursMap]);
 
-  const pendingProjects = useMemo(() => {
-    return projects.filter(p => {
+  const allProjectsLocked = useMemo(() => {
+    return projects.every(p => {
       const member = p.members[0];
-      if (!member) return true;
+      if (!member) return false;
       const memberEntries = timesheetEntries.filter(
         e => e.projectMemberId === member.memberId
       );
-      return memberEntries.length === 0 || memberEntries.some(e => !e.isLocked);
+      return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
     });
   }, [projects, timesheetEntries]);
 
@@ -94,7 +94,7 @@ const MyTimesheet = () => {
   };
 
   const handleSubmitAll = () => {
-    const projectsToSubmit = pendingProjects.map(p => ({
+    const projectsToSubmit = projects.map(p => ({
       projectId: p.projectId,
       totalHours: projectHoursMap.get(p.projectId) || 0,
       memberIds: p.members.map(m => m.memberId),
@@ -102,6 +102,7 @@ const MyTimesheet = () => {
     submitAllProjects.mutate({
       projects: projectsToSubmit,
       weekStart: startDate,
+      weekDays: weekDays.map(d => d.date),
     }, {
       onSuccess: () => setShowSubmitAllDialog(false),
     });
@@ -204,7 +205,7 @@ const MyTimesheet = () => {
                   <Button
                     size="sm"
                     onClick={() => setShowSubmitAllDialog(true)}
-                    disabled={!allWeekDaysReady || pendingProjects.length === 0 || submitAllProjects.isPending}
+                    disabled={!allWeekDaysReady || allProjectsLocked || submitAllProjects.isPending}
                   >
                     <Send className="h-4 w-4 mr-1.5" />
                     Enviar
@@ -221,10 +222,10 @@ const MyTimesheet = () => {
       <SubmitAllProjectsDialog
         open={showSubmitAllDialog}
         onOpenChange={setShowSubmitAllDialog}
-        pendingCount={pendingProjects.length}
+        pendingCount={projects.length}
         weekStart={weekStart}
         weekEnd={weekEnd}
-        totalHours={pendingProjects.reduce((sum, p) => sum + (projectHoursMap.get(p.projectId) || 0), 0)}
+        totalHours={totalHoursAllProjects}
         onConfirm={handleSubmitAll}
         isSubmitting={submitAllProjects.isPending}
       />
