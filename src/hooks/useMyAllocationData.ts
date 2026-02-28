@@ -20,20 +20,26 @@ export interface MyAllocationData {
   expectedHours: number;
 }
 
-function calculateExpectedHours(monthKey: string, jornada_diaria: number, holidays: Holiday[]): number {
-  const monthStart = parseISO(`${monthKey}-01`);
-  const monthEndDate = endOfMonth(monthStart);
-  const today = new Date();
-  const upperLimit = min([today, monthEndDate]);
-
-  const days = eachDayOfInterval({ start: monthStart, end: upperLimit });
-  let workingDays = 0;
+function countWorkingDays(start: Date, end: Date, holidays: Holiday[]): number {
+  const days = eachDayOfInterval({ start, end });
+  let count = 0;
   for (const day of days) {
     if (isWeekend(day)) continue;
     if (isHoliday(day, holidays)) continue;
-    workingDays++;
+    count++;
   }
-  return workingDays * jornada_diaria;
+  return count;
+}
+
+function calculateExpectedHours(monthKey: string, jornada_diaria: number, holidays: Holiday[]): number {
+  const monthStart = parseISO(`${monthKey}-01`);
+  const upperLimit = min([new Date(), endOfMonth(monthStart)]);
+  return countWorkingDays(monthStart, upperLimit, holidays) * jornada_diaria;
+}
+
+function calculateMonthlyCapacity(monthKey: string, jornada_diaria: number, holidays: Holiday[]): number {
+  const monthStart = parseISO(`${monthKey}-01`);
+  return countWorkingDays(monthStart, endOfMonth(monthStart), holidays) * jornada_diaria;
 }
 
 export const useMyAllocationData = (employeeId: string | undefined, monthKey: string) => {
@@ -48,7 +54,7 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
       const [{ data: empData }, { data: holidays }] = await Promise.all([
         supabase
           .from('employees')
-          .select('jornada_mensal, jornada_diaria')
+          .select('jornada_diaria')
           .eq('id', employeeId)
           .single(),
         supabase
@@ -57,8 +63,9 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
           .eq('is_active', true),
       ]);
 
-      const monthlyCapacity = empData?.jornada_mensal ?? 176;
       const jornada_diaria = empData?.jornada_diaria ?? 8;
+      const typedHolidays = (holidays || []) as Holiday[];
+      const monthlyCapacity = calculateMonthlyCapacity(monthKey, jornada_diaria, typedHolidays);
 
       // 2. Get project_members for this employee with project details
       const { data: members, error: membersError } = await supabase
@@ -76,7 +83,7 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
 
       if (membersError) throw membersError;
       if (!members || members.length === 0) {
-        const expectedHoursEmpty = calculateExpectedHours(monthKey, jornada_diaria, (holidays || []) as Holiday[]);
+        const expectedHoursEmpty = calculateExpectedHours(monthKey, jornada_diaria, typedHolidays);
         return { projects: [], totalPlannedHours: 0, totalActualHours: 0, monthlyCapacity, expectedHours: expectedHoursEmpty };
       }
 
@@ -148,7 +155,7 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
       const totalPlannedHours = projects.reduce((sum, p) => sum + p.plannedHours, 0);
       const totalActualHours = projects.reduce((sum, p) => sum + p.actualHours, 0);
 
-      const expectedHours = calculateExpectedHours(monthKey, jornada_diaria, (holidays || []) as Holiday[]);
+      const expectedHours = calculateExpectedHours(monthKey, jornada_diaria, typedHolidays);
 
       return { projects, totalPlannedHours, totalActualHours, monthlyCapacity, expectedHours };
     },
