@@ -1,58 +1,102 @@
 
-# Melhorias no Dialog de Detalhes do Reembolso
 
-## Resumo
+## Plano: Filtrar clientes/projetos por vinculo do usuario e melhorar area de comprovantes
 
-Melhorar a experiencia de visualizacao do dialog de detalhes do reembolso com: melhor exibicao de comprovantes (thumbnails para imagens, icones por tipo de arquivo), secao de historico/timeline, e correcao das cores dos badges de status para usar verde claro no "Aprovado" (igual ao padrao do sistema).
+### Problema atual
+1. No formulario de reembolso, o usuario ve **todos** os clientes e projetos ativos do tenant, mesmo os que nao tem relacao com ele.
+2. O titulo do campo de comprovantes diz "Comprovantes * (minimo 1 arquivo)" -- verboso demais.
+3. O botao "Anexar arquivo" e os textos auxiliares nao estao bem centralizados na area de drop.
 
-## Mudancas
+### Solucao
 
-### 1. Corrigir cores dos badges de status
+#### 1. Filtrar clientes e projetos vinculados ao usuario
 
-Tanto em `Reimbursements.tsx` quanto em `ReimbursementDetailDialog.tsx`, o status "Aprovado" usa `variant: 'default'` (cor escura primaria). Mudar para usar `variant: 'secondary'` com classes customizadas `bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300`, seguindo o padrao ja usado em `EmployeesTable.tsx`, `TimesheetWeekStatus.tsx` e outros componentes do sistema.
+No `useEffect` que carrega clientes e projetos (linhas 109-126 do `ReimbursementFormDialog.tsx`):
 
-Atualizar o `statusConfig` em ambos os arquivos:
+- **Projetos**: buscar apenas projetos onde o employee e `manager_id` OU existe um registro em `project_members` com seu `employee_id`. Isso sera feito em dois passos:
+  1. Buscar IDs dos projetos em `project_members` onde `employee_id = employee.id`
+  2. Buscar projetos onde `manager_id = employee.id` OU `id in (IDs do passo 1)`
+  3. Filtrar apenas projetos com status `active` ou `planning`
+
+- **Clientes**: derivar a lista de clientes a partir dos `client_id` dos projetos retornados (em vez de buscar todos os clientes ativos). Assim, so aparecem clientes que possuem pelo menos um projeto vinculado ao usuario.
+
+#### 2. Simplificar titulo de comprovantes
+
+- Alterar o label de `"Comprovantes * (minimo 1 arquivo)"` para apenas `"Comprovantes *"`.
+
+#### 3. Melhorar layout da area de drop
+
+- Reorganizar o conteudo dentro da drop zone para que o icone de upload, o botao "Anexar arquivo" e o texto auxiliar fiquem centralizados verticalmente e horizontalmente.
+- Mover o texto de formatos aceitos para dentro da area de drop, logo abaixo do botao, com fonte menor e cor `text-muted-foreground`.
+- Layout: icone de upload no topo, botao no centro, texto auxiliar abaixo, tudo com `flex-col items-center`.
+
+---
+
+### Detalhes tecnicos
+
+**Arquivo:** `src/components/reimbursements/ReimbursementFormDialog.tsx`
+
+**Mudanca na query de dados (useEffect):**
+
+```typescript
+useEffect(() => {
+  if (!open || !employee) return;
+
+  // 1. Get project IDs where employee is a member
+  const loadData = async () => {
+    const { data: memberRows } = await supabase
+      .from('project_members')
+      .select('project_id')
+      .eq('employee_id', employee.id);
+    
+    const memberProjectIds = (memberRows || []).map(r => r.project_id);
+
+    // 2. Get projects where user is manager OR member
+    let projectQuery = supabase
+      .from('projects')
+      .select('id, name, client_id')
+      .eq('tenant_id', employee.tenant_id)
+      .in('status', ['active', 'planning'])
+      .order('name');
+
+    const { data: allProjects } = await projectQuery;
+    
+    const filtered = (allProjects || []).filter(p =>
+      p.manager_id === employee.id || memberProjectIds.includes(p.id)
+    );
+    // Note: manager_id is not in the select, so we adjust the select to include it
+
+    setProjects(filtered);
+
+    // 3. Derive clients from filtered projects
+    const clientIds = [...new Set(filtered.map(p => p.client_id).filter(Boolean))];
+    if (clientIds.length > 0) {
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('id, company_name')
+        .in('id', clientIds)
+        .order('company_name');
+      setClients(clientData || []);
+    } else {
+      setClients([]);
+    }
+  };
+  loadData();
+}, [open, employee]);
 ```
-approved: { label: 'Aprovado', variant: 'secondary', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' }
-```
 
-### 2. Melhorar visualizacao de comprovantes
+A query de projetos precisa incluir `manager_id` no select para poder filtrar localmente.
 
-No `ReimbursementDetailDialog.tsx`, substituir a lista simples de links por cards visuais:
+**Mudanca no label de comprovantes (linha ~507):**
+- De: `Comprovantes * (minimo 1 arquivo)`
+- Para: `Comprovantes *`
 
-- Para imagens (jpg, jpeg, png, webp, gif): mostrar thumbnail clicavel usando signed URL com preview inline (tag `<img>` com object-fit cover dentro de um container arredondado)
-- Para outros arquivos (pdf, etc): mostrar icone de arquivo (FileText) com nome e tamanho
-- Cada item clicavel abre em nova aba (comportamento atual mantido)
-- Usar um grid de 2 colunas para comprovantes de imagem, lista para outros
+**Mudanca no layout da drop zone:**
+- Adicionar padding vertical maior (`py-6`)
+- Centralizar com `flex flex-col items-center gap-2`
+- Colocar icone `Upload` acima do botao
+- Texto auxiliar de formatos abaixo, centralizado
 
-Criar estado local para armazenar signed URLs dos attachments (carregar ao montar) para poder exibir thumbnails.
+### Arquivos modificados
+- `src/components/reimbursements/ReimbursementFormDialog.tsx`
 
-### 3. Adicionar secao de Historico (Timeline)
-
-Adicionar uma secao "Historico" no dialog com timeline vertical estilizada usando um divider vertical e circulos:
-
-- **Solicitado** - data de criacao + nome do solicitante (sempre presente)
-- **Aprovado/Rejeitado** - data de revisao + nome do revisor (se existir `reviewed_at`)
-- **Pago** - placeholder para futuro (nao exibido por enquanto, pois o campo ainda nao existe)
-
-A timeline usa icones: Circle para solicitado, CheckCircle para aprovado, XCircle para rejeitado. Linhas conectoras entre os pontos.
-
-## Detalhes Tecnicos
-
-### Arquivo: `src/components/reimbursements/ReimbursementDetailDialog.tsx`
-
-1. Atualizar `statusConfig` para incluir `className` com cores verdes
-2. Adicionar `useEffect` para gerar signed URLs de todos os attachments ao carregar, armazenando em um `Map<string, string>` (attachment id -> signed url)
-3. Substituir a `<ul>` de comprovantes por um grid visual com thumbnails para imagens
-4. Adicionar secao de timeline apos a descricao, antes dos comprovantes
-5. Importar icones adicionais: `FileText`, `Clock`, `Image` do lucide-react
-
-### Arquivo: `src/pages/Reimbursements.tsx`
-
-1. Atualizar `statusConfig` para incluir `className` com cores verdes
-2. Aplicar className no `<Badge>` da tabela: `<Badge variant={cfg.variant} className={cfg.className}>`
-
-### Arquivos impactados
-
-- `src/components/reimbursements/ReimbursementDetailDialog.tsx` -- melhorias visuais
-- `src/pages/Reimbursements.tsx` -- cor do badge
