@@ -40,9 +40,20 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+export interface CorrectionData {
+  correctedFromId: string;
+  rejectedAt: string;
+  rejectionReason: string;
+  type: 'project' | 'internal';
+  clientId: string;
+  projectId: string;
+  items: ExpenseItem[];
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  correctionData?: CorrectionData | null;
 }
 
 interface ClientOption {
@@ -84,7 +95,7 @@ function isOlderThanDays(date: Date, days: number): boolean {
   return date < cutoff;
 }
 
-export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
+export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: Props) {
   const { employee } = useAuth();
   const createMutation = useCreateReimbursement();
 
@@ -105,6 +116,16 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
   const projectRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef<HTMLDivElement>(null);
   const filesRef = useRef<HTMLDivElement>(null);
+
+  // Prefill from correction data
+  useEffect(() => {
+    if (!open || !correctionData) return;
+    setType(correctionData.type);
+    setClientId(correctionData.clientId);
+    setProjectId(correctionData.projectId);
+    setItems(correctionData.items.length > 0 ? correctionData.items : [{ date: undefined, description: '', amount: 0 }]);
+    setItemErrors(correctionData.items.map(() => ({})));
+  }, [open, correctionData]);
 
   useEffect(() => {
     if (!open || !employee) return;
@@ -367,6 +388,7 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
         description: it.description,
         amount: it.amount,
       })),
+      corrected_from_id: correctionData?.correctedFromId,
     });
     reset();
     onOpenChange(false);
@@ -397,10 +419,20 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={(v) => { if (!v) { handleClose(); return; } onOpenChange(v); }}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Pedido de Reembolso</DialogTitle>
+          <DialogTitle>{correctionData ? 'Corrigir e Reenviar Reembolso' : 'Novo Pedido de Reembolso'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {correctionData && (
+            <div className="flex items-start gap-2 rounded-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-3 text-sm text-yellow-800 dark:text-yellow-300">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                Você está corrigindo o pedido rejeitado em{' '}
+                <strong>{format(new Date(correctionData.rejectedAt), "dd/MM/yyyy", { locale: ptBR })}</strong>.
+                {' '}Motivo da rejeição: <em>"{correctionData.rejectionReason}"</em>
+              </span>
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Tipo de Despesa</Label>
             <RadioGroup value={type} onValueChange={(v) => { setType(v as any); setClientId(''); setProjectId(''); setErrors((p) => ({ ...p, clientId: undefined, projectId: undefined })); }}>

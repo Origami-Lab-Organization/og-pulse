@@ -1809,6 +1809,7 @@ export type Database = {
       reimbursement_requests: {
         Row: {
           client_id: string | null
+          corrected_from_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -1825,6 +1826,7 @@ export type Database = {
         }
         Insert: {
           client_id?: string | null
+          corrected_from_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1841,6 +1843,7 @@ export type Database = {
         }
         Update: {
           client_id?: string | null
+          corrected_from_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1861,6 +1864,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reimbursement_requests_corrected_from_id_fkey"
+            columns: ["corrected_from_id"]
+            isOneToOne: false
+            referencedRelation: "reimbursement_requests"
             referencedColumns: ["id"]
           },
           {
