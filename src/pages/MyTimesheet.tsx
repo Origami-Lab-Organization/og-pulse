@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building2, Loader2, CheckCircle2, BarChart3, Clock, Send } from 'lucide-react';
 import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAllocation';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
-import { TimesheetWeekStatus } from '@/components/timesheets/TimesheetWeekStatus';
+
 import { SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyProjectMemberships } from '@/hooks/useMyTimesheetData';
@@ -151,26 +151,10 @@ const MyTimesheet = () => {
 
           {activeSection === 'timesheet' && (
             <>
-              <TimesheetWeekStatus
-                submissions={submissions}
-                totalProjects={projects.length}
-                totalHours={totalHoursAllProjects}
-                onSubmitAll={() => setShowSubmitAllDialog(true)}
-                isSubmitting={submitAllProjects.isPending}
-                canSubmit={canSubmit}
-                allWeekDaysReady={allWeekDaysReady}
-                lockedProjectCount={projects.filter(p => {
-                  const member = p.members[0];
-                  if (!member) return false;
-                  const memberEntries = timesheetEntries.filter(e => e.projectMemberId === member.memberId);
-                  return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
-                }).length}
-              />
-
               <Card>
                 <CardContent className="pt-4">
                   {/* Header único */}
-                  <div className="grid grid-cols-[1fr_repeat(5,60px)_80px_140px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
+                  <div className="grid grid-cols-[1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
                     <div>Projeto</div>
                     {weekDays.map((day) => {
                       const holiday = getHolidayForDate(day.date);
@@ -201,19 +185,16 @@ const MyTimesheet = () => {
                       );
                     })}
                     <div className="text-right pr-2">Total</div>
-                    <div className="text-right pr-2">Status</div>
+                    <div className="text-center">Status</div>
                   </div>
 
                   {/* Uma linha por projeto */}
                   {projects.map((project) => {
-                    const submission = submissions.get(project.projectId);
                     const member = project.members[0];
-                    // Check lock based on actual entry is_locked, not project submission
                     const memberEntries = timesheetEntries.filter(
                       e => e.projectMemberId === member.memberId
                     );
                     const isLocked = memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
-                    const projectTotalHours = projectHoursMap.get(project.projectId) || 0;
                     const actionContent = isLocked ? (
                       <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -239,6 +220,23 @@ const MyTimesheet = () => {
                       />
                     );
                   })}
+
+                  {/* Footer: total + enviar */}
+                  <div className="border-t mt-2 pt-3 px-3 flex items-center justify-between">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Total da Semana: <span className="text-foreground font-semibold">{totalHoursAllProjects.toFixed(1)}h</span>
+                    </p>
+                    {canSubmit && (
+                      <Button
+                        size="sm"
+                        onClick={() => setShowSubmitAllDialog(true)}
+                        disabled={!allWeekDaysReady || pendingProjects.length === 0 || submitAllProjects.isPending}
+                      >
+                        <Send className="h-4 w-4 mr-1.5" />
+                        Enviar ({pendingProjects.length})
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </>
