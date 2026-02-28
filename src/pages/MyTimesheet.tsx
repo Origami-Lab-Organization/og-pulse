@@ -79,6 +79,8 @@ const MyTimesheet = () => {
 
   const allProjectsLocked = useMemo(() => {
     return projects.every(p => {
+      const submission = submissions.get(p.projectId);
+      if (submission?.status === 'submitted') return true;
       const member = p.members[0];
       if (!member) return false;
       const memberEntries = timesheetEntries.filter(
@@ -86,7 +88,7 @@ const MyTimesheet = () => {
       );
       return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
     });
-  }, [projects, timesheetEntries]);
+  }, [projects, timesheetEntries, submissions]);
 
   const getHolidayForDate = (dateStr: string): Holiday | null => {
     const date = parseISO(dateStr);
@@ -166,10 +168,12 @@ const MyTimesheet = () => {
               {/* Uma linha por projeto */}
               {projects.map((project) => {
                 const member = project.members[0];
+                const submission = submissions.get(project.projectId);
+                const isSubmitted = submission?.status === 'submitted';
                 const memberEntries = timesheetEntries.filter(
                   e => e.projectMemberId === member.memberId
                 );
-                const isLocked = memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
+                const isLocked = isSubmitted || (memberEntries.length > 0 && memberEntries.every(e => e.isLocked));
                 const actionContent = isLocked ? (
                   <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap">
                     <CheckCircle2 className="h-3 w-3 mr-1" />

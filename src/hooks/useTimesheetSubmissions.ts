@@ -276,8 +276,6 @@ export const useSubmitAllProjects = () => {
                 work_date: day,
                 hours: 0,
                 is_locked: true,
-                created_by: user.id,
-                updated_by: user.id,
               }));
 
               const { error: insertError } = await supabase
