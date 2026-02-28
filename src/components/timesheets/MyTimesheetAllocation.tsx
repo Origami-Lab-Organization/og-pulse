@@ -153,11 +153,20 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
                 key={project.projectId}
                 className="grid grid-cols-[1fr_70px_70px_1fr_50px] gap-2 px-3 py-2 border-b last:border-b-0 items-center text-sm"
               >
-                <div className="truncate">
-                  <span className="text-muted-foreground">{project.clientName}</span>
-                  <span className="text-muted-foreground mx-1">/</span>
-                  <span className="font-medium">{project.projectName}</span>
-                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="truncate">
+                        <span className="text-muted-foreground">{project.clientName}</span>
+                        <span className="text-muted-foreground mx-1">/</span>
+                        <span className="font-medium">{project.projectName}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>{project.clientName} / {project.projectName}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <div className="text-right tabular-nums">
                   {project.plannedHours > 0 ? `${project.plannedHours.toFixed(0)}h` : '—'}
                 </div>
