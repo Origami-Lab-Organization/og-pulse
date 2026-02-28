@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Plus, Search } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useAllMyReimbursements, ReimbursementRequest } from '@/hooks/useReimbursements';
 import { ReimbursementFormDialog } from '@/components/reimbursements/ReimbursementFormDialog';
 import { ReimbursementDetailDialog } from '@/components/reimbursements/ReimbursementDetailDialog';
@@ -64,6 +65,7 @@ export default function Reimbursements() {
   }, [reimbursements, statusFilter, searchQuery]);
 
   return (
+    <TooltipProvider>
     <AppLayout
       title="Reembolsos"
       description="Solicite e acompanhe seus pedidos de reembolso"
@@ -137,11 +139,30 @@ export default function Reimbursements() {
                         {format(new Date(r.created_at), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       {isManager && (
-                        <TableCell>{r.requester_name || 'Desconhecido'}</TableCell>
+                        <TableCell className="max-w-[160px]">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{r.requester_name || 'Desconhecido'}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{r.requester_name || 'Desconhecido'}</TooltipContent>
+                          </Tooltip>
+                        </TableCell>
                       )}
-                      <TableCell className="max-w-[300px] truncate">{r.description}</TableCell>
-                      <TableCell>
-                        {r.is_internal ? 'Interno' : r.project_name || 'Projeto'}
+                      <TableCell className="max-w-[300px]">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block truncate">{r.description}</span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[400px] whitespace-pre-wrap">{r.description}</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell className="max-w-[160px]">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block truncate">{r.is_internal ? 'Interno' : r.project_name || 'Projeto'}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{r.is_internal ? 'Interno' : r.project_name || 'Projeto'}</TooltipContent>
+                        </Tooltip>
                       </TableCell>
                       <TableCell className="text-right">
                         {r.total_amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -165,5 +186,6 @@ export default function Reimbursements() {
         reimbursement={selectedReimbursement}
       />
     </AppLayout>
+    </TooltipProvider>
   );
 }
