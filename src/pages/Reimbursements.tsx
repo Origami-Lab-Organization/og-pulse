@@ -26,9 +26,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string }> = {
   pending: { label: 'Pendente', variant: 'outline' },
-  approved: { label: 'Aprovado', variant: 'default' },
+  approved: { label: 'Aprovado', variant: 'secondary', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
   rejected: { label: 'Rejeitado', variant: 'destructive' },
 };
 
@@ -147,7 +147,7 @@ export default function Reimbursements() {
                         {r.total_amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                        <Badge variant={cfg.variant} className={cfg.className}>{cfg.label}</Badge>
                       </TableCell>
                     </TableRow>
                   );

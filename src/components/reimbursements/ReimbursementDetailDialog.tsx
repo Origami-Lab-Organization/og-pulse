@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency } from '@/lib/formatters';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Paperclip, CheckCircle, XCircle } from 'lucide-react';
+import { Paperclip, CheckCircle, XCircle, FileText, Clock, Circle } from 'lucide-react';
 import {
   ReimbursementRequest,
   useReimbursementAttachments,
@@ -26,11 +26,18 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string }> = {
   pending: { label: 'Pendente', variant: 'outline' },
-  approved: { label: 'Aprovado', variant: 'default' },
+  approved: { label: 'Aprovado', variant: 'secondary', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
   rejected: { label: 'Rejeitado', variant: 'destructive' },
 };
+
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
+function isImageFile(fileName: string) {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  return IMAGE_EXTENSIONS.includes(ext);
+}
 
 interface ReimbursementDetailDialogProps {
   open: boolean;
@@ -45,17 +52,40 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }:
   const rejectMutation = useRejectReimbursement();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [signedUrls, setSignedUrls] = useState<Map<string, string>>(new Map());
 
   const isManager = employee?.is_gerente || employee?.isAdmin;
   const isPending = reimbursement?.status === 'pending';
   const canAct = isManager && isPending;
 
-  const downloadFile = async (fileUrl: string) => {
-    const { data, error } = await supabase.storage
-      .from('reimbursement-receipts')
-      .createSignedUrl(fileUrl, 300);
-    if (error || !data?.signedUrl) return;
-    window.open(data.signedUrl, '_blank');
+  // Generate signed URLs for all attachments
+  useEffect(() => {
+    if (attachments.length === 0) {
+      setSignedUrls(new Map());
+      return;
+    }
+    let cancelled = false;
+    async function loadUrls() {
+      const map = new Map<string, string>();
+      await Promise.all(
+        attachments.map(async (a) => {
+          const { data } = await supabase.storage
+            .from('reimbursement-receipts')
+            .createSignedUrl(a.file_url, 600);
+          if (data?.signedUrl && !cancelled) {
+            map.set(a.id, data.signedUrl);
+          }
+        })
+      );
+      if (!cancelled) setSignedUrls(map);
+    }
+    loadUrls();
+    return () => { cancelled = true; };
+  }, [attachments]);
+
+  const openFile = (attachmentId: string) => {
+    const url = signedUrls.get(attachmentId);
+    if (url) window.open(url, '_blank');
   };
 
   const handleApprove = () => {
@@ -83,18 +113,22 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }:
 
   const cfg = statusConfig[reimbursement.status] || statusConfig.pending;
 
+  const imageAttachments = attachments.filter(a => isImageFile(a.file_name));
+  const otherAttachments = attachments.filter(a => !isImageFile(a.file_name));
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               Detalhes do Reembolso
-              <Badge variant={cfg.variant}>{cfg.label}</Badge>
+              <Badge variant={cfg.variant} className={cfg.className}>{cfg.label}</Badge>
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {/* Info grid */}
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-muted-foreground">Solicitante</p>
@@ -122,22 +156,9 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }:
                   <p className="font-medium">{reimbursement.client_name}</p>
                 </div>
               )}
-              {reimbursement.reviewed_at && (
-                <div>
-                  <p className="text-muted-foreground">Revisado em</p>
-                  <p className="font-medium">
-                    {format(new Date(reimbursement.reviewed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                  </p>
-                </div>
-              )}
-              {reimbursement.reviewer_name && (
-                <div>
-                  <p className="text-muted-foreground">Revisado por</p>
-                  <p className="font-medium">{reimbursement.reviewer_name}</p>
-                </div>
-              )}
             </div>
 
+            {/* Description */}
             <div className="text-sm">
               <p className="text-muted-foreground mb-1">Descrição</p>
               <p>{reimbursement.description}</p>
@@ -150,6 +171,7 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }:
               </div>
             )}
 
+            {/* Attachments */}
             <div className="text-sm">
               <p className="text-muted-foreground mb-2">Comprovantes</p>
               {loadingAttachments ? (
@@ -157,27 +179,104 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }:
               ) : attachments.length === 0 ? (
                 <p className="text-muted-foreground text-xs italic">Nenhum anexo encontrado.</p>
               ) : (
-                <ul className="space-y-1.5">
-                  {attachments.map((a) => (
-                    <li key={a.id} className="flex items-center gap-2">
-                      <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <button
-                        className="text-sm text-primary hover:underline truncate"
-                        onClick={() => downloadFile(a.file_url)}
-                      >
-                        {a.file_name}
-                      </button>
-                      {a.file_size && (
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          {(a.file_size / 1024).toFixed(0)} KB
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-3">
+                  {/* Image thumbnails */}
+                  {imageAttachments.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {imageAttachments.map((a) => {
+                        const url = signedUrls.get(a.id);
+                        return (
+                          <button
+                            key={a.id}
+                            onClick={() => openFile(a.id)}
+                            className="relative group rounded-lg border overflow-hidden aspect-square bg-muted hover:ring-2 hover:ring-primary transition-all"
+                          >
+                            {url ? (
+                              <img
+                                src={url}
+                                alt={a.file_name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Paperclip className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-xs px-2 py-1 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                              {a.file_name}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Other files */}
+                  {otherAttachments.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {otherAttachments.map((a) => (
+                        <li key={a.id} className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <button
+                            className="text-sm text-primary hover:underline truncate"
+                            onClick={() => openFile(a.id)}
+                          >
+                            {a.file_name}
+                          </button>
+                          {a.file_size && (
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {(a.file_size / 1024).toFixed(0)} KB
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
             </div>
 
+            {/* Timeline / History */}
+            <div className="text-sm">
+              <p className="text-muted-foreground mb-3">Histórico</p>
+              <div className="relative pl-6 space-y-4">
+                {/* Vertical line */}
+                <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
+
+                {/* Created */}
+                <div className="relative flex items-start gap-3">
+                  <Circle className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-muted-foreground fill-background" />
+                  <div>
+                    <p className="font-medium">Solicitado</p>
+                    <p className="text-muted-foreground text-xs">
+                      {format(new Date(reimbursement.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      {reimbursement.requester_name && ` · ${reimbursement.requester_name}`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Reviewed */}
+                {reimbursement.reviewed_at && (
+                  <div className="relative flex items-start gap-3">
+                    {reimbursement.status === 'approved' ? (
+                      <CheckCircle className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-green-600" />
+                    ) : (
+                      <XCircle className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-destructive" />
+                    )}
+                    <div>
+                      <p className="font-medium">
+                        {reimbursement.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {format(new Date(reimbursement.reviewed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        {reimbursement.reviewer_name && ` · ${reimbursement.reviewer_name}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
             {canAct && (
               <div className="flex gap-2 pt-2 border-t">
                 <Button
