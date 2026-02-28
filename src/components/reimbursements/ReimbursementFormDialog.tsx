@@ -110,15 +110,31 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
     if (!open || !employee) return;
 
     const loadData = async () => {
-      // 1. Get project IDs where employee is a member
-      const { data: memberRows } = await supabase
-        .from('project_members')
-        .select('project_id')
-        .eq('employee_id', employee.id);
+      const isAdmin = employee.isAdmin;
+      const isManager = employee.is_gerente;
 
-      const memberProjectIds = (memberRows || []).map(r => r.project_id);
+      // Admins see all active projects and clients
+      if (isAdmin) {
+        const [{ data: projData }, { data: cliData }] = await Promise.all([
+          supabase
+            .from('projects')
+            .select('id, name, client_id')
+            .eq('tenant_id', employee.tenant_id)
+            .in('status', ['active', 'planning'])
+            .order('name'),
+          supabase
+            .from('clients')
+            .select('id, company_name')
+            .eq('tenant_id', employee.tenant_id)
+            .eq('status', 'active')
+            .order('company_name'),
+        ]);
+        setProjects(projData || []);
+        setClients(cliData || []);
+        return;
+      }
 
-      // 2. Get projects where user is manager OR member
+      // Managers: projects they manage; Employees: projects they are members of
       const { data: allProjects } = await supabase
         .from('projects')
         .select('id, name, client_id, manager_id')
@@ -126,14 +142,25 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
         .in('status', ['active', 'planning'])
         .order('name');
 
-      const filtered = (allProjects || []).filter(p =>
-        p.manager_id === employee.id || memberProjectIds.includes(p.id)
-      );
+      let filtered: typeof allProjects = [];
 
-      setProjects(filtered.map(({ id, name, client_id }) => ({ id, name, client_id })));
+      if (isManager) {
+        // Managers see projects where they are the manager
+        filtered = (allProjects || []).filter(p => p.manager_id === employee.id);
+      } else {
+        // Regular employees see only projects they are members of
+        const { data: memberRows } = await supabase
+          .from('project_members')
+          .select('project_id')
+          .eq('employee_id', employee.id);
+        const memberProjectIds = (memberRows || []).map(r => r.project_id);
+        filtered = (allProjects || []).filter(p => memberProjectIds.includes(p.id));
+      }
 
-      // 3. Derive clients from filtered projects
-      const clientIds = [...new Set(filtered.map(p => p.client_id).filter(Boolean))];
+      setProjects((filtered || []).map(({ id, name, client_id }) => ({ id, name, client_id })));
+
+      // Derive clients from filtered projects
+      const clientIds = [...new Set((filtered || []).map(p => p.client_id).filter(Boolean))];
       if (clientIds.length > 0) {
         const { data: clientData } = await supabase
           .from('clients')
