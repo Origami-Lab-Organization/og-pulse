@@ -133,7 +133,7 @@ export default function Reimbursements() {
                   return (
                     <TableRow
                       key={r.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className="cursor-pointer hover:bg-accent/40 hover:shadow-[0_1px_4px_rgba(0,0,0,0.04)] transition-all duration-150 ease-in-out"
                       onClick={() => setSelectedReimbursement(r)}
                     >
                       <TableCell>
