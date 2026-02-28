@@ -129,7 +129,7 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
 
         {/* Per-project table */}
         <div className="rounded-md border">
-          <div className="grid grid-cols-[1fr_70px_70px_1fr_50px] gap-2 px-3 py-2 border-b text-xs font-medium text-muted-foreground">
+          <div className="grid grid-cols-[1fr_90px_70px_1fr_50px] gap-2 px-3 py-2 border-b text-xs font-medium text-muted-foreground">
             <div>Projeto</div>
             <div className="text-right">Plan.</div>
             <div className="text-right">Real.</div>
@@ -151,7 +151,7 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
             return (
               <div
                 key={project.projectId}
-                className="grid grid-cols-[1fr_70px_70px_1fr_50px] gap-2 px-3 py-2 border-b last:border-b-0 items-center text-sm"
+                className="grid grid-cols-[1fr_90px_70px_1fr_50px] gap-2 px-3 py-2 border-b last:border-b-0 items-center text-sm"
               >
                 <TooltipProvider>
                   <Tooltip>
@@ -209,7 +209,7 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
 
           {/* Free hours row */}
           {freeHours > 0 && (
-            <div className="grid grid-cols-[1fr_70px_70px_1fr_50px] gap-2 px-3 py-2 items-center text-sm text-muted-foreground bg-muted/30">
+            <div className="grid grid-cols-[1fr_90px_70px_1fr_50px] gap-2 px-3 py-2 items-center text-sm text-muted-foreground bg-muted/30">
               <div className="italic">Sem alocação</div>
               <div className="text-right tabular-nums">{freeHours.toFixed(0)}h</div>
               <div className="text-right">—</div>
