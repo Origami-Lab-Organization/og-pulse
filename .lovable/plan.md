@@ -1,60 +1,46 @@
 
 
-# Indicador de "Horas Esperadas" na Minha Alocacao
+# Corrigir Capacidade Mensal Dinamica
 
-## Conceito
+## Problema
 
-Adicionar um marcador visual na barra de capacidade mensal que indica quantas horas o funcionario ja deveria ter lancado ate hoje, baseado na sua jornada diaria e nos dias uteis ja transcorridos no mes (excluindo fins de semana e feriados cadastrados).
+A capacidade mensal (`monthlyCapacity`) esta usando o valor fixo `jornada_mensal` do cadastro do funcionario (176h), que e uma media generica. O valor correto deve considerar os dias uteis reais de cada mes, descontando fins de semana e feriados.
 
-Por exemplo: dia 28/02, com 20 dias uteis no mes e jornada de 8h/dia, o esperado seria 160h.
+Exemplo para fevereiro/2026 com jornada de 8h/dia:
+- 28 dias no mes
+- 8 dias de fim de semana (sabados e domingos)
+- 2 feriados
+- **18 dias uteis x 8h = 144h** (e nao 176h)
 
-## Representacao Visual
+## Solucao
 
-Na barra de capacidade mensal, alem dos segmentos existentes (Realizado / Planejado restante / Livre), sera adicionado um **marcador vertical** (linha fina) na posicao correspondente ao percentual de horas esperadas. Isso funciona como uma "meta do dia" -- o usuario ve rapidamente se esta adiantado ou atrasado.
-
-```text
-Capacidade mensal                    120h realizado de 176h
-[====Verde Escuro====][==Verde Claro==][     Cinza      ]
-                                    |  <-- marcador "Esperado: 152h"
-```
-
-O tooltip da barra incluira tambem o valor esperado. Uma nova entrada na legenda sera adicionada para explicar o marcador.
+Criar uma funcao `calculateMonthlyCapacity` que calcula os dias uteis do mes inteiro (de dia 1 ate o ultimo dia do mes), descontando fins de semana e feriados, e multiplica pela `jornada_diaria`. Essa funcao sera usada no lugar do campo fixo `jornada_mensal`.
 
 ## Detalhes Tecnicos
 
 ### Arquivo: `src/hooks/useMyAllocationData.ts`
 
-1. Buscar tambem `jornada_diaria` do employee (ja existe na tabela, default 8)
-2. Buscar os feriados do tenant para calcular dias uteis
-3. Calcular `expectedHours`:
-   - Determinar o primeiro e ultimo dia do mes (`monthKey`)
-   - O limite superior e `min(hoje, ultimo dia do mes)` -- para meses passados, usa o mes inteiro
-   - Contar dias uteis (seg-sex) de dia 1 ate o limite, excluindo feriados ativos
-   - `expectedHours = diasUteis * jornada_diaria`
-4. Adicionar `expectedHours` e `jornada_diaria` ao retorno `MyAllocationData`
+1. Criar funcao `calculateMonthlyCapacity(monthKey, jornada_diaria, holidays)`:
+   - Calcula de dia 1 ate o ultimo dia do mes (sem limitar ao dia de hoje, diferente de `calculateExpectedHours`)
+   - Conta apenas dias uteis (seg-sex) excluindo feriados ativos
+   - Retorna `diasUteis * jornada_diaria`
 
-### Arquivo: `src/components/timesheets/MyTimesheetAllocation.tsx`
+2. Substituir `const monthlyCapacity = empData?.jornada_mensal ?? 176` por:
+   ```
+   const monthlyCapacity = calculateMonthlyCapacity(monthKey, jornada_diaria, holidays)
+   ```
 
-1. Calcular `expectedPercent = (expectedHours / monthlyCapacity) * 100`
-2. Na barra `SegmentedBar` principal (capacidade mensal), sobrepor um marcador vertical (div absoluto com borda) na posicao `expectedPercent%`
-3. Atualizar o tooltip para incluir "Esperado: Xh"
-4. Atualizar a legenda para incluir o marcador "Esperado"
-5. Atualizar o texto do header para incluir a informacao de esperado, como: "120h realizado de 176h (esperado: 152h)"
+3. A query ao employee pode deixar de buscar `jornada_mensal` (campo nao mais necessario para esta tela), mantendo apenas `jornada_diaria`.
 
-### Calculo de dias uteis (dentro do hook)
+### Nenhuma mudanca nos componentes visuais
 
-```text
-Para cada dia de 1 ate min(hoje, ultimoDiaDoMes):
-  - Se dia da semana e sabado ou domingo: pular
-  - Se dia e feriado ativo (fixo ou especifico): pular
-  - Caso contrario: contar como dia util
-expectedHours = diasUteis * jornada_diaria
-```
+O `MyTimesheetAllocation.tsx` ja consome `monthlyCapacity` do hook -- o valor correto sera propagado automaticamente.
 
-Os feriados serao buscados via query direta no hook (tabela `holidays`), usando a mesma logica de `isHoliday` ja existente no projeto.
+### Exemplos de validacao
 
-### Arquivos impactados
-
-- `src/hooks/useMyAllocationData.ts` -- adicionar campo `expectedHours` e logica de calculo
-- `src/components/timesheets/MyTimesheetAllocation.tsx` -- adicionar marcador visual e legenda
+| Mes | Dias | Fins de semana | Feriados | Dias uteis | Capacidade (8h) |
+|---|---|---|---|---|---|
+| Fev/2026 | 28 | 8 | 2 | 18 | 144h |
+| Mar/2026 | 31 | 8 | 0 | 23 | 184h |
+| Jan/2026 | 31 | 8 | 1 | 22 | 176h |
 
