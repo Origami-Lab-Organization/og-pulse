@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, DragEvent } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, FileText, ImageIcon } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreateReimbursement } from '@/hooks/useReimbursements';
@@ -117,18 +118,71 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
     setAttempted(false);
   };
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const MAX_FILES = 5;
+  const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+  const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf'];
+
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const processFiles = useCallback((incoming: File[]) => {
+    setFileError(null);
+    const remaining = MAX_FILES - files.length;
+    if (remaining <= 0) {
+      setFileError(`Máximo de ${MAX_FILES} arquivos atingido.`);
+      return;
+    }
+    const toAdd: File[] = [];
+    for (const f of incoming.slice(0, remaining)) {
+      if (!ACCEPTED_TYPES.includes(f.type)) {
+        setFileError('Formato não aceito. Use JPG, PNG ou PDF.');
+        continue;
+      }
+      if (f.size > MAX_FILE_SIZE) {
+        setFileError('O arquivo excede o limite de 5MB.');
+        continue;
+      }
+      toAdd.push(f);
+    }
+    if (toAdd.length > 0) {
+      const next = [...files, ...toAdd];
+      setFiles(next);
+      if (next.length > 0) setErrors((prev) => ({ ...prev, files: undefined }));
+    }
+  }, [files]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = [...files, ...Array.from(e.target.files!)];
-      setFiles(newFiles);
-      if (newFiles.length > 0) {
-        setErrors((prev) => ({ ...prev, files: undefined }));
-      }
+      processFiles(Array.from(e.target.files));
+      e.target.value = '';
     }
   };
 
   const removeFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+    setFileError(null);
+  };
+
+  const handleDragOver = (e: DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e: DragEvent) => { e.preventDefault(); setIsDragging(false); };
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files) processFiles(Array.from(e.dataTransfer.files));
+  };
+
+  const filePreviews = useMemo(() => {
+    return files.map((f) => {
+      const isImage = f.type.startsWith('image/');
+      return { name: f.name, size: f.size, isImage, url: isImage ? URL.createObjectURL(f) : null };
+    });
+  }, [files]);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   // Clear errors on field change
@@ -301,37 +355,74 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
 
           <div className="space-y-2" ref={filesRef}>
             <Label>Comprovantes * (mínimo 1 arquivo)</Label>
-            <div className={cn("flex items-center gap-2", errors.files && '[&_button]:border-destructive')}>
-              <Button type="button" variant="outline" size="sm" asChild>
-                <label className="cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Anexar arquivo
-                  <Input
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </label>
-              </Button>
+            <TooltipProvider>
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-lg p-4 text-center transition-colors",
+                isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25",
+                errors.files && "border-destructive"
+              )}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {isDragging ? (
+                <div className="flex flex-col items-center gap-2 py-4">
+                  <Upload className="h-8 w-8 text-primary" />
+                  <p className="text-sm text-primary font-medium">Solte os arquivos aqui</p>
+                </div>
+              ) : (
+                <>
+                  <Button type="button" variant="outline" size="sm" asChild>
+                    <label className="cursor-pointer">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Anexar arquivo
+                      <Input
+                        type="file"
+                        multiple
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                  </Button>
+                  <p className="text-[12px] text-muted-foreground mt-2">
+                    Formatos aceitos: JPG, PNG, PDF. Tamanho máximo: 5MB por arquivo. Máximo de {MAX_FILES} arquivos.
+                  </p>
+                  <p className="text-[12px] text-muted-foreground mt-1">ou arraste e solte aqui</p>
+                </>
+              )}
             </div>
             {errors.files && <p className={errorText}>{errors.files}</p>}
-            {files.length > 0 && (
-              <ul className="space-y-1 mt-2">
-                {files.map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="truncate flex-1">{f.name}</span>
-                    <span className="text-xs whitespace-nowrap">
-                      {(f.size / 1024).toFixed(0)} KB
-                    </span>
-                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFile(i)}>
-                      <X className="h-3 w-3" />
+            {fileError && <p className={errorText}>{fileError}</p>}
+            {filePreviews.length > 0 && (
+              <ul className="space-y-2 mt-2">
+                {filePreviews.map((fp, i) => (
+                  <li key={i} className="flex items-center gap-3 rounded-md border p-2 bg-muted/30">
+                    {fp.isImage && fp.url ? (
+                      <img src={fp.url} alt={fp.name} className="h-10 w-10 rounded object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-sm truncate">{fp.name}</p>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[300px]">{fp.name}</TooltipContent>
+                      </Tooltip>
+                      <p className="text-[12px] text-muted-foreground">{formatFileSize(fp.size)}</p>
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => removeFile(i)}>
+                      <X className="h-3.5 w-3.5" />
                     </Button>
                   </li>
                 ))}
               </ul>
             )}
+            </TooltipProvider>
           </div>
         </div>
 
