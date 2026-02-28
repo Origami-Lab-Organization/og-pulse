@@ -17,6 +17,12 @@ import { Lock } from 'lucide-react';
 import { ReactNode } from 'react';
 import { toast } from 'sonner';
 
+export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
+export interface SaveStatusInfo {
+  status: SaveStatus;
+  lastSavedAt?: Date;
+}
+
 interface TimesheetWeekRowProps {
   label: string;
   subLabel?: string;
@@ -37,6 +43,8 @@ interface TimesheetWeekRowProps {
   dailyWorkHours?: number;
   /** Callback reporting this row's current total hours (local state) */
   onLocalTotalChange?: (memberId: string, total: number) => void;
+  /** Callback reporting save status changes */
+  onSaveStatusChange?: (memberId: string, info: SaveStatusInfo) => void;
 }
 
 export function TimesheetWeekRow({
@@ -55,6 +63,7 @@ export function TimesheetWeekRow({
   allDailyTotals = {},
   dailyWorkHours = 8,
   onLocalTotalChange,
+  onSaveStatusChange,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
   
@@ -75,11 +84,26 @@ export function TimesheetWeekRow({
   
   // Ref to track pending saves for use in effects (avoids stale closure)
   const pendingSavesRef = useRef<Set<string>>(new Set());
+  const hoursRef = useRef<Record<string, number>>(hours);
+  const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
-  // Keep ref in sync with state
+  // Keep refs in sync with state
   useEffect(() => {
     pendingSavesRef.current = pendingSaves;
   }, [pendingSaves]);
+
+  useEffect(() => {
+    hoursRef.current = hours;
+  }, [hours]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      debounceTimersRef.current.forEach(t => clearTimeout(t));
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
+  }, []);
 
   // Update hours when existingEntries change, preserving fields with pending saves
   useEffect(() => {
@@ -105,34 +129,9 @@ export function TimesheetWeekRow({
 
   const MAX_HOURS_PER_DAY = 12;
 
-  const handleHoursChange = (date: string, value: string) => {
-    const raw = value === '' ? 0 : parseFloat(value);
-    if (isNaN(raw) || raw < 0) return;
-    let numValue = Math.round(raw * 10) / 10;
-    
-    if (numValue > MAX_HOURS_PER_DAY) {
-      numValue = MAX_HOURS_PER_DAY;
-      toast.error('O máximo permitido por dia é 12h', { duration: 3000 });
-    }
-    
-    setHours((prev) => ({ ...prev, [date]: numValue }));
-    setPendingSaves((prev) => new Set(prev).add(date));
-  };
-
-  /** Compute effective daily total for a given date, adjusting server totals with local state */
-  const getEffectiveDailyTotal = (date: string): number => {
-    const serverTotal = allDailyTotals[date] ?? 0;
-    const serverHoursForThisRow = existingEntries.find(
-      (e) => e.projectMemberId === memberId && e.workDate === date
-    )?.hours ?? 0;
-    const localHoursForThisRow = hours[date] ?? 0;
-    return serverTotal - serverHoursForThisRow + localHoursForThisRow;
-  };
-
-  const handleBlur = async (date: string) => {
-    if (!pendingSaves.has(date)) return;
-    
-    const value = hours[date] ?? 0;
+  const saveDate = useCallback(async (date: string) => {
+    const value = hoursRef.current[date] ?? 0;
+    onSaveStatusChange?.(memberId, { status: 'saving' });
     
     try {
       await upsertTimesheet.mutateAsync({
@@ -146,9 +145,67 @@ export function TimesheetWeekRow({
         next.delete(date);
         return next;
       });
+      // Check if all saves done
+      const remaining = new Set(pendingSavesRef.current);
+      remaining.delete(date);
+      if (remaining.size === 0) {
+        onSaveStatusChange?.(memberId, { status: 'saved', lastSavedAt: new Date() });
+      }
     } catch (error) {
       console.error('Error saving timesheet:', error);
+      onSaveStatusChange?.(memberId, { status: 'error' });
+      // Retry after 5 seconds
+      retryTimerRef.current = setTimeout(() => saveDate(date), 5000);
     }
+  }, [projectId, memberId, upsertTimesheet, onSaveStatusChange]);
+
+  const scheduleSave = useCallback((date: string) => {
+    // Clear existing timer for this date
+    const existing = debounceTimersRef.current.get(date);
+    if (existing) clearTimeout(existing);
+    
+    const timer = setTimeout(() => {
+      debounceTimersRef.current.delete(date);
+      saveDate(date);
+    }, 2000);
+    debounceTimersRef.current.set(date, timer);
+  }, [saveDate]);
+
+  const handleHoursChange = (date: string, value: string) => {
+    const raw = value === '' ? 0 : parseFloat(value);
+    if (isNaN(raw) || raw < 0) return;
+    let numValue = Math.round(raw * 10) / 10;
+    
+    if (numValue > MAX_HOURS_PER_DAY) {
+      numValue = MAX_HOURS_PER_DAY;
+      toast.error('O máximo permitido por dia é 12h', { duration: 3000 });
+    }
+    
+    setHours((prev) => ({ ...prev, [date]: numValue }));
+    setPendingSaves((prev) => new Set(prev).add(date));
+    onSaveStatusChange?.(memberId, { status: 'unsaved' });
+    scheduleSave(date);
+  };
+
+  /** Compute effective daily total for a given date, adjusting server totals with local state */
+  const getEffectiveDailyTotal = (date: string): number => {
+    const serverTotal = allDailyTotals[date] ?? 0;
+    const serverHoursForThisRow = existingEntries.find(
+      (e) => e.projectMemberId === memberId && e.workDate === date
+    )?.hours ?? 0;
+    const localHoursForThisRow = hours[date] ?? 0;
+    return serverTotal - serverHoursForThisRow + localHoursForThisRow;
+  };
+
+  const handleBlur = async (date: string) => {
+    // Flush any pending debounce for this date immediately
+    const existing = debounceTimersRef.current.get(date);
+    if (existing) {
+      clearTimeout(existing);
+      debounceTimersRef.current.delete(date);
+    }
+    if (!pendingSavesRef.current.has(date)) return;
+    saveDate(date);
   };
 
   const totalHours = Object.values(hours).reduce((sum, h) => sum + (h || 0), 0);

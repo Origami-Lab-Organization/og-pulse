@@ -2,11 +2,11 @@ import { useState, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, Loader2, CheckCircle2, Send } from 'lucide-react';
+import { Building2, Loader2, CheckCircle2, Send, Check, AlertCircle } from 'lucide-react';
 import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAllocation';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
-
+import type { SaveStatusInfo } from '@/components/timesheets/TimesheetWeekRow';
 import { SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyProjectMemberships } from '@/hooks/useMyTimesheetData';
@@ -89,12 +89,36 @@ const MyTimesheet = () => {
   // Track local (unsaved) totals per member for real-time footer
   const [localTotals, setLocalTotals] = useState<Record<string, number>>({});
 
+  // Track save status from all rows
+  const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatusInfo>>({});
+
   const handleLocalTotalChange = useCallback((memberId: string, total: number) => {
     setLocalTotals(prev => {
       if (prev[memberId] === total) return prev;
       return { ...prev, [memberId]: total };
     });
   }, []);
+
+  const handleSaveStatusChange = useCallback((memberId: string, info: SaveStatusInfo) => {
+    setSaveStatuses(prev => ({ ...prev, [memberId]: info }));
+  }, []);
+
+  // Aggregate save status across all rows
+  const aggregatedSaveStatus = useMemo((): SaveStatusInfo => {
+    const statuses = Object.values(saveStatuses);
+    if (statuses.length === 0) return { status: 'idle' };
+    if (statuses.some(s => s.status === 'error')) return { status: 'error' };
+    if (statuses.some(s => s.status === 'saving')) return { status: 'saving' };
+    if (statuses.some(s => s.status === 'unsaved')) return { status: 'unsaved' };
+    const savedStatuses = statuses.filter(s => s.status === 'saved' && s.lastSavedAt);
+    if (savedStatuses.length > 0) {
+      const latest = savedStatuses.reduce((a, b) => 
+        (a.lastSavedAt! > b.lastSavedAt!) ? a : b
+      );
+      return { status: 'saved', lastSavedAt: latest.lastSavedAt };
+    }
+    return { status: 'idle' };
+  }, [saveStatuses]);
 
   // Real-time total: use local totals when available, fall back to server data
   const realTimeTotalHours = useMemo(() => {
@@ -233,6 +257,7 @@ const MyTimesheet = () => {
                     allDailyTotals={allDailyTotals}
                     dailyWorkHours={employee?.jornada_diaria ?? 8}
                     onLocalTotalChange={handleLocalTotalChange}
+                    onSaveStatusChange={handleSaveStatusChange}
                   />
                 );
               })}
@@ -242,16 +267,43 @@ const MyTimesheet = () => {
                 <p className="text-sm font-medium text-muted-foreground">
                   Total da Semana: <span className="text-foreground font-semibold">{realTimeTotalHours.toFixed(1)}h</span>
                 </p>
-                {canSubmit && !isFutureWeek && (
-                  <Button
-                    size="sm"
-                    onClick={() => setShowSubmitAllDialog(true)}
-                    disabled={!allWeekDaysReady || allProjectsLocked || submitAllProjects.isPending}
-                  >
-                    <Send className="h-4 w-4 mr-1.5" />
-                    Enviar
-                  </Button>
-                )}
+                <div className="flex items-center gap-3">
+                  {/* Save status indicator */}
+                  {aggregatedSaveStatus.status === 'unsaved' && (
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="h-2 w-2 rounded-full bg-amber-400" />
+                      Alterações não salvas
+                    </span>
+                  )}
+                  {aggregatedSaveStatus.status === 'saving' && (
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Salvando...
+                    </span>
+                  )}
+                  {aggregatedSaveStatus.status === 'saved' && aggregatedSaveStatus.lastSavedAt && (
+                    <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                      <Check className="h-3 w-3" />
+                      Salvo automaticamente às {aggregatedSaveStatus.lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                  {aggregatedSaveStatus.status === 'error' && (
+                    <span className="flex items-center gap-1.5 text-xs text-destructive">
+                      <AlertCircle className="h-3 w-3" />
+                      Erro ao salvar. Tentando novamente...
+                    </span>
+                  )}
+                  {canSubmit && !isFutureWeek && (
+                    <Button
+                      size="sm"
+                      onClick={() => setShowSubmitAllDialog(true)}
+                      disabled={!allWeekDaysReady || allProjectsLocked || submitAllProjects.isPending}
+                    >
+                      <Send className="h-4 w-4 mr-1.5" />
+                      Enviar
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
