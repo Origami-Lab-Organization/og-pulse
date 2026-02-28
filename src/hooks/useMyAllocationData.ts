@@ -41,11 +41,12 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
           id,
           project_id,
           projects!inner (
-            id, name, start_date,
+            id, name, start_date, portfolio_stage,
             clients!inner (id, company_name)
           )
         `)
-        .eq('employee_id', employeeId);
+        .eq('employee_id', employeeId)
+        .not('projects.portfolio_stage', 'in', '("planning","completed")');
 
       if (membersError) throw membersError;
       if (!members || members.length === 0) {
