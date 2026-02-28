@@ -237,10 +237,12 @@ export const useSubmitAllProjects = () => {
   return useMutation({
     mutationFn: async ({ 
       projects, 
-      weekStart 
+      weekStart,
+      weekDays,
     }: { 
       projects: { projectId: string; totalHours: number; memberIds?: string[] }[]; 
       weekStart: string;
+      weekDays?: string[];
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
@@ -253,7 +255,41 @@ export const useSubmitAllProjects = () => {
       const results = [];
 
       for (const project of projects) {
-        // Calculate total locked hours for all members in this project
+        // Ensure entries exist for all days for all members (create 0-hour entries if missing)
+        if (weekDays && project.memberIds && project.memberIds.length > 0) {
+          for (const memberId of project.memberIds) {
+            const { data: existingEntries } = await supabase
+              .from('project_timesheets')
+              .select('work_date')
+              .eq('project_id', project.projectId)
+              .eq('project_member_id', memberId)
+              .gte('work_date', weekStart)
+              .lte('work_date', weekEndStr);
+
+            const existingDates = new Set((existingEntries || []).map(e => e.work_date));
+            const missingDays = weekDays.filter(d => !existingDates.has(d));
+
+            if (missingDays.length > 0) {
+              const inserts = missingDays.map(day => ({
+                project_id: project.projectId,
+                project_member_id: memberId,
+                work_date: day,
+                hours: 0,
+                is_locked: true,
+                created_by: user.id,
+                updated_by: user.id,
+              }));
+
+              const { error: insertError } = await supabase
+                .from('project_timesheets')
+                .insert(inserts);
+
+              if (insertError) throw insertError;
+            }
+          }
+        }
+
+        // Calculate total hours including existing locked
         const { data: allLockedEntries } = await supabase
           .from('project_timesheets')
           .select('hours')
@@ -282,7 +318,7 @@ export const useSubmitAllProjects = () => {
 
         if (submissionError) throw submissionError;
 
-        // Lock timesheets - scoped to specific members if provided
+        // Lock all timesheets for this project/week
         let lockQuery = supabase
           .from('project_timesheets')
           .update({ is_locked: true, updated_by: user.id })
