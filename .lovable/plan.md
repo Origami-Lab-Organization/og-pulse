@@ -1,71 +1,58 @@
 
-# Reembolsos - Lista Completa com Detalhes e Acoes
+# Melhorias no Dialog de Detalhes do Reembolso
 
 ## Resumo
 
-Transformar a pagina de Reembolsos para mostrar todos os reembolsos relevantes ao usuario (solicitados por ele + revisados por ele para admins/managers), com busca textual, dialog de detalhes ao clicar, e botoes de aprovar/rejeitar para gerentes e admins.
+Melhorar a experiencia de visualizacao do dialog de detalhes do reembolso com: melhor exibicao de comprovantes (thumbnails para imagens, icones por tipo de arquivo), secao de historico/timeline, e correcao das cores dos badges de status para usar verde claro no "Aprovado" (igual ao padrao do sistema).
 
 ## Mudancas
 
-### 1. Novo hook `useAllMyReimbursements` em `src/hooks/useReimbursements.ts`
+### 1. Corrigir cores dos badges de status
 
-Criar um novo hook que busca:
-- Para usuarios comuns: apenas seus proprios reembolsos (`requested_by = employee.id`)
-- Para admins/managers: todos os reembolsos do tenant (a RLS ja permite isso)
+Tanto em `Reimbursements.tsx` quanto em `ReimbursementDetailDialog.tsx`, o status "Aprovado" usa `variant: 'default'` (cor escura primaria). Mudar para usar `variant: 'secondary'` com classes customizadas `bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300`, seguindo o padrao ja usado em `EmployeesTable.tsx`, `TimesheetWeekStatus.tsx` e outros componentes do sistema.
 
-Enriquecer com nomes do solicitante, projeto e cliente (similar ao `usePendingReimbursements`).
+Atualizar o `statusConfig` em ambos os arquivos:
+```
+approved: { label: 'Aprovado', variant: 'secondary', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' }
+```
 
-### 2. Reescrever `src/pages/Reimbursements.tsx`
+### 2. Melhorar visualizacao de comprovantes
 
-- Usar o novo hook em vez de `useMyReimbursements`
-- Adicionar campo de busca (Input com icone Search) que filtra em todos os campos visiveis (descricao, nome do solicitante, projeto, cliente, status label, valor)
-- Manter filtro de status (Select)
-- Adicionar colunas: "Solicitante" (para admins/managers), "Projeto/Interno"
-- Linhas clicaveis que abrem um Dialog de detalhes
-- Ordenar do mais recente para o mais antigo (ja feito no backend)
+No `ReimbursementDetailDialog.tsx`, substituir a lista simples de links por cards visuais:
 
-### 3. Novo componente `src/components/reimbursements/ReimbursementDetailDialog.tsx`
+- Para imagens (jpg, jpeg, png, webp, gif): mostrar thumbnail clicavel usando signed URL com preview inline (tag `<img>` com object-fit cover dentro de um container arredondado)
+- Para outros arquivos (pdf, etc): mostrar icone de arquivo (FileText) com nome e tamanho
+- Cada item clicavel abre em nova aba (comportamento atual mantido)
+- Usar um grid de 2 colunas para comprovantes de imagem, lista para outros
 
-Dialog que mostra todos os detalhes do reembolso:
-- Solicitante, data, descricao, valor, tipo (interno/projeto), cliente, projeto
-- Status atual com badge
-- Motivo de rejeicao (se rejeitado)
-- Lista de anexos com links para download
-- Botoes de acao (Aprovar / Rejeitar) visiveis apenas para admins/managers e apenas quando status = pending
-- Rejeitar abre sub-dialog para informar motivo
+Criar estado local para armazenar signed URLs dos attachments (carregar ao montar) para poder exibir thumbnails.
 
-### 4. Filtro de busca
+### 3. Adicionar secao de Historico (Timeline)
 
-- Um `Input` com placeholder "Buscar reembolsos..." ao lado do Select de status
-- Filtra client-side em: descricao, requester_name, project_name, client_name, valor formatado
+Adicionar uma secao "Historico" no dialog com timeline vertical estilizada usando um divider vertical e circulos:
+
+- **Solicitado** - data de criacao + nome do solicitante (sempre presente)
+- **Aprovado/Rejeitado** - data de revisao + nome do revisor (se existir `reviewed_at`)
+- **Pago** - placeholder para futuro (nao exibido por enquanto, pois o campo ainda nao existe)
+
+A timeline usa icones: Circle para solicitado, CheckCircle para aprovado, XCircle para rejeitado. Linhas conectoras entre os pontos.
 
 ## Detalhes Tecnicos
 
-### `src/hooks/useReimbursements.ts`
+### Arquivo: `src/components/reimbursements/ReimbursementDetailDialog.tsx`
 
-Adicionar `useAllMyReimbursements()`:
-- Se admin/manager: busca todos do tenant sem filtro de status
-- Se usuario comum: busca apenas `requested_by = employee.id`
-- Enriquece com nomes (requester_name, project_name, client_name) usando joins manuais
-- Ordena por `created_at desc`
+1. Atualizar `statusConfig` para incluir `className` com cores verdes
+2. Adicionar `useEffect` para gerar signed URLs de todos os attachments ao carregar, armazenando em um `Map<string, string>` (attachment id -> signed url)
+3. Substituir a `<ul>` de comprovantes por um grid visual com thumbnails para imagens
+4. Adicionar secao de timeline apos a descricao, antes dos comprovantes
+5. Importar icones adicionais: `FileText`, `Clock`, `Image` do lucide-react
 
-### `src/pages/Reimbursements.tsx`
+### Arquivo: `src/pages/Reimbursements.tsx`
 
-- State: `searchQuery`, `statusFilter`, `selectedReimbursement`
-- Filtragem: primeiro por status, depois por texto (toLowerCase includes em campos)
-- Tabela com colunas: Data, Solicitante (condicional para managers), Descricao, Tipo, Valor, Status
-- `onClick` na `TableRow` abre `ReimbursementDetailDialog`
-
-### `src/components/reimbursements/ReimbursementDetailDialog.tsx`
-
-- Props: `reimbursement`, `open`, `onOpenChange`
-- Usa `useReimbursementAttachments` para buscar anexos
-- Usa `useApproveReimbursement` e `useRejectReimbursement` para acoes
-- Sub-dialog de rejeicao com Textarea para motivo
-- Botao de download de anexos via signed URL
+1. Atualizar `statusConfig` para incluir `className` com cores verdes
+2. Aplicar className no `<Badge>` da tabela: `<Badge variant={cfg.variant} className={cfg.className}>`
 
 ### Arquivos impactados
 
-- `src/hooks/useReimbursements.ts` -- novo hook
-- `src/pages/Reimbursements.tsx` -- reescrita
-- `src/components/reimbursements/ReimbursementDetailDialog.tsx` -- novo arquivo
+- `src/components/reimbursements/ReimbursementDetailDialog.tsx` -- melhorias visuais
+- `src/pages/Reimbursements.tsx` -- cor do badge
