@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
-import { useMyReimbursements } from '@/hooks/useReimbursements';
+import { Input } from '@/components/ui/input';
+import { Plus, Search } from 'lucide-react';
+import { useAllMyReimbursements, ReimbursementRequest } from '@/hooks/useReimbursements';
 import { ReimbursementFormDialog } from '@/components/reimbursements/ReimbursementFormDialog';
+import { ReimbursementDetailDialog } from '@/components/reimbursements/ReimbursementDetailDialog';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -32,11 +35,33 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
 export default function Reimbursements() {
   const [formOpen, setFormOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const { data: reimbursements = [], isLoading } = useMyReimbursements();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedReimbursement, setSelectedReimbursement] = useState<(ReimbursementRequest & { requester_name?: string; reviewer_name?: string; project_name?: string; client_name?: string }) | null>(null);
+  const { employee } = useAuth();
+  const { data: reimbursements = [], isLoading } = useAllMyReimbursements();
+  const isManager = employee?.is_gerente || employee?.isAdmin;
 
-  const filtered = statusFilter === 'all'
-    ? reimbursements
-    : reimbursements.filter(r => r.status === statusFilter);
+  const filtered = useMemo(() => {
+    let result = reimbursements;
+    if (statusFilter !== 'all') {
+      result = result.filter(r => r.status === statusFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(r => {
+        const cfg = statusConfig[r.status] || statusConfig.pending;
+        return (
+          r.description?.toLowerCase().includes(q) ||
+          r.requester_name?.toLowerCase().includes(q) ||
+          r.project_name?.toLowerCase().includes(q) ||
+          r.client_name?.toLowerCase().includes(q) ||
+          cfg.label.toLowerCase().includes(q) ||
+          r.total_amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).toLowerCase().includes(q)
+        );
+      });
+    }
+    return result;
+  }, [reimbursements, statusFilter, searchQuery]);
 
   return (
     <AppLayout
@@ -52,6 +77,15 @@ export default function Reimbursements() {
     >
       <div className="space-y-4">
         <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar reembolsos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filtrar por status" />
@@ -70,6 +104,7 @@ export default function Reimbursements() {
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
+                {isManager && <TableHead>Solicitante</TableHead>}
                 <TableHead>Descrição</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
@@ -79,13 +114,13 @@ export default function Reimbursements() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={isManager ? 6 : 5} className="text-center text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={isManager ? 6 : 5} className="text-center text-muted-foreground">
                     Nenhum pedido encontrado
                   </TableCell>
                 </TableRow>
@@ -93,12 +128,21 @@ export default function Reimbursements() {
                 filtered.map((r) => {
                   const cfg = statusConfig[r.status] || statusConfig.pending;
                   return (
-                    <TableRow key={r.id}>
+                    <TableRow
+                      key={r.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedReimbursement(r)}
+                    >
                       <TableCell>
                         {format(new Date(r.created_at), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
+                      {isManager && (
+                        <TableCell>{r.requester_name || 'Desconhecido'}</TableCell>
+                      )}
                       <TableCell className="max-w-[300px] truncate">{r.description}</TableCell>
-                      <TableCell>{r.is_internal ? 'Interno' : 'Projeto'}</TableCell>
+                      <TableCell>
+                        {r.is_internal ? 'Interno' : r.project_name || 'Projeto'}
+                      </TableCell>
                       <TableCell className="text-right">
                         {r.total_amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                       </TableCell>
@@ -115,6 +159,11 @@ export default function Reimbursements() {
       </div>
 
       <ReimbursementFormDialog open={formOpen} onOpenChange={setFormOpen} />
+      <ReimbursementDetailDialog
+        open={!!selectedReimbursement}
+        onOpenChange={(open) => { if (!open) setSelectedReimbursement(null); }}
+        reimbursement={selectedReimbursement}
+      />
     </AppLayout>
   );
 }

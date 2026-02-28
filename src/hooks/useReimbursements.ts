@@ -277,6 +277,62 @@ export function useProjectApprovedReimbursements(projectId: string | undefined) 
   });
 }
 
+export function useAllMyReimbursements() {
+  const { employee } = useAuth();
+
+  return useQuery({
+    queryKey: ['all-my-reimbursements', employee?.id, employee?.tenant_id],
+    queryFn: async () => {
+      if (!employee) return [];
+
+      const isManager = employee.is_gerente || employee.isAdmin;
+
+      let query = supabase
+        .from('reimbursement_requests' as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (isManager) {
+        query = query.eq('tenant_id', employee.tenant_id);
+      } else {
+        query = query.eq('requested_by', employee.id);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const requests = (data || []) as unknown as ReimbursementRequest[];
+      if (requests.length === 0) return requests;
+
+      const employeeIds = [...new Set([
+        ...requests.map(r => r.requested_by),
+        ...requests.filter(r => r.reviewed_by).map(r => r.reviewed_by!),
+      ])];
+      const projectIds = [...new Set(requests.filter(r => r.project_id).map(r => r.project_id!))];
+      const clientIds = [...new Set(requests.filter(r => r.client_id).map(r => r.client_id!))];
+
+      const [empRes, projRes, clientRes] = await Promise.all([
+        supabase.from('employees').select('id, nome').in('id', employeeIds),
+        projectIds.length > 0 ? supabase.from('projects').select('id, name').in('id', projectIds) : { data: [] },
+        clientIds.length > 0 ? supabase.from('clients').select('id, company_name').in('id', clientIds) : { data: [] },
+      ]);
+
+      const empMap = new Map<string, string>((empRes.data || []).map(e => [e.id, e.nome]));
+      const projMap = new Map<string, string>(((projRes as any).data || []).map((p: any) => [p.id, p.name as string]));
+      const clientMap = new Map<string, string>(((clientRes as any).data || []).map((c: any) => [c.id, c.company_name as string]));
+
+      return requests.map(r => ({
+        ...r,
+        requester_name: empMap.get(r.requested_by) || 'Desconhecido',
+        reviewer_name: r.reviewed_by ? empMap.get(r.reviewed_by) || 'Desconhecido' : undefined,
+        project_name: r.project_id ? projMap.get(r.project_id) || '' : '',
+        client_name: r.client_id ? clientMap.get(r.client_id) || '' : '',
+      }));
+    },
+    enabled: !!employee,
+  });
+}
+
 export function useDeleteReimbursement() {
   const queryClient = useQueryClient();
 
