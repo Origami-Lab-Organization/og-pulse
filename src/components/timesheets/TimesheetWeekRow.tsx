@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Lock } from 'lucide-react';
 import { ReactNode } from 'react';
+import { toast } from 'sonner';
 
 interface TimesheetWeekRowProps {
   label: string;
@@ -30,6 +31,10 @@ interface TimesheetWeekRowProps {
   isAdmin?: boolean;
   actionSlot?: ReactNode;
   statusSlot?: ReactNode;
+  /** Total hours per date from ALL projects (server-side entries) */
+  allDailyTotals?: Record<string, number>;
+  /** Employee daily work hours (jornada_diaria) for soft limit */
+  dailyWorkHours?: number;
 }
 
 export function TimesheetWeekRow({
@@ -45,6 +50,8 @@ export function TimesheetWeekRow({
   isAdmin = false,
   actionSlot,
   statusSlot,
+  allDailyTotals = {},
+  dailyWorkHours = 8,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
   
@@ -93,13 +100,30 @@ export function TimesheetWeekRow({
     });
   }, [existingEntries, weekDays, memberId]);
 
+  const MAX_HOURS_PER_DAY = 12;
+
   const handleHoursChange = (date: string, value: string) => {
     const raw = value === '' ? 0 : parseFloat(value);
-    if (isNaN(raw) || raw < 0 || raw > 24) return;
-    const numValue = Math.round(raw * 10) / 10;
+    if (isNaN(raw) || raw < 0) return;
+    let numValue = Math.round(raw * 10) / 10;
+    
+    if (numValue > MAX_HOURS_PER_DAY) {
+      numValue = MAX_HOURS_PER_DAY;
+      toast.error('O máximo permitido por dia é 12h', { duration: 3000 });
+    }
     
     setHours((prev) => ({ ...prev, [date]: numValue }));
     setPendingSaves((prev) => new Set(prev).add(date));
+  };
+
+  /** Compute effective daily total for a given date, adjusting server totals with local state */
+  const getEffectiveDailyTotal = (date: string): number => {
+    const serverTotal = allDailyTotals[date] ?? 0;
+    const serverHoursForThisRow = existingEntries.find(
+      (e) => e.projectMemberId === memberId && e.workDate === date
+    )?.hours ?? 0;
+    const localHoursForThisRow = hours[date] ?? 0;
+    return serverTotal - serverHoursForThisRow + localHoursForThisRow;
   };
 
   const handleBlur = async (date: string) => {
@@ -219,23 +243,44 @@ export function TimesheetWeekRow({
         }
 
         // Normal editable cell
-        return (
+        const effectiveTotal = getEffectiveDailyTotal(day.date);
+        const isOverWorkday = effectiveTotal > dailyWorkHours;
+
+        const input = (
           <Input
             key={day.date}
             type="number"
             min={0}
-            max={24}
+            max={12}
             step={0.1}
             value={hours[day.date] || ''}
             onChange={(e) => handleHoursChange(day.date, e.target.value)}
             onBlur={() => handleBlur(day.date)}
             className={cn(
               "h-8 text-center text-sm px-1",
-              pendingSaves.has(day.date) && "border-primary"
+              pendingSaves.has(day.date) && "border-primary",
+              isOverWorkday && "border-amber-500 focus-visible:ring-amber-500"
             )}
             placeholder="0"
           />
         );
+
+        if (isOverWorkday) {
+          return (
+            <TooltipProvider key={day.date}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {input}
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Volume acima da jornada diária. Tem certeza?</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
+
+        return input;
       })}
       
       <div className="text-right font-medium text-sm pr-2">

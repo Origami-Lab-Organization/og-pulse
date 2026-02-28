@@ -11,6 +11,7 @@ interface EmployeeData {
   is_gerente: boolean;
   must_change_password: boolean;
   isAdmin: boolean;
+  jornada_diaria: number;
 }
 
 interface AuthContextType {
@@ -47,7 +48,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Fetch employee data
     const { data: empData, error: empError } = await supabase
       .from('employees')
-      .select('id, nome, email, cargo, tenant_id, is_gerente, must_change_password')
+      .select('id, nome, email, cargo, tenant_id, is_gerente, must_change_password, jornada_diaria')
       .eq('auth_id', userId)
       .single();
 

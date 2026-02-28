@@ -77,6 +77,15 @@ const MyTimesheet = () => {
     return total;
   }, [projectHoursMap]);
 
+  // Compute daily totals across all projects for soft limit validation
+  const allDailyTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const entry of timesheetEntries) {
+      totals[entry.workDate] = (totals[entry.workDate] ?? 0) + entry.hours;
+    }
+    return totals;
+  }, [timesheetEntries]);
+
   const allProjectsLocked = useMemo(() => {
     return projects.every(p => {
       const submission = submissions.get(p.projectId);
@@ -196,6 +205,8 @@ const MyTimesheet = () => {
                     isLocked={isLocked || isFutureWeek}
                     isAdmin={false}
                     actionSlot={actionContent}
+                    allDailyTotals={allDailyTotals}
+                    dailyWorkHours={employee?.jornada_diaria ?? 8}
                   />
                 );
               })}
