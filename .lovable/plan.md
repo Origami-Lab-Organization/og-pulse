@@ -1,43 +1,53 @@
 
-# Ajustes UX/UI na Minha Timesheet
 
-## 1. Remover o "Resumo da Semana"
-O componente `TimesheetWeekStatus` sera removido da pagina `MyTimesheet`. Ele nao agrega valor no fluxo atual de lancamento por projeto.
+# Minha Timesheet — Pagina Unificada
 
-## 2. Mover total e botao "Enviar" para dentro do card de projetos
-Apos a listagem de projetos (dentro do `Card` existente), sera adicionada uma linha de rodape com:
-- Total de horas da semana (alinhado a esquerda/centro)
-- Botao "Enviar" (alinhado a direita)
+## Visao Geral
 
-Essa linha tera um estilo de `border-t` para separar visualmente da listagem, com padding adequado.
+Remover o ToggleGroup (alternancia entre abas) e exibir ambas as secoes na mesma pagina, em sequencia vertical. A ordem sera:
 
-## 3. Corrigir alinhamento da coluna Status
-O problema atual e que o grid do header e o grid das rows usam definicoes de colunas diferentes. O header usa `grid-cols-[1fr_repeat(5,60px)_80px_140px]` enquanto o `TimesheetWeekRow` usa `grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]` (com actionSlot separado). Vamos unificar para uma unica definicao de grid consistente, removendo a separacao entre statusSlot e actionSlot na row, e usando uma unica coluna de status com largura fixa alinhada entre header e rows.
+1. **Lancar Horas** (secao principal, card com grid semanal)
+2. **Minha Alocacao** (secao complementar, card com barra de progresso e tabela por projeto)
 
-## Detalhes tecnicos
+Essa abordagem e a mais adequada porque:
+- O lancamento de horas e a acao primaria — deve estar no topo
+- A alocacao funciona como contexto/feedback visual do progresso mensal
+- Elimina fricao de troca de abas (clique extra para ver informacao complementar)
+- Segue o padrao "acao primeiro, contexto depois" usado em produtos como Google Workspace e ferramentas de gestao de tempo
 
-### Arquivos modificados
+## Mudancas Visuais
 
-**`src/pages/MyTimesheet.tsx`**
-- Remover import e uso do `TimesheetWeekStatus`
-- Remover import do `SubmitAllProjectsDialog` e estados relacionados (`showSubmitAllDialog`)
-- Adicionar uma linha de rodape dentro do `CardContent`, apos o `.map()` de projetos, contendo o total de horas e o botao "Enviar"
-- O botao "Enviar" mantera a mesma logica de habilitacao (canSubmit, allWeekDaysReady, pendingProjects)
-
-**`src/components/timesheets/TimesheetWeekRow.tsx`**
-- Unificar o grid para usar uma coluna unica de status/action: `grid-cols-[1fr_repeat(5,60px)_80px_120px]`
-- Combinar `statusSlot` e `actionSlot` em um unico slot renderizado na mesma celula, com alinhamento `justify-center`
-
-**`src/pages/MyTimesheet.tsx` (header do grid)**
-- Ajustar a definicao de colunas do header para `grid-cols-[1fr_repeat(5,60px)_80px_120px]` — mesma definicao usada nas rows
-
-### Linha de rodape (dentro do card)
 ```text
-+------------------------------------------------------+
-| [projetos listados acima]                            |
-|------------------------------------------------------|
-|  Total da Semana: 12.5h            [Enviar (3)]     |
-+------------------------------------------------------+
++--------------------------------------------------+
+| Minha Timesheet          [Seletor de Semana]     |
++--------------------------------------------------+
+| LANCAR HORAS (Card)                              |
+| Projeto | Seg | Ter | Qua | Qui | Sex | Tot | St |
+| Proj A  |  8  |  8  |  8  |  8  |  8  | 40  | x |
+| Proj B  |  4  |  4  |  4  |  4  |  4  | 20  | x |
+|--------------------------------------------------|
+| Total da Semana: 60.0h          [Enviar (2)]    |
++--------------------------------------------------+
+|                                                  |
+| MINHA ALOCACAO (Card)                            |
+| Capacidade mensal: 120h realizado de 176h        |
+| [====Verde Escuro====][==Verde Claro==][  Cinza ]|
+| Projeto   | Plan. | Real. | Progresso | %        |
+| Proj A    | 80h   | 60h   | [======]  | 75%      |
+| Proj B    | 40h   | 30h   | [====]    | 75%      |
++--------------------------------------------------+
 ```
 
-A logica do `SubmitAllProjectsDialog` sera mantida e acionada pelo botao. O dialog de confirmacao continuara funcionando normalmente.
+## Detalhes Tecnicos
+
+### Arquivo: `src/pages/MyTimesheet.tsx`
+
+1. **Remover** o import e uso do `ToggleGroup` e `ToggleGroupItem`
+2. **Remover** o estado `activeSection` e toda logica condicional de abas
+3. **Remover** os icones `BarChart3` e `Clock` (usados apenas nos toggles)
+4. **Reestruturar** o layout para renderizar ambas as secoes sempre:
+   - Primeiro: o Card de lancamento de horas (bloco que hoje esta em `activeSection === 'timesheet'`)
+   - Segundo: o componente `MyTimesheetAllocation` (que hoje esta em `activeSection === 'allocation'`)
+5. O `TimesheetWeekSelector` permanece no topo, alinhado a direita, sem o ToggleGroup ao lado
+6. Nenhuma mudanca em componentes filhos (`TimesheetWeekRow`, `MyTimesheetAllocation`, `SubmitAllProjectsDialog`)
+
