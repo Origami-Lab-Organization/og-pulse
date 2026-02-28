@@ -122,12 +122,9 @@ const MyTimesheet = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-end">
-            <TimesheetWeekSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
-          </div>
-
           <Card>
             <CardContent className="pt-4">
+              <TimesheetWeekSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
               {/* Header único */}
               <div className="grid grid-cols-[1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
                 <div>Projeto</div>

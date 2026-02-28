@@ -1,53 +1,78 @@
+import { useRef, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { format, addWeeks, subWeeks } from 'date-fns';
+import { format, subWeeks, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getWeekStart, getWeekEnd } from '@/hooks/useTimesheetData';
+import { cn } from '@/lib/utils';
 
 interface TimesheetWeekSelectorProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
 }
 
+const WEEKS_BACK = 26;
+
 export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetWeekSelectorProps) {
-  const weekStart = getWeekStart(selectedDate);
-  const weekEnd = getWeekEnd(selectedDate);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const selectedChipRef = useRef<HTMLButtonElement>(null);
 
   const currentWeekStart = getWeekStart(new Date());
-  const nextWeekStart = getWeekStart(addWeeks(selectedDate, 1));
-  const canGoForward = nextWeekStart <= currentWeekStart;
+  const selectedWeekStart = getWeekStart(selectedDate);
 
-  const handlePreviousWeek = () => {
-    onDateChange(subWeeks(selectedDate, 1));
-  };
-
-  const handleNextWeek = () => {
-    if (canGoForward) {
-      onDateChange(addWeeks(selectedDate, 1));
+  const weeks = useMemo(() => {
+    const list: Date[] = [];
+    for (let i = WEEKS_BACK; i >= 0; i--) {
+      list.push(getWeekStart(subWeeks(new Date(), i)));
     }
-  };
+    return list;
+  }, []);
 
-  const handleCurrentWeek = () => {
-    onDateChange(new Date());
+  useEffect(() => {
+    // Auto-scroll to selected chip
+    setTimeout(() => {
+      selectedChipRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, 50);
+  }, [selectedDate]);
+
+  const scrollBy = (dir: number) => {
+    scrollRef.current?.scrollBy({ left: dir * 200, behavior: 'smooth' });
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <Button variant="ghost" size="sm" onClick={handleCurrentWeek}>
-        Hoje
-      </Button>
-      
-      <Button variant="outline" size="icon" onClick={handlePreviousWeek}>
+    <div className="flex items-center gap-0">
+      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => scrollBy(-1)}>
         <ChevronLeft className="h-4 w-4" />
       </Button>
-      
-      <div className="flex items-center gap-2 min-w-[200px] justify-center">
-        <span className="font-medium text-sm">
-          {format(weekStart, "dd/MM", { locale: ptBR })} - {format(weekEnd, "dd/MM/yyyy", { locale: ptBR })}
-        </span>
+
+      <div ref={scrollRef} className="flex-1 overflow-x-auto scrollbar-hide scroll-smooth">
+        <div className="flex gap-1.5 px-1 py-1.5">
+          {weeks.map((weekStart) => {
+            const weekEnd = getWeekEnd(weekStart);
+            const isCurrent = isSameDay(weekStart, currentWeekStart);
+            const isSelected = isSameDay(weekStart, selectedWeekStart);
+
+            return (
+              <button
+                key={weekStart.toISOString()}
+                ref={isSelected ? selectedChipRef : undefined}
+                onClick={() => onDateChange(weekStart)}
+                className={cn(
+                  'shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap',
+                  isCurrent && !isSelected && 'bg-primary text-primary-foreground',
+                  isCurrent && isSelected && 'bg-primary text-primary-foreground ring-2 ring-primary/50',
+                  !isCurrent && isSelected && 'border border-primary bg-primary/10 text-foreground',
+                  !isCurrent && !isSelected && 'text-muted-foreground hover:bg-muted',
+                )}
+              >
+                {format(weekStart, 'dd/MM', { locale: ptBR })} - {format(weekEnd, 'dd/MM', { locale: ptBR })}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      
-      <Button variant="outline" size="icon" onClick={handleNextWeek} disabled={!canGoForward}>
+
+      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => scrollBy(1)}>
         <ChevronRight className="h-4 w-4" />
       </Button>
     </div>
