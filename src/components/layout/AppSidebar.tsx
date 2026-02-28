@@ -59,6 +59,7 @@ const navigationGroups = [
     items: [
       { title: 'Dashboard', url: '/comercial', icon: LayoutDashboard, requiresManager: true, disabled: true },
       { title: 'CRM', url: '/crm', icon: Kanban, requiresManager: true },
+      { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
       { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresManager: true },
       { title: 'Arquivados', url: '/crm/archived', icon: Archive, requiresManager: true, disabled: true },
     ] as NavItem[],
@@ -72,7 +73,6 @@ const navigationGroups = [
       { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
       { title: 'Alocação', url: '/alocacao', icon: Clock, requiresManager: true },
       { title: 'Reembolsos', url: '/reembolsos-operacoes', icon: Receipt, requiresManager: true, disabled: true },
-      { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
       { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
     ] as NavItem[],
   },
