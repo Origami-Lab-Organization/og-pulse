@@ -337,14 +337,16 @@ const MyTimesheet = () => {
                   const jornada = employee?.jornada_diaria ?? 8;
                   const diff = dayTotal - jornada;
                   let colorClass = 'text-muted-foreground'; // 0h
-                  if (dayTotal > 0 && diff <= 0) {
-                    colorClass = 'text-emerald-700 dark:text-emerald-400'; // within jornada
-                  }
-                  if (diff > 0 && diff <= 2) {
-                    colorClass = 'text-amber-600 dark:text-amber-400'; // slightly over
-                  }
-                  if (diff > 2) {
-                    colorClass = 'text-red-600 dark:text-red-400'; // way over
+                  if (dayTotal > 0) {
+                    if (dayTotal === jornada) {
+                      colorClass = 'text-emerald-700 dark:text-emerald-400'; // exact jornada
+                    } else if (dayTotal < jornada) {
+                      colorClass = 'text-amber-600 dark:text-amber-400'; // under-allocated
+                    } else if (diff <= 2) {
+                      colorClass = 'text-amber-600 dark:text-amber-400'; // slightly over (1-2h)
+                    } else {
+                      colorClass = 'text-red-600 dark:text-red-400'; // way over (>2h)
+                    }
                   }
                   return (
                     <div key={day.date} className={cn("text-center text-sm font-semibold tabular-nums", colorClass)}>
