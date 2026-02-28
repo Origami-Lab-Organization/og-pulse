@@ -7,9 +7,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, Clock, XCircle, CalendarDays } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useAllMyReimbursements, ReimbursementRequest } from '@/hooks/useReimbursements';
-import { ReimbursementFormDialog } from '@/components/reimbursements/ReimbursementFormDialog';
+import { ReimbursementFormDialog, CorrectionData } from '@/components/reimbursements/ReimbursementFormDialog';
 import { ReimbursementDetailDialog } from '@/components/reimbursements/ReimbursementDetailDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -60,6 +61,7 @@ function SortableHead({ label, sortKey, currentKey, currentDir, onSort, classNam
 
 export default function Reimbursements() {
   const [formOpen, setFormOpen] = useState(false);
+  const [correctionData, setCorrectionData] = useState<CorrectionData | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReimbursement, setSelectedReimbursement] = useState<(ReimbursementRequest & { requester_name?: string; reviewer_name?: string; project_name?: string; client_name?: string }) | null>(null);
@@ -68,6 +70,32 @@ export default function Reimbursements() {
   const { employee } = useAuth();
   const { data: reimbursements = [], isLoading } = useAllMyReimbursements();
   const isManager = employee?.is_gerente || employee?.isAdmin;
+
+  const handleCorrectAndResend = async (r: ReimbursementRequest) => {
+    // Fetch expense items from the rejected reimbursement
+    const { data: itemsData } = await supabase
+      .from('reimbursement_items' as any)
+      .select('*')
+      .eq('reimbursement_id', r.id)
+      .order('expense_date', { ascending: true });
+
+    const expItems = ((itemsData || []) as any[]).map((it: any) => ({
+      date: new Date(it.expense_date + 'T12:00:00'),
+      description: it.description as string,
+      amount: it.amount as number,
+    }));
+
+    setCorrectionData({
+      correctedFromId: r.id,
+      rejectedAt: r.reviewed_at || r.created_at,
+      rejectionReason: r.rejection_reason || '',
+      type: r.is_internal ? 'internal' : 'project',
+      clientId: r.client_id || '',
+      projectId: r.project_id || '',
+      items: expItems,
+    });
+    setFormOpen(true);
+  };
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -316,11 +344,19 @@ export default function Reimbursements() {
         </div>
       </div>
 
-      <ReimbursementFormDialog open={formOpen} onOpenChange={setFormOpen} />
+      <ReimbursementFormDialog
+        open={formOpen}
+        onOpenChange={(v) => {
+          setFormOpen(v);
+          if (!v) setCorrectionData(null);
+        }}
+        correctionData={correctionData}
+      />
       <ReimbursementDetailDialog
         open={!!selectedReimbursement}
         onOpenChange={(open) => { if (!open) setSelectedReimbursement(null); }}
         reimbursement={selectedReimbursement}
+        onCorrectAndResend={handleCorrectAndResend}
       />
     </AppLayout>
     </TooltipProvider>

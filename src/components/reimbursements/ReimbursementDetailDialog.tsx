@@ -44,9 +44,10 @@ interface ReimbursementDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reimbursement: (ReimbursementRequest & { requester_name?: string; reviewer_name?: string; project_name?: string; client_name?: string }) | null;
+  onCorrectAndResend?: (reimbursement: ReimbursementRequest) => void;
 }
 
-export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }: ReimbursementDetailDialogProps) {
+export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, onCorrectAndResend }: ReimbursementDetailDialogProps) {
   const { employee } = useAuth();
   const { data: attachments = [], isLoading: loadingAttachments } = useReimbursementAttachments(reimbursement?.id || null);
   const { data: expenseItems = [] } = useReimbursementItems(reimbursement?.id || null);
@@ -58,7 +59,10 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }:
 
   const isManager = employee?.is_gerente || employee?.isAdmin;
   const isPending = reimbursement?.status === 'pending';
+  const isRejected = reimbursement?.status === 'rejected';
+  const isOwner = reimbursement?.requested_by === employee?.id;
   const canAct = isManager && isPending;
+  const canCorrect = isRejected && isOwner && onCorrectAndResend;
 
   // Generate signed URLs for all attachments
   useEffect(() => {
@@ -280,6 +284,17 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }:
                 {/* Vertical line */}
                 <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
 
+                {/* Correction reference */}
+                {reimbursement.corrected_from_id && (
+                  <div className="relative flex items-start gap-3">
+                    <Clock className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-amber-500" />
+                    <div>
+                      <p className="font-medium">Correção de pedido anterior</p>
+                      <p className="text-muted-foreground text-xs">Este pedido é uma correção de um reembolso rejeitado.</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Created */}
                 <div className="relative flex items-start gap-3">
                   <Circle className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-muted-foreground fill-background" />
@@ -333,6 +348,21 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }:
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Rejeitar
+                </Button>
+              </div>
+            )}
+
+            {canCorrect && (
+              <div className="pt-2 border-t">
+                <Button
+                  onClick={() => {
+                    onCorrectAndResend!(reimbursement);
+                    onOpenChange(false);
+                  }}
+                  className="w-full bg-green-700 hover:bg-green-800 text-white"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Corrigir e Reenviar
                 </Button>
               </div>
             )}

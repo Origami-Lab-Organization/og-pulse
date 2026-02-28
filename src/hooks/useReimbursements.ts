@@ -16,6 +16,7 @@ export interface ReimbursementRequest {
   reviewed_by: string | null;
   reviewed_at: string | null;
   rejection_reason: string | null;
+  corrected_from_id: string | null;
   created_at: string;
   updated_at: string;
   // joined
@@ -170,6 +171,7 @@ export function useCreateReimbursement() {
       total_amount: number;
       files: File[];
       items?: { expense_date: string; description: string; amount: number }[];
+      corrected_from_id?: string;
     }) => {
       if (!employee) throw new Error('Não autenticado');
 
@@ -184,6 +186,7 @@ export function useCreateReimbursement() {
           is_internal: params.is_internal,
           description: params.description,
           total_amount: params.total_amount,
+          corrected_from_id: params.corrected_from_id || null,
         } as any)
         .select()
         .single();
