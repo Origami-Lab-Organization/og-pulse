@@ -141,7 +141,7 @@ export function TimesheetWeekRow({
   return (
     <div className={cn(
       "grid gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md",
-      (statusSlot || actionSlot) ? "grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+      (statusSlot || actionSlot) ? "grid-cols-[1fr_repeat(5,60px)_80px_120px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
     )}>
       <div className="flex items-center gap-2 min-w-0">
         {avatarUrl !== undefined && (
@@ -241,13 +241,9 @@ export function TimesheetWeekRow({
       <div className="text-right font-medium text-sm pr-2">
         {totalHours.toFixed(1)}h
       </div>
-      {statusSlot && (
-        <div className="flex items-center justify-center">
+      {(statusSlot || actionSlot) && (
+        <div className="flex items-center justify-center gap-1">
           {statusSlot}
-        </div>
-      )}
-      {actionSlot && (
-        <div className="flex items-center justify-center">
           {actionSlot}
         </div>
       )}
