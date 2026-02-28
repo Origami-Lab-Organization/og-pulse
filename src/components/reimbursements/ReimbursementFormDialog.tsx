@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,8 @@ import { X, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreateReimbursement } from '@/hooks/useReimbursements';
+import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface Props {
   open: boolean;
@@ -40,6 +42,14 @@ interface ProjectOption {
   client_id: string;
 }
 
+type FieldErrors = {
+  clientId?: string;
+  projectId?: string;
+  description?: string;
+  amount?: string;
+  files?: string;
+};
+
 export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
   const { employee } = useAuth();
   const createMutation = useCreateReimbursement();
@@ -50,9 +60,17 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [attempted, setAttempted] = useState(false);
 
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
+
+  const clientRef = useRef<HTMLDivElement>(null);
+  const projectRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLDivElement>(null);
+  const amountRef = useRef<HTMLDivElement>(null);
+  const filesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open || !employee) return;
@@ -84,11 +102,17 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
     setDescription('');
     setAmount(0);
     setFiles([]);
+    setErrors({});
+    setAttempted(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+      const newFiles = [...files, ...Array.from(e.target.files!)];
+      setFiles(newFiles);
+      if (newFiles.length > 0) {
+        setErrors((prev) => ({ ...prev, files: undefined }));
+      }
     }
   };
 
@@ -96,13 +120,64 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const canSubmit =
-    description.trim().length > 0 &&
-    amount > 0 &&
-    files.length > 0 &&
-    (type === 'internal' || (clientId && projectId));
+  // Clear errors on field change
+  useEffect(() => {
+    if (!attempted) return;
+    if (clientId) setErrors((p) => ({ ...p, clientId: undefined }));
+  }, [clientId, attempted]);
+
+  useEffect(() => {
+    if (!attempted) return;
+    if (projectId) setErrors((p) => ({ ...p, projectId: undefined }));
+  }, [projectId, attempted]);
+
+  useEffect(() => {
+    if (!attempted) return;
+    if (description.trim()) setErrors((p) => ({ ...p, description: undefined }));
+  }, [description, attempted]);
+
+  useEffect(() => {
+    if (!attempted) return;
+    if (amount > 0) setErrors((p) => ({ ...p, amount: undefined }));
+  }, [amount, attempted]);
+
+  const validate = useCallback((): FieldErrors => {
+    const errs: FieldErrors = {};
+    if (type === 'project') {
+      if (!clientId) errs.clientId = 'Selecione um cliente';
+      if (!projectId) errs.projectId = 'Selecione um projeto';
+    }
+    if (!description.trim()) errs.description = 'Descreva o motivo do reembolso';
+    if (amount <= 0) errs.amount = 'O valor deve ser maior que zero';
+    if (files.length === 0) errs.files = 'Anexe pelo menos 1 comprovante';
+    return errs;
+  }, [type, clientId, projectId, description, amount, files]);
 
   const handleSubmit = async () => {
+    setAttempted(true);
+    const errs = validate();
+    setErrors(errs);
+
+    const errorKeys = Object.keys(errs) as (keyof FieldErrors)[];
+    if (errorKeys.length > 0) {
+      toast({
+        title: 'Preencha todos os campos obrigatórios',
+        variant: 'destructive',
+        duration: 4000,
+      });
+
+      const refMap: Record<keyof FieldErrors, React.RefObject<HTMLDivElement | null>> = {
+        clientId: clientRef,
+        projectId: projectRef,
+        description: descriptionRef,
+        amount: amountRef,
+        files: filesRef,
+      };
+      const firstErr = errorKeys[0];
+      refMap[firstErr]?.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
     await createMutation.mutateAsync({
       project_id: type === 'project' ? projectId : undefined,
       client_id: type === 'project' ? clientId : undefined,
@@ -115,6 +190,8 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
     onOpenChange(false);
   };
 
+  const errorText = 'text-[12px] text-destructive mt-1';
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
       <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
@@ -125,7 +202,7 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Tipo de Despesa</Label>
-            <RadioGroup value={type} onValueChange={(v) => { setType(v as any); setClientId(''); setProjectId(''); }}>
+            <RadioGroup value={type} onValueChange={(v) => { setType(v as any); setClientId(''); setProjectId(''); setErrors((p) => ({ ...p, clientId: undefined, projectId: undefined })); }}>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="project" id="type-project" />
@@ -141,50 +218,61 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
 
           {type === 'project' && (
             <>
-              <div className="space-y-2">
+              <div className="space-y-2" ref={clientRef}>
                 <Label>Cliente *</Label>
                 <Select value={clientId} onValueChange={(v) => { setClientId(v); setProjectId(''); }}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                  <SelectTrigger className={cn(errors.clientId && 'border-destructive')}>
+                    <SelectValue placeholder="Selecione o cliente" />
+                  </SelectTrigger>
                   <SelectContent>
                     {clients.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.clientId && <p className={errorText}>{errors.clientId}</p>}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2" ref={projectRef}>
                 <Label>Projeto *</Label>
                 <Select value={projectId} onValueChange={setProjectId} disabled={!clientId}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o projeto" /></SelectTrigger>
+                  <SelectTrigger className={cn(errors.projectId && 'border-destructive')}>
+                    <SelectValue placeholder="Selecione o projeto" />
+                  </SelectTrigger>
                   <SelectContent>
                     {filteredProjects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.projectId && <p className={errorText}>{errors.projectId}</p>}
               </div>
             </>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-2" ref={descriptionRef}>
             <Label>Descrição *</Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descreva o motivo do reembolso..."
               rows={3}
+              className={cn(errors.description && 'border-destructive')}
             />
+            {errors.description && <p className={errorText}>{errors.description}</p>}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2" ref={amountRef}>
             <Label>Valor Total (R$) *</Label>
-            <CurrencyInput value={amount} onValueChange={setAmount} showPrefix />
+            <div className={cn(errors.amount && '[&_input]:border-destructive')}>
+              <CurrencyInput value={amount} onValueChange={setAmount} showPrefix />
+            </div>
+            {errors.amount && <p className={errorText}>{errors.amount}</p>}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2" ref={filesRef}>
             <Label>Comprovantes * (mínimo 1 arquivo)</Label>
-            <div className="flex items-center gap-2">
+            <div className={cn("flex items-center gap-2", errors.files && '[&_button]:border-destructive')}>
               <Button type="button" variant="outline" size="sm" asChild>
                 <label className="cursor-pointer">
                   <Upload className="h-4 w-4 mr-2" />
@@ -199,6 +287,7 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
                 </label>
               </Button>
             </div>
+            {errors.files && <p className={errorText}>{errors.files}</p>}
             {files.length > 0 && (
               <ul className="space-y-1 mt-2">
                 {files.map((f, i) => (
@@ -221,7 +310,7 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
           <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || createMutation.isPending}>
+          <Button onClick={handleSubmit} disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Enviando...' : 'Enviar Pedido'}
           </Button>
         </DialogFooter>
