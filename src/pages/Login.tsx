@@ -33,7 +33,7 @@ const Login = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const from = location.state?.from?.pathname || '/';
+  const from = location.state?.from?.pathname || '/dashboard';
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
