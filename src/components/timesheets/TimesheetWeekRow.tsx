@@ -45,6 +45,8 @@ interface TimesheetWeekRowProps {
   dailyWorkHours?: number;
   /** Callback reporting this row's current total hours (local state) */
   onLocalTotalChange?: (memberId: string, total: number) => void;
+  /** Callback reporting per-day hours for this row (local state) */
+  onLocalDayHoursChange?: (memberId: string, dayHours: Record<string, number>) => void;
   /** Callback reporting save status changes */
   onSaveStatusChange?: (memberId: string, info: SaveStatusInfo) => void;
 }
@@ -66,6 +68,7 @@ export function TimesheetWeekRow({
   allDailyTotals = {},
   dailyWorkHours = 8,
   onLocalTotalChange,
+  onLocalDayHoursChange,
   onSaveStatusChange,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
@@ -217,6 +220,11 @@ export function TimesheetWeekRow({
   useEffect(() => {
     onLocalTotalChange?.(memberId, totalHours);
   }, [totalHours, memberId, onLocalTotalChange]);
+
+  // Report per-day hours to parent for daily totals row
+  useEffect(() => {
+    onLocalDayHoursChange?.(memberId, hours);
+  }, [hours, memberId, onLocalDayHoursChange]);
 
   const initials = label
     .split(' ')
