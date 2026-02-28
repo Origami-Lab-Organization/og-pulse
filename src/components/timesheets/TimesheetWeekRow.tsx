@@ -35,6 +35,8 @@ interface TimesheetWeekRowProps {
   allDailyTotals?: Record<string, number>;
   /** Employee daily work hours (jornada_diaria) for soft limit */
   dailyWorkHours?: number;
+  /** Callback reporting this row's current total hours (local state) */
+  onLocalTotalChange?: (memberId: string, total: number) => void;
 }
 
 export function TimesheetWeekRow({
@@ -52,6 +54,7 @@ export function TimesheetWeekRow({
   statusSlot,
   allDailyTotals = {},
   dailyWorkHours = 8,
+  onLocalTotalChange,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
   
@@ -149,6 +152,11 @@ export function TimesheetWeekRow({
   };
 
   const totalHours = Object.values(hours).reduce((sum, h) => sum + (h || 0), 0);
+
+  // Report local total to parent for real-time footer updates
+  useEffect(() => {
+    onLocalTotalChange?.(memberId, totalHours);
+  }, [totalHours, memberId, onLocalTotalChange]);
 
   const initials = label
     .split(' ')
