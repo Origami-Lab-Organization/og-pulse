@@ -13,10 +13,12 @@ import {
   Archive,
   UserPlus,
   ClipboardCheck,
+  ChevronDown,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import logo from '@/assets/logo.png';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 import {
   Sidebar,
@@ -179,22 +181,29 @@ export function AppSidebar() {
           if (visibleItems.length === 0) return null;
 
           return (
-            <SidebarGroup key={group.label}>
-              {!collapsed && (
-                <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">
-                  {group.label}
-                </SidebarGroupLabel>
-              )}
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {visibleItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      {renderNavItem(item)}
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            <Collapsible key={group.label} defaultOpen className="group/collapsible">
+              <SidebarGroup>
+                {!collapsed && (
+                  <SidebarGroupLabel asChild className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between">
+                      {group.label}
+                      <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </CollapsibleTrigger>
+                  </SidebarGroupLabel>
+                )}
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {visibleItems.map((item) => (
+                        <SidebarMenuItem key={item.title}>
+                          {renderNavItem(item)}
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
           );
         })}
       </SidebarContent>
