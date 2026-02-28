@@ -9,7 +9,10 @@ import {
   BarChart3, 
   Truck,
   Kanban,
-  Receipt
+  Receipt,
+  Archive,
+  UserPlus,
+  ClipboardCheck,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,43 +44,43 @@ interface NavItem {
 
 const navigationGroups = [
   {
-    label: 'Dashboard',
-    items: [
-      { title: 'Visão Geral', url: '/dashboard', icon: LayoutDashboard },
-    ] as NavItem[],
-  },
-  {
     label: 'Meu Espaço',
     items: [
+      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
-    ] as NavItem[],
-  },
-  {
-    label: 'Gestão',
-    requiresManager: true,
-    items: [
-      { title: 'Funcionários', url: '/', icon: Users, requiresManager: true },
-      { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
-      { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
     ] as NavItem[],
   },
   {
     label: 'Comercial',
     requiresManager: true,
     items: [
+      { title: 'Dashboard', url: '/comercial', icon: LayoutDashboard, requiresManager: true, disabled: true },
       { title: 'CRM', url: '/crm', icon: Kanban, requiresManager: true },
       { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresManager: true },
+      { title: 'Arquivados', url: '/crm/archived', icon: Archive, requiresManager: true, disabled: true },
     ] as NavItem[],
   },
   {
     label: 'Operações',
     requiresManager: true,
     items: [
+      { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
       { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresManager: true },
       { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
       { title: 'Alocação', url: '/alocacao', icon: Clock, requiresManager: true },
-      { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
+      { title: 'Reembolsos', url: '/reembolsos-operacoes', icon: Receipt, requiresManager: true, disabled: true },
+      { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
+      { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
+    ] as NavItem[],
+  },
+  {
+    label: 'Recursos Humanos',
+    requiresManager: true,
+    items: [
+      { title: 'Contratações', url: '/contratacoes', icon: UserPlus, requiresManager: true, disabled: true },
+      { title: 'Funcionários', url: '/employees', icon: Users, requiresManager: true },
+      { title: 'Avaliações', url: '/avaliacoes', icon: ClipboardCheck, requiresManager: true, disabled: true },
     ] as NavItem[],
   },
 ];

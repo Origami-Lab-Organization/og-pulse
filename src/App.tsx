@@ -81,7 +81,7 @@ const App = () => (
               />
               {/* Management routes - Manager or Admin */}
               <Route 
-                path="/" 
+                path="/employees" 
                 element={
                   <RoleProtectedRoute requireManager>
                     <Index />
