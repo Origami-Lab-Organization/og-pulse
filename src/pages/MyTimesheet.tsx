@@ -42,6 +42,8 @@ const MyTimesheet = () => {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const currentWeekStart = getWeekStart(new Date());
+  const isFutureWeek = weekStart > currentWeekStart;
   const allWeekDaysReady = weekEnd <= today;
 
   const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(employee?.id, startDate, endDate);
@@ -186,7 +188,7 @@ const MyTimesheet = () => {
                     weekDays={weekDays}
                     existingEntries={timesheetEntries}
                     holidays={holidays}
-                    isLocked={isLocked}
+                    isLocked={isLocked || isFutureWeek}
                     isAdmin={false}
                     actionSlot={actionContent}
                   />
@@ -198,7 +200,7 @@ const MyTimesheet = () => {
                 <p className="text-sm font-medium text-muted-foreground">
                   Total da Semana: <span className="text-foreground font-semibold">{totalHoursAllProjects.toFixed(1)}h</span>
                 </p>
-                {canSubmit && (
+                {canSubmit && !isFutureWeek && (
                   <Button
                     size="sm"
                     onClick={() => setShowSubmitAllDialog(true)}

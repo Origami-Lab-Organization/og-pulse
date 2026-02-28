@@ -12,10 +12,13 @@ interface TimesheetWeekSelectorProps {
 }
 
 const WEEKS_BACK = 26;
+const WEEKS_FORWARD = 12;
 
 export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetWeekSelectorProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedChipRef = useRef<HTMLButtonElement>(null);
+  const currentChipRef = useRef<HTMLButtonElement>(null);
+  const hasMounted = useRef(false);
 
   const currentWeekStart = getWeekStart(new Date());
   const selectedWeekStart = getWeekStart(selectedDate);
@@ -25,14 +28,29 @@ export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetW
     for (let i = WEEKS_BACK; i >= 0; i--) {
       list.push(getWeekStart(subWeeks(new Date(), i)));
     }
+    for (let i = 1; i <= WEEKS_FORWARD; i++) {
+      list.push(getWeekStart(subWeeks(new Date(), -i)));
+    }
     return list;
   }, []);
 
+  // On mount, center the current week
   useEffect(() => {
-    // Auto-scroll to selected chip
-    setTimeout(() => {
-      selectedChipRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }, 50);
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      setTimeout(() => {
+        currentChipRef.current?.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'center' });
+      }, 50);
+    }
+  }, []);
+
+  // On selection change, scroll to selected chip
+  useEffect(() => {
+    if (hasMounted.current) {
+      setTimeout(() => {
+        selectedChipRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }, 50);
+    }
   }, [selectedDate]);
 
   const scrollBy = (dir: number) => {
@@ -55,7 +73,10 @@ export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetW
             return (
               <button
                 key={weekStart.toISOString()}
-                ref={isSelected ? selectedChipRef : undefined}
+                ref={(el) => {
+                  if (isSelected) (selectedChipRef as any).current = el;
+                  if (isCurrent) (currentChipRef as any).current = el;
+                }}
                 onClick={() => onDateChange(weekStart)}
                 className={cn(
                   'shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap',
