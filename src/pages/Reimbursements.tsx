@@ -109,6 +109,7 @@ export default function Reimbursements() {
                 {isManager && <TableHead>Solicitante</TableHead>}
                 <TableHead>Descrição</TableHead>
                 <TableHead>Tipo</TableHead>
+                <TableHead>Projeto</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -116,13 +117,13 @@ export default function Reimbursements() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={isManager ? 6 : 5} className="text-center text-muted-foreground">
+                 <TableCell colSpan={isManager ? 7 : 6} className="text-center text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isManager ? 6 : 5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={isManager ? 7 : 6} className="text-center text-muted-foreground">
                     Nenhum pedido encontrado
                   </TableCell>
                 </TableRow>
@@ -156,12 +157,15 @@ export default function Reimbursements() {
                           <TooltipContent className="max-w-[400px] whitespace-pre-wrap">{r.description}</TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      <TableCell className="max-w-[160px]">
+                      <TableCell>
+                        {r.is_internal ? 'Interno' : 'Projeto'}
+                      </TableCell>
+                      <TableCell className="max-w-[200px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="block truncate">{r.is_internal ? 'Interno' : r.project_name || 'Projeto'}</span>
+                            <span className="block truncate">{r.is_internal ? ((r as any).tenant_name || 'Empresa') : r.project_name || '-'}</span>
                           </TooltipTrigger>
-                          <TooltipContent>{r.is_internal ? 'Interno' : r.project_name || 'Projeto'}</TooltipContent>
+                          <TooltipContent>{r.is_internal ? ((r as any).tenant_name || 'Empresa') : r.project_name || '-'}</TooltipContent>
                         </Tooltip>
                       </TableCell>
                       <TableCell className="text-right">

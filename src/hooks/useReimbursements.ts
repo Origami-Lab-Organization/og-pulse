@@ -311,15 +311,17 @@ export function useAllMyReimbursements() {
       const projectIds = [...new Set(requests.filter(r => r.project_id).map(r => r.project_id!))];
       const clientIds = [...new Set(requests.filter(r => r.client_id).map(r => r.client_id!))];
 
-      const [empRes, projRes, clientRes] = await Promise.all([
+      const [empRes, projRes, clientRes, tenantRes] = await Promise.all([
         supabase.from('employees').select('id, nome').in('id', employeeIds),
         projectIds.length > 0 ? supabase.from('projects').select('id, name').in('id', projectIds) : { data: [] },
         clientIds.length > 0 ? supabase.from('clients').select('id, company_name').in('id', clientIds) : { data: [] },
+        supabase.from('tenants' as any).select('id, name').eq('id', employee.tenant_id).maybeSingle(),
       ]);
 
       const empMap = new Map<string, string>((empRes.data || []).map(e => [e.id, e.nome]));
       const projMap = new Map<string, string>(((projRes as any).data || []).map((p: any) => [p.id, p.name as string]));
       const clientMap = new Map<string, string>(((clientRes as any).data || []).map((c: any) => [c.id, c.company_name as string]));
+      const tenantName = (tenantRes as any)?.data?.name || '';
 
       return requests.map(r => ({
         ...r,
@@ -327,6 +329,7 @@ export function useAllMyReimbursements() {
         reviewer_name: r.reviewed_by ? empMap.get(r.reviewed_by) || 'Desconhecido' : undefined,
         project_name: r.project_id ? projMap.get(r.project_id) || '' : '',
         client_name: r.client_id ? clientMap.get(r.client_id) || '' : '',
+        tenant_name: tenantName,
       }));
     },
     enabled: !!employee,
