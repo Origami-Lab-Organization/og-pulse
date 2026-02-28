@@ -208,7 +208,7 @@ const MyTimesheet = () => {
                     disabled={!allWeekDaysReady || pendingProjects.length === 0 || submitAllProjects.isPending}
                   >
                     <Send className="h-4 w-4 mr-1.5" />
-                    Enviar ({pendingProjects.length})
+                    Enviar
                   </Button>
                 )}
               </div>
