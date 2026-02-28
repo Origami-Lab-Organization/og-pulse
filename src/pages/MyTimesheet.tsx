@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, Loader2, CheckCircle2, Send, Check, AlertCircle } from 'lucide-react';
+import { Building2, Loader2, CheckCircle2, Send, Check, AlertCircle, Info } from 'lucide-react';
 import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAllocation';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
@@ -222,6 +222,16 @@ const MyTimesheet = () => {
                 <div className="text-right pr-2">Total</div>
                 <div className="text-center">Status</div>
               </div>
+
+              {/* Future week info banner */}
+              {isFutureWeek && (
+                <div className="flex items-start gap-2.5 mx-3 mt-2 px-3 py-2.5 rounded-md bg-blue-50 dark:bg-blue-950/40 border-l-4 border-blue-500">
+                  <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    Esta semana ainda não começou. Você poderá lançar horas a partir de {format(weekStart, 'dd/MM/yyyy')}.
+                  </p>
+                </div>
+              )}
 
               {/* Uma linha por projeto */}
               {projects.map((project) => {
