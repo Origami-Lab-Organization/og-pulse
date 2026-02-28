@@ -21,25 +21,35 @@ const SegmentedBar = ({
   actualPercent,
   plannedRemainingPercent,
   tooltipContent,
+  expectedPercent,
 }: {
   actualPercent: number;
   plannedRemainingPercent: number;
   tooltipContent: string;
+  expectedPercent?: number;
 }) => (
   <TooltipProvider>
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="w-full bg-muted rounded-full h-2 overflow-hidden flex">
-          {actualPercent > 0 && (
+        <div className="relative w-full bg-muted rounded-full h-2 overflow-hidden">
+          <div className="flex h-full">
+            {actualPercent > 0 && (
+              <div
+                className="h-full bg-green-700 dark:bg-green-600 transition-all"
+                style={{ width: `${Math.min(actualPercent, 100)}%` }}
+              />
+            )}
+            {plannedRemainingPercent > 0 && (
+              <div
+                className="h-full bg-green-300 dark:bg-green-800 transition-all"
+                style={{ width: `${Math.min(plannedRemainingPercent, 100 - Math.min(actualPercent, 100))}%` }}
+              />
+            )}
+          </div>
+          {expectedPercent !== undefined && expectedPercent > 0 && (
             <div
-              className="h-full bg-green-700 dark:bg-green-600 transition-all"
-              style={{ width: `${Math.min(actualPercent, 100)}%` }}
-            />
-          )}
-          {plannedRemainingPercent > 0 && (
-            <div
-              className="h-full bg-green-300 dark:bg-green-800 transition-all"
-              style={{ width: `${Math.min(plannedRemainingPercent, 100 - Math.min(actualPercent, 100))}%` }}
+              className="absolute top-[-3px] bottom-[-3px] w-0.5 bg-foreground/70 z-10 rounded-full"
+              style={{ left: `${Math.min(expectedPercent, 100)}%` }}
             />
           )}
         </div>
@@ -80,6 +90,9 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
     ? (plannedRemainingHours / data.monthlyCapacity) * 100
     : 0;
   const freeHours = Math.max(data.monthlyCapacity - data.totalPlannedHours, 0);
+  const expectedPercent = data.monthlyCapacity > 0
+    ? (data.expectedHours / data.monthlyCapacity) * 100
+    : 0;
 
   return (
     <Card>
@@ -96,19 +109,21 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Capacidade mensal</span>
             <span className="font-medium">
-              {data.totalActualHours.toFixed(0)}h realizado de {data.monthlyCapacity}h
+              {data.totalActualHours.toFixed(0)}h realizado de {data.monthlyCapacity}h (esperado: {data.expectedHours.toFixed(0)}h)
             </span>
           </div>
           <SegmentedBar
             actualPercent={actualPercent}
             plannedRemainingPercent={plannedRemainingPercent}
-            tooltipContent={`Realizado: ${data.totalActualHours.toFixed(0)}h · Planejado restante: ${plannedRemainingHours.toFixed(0)}h · Livre: ${freeHours.toFixed(0)}h`}
+            expectedPercent={expectedPercent}
+            tooltipContent={`Realizado: ${data.totalActualHours.toFixed(0)}h · Esperado: ${data.expectedHours.toFixed(0)}h · Planejado restante: ${plannedRemainingHours.toFixed(0)}h · Livre: ${freeHours.toFixed(0)}h`}
           />
           {/* Legend */}
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-700 dark:bg-green-600" /> Realizado</span>
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-300 dark:bg-green-800" /> Plan. restante</span>
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-muted border" /> Livre</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-[2px] h-3 rounded-full bg-foreground/70" /> Esperado</span>
           </div>
         </div>
 
