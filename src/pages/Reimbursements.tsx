@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, Clock, XCircle, CalendarDays } from 'lucide-react';
+import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, Clock, XCircle, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useAllMyReimbursements, ReimbursementRequest } from '@/hooks/useReimbursements';
 import { ReimbursementFormDialog, CorrectionData } from '@/components/reimbursements/ReimbursementFormDialog';
@@ -37,6 +37,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
 
 type SortKey = 'date' | 'amount' | 'status';
 type SortDir = 'asc' | 'desc';
+const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
 function SortableHead({ label, sortKey, currentKey, currentDir, onSort, className }: {
   label: string; sortKey: SortKey; currentKey: SortKey; currentDir: SortDir; onSort: (k: SortKey) => void; className?: string;
@@ -67,6 +68,8 @@ export default function Reimbursements() {
   const [selectedReimbursement, setSelectedReimbursement] = useState<(ReimbursementRequest & { requester_name?: string; reviewer_name?: string; project_name?: string; client_name?: string }) | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const { employee } = useAuth();
   const { data: reimbursements = [], isLoading } = useAllMyReimbursements();
   const isManager = employee?.is_gerente || employee?.isAdmin;
@@ -172,6 +175,19 @@ export default function Reimbursements() {
       monthTotal: thisMonth.reduce((s, r) => s + r.total_amount, 0),
     };
   }, [filtered]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [statusFilter, searchQuery]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginatedData = useMemo(() => {
+    const start = currentPage * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
+
+  const showPagination = filtered.length > 10;
 
   const fmtCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -287,7 +303,7 @@ export default function Reimbursements() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((r) => {
+                paginatedData.map((r) => {
                   const cfg = statusConfig[r.status] || statusConfig.pending;
                   return (
                     <TableRow
@@ -342,6 +358,52 @@ export default function Reimbursements() {
             </TableBody>
           </Table>
         </div>
+
+        {showPagination && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, filtered.length)} de {filtered.length} reembolso{filtered.length !== 1 ? 's' : ''}
+            </p>
+            <div className="flex items-center gap-4">
+              <div className="hidden sm:flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Por página:</span>
+                <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(0); }}>
+                  <SelectTrigger className="h-8 w-[70px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent side="top">
+                    {PAGE_SIZE_OPTIONS.map(s => (
+                      <SelectItem key={s} value={String(s)}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  disabled={currentPage === 0}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Anterior</span>
+                </Button>
+                <span className="text-sm text-muted-foreground sm:hidden">
+                  {currentPage + 1}/{totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={currentPage >= totalPages - 1}
+                >
+                  <span className="hidden sm:inline">Próximo</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <ReimbursementFormDialog
