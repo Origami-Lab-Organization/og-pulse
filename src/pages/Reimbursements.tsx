@@ -3,7 +3,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, Clock, XCircle, CalendarDays } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useAllMyReimbursements, ReimbursementRequest } from '@/hooks/useReimbursements';
 import { ReimbursementFormDialog } from '@/components/reimbursements/ReimbursementFormDialog';
@@ -121,6 +122,31 @@ export default function Reimbursements() {
     return result;
   }, [reimbursements, statusFilter, searchQuery, sortKey, sortDir]);
 
+  const stats = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const source = filtered;
+    const approved = source.filter(r => r.status === 'approved');
+    const pending = source.filter(r => r.status === 'pending');
+    const rejected = source.filter(r => r.status === 'rejected');
+    const thisMonth = source.filter(r => {
+      const d = new Date(r.created_at);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    return {
+      approvedTotal: approved.reduce((s, r) => s + r.total_amount, 0),
+      pendingCount: pending.length,
+      pendingTotal: pending.reduce((s, r) => s + r.total_amount, 0),
+      rejectedCount: rejected.length,
+      monthTotal: thisMonth.reduce((s, r) => s + r.total_amount, 0),
+    };
+  }, [filtered]);
+
+  const fmtCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
   return (
     <TooltipProvider>
     <AppLayout
@@ -135,6 +161,54 @@ export default function Reimbursements() {
       }
     >
       <div className="space-y-4">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full p-2 bg-green-100 dark:bg-green-900/30">
+                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total Aprovado</p>
+                <p className="text-lg font-semibold">{fmtCurrency(stats.approvedTotal)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full p-2 bg-amber-100 dark:bg-amber-900/30">
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Pendentes</p>
+                <p className="text-lg font-semibold">{stats.pendingCount} — {fmtCurrency(stats.pendingTotal)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full p-2 bg-red-100 dark:bg-red-900/30">
+                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Rejeitados</p>
+                <p className="text-lg font-semibold">{stats.rejectedCount}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full p-2 bg-blue-100 dark:bg-blue-900/30">
+                <CalendarDays className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total do Mês</p>
+                <p className="text-lg font-semibold">{fmtCurrency(stats.monthTotal)}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
