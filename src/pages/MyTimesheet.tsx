@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -85,6 +85,31 @@ const MyTimesheet = () => {
     }
     return totals;
   }, [timesheetEntries]);
+
+  // Track local (unsaved) totals per member for real-time footer
+  const [localTotals, setLocalTotals] = useState<Record<string, number>>({});
+
+  const handleLocalTotalChange = useCallback((memberId: string, total: number) => {
+    setLocalTotals(prev => {
+      if (prev[memberId] === total) return prev;
+      return { ...prev, [memberId]: total };
+    });
+  }, []);
+
+  // Real-time total: use local totals when available, fall back to server data
+  const realTimeTotalHours = useMemo(() => {
+    let total = 0;
+    for (const project of projects) {
+      const member = project.members[0];
+      if (!member) continue;
+      if (localTotals[member.memberId] !== undefined) {
+        total += localTotals[member.memberId];
+      } else {
+        total += projectHoursMap.get(project.projectId) || 0;
+      }
+    }
+    return total;
+  }, [projects, localTotals, projectHoursMap]);
 
   const allProjectsLocked = useMemo(() => {
     return projects.every(p => {
@@ -207,6 +232,7 @@ const MyTimesheet = () => {
                     actionSlot={actionContent}
                     allDailyTotals={allDailyTotals}
                     dailyWorkHours={employee?.jornada_diaria ?? 8}
+                    onLocalTotalChange={handleLocalTotalChange}
                   />
                 );
               })}
@@ -214,7 +240,7 @@ const MyTimesheet = () => {
               {/* Footer: total + enviar */}
               <div className="border-t mt-2 pt-3 px-3 flex items-center justify-between">
                 <p className="text-sm font-medium text-muted-foreground">
-                  Total da Semana: <span className="text-foreground font-semibold">{totalHoursAllProjects.toFixed(1)}h</span>
+                  Total da Semana: <span className="text-foreground font-semibold">{realTimeTotalHours.toFixed(1)}h</span>
                 </p>
                 {canSubmit && !isFutureWeek && (
                   <Button
