@@ -1,56 +1,43 @@
 
-## Corrigir Status de Submissao por Funcionario
+# Ajustes UX/UI na Minha Timesheet
 
-### Problema Identificado
+## 1. Remover o "Resumo da Semana"
+O componente `TimesheetWeekStatus` sera removido da pagina `MyTimesheet`. Ele nao agrega valor no fluxo atual de lancamento por projeto.
 
-O status "Enviado" na pagina de cada funcionario e determinado pela tabela `project_timesheet_submissions`, que e **por projeto**, nao **por funcionario**. Quando o Victor envia suas horas no projeto "Gestao de Portfolio", um registro de submissao e criado para aquele projeto. Quando a Cecilia abre sua pagina, o sistema ve esse mesmo registro e mostra "Todos os Projetos Enviados" - mesmo que ela nao tenha submetido suas horas.
+## 2. Mover total e botao "Enviar" para dentro do card de projetos
+Apos a listagem de projetos (dentro do `Card` existente), sera adicionada uma linha de rodape com:
+- Total de horas da semana (alinhado a esquerda/centro)
+- Botao "Enviar" (alinhado a direita)
 
-Alem disso, o `total_hours` na tabela `project_timesheet_submissions` e sobrescrito a cada envio com apenas as horas do ultimo funcionario que submeteu.
+Essa linha tera um estilo de `border-t` para separar visualmente da listagem, com padding adequado.
 
-### Solucao
+## 3. Corrigir alinhamento da coluna Status
+O problema atual e que o grid do header e o grid das rows usam definicoes de colunas diferentes. O header usa `grid-cols-[1fr_repeat(5,60px)_80px_140px]` enquanto o `TimesheetWeekRow` usa `grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]` (com actionSlot separado). Vamos unificar para uma unica definicao de grid consistente, removendo a separacao entre statusSlot e actionSlot na row, e usando uma unica coluna de status com largura fixa alinhada entre header e rows.
 
-Mudar a logica de status para usar o campo `is_locked` dos registros individuais (`project_timesheets`) ao inves da tabela `project_timesheet_submissions`. Isso ja foi parcialmente feito na linha de cada projeto, mas o componente `TimesheetWeekStatus` (o banner verde no topo) ainda depende dos registros de submissao.
+## Detalhes tecnicos
 
-### Alteracoes
+### Arquivos modificados
 
-**1. `src/components/timesheets/TimesheetWeekStatus.tsx`**
-- Adicionar prop opcional `lockedProjectCount` (numero de projetos cujas entries estao todas locked)
-- Quando fornecido, usar esse valor ao inves de contar `submissions` para determinar quantos projetos estao "enviados"
+**`src/pages/MyTimesheet.tsx`**
+- Remover import e uso do `TimesheetWeekStatus`
+- Remover import do `SubmitAllProjectsDialog` e estados relacionados (`showSubmitAllDialog`)
+- Adicionar uma linha de rodape dentro do `CardContent`, apos o `.map()` de projetos, contendo o total de horas e o botao "Enviar"
+- O botao "Enviar" mantera a mesma logica de habilitacao (canSubmit, allWeekDaysReady, pendingProjects)
 
-**2. `src/pages/EmployeeTimesheetPage.tsx`**
-- Calcular `lockedProjectCount` baseado nos entries do funcionario: um projeto conta como "enviado" se todos os entries daquele membro estao com `is_locked = true` e existem entries
-- Passar `lockedProjectCount` para `TimesheetWeekStatus`
+**`src/components/timesheets/TimesheetWeekRow.tsx`**
+- Unificar o grid para usar uma coluna unica de status/action: `grid-cols-[1fr_repeat(5,60px)_80px_120px]`
+- Combinar `statusSlot` e `actionSlot` em um unico slot renderizado na mesma celula, com alinhamento `justify-center`
 
-**3. `src/pages/MyTimesheet.tsx`**
-- Mesma logica: calcular `lockedProjectCount` baseado nos entries do usuario logado
-- Passar para `TimesheetWeekStatus`
+**`src/pages/MyTimesheet.tsx` (header do grid)**
+- Ajustar a definicao de colunas do header para `grid-cols-[1fr_repeat(5,60px)_80px_120px]` — mesma definicao usada nas rows
 
-**4. `src/hooks/useTimesheetSubmissions.ts`**
-- No `useSubmitProjectWeek` e `useSubmitAllProjects`, ao fazer upsert no `project_timesheet_submissions`, primeiro buscar o `total_hours` existente e somar as novas horas, ao inves de sobrescrever
-
-### Detalhes Tecnicos
-
-A mudanca principal e no `TimesheetWeekStatus`:
-
+### Linha de rodape (dentro do card)
 ```text
-Antes: submittedCount = submissions com status 'submitted'
-Depois: submittedCount = lockedProjectCount (calculado via is_locked nos entries)
++------------------------------------------------------+
+| [projetos listados acima]                            |
+|------------------------------------------------------|
+|  Total da Semana: 12.5h            [Enviar (3)]     |
++------------------------------------------------------+
 ```
 
-Para o calculo do `lockedProjectCount`:
-
-```text
-Para cada projeto do funcionario:
-  - Buscar entries onde projectMemberId = memberId
-  - Se entries.length > 0 AND todas entries.isLocked = true -> conta como enviado
-```
-
-Para correcao do `total_hours` na submissao:
-
-```text
-Antes do upsert:
-  1. Buscar total_hours atual da submissao existente
-  2. Buscar soma das horas ja locked para outros membros
-  3. Somar com as horas do membro atual
-  4. Usar esse total no upsert
-```
+A logica do `SubmitAllProjectsDialog` sera mantida e acionada pelo botao. O dialog de confirmacao continuara funcionando normalmente.
