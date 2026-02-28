@@ -6,6 +6,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -62,6 +72,7 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [attempted, setAttempted] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
@@ -192,8 +203,26 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
 
   const errorText = 'text-[12px] text-destructive mt-1';
 
+  const isDirty = type !== 'project' || clientId !== '' || projectId !== '' || description.trim() !== '' || amount > 0 || files.length > 0;
+
+  const handleClose = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      reset();
+      onOpenChange(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    setShowDiscardConfirm(false);
+    reset();
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { handleClose(); return; } onOpenChange(v); }}>
       <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Pedido de Reembolso</DialogTitle>
@@ -307,7 +336,7 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>
+          <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={createMutation.isPending}>
@@ -316,5 +345,26 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Descartar pedido?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Você tem dados não salvos. Deseja realmente descartar este pedido de reembolso?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Voltar ao formulário</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={handleDiscard}
+          >
+            Descartar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
