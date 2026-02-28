@@ -10,6 +10,7 @@ import { Paperclip, CheckCircle, XCircle, FileText, Clock, Circle } from 'lucide
 import {
   ReimbursementRequest,
   useReimbursementAttachments,
+  useReimbursementItems,
   useApproveReimbursement,
   useRejectReimbursement,
 } from '@/hooks/useReimbursements';
@@ -48,6 +49,7 @@ interface ReimbursementDetailDialogProps {
 export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }: ReimbursementDetailDialogProps) {
   const { employee } = useAuth();
   const { data: attachments = [], isLoading: loadingAttachments } = useReimbursementAttachments(reimbursement?.id || null);
+  const { data: expenseItems = [] } = useReimbursementItems(reimbursement?.id || null);
   const approveMutation = useApproveReimbursement();
   const rejectMutation = useRejectReimbursement();
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -158,11 +160,47 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }:
               )}
             </div>
 
-            {/* Description */}
-            <div className="text-sm">
-              <p className="text-muted-foreground mb-1">Descrição</p>
-              <p>{reimbursement.description}</p>
-            </div>
+            {/* Expense Items */}
+            {expenseItems.length > 0 ? (
+              <div className="text-sm">
+                <p className="text-muted-foreground mb-2">Despesas</p>
+                <div className="rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left p-2 font-medium">Data</th>
+                        <th className="text-left p-2 font-medium">Descrição</th>
+                        <th className="text-right p-2 font-medium">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expenseItems.map((item) => (
+                        <tr key={item.id} className="border-b last:border-0">
+                          <td className="p-2 whitespace-nowrap">
+                            {format(new Date(item.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                          </td>
+                          <td className="p-2">{item.description}</td>
+                          <td className="p-2 text-right whitespace-nowrap">{formatCurrency(item.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    {expenseItems.length > 1 && (
+                      <tfoot>
+                        <tr className="bg-muted/30">
+                          <td colSpan={2} className="p-2 font-medium text-right">Total</td>
+                          <td className="p-2 text-right font-medium">{formatCurrency(reimbursement.total_amount)}</td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm">
+                <p className="text-muted-foreground mb-1">Descrição</p>
+                <p>{reimbursement.description}</p>
+              </div>
+            )}
 
             {reimbursement.status === 'rejected' && reimbursement.rejection_reason && (
               <div className="text-sm rounded-md bg-destructive/10 p-3">

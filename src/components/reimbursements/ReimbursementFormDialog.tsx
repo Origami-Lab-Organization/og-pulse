@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import {
@@ -28,14 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { X, Upload, FileText, ImageIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { X, Upload, FileText, Plus, CalendarIcon, AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreateReimbursement } from '@/hooks/useReimbursements';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface Props {
   open: boolean;
@@ -53,13 +56,33 @@ interface ProjectOption {
   client_id: string;
 }
 
+export interface ExpenseItem {
+  date: Date | undefined;
+  description: string;
+  amount: number;
+}
+
 type FieldErrors = {
   clientId?: string;
   projectId?: string;
-  description?: string;
-  amount?: string;
+  items?: string;
   files?: string;
 };
+
+type ItemError = {
+  date?: string;
+  description?: string;
+  amount?: string;
+};
+
+const DAYS_WARNING = 45;
+
+function isOlderThanDays(date: Date, days: number): boolean {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  cutoff.setHours(0, 0, 0, 0);
+  return date < cutoff;
+}
 
 export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
   const { employee } = useAuth();
@@ -68,10 +91,10 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
   const [type, setType] = useState<'project' | 'internal'>('project');
   const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState('');
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState(0);
+  const [items, setItems] = useState<ExpenseItem[]>([{ date: undefined, description: '', amount: 0 }]);
   const [files, setFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [itemErrors, setItemErrors] = useState<ItemError[]>([{}]);
   const [attempted, setAttempted] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
@@ -80,8 +103,7 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
 
   const clientRef = useRef<HTMLDivElement>(null);
   const projectRef = useRef<HTMLDivElement>(null);
-  const descriptionRef = useRef<HTMLDivElement>(null);
-  const amountRef = useRef<HTMLDivElement>(null);
+  const itemsRef = useRef<HTMLDivElement>(null);
   const filesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,21 +129,23 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
     ? projects.filter((p) => p.client_id === clientId)
     : projects;
 
+  const totalAmount = useMemo(() => items.reduce((sum, it) => sum + (it.amount || 0), 0), [items]);
+
   const reset = () => {
     setType('project');
     setClientId('');
     setProjectId('');
-    setDescription('');
-    setAmount(0);
+    setItems([{ date: undefined, description: '', amount: 0 }]);
     setFiles([]);
     setErrors({});
+    setItemErrors([{}]);
     setAttempted(false);
   };
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  // File handling
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
   const MAX_FILES = 5;
   const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
-  const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf'];
 
   const [fileError, setFileError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -185,6 +209,31 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  // Items management
+  const updateItem = (index: number, field: keyof ExpenseItem, value: any) => {
+    setItems(prev => prev.map((it, i) => i === index ? { ...it, [field]: value } : it));
+    if (attempted) {
+      setItemErrors(prev => {
+        const next = [...prev];
+        if (next[index]) {
+          next[index] = { ...next[index], [field]: undefined };
+        }
+        return next;
+      });
+    }
+  };
+
+  const addItem = () => {
+    setItems(prev => [...prev, { date: undefined, description: '', amount: 0 }]);
+    setItemErrors(prev => [...prev, {}]);
+  };
+
+  const removeItem = (index: number) => {
+    if (items.length <= 1) return;
+    setItems(prev => prev.filter((_, i) => i !== index));
+    setItemErrors(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Clear errors on field change
   useEffect(() => {
     if (!attempted) return;
@@ -196,34 +245,42 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
     if (projectId) setErrors((p) => ({ ...p, projectId: undefined }));
   }, [projectId, attempted]);
 
-  useEffect(() => {
-    if (!attempted) return;
-    if (description.trim()) setErrors((p) => ({ ...p, description: undefined }));
-  }, [description, attempted]);
-
-  useEffect(() => {
-    if (!attempted) return;
-    if (amount > 0) setErrors((p) => ({ ...p, amount: undefined }));
-  }, [amount, attempted]);
-
-  const validate = useCallback((): FieldErrors => {
-    const errs: FieldErrors = {};
+  const validate = useCallback((): { fieldErrors: FieldErrors; itemErrs: ItemError[] } => {
+    const fieldErrors: FieldErrors = {};
     if (type === 'project') {
-      if (!clientId) errs.clientId = 'Selecione um cliente';
-      if (!projectId) errs.projectId = 'Selecione um projeto';
+      if (!clientId) fieldErrors.clientId = 'Selecione um cliente';
+      if (!projectId) fieldErrors.projectId = 'Selecione um projeto';
     }
-    if (!description.trim()) errs.description = 'Descreva o motivo do reembolso';
-    if (amount <= 0) errs.amount = 'O valor deve ser maior que zero';
-    if (files.length === 0) errs.files = 'Anexe pelo menos 1 comprovante';
-    return errs;
-  }, [type, clientId, projectId, description, amount, files]);
+    if (files.length === 0) fieldErrors.files = 'Anexe pelo menos 1 comprovante';
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    const itemErrs: ItemError[] = items.map(it => {
+      const e: ItemError = {};
+      if (!it.date) {
+        e.date = 'Informe a data';
+      } else if (it.date > today) {
+        e.date = 'A data não pode ser no futuro';
+      }
+      if (!it.description.trim()) e.description = 'Descreva a despesa';
+      if (it.amount <= 0) e.amount = 'Valor deve ser maior que zero';
+      return e;
+    });
+
+    const hasItemErrors = itemErrs.some(e => e.date || e.description || e.amount);
+    if (hasItemErrors) fieldErrors.items = 'Corrija os erros nas despesas';
+
+    return { fieldErrors, itemErrs };
+  }, [type, clientId, projectId, files, items]);
 
   const handleSubmit = async () => {
     setAttempted(true);
-    const errs = validate();
-    setErrors(errs);
+    const { fieldErrors, itemErrs } = validate();
+    setErrors(fieldErrors);
+    setItemErrors(itemErrs);
 
-    const errorKeys = Object.keys(errs) as (keyof FieldErrors)[];
+    const errorKeys = Object.keys(fieldErrors) as (keyof FieldErrors)[];
     if (errorKeys.length > 0) {
       toast({
         title: 'Preencha todos os campos obrigatórios',
@@ -231,11 +288,10 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
         duration: 4000,
       });
 
-      const refMap: Record<keyof FieldErrors, React.RefObject<HTMLDivElement | null>> = {
+      const refMap: Record<string, React.RefObject<HTMLDivElement | null>> = {
         clientId: clientRef,
         projectId: projectRef,
-        description: descriptionRef,
-        amount: amountRef,
+        items: itemsRef,
         files: filesRef,
       };
       const firstErr = errorKeys[0];
@@ -243,13 +299,23 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
       return;
     }
 
+    // Build combined description from items for backward compatibility
+    const combinedDescription = items
+      .map(it => `${format(it.date!, 'dd/MM/yyyy')} - ${it.description} (R$ ${it.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`)
+      .join('\n');
+
     await createMutation.mutateAsync({
       project_id: type === 'project' ? projectId : undefined,
       client_id: type === 'project' ? clientId : undefined,
       is_internal: type === 'internal',
-      description,
-      total_amount: amount,
+      description: combinedDescription,
+      total_amount: totalAmount,
       files,
+      items: items.map(it => ({
+        expense_date: format(it.date!, 'yyyy-MM-dd'),
+        description: it.description,
+        amount: it.amount,
+      })),
     });
     reset();
     onOpenChange(false);
@@ -257,7 +323,8 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
 
   const errorText = 'text-[12px] text-destructive mt-1';
 
-  const isDirty = type !== 'project' || clientId !== '' || projectId !== '' || description.trim() !== '' || amount > 0 || files.length > 0;
+  const isDirty = type !== 'project' || clientId !== '' || projectId !== '' ||
+    items.some(it => it.date || it.description.trim() || it.amount > 0) || files.length > 0;
 
   const handleClose = () => {
     if (isDirty) {
@@ -277,7 +344,7 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
   return (
     <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) { handleClose(); return; } onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Pedido de Reembolso</DialogTitle>
         </DialogHeader>
@@ -333,26 +400,111 @@ export function ReimbursementFormDialog({ open, onOpenChange }: Props) {
             </>
           )}
 
-          <div className="space-y-2" ref={descriptionRef}>
-            <Label>Descrição *</Label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descreva o motivo do reembolso..."
-              rows={3}
-              className={cn(errors.description && 'border-destructive')}
-            />
-            {errors.description && <p className={errorText}>{errors.description}</p>}
-          </div>
-
-          <div className="space-y-2" ref={amountRef}>
-            <Label>Valor Total (R$) *</Label>
-            <div className={cn(errors.amount && '[&_input]:border-destructive')}>
-              <CurrencyInput value={amount} onValueChange={setAmount} showPrefix />
+          {/* Expense Items */}
+          <div className="space-y-3" ref={itemsRef}>
+            <div className="flex items-center justify-between">
+              <Label>Despesas *</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Adicionar
+              </Button>
             </div>
-            {errors.amount && <p className={errorText}>{errors.amount}</p>}
+
+            {items.map((item, idx) => {
+              const ie = itemErrors[idx] || {};
+              const showOldWarning = item.date && !ie.date && isOlderThanDays(item.date, DAYS_WARNING);
+
+              return (
+                <div key={idx} className="rounded-lg border p-3 space-y-3 relative">
+                  {items.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6"
+                      onClick={() => removeItem(idx)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+
+                  <div className="grid grid-cols-[140px_1fr_120px] gap-2 items-start">
+                    {/* Date */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Data *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal h-9 text-sm",
+                              !item.date && "text-muted-foreground",
+                              ie.date && "border-destructive"
+                            )}
+                          >
+                            <CalendarIcon className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                            {item.date ? format(item.date, 'dd/MM/yyyy') : <span>dd/mm/aaaa</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={item.date}
+                            onSelect={(d) => updateItem(idx, 'date', d)}
+                            disabled={(date) => date > new Date()}
+                            locale={ptBR}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      {ie.date && <p className={errorText}>{ie.date}</p>}
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Descrição *</Label>
+                      <Input
+                        value={item.description}
+                        onChange={(e) => updateItem(idx, 'description', e.target.value)}
+                        placeholder="Descreva a despesa..."
+                        className={cn("h-9 text-sm", ie.description && "border-destructive")}
+                      />
+                      {ie.description && <p className={errorText}>{ie.description}</p>}
+                    </div>
+
+                    {/* Amount */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Valor (R$) *</Label>
+                      <div className={cn(ie.amount && '[&_input]:border-destructive')}>
+                        <CurrencyInput
+                          value={item.amount}
+                          onValueChange={(v) => updateItem(idx, 'amount', v)}
+                          showPrefix
+                        />
+                      </div>
+                      {ie.amount && <p className={errorText}>{ie.amount}</p>}
+                    </div>
+                  </div>
+
+                  {showOldWarning && (
+                    <div className="flex items-start gap-2 rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-2 text-xs text-yellow-800 dark:text-yellow-300">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <span>Esta despesa tem mais de 45 dias. Verifique com seu gestor se ainda é elegível para reembolso.</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {items.length > 1 && (
+              <div className="text-right text-sm font-medium">
+                Total: {totalAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </div>
+            )}
           </div>
 
+          {/* Files */}
           <div className="space-y-2" ref={filesRef}>
             <Label>Comprovantes * (mínimo 1 arquivo)</Label>
             <TooltipProvider>

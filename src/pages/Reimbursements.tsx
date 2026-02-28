@@ -101,8 +101,11 @@ export default function Reimbursements() {
     const dir = sortDir === 'asc' ? 1 : -1;
     result.sort((a, b) => {
       switch (sortKey) {
-        case 'date':
-          return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        case 'date': {
+          const dateA = (a as any).earliest_expense_date || a.created_at;
+          const dateB = (b as any).earliest_expense_date || b.created_at;
+          return dir * (new Date(dateA).getTime() - new Date(dateB).getTime());
+        }
         case 'amount':
           return dir * (a.total_amount - b.total_amount);
         case 'status': {
@@ -159,7 +162,7 @@ export default function Reimbursements() {
           <Table>
             <TableHeader>
               <TableRow>
-                <SortableHead label="Data" sortKey="date" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortableHead label="Data da Despesa" sortKey="date" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                 {isManager && <TableHead>Solicitante</TableHead>}
                 <TableHead>Descrição</TableHead>
                 <TableHead>Tipo</TableHead>
@@ -191,7 +194,9 @@ export default function Reimbursements() {
                       onClick={() => setSelectedReimbursement(r)}
                     >
                       <TableCell>
-                        {format(new Date(r.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+                        {(r as any).earliest_expense_date
+                          ? format(new Date((r as any).earliest_expense_date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })
+                          : format(new Date(r.created_at), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       {isManager && (
                         <TableCell className="max-w-[160px]">

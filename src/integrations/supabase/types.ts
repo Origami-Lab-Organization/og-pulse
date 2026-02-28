@@ -1771,11 +1771,46 @@ export type Database = {
           },
         ]
       }
+      reimbursement_items: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          expense_date: string
+          id: string
+          reimbursement_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description: string
+          expense_date: string
+          id?: string
+          reimbursement_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          expense_date?: string
+          id?: string
+          reimbursement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reimbursement_items_reimbursement_id_fkey"
+            columns: ["reimbursement_id"]
+            isOneToOne: false
+            referencedRelation: "reimbursement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reimbursement_requests: {
         Row: {
           client_id: string | null
           created_at: string
-          description: string
+          description: string | null
           id: string
           is_internal: boolean
           project_id: string | null
@@ -1791,7 +1826,7 @@ export type Database = {
         Insert: {
           client_id?: string | null
           created_at?: string
-          description: string
+          description?: string | null
           id?: string
           is_internal?: boolean
           project_id?: string | null
@@ -1807,7 +1842,7 @@ export type Database = {
         Update: {
           client_id?: string | null
           created_at?: string
-          description?: string
+          description?: string | null
           id?: string
           is_internal?: boolean
           project_id?: string | null
