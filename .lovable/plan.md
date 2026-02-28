@@ -1,102 +1,154 @@
 
+## Plano: Fluxo de Reembolso em 3 Etapas + Notificacoes + Download PDF
 
-## Plano: Filtrar clientes/projetos por vinculo do usuario e melhorar area de comprovantes
+### Resumo do Novo Fluxo
 
-### Problema atual
-1. No formulario de reembolso, o usuario ve **todos** os clientes e projetos ativos do tenant, mesmo os que nao tem relacao com ele.
-2. O titulo do campo de comprovantes diz "Comprovantes * (minimo 1 arquivo)" -- verboso demais.
-3. O botao "Anexar arquivo" e os textos auxiliares nao estao bem centralizados na area de drop.
+```text
+Funcionario/PM        Gerente de Projeto       Admin
+     |                       |                    |
+  Cria pedido ──────> Recebe na inbox             |
+  (pending)           Aprova ou Rejeita           |
+                             |                    |
+                      Se aprovado ──────>  Recebe na inbox
+                      (approved)           Clica "Pago"
+                             |                    |
+                             |              (paid) ────> Funcionario
+                             |                         recebe notificacao
+                             |                         na caixa de entrada
+```
 
-### Solucao
-
-#### 1. Filtrar clientes e projetos vinculados ao usuario
-
-No `useEffect` que carrega clientes e projetos (linhas 109-126 do `ReimbursementFormDialog.tsx`):
-
-- **Projetos**: buscar apenas projetos onde o employee e `manager_id` OU existe um registro em `project_members` com seu `employee_id`. Isso sera feito em dois passos:
-  1. Buscar IDs dos projetos em `project_members` onde `employee_id = employee.id`
-  2. Buscar projetos onde `manager_id = employee.id` OU `id in (IDs do passo 1)`
-  3. Filtrar apenas projetos com status `active` ou `planning`
-
-- **Clientes**: derivar a lista de clientes a partir dos `client_id` dos projetos retornados (em vez de buscar todos os clientes ativos). Assim, so aparecem clientes que possuem pelo menos um projeto vinculado ao usuario.
-
-#### 2. Simplificar titulo de comprovantes
-
-- Alterar o label de `"Comprovantes * (minimo 1 arquivo)"` para apenas `"Comprovantes *"`.
-
-#### 3. Melhorar layout da area de drop
-
-- Reorganizar o conteudo dentro da drop zone para que o icone de upload, o botao "Anexar arquivo" e o texto auxiliar fiquem centralizados verticalmente e horizontalmente.
-- Mover o texto de formatos aceitos para dentro da area de drop, logo abaixo do botao, com fonte menor e cor `text-muted-foreground`.
-- Layout: icone de upload no topo, botao no centro, texto auxiliar abaixo, tudo com `flex-col items-center`.
+**Status do reembolso**: `pending` → `approved` → `paid` (ou `rejected`)
 
 ---
 
-### Detalhes tecnicos
+### 1. Schema do Banco de Dados
 
-**Arquivo:** `src/components/reimbursements/ReimbursementFormDialog.tsx`
+#### 1.1. Novos campos em `reimbursement_requests`
+- `paid_by` (uuid, nullable) -- admin que marcou como pago
+- `paid_at` (timestamptz, nullable) -- data do pagamento
 
-**Mudanca na query de dados (useEffect):**
+#### 1.2. Tabela de notificacoes `notifications`
+Nova tabela para o sistema de caixa de entrada:
 
-```typescript
-useEffect(() => {
-  if (!open || !employee) return;
+| Coluna | Tipo | Descricao |
+|---|---|---|
+| id | uuid PK | |
+| tenant_id | uuid | |
+| recipient_id | uuid | employee.id do destinatario |
+| type | text | tipo (ex: `reimbursement_paid`) |
+| title | text | titulo curto |
+| message | text | mensagem |
+| reference_id | uuid | ID do reembolso relacionado |
+| is_read | boolean | lido/nao lido |
+| created_at | timestamptz | |
 
-  // 1. Get project IDs where employee is a member
-  const loadData = async () => {
-    const { data: memberRows } = await supabase
-      .from('project_members')
-      .select('project_id')
-      .eq('employee_id', employee.id);
-    
-    const memberProjectIds = (memberRows || []).map(r => r.project_id);
+RLS: usuarios so veem suas proprias notificacoes (`recipient_id` via join com `employees.auth_id`).
 
-    // 2. Get projects where user is manager OR member
-    let projectQuery = supabase
-      .from('projects')
-      .select('id, name, client_id')
-      .eq('tenant_id', employee.tenant_id)
-      .in('status', ['active', 'planning'])
-      .order('name');
+---
 
-    const { data: allProjects } = await projectQuery;
-    
-    const filtered = (allProjects || []).filter(p =>
-      p.manager_id === employee.id || memberProjectIds.includes(p.id)
-    );
-    // Note: manager_id is not in the select, so we adjust the select to include it
+### 2. Mudancas no Backend (Hooks)
 
-    setProjects(filtered);
+#### 2.1. `useReimbursements.ts`
+- Atualizar `statusConfig` para incluir `paid` (cor azul, icone de cifrao)
+- Nova mutation `useMarkReimbursementPaid`: atualiza status para `paid`, grava `paid_by` e `paid_at`, e cria notificacao para o solicitante
+- Atualizar `useApproveReimbursement`: apos aprovar, criar notificacao para todos os admins do tenant
+- Novo hook `useNotifications`: buscar notificacoes do usuario logado
+- Novo hook `useUnreadNotificationsCount`: contar nao lidas (para o badge)
+- Novo hook `useMarkNotificationRead`: marcar como lida
 
-    // 3. Derive clients from filtered projects
-    const clientIds = [...new Set(filtered.map(p => p.client_id).filter(Boolean))];
-    if (clientIds.length > 0) {
-      const { data: clientData } = await supabase
-        .from('clients')
-        .select('id, company_name')
-        .in('id', clientIds)
-        .order('company_name');
-      setClients(clientData || []);
-    } else {
-      setClients([]);
-    }
-  };
-  loadData();
-}, [open, employee]);
+#### 2.2. Logica de aprovacao atualizada
+- Quando o gerente aprova, a despesa ja contabiliza no projeto (comportamento atual mantido)
+- Apos aprovacao, criar registro em `notifications` para cada admin do tenant
+
+---
+
+### 3. Mudancas na UI
+
+#### 3.1. `ReimbursementDetailDialog.tsx`
+- Adicionar status `paid` no `statusConfig` (azul, "Pago")
+- Quando status = `approved` e usuario = admin: mostrar botao "Marcar como Pago" (verde, icone DollarSign)
+- Atualizar timeline para incluir etapa "Pago" com data e nome do admin
+- Adicionar botao "Baixar PDF" que gera um resumo do reembolso em formato PDF para download (usando geracao client-side)
+
+#### 3.2. `Reimbursements.tsx` (pagina principal)
+- Adicionar status `paid` no `statusConfig` e filtro de status
+- Na tabela, para reembolsos `approved`, exibir acao rapida "Pagar" (visivel apenas para admins)
+- Atualizar cards de resumo: "Total Aprovado" passa a incluir ambos `approved` e `paid`, ou separar em "Aguardando Pagamento" e "Pagos"
+
+#### 3.3. `InboxButton.tsx` / Caixa de Entrada
+- Expandir para mostrar notificacoes gerais alem dos reembolsos pendentes
+- Admin ve: reembolsos aprovados aguardando pagamento
+- Funcionario ve: notificacoes de pagamento realizado
+- Badge mostra contagem de itens nao lidos
+
+#### 3.4. Geracao de PDF (client-side)
+- Gerar PDF contendo: dados do reembolso (solicitante, data, valor, descricao, itens de despesa, status, historico de aprovacao/pagamento)
+- O admin pode baixar o PDF e os anexos para subir manualmente no OneDrive
+- Usar uma biblioteca leve como `jspdf` ou gerar via `window.print()` com CSS dedicado
+
+---
+
+### 4. Detalhes Tecnicos
+
+#### 4.1. Migracao SQL
+```sql
+-- Novos campos de pagamento
+ALTER TABLE public.reimbursement_requests 
+  ADD COLUMN paid_by uuid REFERENCES auth.users(id),
+  ADD COLUMN paid_at timestamptz;
+
+-- Tabela de notificacoes
+CREATE TABLE public.notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL,
+  recipient_id uuid NOT NULL,  -- employee.id
+  type text NOT NULL,
+  title text NOT NULL,
+  message text,
+  reference_id uuid,
+  is_read boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- RLS: usuario ve apenas suas notificacoes
+CREATE POLICY "Users can view own notifications"
+  ON public.notifications FOR SELECT TO authenticated
+  USING (recipient_id IN (
+    SELECT id FROM employees WHERE auth_id = auth.uid()
+  ));
+
+CREATE POLICY "Users can update own notifications"
+  ON public.notifications FOR UPDATE TO authenticated
+  USING (recipient_id IN (
+    SELECT id FROM employees WHERE auth_id = auth.uid()
+  ));
+
+-- Admins/managers podem inserir notificacoes
+CREATE POLICY "Authenticated users can insert notifications"
+  ON public.notifications FOR INSERT TO authenticated
+  WITH CHECK (user_belongs_to_tenant(auth.uid(), tenant_id));
 ```
 
-A query de projetos precisa incluir `manager_id` no select para poder filtrar localmente.
+#### 4.2. Arquivos modificados
+- `src/hooks/useReimbursements.ts` -- novos hooks e mutations
+- `src/hooks/useNotifications.ts` -- novo arquivo
+- `src/components/reimbursements/ReimbursementDetailDialog.tsx` -- botao pagar, timeline, download PDF
+- `src/pages/Reimbursements.tsx` -- novo status, acao rapida, filtro
+- `src/components/layout/InboxButton.tsx` -- notificacoes gerais
+- `src/components/reimbursements/ReimbursementInbox.tsx` -- incluir notificacoes
+- `src/components/reimbursements/ReimbursementPdfGenerator.tsx` -- novo, geracao de PDF
 
-**Mudanca no label de comprovantes (linha ~507):**
-- De: `Comprovantes * (minimo 1 arquivo)`
-- Para: `Comprovantes *`
+#### 4.3. Dependencia
+- Instalar `jspdf` para geracao de PDF client-side
 
-**Mudanca no layout da drop zone:**
-- Adicionar padding vertical maior (`py-6`)
-- Centralizar com `flex flex-col items-center gap-2`
-- Colocar icone `Upload` acima do botao
-- Texto auxiliar de formatos abaixo, centralizado
+---
 
-### Arquivos modificados
-- `src/components/reimbursements/ReimbursementFormDialog.tsx`
-
+### 5. Sequencia de Implementacao
+1. Migracao do banco (novos campos + tabela notifications)
+2. Hooks de notificacoes (`useNotifications.ts`)
+3. Atualizar hooks de reembolso (mutation de pagamento, notificacoes na aprovacao)
+4. Atualizar UI da pagina de reembolsos e detail dialog
+5. Expandir InboxButton para notificacoes
+6. Implementar geracao de PDF
