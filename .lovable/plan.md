@@ -1,37 +1,28 @@
 
 
-# Ajustes no Seletor de Semanas
+# Corrigir Status de Semana Enviada e Erro de FK
 
-## Mudancas
+## Problema 1: "Rascunho" aparece mesmo apos envio
+A logica atual verifica se existem entradas no banco (`memberEntries.length > 0`) e se todas estao travadas. Projetos sem horas lancadas (como "Lei do Bem") nao tem entradas, entao sempre mostram "Rascunho".
 
-### 1. Adicionar semanas futuras ao seletor
+**Solucao**: Usar a tabela `project_timesheet_submissions` (ja carregada via `useProjectWeekSubmissions`) como fonte de verdade para o status. Se o submission do projeto para aquela semana tem `status === 'submitted'`, mostrar "Enviado" independentemente de ter entradas ou nao.
 
-No `TimesheetWeekSelector.tsx`, alterar a geracao de semanas para incluir semanas futuras (ex: 12 semanas a frente), alem das 26 semanas passadas. Adicionar constante `WEEKS_FORWARD = 12`. A semana atual ficara no meio da lista, permitindo scroll para ambos os lados.
+## Problema 2: Erro de FK ao criar entradas com 0 horas
+O campo `created_by` na tabela `project_timesheets` tem FK para `employees(id)`, mas o codigo insere `user.id` (que e o `auth.uid()`, UUID do auth, nao o ID do employee). Isso causa o erro de foreign key.
 
-### 2. Centralizar a semana atual ao abrir
-
-Ao montar o componente, o auto-scroll deve focar no chip da semana atual (nao apenas da selecionada). Usar `scrollIntoView` com `inline: 'center'` no ref da semana atual para que ela apareca centralizada na tela.
-
-Criar um ref separado para a semana atual (`currentChipRef`) e fazer o scroll inicial para ela. O scroll subsequente (ao mudar selecao) continua focando no chip selecionado.
-
-### 3. Bloquear lancamento de horas em semanas futuras
-
-No `MyTimesheet.tsx`, verificar se a semana selecionada e futura (`weekStart > currentWeekStart`). Se for futura, passar `isLocked={true}` para o `TimesheetWeekRow` e esconder o botao "Enviar". Os projetos e alocacoes continuam visiveis para consulta, mas os campos de horas ficam desabilitados.
+**Solucao**: No hook `useSubmitAllProjects`, ao criar entradas de 0 horas para dias faltantes, nao preencher `created_by` (deixar null) ou buscar o `employee.id` correto. A opcao mais simples e remover o `created_by` do insert, ja que o campo aceita null.
 
 ## Detalhes Tecnicos
 
-### `src/components/timesheets/TimesheetWeekSelector.tsx`
+### Arquivo: `src/pages/MyTimesheet.tsx`
 
-- Adicionar `const WEEKS_FORWARD = 12`
-- No `useMemo`, gerar semanas de `-WEEKS_BACK` ate `+WEEKS_FORWARD`
-- Adicionar `currentChipRef` para a semana atual
-- No `useEffect` inicial (mount), fazer scroll para `currentChipRef` com `inline: 'center'`
-- Manter scroll para `selectedChipRef` ao mudar selecao
+1. **Status por projeto (linhas 169-180)**: Usar `submissions.get(project.projectId)` para determinar o status. Se `submission?.status === 'submitted'`, mostrar badge "Enviado" e travar a linha.
 
-### `src/pages/MyTimesheet.tsx`
+2. **allProjectsLocked (linhas 80-89)**: Ajustar para considerar submissions: um projeto esta "locked" se tem submission com status `submitted` OU se todas as entradas estao locked.
 
-- Calcular `const isFutureWeek = weekStart > getWeekStart(new Date())`
-- No `TimesheetWeekRow`, passar `isLocked={isLocked || isFutureWeek}`
-- Esconder botao "Enviar" quando `isFutureWeek`
-- Desabilitar submit quando semana futura
+3. **Botao Enviar (linha 208)**: Desabilitar quando todos os projetos ja tem submission `submitted`.
+
+### Arquivo: `src/hooks/useTimesheetSubmissions.ts`
+
+1. **useSubmitAllProjects**: Remover `created_by: user.id` dos inserts de entradas de 0 horas (linhas ~275-281), pois `created_by` tem FK para `employees(id)` e `user.id` e um auth UUID.
 
