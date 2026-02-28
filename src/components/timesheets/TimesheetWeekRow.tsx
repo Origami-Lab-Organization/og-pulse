@@ -26,6 +26,8 @@ export interface SaveStatusInfo {
 interface TimesheetWeekRowProps {
   label: string;
   subLabel?: string;
+  /** Extra content rendered after the label (e.g. alert icons) */
+  labelExtra?: ReactNode;
   avatarUrl?: string | null;
   projectId: string;
   projectName?: string;
@@ -50,6 +52,7 @@ interface TimesheetWeekRowProps {
 export function TimesheetWeekRow({
   label,
   subLabel,
+  labelExtra,
   avatarUrl,
   projectId,
   memberId,
@@ -239,11 +242,14 @@ export function TimesheetWeekRow({
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
         )}
-        <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{label}</p>
-          {subLabel && (
-            <p className="text-xs text-muted-foreground truncate">{subLabel}</p>
-          )}
+        <div className="min-w-0 flex items-center gap-1">
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{label}</p>
+            {subLabel && (
+              <p className="text-xs text-muted-foreground truncate">{subLabel}</p>
+            )}
+          </div>
+          {labelExtra}
         </div>
       </div>
       

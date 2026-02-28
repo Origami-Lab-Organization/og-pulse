@@ -2,8 +2,9 @@ import { useState, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, Loader2, CheckCircle2, Send, Check, AlertCircle, Info } from 'lucide-react';
+import { Building2, Loader2, CheckCircle2, Send, Check, AlertCircle, Info, CircleAlert } from 'lucide-react';
 import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAllocation';
+import { useMyAllocationData } from '@/hooks/useMyAllocationData';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
 import type { SaveStatusInfo } from '@/components/timesheets/TimesheetWeekRow';
@@ -53,6 +54,18 @@ const MyTimesheet = () => {
   const { data: submissions = new Map() } = useProjectWeekSubmissions(startDate, projectIds);
 
   const { data: holidays = [] } = useHolidays();
+  const { data: allocationData } = useMyAllocationData(employee?.id, monthKey);
+
+  // Set of project IDs that have no planned hours
+  const unplannedProjectIds = useMemo(() => {
+    const set = new Set<string>();
+    if (allocationData) {
+      for (const p of allocationData.projects) {
+        if (p.plannedHours <= 0) set.add(p.projectId);
+      }
+    }
+    return set;
+  }, [allocationData]);
 
   const submitAllProjects = useSubmitAllProjects();
 
@@ -256,6 +269,18 @@ const MyTimesheet = () => {
                     key={member.memberId}
                     label={project.projectName}
                     subLabel={project.clientName}
+                    labelExtra={unplannedProjectIds.has(project.projectId) ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CircleAlert className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Este projeto não possui alocação planejada para o mês.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : undefined}
                     projectId={project.projectId}
                     memberId={member.memberId}
                     weekDays={weekDays}

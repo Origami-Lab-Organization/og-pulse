@@ -168,20 +168,40 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
                   </Tooltip>
                 </TooltipProvider>
                 <div className="text-right tabular-nums">
-                  {project.plannedHours > 0 ? `${project.plannedHours.toFixed(0)}h` : '—'}
+                  {project.plannedHours > 0
+                    ? `${project.plannedHours.toFixed(0)}h`
+                    : <span className="italic text-muted-foreground text-xs">Não definido</span>
+                  }
                 </div>
                 <div className={cn("text-right tabular-nums font-medium", isOverPlan && "text-destructive")}>
                   {project.actualHours > 0 ? `${project.actualHours.toFixed(1)}h` : '—'}
                 </div>
                 <div className="flex items-center">
-                  <SegmentedBar
-                    actualPercent={Math.min(pActual, 100)}
-                    plannedRemainingPercent={pRemaining}
-                    tooltipContent={`Realizado: ${project.actualHours.toFixed(1)}h · Planejado: ${project.plannedHours.toFixed(0)}h`}
-                  />
+                  {project.plannedHours > 0 ? (
+                    <SegmentedBar
+                      actualPercent={Math.min(pActual, 100)}
+                      plannedRemainingPercent={pRemaining}
+                      tooltipContent={`Realizado: ${project.actualHours.toFixed(1)}h · Planejado: ${project.plannedHours.toFixed(0)}h`}
+                    />
+                  ) : (
+                    <span className="italic text-muted-foreground text-xs">Sem meta definida</span>
+                  )}
                 </div>
                 <div className={cn("text-right text-xs tabular-nums", isOverPlan && "text-destructive font-medium")}>
-                  {project.plannedHours > 0 ? `${Math.min(pActual, 100).toFixed(0)}%` : '—'}
+                  {project.plannedHours > 0 ? (
+                    `${Math.min(pActual, 100).toFixed(0)}%`
+                  ) : (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">—</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Este projeto não possui horas planejadas. Consulte seu gestor.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               </div>
             );
