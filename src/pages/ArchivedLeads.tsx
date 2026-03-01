@@ -7,10 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Search, Archive, TrendingDown, BarChart3, CalendarDays,
-  ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, ArchiveRestore,
+  ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, ArchiveRestore, Trash2,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { useArchivedLeads, useUnarchiveLead } from '@/hooks/useLeads';
+import { useArchivedLeads, useUnarchiveLead, useDeleteLead } from '@/hooks/useLeads';
 import { LeadDetailDialog } from '@/components/crm/LeadDetailDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, formatDate } from '@/lib/formatters';
@@ -56,7 +56,9 @@ export default function ArchivedLeads() {
   const { employee } = useAuth();
   const { data: leads = [], isLoading } = useArchivedLeads();
   const unarchiveMutation = useUnarchiveLead();
+  const deleteMutation = useDeleteLead();
   const isManager = employee?.is_gerente || employee?.isAdmin;
+  const isAdmin = employee?.isAdmin;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [reasonFilter, setReasonFilter] = useState<string>('all');
@@ -245,7 +247,7 @@ export default function ArchivedLeads() {
                   <TableHead>Motivo</TableHead>
                   <SortableHead label="Data Arquivamento" sortKey="archived_at" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                   <SortableHead label="Valor" sortKey="estimated_value" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-right" />
-                  {isManager && <TableHead className="w-[80px]">Ações</TableHead>}
+                  {isManager && <TableHead className="w-[100px]">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -295,20 +297,38 @@ export default function ArchivedLeads() {
                       </TableCell>
                       {isManager && (
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => unarchiveMutation.mutate(lead.id)}
-                                disabled={unarchiveMutation.isPending}
-                              >
-                                <ArchiveRestore className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Desarquivar</TooltipContent>
-                          </Tooltip>
+                          <div className="flex items-center gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => unarchiveMutation.mutate(lead.id)}
+                                  disabled={unarchiveMutation.isPending}
+                                >
+                                  <ArchiveRestore className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Desarquivar</TooltipContent>
+                            </Tooltip>
+                            {isAdmin && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                    onClick={() => deleteMutation.mutate(lead.id)}
+                                    disabled={deleteMutation.isPending}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Excluir</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
