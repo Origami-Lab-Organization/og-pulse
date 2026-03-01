@@ -1,43 +1,29 @@
 
+# Migrar Edge Functions para Anthropic SDK
 
-# Ajuste do KPI "Receita Prevista (Forecast)"
+## Objetivo
+Substituir o Lovable AI gateway (google/gemini-2.5-flash) pelo Anthropic SDK direto (claude-sonnet-4-20250514) nas duas edge functions de análise de mercado.
 
-## Resumo
-O card de Forecast ja existe, mas precisa ser ajustado para refletir a regra de negocio correta: excluir leads sem valor (Triagem/Qualificacao) do calculo, atualizar tooltip e adicionar sub-label com contagem de orcamentos. Tambem corrigir o estouro visual dos cards.
+A chave `ANTHROPIC_API_KEY` já está configurada nos secrets do projeto.
 
-## Alteracoes
+## Alterações
 
-### 1. Hook: corrigir formula do forecast (`useCommercialDashboard.ts`)
+### 1. `supabase/functions/market-analysis-generate/index.ts`
+- Remover chamada ao `ai.gateway.lovable.dev`
+- Importar Anthropic SDK via `npm:@anthropic-ai/sdk`
+- Usar `ANTHROPIC_API_KEY` em vez de `LOVABLE_API_KEY`
+- Criar instância `new Anthropic({ apiKey })` e chamar `client.messages.create()` com modelo `claude-sonnet-4-20250514`, max_tokens 4000
+- Extrair texto com `message.content.find(b => b.type === 'text')?.text`
+- Manter CORS, MODULE_LABELS e estrutura de resposta iguais
 
-**Antes:** calcula forecast para todos os leads ativos (incluindo Triagem/Qualificacao com valor 0).
+### 2. `supabase/functions/market-analysis-refine/index.ts`
+- Mesma migração: Anthropic SDK via `npm:@anthropic-ai/sdk`
+- Usar `ANTHROPIC_API_KEY`
+- `client.messages.create()` com modelo `claude-sonnet-4-20250514`, max_tokens 2000
+- Montar array de messages a partir do chatHistory (convertendo roles para 'user'/'assistant')
+- System prompt via parâmetro `system` separado (padrão da API Anthropic)
 
-**Depois:** filtrar apenas leads com valor > 0 antes de aplicar as probabilidades. Adicionar campo `forecastLeadsCount` ao retorno.
-
-```text
-// Nova logica em computeKPIs:
-const forecastLeads = activeLeads.filter(l => getLeadValue(l) > 0);
-const forecast = forecastLeads.reduce((sum, l) => {
-  const prob = STAGE_PROBABILITY[l.crm_stage] ?? 0;
-  return sum + getLeadValue(l) * prob;
-}, 0);
-const forecastLeadsCount = forecastLeads.length;
-```
-
-Adicionar `forecastLeadsCount` na interface `CommercialDashboardData` e no retorno de `computeKPIs`.
-
-### 2. Componente: atualizar card do Forecast (`CommercialKPIs.tsx`)
-
-- **Tooltip atualizado:** "Estimativa ponderada de receita com base nos orcamentos em andamento e probabilidade de fechamento por etapa"
-- **Sub-label:** "Baseado em N orcamentos ativos" (quando forecastLeadsCount > 0) ou "Nenhum orcamento ativo no periodo" (quando 0)
-- **Adicionar prop** `forecastLeadsCount` na interface Props
-- **Corrigir estouro visual:** trocar o valor de `text-lg` para `text-base` e adicionar `truncate` ao container do valor para evitar overflow em telas menores. Tambem ajustar o grid para `xl:grid-cols-6` (ao inves de `lg:grid-cols-6`) para dar mais espaco em telas intermediarias.
-
-### 3. Pagina: passar nova prop (`CommercialDashboard.tsx`)
-
-Passar `forecastLeadsCount={data.forecastLeadsCount}` ao componente `CommercialKPIs`.
-
-## Arquivos modificados
-1. `src/hooks/useCommercialDashboard.ts` -- filtrar leads com valor > 0 no forecast, retornar forecastLeadsCount
-2. `src/components/commercial/CommercialKPIs.tsx` -- atualizar tooltip, adicionar sub-label, corrigir overflow
-3. `src/pages/CommercialDashboard.tsx` -- passar forecastLeadsCount
-
+### Detalhes Técnicos
+- Import no Deno: `import Anthropic from "npm:@anthropic-ai/sdk";`
+- Tratamento de erros mantido (try/catch com mensagens em PT-BR)
+- Nenhuma alteração no frontend (`MarketAnalysisPage.tsx`) -- a interface de resposta JSON permanece a mesma
