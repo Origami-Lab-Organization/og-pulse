@@ -15,7 +15,7 @@ export function BudgetStats({ budgets }: BudgetStatsProps) {
     approved: budgets.filter((b) => b.status === 'approved').length,
     rejected: budgets.filter((b) => b.status === 'rejected').length,
     totalValue: budgets
-      .filter((b) => b.status === 'approved')
+      .filter((b) => b.status === 'approved' || b.status === 'active')
       .reduce((acc, b) => acc + b.final_total, 0),
   };
 
