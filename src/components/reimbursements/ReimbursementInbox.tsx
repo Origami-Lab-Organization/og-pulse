@@ -8,24 +8,23 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Check, X, Paperclip } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Check, X, Paperclip, Bell, CheckCheck } from 'lucide-react';
 import {
   usePendingReimbursements,
   useApproveReimbursement,
   useRejectReimbursement,
   useReimbursementAttachments,
 } from '@/hooks/useReimbursements';
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from '@/hooks/useNotifications';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -40,13 +39,20 @@ interface Props {
 }
 
 export function ReimbursementInbox({ open, onOpenChange }: Props) {
+  const { employee } = useAuth();
   const { data: pending = [], isLoading } = usePendingReimbursements();
+  const { data: notifications = [], isLoading: loadingNotifs } = useNotifications();
   const approveMutation = useApproveReimbursement();
   const rejectMutation = useRejectReimbursement();
+  const markReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
 
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [viewAttachmentsId, setViewAttachmentsId] = useState<string | null>(null);
+
+  const isManagerOrAdmin = employee?.is_gerente || employee?.isAdmin;
+  const unreadNotifs = notifications.filter(n => !n.is_read);
 
   const handleApprove = (id: string) => {
     approveMutation.mutate(id);
@@ -65,79 +71,144 @@ export function ReimbursementInbox({ open, onOpenChange }: Props) {
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="sm:max-w-[600px] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Pedidos de Reembolso Pendentes</SheetTitle>
+            <SheetTitle>Caixa de Entrada</SheetTitle>
           </SheetHeader>
 
-          <div className="mt-4">
-            {isLoading ? (
-              <p className="text-sm text-muted-foreground">Carregando...</p>
-            ) : pending.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum pedido pendente.</p>
-            ) : (
-              <div className="space-y-3">
-                {pending.map((r) => (
-                  <div key={r.id} className="rounded-lg border p-4 space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium text-sm">{r.requester_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                        </p>
+          <Tabs defaultValue={isManagerOrAdmin ? "pending" : "notifications"} className="mt-4">
+            <TabsList className="w-full">
+              {isManagerOrAdmin && (
+                <TabsTrigger value="pending" className="flex-1">
+                  Pendentes
+                  {pending.length > 0 && (
+                    <Badge variant="destructive" className="ml-2 h-5 min-w-[20px] text-[10px]">
+                      {pending.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="notifications" className="flex-1">
+                Notificações
+                {unreadNotifs.length > 0 && (
+                  <Badge variant="destructive" className="ml-2 h-5 min-w-[20px] text-[10px]">
+                    {unreadNotifs.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {isManagerOrAdmin && (
+              <TabsContent value="pending">
+                {isLoading ? (
+                  <p className="text-sm text-muted-foreground">Carregando...</p>
+                ) : pending.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">Nenhum pedido pendente.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {pending.map((r) => (
+                      <div key={r.id} className="rounded-lg border p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{r.requester_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </p>
+                          </div>
+                          <span className="font-semibold text-sm">
+                            {r.total_amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </span>
+                        </div>
+
+                        <p className="text-sm">{r.description}</p>
+
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {r.is_internal ? (
+                            <Badge variant="secondary">Interno</Badge>
+                          ) : (
+                            <>
+                              {r.client_name && <Badge variant="outline">{r.client_name}</Badge>}
+                              {r.project_name && <Badge variant="outline">{r.project_name}</Badge>}
+                            </>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <Button size="sm" variant="outline" className="text-xs" onClick={() => setViewAttachmentsId(r.id)}>
+                            <Paperclip className="h-3 w-3 mr-1" />
+                            Anexos
+                          </Button>
+                          <div className="flex-1" />
+                          <Button size="sm" variant="destructive" className="text-xs" onClick={() => setRejectId(r.id)} disabled={rejectMutation.isPending}>
+                            <X className="h-3 w-3 mr-1" />
+                            Rejeitar
+                          </Button>
+                          <Button size="sm" className="text-xs bg-green-600 hover:bg-green-700" onClick={() => handleApprove(r.id)} disabled={approveMutation.isPending}>
+                            <Check className="h-3 w-3 mr-1" />
+                            Aprovar
+                          </Button>
+                        </div>
                       </div>
-                      <span className="font-semibold text-sm">
-                        {r.total_amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </span>
-                    </div>
-
-                    <p className="text-sm">{r.description}</p>
-
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {r.is_internal ? (
-                        <Badge variant="secondary">Interno</Badge>
-                      ) : (
-                        <>
-                          {r.client_name && <Badge variant="outline">{r.client_name}</Badge>}
-                          {r.project_name && <Badge variant="outline">{r.project_name}</Badge>}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs"
-                        onClick={() => setViewAttachmentsId(r.id)}
-                      >
-                        <Paperclip className="h-3 w-3 mr-1" />
-                        Anexos
-                      </Button>
-                      <div className="flex-1" />
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="text-xs"
-                        onClick={() => setRejectId(r.id)}
-                        disabled={rejectMutation.isPending}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Rejeitar
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="text-xs bg-green-600 hover:bg-green-700"
-                        onClick={() => handleApprove(r.id)}
-                        disabled={approveMutation.isPending}
-                      >
-                        <Check className="h-3 w-3 mr-1" />
-                        Aprovar
-                      </Button>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </TabsContent>
             )}
-          </div>
+
+            <TabsContent value="notifications">
+              {loadingNotifs ? (
+                <p className="text-sm text-muted-foreground">Carregando...</p>
+              ) : notifications.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">Nenhuma notificação.</p>
+              ) : (
+                <div className="space-y-2">
+                  {unreadNotifs.length > 0 && (
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs"
+                        onClick={() => markAllReadMutation.mutate()}
+                        disabled={markAllReadMutation.isPending}
+                      >
+                        <CheckCheck className="h-3 w-3 mr-1" />
+                        Marcar todas como lidas
+                      </Button>
+                    </div>
+                  )}
+                  {notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`rounded-lg border p-3 space-y-1 transition-colors ${
+                        !n.is_read ? 'bg-primary/5 border-primary/20' : ''
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2">
+                          <Bell className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <div>
+                            <p className={`text-sm ${!n.is_read ? 'font-medium' : ''}`}>{n.title}</p>
+                            {n.message && <p className="text-xs text-muted-foreground">{n.message}</p>}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(n.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </p>
+                          </div>
+                        </div>
+                        {!n.is_read && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs h-7 px-2 shrink-0"
+                            onClick={() => markReadMutation.mutate(n.id)}
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </SheetContent>
       </Sheet>
 

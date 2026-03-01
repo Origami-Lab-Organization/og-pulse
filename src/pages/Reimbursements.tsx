@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, Clock, XCircle, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, Clock, XCircle, CalendarDays, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { useAllMyReimbursements, ReimbursementRequest } from '@/hooks/useReimbursements';
+import { useAllMyReimbursements, ReimbursementRequest, useMarkReimbursementPaid } from '@/hooks/useReimbursements';
 import { ReimbursementFormDialog, CorrectionData } from '@/components/reimbursements/ReimbursementFormDialog';
 import { ReimbursementDetailDialog } from '@/components/reimbursements/ReimbursementDetailDialog';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +33,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   pending: { label: 'Pendente', variant: 'outline', priority: 0 },
   rejected: { label: 'Rejeitado', variant: 'destructive', priority: 1 },
   approved: { label: 'Aprovado', variant: 'secondary', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300', priority: 2 },
+  paid: { label: 'Pago', variant: 'secondary', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300', priority: 3 },
 };
 
 type SortKey = 'date' | 'amount' | 'status';
@@ -72,7 +73,9 @@ export default function Reimbursements() {
   const [pageSize, setPageSize] = useState(10);
   const { employee } = useAuth();
   const { data: reimbursements = [], isLoading } = useAllMyReimbursements();
+  const markPaidMutation = useMarkReimbursementPaid();
   const isManager = employee?.is_gerente || employee?.isAdmin;
+  const isAdmin = employee?.isAdmin;
 
   const handleCorrectAndResend = async (r: ReimbursementRequest) => {
     // Fetch expense items from the rejected reimbursement
@@ -159,7 +162,7 @@ export default function Reimbursements() {
     const currentYear = now.getFullYear();
 
     const source = filtered;
-    const approved = source.filter(r => r.status === 'approved');
+    const approved = source.filter(r => r.status === 'approved' || r.status === 'paid');
     const pending = source.filter(r => r.status === 'pending');
     const rejected = source.filter(r => r.status === 'rejected');
     const thisMonth = source.filter(r => {
@@ -271,6 +274,7 @@ export default function Reimbursements() {
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="pending">Pendente</SelectItem>
               <SelectItem value="approved">Aprovado</SelectItem>
+              <SelectItem value="paid">Pago</SelectItem>
               <SelectItem value="rejected">Rejeitado</SelectItem>
             </SelectContent>
           </Select>
@@ -287,18 +291,19 @@ export default function Reimbursements() {
                 <TableHead>Projeto</TableHead>
                 <SortableHead label="Valor" sortKey="amount" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-right" />
                 <SortableHead label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                {isAdmin && <TableHead className="w-[80px]">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                 <TableCell colSpan={isManager ? 7 : 6} className="text-center text-muted-foreground">
+                 <TableCell colSpan={isManager ? (isAdmin ? 9 : 7) : (isAdmin ? 8 : 6)} className="text-center text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isManager ? 7 : 6} className="text-center text-muted-foreground">
+                   <TableCell colSpan={isManager ? (isAdmin ? 9 : 7) : (isAdmin ? 8 : 6)} className="text-center text-muted-foreground">
                     Nenhum pedido encontrado
                   </TableCell>
                 </TableRow>
@@ -351,6 +356,28 @@ export default function Reimbursements() {
                       <TableCell>
                         <Badge variant={cfg.variant} className={cfg.className}>{cfg.label}</Badge>
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {r.status === 'approved' && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                    onClick={() => markPaidMutation.mutate(r.id)}
+                                    disabled={markPaidMutation.isPending}
+                                  >
+                                    <DollarSign className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Marcar como Pago</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })
