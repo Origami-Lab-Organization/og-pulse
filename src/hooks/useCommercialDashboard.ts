@@ -9,7 +9,7 @@ interface CommercialDashboardData {
   // KPIs
   conversionRate: number;
   avgTicket: number;
-  avgSalesCycleDays: number;
+  avgSalesCycleDays: number | null;
   activePipeline: number;
   pipelineHasLeadsWithoutValue: boolean;
   newLeadsThisYear: number;
@@ -87,7 +87,7 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
     const cyclesInDays = closedLeads
       .filter(l => l.closed_at)
       .map(l => differenceInDays(parseISO(l.closed_at!), parseISO(l.created_at)));
-    const avgSalesCycleDays = cyclesInDays.length > 0 ? cyclesInDays.reduce((a, b) => a + b, 0) / cyclesInDays.length : 0;
+    const avgSalesCycleDays = cyclesInDays.length > 0 ? cyclesInDays.reduce((a, b) => a + b, 0) / cyclesInDays.length : null;
 
     // KPI 4: Active pipeline (all active leads, excluding closed and archived)
     const pipelineLeads = activeLeadsYear.filter(l => l.crm_stage !== 'closed');
