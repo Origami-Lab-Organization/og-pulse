@@ -5,7 +5,7 @@ import { formatCurrency } from '@/lib/formatters';
 interface Props {
   conversionRate: number;
   avgTicket: number;
-  avgSalesCycleDays: number;
+  avgSalesCycleDays: number | null;
   activePipeline: number;
   pipelineHasLeadsWithoutValue: boolean;
   newLeadsThisYear: number;
@@ -14,7 +14,7 @@ interface Props {
 const kpis = [
   { key: 'conversionRate', label: 'Taxa de Conversão', icon: Percent, format: (v: number) => `${v.toFixed(1)}%` },
   { key: 'avgTicket', label: 'Ticket Médio', icon: Receipt, format: (v: number) => formatCurrency(v) },
-  { key: 'avgSalesCycleDays', label: 'Ciclo Médio de Venda', icon: Clock, format: (v: number) => `${Math.round(v)} dias` },
+  { key: 'avgSalesCycleDays', label: 'Ciclo Médio de Venda', icon: Clock, format: (v: number | null) => v !== null ? `${Math.round(v)} dias` : '—' },
   { key: 'activePipeline', label: 'Pipeline Ativo', icon: TrendingUp, format: (v: number) => formatCurrency(v) },
   { key: 'newLeadsThisYear', label: 'Leads Novos no Ano', icon: UserPlus, format: (v: number) => String(v) },
 ] as const;
