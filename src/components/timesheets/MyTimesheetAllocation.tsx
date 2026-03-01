@@ -189,7 +189,7 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
                 </div>
                 <div className={cn("text-right text-xs tabular-nums", isOverPlan && "text-destructive font-medium")}>
                   {project.plannedHours > 0 ? (
-                    `${Math.min(pActual, 100).toFixed(0)}%`
+                    `${Math.round(pActual)}%`
                   ) : (
                     <TooltipProvider>
                       <Tooltip>
