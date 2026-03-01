@@ -1,54 +1,59 @@
 
 
-## Correcao do grafico "Volume de Projetos"
+# Reverter politicas RLS da tabela employees e restaurar acesso
 
-### Problemas Identificados
+## Problema
 
-1. **`closed_at` esta NULL** para todos os leads fechados. Eles foram movidos para "Negocio Fechado" antes do codigo que preenche `closed_at` ser adicionado. O filtro do grafico exige `closed_at` preenchido, entao nenhum projeto aparece.
+A migration anterior criou uma politica "Managers can view employees in tenant" que faz `SELECT 1 FROM public.employees e2 ...` -- referenciando a propria tabela. Isso causa recursao infinita e bloqueia qualquer leitura da tabela `employees`, quebrando login, dashboard e todo o sistema.
 
-2. **Nomenclatura**: "Perdido no Mes" deve ser apenas "Perdido".
+## Solucao
 
-### Solucao
+### 1. Migration SQL -- Corrigir politicas RLS
 
-**1. Migracao de dados** — Preencher `closed_at` para leads que ja estao fechados mas com campo nulo, usando `updated_at` como melhor aproximacao da data de fechamento.
+Dropar as duas politicas criadas na migration anterior e restaurar a politica original que funcionava:
 
-```sql
-UPDATE leads SET closed_at = updated_at WHERE crm_stage = 'closed' AND closed_at IS NULL;
+```text
+-- Remover as politicas problematicas
+DROP POLICY IF EXISTS "Admins can view all employees in tenant" ON public.employees;
+DROP POLICY IF EXISTS "Managers can view employees in tenant" ON public.employees;
+
+-- Criar funcao SECURITY DEFINER para checar is_gerente sem recursao
+CREATE OR REPLACE FUNCTION public.is_manager_in_tenant(_user_id uuid, _tenant_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.employees
+    WHERE auth_id = _user_id
+      AND tenant_id = _tenant_id
+      AND is_gerente = true
+  )
+$$;
+
+-- Restaurar politica que permite admins E gerentes verem todos os funcionarios
+CREATE POLICY "Admins and managers can view all employees in tenant"
+ON public.employees
+FOR SELECT
+TO authenticated
+USING (
+  has_role(auth.uid(), tenant_id, 'admin')
+  OR is_manager_in_tenant(auth.uid(), tenant_id)
+);
 ```
 
-**2. `src/hooks/useCommercialDashboard.ts`** — Adicionar fallback para leads fechados sem `closed_at`, usando `updated_at` como data de referencia:
+Isso restaura o comportamento original: admins e gerentes de projeto veem todos os funcionarios do tenant. A funcao `is_manager_in_tenant` usa `SECURITY DEFINER` para consultar a tabela `employees` sem passar por RLS, evitando a recursao.
 
-```typescript
-const wonThisMonth = filtered
-  .filter(l => l.crm_stage === 'closed' && !l.archived) 
-  .filter(l => {
-    const dateStr = l.closed_at || l.updated_at;
-    const d = parseISO(dateStr);
-    return getYear(d) === selectedYear && getMonth(d) === monthIdx;
-  })
-  .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
-```
+### 2. Reverter rota /employees no frontend
 
-Da mesma forma para perdidos:
+No `src/App.tsx`, reverter `requireAdmin` para `requireManager` na rota `/employees`, restaurando o acesso de gerentes a interface de RH.
 
-```typescript
-const lostThisMonth = filtered
-  .filter(l => l.archived)
-  .filter(l => {
-    const dateStr = l.archived_at || l.updated_at;
-    const d = parseISO(dateStr);
-    return getYear(d) === selectedYear && getMonth(d) === monthIdx;
-  })
-  .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
-```
+### Resultado esperado
 
-**3. `src/components/commercial/RevenueAccumulatedChart.tsx`** — Renomear "Perdido no Mes" para "Perdido" na legenda da barra.
-
-### Resumo das alteracoes
-
-| Arquivo | Alteracao |
-|---|---|
-| Migracao SQL | Preencher `closed_at` nos leads existentes |
-| `useCommercialDashboard.ts` | Fallback `closed_at \|\| updated_at` no calculo do grafico; valor dos perdidos usando `budget?.final_total \|\| estimated_value` |
-| `RevenueAccumulatedChart.tsx` | Renomear legenda "Perdido no Mes" para "Perdido" |
+- Login volta a funcionar
+- Dashboard exibe dados normalmente
+- Admins e gerentes de projeto veem todos os modulos (comercial, gestao de projetos, RH)
+- Usuarios comuns veem apenas seu proprio registro
 
