@@ -16,8 +16,8 @@ interface CommercialDashboardData {
   // Funnel
   funnelData: { stage: string; label: string; count: number; color: string }[];
 
-  // Revenue accumulated
-  revenueByMonth: { month: string; won: number; lost: number }[];
+  // Revenue by month
+  revenueByMonth: { month: string; wonMonth: number; lostMonth: number; wonAccumulated: number }[];
 
   // Pipeline donut
   pipelineByStage: { name: string; value: number; count: number }[];
@@ -109,8 +109,9 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
       color: STAGE_COLORS[col.id] || 'hsl(var(--muted))',
     }));
 
-    // Revenue by month (accumulated)
-    const revenueByMonth = MONTH_LABELS.map((label, monthIdx) => {
+    // Revenue by month with accumulated
+    let accWon = 0;
+    const revenueByMonthData = MONTH_LABELS.map((label, monthIdx) => {
       const wonThisMonth = closedLeads
         .filter(l => l.closed_at && getMonth(parseISO(l.closed_at)) === monthIdx)
         .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
@@ -119,15 +120,8 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
         .filter(l => l.archived_at && getMonth(parseISO(l.archived_at)) === monthIdx)
         .reduce((sum, l) => sum + l.estimated_value, 0);
 
-      return { month: label, won: wonThisMonth, lost: lostThisMonth };
-    });
-
-    // Accumulate
-    let accWon = 0, accLost = 0;
-    const revenueAccumulated = revenueByMonth.map(r => {
-      accWon += r.won;
-      accLost += r.lost;
-      return { month: r.month, won: accWon, lost: accLost };
+      accWon += wonThisMonth;
+      return { month: label, wonMonth: wonThisMonth, lostMonth: lostThisMonth, wonAccumulated: accWon };
     });
 
     // Pipeline by stage (donut)
@@ -181,7 +175,7 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
       activePipeline,
       newLeadsThisMonth,
       funnelData,
-      revenueByMonth: revenueAccumulated,
+      revenueByMonth: revenueByMonthData,
       pipelineByStage,
       totalPipeline,
       topClients,
