@@ -7,7 +7,7 @@ interface Props {
   avgTicket: number;
   avgSalesCycleDays: number;
   activePipeline: number;
-  newLeadsThisMonth: number;
+  newLeadsThisYear: number;
 }
 
 const kpis = [
@@ -15,7 +15,7 @@ const kpis = [
   { key: 'avgTicket', label: 'Ticket Médio', icon: Receipt, format: (v: number) => formatCurrency(v) },
   { key: 'avgSalesCycleDays', label: 'Ciclo Médio de Venda', icon: Clock, format: (v: number) => `${Math.round(v)} dias` },
   { key: 'activePipeline', label: 'Pipeline Ativo', icon: TrendingUp, format: (v: number) => formatCurrency(v) },
-  { key: 'newLeadsThisMonth', label: 'Leads Novos no Mês', icon: UserPlus, format: (v: number) => String(v) },
+  { key: 'newLeadsThisYear', label: 'Leads Novos no Ano', icon: UserPlus, format: (v: number) => String(v) },
 ] as const;
 
 export function CommercialKPIs(props: Props) {
