@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.send-reimbursement-email]
 verify_jwt = false
+
+[functions.market-analysis-generate]
+verify_jwt = false
+
+[functions.market-analysis-refine]
+verify_jwt = false
