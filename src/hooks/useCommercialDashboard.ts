@@ -140,7 +140,7 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
         value: stageLeads.reduce((sum, l) => sum + l.estimated_value, 0),
         count: stageLeads.length,
       };
-    }).filter(s => s.value > 0);
+    }).filter(s => s.count > 0);
 
     const totalPipeline = pipelineByStage.reduce((s, p) => s + p.value, 0);
 
