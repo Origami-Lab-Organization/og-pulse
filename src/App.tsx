@@ -33,6 +33,9 @@ import Analytics from "./pages/Analytics";
 import Reimbursements from "./pages/Reimbursements";
 import MyTimesheet from "./pages/MyTimesheet";
 import CommercialDashboard from "./pages/CommercialDashboard";
+import Welcome from "./pages/Welcome";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +53,9 @@ const App = () => (
               <Route path="/register" element={<Register />} />
               <Route path="/esqueci-minha-senha" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/boas-vindas" element={<Welcome />} />
+              <Route path="/termos" element={<Terms />} />
+              <Route path="/privacidade" element={<Privacy />} />
               <Route 
                 path="/change-password" 
                 element={

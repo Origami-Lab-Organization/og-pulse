@@ -146,11 +146,7 @@ const Register = () => {
         return;
       }
 
-      toast({
-        title: 'Bem-vindo!',
-        description: 'Sua empresa foi cadastrada com sucesso.',
-      });
-      navigate('/');
+      navigate('/boas-vindas', { state: { email: data.email, justRegistered: true } });
     } catch (error: any) {
       console.error('Registration error:', error);
       toast({
@@ -172,7 +168,7 @@ const Register = () => {
           </div>
           <CardTitle className="text-2xl">Cadastrar Empresa</CardTitle>
           <CardDescription>
-            Preencha os dados para criar sua conta empresarial
+            Comece a ver a margem real dos seus projetos em menos de 7 dias.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -449,6 +445,13 @@ const Register = () => {
                   </>
                 )}
               </Button>
+
+              <p className="text-xs text-center text-muted-foreground">
+                Ao criar sua conta, você concorda com nossos{' '}
+                <Link to="/termos" className="underline hover:text-primary">Termos de Uso</Link>
+                {' '}e{' '}
+                <Link to="/privacidade" className="underline hover:text-primary">Política de Privacidade</Link>.
+              </p>
 
               <div className="text-center">
                 <Link
