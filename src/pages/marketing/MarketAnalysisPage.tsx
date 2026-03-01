@@ -13,10 +13,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Progress } from '@/components/ui/progress';
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   Zap, ArrowLeft, Sparkles, Loader2, Brain, Search, BarChart2,
   FileText, Check, AlertCircle, RefreshCw, Download, MessageSquare, Send,
+  Plus, Trash2, Eye, Clock,
 } from 'lucide-react';
-import { useGenerateAnalysis, useRefineAnalysis, type MarketFormData } from '@/hooks/useMarketAnalysis';
+import {
+  useGenerateAnalysis, useRefineAnalysis, useMarketAnalyses,
+  useSaveAnalysis, useUpdateAnalysis, useDeleteAnalysis,
+  type MarketFormData, type AnalysisResult, type SavedAnalysis,
+} from '@/hooks/useMarketAnalysis';
+import { useAuth } from '@/contexts/AuthContext';
+import { generateDocxFromMarkdown } from '@/utils/generateDocx';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const modules = [
   { number: 1, title: 'Market Sizing & TAM Analysis', shortName: 'Dimensionamento', description: 'Estime o tamanho total do mercado, segmentos endereçáveis e oportunidades de crescimento.' },
@@ -51,13 +64,6 @@ const stageOptions = [
   'Escala',
 ];
 
-interface AnalysisResult {
-  markdown: string;
-  module: string;
-  moduleLabel: string;
-  timestamp: string;
-}
-
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -77,17 +83,24 @@ const WELCOME_MESSAGE: ChatMessage = {
 };
 
 const MarketAnalysisPage = () => {
+  const { employee } = useAuth();
   const [selectedModule, setSelectedModule] = useState<number | 'all' | null>(null);
-  const [currentStep, setCurrentStep] = useState<'selection' | 'form' | 'loading' | 'result'>('selection');
+  const [currentStep, setCurrentStep] = useState<'list' | 'selection' | 'form' | 'loading' | 'result'>('list');
   const [formData, setFormData] = useState<MarketFormData | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
   const [activeLoadingStep, setActiveLoadingStep] = useState(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [chatInput, setChatInput] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const generateMutation = useGenerateAnalysis();
   const refineMutation = useRefineAnalysis();
+  const saveMutation = useSaveAnalysis();
+  const updateMutation = useUpdateAnalysis();
+  const deleteMutation = useDeleteAnalysis();
+  const { data: savedAnalyses, isLoading: isLoadingAnalyses } = useMarketAnalyses(employee?.id);
 
   const form = useForm<MarketFormData>({
     resolver: zodResolver(formSchema),
@@ -122,11 +135,39 @@ const MarketAnalysisPage = () => {
     setCurrentStep('selection');
     setFormData(null);
     setAnalysisResult(null);
+    setSavedAnalysisId(null);
     setChatMessages([WELCOME_MESSAGE]);
     setChatInput('');
     form.reset();
     generateMutation.reset();
     refineMutation.reset();
+  };
+
+  const handleOpenSaved = (analysis: SavedAnalysis) => {
+    setAnalysisResult({
+      markdown: analysis.result_markdown,
+      module: analysis.module,
+      moduleLabel: analysis.module_label,
+      timestamp: analysis.created_at,
+    });
+    setSavedAnalysisId(analysis.id);
+    const history = (analysis.chat_history ?? []) as ChatMessage[];
+    setChatMessages(history.length > 0 ? history : [WELCOME_MESSAGE]);
+    setCurrentStep('result');
+  };
+
+  const handleDeleteAnalysis = (id: string) => {
+    deleteMutation.mutate(id);
+  };
+
+  const handleDownload = async () => {
+    if (!analysisResult) return;
+    setIsDownloading(true);
+    try {
+      await generateDocxFromMarkdown(analysisResult.markdown, analysisResult.moduleLabel);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const selectedModuleLabel =
@@ -145,6 +186,22 @@ const MarketAnalysisPage = () => {
             setAnalysisResult(data);
             setChatMessages([WELCOME_MESSAGE]);
             setCurrentStep('result');
+            // Auto-save
+            if (employee) {
+              saveMutation.mutate({
+                tenant_id: employee.tenant_id,
+                user_id: employee.id,
+                module: data.module,
+                module_label: data.moduleLabel,
+                form_data: formData,
+                result_markdown: data.markdown,
+                chat_history: [],
+              }, {
+                onSuccess: (saved) => {
+                  setSavedAnalysisId(saved.id);
+                },
+              });
+            }
           },
         }
       );
@@ -188,10 +245,18 @@ const MarketAnalysisPage = () => {
       },
       {
         onSuccess: (data) => {
-          setChatMessages((prev) => [
-            ...prev,
+          const newMessages: ChatMessage[] = [
+            ...updatedMessages,
             { role: 'assistant', content: data.response },
-          ]);
+          ];
+          setChatMessages(newMessages);
+          // Persist chat history
+          if (savedAnalysisId) {
+            updateMutation.mutate({
+              id: savedAnalysisId,
+              chat_history: newMessages,
+            });
+          }
         },
       }
     );
@@ -210,10 +275,96 @@ const MarketAnalysisPage = () => {
       description="Acompanhe tendências e métricas de mercado"
       breadcrumbs={[{ label: 'Marketing' }, { label: 'Análise de Mercado' }]}
     >
+      {/* ── STEP: LIST ── */}
+      {currentStep === 'list' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">Suas Análises</h1>
+              <p className="text-muted-foreground mt-1">Análises de mercado geradas anteriormente</p>
+            </div>
+            <Button className="gap-2" onClick={() => setCurrentStep('selection')}>
+              <Plus className="h-4 w-4" />
+              Nova Análise
+            </Button>
+          </div>
+
+          {isLoadingAnalyses ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : !savedAnalyses?.length ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-medium text-foreground">Nenhuma análise ainda</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                Crie sua primeira análise estratégica de mercado para começar.
+              </p>
+              <Button className="mt-6 gap-2" onClick={() => setCurrentStep('selection')}>
+                <Plus className="h-4 w-4" />
+                Criar primeira análise
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {savedAnalyses.map((analysis) => (
+                <Card key={analysis.id} className="flex flex-col">
+                  <CardHeader className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="secondary" className="text-xs">{analysis.module_label}</Badge>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(analysis.created_at), "dd MMM yyyy", { locale: ptBR })}
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {analysis.result_markdown.replace(/[#*|]/g, '').slice(0, 150)}...
+                    </p>
+                    <div className="flex items-center gap-2 mt-4 pt-2 border-t">
+                      <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => handleOpenSaved(analysis)}>
+                        <Eye className="h-3.5 w-3.5" />
+                        Abrir
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir análise?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta ação não pode ser desfeita. A análise será permanentemente removida.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteAnalysis(analysis.id)}>
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── STEP: SELECTION ── */}
       {currentStep === 'selection' && (
         <div className="space-y-6">
           <div className="text-center max-w-2xl mx-auto">
+            <div className="flex justify-start mb-4">
+              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setCurrentStep('list')}>
+                <ArrowLeft className="h-4 w-4" />
+                Voltar
+              </Button>
+            </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Qual análise você quer realizar?
             </h1>
@@ -406,13 +557,23 @@ const MarketAnalysisPage = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-foreground truncate">{analysisResult.moduleLabel}</h2>
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="outline" size="sm" className="gap-2" disabled>
-                  <Download className="h-4 w-4" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   Download Word
                 </Button>
                 <Button variant="outline" size="sm" className="gap-2" onClick={handleNewAnalysis}>
                   <RefreshCw className="h-4 w-4" />
                   Nova Análise
+                </Button>
+                <Button variant="ghost" size="sm" className="gap-2" onClick={() => { handleNewAnalysis(); setCurrentStep('list'); }}>
+                  <ArrowLeft className="h-4 w-4" />
+                  Voltar
                 </Button>
               </div>
             </div>

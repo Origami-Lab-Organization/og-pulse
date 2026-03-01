@@ -907,6 +907,60 @@ export type Database = {
           },
         ]
       }
+      market_analyses: {
+        Row: {
+          chat_history: Json | null
+          created_at: string
+          form_data: Json
+          id: string
+          module: string
+          module_label: string
+          result_markdown: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_history?: Json | null
+          created_at?: string
+          form_data: Json
+          id?: string
+          module: string
+          module_label: string
+          result_markdown: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_history?: Json | null
+          created_at?: string
+          form_data?: Json
+          id?: string
+          module?: string
+          module_label?: string
+          result_markdown?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_analyses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_analyses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
