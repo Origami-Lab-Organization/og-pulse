@@ -493,28 +493,23 @@ export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: 
               </Button>
             </div>
 
+            {/* Column headers */}
+            <div className="grid grid-cols-[140px_1fr_120px_28px] gap-2 items-end">
+              <Label className="text-xs text-muted-foreground">Data *</Label>
+              <Label className="text-xs text-muted-foreground">Descrição *</Label>
+              <Label className="text-xs text-muted-foreground">Valor (R$) *</Label>
+              <div />
+            </div>
+
             {items.map((item, idx) => {
               const ie = itemErrors[idx] || {};
               const showOldWarning = item.date && !ie.date && isOlderThanDays(item.date, DAYS_WARNING);
 
               return (
-                <div key={idx} className="rounded-lg border p-3 space-y-3 relative">
-                  {items.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 h-6 w-6"
-                      onClick={() => removeItem(idx)}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-
-                  <div className="grid grid-cols-[140px_1fr_120px] gap-2 items-start">
+                <div key={idx} className="space-y-1">
+                  <div className="grid grid-cols-[140px_1fr_120px_28px] gap-2 items-start">
                     {/* Date */}
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Data *</Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
@@ -546,7 +541,6 @@ export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: 
 
                     {/* Description */}
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Descrição *</Label>
                       <Input
                         value={item.description}
                         onChange={(e) => updateItem(idx, 'description', e.target.value)}
@@ -558,7 +552,6 @@ export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: 
 
                     {/* Amount */}
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Valor (R$) *</Label>
                       <div className={cn(ie.amount && '[&_input]:border-destructive')}>
                         <CurrencyInput
                           value={item.amount}
@@ -567,6 +560,21 @@ export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: 
                         />
                       </div>
                       {ie.amount && <p className={errorText}>{ie.amount}</p>}
+                    </div>
+
+                    {/* Remove button */}
+                    <div className="flex items-center h-9">
+                      {items.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => removeItem(idx)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : <div className="w-7" />}
                     </div>
                   </div>
 
