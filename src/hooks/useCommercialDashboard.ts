@@ -11,7 +11,7 @@ interface CommercialDashboardData {
   avgTicket: number;
   avgSalesCycleDays: number;
   activePipeline: number;
-  newLeadsThisMonth: number;
+  newLeadsThisYear: number;
 
   // Funnel
   funnelData: { stage: string; label: string; count: number; color: string }[];
@@ -92,14 +92,8 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
     const pipelineLeads = activeLeadsYear.filter(l => l.crm_stage === 'proposal' || l.crm_stage === 'negotiation');
     const activePipeline = pipelineLeads.reduce((sum, l) => sum + l.estimated_value, 0);
 
-    // KPI 5: New leads this month
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const newLeadsThisMonth = allLeads.filter(l => {
-      const d = parseISO(l.created_at);
-      return getMonth(d) === currentMonth && getYear(d) === currentYear;
-    }).length;
+    // KPI 5: New leads in the selected year
+    const newLeadsThisYear = yearFiltered.length;
 
     // Funnel data
     const funnelData = CRM_LEAD_COLUMNS.map(col => ({
@@ -183,7 +177,7 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
       avgTicket,
       avgSalesCycleDays,
       activePipeline,
-      newLeadsThisMonth,
+      newLeadsThisYear: newLeadsThisYear,
       funnelData,
       revenueByMonth: revenueByMonthData,
       pipelineByStage,

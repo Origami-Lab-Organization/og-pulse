@@ -65,7 +65,7 @@ export default function CommercialDashboard() {
               avgTicket={data.avgTicket}
               avgSalesCycleDays={data.avgSalesCycleDays}
               activePipeline={data.activePipeline}
-              newLeadsThisMonth={data.newLeadsThisMonth}
+              newLeadsThisYear={data.newLeadsThisYear}
             />
 
             <ConversionFunnel data={data.funnelData} />
