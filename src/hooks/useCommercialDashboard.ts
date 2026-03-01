@@ -19,6 +19,7 @@ interface CommercialDashboardData {
   pipelineLeadsWithBudgetCount: number;
   pipelineHasNoProposals: boolean;
   forecast: number;
+  forecastLeadsCount: number;
   newLeadsThisYear: number;
 
   // Previous period KPIs
@@ -100,15 +101,17 @@ function computeKPIs(leads: LeadWithBudget[]) {
   const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
   const pipelineHasNoProposals = pipelineLeadsWithBudgetCount === 0 && pipelineLeads.length > 0;
 
-  // Forecast: sum of (lead value × stage probability) for all active leads
-  const forecast = activeLeads.reduce((sum, l) => {
+  // Forecast: sum of (lead value × stage probability) only for leads with value > 0
+  const forecastLeads = activeLeads.filter(l => getLeadValue(l) > 0);
+  const forecast = forecastLeads.reduce((sum, l) => {
     const prob = STAGE_PROBABILITY[l.crm_stage] ?? 0;
     return sum + getLeadValue(l) * prob;
   }, 0);
+  const forecastLeadsCount = forecastLeads.length;
 
   const newLeadsThisYear = leads.length;
 
-  return { conversionRate, avgTicket, avgSalesCycleDays, activePipeline, pipelineLeadsWithBudgetCount, pipelineHasNoProposals, forecast, newLeadsThisYear };
+  return { conversionRate, avgTicket, avgSalesCycleDays, activePipeline, pipelineLeadsWithBudgetCount, pipelineHasNoProposals, forecast, forecastLeadsCount, newLeadsThisYear };
 }
 
 export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedServiceLine: string, selectedResponsible: string) {
