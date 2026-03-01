@@ -1,44 +1,27 @@
 
-
-# Fix: Pipeline Ativo KPI - Business Logic and Sub-labels
+# Fix: Pipeline Ativo not counting leads with linked budgets
 
 ## Problem
-The "Pipeline Ativo" KPI shows R$ 0,00 because it sums `estimated_value` from all active leads, but leads in "Triagem" and "Qualificacao" typically don't have values set yet. The card also lacks context about what the value represents.
+The pipeline KPI only looks at `l.estimated_value` to determine if a lead has a value and to sum the pipeline total. However, leads that have gone through the "Proposta" stage have a linked budget with `budget.final_total` -- the `estimated_value` field on the lead itself may still be 0.
+
+This is the same pattern already used elsewhere in the hook (e.g., avgTicket and revenueByMonth calculations), where `budget.final_total` is prioritized over `estimated_value`.
 
 ## Solution
 
-### 1. Hook (`src/hooks/useCommercialDashboard.ts`)
-- Change pipeline calculation to only sum leads with `estimated_value > 0` (effectively Proposta + Negociacao stages)
-- Add a new field `pipelineLeadsWithBudgetCount` counting how many leads have value > 0
-- Add a boolean `pipelineHasNoProposals` for when zero leads have reached Proposta stage with a value
-- Remove the old `pipelineHasLeadsWithoutValue` field (replaced by new contextual info)
+Update `src/hooks/useCommercialDashboard.ts` (lines 94-98) to use the same value resolution logic: prioritize `budget.final_total` when available, fall back to `estimated_value`.
 
-### 2. KPI Component (`src/components/commercial/CommercialKPIs.tsx`)
-- Update the Props interface to receive `pipelineLeadsWithBudgetCount` and `pipelineHasNoProposals`
-- For the Pipeline Ativo card, display a sub-label:
-  - If leads with budget exist: "Baseado em N leads com orcamento definido"
-  - If no leads have budget (value is R$ 0,00): "Nenhum orcamento gerado no periodo"
+### Change
 
-### 3. Dashboard Page (`src/pages/CommercialDashboard.tsx`)
-- Pass the new props to `CommercialKPIs`
-
-## Technical Details
-
-In the hook, the pipeline calculation changes from:
 ```typescript
-const pipelineLeads = activeLeadsYear.filter(l => l.crm_stage !== 'closed');
-const activePipeline = pipelineLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
-```
-To:
-```typescript
-const pipelineLeads = activeLeadsYear.filter(l => l.crm_stage !== 'closed');
-const pipelineLeadsWithBudget = pipelineLeads.filter(l => l.estimated_value > 0);
+// Before (line 95-96)
+const pipelineLeadsWithBudget = pipelineLeads.filter(l => (l.estimated_value || 0) > 0);
 const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + l.estimated_value, 0);
-const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
-const pipelineHasNoProposals = pipelineLeadsWithBudgetCount === 0 && pipelineLeads.length > 0;
+
+// After
+const getLeadValue = (l: LeadWithBudget) => 
+  (l.budget?.final_total && l.budget.final_total > 0) ? l.budget.final_total : l.estimated_value;
+const pipelineLeadsWithBudget = pipelineLeads.filter(l => getLeadValue(l) > 0);
+const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);
 ```
 
-The KPI card renders conditionally:
-- Value > 0: Shows value + "Baseado em N leads com orcamento definido"
-- Value = 0 with active leads: Shows "R$ 0,00" + "Nenhum orcamento gerado no periodo"
-- No leads at all: Shows "R$ 0,00" with no sub-label
+This is a single-file change (3 lines) in `src/hooks/useCommercialDashboard.ts`. No other files need modification since the props and UI already handle the values correctly.
