@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,7 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { Zap, ArrowLeft, Sparkles } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Zap, ArrowLeft, Sparkles, Loader2, Brain, Search, BarChart2, FileText, Check, AlertCircle } from 'lucide-react';
+import { useGenerateAnalysis, type MarketFormData } from '@/hooks/useMarketAnalysis';
 
 const modules = [
   { number: 1, title: 'Market Sizing & TAM Analysis', shortName: 'Dimensionamento', description: 'Estime o tamanho total do mercado, segmentos endereçáveis e oportunidades de crescimento.' },
@@ -37,7 +39,7 @@ const formSchema = z.object({
   mainChallenge: z.string().min(10, 'Mínimo 10 caracteres'),
 });
 
-type FormData = z.infer<typeof formSchema>;
+// MarketFormData is imported from useMarketAnalysis
 
 const stageOptions = [
   'Ideia / Pré-MVP',
@@ -47,12 +49,31 @@ const stageOptions = [
   'Escala',
 ];
 
+interface AnalysisResult {
+  markdown: string;
+  module: string;
+  moduleLabel: string;
+  timestamp: string;
+}
+
+const loadingSteps = [
+  { label: 'Analisando o contexto do seu negócio...', icon: Brain },
+  { label: 'Pesquisando benchmarks e dados do setor...', icon: Search },
+  { label: 'Aplicando frameworks estratégicos...', icon: BarChart2 },
+  { label: 'Estruturando insights e recomendações...', icon: FileText },
+  { label: 'Gerando documento final...', icon: Sparkles },
+];
+
 const MarketAnalysisPage = () => {
   const [selectedModule, setSelectedModule] = useState<number | 'all' | null>(null);
   const [currentStep, setCurrentStep] = useState<'selection' | 'form' | 'loading' | 'result'>('selection');
-  const [formData, setFormData] = useState<FormData | null>(null);
+  const [formData, setFormData] = useState<MarketFormData | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [activeLoadingStep, setActiveLoadingStep] = useState(0);
 
-  const form = useForm<FormData>({
+  const generateMutation = useGenerateAnalysis();
+
+  const form = useForm<MarketFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       product: '',
@@ -75,7 +96,7 @@ const MarketAnalysisPage = () => {
     setCurrentStep('selection');
   };
 
-  const onSubmit = (values: FormData) => {
+  const onSubmit = (values: MarketFormData) => {
     setFormData(values);
     setCurrentStep('loading');
   };
@@ -84,6 +105,37 @@ const MarketAnalysisPage = () => {
     selectedModule === 'all'
       ? 'Análise Completa'
       : modules.find((m) => m.number === selectedModule)?.title ?? '';
+
+  // Trigger mutation when entering loading
+  useEffect(() => {
+    if (currentStep === 'loading' && formData && selectedModule) {
+      setActiveLoadingStep(0);
+      generateMutation.mutate(
+        { module: selectedModule, formData },
+        {
+          onSuccess: (data) => {
+            setAnalysisResult(data);
+            setCurrentStep('result');
+          },
+        }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
+
+  // Advance loading steps every 4 seconds
+  useEffect(() => {
+    if (currentStep !== 'loading') return;
+    const interval = setInterval(() => {
+      setActiveLoadingStep((prev) => (prev < loadingSteps.length - 1 ? prev + 1 : prev));
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [currentStep]);
+
+  const handleRetry = () => {
+    generateMutation.reset();
+    setCurrentStep('loading');
+  };
 
   return (
     <AppLayout
@@ -134,7 +186,6 @@ const MarketAnalysisPage = () => {
       {/* ── STEP: FORM ── */}
       {currentStep === 'form' && (
         <div className="max-w-3xl mx-auto space-y-6">
-          {/* Header */}
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={handleBack}>
               <ArrowLeft className="h-5 w-5" />
@@ -147,120 +198,67 @@ const MarketAnalysisPage = () => {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-              {/* product */}
-              <FormField
-                control={form.control}
-                name="product"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>O que é o seu produto ou serviço?</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Descreva o que é, como funciona e qual problema resolve" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="product" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>O que é o seu produto ou serviço?</FormLabel>
+                  <FormControl><Textarea placeholder="Descreva o que é, como funciona e qual problema resolve" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-              {/* targetCustomer */}
-              <FormField
-                control={form.control}
-                name="targetCustomer"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quem é o seu cliente-alvo?</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Perfil, cargo, segmento, comportamento de compra" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="targetCustomer" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quem é o seu cliente-alvo?</FormLabel>
+                  <FormControl><Textarea placeholder="Perfil, cargo, segmento, comportamento de compra" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-              {/* market + stage (2 cols) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="market"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Em qual mercado e região você atua?</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: SaaS B2B, Brasil e LATAM" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="stage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Qual o estágio atual do negócio?</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {stageOptions.map((opt) => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="market" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Em qual mercado e região você atua?</FormLabel>
+                    <FormControl><Input placeholder="Ex: SaaS B2B, Brasil e LATAM" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="stage" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Qual o estágio atual do negócio?</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {stageOptions.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </div>
 
-              {/* revenueModel */}
-              <FormField
-                control={form.control}
-                name="revenueModel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Como você monetiza?</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Assinatura mensal, freemium, licença anual" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="revenueModel" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Como você monetiza?</FormLabel>
+                  <FormControl><Input placeholder="Ex: Assinatura mensal, freemium, licença anual" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-              {/* differentials */}
-              <FormField
-                control={form.control}
-                name="differentials"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>O que você acredita que diferencia seu produto hoje?</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Pode ser uma hipótese ainda não validada" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="differentials" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>O que você acredita que diferencia seu produto hoje?</FormLabel>
+                  <FormControl><Textarea placeholder="Pode ser uma hipótese ainda não validada" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-              {/* mainChallenge */}
-              <FormField
-                control={form.control}
-                name="mainChallenge"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Qual é o maior desafio ou pergunta estratégica que você tem hoje?</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="O que mais trava o crescimento ou validação" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="mainChallenge" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Qual é o maior desafio ou pergunta estratégica que você tem hoje?</FormLabel>
+                  <FormControl><Textarea placeholder="O que mais trava o crescimento ou validação" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
               <div className="flex justify-end pt-2">
                 <Button type="submit" size="lg" className="gap-2" disabled={!form.formState.isValid}>
@@ -270,6 +268,66 @@ const MarketAnalysisPage = () => {
               </div>
             </form>
           </Form>
+        </div>
+      )}
+
+      {/* ── STEP: LOADING ── */}
+      {currentStep === 'loading' && (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
+          {generateMutation.isError ? (
+            <div className="flex flex-col items-center gap-4 text-center">
+              <AlertCircle className="h-12 w-12 text-destructive" />
+              <h2 className="text-xl font-semibold text-foreground">Erro ao gerar análise</h2>
+              <p className="text-muted-foreground max-w-md">
+                {generateMutation.error?.message || 'Ocorreu um erro inesperado. Tente novamente.'}
+              </p>
+              <Button onClick={handleRetry} className="gap-2">
+                <Loader2 className="h-4 w-4" />
+                Tentar novamente
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Progress value={((activeLoadingStep + 1) / loadingSteps.length) * 100} className="w-full max-w-md" />
+
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <h2 className="text-xl font-semibold text-foreground">
+                  Gerando {selectedModuleLabel}...
+                </h2>
+              </div>
+
+              <div className="space-y-3 w-full max-w-md">
+                {loadingSteps.map((step, idx) => {
+                  const Icon = step.icon;
+                  const isDone = idx < activeLoadingStep;
+                  const isCurrent = idx === activeLoadingStep;
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+                        isCurrent ? 'bg-primary/10 text-foreground' : isDone ? 'text-muted-foreground' : 'text-muted-foreground/50'
+                      }`}
+                    >
+                      {isDone ? (
+                        <Check className="h-5 w-5 text-primary shrink-0" />
+                      ) : isCurrent ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+                      ) : (
+                        <Icon className="h-5 w-5 shrink-0" />
+                      )}
+                      <span className="text-sm">{step.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs text-muted-foreground text-center max-w-sm">
+                Análises complexas podem levar até 1 minuto. Não feche esta janela.
+              </p>
+            </>
+          )}
         </div>
       )}
     </AppLayout>
