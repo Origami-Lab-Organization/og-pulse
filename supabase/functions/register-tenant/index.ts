@@ -2,11 +2,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -14,7 +13,6 @@ Deno.serve(async (req) => {
   try {
     const { companyName, adminName, email, password } = await req.json();
 
-    // Validate required fields
     if (!companyName || !adminName || !email || !password) {
       return new Response(
         JSON.stringify({ error: 'Todos os campos são obrigatórios' }),
@@ -29,10 +27,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create admin client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -40,14 +37,24 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Check if email already exists
-    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(u => u.email === email);
-    
+    // Check if email already exists by trying to find the user
+    const { data: existingUserList } = await adminClient.auth.admin.listUsers({
+      page: 1,
+      perPage: 1,
+      // @ts-ignore – filter by email is supported
+    });
+
+    // More reliable check: query employees table by email
+    const { data: existingEmployee } = await adminClient
+      .from('employees')
+      .select('id, auth_id')
+      .eq('email', email)
+      .maybeSingle();
+
     let authUserId!: string;
     let isExistingUser = false;
 
-    if (existingUser) {
+    if (existingEmployee?.auth_id) {
       // User exists - verify password by attempting sign in
       const { data: signInData, error: signInError } = await adminClient.auth.signInWithPassword({
         email,
@@ -56,12 +63,12 @@ Deno.serve(async (req) => {
 
       if (signInError || !signInData.user) {
         return new Response(
-          JSON.stringify({ error: 'Email já cadastrado. Verifique a senha ou faça login para adicionar uma nova empresa.' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Este e-mail já está cadastrado. Verifique a senha ou faça login.' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      authUserId = existingUser.id;
+      authUserId = existingEmployee.auth_id;
       isExistingUser = true;
     }
 
@@ -75,14 +82,13 @@ Deno.serve(async (req) => {
     if (tenantError) {
       console.error('Error creating tenant:', tenantError);
       return new Response(
-        JSON.stringify({ error: 'Erro ao criar empresa' }),
+        JSON.stringify({ error: 'Erro ao criar empresa. Tente novamente.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // 1.1 Seed default holidays for the new tenant
     const defaultHolidays = [
-      // Fixed holidays
       { tenant_id: tenant.id, name: 'Confraternização Universal', holiday_type: 'fixed', fixed_day: 1, fixed_month: 1 },
       { tenant_id: tenant.id, name: 'Tiradentes', holiday_type: 'fixed', fixed_day: 21, fixed_month: 4 },
       { tenant_id: tenant.id, name: 'Dia do Trabalho', holiday_type: 'fixed', fixed_day: 1, fixed_month: 5 },
@@ -91,12 +97,10 @@ Deno.serve(async (req) => {
       { tenant_id: tenant.id, name: 'Finados', holiday_type: 'fixed', fixed_day: 2, fixed_month: 11 },
       { tenant_id: tenant.id, name: 'Proclamação da República', holiday_type: 'fixed', fixed_day: 15, fixed_month: 11 },
       { tenant_id: tenant.id, name: 'Natal', holiday_type: 'fixed', fixed_day: 25, fixed_month: 12 },
-      // Floating holidays 2025
       { tenant_id: tenant.id, name: 'Carnaval (Segunda)', holiday_type: 'floating', specific_date: '2025-03-03', reference_year: 2025 },
       { tenant_id: tenant.id, name: 'Carnaval (Terça)', holiday_type: 'floating', specific_date: '2025-03-04', reference_year: 2025 },
       { tenant_id: tenant.id, name: 'Sexta-feira Santa', holiday_type: 'floating', specific_date: '2025-04-18', reference_year: 2025 },
       { tenant_id: tenant.id, name: 'Corpus Christi', holiday_type: 'floating', specific_date: '2025-06-19', reference_year: 2025 },
-      // Floating holidays 2026
       { tenant_id: tenant.id, name: 'Carnaval (Segunda)', holiday_type: 'floating', specific_date: '2026-02-16', reference_year: 2026 },
       { tenant_id: tenant.id, name: 'Carnaval (Terça)', holiday_type: 'floating', specific_date: '2026-02-17', reference_year: 2026 },
       { tenant_id: tenant.id, name: 'Sexta-feira Santa', holiday_type: 'floating', specific_date: '2026-04-03', reference_year: 2026 },
@@ -109,7 +113,6 @@ Deno.serve(async (req) => {
 
     if (holidaysError) {
       console.error('Error seeding holidays:', holidaysError);
-      // Non-critical error, continue with registration
     }
 
     // 2. Create auth user (only if new user)
@@ -122,10 +125,19 @@ Deno.serve(async (req) => {
 
       if (authError) {
         console.error('Error creating auth user:', authError);
-        // Rollback: delete tenant
         await adminClient.from('tenants').delete().eq('id', tenant.id);
+
+        // Check for duplicate email at auth level
+        const errMsg = authError.message?.toLowerCase() || '';
+        if (errMsg.includes('already') || errMsg.includes('duplicate') || errMsg.includes('exists')) {
+          return new Response(
+            JSON.stringify({ error: 'Este e-mail já está cadastrado. Tente fazer login.' }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
         return new Response(
-          JSON.stringify({ error: 'Erro ao criar usuário' }),
+          JSON.stringify({ error: 'Erro ao criar usuário. Tente novamente.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -133,31 +145,33 @@ Deno.serve(async (req) => {
       authUserId = authUser.user.id;
     }
 
-    // 3. Create employee record
+    // 3. Create employee record (cpf and telefone are required NOT NULL fields)
     const { data: employee, error: employeeError } = await adminClient
       .from('employees')
       .insert({
         nome: adminName,
         email,
         cargo: 'Administrador',
+        cpf: '00000000000',
+        telefone: '00000000000',
         data_admissao: new Date().toISOString().split('T')[0],
         is_gerente: true,
         tenant_id: tenant.id,
         auth_id: authUserId,
         must_change_password: false,
+        system_role: 'admin',
       })
       .select()
       .single();
 
     if (employeeError) {
       console.error('Error creating employee:', employeeError);
-      // Rollback: delete auth user (only if new) and tenant
       if (!isExistingUser) {
         await adminClient.auth.admin.deleteUser(authUserId);
       }
       await adminClient.from('tenants').delete().eq('id', tenant.id);
       return new Response(
-        JSON.stringify({ error: 'Erro ao criar funcionário' }),
+        JSON.stringify({ error: 'Erro ao criar funcionário. Tente novamente.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -173,21 +187,20 @@ Deno.serve(async (req) => {
 
     if (roleError) {
       console.error('Error assigning role:', roleError);
-      // Rollback: delete employee, auth user (only if new), and tenant
       await adminClient.from('employees').delete().eq('id', employee.id);
       if (!isExistingUser) {
         await adminClient.auth.admin.deleteUser(authUserId);
       }
       await adminClient.from('tenants').delete().eq('id', tenant.id);
       return new Response(
-        JSON.stringify({ error: 'Erro ao atribuir permissões' }),
+        JSON.stringify({ error: 'Erro ao atribuir permissões. Tente novamente.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: 'Empresa cadastrada com sucesso',
         tenantId: tenant.id,
       }),
@@ -196,7 +209,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: 'Erro interno do servidor' }),
+      JSON.stringify({ error: 'Erro interno do servidor. Tente novamente mais tarde.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
