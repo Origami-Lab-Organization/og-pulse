@@ -61,7 +61,7 @@ const navigationGroups = [
       { title: 'CRM', url: '/crm', icon: Kanban, requiresManager: true },
       { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
       { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresManager: true },
-      { title: 'Arquivados', url: '/crm/archived', icon: Archive, requiresManager: true, disabled: true },
+      { title: 'Arquivados', url: '/crm/archived', icon: Archive, requiresManager: true },
     ] as NavItem[],
   },
   {
