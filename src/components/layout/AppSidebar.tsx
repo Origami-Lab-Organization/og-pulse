@@ -14,6 +14,7 @@ import {
   UserPlus,
   ClipboardCheck,
   ChevronDown,
+  BarChart2,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -83,6 +84,12 @@ const navigationGroups = [
       { title: 'Contratações', url: '/contratacoes', icon: UserPlus, requiresManager: true, disabled: true },
       { title: 'Funcionários', url: '/employees', icon: Users, requiresManager: true },
       { title: 'Avaliações', url: '/avaliacoes', icon: ClipboardCheck, requiresManager: true, disabled: true },
+    ] as NavItem[],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { title: 'Análise de Mercado', url: '/marketing/analise-mercado', icon: BarChart2 },
     ] as NavItem[],
   },
 ];
