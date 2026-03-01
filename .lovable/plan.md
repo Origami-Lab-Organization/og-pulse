@@ -1,65 +1,43 @@
 
 
-# Filtros Avancados no Dashboard Comercial
+# Ajuste do KPI "Receita Prevista (Forecast)"
 
 ## Resumo
-Substituir o filtro de "Ano" por um seletor de periodo flexivel e adicionar filtro de "Responsavel". Todos os calculos do hook serao atualizados para usar intervalo de datas ao inves de ano fixo.
+O card de Forecast ja existe, mas precisa ser ajustado para refletir a regra de negocio correta: excluir leads sem valor (Triagem/Qualificacao) do calculo, atualizar tooltip e adicionar sub-label com contagem de orcamentos. Tambem corrigir o estouro visual dos cards.
 
 ## Alteracoes
 
-### 1. Pagina: novos estados e filtros (`CommercialDashboard.tsx`)
+### 1. Hook: corrigir formula do forecast (`useCommercialDashboard.ts`)
 
-**Remover:** estado `selectedYear` e o Select de ano.
+**Antes:** calcula forecast para todos os leads ativos (incluindo Triagem/Qualificacao com valor 0).
 
-**Adicionar:**
-- Estado `periodType`: `'this_month' | 'last_3_months' | 'this_year' | 'last_year' | 'custom'` (default: `'this_year'`)
-- Estados `customStart` e `customEnd` (Date | undefined) para o modo "Personalizado"
-- Estado `selectedResponsible` (string, default `'all'`)
-- Logica `useMemo` que calcula `dateFrom` e `dateTo` a partir do `periodType`
-- Select de periodo com opcoes: "Este mes", "Ultimos 3 meses", "Este ano", "Ano anterior", "Personalizado"
-- Quando "Personalizado" selecionado, exibir dois Popovers com Calendar (date picker) para inicio e fim
-- Select de responsavel populado a partir de `data.responsibleOptions` (lista extraida do hook)
+**Depois:** filtrar apenas leads com valor > 0 antes de aplicar as probabilidades. Adicionar campo `forecastLeadsCount` ao retorno.
 
-**Periodo anterior para comparacao YoY:**
-- O hook recebera `dateFrom` e `dateTo` e calculara internamente o periodo anterior com a mesma duracao
-
-### 2. Hook: aceitar intervalo de datas e responsavel (`useCommercialDashboard.ts`)
-
-**Nova assinatura:**
 ```text
-useCommercialDashboard(
-  dateFrom: Date,
-  dateTo: Date,
-  selectedServiceLine: string,
-  selectedResponsible: string
-)
+// Nova logica em computeKPIs:
+const forecastLeads = activeLeads.filter(l => getLeadValue(l) > 0);
+const forecast = forecastLeads.reduce((sum, l) => {
+  const prob = STAGE_PROBABILITY[l.crm_stage] ?? 0;
+  return sum + getLeadValue(l) * prob;
+}, 0);
+const forecastLeadsCount = forecastLeads.length;
 ```
 
-**Mudancas internas:**
-- Substituir `getYear(parseISO(l.created_at)) === selectedYear` por `parseISO(l.created_at) >= dateFrom && parseISO(l.created_at) <= dateTo`
-- Adicionar filtro por `responsible_id` quando `selectedResponsible !== 'all'`
-- Calcular periodo anterior automaticamente: mesma duracao, deslocada para tras (ex: se periodo = 3 meses, anterior = 3 meses antes disso)
-- Para o grafico de receita por mes, gerar labels dinamicos baseados no intervalo de datas ao inves dos 12 meses fixos
-- Extrair lista de responsaveis unicos (id + nome) de todos os leads e retornar como `responsibleOptions` no objeto de dados
+Adicionar `forecastLeadsCount` na interface `CommercialDashboardData` e no retorno de `computeKPIs`.
 
-**Novo campo no retorno:**
-```text
-responsibleOptions: { id: string; name: string }[]
-```
+### 2. Componente: atualizar card do Forecast (`CommercialKPIs.tsx`)
 
-### 3. Detalhes de UI dos filtros
+- **Tooltip atualizado:** "Estimativa ponderada de receita com base nos orcamentos em andamento e probabilidade de fechamento por etapa"
+- **Sub-label:** "Baseado em N orcamentos ativos" (quando forecastLeadsCount > 0) ou "Nenhum orcamento ativo no periodo" (quando 0)
+- **Adicionar prop** `forecastLeadsCount` na interface Props
+- **Corrigir estouro visual:** trocar o valor de `text-lg` para `text-base` e adicionar `truncate` ao container do valor para evitar overflow em telas menores. Tambem ajustar o grid para `xl:grid-cols-6` (ao inves de `lg:grid-cols-6`) para dar mais espaco em telas intermediarias.
 
-Layout dos filtros na barra (flex wrap gap-3):
-1. Select "Periodo" (w-[180px])
-2. Se "Personalizado": dois botoes com Popover + Calendar (date pickers)
-3. Select "Linha de Servico" (w-[220px]) -- ja existe
-4. Select "Responsavel" (w-[200px])
+### 3. Pagina: passar nova prop (`CommercialDashboard.tsx`)
 
-Os date pickers usarao o componente Calendar do shadcn dentro de Popover com `pointer-events-auto`, formatando datas com `date-fns` `format(date, 'dd/MM/yyyy')`.
+Passar `forecastLeadsCount={data.forecastLeadsCount}` ao componente `CommercialKPIs`.
 
 ## Arquivos modificados
-1. `src/hooks/useCommercialDashboard.ts` -- nova assinatura, filtro por datas e responsavel, lista de responsaveis
-2. `src/pages/CommercialDashboard.tsx` -- novos estados, UI de filtros, calculo de dateFrom/dateTo, date pickers
-
-Nenhuma alteracao no banco de dados e necessaria. Os campos `responsible_id` e `created_at` ja existem na tabela `leads`.
+1. `src/hooks/useCommercialDashboard.ts` -- filtrar leads com valor > 0 no forecast, retornar forecastLeadsCount
+2. `src/components/commercial/CommercialKPIs.tsx` -- atualizar tooltip, adicionar sub-label, corrigir overflow
+3. `src/pages/CommercialDashboard.tsx` -- passar forecastLeadsCount
 
