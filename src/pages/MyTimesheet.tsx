@@ -233,8 +233,9 @@ const MyTimesheet = () => {
             <CardContent className="pt-4">
               <TimesheetWeekSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
               {/* Header único */}
-              <div className="grid grid-cols-[1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
                 <div>Projeto</div>
+                <div>Cliente</div>
                 {weekDays.map((day) => {
                   const holiday = getHolidayForDate(day.date);
                   const isHolidayDay = !!holiday;
@@ -299,7 +300,7 @@ const MyTimesheet = () => {
                   <TimesheetWeekRow
                     key={member.memberId}
                     label={project.projectName}
-                    subLabel={project.clientName}
+                    clientName={project.clientName}
                     labelExtra={unplannedProjectIds.has(project.projectId) ? (
                       <TooltipProvider>
                         <Tooltip>
@@ -330,8 +331,9 @@ const MyTimesheet = () => {
               })}
 
               {/* Daily totals row */}
-              <div className="grid grid-cols-[1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-t bg-muted/30">
+              <div className="grid grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-t bg-muted/30">
                 <div className="text-xs italic text-muted-foreground">Total/dia</div>
+                <div />
                 {weekDays.map((day) => {
                   const dayTotal = realTimeDailyTotals[day.date] ?? 0;
                   const jornada = employee?.jornada_diaria ?? 8;
