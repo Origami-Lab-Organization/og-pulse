@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import ReactMarkdown from 'react-markdown';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Progress } from '@/components/ui/progress';
-import { Zap, ArrowLeft, Sparkles, Loader2, Brain, Search, BarChart2, FileText, Check, AlertCircle } from 'lucide-react';
-import { useGenerateAnalysis, type MarketFormData } from '@/hooks/useMarketAnalysis';
+import {
+  Zap, ArrowLeft, Sparkles, Loader2, Brain, Search, BarChart2,
+  FileText, Check, AlertCircle, RefreshCw, Download, MessageSquare, Send,
+} from 'lucide-react';
+import { useGenerateAnalysis, useRefineAnalysis, type MarketFormData } from '@/hooks/useMarketAnalysis';
 
 const modules = [
   { number: 1, title: 'Market Sizing & TAM Analysis', shortName: 'Dimensionamento', description: 'Estime o tamanho total do mercado, segmentos endereçáveis e oportunidades de crescimento.' },
@@ -39,8 +43,6 @@ const formSchema = z.object({
   mainChallenge: z.string().min(10, 'Mínimo 10 caracteres'),
 });
 
-// MarketFormData is imported from useMarketAnalysis
-
 const stageOptions = [
   'Ideia / Pré-MVP',
   'MVP em desenvolvimento',
@@ -56,6 +58,11 @@ interface AnalysisResult {
   timestamp: string;
 }
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 const loadingSteps = [
   { label: 'Analisando o contexto do seu negócio...', icon: Brain },
   { label: 'Pesquisando benchmarks e dados do setor...', icon: Search },
@@ -64,14 +71,23 @@ const loadingSteps = [
   { label: 'Gerando documento final...', icon: Sparkles },
 ];
 
+const WELCOME_MESSAGE: ChatMessage = {
+  role: 'assistant',
+  content: 'Análise concluída! Posso aprofundar qualquer seção, ajustar o tom, comparar cenários ou responder perguntas sobre o que foi gerado. O que você quer explorar?',
+};
+
 const MarketAnalysisPage = () => {
   const [selectedModule, setSelectedModule] = useState<number | 'all' | null>(null);
   const [currentStep, setCurrentStep] = useState<'selection' | 'form' | 'loading' | 'result'>('selection');
   const [formData, setFormData] = useState<MarketFormData | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [activeLoadingStep, setActiveLoadingStep] = useState(0);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
+  const [chatInput, setChatInput] = useState('');
 
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const generateMutation = useGenerateAnalysis();
+  const refineMutation = useRefineAnalysis();
 
   const form = useForm<MarketFormData>({
     resolver: zodResolver(formSchema),
@@ -101,6 +117,18 @@ const MarketAnalysisPage = () => {
     setCurrentStep('loading');
   };
 
+  const handleNewAnalysis = () => {
+    setSelectedModule(null);
+    setCurrentStep('selection');
+    setFormData(null);
+    setAnalysisResult(null);
+    setChatMessages([WELCOME_MESSAGE]);
+    setChatInput('');
+    form.reset();
+    generateMutation.reset();
+    refineMutation.reset();
+  };
+
   const selectedModuleLabel =
     selectedModule === 'all'
       ? 'Análise Completa'
@@ -115,6 +143,7 @@ const MarketAnalysisPage = () => {
         {
           onSuccess: (data) => {
             setAnalysisResult(data);
+            setChatMessages([WELCOME_MESSAGE]);
             setCurrentStep('result');
           },
         }
@@ -132,9 +161,47 @@ const MarketAnalysisPage = () => {
     return () => clearInterval(interval);
   }, [currentStep]);
 
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, refineMutation.isPending]);
+
   const handleRetry = () => {
     generateMutation.reset();
     setCurrentStep('loading');
+  };
+
+  const handleSendChat = () => {
+    const question = chatInput.trim();
+    if (!question || !analysisResult) return;
+
+    const userMsg: ChatMessage = { role: 'user', content: question };
+    const updatedMessages = [...chatMessages, userMsg];
+    setChatMessages(updatedMessages);
+    setChatInput('');
+
+    refineMutation.mutate(
+      {
+        currentMarkdown: analysisResult.markdown,
+        question,
+        chatHistory: updatedMessages.filter((m) => m !== WELCOME_MESSAGE),
+      },
+      {
+        onSuccess: (data) => {
+          setChatMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: data.response },
+          ]);
+        },
+      }
+    );
+  };
+
+  const handleChatKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendChat();
+    }
   };
 
   return (
@@ -328,6 +395,124 @@ const MarketAnalysisPage = () => {
               </p>
             </>
           )}
+        </div>
+      )}
+
+      {/* ── STEP: RESULT ── */}
+      {currentStep === 'result' && analysisResult && (
+        <div className="flex gap-6 h-[calc(100vh-200px)]">
+          {/* Document Preview */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-foreground truncate">{analysisResult.moduleLabel}</h2>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button variant="outline" size="sm" className="gap-2" disabled>
+                  <Download className="h-4 w-4" />
+                  Download Word
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleNewAnalysis}>
+                  <RefreshCw className="h-4 w-4" />
+                  Nova Análise
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto bg-card rounded-lg shadow-sm border p-8">
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <ReactMarkdown
+                  components={{
+                    table: ({ children }) => (
+                      <div className="overflow-x-auto my-4">
+                        <table className="w-full border-collapse border border-border text-sm">{children}</table>
+                      </div>
+                    ),
+                    th: ({ children }) => (
+                      <th className="border border-border bg-muted px-3 py-2 text-left font-medium">{children}</th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="border border-border px-3 py-2">{children}</td>
+                    ),
+                  }}
+                >
+                  {analysisResult.markdown}
+                </ReactMarkdown>
+              </div>
+            </div>
+          </div>
+
+          {/* Chat Panel */}
+          <div className="w-[400px] flex flex-col border rounded-lg bg-card">
+            {/* Chat Header */}
+            <div className="p-4 border-b">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-foreground">Refine sua análise</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Faça perguntas, peça ajustes ou aprofunde qualquer seção
+              </p>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto space-y-4 p-4">
+              {chatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-lg p-3 text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-foreground'
+                    }`}
+                  >
+                    {msg.role === 'assistant' ? (
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {refineMutation.isPending && (
+                <div className="flex justify-start">
+                  <div className="bg-muted rounded-lg p-3 flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Pensando...
+                  </div>
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Chat Input */}
+            <div className="border-t p-4">
+              <div className="flex gap-2">
+                <Textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={handleChatKeyDown}
+                  placeholder="Peça um ajuste ou faça uma pergunta..."
+                  className="min-h-[40px] max-h-[120px] resize-none text-sm"
+                  disabled={refineMutation.isPending}
+                  rows={1}
+                />
+                <Button
+                  size="icon"
+                  onClick={handleSendChat}
+                  disabled={!chatInput.trim() || refineMutation.isPending}
+                  className="shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </AppLayout>
