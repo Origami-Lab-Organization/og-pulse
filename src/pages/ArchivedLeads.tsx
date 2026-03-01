@@ -160,12 +160,6 @@ export default function ArchivedLeads() {
           { label: 'CRM', href: '/crm' },
           { label: 'Arquivados' },
         ]}
-        actions={
-          <Button variant="outline" onClick={() => navigate('/crm')}>
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Voltar ao CRM
-          </Button>
-        }
       >
         <div className="space-y-4">
           {/* Stats Cards */}
