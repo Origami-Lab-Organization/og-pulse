@@ -19,12 +19,14 @@ import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Archive, DollarSign, ExternalLink } from 'lucide-react';
+import { MoreVertical, Archive, DollarSign, ExternalLink, Trash2 } from 'lucide-react';
 import { LeadWithBudget, SERVICE_LINE_OPTIONS } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
+import { DeleteLeadDialog } from './DeleteLeadDialog';
 import { useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/formatters';
 import { formatPhone } from '@/lib/masks';
 import { useState } from 'react';
@@ -56,7 +58,10 @@ interface LeadDetailDialogProps {
 
 export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogProps) {
   const navigate = useNavigate();
+  const { employee } = useAuth();
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const isAdmin = employee?.isAdmin;
   const updateLead = useUpdateLead();
   const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
@@ -155,21 +160,39 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                   </Badge>
                 )}
               </div>
-              {!isArchived && (
+              {!isArchived ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-popover">
-                    <DropdownMenuItem onClick={() => setArchiveOpen(true)}>
-                      <Archive className="h-4 w-4 mr-2" />
-                      Arquivar Lead
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
+                    <DropdownMenuContent align="end" className="bg-popover">
+                      <DropdownMenuItem onClick={() => setArchiveOpen(true)}>
+                        <Archive className="h-4 w-4 mr-2" />
+                        Arquivar Lead
+                      </DropdownMenuItem>
+                      {isAdmin && (
+                        <DropdownMenuItem
+                          onClick={() => setDeleteOpen(true)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir Lead
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
                 </DropdownMenu>
-              )}
+              ) : isAdmin ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              ) : null}
             </div>
             <DialogDescription>
               {isArchived
@@ -404,6 +427,14 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
           if (!v) onOpenChange(false);
         }}
         lead={lead}
+      />
+
+      <DeleteLeadDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        leadId={lead.id}
+        leadName={lead.name}
+        onDeleted={() => onOpenChange(false)}
       />
     </>
   );

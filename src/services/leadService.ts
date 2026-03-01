@@ -146,6 +146,15 @@ export async function unarchiveLead(id: string) {
   if (error) throw error;
 }
 
+export async function deleteLead(id: string) {
+  const { error } = await supabase
+    .from('leads')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
 export async function fetchCRMReceivedValue(tenantId: string): Promise<number> {
   const { data, error } = await supabase.rpc('get_crm_received_value', {
     p_tenant_id: tenantId,

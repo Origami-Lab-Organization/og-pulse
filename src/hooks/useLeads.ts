@@ -12,6 +12,7 @@ import {
   fetchCRMReceivedValue,
   fetchArchivedLeads,
   unarchiveLead,
+  deleteLead,
   CreateLeadInput,
   ArchiveLeadInput,
 } from '@/services/leadService';
@@ -128,6 +129,21 @@ export function useUnarchiveLead() {
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao desarquivar lead', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteLead(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['archived-leads'] });
+      toast({ title: 'Lead excluído com sucesso' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao excluir lead', description: err.message, variant: 'destructive' });
     },
   });
 }
