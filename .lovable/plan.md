@@ -1,45 +1,44 @@
 
+# Fix: Pipeline por Etapa card showing empty when lead values are zero
 
-# Fix: Erro ao cadastrar empresa (RLS bloqueando INSERT na tabela tenants)
+## Problem
+The `useCommercialDashboard` hook filters out pipeline stages where the total value is 0 (`.filter(s => s.value > 0)`). When leads don't have `estimated_value` set, the chart data array is empty and the component renders a blank donut with "Total R$ 0,00".
 
-## Problema Identificado
+## Solution
 
-Os logs mostram que a funcao `register-tenant` esta recebendo o erro:
-`"new row violates row-level security policy for table tenants"`
+### 1. Update the hook (`src/hooks/useCommercialDashboard.ts`)
+- Remove the `.filter(s => s.value > 0)` from `pipelineByStage` so all stages with leads are included (even if value is 0)
+- Filter only stages that have at least one lead: `.filter(s => s.count > 0)`
+- Add a new boolean `pipelineAllZeroValues` to indicate when there are leads but all values are zero
 
-A tabela `tenants` tem RLS ativado com apenas duas politicas:
-- SELECT: usuarios podem ver seu proprio tenant
-- UPDATE: admins podem atualizar seu tenant
+### 2. Rewrite the chart component (`src/components/commercial/PipelineDonutChart.tsx`)
+- Add a new prop `pipelineAllZeroValues` (or compute it internally from data)
+- When all values are zero but counts exist:
+  - Show a donut/bar chart based on **count** instead of value
+  - Display a warning label: "Valores nao informados"
+  - Center text shows total lead count instead of R$ 0,00
+- When values exist: show the current donut chart by value (existing behavior)
+- When no leads at all: show a friendly empty state message ("Nenhum lead ativo no pipeline")
 
-Nao existe nenhuma politica de INSERT. Embora a edge function use a service role key (que deveria ignorar RLS), algo esta impedindo o bypass. A solucao mais confiavel e adicionar uma politica de INSERT para a tabela.
+### 3. Update the dashboard page (`src/pages/CommercialDashboard.tsx`)
+- Pass the new prop to `PipelineDonutChart` if needed
 
-## Solucao
+## Technical Details
 
-Criar uma migration que adiciona uma politica de INSERT na tabela `tenants` usando `SECURITY DEFINER`, permitindo que a edge function (que roda com service role) consiga inserir novos tenants. Como a criacao de tenants so acontece via edge function autenticada com service role, a politica pode ser permissiva para o role `service_role`, ou podemos simplesmente permitir INSERT para qualquer usuario autenticado (ja que o registro de empresa e aberto).
+In `useCommercialDashboard.ts`, change line ~139:
+```typescript
+// Before
+}).filter(s => s.value > 0);
 
-### Migration SQL
-
-```sql
--- Permite que a service role e a edge function insiram novos tenants
-CREATE POLICY "Service role can insert tenants"
-ON public.tenants FOR INSERT
-TO service_role
-WITH CHECK (true);
-
--- Tambem permitir para anon pois a edge function register-tenant
--- nao tem verify_jwt e pode usar o anon key internamente
-CREATE POLICY "Allow insert for registration"
-ON public.tenants FOR INSERT
-TO anon, authenticated
-WITH CHECK (true);
+// After  
+}).filter(s => s.count > 0);
 ```
 
-Na verdade, como a edge function usa `SUPABASE_SERVICE_ROLE_KEY`, a politica para `service_role` deveria ser suficiente. Mas para garantir, adicionaremos ambas.
+In `PipelineDonutChart.tsx`, detect if all values are zero and switch `dataKey` to `count`:
+```typescript
+const allZeroValues = data.length > 0 && data.every(d => d.value === 0);
+// Use dataKey="count" when allZeroValues is true
+// Show warning text and adjust center label accordingly
+```
 
-### Detalhes Tecnicos
-
-- **Arquivo afetado**: Nova migration SQL apenas
-- **Nenhuma alteracao de codigo** no frontend ou na edge function
-- A politica e segura porque a criacao de tenants so acontece via edge function que ja valida os dados de entrada
-- Apos a migration, o fluxo de registro voltara a funcionar normalmente
-
+Also handle the truly empty case (no leads at all) with a centered message.
