@@ -11,6 +11,7 @@ interface Props {
   pipelineLeadsWithBudgetCount: number;
   pipelineHasNoProposals: boolean;
   forecast: number;
+  forecastLeadsCount: number;
   newLeadsThisYear: number;
   prevConversionRate: number;
   prevAvgTicket: number;
@@ -25,7 +26,7 @@ const kpis = [
   { key: 'avgTicket', prevKey: 'prevAvgTicket', label: 'Ticket Médio', icon: Receipt, format: (v: number) => formatCurrency(v), tooltip: 'Valor médio dos negócios fechados. O valor é definido na etapa Proposta, quando o orçamento é gerado', invertColor: false },
   { key: 'avgSalesCycleDays', prevKey: 'prevAvgSalesCycleDays', label: 'Ciclo Médio de Venda', icon: Clock, format: (v: number | null) => v !== null ? `${Math.round(v)} dias` : '—', tooltip: 'Tempo médio em dias desde a criação do lead até o fechamento do negócio', invertColor: true },
   { key: 'activePipeline', prevKey: 'prevActivePipeline', label: 'Pipeline Ativo', icon: TrendingUp, format: (v: number) => formatCurrency(v), tooltip: 'Soma dos orçamentos em andamento (etapas Proposta e Negociação). Leads em Triagem e Qualificação ainda não possuem valor definido', invertColor: false },
-  { key: 'forecast', prevKey: 'prevForecast', label: 'Receita Prevista (Forecast)', icon: Target, format: (v: number) => formatCurrency(v), tooltip: 'Soma ponderada do valor de cada lead ativo pela probabilidade da etapa: Triagem 10%, Qualificação 25%, Proposta 50%, Negociação 75%, Fechado 100%', invertColor: false },
+  { key: 'forecast', prevKey: 'prevForecast', label: 'Receita Prevista (Forecast)', icon: Target, format: (v: number) => formatCurrency(v), tooltip: 'Estimativa ponderada de receita com base nos orçamentos em andamento e probabilidade de fechamento por etapa: Proposta 50%, Negociação 75%, Fechado 100%', invertColor: false },
   { key: 'newLeadsThisYear', prevKey: 'prevNewLeadsThisYear', label: 'Leads no Período', icon: UserPlus, format: (v: number) => String(v), tooltip: 'Quantidade de novos leads criados no período, independente da etapa', invertColor: false },
 ] as const;
 
@@ -40,7 +41,7 @@ function getVariation(current: number | null, previous: number | null, invertCol
 export function CommercialKPIs(props: Props) {
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {kpis.map(kpi => {
           const Icon = kpi.icon;
           const value = props[kpi.key];
@@ -53,6 +54,12 @@ export function CommercialKPIs(props: Props) {
               : props.pipelineHasNoProposals
                 ? 'Nenhum orçamento gerado no período'
                 : null
+            : null;
+          const showForecastSublabel = kpi.key === 'forecast';
+          const forecastSublabel = showForecastSublabel
+            ? props.forecastLeadsCount > 0
+              ? `Baseado em ${props.forecastLeadsCount} orçamento${props.forecastLeadsCount > 1 ? 's' : ''} ativo${props.forecastLeadsCount > 1 ? 's' : ''}`
+              : 'Nenhum orçamento ativo no período'
             : null;
           return (
             <Card key={kpi.key}>
@@ -73,7 +80,7 @@ export function CommercialKPIs(props: Props) {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <p className="text-lg font-bold text-foreground">{kpi.format(value)}</p>
+                    <p className="text-base font-bold text-foreground truncate">{kpi.format(value)}</p>
                     {variation && (
                       <div className={`flex items-center gap-0.5 text-xs ${variation.isGood ? 'text-emerald-600' : 'text-red-500'}`}>
                         {variation.isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
@@ -83,6 +90,11 @@ export function CommercialKPIs(props: Props) {
                     {pipelineSublabel && (
                       <p className="text-[10px] leading-tight text-muted-foreground mt-0.5">
                         {pipelineSublabel}
+                      </p>
+                    )}
+                    {forecastSublabel && (
+                      <p className="text-[10px] leading-tight text-muted-foreground mt-0.5">
+                        {forecastSublabel}
                       </p>
                     )}
                   </div>

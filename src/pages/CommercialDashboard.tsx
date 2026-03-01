@@ -173,6 +173,7 @@ export default function CommercialDashboard() {
               pipelineLeadsWithBudgetCount={data.pipelineLeadsWithBudgetCount}
               pipelineHasNoProposals={data.pipelineHasNoProposals}
               forecast={data.forecast}
+              forecastLeadsCount={data.forecastLeadsCount}
               newLeadsThisYear={data.newLeadsThisYear}
               prevConversionRate={data.prevConversionRate}
               prevAvgTicket={data.prevAvgTicket}
