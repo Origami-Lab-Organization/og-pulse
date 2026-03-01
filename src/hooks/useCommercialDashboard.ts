@@ -36,11 +36,11 @@ interface CommercialDashboardData {
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 const STAGE_COLORS: Record<string, string> = {
-  screening: 'hsl(var(--muted-foreground))',
-  qualification: 'hsl(210, 70%, 50%)',
-  proposal: 'hsl(38, 92%, 50%)',
-  negotiation: 'hsl(25, 85%, 55%)',
-  closed: 'hsl(152, 55%, 45%)',
+  screening: 'hsl(var(--chart-1))',
+  qualification: 'hsl(var(--chart-5))',
+  proposal: 'hsl(var(--chart-3))',
+  negotiation: 'hsl(var(--chart-4))',
+  closed: 'hsl(var(--success))',
 };
 
 export function useCommercialDashboard(selectedYear: number, selectedServiceLine: string) {
