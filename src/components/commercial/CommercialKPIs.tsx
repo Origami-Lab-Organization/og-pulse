@@ -32,7 +32,7 @@ export function CommercialKPIs(props: Props) {
                   <Icon className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground truncate">{kpi.label}</p>
+                  <p className="text-[11px] leading-tight text-muted-foreground">{kpi.label}</p>
                   <p className="text-lg font-bold text-foreground">{kpi.format(value)}</p>
                 </div>
               </div>
