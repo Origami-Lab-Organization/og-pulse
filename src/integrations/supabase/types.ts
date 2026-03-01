@@ -2066,21 +2066,30 @@ export type Database = {
       }
       tenants: {
         Row: {
+          cnpj: string | null
           created_at: string
+          employee_count: number | null
           id: string
           name: string
+          segment: string | null
           updated_at: string
         }
         Insert: {
+          cnpj?: string | null
           created_at?: string
+          employee_count?: number | null
           id?: string
           name: string
+          segment?: string | null
           updated_at?: string
         }
         Update: {
+          cnpj?: string | null
           created_at?: string
+          employee_count?: number | null
           id?: string
           name?: string
+          segment?: string | null
           updated_at?: string
         }
         Relationships: []
