@@ -1,115 +1,49 @@
 
 
-## Dashboard Comercial -- Indicadores e Estrutura
+## Grafico de Volume de Projetos -- Ganho Mensal, Perdido Mensal e Acumulado
 
-### Objetivo
+### Problema Atual
+O grafico "Receita Acumulada" mostra apenas duas curvas acumuladas (Ganho e Perdido), sem mostrar o volume mensal individual. Alem disso, o eixo Y exibe "0k" repetido quando nao ha dados.
 
-Criar uma pagina de inteligencia comercial em `/comercial` que consolida dados de Leads, Orcamentos, Clientes e Arquivados, oferecendo visao estrategica para gestores.
+### Nova Proposta
+Transformar em um grafico combinado (ComposedChart do Recharts) com 3 series:
 
----
+1. **Barras "Ganho no Mes"** (verde) -- valor dos leads fechados naquele mes
+2. **Barras "Perdido no Mes"** (vermelho/coral) -- valor dos leads arquivados naquele mes
+3. **Linha "Acumulado Ganho"** (verde escuro, com area preenchida) -- soma acumulada dos ganhos
 
-### Layout da Pagina (3 secoes verticais)
-
-```text
-+----------------------------------------------------------+
-|  [Filtro: Ano]   [Filtro: Linha de Servico]              |
-+----------------------------------------------------------+
-|  KPI 1  |  KPI 2  |  KPI 3  |  KPI 4  |  KPI 5         |
-+----------------------------------------------------------+
-|                                                          |
-|  Funil de Conversao (horizontal bar)                     |
-|  Triagem -> Qualificacao -> Proposta -> Negociacao -> Won |
-|                                                          |
-+--------------------------+-------------------------------+
-|  Receita Acumulada       |  Pipeline por Etapa           |
-|  (Area chart mensal:     |  (Donut chart c/ valores      |
-|   Ganho vs Perdido       |   por stage)                  |
-|   acumulado)             |                               |
-+--------------------------+-------------------------------+
-|  Top 5 Clientes          |  Motivos de Perda             |
-|  por receita             |  (Horizontal bar chart        |
-|  (Bar chart)             |   dos archive_reasons)        |
-+--------------------------+-------------------------------+
-|  Leads Recentes (tabela compacta, 5 ultimos)             |
-+----------------------------------------------------------+
-```
-
----
-
-### KPIs (5 cards no topo)
-
-| # | Nome | Calculo | Icone |
-|---|------|---------|-------|
-| 1 | **Taxa de Conversao** | (leads closed / total leads criados no ano) x 100 | Percent |
-| 2 | **Ticket Medio** | Soma valor ganho / qtd leads closed | Receipt |
-| 3 | **Ciclo Medio de Venda** | Media de dias entre created_at e closed_at dos leads fechados | Clock |
-| 4 | **Pipeline Ativo** | Soma do valor de leads em proposal + negotiation | TrendingUp |
-| 5 | **Leads Novos no Mes** | Contagem de leads criados no mes corrente | UserPlus |
-
----
-
-### Graficos Detalhados
-
-**1. Funil de Conversao (Horizontal Bar)**
-- Mostra quantidade de leads por etapa: Triagem, Qualificacao, Proposta, Negociacao, Fechado
-- Barras com degradee de cor da etapa
-- Exibe a taxa de conversao entre cada etapa
-
-**2. Receita Acumulada Mensal (Area Chart)**
-- Eixo X: meses do ano
-- Duas series: "Ganho" (leads closed_at no mes, valor do budget) e "Perdido" (leads archived_at no mes, valor estimado)
-- Visualizacao acumulada para mostrar tendencia
-
-**3. Pipeline por Etapa (Donut Chart)**
-- Distribuicao do valor monetario por stage (screening, qualification, proposal, negotiation)
-- Centro do donut: valor total do pipeline
-- Tooltips com quantidade de leads e valor
-
-**4. Top 5 Clientes por Receita (Bar Chart Horizontal)**
-- Agrupa leads fechados por client/company_name
-- Ordena por valor total descendente
-- Mostra os 5 maiores
-
-**5. Motivos de Perda (Bar Chart Horizontal)**
-- Conta leads arquivados agrupados por archive_reason
-- Usa labels amigaveis (ARCHIVE_REASONS)
-- Cor vermelha/coral para enfatizar perdas
-
----
-
-### Tabela de Leads Recentes
-
-- Ultimos 5 leads criados (qualquer stage)
-- Colunas: Nome, Empresa, Etapa (badge colorido), Valor, Data Criacao
-- Link para o CRM ao clicar
-
----
-
-### Filtros
-
-- **Ano**: Seletor de ano (padrao: ano corrente)
-- **Linha de Servico**: Dropdown com as opcoes de SERVICE_LINE_OPTIONS + "Todas"
-
----
+### Dados
+O hook `useCommercialDashboard.ts` ja calcula `won` (mensal) e o acumulado. Sera ajustado para retornar 3 campos por mes: `wonMonth`, `lostMonth` e `wonAccumulated`.
 
 ### Mudancas Tecnicas
 
-**Arquivos criados:**
-- `src/pages/CommercialDashboard.tsx` -- pagina principal
-- `src/components/commercial/CommercialKPIs.tsx` -- cards de KPIs
-- `src/components/commercial/ConversionFunnel.tsx` -- grafico de funil
-- `src/components/commercial/RevenueAccumulatedChart.tsx` -- area chart mensal
-- `src/components/commercial/PipelineDonutChart.tsx` -- donut chart
-- `src/components/commercial/TopClientsChart.tsx` -- bar chart horizontal
-- `src/components/commercial/LossReasonsChart.tsx` -- bar chart horizontal
-- `src/components/commercial/RecentLeadsTable.tsx` -- tabela compacta
-- `src/hooks/useCommercialDashboard.ts` -- hook que agrega todos os dados
+**1. `src/hooks/useCommercialDashboard.ts`**
+- Alterar o formato do `revenueByMonth` para incluir 3 campos: `wonMonth` (ganho no mes), `lostMonth` (perdido no mes) e `wonAccumulated` (acumulado de ganhos)
+- Atualizar a interface `CommercialDashboardData` para refletir os novos campos
 
-**Arquivos modificados:**
-- `src/App.tsx` -- nova rota `/comercial` protegida com RoleProtectedRoute requireManager
-- `src/components/layout/AppSidebar.tsx` -- remover `disabled: true` do item "Dashboard" em Comercial
+**2. `src/components/commercial/RevenueAccumulatedChart.tsx`**
+- Trocar de `AreaChart` para `ComposedChart` (Recharts)
+- Adicionar duas series `Bar` lado a lado: Ganho no Mes (verde) e Perdido no Mes (vermelho)
+- Adicionar uma serie `Line` (ou `Area`) para o Acumulado Ganho com eixo Y secundario (YAxis com `yAxisId`)
+- Titulo: "Volume de Projetos"
+- Legendas: "Ganho no Mes", "Perdido no Mes", "Acumulado Ganho"
+- Tooltip com formatacao em moeda (BRL)
 
-**Dependencias:** Usa `recharts` (ja instalado) para todos os graficos.
+**3. `src/pages/CommercialDashboard.tsx`**
+- Nenhuma alteracao necessaria, o componente continua recebendo `data.revenueByMonth`
 
-**Dados:** Todos os calculos sao feitos no frontend, usando os dados ja disponíveis via `useLeads`, `useArchivedLeads`, `useBudgets` e `useClients`. O hook `useCommercialDashboard` orquestra essas queries e deriva os indicadores.
+### Layout Visual
+
+```text
+Volume de Projetos
+R$ (barras)                              R$ (linha acumulada)
+|  ██                                    ___________
+|  ██ ░░                          ______/
+|  ██ ░░    ██              ____/
+|  ██ ░░    ██ ░░    ██ ___/
+|  ██ ░░    ██ ░░    ██ ░░
++--Jan--Fev--Mar--Abr--Mai--Jun--Jul--...--Dez
+
+██ Ganho no Mes   ░░ Perdido no Mes   ── Acumulado Ganho
+```
 
