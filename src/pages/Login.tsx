@@ -75,7 +75,7 @@ const Login = () => {
           </div>
           <CardTitle className="text-2xl">Origami Pulse</CardTitle>
           <CardDescription>
-            Entre com suas credenciais para acessar o sistema
+            Gerencie a rentabilidade dos seus projetos com clareza.
           </CardDescription>
         </CardHeader>
         <CardContent>
