@@ -7,6 +7,7 @@ interface Props {
   avgTicket: number;
   avgSalesCycleDays: number;
   activePipeline: number;
+  pipelineHasLeadsWithoutValue: boolean;
   newLeadsThisYear: number;
 }
 
@@ -24,6 +25,7 @@ export function CommercialKPIs(props: Props) {
       {kpis.map(kpi => {
         const Icon = kpi.icon;
         const value = props[kpi.key];
+        const showPipelineWarning = kpi.key === 'activePipeline' && props.pipelineHasLeadsWithoutValue && value === 0;
         return (
           <Card key={kpi.key}>
             <CardContent className="p-4">
@@ -34,6 +36,11 @@ export function CommercialKPIs(props: Props) {
                 <div className="min-w-0">
                   <p className="text-[11px] leading-tight text-muted-foreground">{kpi.label}</p>
                   <p className="text-lg font-bold text-foreground">{kpi.format(value)}</p>
+                  {showPipelineWarning && (
+                    <p className="text-[10px] leading-tight text-amber-600 dark:text-amber-400 mt-0.5">
+                      Adicione valores aos leads para calcular o pipeline
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
