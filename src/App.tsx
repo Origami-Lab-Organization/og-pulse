@@ -97,7 +97,7 @@ const App = () => (
               <Route 
                 path="/employees" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireManager>
                     <Index />
                   </RoleProtectedRoute>
                 } 

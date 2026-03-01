@@ -2249,6 +2249,10 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      is_manager_in_tenant: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
       update_overdue_installments: { Args: never; Returns: undefined }
       user_belongs_to_tenant: {
         Args: { _tenant_id: string; _user_id: string }
