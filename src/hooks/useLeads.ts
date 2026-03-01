@@ -10,6 +10,8 @@ import {
   archiveLead,
   linkBudgetToLead,
   fetchCRMReceivedValue,
+  fetchArchivedLeads,
+  unarchiveLead,
   CreateLeadInput,
   ArchiveLeadInput,
 } from '@/services/leadService';
@@ -102,6 +104,30 @@ export function useLinkBudgetToLead() {
       linkBudgetToLead(leadId, budgetId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
+export function useArchivedLeads() {
+  const { employee } = useAuth();
+  return useQuery({
+    queryKey: ['archived-leads', employee?.tenant_id],
+    queryFn: () => fetchArchivedLeads(employee!.tenant_id),
+    enabled: !!employee?.tenant_id,
+  });
+}
+
+export function useUnarchiveLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => unarchiveLead(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['archived-leads'] });
+      toast({ title: 'Lead desarquivado com sucesso' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao desarquivar lead', description: err.message, variant: 'destructive' });
     },
   });
 }

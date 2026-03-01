@@ -115,6 +115,37 @@ export async function archiveLead(input: ArchiveLeadInput) {
   if (error) throw error;
 }
 
+export async function fetchArchivedLeads(tenantId: string): Promise<LeadWithBudget[]> {
+  const { data, error } = await supabase
+    .from('leads')
+    .select(`
+      *,
+      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date),
+      creator:employees!leads_created_by_fkey(id, nome),
+      responsible:employees!leads_responsible_id_fkey(id, nome)
+    `)
+    .eq('tenant_id', tenantId)
+    .eq('archived', true)
+    .order('archived_at', { ascending: false });
+
+  if (error) throw error;
+  return (data as any) || [];
+}
+
+export async function unarchiveLead(id: string) {
+  const { error } = await supabase
+    .from('leads')
+    .update({
+      archived: false,
+      archived_at: null,
+      archive_reason: null,
+      archive_notes: null,
+    })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
 export async function fetchCRMReceivedValue(tenantId: string): Promise<number> {
   const { data, error } = await supabase.rpc('get_crm_received_value', {
     p_tenant_id: tenantId,

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -109,7 +110,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen && lead && isDirty) {
+    if (!newOpen && lead && isDirty && !lead.archived) {
       const values = form.getValues();
       const payload: any = {
         id: lead.id,
@@ -138,28 +139,43 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
 
   if (!lead) return null;
 
+  const isArchived = lead.archived;
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto [&>button:last-child]:hidden">
           <DialogHeader>
             <div className="flex items-center justify-between pr-2">
-              <DialogTitle className="text-lg">Editar Lead</DialogTitle>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover">
-                  <DropdownMenuItem onClick={() => setArchiveOpen(true)}>
-                    <Archive className="h-4 w-4 mr-2" />
-                    Arquivar Lead
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                <DialogTitle className="text-lg">{isArchived ? 'Lead Arquivado' : 'Editar Lead'}</DialogTitle>
+                {isArchived && (
+                  <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                    Arquivado
+                  </Badge>
+                )}
+              </div>
+              {!isArchived && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-popover">
+                    <DropdownMenuItem onClick={() => setArchiveOpen(true)}>
+                      <Archive className="h-4 w-4 mr-2" />
+                      Arquivar Lead
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
-            <DialogDescription>Edite os campos e clique fora para salvar automaticamente.</DialogDescription>
+            <DialogDescription>
+              {isArchived
+                ? `Arquivado em ${lead.archived_at ? new Date(lead.archived_at).toLocaleDateString('pt-BR') : '-'}${lead.archive_reason ? ` — Motivo: ${lead.archive_reason}` : ''}`
+                : 'Edite os campos e clique fora para salvar automaticamente.'}
+            </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
@@ -167,7 +183,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nome da Oportunidade *</FormLabel>
-                  <FormControl><Input placeholder="Ex: Projeto Website ABC" {...field} /></FormControl>
+                  <FormControl><Input placeholder="Ex: Projeto Website ABC" {...field} disabled={isArchived} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -175,7 +191,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
               <FormField control={form.control} name="service_line" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Linha de Serviço</FormLabel>
-                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                  <Select value={field.value || ''} onValueChange={field.onChange} disabled={isArchived}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
@@ -193,7 +209,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
               <FormField control={form.control} name="responsible_id" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Responsável</FormLabel>
-                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                  <Select value={field.value || ''} onValueChange={field.onChange} disabled={isArchived}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o responsável" />
@@ -262,7 +278,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                 <FormField control={form.control} name="company_name" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Empresa</FormLabel>
-                    <FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl>
+                    <FormControl><Input placeholder="Nome da empresa" {...field} disabled={isArchived} /></FormControl>
                   </FormItem>
                 )} />
               )}
@@ -271,13 +287,13 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                 <FormField control={form.control} name="contact_name" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Contato</FormLabel>
-                    <FormControl><Input placeholder="Nome" {...field} /></FormControl>
+                    <FormControl><Input placeholder="Nome" {...field} disabled={isArchived} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="contact_email" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl><Input placeholder="email@..." {...field} /></FormControl>
+                    <FormControl><Input placeholder="email@..." {...field} disabled={isArchived} /></FormControl>
                   </FormItem>
                 )} />
               </div>
@@ -286,11 +302,12 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
                 <FormField control={form.control} name="contact_phone" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
-                    <FormControl>
+                     <FormControl>
                       <Input 
                         placeholder="(00) 00000-0000" 
                         value={field.value || ''}
                         onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                        disabled={isArchived}
                       />
                     </FormControl>
                   </FormItem>
@@ -320,7 +337,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead }: LeadDetailDialogP
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Observações</FormLabel>
-                  <FormControl><Textarea placeholder="Notas sobre o lead..." {...field} /></FormControl>
+                  <FormControl><Textarea placeholder="Notas sobre o lead..." {...field} disabled={isArchived} /></FormControl>
                 </FormItem>
               )} />
 
