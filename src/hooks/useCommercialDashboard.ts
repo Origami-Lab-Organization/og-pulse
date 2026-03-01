@@ -3,7 +3,12 @@ import { useLeads, useArchivedLeads } from '@/hooks/useLeads';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useClients } from '@/hooks/useClients';
 import { LeadWithBudget, CRM_LEAD_COLUMNS, ARCHIVE_REASONS } from '@/types/lead';
-import { differenceInDays, parseISO, getMonth, getYear } from 'date-fns';
+import { differenceInDays, parseISO, getMonth, getYear, format, eachMonthOfInterval, startOfMonth, endOfMonth, differenceInMilliseconds } from 'date-fns';
+
+interface ResponsibleOption {
+  id: string;
+  name: string;
+}
 
 interface CommercialDashboardData {
   // KPIs
@@ -15,7 +20,7 @@ interface CommercialDashboardData {
   pipelineHasNoProposals: boolean;
   newLeadsThisYear: number;
 
-  // Previous year KPIs
+  // Previous period KPIs
   prevConversionRate: number;
   prevAvgTicket: number;
   prevAvgSalesCycleDays: number | null;
@@ -40,9 +45,10 @@ interface CommercialDashboardData {
 
   // Recent leads
   recentLeads: LeadWithBudget[];
-}
 
-const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  // Responsible options
+  responsibleOptions: ResponsibleOption[];
+}
 
 const STAGE_COLORS: Record<string, string> = {
   screening: 'hsl(var(--chart-1))',
@@ -52,7 +58,44 @@ const STAGE_COLORS: Record<string, string> = {
   closed: 'hsl(var(--success))',
 };
 
-export function useCommercialDashboard(selectedYear: number, selectedServiceLine: string) {
+function isInRange(dateStr: string, from: Date, to: Date): boolean {
+  const d = parseISO(dateStr);
+  return d >= from && d <= to;
+}
+
+function computeKPIs(leads: LeadWithBudget[]) {
+  const activeLeads = leads.filter(l => !l.archived);
+  const closedLeads = leads.filter(l => l.crm_stage === 'closed' && !l.archived);
+  const totalLeads = leads.length;
+
+  const conversionRate = totalLeads > 0 ? (closedLeads.length / totalLeads) * 100 : 0;
+
+  const closedValues = closedLeads.map(l => {
+    if (l.budget?.final_total && l.budget.final_total > 0) return l.budget.final_total;
+    return l.estimated_value;
+  });
+  const avgTicket = closedValues.length > 0 ? closedValues.reduce((a, b) => a + b, 0) / closedValues.length : 0;
+
+  const cyclesInDays = closedLeads
+    .filter(l => l.closed_at)
+    .map(l => differenceInDays(parseISO(l.closed_at!), parseISO(l.created_at)));
+  const avgSalesCycleDays = cyclesInDays.length > 0 ? cyclesInDays.reduce((a, b) => a + b, 0) / cyclesInDays.length : null;
+
+  const getLeadValue = (l: LeadWithBudget) =>
+    (l.budget?.final_total && l.budget.final_total > 0) ? l.budget.final_total : l.estimated_value;
+
+  const pipelineLeads = activeLeads.filter(l => l.crm_stage !== 'closed');
+  const pipelineLeadsWithBudget = pipelineLeads.filter(l => getLeadValue(l) > 0);
+  const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);
+  const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
+  const pipelineHasNoProposals = pipelineLeadsWithBudgetCount === 0 && pipelineLeads.length > 0;
+
+  const newLeadsThisYear = leads.length;
+
+  return { conversionRate, avgTicket, avgSalesCycleDays, activePipeline, pipelineLeadsWithBudgetCount, pipelineHasNoProposals, newLeadsThisYear };
+}
+
+export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedServiceLine: string, selectedResponsible: string) {
   const { data: leads = [], isLoading: leadsLoading } = useLeads();
   const { data: archivedLeads = [], isLoading: archivedLoading } = useArchivedLeads();
   const { data: budgets = [], isLoading: budgetsLoading } = useBudgets();
@@ -65,94 +108,68 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
 
     const allLeads = [...leads, ...archivedLeads] as LeadWithBudget[];
 
+    // Extract responsible options from ALL leads (before filtering)
+    const responsibleMap = new Map<string, string>();
+    allLeads.forEach(l => {
+      if (l.responsible_id && l.responsible?.nome) {
+        responsibleMap.set(l.responsible_id, l.responsible.nome);
+      }
+    });
+    const responsibleOptions: ResponsibleOption[] = Array.from(responsibleMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
     // Filter by service line
-    const filtered = selectedServiceLine === 'all'
+    let filtered = selectedServiceLine === 'all'
       ? allLeads
       : allLeads.filter(l => l.service_line === selectedServiceLine);
 
-    // Filter by year (created_at)
-    const yearFiltered = filtered.filter(l => getYear(parseISO(l.created_at)) === selectedYear);
+    // Filter by responsible
+    if (selectedResponsible !== 'all') {
+      filtered = filtered.filter(l => l.responsible_id === selectedResponsible);
+    }
 
-    // Active leads (not archived) in this year
-    const activeLeadsYear = yearFiltered.filter(l => !l.archived);
-    // Closed leads in this year
-    const closedLeads = yearFiltered.filter(l => l.crm_stage === 'closed' && !l.archived);
-    // Archived leads in this year
-    const archivedYear = yearFiltered.filter(l => l.archived);
+    // Filter by date range (created_at)
+    const periodFiltered = filtered.filter(l => isInRange(l.created_at, dateFrom, dateTo));
 
-    // KPI 1: Conversion rate
-    const totalLeadsYear = yearFiltered.length;
-    const conversionRate = totalLeadsYear > 0 ? (closedLeads.length / totalLeadsYear) * 100 : 0;
+    // Active leads in period
+    const activeLeadsPeriod = periodFiltered.filter(l => !l.archived);
+    const archivedPeriod = periodFiltered.filter(l => l.archived);
 
-    // KPI 2: Average ticket
-    const closedValues = closedLeads.map(l => {
-      if (l.budget?.final_total && l.budget.final_total > 0) return l.budget.final_total;
-      return l.estimated_value;
-    });
-    const avgTicket = closedValues.length > 0 ? closedValues.reduce((a, b) => a + b, 0) / closedValues.length : 0;
+    // Current period KPIs
+    const currentKPIs = computeKPIs(periodFiltered);
 
-    // KPI 3: Average sales cycle
-    const cyclesInDays = closedLeads
-      .filter(l => l.closed_at)
-      .map(l => differenceInDays(parseISO(l.closed_at!), parseISO(l.created_at)));
-    const avgSalesCycleDays = cyclesInDays.length > 0 ? cyclesInDays.reduce((a, b) => a + b, 0) / cyclesInDays.length : null;
-
-    // KPI 4: Active pipeline (all active leads, excluding closed and archived)
-    const pipelineLeads = activeLeadsYear.filter(l => l.crm_stage !== 'closed');
-    const getLeadValue = (l: LeadWithBudget) => 
-      (l.budget?.final_total && l.budget.final_total > 0) ? l.budget.final_total : l.estimated_value;
-    const pipelineLeadsWithBudget = pipelineLeads.filter(l => getLeadValue(l) > 0);
-    const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);
-    const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
-    const pipelineHasNoProposals = pipelineLeadsWithBudgetCount === 0 && pipelineLeads.length > 0;
-
-    // KPI 5: New leads in the selected year
-    const newLeadsThisYear = yearFiltered.length;
-
-    // === Previous year KPIs ===
-    const prevYear = selectedYear - 1;
-    const prevYearFiltered = filtered.filter(l => getYear(parseISO(l.created_at)) === prevYear);
-    const prevActiveLeadsYear = prevYearFiltered.filter(l => !l.archived);
-    const prevClosedLeads = prevYearFiltered.filter(l => l.crm_stage === 'closed' && !l.archived);
-    const prevArchivedYear = prevYearFiltered.filter(l => l.archived);
-
-    const prevTotalLeadsYear = prevYearFiltered.length;
-    const prevConversionRate = prevTotalLeadsYear > 0 ? (prevClosedLeads.length / prevTotalLeadsYear) * 100 : 0;
-
-    const prevClosedValues = prevClosedLeads.map(l => {
-      if (l.budget?.final_total && l.budget.final_total > 0) return l.budget.final_total;
-      return l.estimated_value;
-    });
-    const prevAvgTicket = prevClosedValues.length > 0 ? prevClosedValues.reduce((a, b) => a + b, 0) / prevClosedValues.length : 0;
-
-    const prevCyclesInDays = prevClosedLeads
-      .filter(l => l.closed_at)
-      .map(l => differenceInDays(parseISO(l.closed_at!), parseISO(l.created_at)));
-    const prevAvgSalesCycleDays = prevCyclesInDays.length > 0 ? prevCyclesInDays.reduce((a, b) => a + b, 0) / prevCyclesInDays.length : null;
-
-    const prevPipelineLeads = prevActiveLeadsYear.filter(l => l.crm_stage !== 'closed');
-    const prevPipelineWithBudget = prevPipelineLeads.filter(l => getLeadValue(l) > 0);
-    const prevActivePipeline = prevPipelineWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);
-
-    const prevNewLeadsThisYear = prevYearFiltered.length;
+    // Previous period KPIs (same duration shifted back)
+    const durationMs = differenceInMilliseconds(dateTo, dateFrom);
+    const prevTo = new Date(dateFrom.getTime() - 1); // day before dateFrom
+    const prevFrom = new Date(prevTo.getTime() - durationMs);
+    const prevPeriodFiltered = filtered.filter(l => isInRange(l.created_at, prevFrom, prevTo));
+    const prevKPIs = computeKPIs(prevPeriodFiltered);
 
     // Funnel data
     const funnelData = CRM_LEAD_COLUMNS.map(col => ({
       stage: col.id,
       label: col.label,
-      count: activeLeadsYear.filter(l => l.crm_stage === col.id).length,
+      count: activeLeadsPeriod.filter(l => l.crm_stage === col.id).length,
       color: STAGE_COLORS[col.id] || 'hsl(var(--muted))',
     }));
 
-    // Revenue by month with accumulated
+    // Revenue by month — dynamic labels based on date range
+    const months = eachMonthOfInterval({ start: dateFrom, end: dateTo });
     let accWon = 0;
-    const revenueByMonthData = MONTH_LABELS.map((label, monthIdx) => {
+    const revenueByMonthData = months.map(monthDate => {
+      const label = format(monthDate, 'MMM/yy');
+      const monthIdx = getMonth(monthDate);
+      const yearVal = getYear(monthDate);
+      const mStart = startOfMonth(monthDate);
+      const mEnd = endOfMonth(monthDate);
+
       const wonThisMonth = filtered
         .filter(l => l.crm_stage === 'closed' && !l.archived)
         .filter(l => {
           const dateStr = l.closed_at || l.updated_at;
           const d = parseISO(dateStr);
-          return getYear(d) === selectedYear && getMonth(d) === monthIdx;
+          return d >= mStart && d <= mEnd;
         })
         .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
 
@@ -161,7 +178,7 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
         .filter(l => {
           const dateStr = l.archived_at || l.updated_at;
           const d = parseISO(dateStr);
-          return getYear(d) === selectedYear && getMonth(d) === monthIdx;
+          return d >= mStart && d <= mEnd;
         })
         .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
 
@@ -172,7 +189,7 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
     // Pipeline by stage (donut)
     const pipelineStages = ['screening', 'qualification', 'proposal', 'negotiation'] as const;
     const pipelineByStage = pipelineStages.map(stage => {
-      const stageLeads = activeLeadsYear.filter(l => l.crm_stage === stage);
+      const stageLeads = activeLeadsPeriod.filter(l => l.crm_stage === stage);
       const col = CRM_LEAD_COLUMNS.find(c => c.id === stage);
       return {
         name: col?.label || stage,
@@ -183,7 +200,8 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
 
     const totalPipeline = pipelineByStage.reduce((s, p) => s + p.value, 0);
 
-    // Top 5 clients by revenue (closed leads)
+    // Top 5 clients by revenue (closed leads in period)
+    const closedLeads = periodFiltered.filter(l => l.crm_stage === 'closed' && !l.archived);
     const clientRevenue: Record<string, number> = {};
     closedLeads.forEach(l => {
       const name = l.company_name || 'Sem empresa';
@@ -197,7 +215,7 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
 
     // Loss reasons
     const reasonCounts: Record<string, number> = {};
-    archivedYear.forEach(l => {
+    archivedPeriod.forEach(l => {
       const reason = l.archive_reason || 'other';
       reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
     });
@@ -214,18 +232,12 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
       .slice(0, 5);
 
     return {
-      conversionRate,
-      avgTicket,
-      avgSalesCycleDays,
-      activePipeline,
-      pipelineLeadsWithBudgetCount,
-      pipelineHasNoProposals,
-      newLeadsThisYear,
-      prevConversionRate,
-      prevAvgTicket,
-      prevAvgSalesCycleDays,
-      prevActivePipeline,
-      prevNewLeadsThisYear,
+      ...currentKPIs,
+      prevConversionRate: prevKPIs.conversionRate,
+      prevAvgTicket: prevKPIs.avgTicket,
+      prevAvgSalesCycleDays: prevKPIs.avgSalesCycleDays,
+      prevActivePipeline: prevKPIs.activePipeline,
+      prevNewLeadsThisYear: prevKPIs.newLeadsThisYear,
       funnelData,
       revenueByMonth: revenueByMonthData,
       pipelineByStage,
@@ -233,8 +245,9 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
       topClients,
       lossReasons,
       recentLeads,
+      responsibleOptions,
     };
-  }, [leads, archivedLeads, budgets, clients, isLoading, selectedYear, selectedServiceLine]);
+  }, [leads, archivedLeads, budgets, clients, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
 
   return { data, isLoading };
 }
