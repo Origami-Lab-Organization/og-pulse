@@ -7,11 +7,15 @@ interface Props {
 }
 
 export function TopClientsChart({ data }: Props) {
+  const title = data.length === 0
+    ? 'Top Clientes por Receita'
+    : `Top ${data.length} Cliente${data.length > 1 ? 's' : ''} por Receita`;
+
   if (data.length === 0) {
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Top 5 Clientes por Receita</CardTitle>
+          <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-8">Nenhum negócio fechado no período</p>
@@ -23,7 +27,7 @@ export function TopClientsChart({ data }: Props) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Top 5 Clientes por Receita</CardTitle>
+        <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-[250px]">
