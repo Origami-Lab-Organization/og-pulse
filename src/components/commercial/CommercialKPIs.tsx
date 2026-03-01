@@ -23,7 +23,7 @@ const kpis = [
   { key: 'avgTicket', prevKey: 'prevAvgTicket', label: 'Ticket Médio', icon: Receipt, format: (v: number) => formatCurrency(v), tooltip: 'Valor médio dos negócios fechados. O valor é definido na etapa Proposta, quando o orçamento é gerado', invertColor: false },
   { key: 'avgSalesCycleDays', prevKey: 'prevAvgSalesCycleDays', label: 'Ciclo Médio de Venda', icon: Clock, format: (v: number | null) => v !== null ? `${Math.round(v)} dias` : '—', tooltip: 'Tempo médio em dias desde a criação do lead até o fechamento do negócio', invertColor: true },
   { key: 'activePipeline', prevKey: 'prevActivePipeline', label: 'Pipeline Ativo', icon: TrendingUp, format: (v: number) => formatCurrency(v), tooltip: 'Soma dos orçamentos em andamento (etapas Proposta e Negociação). Leads em Triagem e Qualificação ainda não possuem valor definido', invertColor: false },
-  { key: 'newLeadsThisYear', prevKey: 'prevNewLeadsThisYear', label: 'Leads Novos no Ano', icon: UserPlus, format: (v: number) => String(v), tooltip: 'Quantidade de novos leads criados no período, independente da etapa', invertColor: false },
+  { key: 'newLeadsThisYear', prevKey: 'prevNewLeadsThisYear', label: 'Leads no Período', icon: UserPlus, format: (v: number) => String(v), tooltip: 'Quantidade de novos leads criados no período, independente da etapa', invertColor: false },
 ] as const;
 
 function getVariation(current: number | null, previous: number | null, invertColor: boolean) {
@@ -74,7 +74,7 @@ export function CommercialKPIs(props: Props) {
                     {variation && (
                       <div className={`flex items-center gap-0.5 text-xs ${variation.isGood ? 'text-emerald-600' : 'text-red-500'}`}>
                         {variation.isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                        <span>{Math.abs(variation.pct).toFixed(1)}% vs. ano anterior</span>
+                        <span>{Math.abs(variation.pct).toFixed(1)}% vs. período anterior</span>
                       </div>
                     )}
                     {pipelineSublabel && (

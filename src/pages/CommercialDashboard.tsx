@@ -1,7 +1,13 @@
-import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Loader2, CalendarIcon } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 import { useCommercialDashboard } from '@/hooks/useCommercialDashboard';
 import { CommercialKPIs } from '@/components/commercial/CommercialKPIs';
 import { ConversionFunnel } from '@/components/commercial/ConversionFunnel';
@@ -12,14 +18,49 @@ import { LossReasonsChart } from '@/components/commercial/LossReasonsChart';
 import { RecentLeadsTable } from '@/components/commercial/RecentLeadsTable';
 import { SERVICE_LINE_OPTIONS } from '@/types/lead';
 
-const currentYear = new Date().getFullYear();
-const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+type PeriodType = 'this_month' | 'last_3_months' | 'this_year' | 'last_year' | 'custom';
+
+const PERIOD_OPTIONS: { value: PeriodType; label: string }[] = [
+  { value: 'this_month', label: 'Este mês' },
+  { value: 'last_3_months', label: 'Últimos 3 meses' },
+  { value: 'this_year', label: 'Este ano' },
+  { value: 'last_year', label: 'Ano anterior' },
+  { value: 'custom', label: 'Personalizado' },
+];
 
 export default function CommercialDashboard() {
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [periodType, setPeriodType] = useState<PeriodType>('this_year');
+  const [customStart, setCustomStart] = useState<Date | undefined>(undefined);
+  const [customEnd, setCustomEnd] = useState<Date | undefined>(undefined);
   const [selectedServiceLine, setSelectedServiceLine] = useState('all');
+  const [selectedResponsible, setSelectedResponsible] = useState('all');
 
-  const { data, isLoading } = useCommercialDashboard(selectedYear, selectedServiceLine);
+  const { dateFrom, dateTo } = useMemo(() => {
+    const now = new Date();
+    switch (periodType) {
+      case 'this_month':
+        return { dateFrom: startOfMonth(now), dateTo: endOfMonth(now) };
+      case 'last_3_months': {
+        const threeMonthsAgo = subMonths(now, 2);
+        return { dateFrom: startOfMonth(threeMonthsAgo), dateTo: endOfMonth(now) };
+      }
+      case 'this_year':
+        return { dateFrom: startOfYear(now), dateTo: endOfYear(now) };
+      case 'last_year': {
+        const lastYear = new Date(now.getFullYear() - 1, 0, 1);
+        return { dateFrom: startOfYear(lastYear), dateTo: endOfYear(lastYear) };
+      }
+      case 'custom':
+        return {
+          dateFrom: customStart || startOfYear(now),
+          dateTo: customEnd || endOfYear(now),
+        };
+      default:
+        return { dateFrom: startOfYear(now), dateTo: endOfYear(now) };
+    }
+  }, [periodType, customStart, customEnd]);
+
+  const { data, isLoading } = useCommercialDashboard(dateFrom, dateTo, selectedServiceLine, selectedResponsible);
 
   return (
     <AppLayout
@@ -30,16 +71,68 @@ export default function CommercialDashboard() {
       <div className="space-y-6">
         {/* Filters */}
         <div className="flex flex-wrap gap-3">
-          <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
-            <SelectTrigger className="w-[120px]">
+          <Select value={periodType} onValueChange={(v) => setPeriodType(v as PeriodType)}>
+            <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {yearOptions.map(y => (
-                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              {PERIOD_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+
+          {periodType === 'custom' && (
+            <>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-[150px] justify-start text-left font-normal',
+                      !customStart && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customStart ? format(customStart, 'dd/MM/yyyy') : 'Início'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customStart}
+                    onSelect={setCustomStart}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-[150px] justify-start text-left font-normal',
+                      !customEnd && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEnd ? format(customEnd, 'dd/MM/yyyy') : 'Fim'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customEnd}
+                    onSelect={setCustomEnd}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
 
           <Select value={selectedServiceLine} onValueChange={setSelectedServiceLine}>
             <SelectTrigger className="w-[220px]">
@@ -49,6 +142,18 @@ export default function CommercialDashboard() {
               <SelectItem value="all">Todas as Linhas</SelectItem>
               {SERVICE_LINE_OPTIONS.map(opt => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedResponsible} onValueChange={setSelectedResponsible}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {(data?.responsibleOptions || []).map(opt => (
+                <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
