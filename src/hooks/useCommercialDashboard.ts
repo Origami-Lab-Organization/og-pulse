@@ -15,6 +15,13 @@ interface CommercialDashboardData {
   pipelineHasNoProposals: boolean;
   newLeadsThisYear: number;
 
+  // Previous year KPIs
+  prevConversionRate: number;
+  prevAvgTicket: number;
+  prevAvgSalesCycleDays: number | null;
+  prevActivePipeline: number;
+  prevNewLeadsThisYear: number;
+
   // Funnel
   funnelData: { stage: string; label: string; count: number; color: string }[];
 
@@ -102,6 +109,33 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
     // KPI 5: New leads in the selected year
     const newLeadsThisYear = yearFiltered.length;
 
+    // === Previous year KPIs ===
+    const prevYear = selectedYear - 1;
+    const prevYearFiltered = filtered.filter(l => getYear(parseISO(l.created_at)) === prevYear);
+    const prevActiveLeadsYear = prevYearFiltered.filter(l => !l.archived);
+    const prevClosedLeads = prevYearFiltered.filter(l => l.crm_stage === 'closed' && !l.archived);
+    const prevArchivedYear = prevYearFiltered.filter(l => l.archived);
+
+    const prevTotalLeadsYear = prevYearFiltered.length;
+    const prevConversionRate = prevTotalLeadsYear > 0 ? (prevClosedLeads.length / prevTotalLeadsYear) * 100 : 0;
+
+    const prevClosedValues = prevClosedLeads.map(l => {
+      if (l.budget?.final_total && l.budget.final_total > 0) return l.budget.final_total;
+      return l.estimated_value;
+    });
+    const prevAvgTicket = prevClosedValues.length > 0 ? prevClosedValues.reduce((a, b) => a + b, 0) / prevClosedValues.length : 0;
+
+    const prevCyclesInDays = prevClosedLeads
+      .filter(l => l.closed_at)
+      .map(l => differenceInDays(parseISO(l.closed_at!), parseISO(l.created_at)));
+    const prevAvgSalesCycleDays = prevCyclesInDays.length > 0 ? prevCyclesInDays.reduce((a, b) => a + b, 0) / prevCyclesInDays.length : null;
+
+    const prevPipelineLeads = prevActiveLeadsYear.filter(l => l.crm_stage !== 'closed');
+    const prevPipelineWithBudget = prevPipelineLeads.filter(l => getLeadValue(l) > 0);
+    const prevActivePipeline = prevPipelineWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);
+
+    const prevNewLeadsThisYear = prevYearFiltered.length;
+
     // Funnel data
     const funnelData = CRM_LEAD_COLUMNS.map(col => ({
       stage: col.id,
@@ -187,6 +221,11 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
       pipelineLeadsWithBudgetCount,
       pipelineHasNoProposals,
       newLeadsThisYear,
+      prevConversionRate,
+      prevAvgTicket,
+      prevAvgSalesCycleDays,
+      prevActivePipeline,
+      prevNewLeadsThisYear,
       funnelData,
       revenueByMonth: revenueByMonthData,
       pipelineByStage,

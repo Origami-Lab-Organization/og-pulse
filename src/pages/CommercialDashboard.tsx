@@ -68,6 +68,11 @@ export default function CommercialDashboard() {
               pipelineLeadsWithBudgetCount={data.pipelineLeadsWithBudgetCount}
               pipelineHasNoProposals={data.pipelineHasNoProposals}
               newLeadsThisYear={data.newLeadsThisYear}
+              prevConversionRate={data.prevConversionRate}
+              prevAvgTicket={data.prevAvgTicket}
+              prevAvgSalesCycleDays={data.prevAvgSalesCycleDays}
+              prevActivePipeline={data.prevActivePipeline}
+              prevNewLeadsThisYear={data.prevNewLeadsThisYear}
             />
 
             <ConversionFunnel data={data.funnelData} />
