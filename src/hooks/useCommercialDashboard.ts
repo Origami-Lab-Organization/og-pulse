@@ -112,12 +112,16 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
     // Revenue by month with accumulated
     let accWon = 0;
     const revenueByMonthData = MONTH_LABELS.map((label, monthIdx) => {
-      const wonThisMonth = closedLeads
-        .filter(l => l.closed_at && getMonth(parseISO(l.closed_at)) === monthIdx)
+      const wonThisMonth = filtered
+        .filter(l => l.crm_stage === 'closed' && !l.archived && l.closed_at
+          && getYear(parseISO(l.closed_at)) === selectedYear
+          && getMonth(parseISO(l.closed_at)) === monthIdx)
         .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
 
-      const lostThisMonth = archivedYear
-        .filter(l => l.archived_at && getMonth(parseISO(l.archived_at)) === monthIdx)
+      const lostThisMonth = filtered
+        .filter(l => l.archived && l.archived_at
+          && getYear(parseISO(l.archived_at)) === selectedYear
+          && getMonth(parseISO(l.archived_at)) === monthIdx)
         .reduce((sum, l) => sum + l.estimated_value, 0);
 
       accWon += wonThisMonth;
