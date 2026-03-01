@@ -1,66 +1,115 @@
 
-## Plano: Secao de Leads Arquivados no CRM
 
-### Abordagem
+## Dashboard Comercial -- Indicadores e Estrutura
 
-Criar uma nova pagina `/crm/archived` seguindo o mesmo padrao visual da pagina de Reembolsos (`/reimbursements`): cards de metricas no topo, barra de busca com filtro, tabela com paginacao, e clique na linha abre o detalhe do lead. Admins e gerentes poderao desarquivar leads.
+### Objetivo
 
-### Metricas Recomendadas (4 cards)
+Criar uma pagina de inteligencia comercial em `/comercial` que consolida dados de Leads, Orcamentos, Clientes e Arquivados, oferecendo visao estrategica para gestores.
 
-1. **Total Arquivados** -- quantidade total de leads arquivados (icone: Archive)
-2. **Valor Perdido** -- soma do `estimated_value` ou `budget.final_total` dos leads arquivados (icone: TrendingDown)
-3. **Principal Motivo** -- motivo de arquivamento mais frequente, ex: "Preco (12)" (icone: BarChart3)
-4. **Arquivados no Mes** -- quantidade arquivada no mes corrente (icone: CalendarDays)
+---
 
-### Mudancas Necessarias
+### Layout da Pagina (3 secoes verticais)
 
-#### 1. Backend -- Service e Hooks
+```text
++----------------------------------------------------------+
+|  [Filtro: Ano]   [Filtro: Linha de Servico]              |
++----------------------------------------------------------+
+|  KPI 1  |  KPI 2  |  KPI 3  |  KPI 4  |  KPI 5         |
++----------------------------------------------------------+
+|                                                          |
+|  Funil de Conversao (horizontal bar)                     |
+|  Triagem -> Qualificacao -> Proposta -> Negociacao -> Won |
+|                                                          |
++--------------------------+-------------------------------+
+|  Receita Acumulada       |  Pipeline por Etapa           |
+|  (Area chart mensal:     |  (Donut chart c/ valores      |
+|   Ganho vs Perdido       |   por stage)                  |
+|   acumulado)             |                               |
++--------------------------+-------------------------------+
+|  Top 5 Clientes          |  Motivos de Perda             |
+|  por receita             |  (Horizontal bar chart        |
+|  (Bar chart)             |   dos archive_reasons)        |
++--------------------------+-------------------------------+
+|  Leads Recentes (tabela compacta, 5 ultimos)             |
++----------------------------------------------------------+
+```
 
-**`src/services/leadService.ts`**
-- Nova funcao `fetchArchivedLeads(tenantId)`: consulta leads com `archived = true`, com os mesmos joins (budget, creator, responsible)
-- Nova funcao `unarchiveLead(id)`: atualiza `archived = false`, limpa `archived_at`, `archive_reason`, `archive_notes`
+---
 
-**`src/hooks/useLeads.ts`**
-- Novo hook `useArchivedLeads()`: query com key `['archived-leads']`
-- Nova mutation `useUnarchiveLead()`: chama `unarchiveLead`, invalida queries `['leads']` e `['archived-leads']`, exibe toast "Lead desarquivado"
+### KPIs (5 cards no topo)
 
-#### 2. Nova Pagina -- `src/pages/ArchivedLeads.tsx`
+| # | Nome | Calculo | Icone |
+|---|------|---------|-------|
+| 1 | **Taxa de Conversao** | (leads closed / total leads criados no ano) x 100 | Percent |
+| 2 | **Ticket Medio** | Soma valor ganho / qtd leads closed | Receipt |
+| 3 | **Ciclo Medio de Venda** | Media de dias entre created_at e closed_at dos leads fechados | Clock |
+| 4 | **Pipeline Ativo** | Soma do valor de leads em proposal + negotiation | TrendingUp |
+| 5 | **Leads Novos no Mes** | Contagem de leads criados no mes corrente | UserPlus |
 
-Estrutura seguindo o padrao de `/reimbursements`:
-- **Cards de metricas** (4 cards conforme acima)
-- **Barra de busca** + **filtro por motivo de arquivamento** (dropdown com os valores de `ARCHIVE_REASONS`)
-- **Tabela** com colunas: Nome, Empresa, Etapa (onde estava antes de arquivar), Motivo, Data do Arquivamento, Valor Estimado
-- **Paginacao** igual a de reembolsos (10/25/50 por pagina, oculta se < 10 registros)
-- **Clique na linha** abre o `LeadDetailDialog` em modo read-only (lead ja arquivado)
-- **Botao "Desarquivar"** na tabela (coluna de acoes) -- visivel apenas para admins e gerentes
-- **Botao de voltar** para `/crm`
+---
 
-#### 3. LeadDetailDialog -- Ajuste para Arquivados
+### Graficos Detalhados
 
-- Quando o lead esta arquivado, exibir os campos em modo somente leitura (inputs desabilitados)
-- Remover opcao de "Arquivar" do menu dropdown
-- Exibir badge "Arquivado" com motivo e data
+**1. Funil de Conversao (Horizontal Bar)**
+- Mostra quantidade de leads por etapa: Triagem, Qualificacao, Proposta, Negociacao, Fechado
+- Barras com degradee de cor da etapa
+- Exibe a taxa de conversao entre cada etapa
 
-#### 4. Roteamento
+**2. Receita Acumulada Mensal (Area Chart)**
+- Eixo X: meses do ano
+- Duas series: "Ganho" (leads closed_at no mes, valor do budget) e "Perdido" (leads archived_at no mes, valor estimado)
+- Visualizacao acumulada para mostrar tendencia
 
-**`src/App.tsx`**
-- Adicionar rota `/crm/archived` protegida com `RoleProtectedRoute requireManager`
+**3. Pipeline por Etapa (Donut Chart)**
+- Distribuicao do valor monetario por stage (screening, qualification, proposal, negotiation)
+- Centro do donut: valor total do pipeline
+- Tooltips com quantidade de leads e valor
 
-#### 5. Navegacao
+**4. Top 5 Clientes por Receita (Bar Chart Horizontal)**
+- Agrupa leads fechados por client/company_name
+- Ordena por valor total descendente
+- Mostra os 5 maiores
 
-**CRM page (`src/pages/CRM.tsx`)**
-- Adicionar botao "Arquivados" ao lado de "Novo Lead" que navega para `/crm/archived`
+**5. Motivos de Perda (Bar Chart Horizontal)**
+- Conta leads arquivados agrupados por archive_reason
+- Usa labels amigaveis (ARCHIVE_REASONS)
+- Cor vermelha/coral para enfatizar perdas
 
-### Detalhes Tecnicos
+---
+
+### Tabela de Leads Recentes
+
+- Ultimos 5 leads criados (qualquer stage)
+- Colunas: Nome, Empresa, Etapa (badge colorido), Valor, Data Criacao
+- Link para o CRM ao clicar
+
+---
+
+### Filtros
+
+- **Ano**: Seletor de ano (padrao: ano corrente)
+- **Linha de Servico**: Dropdown com as opcoes de SERVICE_LINE_OPTIONS + "Todas"
+
+---
+
+### Mudancas Tecnicas
 
 **Arquivos criados:**
-- `src/pages/ArchivedLeads.tsx` -- pagina principal
+- `src/pages/CommercialDashboard.tsx` -- pagina principal
+- `src/components/commercial/CommercialKPIs.tsx` -- cards de KPIs
+- `src/components/commercial/ConversionFunnel.tsx` -- grafico de funil
+- `src/components/commercial/RevenueAccumulatedChart.tsx` -- area chart mensal
+- `src/components/commercial/PipelineDonutChart.tsx` -- donut chart
+- `src/components/commercial/TopClientsChart.tsx` -- bar chart horizontal
+- `src/components/commercial/LossReasonsChart.tsx` -- bar chart horizontal
+- `src/components/commercial/RecentLeadsTable.tsx` -- tabela compacta
+- `src/hooks/useCommercialDashboard.ts` -- hook que agrega todos os dados
 
 **Arquivos modificados:**
-- `src/services/leadService.ts` -- fetchArchivedLeads, unarchiveLead
-- `src/hooks/useLeads.ts` -- useArchivedLeads, useUnarchiveLead
-- `src/components/crm/LeadDetailDialog.tsx` -- modo read-only para arquivados
-- `src/App.tsx` -- nova rota
-- `src/pages/CRM.tsx` -- botao de navegacao
+- `src/App.tsx` -- nova rota `/comercial` protegida com RoleProtectedRoute requireManager
+- `src/components/layout/AppSidebar.tsx` -- remover `disabled: true` do item "Dashboard" em Comercial
 
-**Nenhuma migracao de banco necessaria** -- o campo `crm_stage` ja preserva a etapa anterior ao arquivamento, e ao desarquivar basta setar `archived = false` sem alterar `crm_stage`.
+**Dependencias:** Usa `recharts` (ja instalado) para todos os graficos.
+
+**Dados:** Todos os calculos sao feitos no frontend, usando os dados ja disponíveis via `useLeads`, `useArchivedLeads`, `useBudgets` e `useClients`. O hook `useCommercialDashboard` orquestra essas queries e deriva os indicadores.
+
