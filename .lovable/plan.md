@@ -1,60 +1,65 @@
 
-# Tooltips e Variacao nos KPIs do Dashboard Comercial
+
+# Filtros Avancados no Dashboard Comercial
 
 ## Resumo
-Adicionar icone de ajuda (?) com tooltip em cada card de KPI e indicador de variacao comparando com o ano anterior.
+Substituir o filtro de "Ano" por um seletor de periodo flexivel e adicionar filtro de "Responsavel". Todos os calculos do hook serao atualizados para usar intervalo de datas ao inves de ano fixo.
 
 ## Alteracoes
 
-### 1. Hook: calcular KPIs do periodo anterior (`useCommercialDashboard.ts`)
+### 1. Pagina: novos estados e filtros (`CommercialDashboard.tsx`)
 
-Duplicar o calculo dos 5 KPIs para `selectedYear - 1` e retornar os valores anteriores no objeto de dados:
+**Remover:** estado `selectedYear` e o Select de ano.
 
-```typescript
-// Novos campos no CommercialDashboardData
-prevConversionRate: number;
-prevAvgTicket: number;
-prevAvgSalesCycleDays: number | null;
-prevActivePipeline: number;
-prevNewLeadsThisYear: number;
+**Adicionar:**
+- Estado `periodType`: `'this_month' | 'last_3_months' | 'this_year' | 'last_year' | 'custom'` (default: `'this_year'`)
+- Estados `customStart` e `customEnd` (Date | undefined) para o modo "Personalizado"
+- Estado `selectedResponsible` (string, default `'all'`)
+- Logica `useMemo` que calcula `dateFrom` e `dateTo` a partir do `periodType`
+- Select de periodo com opcoes: "Este mes", "Ultimos 3 meses", "Este ano", "Ano anterior", "Personalizado"
+- Quando "Personalizado" selecionado, exibir dois Popovers com Calendar (date picker) para inicio e fim
+- Select de responsavel populado a partir de `data.responsibleOptions` (lista extraida do hook)
+
+**Periodo anterior para comparacao YoY:**
+- O hook recebera `dateFrom` e `dateTo` e calculara internamente o periodo anterior com a mesma duracao
+
+### 2. Hook: aceitar intervalo de datas e responsavel (`useCommercialDashboard.ts`)
+
+**Nova assinatura:**
+```text
+useCommercialDashboard(
+  dateFrom: Date,
+  dateTo: Date,
+  selectedServiceLine: string,
+  selectedResponsible: string
+)
 ```
 
-O calculo usa a mesma logica ja existente, mas filtrando por `selectedYear - 1`. As variacoes serao calculadas no componente.
+**Mudancas internas:**
+- Substituir `getYear(parseISO(l.created_at)) === selectedYear` por `parseISO(l.created_at) >= dateFrom && parseISO(l.created_at) <= dateTo`
+- Adicionar filtro por `responsible_id` quando `selectedResponsible !== 'all'`
+- Calcular periodo anterior automaticamente: mesma duracao, deslocada para tras (ex: se periodo = 3 meses, anterior = 3 meses antes disso)
+- Para o grafico de receita por mes, gerar labels dinamicos baseados no intervalo de datas ao inves dos 12 meses fixos
+- Extrair lista de responsaveis unicos (id + nome) de todos os leads e retornar como `responsibleOptions` no objeto de dados
 
-### 2. Componente: adicionar tooltip e variacao (`CommercialKPIs.tsx`)
+**Novo campo no retorno:**
+```text
+responsibleOptions: { id: string; name: string }[]
+```
 
-**Tooltip de ajuda:**
-- Adicionar icone `HelpCircle` (lucide-react) ao lado do label de cada KPI
-- Usar componente `Tooltip` do Radix (ja disponivel em `@/components/ui/tooltip`)
-- Cada KPI tera seu texto explicativo conforme especificado
+### 3. Detalhes de UI dos filtros
 
-**Indicador de variacao:**
-- Calcular variacao: `((atual - anterior) / anterior) * 100`
-- Para Ciclo Medio, a logica e invertida (menor e melhor, entao queda e verde)
-- Exibir seta para cima (verde) ou para baixo (vermelho) com o percentual
-- Se nao houver dados do periodo anterior, nao exibir variacao
+Layout dos filtros na barra (flex wrap gap-3):
+1. Select "Periodo" (w-[180px])
+2. Se "Personalizado": dois botoes com Popover + Calendar (date pickers)
+3. Select "Linha de Servico" (w-[220px]) -- ja existe
+4. Select "Responsavel" (w-[200px])
 
-**Textos dos tooltips:**
-- Taxa de Conversao: "Percentual de leads que se tornaram negocio fechado no periodo"
-- Ticket Medio: "Valor medio dos negocios fechados. O valor e definido na etapa Proposta, quando o orcamento e gerado"
-- Ciclo Medio: "Tempo medio em dias desde a criacao do lead ate o fechamento do negocio"
-- Pipeline Ativo: "Soma dos orcamentos em andamento (etapas Proposta e Negociacao). Leads em Triagem e Qualificacao ainda nao possuem valor definido"
-- Leads no Periodo: "Quantidade de novos leads criados no periodo, independente da etapa"
-
-**Props adicionais no componente:**
-- `prevConversionRate`, `prevAvgTicket`, `prevAvgSalesCycleDays`, `prevActivePipeline`, `prevNewLeadsThisYear`
-
-### 3. Pagina: passar novas props (`CommercialDashboard.tsx`)
-Passar os novos campos `prev*` do hook para o componente `CommercialKPIs`.
+Os date pickers usarao o componente Calendar do shadcn dentro de Popover com `pointer-events-auto`, formatando datas com `date-fns` `format(date, 'dd/MM/yyyy')`.
 
 ## Arquivos modificados
-1. `src/hooks/useCommercialDashboard.ts` -- adicionar calculo dos KPIs do ano anterior
-2. `src/components/commercial/CommercialKPIs.tsx` -- adicionar tooltips e indicadores de variacao
-3. `src/pages/CommercialDashboard.tsx` -- passar novas props
+1. `src/hooks/useCommercialDashboard.ts` -- nova assinatura, filtro por datas e responsavel, lista de responsaveis
+2. `src/pages/CommercialDashboard.tsx` -- novos estados, UI de filtros, calculo de dateFrom/dateTo, date pickers
 
-## Detalhes de UI
-- O icone `?` sera pequeno (h-3 w-3), cinza, posicionado ao lado do label
-- A variacao aparecera abaixo do valor principal, em fonte pequena (text-xs)
-- Verde para variacao positiva (exceto Ciclo Medio onde menor e melhor)
-- Vermelho para variacao negativa (exceto Ciclo Medio)
-- Formato: "triangulo 12.5% vs. ano anterior"
+Nenhuma alteracao no banco de dados e necessaria. Os campos `responsible_id` e `created_at` ja existem na tabela `leads`.
+
