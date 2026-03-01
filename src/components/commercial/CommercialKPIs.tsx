@@ -1,4 +1,4 @@
-import { Percent, Receipt, Clock, TrendingUp, UserPlus, HelpCircle, ArrowUp, ArrowDown } from 'lucide-react';
+import { Percent, Receipt, Clock, TrendingUp, UserPlus, HelpCircle, ArrowUp, ArrowDown, Target } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/formatters';
@@ -10,11 +10,13 @@ interface Props {
   activePipeline: number;
   pipelineLeadsWithBudgetCount: number;
   pipelineHasNoProposals: boolean;
+  forecast: number;
   newLeadsThisYear: number;
   prevConversionRate: number;
   prevAvgTicket: number;
   prevAvgSalesCycleDays: number | null;
   prevActivePipeline: number;
+  prevForecast: number;
   prevNewLeadsThisYear: number;
 }
 
@@ -23,6 +25,7 @@ const kpis = [
   { key: 'avgTicket', prevKey: 'prevAvgTicket', label: 'Ticket Médio', icon: Receipt, format: (v: number) => formatCurrency(v), tooltip: 'Valor médio dos negócios fechados. O valor é definido na etapa Proposta, quando o orçamento é gerado', invertColor: false },
   { key: 'avgSalesCycleDays', prevKey: 'prevAvgSalesCycleDays', label: 'Ciclo Médio de Venda', icon: Clock, format: (v: number | null) => v !== null ? `${Math.round(v)} dias` : '—', tooltip: 'Tempo médio em dias desde a criação do lead até o fechamento do negócio', invertColor: true },
   { key: 'activePipeline', prevKey: 'prevActivePipeline', label: 'Pipeline Ativo', icon: TrendingUp, format: (v: number) => formatCurrency(v), tooltip: 'Soma dos orçamentos em andamento (etapas Proposta e Negociação). Leads em Triagem e Qualificação ainda não possuem valor definido', invertColor: false },
+  { key: 'forecast', prevKey: 'prevForecast', label: 'Receita Prevista (Forecast)', icon: Target, format: (v: number) => formatCurrency(v), tooltip: 'Soma ponderada do valor de cada lead ativo pela probabilidade da etapa: Triagem 10%, Qualificação 25%, Proposta 50%, Negociação 75%, Fechado 100%', invertColor: false },
   { key: 'newLeadsThisYear', prevKey: 'prevNewLeadsThisYear', label: 'Leads no Período', icon: UserPlus, format: (v: number) => String(v), tooltip: 'Quantidade de novos leads criados no período, independente da etapa', invertColor: false },
 ] as const;
 
@@ -37,7 +40,7 @@ function getVariation(current: number | null, previous: number | null, invertCol
 export function CommercialKPIs(props: Props) {
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpis.map(kpi => {
           const Icon = kpi.icon;
           const value = props[kpi.key];

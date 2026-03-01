@@ -18,6 +18,7 @@ interface CommercialDashboardData {
   activePipeline: number;
   pipelineLeadsWithBudgetCount: number;
   pipelineHasNoProposals: boolean;
+  forecast: number;
   newLeadsThisYear: number;
 
   // Previous period KPIs
@@ -25,6 +26,7 @@ interface CommercialDashboardData {
   prevAvgTicket: number;
   prevAvgSalesCycleDays: number | null;
   prevActivePipeline: number;
+  prevForecast: number;
   prevNewLeadsThisYear: number;
 
   // Funnel
@@ -63,6 +65,14 @@ function isInRange(dateStr: string, from: Date, to: Date): boolean {
   return d >= from && d <= to;
 }
 
+const STAGE_PROBABILITY: Record<string, number> = {
+  screening: 0.10,
+  qualification: 0.25,
+  proposal: 0.50,
+  negotiation: 0.75,
+  closed: 1.0,
+};
+
 function computeKPIs(leads: LeadWithBudget[]) {
   const activeLeads = leads.filter(l => !l.archived);
   const closedLeads = leads.filter(l => l.crm_stage === 'closed' && !l.archived);
@@ -90,9 +100,15 @@ function computeKPIs(leads: LeadWithBudget[]) {
   const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
   const pipelineHasNoProposals = pipelineLeadsWithBudgetCount === 0 && pipelineLeads.length > 0;
 
+  // Forecast: sum of (lead value × stage probability) for all active leads
+  const forecast = activeLeads.reduce((sum, l) => {
+    const prob = STAGE_PROBABILITY[l.crm_stage] ?? 0;
+    return sum + getLeadValue(l) * prob;
+  }, 0);
+
   const newLeadsThisYear = leads.length;
 
-  return { conversionRate, avgTicket, avgSalesCycleDays, activePipeline, pipelineLeadsWithBudgetCount, pipelineHasNoProposals, newLeadsThisYear };
+  return { conversionRate, avgTicket, avgSalesCycleDays, activePipeline, pipelineLeadsWithBudgetCount, pipelineHasNoProposals, forecast, newLeadsThisYear };
 }
 
 export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedServiceLine: string, selectedResponsible: string) {
@@ -237,6 +253,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       prevAvgTicket: prevKPIs.avgTicket,
       prevAvgSalesCycleDays: prevKPIs.avgSalesCycleDays,
       prevActivePipeline: prevKPIs.activePipeline,
+      prevForecast: prevKPIs.forecast,
       prevNewLeadsThisYear: prevKPIs.newLeadsThisYear,
       funnelData,
       revenueByMonth: revenueByMonthData,
