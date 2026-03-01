@@ -52,7 +52,7 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      const response = await supabase.functions.invoke('register-tenant', {
+      const { data: responseData, error } = await supabase.functions.invoke('register-tenant', {
         body: {
           companyName: data.companyName,
           adminName: data.adminName,
@@ -61,20 +61,46 @@ const Register = () => {
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Erro ao cadastrar empresa');
+      if (error) {
+        // Try to extract the error message from the response body
+        let errorMessage = 'Erro ao criar conta. Verifique os dados e tente novamente.';
+        try {
+          if (error.context && typeof error.context === 'object' && 'json' in error.context) {
+            const body = await (error.context as Response).json();
+            if (body?.error) errorMessage = body.error;
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+        } catch {
+          // Use default error message
+        }
+        throw new Error(errorMessage);
       }
 
-      if (response.data?.error) {
-        throw new Error(response.data.error);
+      if (responseData?.error) {
+        throw new Error(responseData.error);
+      }
+
+      // Auto-login after successful registration
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (signInError) {
+        toast({
+          title: 'Empresa cadastrada com sucesso!',
+          description: 'Faça login com suas credenciais.',
+        });
+        navigate('/login');
+        return;
       }
 
       toast({
-        title: 'Empresa cadastrada com sucesso!',
-        description: 'Você já pode fazer login com suas credenciais.',
+        title: 'Bem-vindo!',
+        description: 'Sua empresa foi cadastrada com sucesso.',
       });
-
-      navigate('/login');
+      navigate('/');
     } catch (error: any) {
       console.error('Registration error:', error);
       toast({
