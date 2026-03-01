@@ -30,6 +30,7 @@ import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import Analytics from "./pages/Analytics";
 import Reimbursements from "./pages/Reimbursements";
 import MyTimesheet from "./pages/MyTimesheet";
+import CommercialDashboard from "./pages/CommercialDashboard";
 
 const queryClient = new QueryClient();
 
@@ -154,6 +155,14 @@ const App = () => (
                     <Analytics />
                   </RoleProtectedRoute>
                 } 
+              />
+              <Route
+                path="/comercial"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <CommercialDashboard />
+                  </RoleProtectedRoute>
+                }
               />
               <Route
                 path="/crm" 
