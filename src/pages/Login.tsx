@@ -117,6 +117,15 @@ const Login = () => {
                 )}
               />
 
+              <div className="flex justify-end">
+                <Link
+                  to="/esqueci-minha-senha"
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Esqueceu sua senha?
+                </Link>
+              </div>
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
