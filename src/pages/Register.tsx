@@ -22,37 +22,45 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Building2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { formatCPF, formatPhone, formatCNPJ, validateCPF, unformatCPF, unformatPhone, unformatCNPJ, validateCNPJ } from '@/lib/masks';
+import { Loader2, Building2, ArrowLeft, ArrowRight, Eye, EyeOff, Check } from 'lucide-react';
+import { formatCNPJ, validateCNPJ, unformatCNPJ } from '@/lib/masks';
 import logo from '@/assets/logo.png';
 
 const getPasswordStrength = (password: string): { label: string; level: number; color: string } => {
   if (!password) return { label: '', level: 0, color: '' };
+  const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /\d/.test(password);
   const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/.test(password);
   const isLong = password.length >= 8;
 
-  if (isLong && hasNumber && hasSpecial) return { label: 'Forte', level: 3, color: 'bg-green-500' };
-  if (password.length >= 6 && (hasNumber || hasSpecial)) return { label: 'Média', level: 2, color: 'bg-yellow-500' };
+  if (isLong && hasUpper && hasNumber && hasSpecial) return { label: 'Forte', level: 3, color: 'bg-green-500' };
+  if (isLong) return { label: 'Média', level: 2, color: 'bg-yellow-500' };
   return { label: 'Fraca', level: 1, color: 'bg-red-500' };
 };
 
-const registerSchema = z.object({
+const step1Schema = z.object({
   adminName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
-  cpf: z.string().refine(val => validateCPF(val), { message: 'CPF inválido' }),
-  phone: z.string().refine(val => unformatPhone(val).length >= 10, { message: 'Telefone inválido' }),
-  position: z.string().min(1, 'Selecione um cargo'),
   email: z.string().email('E-mail inválido'),
   password: z.string()
     .min(8, 'Senha deve ter pelo menos 8 caracteres')
+    .refine(val => /[A-Z]/.test(val), { message: 'Senha deve conter ao menos 1 letra maiúscula' })
     .refine(val => /\d/.test(val), { message: 'Senha deve conter ao menos 1 número' })
-    .refine(val => /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/.test(val), { message: 'Senha deve conter ao menos 1 caractere especial' }),
+    .refine(val => /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/.test(val), { message: 'Senha deve conter ao menos 1 símbolo' }),
   confirmPassword: z.string(),
-  companyName: z.string().min(2, 'Nome da empresa deve ter pelo menos 2 caracteres'),
+}).refine(data => data.password === data.confirmPassword, {
+  message: 'As senhas não coincidem',
+  path: ['confirmPassword'],
+});
+
+const registerSchema = z.object({
+  adminName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
+  email: z.string().email('E-mail inválido'),
+  password: z.string().min(8),
+  confirmPassword: z.string(),
+  companyName: z.string().min(1, 'Nome da empresa é obrigatório'),
   cnpj: z.string().refine(val => validateCNPJ(val), { message: 'CNPJ inválido' }),
-  segment: z.string().min(1, 'Selecione o segmento'),
+  segment: z.string().min(1, 'Segmento é obrigatório'),
   employeeCount: z.string().min(1, 'Selecione o número de funcionários'),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'As senhas não coincidem',
@@ -68,9 +76,47 @@ const employeeCountMap: Record<string, number> = {
   '51+': 51,
 };
 
+const StepIndicator = ({ currentStep }: { currentStep: number }) => {
+  const steps = [
+    { num: 1, label: 'Seus Dados' },
+    { num: 2, label: 'Sua Empresa' },
+  ];
+
+  return (
+    <div className="flex items-center justify-center mb-6">
+      {steps.map((step, i) => (
+        <div key={step.num} className="flex items-center">
+          <div className="flex flex-col items-center">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                currentStep > step.num
+                  ? 'bg-[#16a34a] text-white'
+                  : currentStep === step.num
+                  ? 'bg-[#16a34a] text-white'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {currentStep > step.num ? <Check className="h-4 w-4" /> : step.num}
+            </div>
+            <span className="text-xs text-muted-foreground mt-1">{step.label}</span>
+          </div>
+          {i < steps.length - 1 && (
+            <div
+              className={`w-16 h-0.5 mx-2 mb-5 ${
+                currentStep > 1 ? 'bg-[#16a34a]' : 'bg-muted'
+              }`}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -79,14 +125,11 @@ const Register = () => {
     resolver: zodResolver(registerSchema),
     mode: 'onBlur',
     defaultValues: {
-      companyName: '',
       adminName: '',
-      cpf: '',
-      phone: '',
-      position: '',
       email: '',
       password: '',
       confirmPassword: '',
+      companyName: '',
       cnpj: '',
       segment: '',
       employeeCount: '',
@@ -94,7 +137,22 @@ const Register = () => {
   });
 
   const watchPassword = form.watch('password');
+  const watchConfirmPassword = form.watch('confirmPassword');
   const passwordStrength = getPasswordStrength(watchPassword);
+  const passwordsMismatch = watchConfirmPassword && watchPassword !== watchConfirmPassword;
+
+  const handleStep1Continue = async () => {
+    const values = form.getValues();
+    const result = step1Schema.safeParse(values);
+    
+    if (!result.success) {
+      // Trigger validation on step 1 fields
+      await form.trigger(['adminName', 'email', 'password', 'confirmPassword']);
+      return;
+    }
+    
+    setStep(2);
+  };
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
@@ -104,9 +162,6 @@ const Register = () => {
         body: {
           companyName: data.companyName,
           adminName: data.adminName,
-          cpf: unformatCPF(data.cpf),
-          phone: unformatPhone(data.phone),
-          position: data.position,
           email: data.email,
           password: data.password,
           cnpj: unformatCNPJ(data.cnpj),
@@ -172,85 +227,21 @@ const Register = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <StepIndicator currentStep={step} />
+
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* SECTION 1 */}
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">Seus Dados</h3>
-                <Separator className="mb-4" />
-                <div className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {step === 1 && (
+                <>
                   <FormField
                     control={form.control}
                     name="adminName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Seu Nome</FormLabel>
+                        <FormLabel>Nome Completo</FormLabel>
                         <FormControl>
                           <Input placeholder="João Silva" {...field} />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="cpf"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CPF</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="000.000.000-00"
-                            {...field}
-                            onChange={e => field.onChange(formatCPF(e.target.value))}
-                            maxLength={14}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telefone / WhatsApp</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="(11) 99999-9999"
-                            {...field}
-                            onChange={e => field.onChange(formatPhone(e.target.value))}
-                            maxLength={15}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="position"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cargo na Empresa</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione seu cargo" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Sócio / Fundador">Sócio / Fundador</SelectItem>
-                            <SelectItem value="Diretor">Diretor</SelectItem>
-                            <SelectItem value="Gerente">Gerente</SelectItem>
-                            <SelectItem value="Coordenador">Coordenador</SelectItem>
-                            <SelectItem value="Outro">Outro</SelectItem>
-                          </SelectContent>
-                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -263,7 +254,7 @@ const Register = () => {
                       <FormItem>
                         <FormLabel>E-mail</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="seu@email.com" {...field} />
+                          <Input type="email" placeholder="joao@empresa.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -336,18 +327,37 @@ const Register = () => {
                             </button>
                           </div>
                         </FormControl>
+                        {passwordsMismatch && (
+                          <p className="text-sm font-medium text-destructive">As senhas não coincidem</p>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-              </div>
 
-              {/* SECTION 2 */}
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">Dados da Empresa</h3>
-                <Separator className="mb-4" />
-                <div className="space-y-4">
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={handleStep1Continue}
+                  >
+                    Continuar
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+
+                  <div className="text-center">
+                    <Link
+                      to="/login"
+                      className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+                    >
+                      <ArrowLeft className="h-3 w-3" />
+                      Voltar para o login
+                    </Link>
+                  </div>
+                </>
+              )}
+
+              {step === 2 && (
+                <>
                   <FormField
                     control={form.control}
                     name="companyName"
@@ -355,7 +365,7 @@ const Register = () => {
                       <FormItem>
                         <FormLabel>Nome da Empresa</FormLabel>
                         <FormControl>
-                          <Input placeholder="Sua Empresa Ltda" {...field} />
+                          <Input placeholder="Empresa LTDA" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -429,39 +439,40 @@ const Register = () => {
                       </FormItem>
                     )}
                   />
-                </div>
-              </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Cadastrando...
-                  </>
-                ) : (
-                  <>
-                    <Building2 className="mr-2 h-4 w-4" />
-                    Cadastrar Empresa
-                  </>
-                )}
-              </Button>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Criando sua conta...
+                      </>
+                    ) : (
+                      <>
+                        <Building2 className="mr-2 h-4 w-4" />
+                        Cadastrar Empresa
+                      </>
+                    )}
+                  </Button>
 
-              <p className="text-xs text-center text-muted-foreground">
-                Ao criar sua conta, você concorda com nossos{' '}
-                <Link to="/termos" className="underline hover:text-primary">Termos de Uso</Link>
-                {' '}e{' '}
-                <Link to="/privacidade" className="underline hover:text-primary">Política de Privacidade</Link>.
-              </p>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+                    >
+                      <ArrowLeft className="h-3 w-3" />
+                      Voltar
+                    </button>
+                  </div>
 
-              <div className="text-center">
-                <Link
-                  to="/login"
-                  className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
-                >
-                  <ArrowLeft className="h-3 w-3" />
-                  Voltar para o login
-                </Link>
-              </div>
+                  <p className="text-xs text-center text-muted-foreground">
+                    Ao criar sua conta, você concorda com nossos{' '}
+                    <Link to="/termos" className="underline hover:text-primary">Termos de Uso</Link>
+                    {' '}e{' '}
+                    <Link to="/privacidade" className="underline hover:text-primary">Política de Privacidade</Link>.
+                  </p>
+                </>
+              )}
             </form>
           </Form>
         </CardContent>
