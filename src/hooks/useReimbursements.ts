@@ -270,16 +270,104 @@ export function useApproveReimbursement() {
       if (fnError) {
         console.error('Error sending reimbursement email:', fnError);
       }
+
+      // Notify all admins about approved reimbursement
+      try {
+        const { data: admins } = await supabase
+          .from('user_roles' as any)
+          .select('user_id')
+          .eq('tenant_id', employee.tenant_id)
+          .eq('role', 'admin');
+
+        if (admins && admins.length > 0) {
+          // Get admin employee IDs
+          const adminUserIds = (admins as any[]).map((a: any) => a.user_id);
+          const { data: adminEmps } = await supabase
+            .from('employees')
+            .select('id, auth_id')
+            .in('auth_id', adminUserIds);
+
+          if (adminEmps && adminEmps.length > 0) {
+            const notifications = adminEmps.map((emp: any) => ({
+              tenant_id: employee.tenant_id,
+              recipient_id: emp.id,
+              type: 'reimbursement_approved',
+              title: 'Reembolso aprovado aguardando pagamento',
+              message: `Um reembolso foi aprovado e aguarda confirmação de pagamento.`,
+              reference_id: reimbursementId,
+            }));
+
+            await supabase.from('notifications' as any).insert(notifications as any);
+          }
+        }
+      } catch (e) {
+        console.error('Error creating admin notifications:', e);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
       queryClient.invalidateQueries({ queryKey: ['my-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['all-my-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
       toast.success('Reembolso aprovado com sucesso!');
     },
     onError: (error: any) => {
       toast.error('Erro ao aprovar: ' + error.message);
+    },
+  });
+}
+
+export function useMarkReimbursementPaid() {
+  const queryClient = useQueryClient();
+  const { employee, user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (reimbursementId: string) => {
+      if (!employee || !user) throw new Error('Não autenticado');
+
+      // Update reimbursement status
+      const { error } = await supabase
+        .from('reimbursement_requests' as any)
+        .update({
+          status: 'paid',
+          paid_by: user.id,
+          paid_at: new Date().toISOString(),
+        } as any)
+        .eq('id', reimbursementId);
+      if (error) throw error;
+
+      // Get the requester to notify them
+      const { data: reimb } = await supabase
+        .from('reimbursement_requests' as any)
+        .select('requested_by')
+        .eq('id', reimbursementId)
+        .single();
+
+      if (reimb) {
+        await supabase.from('notifications' as any).insert({
+          tenant_id: employee.tenant_id,
+          recipient_id: (reimb as any).requested_by,
+          type: 'reimbursement_paid',
+          title: 'Reembolso pago',
+          message: 'Seu pedido de reembolso foi pago!',
+          reference_id: reimbursementId,
+        } as any);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
+      queryClient.invalidateQueries({ queryKey: ['my-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['all-my-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['project-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+      toast.success('Reembolso marcado como pago!');
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao marcar como pago: ' + error.message);
     },
   });
 }
@@ -293,7 +381,7 @@ export function useProjectApprovedReimbursements(projectId: string | undefined) 
         .from('reimbursement_requests' as any)
         .select('*')
         .eq('project_id', projectId)
-        .eq('status', 'approved')
+        .in('status', ['approved', 'paid'])
         .order('created_at', { ascending: false });
       if (error) throw error;
 
@@ -351,23 +439,29 @@ export function useAllMyReimbursements() {
         ...requests.map(r => r.requested_by),
         ...requests.filter(r => r.reviewed_by).map(r => r.reviewed_by!),
       ])];
+
+      // Get paid_by user IDs to resolve names
+      const paidByUserIds = [...new Set(requests.filter(r => (r as any).paid_by).map(r => (r as any).paid_by as string))];
+      
       const projectIds = [...new Set(requests.filter(r => r.project_id).map(r => r.project_id!))];
       const clientIds = [...new Set(requests.filter(r => r.client_id).map(r => r.client_id!))];
 
       // Also fetch items to get earliest expense_date
       const requestIds = requests.map(r => r.id);
-      const [empRes, projRes, clientRes, tenantRes, itemsRes] = await Promise.all([
+      const [empRes, projRes, clientRes, tenantRes, itemsRes, paidByEmpRes] = await Promise.all([
         supabase.from('employees').select('id, nome').in('id', employeeIds),
         projectIds.length > 0 ? supabase.from('projects').select('id, name').in('id', projectIds) : { data: [] },
         clientIds.length > 0 ? supabase.from('clients').select('id, company_name').in('id', clientIds) : { data: [] },
         supabase.from('tenants' as any).select('id, name').eq('id', employee.tenant_id).maybeSingle(),
         supabase.from('reimbursement_items' as any).select('reimbursement_id, expense_date').in('reimbursement_id', requestIds).order('expense_date', { ascending: true }),
+        paidByUserIds.length > 0 ? supabase.from('employees').select('id, nome, auth_id').in('auth_id', paidByUserIds) : { data: [] },
       ]);
 
       const empMap = new Map<string, string>((empRes.data || []).map(e => [e.id, e.nome]));
       const projMap = new Map<string, string>(((projRes as any).data || []).map((p: any) => [p.id, p.name as string]));
       const clientMap = new Map<string, string>(((clientRes as any).data || []).map((c: any) => [c.id, c.company_name as string]));
       const tenantName = (tenantRes as any)?.data?.name || '';
+      const paidByMap = new Map<string, string>(((paidByEmpRes as any).data || []).map((e: any) => [e.auth_id, e.nome]));
 
       // Build map of earliest expense_date per reimbursement
       const expenseDateMap = new Map<string, string>();
@@ -385,6 +479,7 @@ export function useAllMyReimbursements() {
         client_name: r.client_id ? clientMap.get(r.client_id) || '' : '',
         tenant_name: tenantName,
         earliest_expense_date: expenseDateMap.get(r.id) || null,
+        paid_by_name: (r as any).paid_by ? paidByMap.get((r as any).paid_by) || '-' : undefined,
       }));
     },
     enabled: !!employee,

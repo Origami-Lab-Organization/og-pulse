@@ -907,6 +907,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string | null
+          recipient_id: string
+          reference_id: string | null
+          tenant_id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          recipient_id: string
+          reference_id?: string | null
+          tenant_id: string
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          recipient_id?: string
+          reference_id?: string | null
+          tenant_id?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       payroll_profiles: {
         Row: {
           apply_fgts_on_13th: boolean
@@ -1814,6 +1850,8 @@ export type Database = {
           description: string | null
           id: string
           is_internal: boolean
+          paid_at: string | null
+          paid_by: string | null
           project_id: string | null
           rejection_reason: string | null
           requested_by: string
@@ -1831,6 +1869,8 @@ export type Database = {
           description?: string | null
           id?: string
           is_internal?: boolean
+          paid_at?: string | null
+          paid_by?: string | null
           project_id?: string | null
           rejection_reason?: string | null
           requested_by: string
@@ -1848,6 +1888,8 @@ export type Database = {
           description?: string | null
           id?: string
           is_internal?: boolean
+          paid_at?: string | null
+          paid_by?: string | null
           project_id?: string | null
           rejection_reason?: string | null
           requested_by?: string

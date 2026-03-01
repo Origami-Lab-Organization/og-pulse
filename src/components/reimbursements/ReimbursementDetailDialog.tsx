@@ -6,16 +6,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency } from '@/lib/formatters';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Paperclip, CheckCircle, XCircle, FileText, Clock, Circle } from 'lucide-react';
+import { Paperclip, CheckCircle, XCircle, FileText, Clock, Circle, DollarSign, Download } from 'lucide-react';
 import {
   ReimbursementRequest,
   useReimbursementAttachments,
   useReimbursementItems,
   useApproveReimbursement,
   useRejectReimbursement,
+  useMarkReimbursementPaid,
 } from '@/hooks/useReimbursements';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { generateReimbursementPdf } from './ReimbursementPdfGenerator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +33,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   pending: { label: 'Pendente', variant: 'outline' },
   approved: { label: 'Aprovado', variant: 'secondary', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
   rejected: { label: 'Rejeitado', variant: 'destructive' },
+  paid: { label: 'Pago', variant: 'secondary', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
 };
 
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
@@ -43,7 +46,7 @@ function isImageFile(fileName: string) {
 interface ReimbursementDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  reimbursement: (ReimbursementRequest & { requester_name?: string; reviewer_name?: string; project_name?: string; client_name?: string }) | null;
+  reimbursement: (ReimbursementRequest & { requester_name?: string; reviewer_name?: string; project_name?: string; client_name?: string; paid_by_name?: string; paid_at?: string }) | null;
   onCorrectAndResend?: (reimbursement: ReimbursementRequest) => void;
 }
 
@@ -53,18 +56,23 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
   const { data: expenseItems = [] } = useReimbursementItems(reimbursement?.id || null);
   const approveMutation = useApproveReimbursement();
   const rejectMutation = useRejectReimbursement();
+  const paidMutation = useMarkReimbursementPaid();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [signedUrls, setSignedUrls] = useState<Map<string, string>>(new Map());
 
+  const isAdmin = employee?.isAdmin;
   const isManager = employee?.is_gerente || employee?.isAdmin;
   const isPending = reimbursement?.status === 'pending';
+  const isApproved = reimbursement?.status === 'approved';
   const isRejected = reimbursement?.status === 'rejected';
   const isOwner = reimbursement?.requested_by === employee?.id;
   const canAct = isManager && isPending;
+  const canPay = isAdmin && isApproved;
   const canCorrect = isRejected && isOwner && onCorrectAndResend;
 
-  // Generate signed URLs for all attachments
+  // Generate signed URLs for all attachments - use stable key to avoid infinite loop
+  const attachmentIds = attachments.map(a => a.id).join(',');
   useEffect(() => {
     if (attachments.length === 0) {
       setSignedUrls(new Map());
@@ -87,7 +95,8 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
     }
     loadUrls();
     return () => { cancelled = true; };
-  }, [attachments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachmentIds]);
 
   const openFile = (attachmentId: string) => {
     const url = signedUrls.get(attachmentId);
@@ -113,6 +122,22 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
         },
       }
     );
+  };
+
+  const handleMarkPaid = () => {
+    if (!reimbursement) return;
+    paidMutation.mutate(reimbursement.id, {
+      onSuccess: () => onOpenChange(false),
+    });
+  };
+
+  const handleDownloadPdf = () => {
+    if (!reimbursement) return;
+    generateReimbursementPdf({
+      reimbursement,
+      items: expenseItems,
+      attachments,
+    });
   };
 
   if (!reimbursement) return null;
@@ -222,7 +247,6 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
                 <p className="text-muted-foreground text-xs italic">Nenhum anexo encontrado.</p>
               ) : (
                 <div className="space-y-3">
-                  {/* Image thumbnails */}
                   {imageAttachments.length > 0 && (
                     <div className="grid grid-cols-2 gap-2">
                       {imageAttachments.map((a) => {
@@ -234,11 +258,7 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
                             className="relative group rounded-lg border overflow-hidden aspect-square bg-muted hover:ring-2 hover:ring-primary transition-all"
                           >
                             {url ? (
-                              <img
-                                src={url}
-                                alt={a.file_name}
-                                className="w-full h-full object-cover"
-                              />
+                              <img src={url} alt={a.file_name} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
                                 <Paperclip className="h-6 w-6 text-muted-foreground" />
@@ -252,16 +272,12 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
                       })}
                     </div>
                   )}
-                  {/* Other files */}
                   {otherAttachments.length > 0 && (
                     <ul className="space-y-1.5">
                       {otherAttachments.map((a) => (
                         <li key={a.id} className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <button
-                            className="text-sm text-primary hover:underline truncate"
-                            onClick={() => openFile(a.id)}
-                          >
+                          <button className="text-sm text-primary hover:underline truncate" onClick={() => openFile(a.id)}>
                             {a.file_name}
                           </button>
                           {a.file_size && (
@@ -281,10 +297,8 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
             <div className="text-sm">
               <p className="text-muted-foreground mb-3">Histórico</p>
               <div className="relative pl-6 space-y-4">
-                {/* Vertical line */}
                 <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
 
-                {/* Correction reference */}
                 {reimbursement.corrected_from_id && (
                   <div className="relative flex items-start gap-3">
                     <Clock className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-amber-500" />
@@ -310,18 +324,32 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
                 {/* Reviewed */}
                 {reimbursement.reviewed_at && (
                   <div className="relative flex items-start gap-3">
-                    {reimbursement.status === 'approved' ? (
-                      <CheckCircle className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-green-600" />
-                    ) : (
+                    {reimbursement.status === 'rejected' ? (
                       <XCircle className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-destructive" />
+                    ) : (
+                      <CheckCircle className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-green-600" />
                     )}
                     <div>
                       <p className="font-medium">
-                        {reimbursement.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
+                        {reimbursement.status === 'rejected' ? 'Rejeitado' : 'Aprovado'}
                       </p>
                       <p className="text-muted-foreground text-xs">
                         {format(new Date(reimbursement.reviewed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                         {reimbursement.reviewer_name && ` · ${reimbursement.reviewer_name}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Paid */}
+                {reimbursement.paid_at && (
+                  <div className="relative flex items-start gap-3">
+                    <DollarSign className="absolute -left-6 top-0.5 h-[18px] w-[18px] text-blue-600" />
+                    <div>
+                      <p className="font-medium">Pago</p>
+                      <p className="text-muted-foreground text-xs">
+                        {format(new Date(reimbursement.paid_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        {reimbursement.paid_by_name && ` · ${reimbursement.paid_by_name}`}
                       </p>
                     </div>
                   </div>
@@ -332,22 +360,26 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
             {/* Actions */}
             {canAct && (
               <div className="flex gap-2 pt-2 border-t">
-                <Button
-                  onClick={handleApprove}
-                  disabled={approveMutation.isPending}
-                  className="flex-1"
-                >
+                <Button onClick={handleApprove} disabled={approveMutation.isPending} className="flex-1">
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Aprovar
                 </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => setRejectOpen(true)}
-                  disabled={rejectMutation.isPending}
-                  className="flex-1"
-                >
+                <Button variant="destructive" onClick={() => setRejectOpen(true)} disabled={rejectMutation.isPending} className="flex-1">
                   <XCircle className="h-4 w-4 mr-2" />
                   Rejeitar
+                </Button>
+              </div>
+            )}
+
+            {canPay && (
+              <div className="flex gap-2 pt-2 border-t">
+                <Button
+                  onClick={handleMarkPaid}
+                  disabled={paidMutation.isPending}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Marcar como Pago
                 </Button>
               </div>
             )}
@@ -355,14 +387,21 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
             {canCorrect && (
               <div className="pt-2 border-t">
                 <Button
-                  onClick={() => {
-                    onCorrectAndResend!(reimbursement);
-                    onOpenChange(false);
-                  }}
+                  onClick={() => { onCorrectAndResend!(reimbursement); onOpenChange(false); }}
                   className="w-full bg-green-700 hover:bg-green-800 text-white"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Corrigir e Reenviar
+                </Button>
+              </div>
+            )}
+
+            {/* Download PDF */}
+            {(reimbursement.status === 'approved' || reimbursement.status === 'paid') && isManager && (
+              <div className="pt-2 border-t">
+                <Button variant="outline" onClick={handleDownloadPdf} className="w-full">
+                  <Download className="h-4 w-4 mr-2" />
+                  Baixar PDF
                 </Button>
               </div>
             )}
