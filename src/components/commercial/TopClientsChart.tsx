@@ -32,7 +32,7 @@ export function TopClientsChart({ data }: Props) {
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(value: number) => formatCurrency(value)} />
+              <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={false} />
               <Bar dataKey="value" fill="hsl(152, 55%, 45%)" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
