@@ -1,154 +1,66 @@
 
-## Plano: Fluxo de Reembolso em 3 Etapas + Notificacoes + Download PDF
+## Plano: Secao de Leads Arquivados no CRM
 
-### Resumo do Novo Fluxo
+### Abordagem
 
-```text
-Funcionario/PM        Gerente de Projeto       Admin
-     |                       |                    |
-  Cria pedido ──────> Recebe na inbox             |
-  (pending)           Aprova ou Rejeita           |
-                             |                    |
-                      Se aprovado ──────>  Recebe na inbox
-                      (approved)           Clica "Pago"
-                             |                    |
-                             |              (paid) ────> Funcionario
-                             |                         recebe notificacao
-                             |                         na caixa de entrada
-```
+Criar uma nova pagina `/crm/archived` seguindo o mesmo padrao visual da pagina de Reembolsos (`/reimbursements`): cards de metricas no topo, barra de busca com filtro, tabela com paginacao, e clique na linha abre o detalhe do lead. Admins e gerentes poderao desarquivar leads.
 
-**Status do reembolso**: `pending` → `approved` → `paid` (ou `rejected`)
+### Metricas Recomendadas (4 cards)
 
----
+1. **Total Arquivados** -- quantidade total de leads arquivados (icone: Archive)
+2. **Valor Perdido** -- soma do `estimated_value` ou `budget.final_total` dos leads arquivados (icone: TrendingDown)
+3. **Principal Motivo** -- motivo de arquivamento mais frequente, ex: "Preco (12)" (icone: BarChart3)
+4. **Arquivados no Mes** -- quantidade arquivada no mes corrente (icone: CalendarDays)
 
-### 1. Schema do Banco de Dados
+### Mudancas Necessarias
 
-#### 1.1. Novos campos em `reimbursement_requests`
-- `paid_by` (uuid, nullable) -- admin que marcou como pago
-- `paid_at` (timestamptz, nullable) -- data do pagamento
+#### 1. Backend -- Service e Hooks
 
-#### 1.2. Tabela de notificacoes `notifications`
-Nova tabela para o sistema de caixa de entrada:
+**`src/services/leadService.ts`**
+- Nova funcao `fetchArchivedLeads(tenantId)`: consulta leads com `archived = true`, com os mesmos joins (budget, creator, responsible)
+- Nova funcao `unarchiveLead(id)`: atualiza `archived = false`, limpa `archived_at`, `archive_reason`, `archive_notes`
 
-| Coluna | Tipo | Descricao |
-|---|---|---|
-| id | uuid PK | |
-| tenant_id | uuid | |
-| recipient_id | uuid | employee.id do destinatario |
-| type | text | tipo (ex: `reimbursement_paid`) |
-| title | text | titulo curto |
-| message | text | mensagem |
-| reference_id | uuid | ID do reembolso relacionado |
-| is_read | boolean | lido/nao lido |
-| created_at | timestamptz | |
+**`src/hooks/useLeads.ts`**
+- Novo hook `useArchivedLeads()`: query com key `['archived-leads']`
+- Nova mutation `useUnarchiveLead()`: chama `unarchiveLead`, invalida queries `['leads']` e `['archived-leads']`, exibe toast "Lead desarquivado"
 
-RLS: usuarios so veem suas proprias notificacoes (`recipient_id` via join com `employees.auth_id`).
+#### 2. Nova Pagina -- `src/pages/ArchivedLeads.tsx`
 
----
+Estrutura seguindo o padrao de `/reimbursements`:
+- **Cards de metricas** (4 cards conforme acima)
+- **Barra de busca** + **filtro por motivo de arquivamento** (dropdown com os valores de `ARCHIVE_REASONS`)
+- **Tabela** com colunas: Nome, Empresa, Etapa (onde estava antes de arquivar), Motivo, Data do Arquivamento, Valor Estimado
+- **Paginacao** igual a de reembolsos (10/25/50 por pagina, oculta se < 10 registros)
+- **Clique na linha** abre o `LeadDetailDialog` em modo read-only (lead ja arquivado)
+- **Botao "Desarquivar"** na tabela (coluna de acoes) -- visivel apenas para admins e gerentes
+- **Botao de voltar** para `/crm`
 
-### 2. Mudancas no Backend (Hooks)
+#### 3. LeadDetailDialog -- Ajuste para Arquivados
 
-#### 2.1. `useReimbursements.ts`
-- Atualizar `statusConfig` para incluir `paid` (cor azul, icone de cifrao)
-- Nova mutation `useMarkReimbursementPaid`: atualiza status para `paid`, grava `paid_by` e `paid_at`, e cria notificacao para o solicitante
-- Atualizar `useApproveReimbursement`: apos aprovar, criar notificacao para todos os admins do tenant
-- Novo hook `useNotifications`: buscar notificacoes do usuario logado
-- Novo hook `useUnreadNotificationsCount`: contar nao lidas (para o badge)
-- Novo hook `useMarkNotificationRead`: marcar como lida
+- Quando o lead esta arquivado, exibir os campos em modo somente leitura (inputs desabilitados)
+- Remover opcao de "Arquivar" do menu dropdown
+- Exibir badge "Arquivado" com motivo e data
 
-#### 2.2. Logica de aprovacao atualizada
-- Quando o gerente aprova, a despesa ja contabiliza no projeto (comportamento atual mantido)
-- Apos aprovacao, criar registro em `notifications` para cada admin do tenant
+#### 4. Roteamento
 
----
+**`src/App.tsx`**
+- Adicionar rota `/crm/archived` protegida com `RoleProtectedRoute requireManager`
 
-### 3. Mudancas na UI
+#### 5. Navegacao
 
-#### 3.1. `ReimbursementDetailDialog.tsx`
-- Adicionar status `paid` no `statusConfig` (azul, "Pago")
-- Quando status = `approved` e usuario = admin: mostrar botao "Marcar como Pago" (verde, icone DollarSign)
-- Atualizar timeline para incluir etapa "Pago" com data e nome do admin
-- Adicionar botao "Baixar PDF" que gera um resumo do reembolso em formato PDF para download (usando geracao client-side)
+**CRM page (`src/pages/CRM.tsx`)**
+- Adicionar botao "Arquivados" ao lado de "Novo Lead" que navega para `/crm/archived`
 
-#### 3.2. `Reimbursements.tsx` (pagina principal)
-- Adicionar status `paid` no `statusConfig` e filtro de status
-- Na tabela, para reembolsos `approved`, exibir acao rapida "Pagar" (visivel apenas para admins)
-- Atualizar cards de resumo: "Total Aprovado" passa a incluir ambos `approved` e `paid`, ou separar em "Aguardando Pagamento" e "Pagos"
+### Detalhes Tecnicos
 
-#### 3.3. `InboxButton.tsx` / Caixa de Entrada
-- Expandir para mostrar notificacoes gerais alem dos reembolsos pendentes
-- Admin ve: reembolsos aprovados aguardando pagamento
-- Funcionario ve: notificacoes de pagamento realizado
-- Badge mostra contagem de itens nao lidos
+**Arquivos criados:**
+- `src/pages/ArchivedLeads.tsx` -- pagina principal
 
-#### 3.4. Geracao de PDF (client-side)
-- Gerar PDF contendo: dados do reembolso (solicitante, data, valor, descricao, itens de despesa, status, historico de aprovacao/pagamento)
-- O admin pode baixar o PDF e os anexos para subir manualmente no OneDrive
-- Usar uma biblioteca leve como `jspdf` ou gerar via `window.print()` com CSS dedicado
+**Arquivos modificados:**
+- `src/services/leadService.ts` -- fetchArchivedLeads, unarchiveLead
+- `src/hooks/useLeads.ts` -- useArchivedLeads, useUnarchiveLead
+- `src/components/crm/LeadDetailDialog.tsx` -- modo read-only para arquivados
+- `src/App.tsx` -- nova rota
+- `src/pages/CRM.tsx` -- botao de navegacao
 
----
-
-### 4. Detalhes Tecnicos
-
-#### 4.1. Migracao SQL
-```sql
--- Novos campos de pagamento
-ALTER TABLE public.reimbursement_requests 
-  ADD COLUMN paid_by uuid REFERENCES auth.users(id),
-  ADD COLUMN paid_at timestamptz;
-
--- Tabela de notificacoes
-CREATE TABLE public.notifications (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL,
-  recipient_id uuid NOT NULL,  -- employee.id
-  type text NOT NULL,
-  title text NOT NULL,
-  message text,
-  reference_id uuid,
-  is_read boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-
--- RLS: usuario ve apenas suas notificacoes
-CREATE POLICY "Users can view own notifications"
-  ON public.notifications FOR SELECT TO authenticated
-  USING (recipient_id IN (
-    SELECT id FROM employees WHERE auth_id = auth.uid()
-  ));
-
-CREATE POLICY "Users can update own notifications"
-  ON public.notifications FOR UPDATE TO authenticated
-  USING (recipient_id IN (
-    SELECT id FROM employees WHERE auth_id = auth.uid()
-  ));
-
--- Admins/managers podem inserir notificacoes
-CREATE POLICY "Authenticated users can insert notifications"
-  ON public.notifications FOR INSERT TO authenticated
-  WITH CHECK (user_belongs_to_tenant(auth.uid(), tenant_id));
-```
-
-#### 4.2. Arquivos modificados
-- `src/hooks/useReimbursements.ts` -- novos hooks e mutations
-- `src/hooks/useNotifications.ts` -- novo arquivo
-- `src/components/reimbursements/ReimbursementDetailDialog.tsx` -- botao pagar, timeline, download PDF
-- `src/pages/Reimbursements.tsx` -- novo status, acao rapida, filtro
-- `src/components/layout/InboxButton.tsx` -- notificacoes gerais
-- `src/components/reimbursements/ReimbursementInbox.tsx` -- incluir notificacoes
-- `src/components/reimbursements/ReimbursementPdfGenerator.tsx` -- novo, geracao de PDF
-
-#### 4.3. Dependencia
-- Instalar `jspdf` para geracao de PDF client-side
-
----
-
-### 5. Sequencia de Implementacao
-1. Migracao do banco (novos campos + tabela notifications)
-2. Hooks de notificacoes (`useNotifications.ts`)
-3. Atualizar hooks de reembolso (mutation de pagamento, notificacoes na aprovacao)
-4. Atualizar UI da pagina de reembolsos e detail dialog
-5. Expandir InboxButton para notificacoes
-6. Implementar geracao de PDF
+**Nenhuma migracao de banco necessaria** -- o campo `crm_stage` ja preserva a etapa anterior ao arquivamento, e ao desarquivar basta setar `archived = false` sem alterar `crm_stage`.
