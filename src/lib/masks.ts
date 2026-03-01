@@ -135,3 +135,27 @@ export const unformatCNPJ = (value: string): string => {
 export const unformatCEP = (value: string): string => {
   return value.replace(/\D/g, '');
 };
+
+// Validate CNPJ with check digits
+export const validateCNPJ = (cnpj: string): boolean => {
+  const numbers = cnpj.replace(/\D/g, '');
+  if (numbers.length !== 14) return false;
+  if (/^(\d)\1+$/.test(numbers)) return false;
+
+  const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(numbers[i]) * weights1[i];
+  }
+  let digit1 = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+
+  sum = 0;
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(numbers[i]) * weights2[i];
+  }
+  let digit2 = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+
+  return digit1 === parseInt(numbers[12]) && digit2 === parseInt(numbers[13]);
+};

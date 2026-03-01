@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { companyName, adminName, email, password } = await req.json();
+    const { companyName, adminName, cpf, phone, position, email, password, cnpj, segment, employeeCount } = await req.json();
 
     if (!companyName || !adminName || !email || !password) {
       return new Response(
@@ -37,14 +37,7 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Check if email already exists by trying to find the user
-    const { data: existingUserList } = await adminClient.auth.admin.listUsers({
-      page: 1,
-      perPage: 1,
-      // @ts-ignore – filter by email is supported
-    });
-
-    // More reliable check: query employees table by email
+    // Check if email already exists
     const { data: existingEmployee } = await adminClient
       .from('employees')
       .select('id, auth_id')
@@ -55,7 +48,6 @@ Deno.serve(async (req) => {
     let isExistingUser = false;
 
     if (existingEmployee?.auth_id) {
-      // User exists - verify password by attempting sign in
       const { data: signInData, error: signInError } = await adminClient.auth.signInWithPassword({
         email,
         password,
@@ -72,10 +64,15 @@ Deno.serve(async (req) => {
       isExistingUser = true;
     }
 
-    // 1. Create tenant
+    // 1. Create tenant with new fields
     const { data: tenant, error: tenantError } = await adminClient
       .from('tenants')
-      .insert({ name: companyName })
+      .insert({
+        name: companyName,
+        cnpj: cnpj || null,
+        segment: segment || null,
+        employee_count: employeeCount || null,
+      })
       .select()
       .single();
 
@@ -87,7 +84,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 1.1 Seed default holidays for the new tenant
+    // 1.1 Seed default holidays
     const defaultHolidays = [
       { tenant_id: tenant.id, name: 'Confraternização Universal', holiday_type: 'fixed', fixed_day: 1, fixed_month: 1 },
       { tenant_id: tenant.id, name: 'Tiradentes', holiday_type: 'fixed', fixed_day: 21, fixed_month: 4 },
@@ -115,7 +112,7 @@ Deno.serve(async (req) => {
       console.error('Error seeding holidays:', holidaysError);
     }
 
-    // 2. Create auth user (only if new user)
+    // 2. Create auth user (only if new)
     if (!isExistingUser) {
       const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
         email,
@@ -127,7 +124,6 @@ Deno.serve(async (req) => {
         console.error('Error creating auth user:', authError);
         await adminClient.from('tenants').delete().eq('id', tenant.id);
 
-        // Check for duplicate email at auth level
         const errMsg = authError.message?.toLowerCase() || '';
         if (errMsg.includes('already') || errMsg.includes('duplicate') || errMsg.includes('exists')) {
           return new Response(
@@ -145,15 +141,15 @@ Deno.serve(async (req) => {
       authUserId = authUser.user.id;
     }
 
-    // 3. Create employee record (cpf and telefone are required NOT NULL fields)
+    // 3. Create employee record with new fields
     const { data: employee, error: employeeError } = await adminClient
       .from('employees')
       .insert({
         nome: adminName,
         email,
-        cargo: 'Administrador',
-        cpf: '00000000000',
-        telefone: '00000000000',
+        cargo: position || 'Administrador',
+        cpf: cpf || '00000000000',
+        telefone: phone || '00000000000',
         data_admissao: new Date().toISOString().split('T')[0],
         is_gerente: true,
         tenant_id: tenant.id,
