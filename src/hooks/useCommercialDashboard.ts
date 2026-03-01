@@ -11,7 +11,8 @@ interface CommercialDashboardData {
   avgTicket: number;
   avgSalesCycleDays: number | null;
   activePipeline: number;
-  pipelineHasLeadsWithoutValue: boolean;
+  pipelineLeadsWithBudgetCount: number;
+  pipelineHasNoProposals: boolean;
   newLeadsThisYear: number;
 
   // Funnel
@@ -91,8 +92,10 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
 
     // KPI 4: Active pipeline (all active leads, excluding closed and archived)
     const pipelineLeads = activeLeadsYear.filter(l => l.crm_stage !== 'closed');
-    const activePipeline = pipelineLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
-    const pipelineHasLeadsWithoutValue = pipelineLeads.length > 0 && pipelineLeads.some(l => !l.estimated_value || l.estimated_value === 0);
+    const pipelineLeadsWithBudget = pipelineLeads.filter(l => (l.estimated_value || 0) > 0);
+    const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + l.estimated_value, 0);
+    const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
+    const pipelineHasNoProposals = pipelineLeadsWithBudgetCount === 0 && pipelineLeads.length > 0;
 
     // KPI 5: New leads in the selected year
     const newLeadsThisYear = yearFiltered.length;
@@ -179,8 +182,9 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
       avgTicket,
       avgSalesCycleDays,
       activePipeline,
-      pipelineHasLeadsWithoutValue,
-      newLeadsThisYear: newLeadsThisYear,
+      pipelineLeadsWithBudgetCount,
+      pipelineHasNoProposals,
+      newLeadsThisYear,
       funnelData,
       revenueByMonth: revenueByMonthData,
       pipelineByStage,

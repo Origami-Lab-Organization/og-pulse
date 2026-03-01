@@ -65,7 +65,8 @@ export default function CommercialDashboard() {
               avgTicket={data.avgTicket}
               avgSalesCycleDays={data.avgSalesCycleDays}
               activePipeline={data.activePipeline}
-              pipelineHasLeadsWithoutValue={data.pipelineHasLeadsWithoutValue}
+              pipelineLeadsWithBudgetCount={data.pipelineLeadsWithBudgetCount}
+              pipelineHasNoProposals={data.pipelineHasNoProposals}
               newLeadsThisYear={data.newLeadsThisYear}
             />
 
