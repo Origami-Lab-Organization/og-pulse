@@ -26,6 +26,7 @@ export interface SaveStatusInfo {
 interface TimesheetWeekRowProps {
   label: string;
   subLabel?: string;
+  clientName?: string;
   /** Extra content rendered after the label (e.g. alert icons) */
   labelExtra?: ReactNode;
   avatarUrl?: string | null;
@@ -54,6 +55,7 @@ interface TimesheetWeekRowProps {
 export function TimesheetWeekRow({
   label,
   subLabel,
+  clientName,
   labelExtra,
   avatarUrl,
   projectId,
@@ -241,7 +243,7 @@ export function TimesheetWeekRow({
   return (
     <div className={cn(
       "grid gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md",
-      (statusSlot || actionSlot) ? "grid-cols-[1fr_repeat(5,60px)_80px_120px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+      (statusSlot || actionSlot) ? "grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]" : "grid-cols-[1fr_1fr_repeat(5,60px)_80px]"
     )}>
       <div className="flex items-center gap-2 min-w-0">
         {avatarUrl !== undefined && (
@@ -253,12 +255,14 @@ export function TimesheetWeekRow({
         <div className="min-w-0 flex items-center gap-1">
           <div className="min-w-0">
             <p className="text-sm font-medium truncate">{label}</p>
-            {subLabel && (
-              <p className="text-xs text-muted-foreground truncate">{subLabel}</p>
-            )}
           </div>
           {labelExtra}
         </div>
+      </div>
+      <div className="min-w-0">
+        {clientName && (
+          <p className="text-sm text-muted-foreground truncate">{clientName}</p>
+        )}
       </div>
       
       {weekDays.map((day) => {
