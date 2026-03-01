@@ -113,16 +113,22 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
     let accWon = 0;
     const revenueByMonthData = MONTH_LABELS.map((label, monthIdx) => {
       const wonThisMonth = filtered
-        .filter(l => l.crm_stage === 'closed' && !l.archived && l.closed_at
-          && getYear(parseISO(l.closed_at)) === selectedYear
-          && getMonth(parseISO(l.closed_at)) === monthIdx)
+        .filter(l => l.crm_stage === 'closed' && !l.archived)
+        .filter(l => {
+          const dateStr = l.closed_at || l.updated_at;
+          const d = parseISO(dateStr);
+          return getYear(d) === selectedYear && getMonth(d) === monthIdx;
+        })
         .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
 
       const lostThisMonth = filtered
-        .filter(l => l.archived && l.archived_at
-          && getYear(parseISO(l.archived_at)) === selectedYear
-          && getMonth(parseISO(l.archived_at)) === monthIdx)
-        .reduce((sum, l) => sum + l.estimated_value, 0);
+        .filter(l => l.archived)
+        .filter(l => {
+          const dateStr = l.archived_at || l.updated_at;
+          const d = parseISO(dateStr);
+          return getYear(d) === selectedYear && getMonth(d) === monthIdx;
+        })
+        .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
 
       accWon += wonThisMonth;
       return { month: label, wonMonth: wonThisMonth, lostMonth: lostThisMonth, wonAccumulated: accWon };

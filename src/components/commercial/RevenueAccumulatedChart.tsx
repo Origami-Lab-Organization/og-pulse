@@ -37,8 +37,8 @@ export function RevenueAccumulatedChart({ data }: Props) {
               />
               <Tooltip formatter={(value: number) => formatCurrency(value)} />
               <Legend />
-              <Bar yAxisId="bar" dataKey="wonMonth" name="Ganho no Mês" fill="hsl(152, 55%, 45%)" radius={[3, 3, 0, 0]} barSize={16} />
-              <Bar yAxisId="bar" dataKey="lostMonth" name="Perdido no Mês" fill="hsl(0, 72%, 51%)" radius={[3, 3, 0, 0]} barSize={16} />
+              <Bar yAxisId="bar" dataKey="wonMonth" name="Negócio Fechado" fill="hsl(152, 55%, 45%)" radius={[3, 3, 0, 0]} barSize={16} />
+              <Bar yAxisId="bar" dataKey="lostMonth" name="Perdido" fill="hsl(0, 72%, 51%)" radius={[3, 3, 0, 0]} barSize={16} />
               <Line yAxisId="line" type="monotone" dataKey="wonAccumulated" name="Acumulado Ganho" stroke="hsl(152, 40%, 30%)" strokeWidth={2.5} dot={{ r: 3 }} />
             </ComposedChart>
           </ResponsiveContainer>
