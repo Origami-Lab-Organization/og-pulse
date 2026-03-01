@@ -36,6 +36,7 @@ import CommercialDashboard from "./pages/CommercialDashboard";
 import Welcome from "./pages/Welcome";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import MarketAnalysisPage from "./pages/marketing/MarketAnalysisPage";
 
 const queryClient = new QueryClient();
 
@@ -228,6 +229,14 @@ const App = () => (
                   <RoleProtectedRoute requireAdmin>
                     <AdminPortal />
                   </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/marketing/analise-mercado" 
+                element={
+                  <ProtectedRoute>
+                    <MarketAnalysisPage />
+                  </ProtectedRoute>
                 } 
               />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
