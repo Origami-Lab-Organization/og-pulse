@@ -72,7 +72,7 @@ const navigationGroups = [
       { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresManager: true },
       { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
       { title: 'Alocação', url: '/alocacao', icon: Clock, requiresManager: true },
-      { title: 'Reembolsos', url: '/reembolsos-operacoes', icon: Receipt, requiresManager: true, disabled: true },
+      
       { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
     ] as NavItem[],
   },
