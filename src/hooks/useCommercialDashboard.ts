@@ -92,8 +92,10 @@ export function useCommercialDashboard(selectedYear: number, selectedServiceLine
 
     // KPI 4: Active pipeline (all active leads, excluding closed and archived)
     const pipelineLeads = activeLeadsYear.filter(l => l.crm_stage !== 'closed');
-    const pipelineLeadsWithBudget = pipelineLeads.filter(l => (l.estimated_value || 0) > 0);
-    const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + l.estimated_value, 0);
+    const getLeadValue = (l: LeadWithBudget) => 
+      (l.budget?.final_total && l.budget.final_total > 0) ? l.budget.final_total : l.estimated_value;
+    const pipelineLeadsWithBudget = pipelineLeads.filter(l => getLeadValue(l) > 0);
+    const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);
     const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
     const pipelineHasNoProposals = pipelineLeadsWithBudgetCount === 0 && pipelineLeads.length > 0;
 
