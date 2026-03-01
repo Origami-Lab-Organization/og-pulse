@@ -1,44 +1,44 @@
 
-# Fix: Pipeline por Etapa card showing empty when lead values are zero
+
+# Fix: Pipeline Ativo KPI - Business Logic and Sub-labels
 
 ## Problem
-The `useCommercialDashboard` hook filters out pipeline stages where the total value is 0 (`.filter(s => s.value > 0)`). When leads don't have `estimated_value` set, the chart data array is empty and the component renders a blank donut with "Total R$ 0,00".
+The "Pipeline Ativo" KPI shows R$ 0,00 because it sums `estimated_value` from all active leads, but leads in "Triagem" and "Qualificacao" typically don't have values set yet. The card also lacks context about what the value represents.
 
 ## Solution
 
-### 1. Update the hook (`src/hooks/useCommercialDashboard.ts`)
-- Remove the `.filter(s => s.value > 0)` from `pipelineByStage` so all stages with leads are included (even if value is 0)
-- Filter only stages that have at least one lead: `.filter(s => s.count > 0)`
-- Add a new boolean `pipelineAllZeroValues` to indicate when there are leads but all values are zero
+### 1. Hook (`src/hooks/useCommercialDashboard.ts`)
+- Change pipeline calculation to only sum leads with `estimated_value > 0` (effectively Proposta + Negociacao stages)
+- Add a new field `pipelineLeadsWithBudgetCount` counting how many leads have value > 0
+- Add a boolean `pipelineHasNoProposals` for when zero leads have reached Proposta stage with a value
+- Remove the old `pipelineHasLeadsWithoutValue` field (replaced by new contextual info)
 
-### 2. Rewrite the chart component (`src/components/commercial/PipelineDonutChart.tsx`)
-- Add a new prop `pipelineAllZeroValues` (or compute it internally from data)
-- When all values are zero but counts exist:
-  - Show a donut/bar chart based on **count** instead of value
-  - Display a warning label: "Valores nao informados"
-  - Center text shows total lead count instead of R$ 0,00
-- When values exist: show the current donut chart by value (existing behavior)
-- When no leads at all: show a friendly empty state message ("Nenhum lead ativo no pipeline")
+### 2. KPI Component (`src/components/commercial/CommercialKPIs.tsx`)
+- Update the Props interface to receive `pipelineLeadsWithBudgetCount` and `pipelineHasNoProposals`
+- For the Pipeline Ativo card, display a sub-label:
+  - If leads with budget exist: "Baseado em N leads com orcamento definido"
+  - If no leads have budget (value is R$ 0,00): "Nenhum orcamento gerado no periodo"
 
-### 3. Update the dashboard page (`src/pages/CommercialDashboard.tsx`)
-- Pass the new prop to `PipelineDonutChart` if needed
+### 3. Dashboard Page (`src/pages/CommercialDashboard.tsx`)
+- Pass the new props to `CommercialKPIs`
 
 ## Technical Details
 
-In `useCommercialDashboard.ts`, change line ~139:
+In the hook, the pipeline calculation changes from:
 ```typescript
-// Before
-}).filter(s => s.value > 0);
-
-// After  
-}).filter(s => s.count > 0);
+const pipelineLeads = activeLeadsYear.filter(l => l.crm_stage !== 'closed');
+const activePipeline = pipelineLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
+```
+To:
+```typescript
+const pipelineLeads = activeLeadsYear.filter(l => l.crm_stage !== 'closed');
+const pipelineLeadsWithBudget = pipelineLeads.filter(l => l.estimated_value > 0);
+const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + l.estimated_value, 0);
+const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
+const pipelineHasNoProposals = pipelineLeadsWithBudgetCount === 0 && pipelineLeads.length > 0;
 ```
 
-In `PipelineDonutChart.tsx`, detect if all values are zero and switch `dataKey` to `count`:
-```typescript
-const allZeroValues = data.length > 0 && data.every(d => d.value === 0);
-// Use dataKey="count" when allZeroValues is true
-// Show warning text and adjust center label accordingly
-```
-
-Also handle the truly empty case (no leads at all) with a centered message.
+The KPI card renders conditionally:
+- Value > 0: Shows value + "Baseado em N leads com orcamento definido"
+- Value = 0 with active leads: Shows "R$ 0,00" + "Nenhum orcamento gerado no periodo"
+- No leads at all: Shows "R$ 0,00" with no sub-label
