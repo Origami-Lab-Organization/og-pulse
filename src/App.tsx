@@ -23,6 +23,7 @@ import LandingPage from "./pages/LandingPage";
 import UnderConstruction from "./pages/UnderConstruction";
 import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
+import ArchivedLeads from "./pages/ArchivedLeads";
 import Portfolio from "./pages/Portfolio";
 import Timesheets from "./pages/Timesheets";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
@@ -159,6 +160,14 @@ const App = () => (
                     <CRM />
                   </RoleProtectedRoute>
                 } 
+              />
+              <Route
+                path="/crm/archived"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <ArchivedLeads />
+                  </RoleProtectedRoute>
+                }
               />
               <Route 
                 path="/budgets" 
