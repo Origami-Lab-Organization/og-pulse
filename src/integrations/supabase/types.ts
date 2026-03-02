@@ -964,6 +964,48 @@ export type Database = {
           },
         ]
       }
+      market_analysis_jobs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          form_data: Json
+          id: string
+          module: string
+          module_label: string
+          result_markdown: string | null
+          status: string | null
+          tenant_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          form_data: Json
+          id?: string
+          module: string
+          module_label: string
+          result_markdown?: string | null
+          status?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          form_data?: Json
+          id?: string
+          module?: string
+          module_label?: string
+          result_markdown?: string | null
+          status?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

@@ -24,7 +24,10 @@ verify_jwt = false
 [functions.send-reimbursement-email]
 verify_jwt = false
 
-[functions.market-analysis-generate]
+[functions.market-analysis-start]
+verify_jwt = false
+
+[functions.market-analysis-status]
 verify_jwt = false
 
 [functions.market-analysis-refine]
