@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
-  Zap, ArrowLeft, Sparkles, Loader2, Brain, Search, BarChart2,
+  Zap, Sparkles, Loader2, Brain, Search, BarChart2,
   FileText, Check, AlertCircle, RefreshCw, Download, MessageSquare, Send,
   Plus, Trash2, Eye, Clock, AlertTriangle, Save,
 } from 'lucide-react';
@@ -37,18 +37,18 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 
 const modules = [
-  { number: 1, title: 'Market Sizing & TAM Analysis', shortName: 'Dimensionamento', description: 'Estime o tamanho total do mercado, segmentos endereçáveis e oportunidades de crescimento.' },
-  { number: 2, title: 'Competitive Landscape Deep Dive', shortName: 'Concorrência', description: 'Mapeie concorrentes diretos e indiretos, posicionamento e diferenciais competitivos.' },
-  { number: 3, title: 'Customer Persona & Segmentation', shortName: 'Personas', description: 'Defina perfis de cliente ideais, segmentos prioritários e critérios de qualificação.' },
-  { number: 4, title: 'Industry Trend Analysis', shortName: 'Tendências', description: 'Identifique macro e micro tendências que impactam o setor e oportunidades emergentes.' },
-  { number: 5, title: 'SWOT + Porter\'s Five Forces', shortName: 'Forças e Fraquezas', description: 'Análise estruturada de forças, fraquezas, oportunidades, ameaças e dinâmicas competitivas.' },
-  { number: 6, title: 'Pricing Strategy Analysis', shortName: 'Precificação', description: 'Avalie modelos de precificação, elasticidade e posicionamento de preço no mercado.' },
-  { number: 7, title: 'Go-To-Market Strategy', shortName: 'Entrada no Mercado', description: 'Planeje canais de distribuição, messaging e estratégia de lançamento.' },
-  { number: 8, title: 'Customer Journey Mapping', shortName: 'Jornada do Cliente', description: 'Mapeie pontos de contato, fricções e oportunidades ao longo da jornada do cliente.' },
-  { number: 9, title: 'Financial Modeling & Unit Economics', shortName: 'Modelagem Financeira', description: 'Projete receitas, custos unitários, LTV, CAC e métricas financeiras chave.' },
-  { number: 10, title: 'Risk Assessment & Scenario Planning', shortName: 'Riscos e Cenários', description: 'Identifique riscos estratégicos e modele cenários otimista, base e pessimista.' },
-  { number: 11, title: 'Market Entry & Expansion Strategy', shortName: 'Expansão', description: 'Avalie estratégias de entrada em novos mercados e planos de expansão geográfica.' },
-  { number: 12, title: 'Executive Strategy Synthesis', shortName: 'Síntese Executiva', description: 'Consolide insights de todos os módulos em um plano estratégico executivo.' },
+  { number: 1, title: 'Dimensionamento de Mercado e TAM', shortName: 'Dimensionamento', description: 'Estime o tamanho total do mercado, segmentos endereçáveis e oportunidades de crescimento.' },
+  { number: 2, title: 'Panorama Competitivo', shortName: 'Concorrência', description: 'Mapeie concorrentes diretos e indiretos, posicionamento e diferenciais competitivos.' },
+  { number: 3, title: 'Persona e Segmentação de Clientes', shortName: 'Personas', description: 'Defina perfis de cliente ideais, segmentos prioritários e critérios de qualificação.' },
+  { number: 4, title: 'Análise de Tendências do Setor', shortName: 'Tendências', description: 'Identifique macro e micro tendências que impactam o setor e oportunidades emergentes.' },
+  { number: 5, title: 'SWOT e 5 Forças de Porter', shortName: 'Forças e Fraquezas', description: 'Análise estruturada de forças, fraquezas, oportunidades, ameaças e dinâmicas competitivas.' },
+  { number: 6, title: 'Estratégia de Precificação', shortName: 'Precificação', description: 'Avalie modelos de precificação, elasticidade e posicionamento de preço no mercado.' },
+  { number: 7, title: 'Estratégia Go-To-Market', shortName: 'Entrada no Mercado', description: 'Planeje canais de distribuição, messaging e estratégia de lançamento.' },
+  { number: 8, title: 'Mapeamento da Jornada do Cliente', shortName: 'Jornada do Cliente', description: 'Mapeie pontos de contato, fricções e oportunidades ao longo da jornada do cliente.' },
+  { number: 9, title: 'Modelagem Financeira e Unit Economics', shortName: 'Modelagem Financeira', description: 'Projete receitas, custos unitários, LTV, CAC e métricas financeiras chave.' },
+  { number: 10, title: 'Avaliação de Riscos e Cenários', shortName: 'Riscos e Cenários', description: 'Identifique riscos estratégicos e modele cenários otimista, base e pessimista.' },
+  { number: 11, title: 'Estratégia de Entrada e Expansão', shortName: 'Expansão', description: 'Avalie estratégias de entrada em novos mercados e planos de expansão geográfica.' },
+  { number: 12, title: 'Síntese Estratégica Executiva', shortName: 'Síntese Executiva', description: 'Consolide insights de todos os módulos em um plano estratégico executivo.' },
 ];
 
 const formSchema = z.object({
@@ -186,6 +186,20 @@ const MarketAnalysisPage = () => {
     refineMutation.reset();
   };
 
+  const handleBackToLibrary = () => {
+    setSelectedModule(null);
+    setFormData(null);
+    setAnalysisResult(null);
+    setSavedAnalysisId(null);
+    setIsSaved(false);
+    setChatMessages([WELCOME_MESSAGE]);
+    setChatInput('');
+    form.reset();
+    generateMutation.reset();
+    refineMutation.reset();
+    setCurrentStep('library');
+  };
+
   const handleOpenSaved = (analysis: SavedAnalysis) => {
     setAnalysisResult({
       markdown: analysis.result_markdown,
@@ -240,12 +254,10 @@ const MarketAnalysisPage = () => {
     if (!analysisResult || !employee) return;
     setIsSaving(true);
     try {
-      // Generate PDF blob
       const pdfBlob = await generatePdfFromHtml('analysis-content', analysisResult.moduleLabel);
       const dateStr = new Date().toISOString().split('T')[0];
       const filename = `${employee.id}/${analysisResult.module}-${dateStr}-${Date.now()}.pdf`;
 
-      // Upload to storage
       const { error: uploadError } = await supabase.storage
         .from('market-analysis-pdfs')
         .upload(filename, pdfBlob, { contentType: 'application/pdf' });
@@ -259,13 +271,11 @@ const MarketAnalysisPage = () => {
       const pdfUrl = urlData.publicUrl;
 
       if (savedAnalysisId) {
-        // Update existing with pdf_url
         await supabase
           .from('market_analyses' as any)
           .update({ pdf_url: pdfUrl } as any)
           .eq('id', savedAnalysisId);
       } else if (formData) {
-        // Save new analysis
         const { data: saved, error } = await supabase
           .from('market_analyses' as any)
           .insert({
@@ -307,7 +317,6 @@ const MarketAnalysisPage = () => {
       ? 'Análise Completa'
       : modules.find((m) => m.number === selectedModule)?.title ?? '';
 
-  // Trigger mutation when entering loading
   useEffect(() => {
     if (currentStep === 'loading' && formData && selectedModule) {
       setActiveLoadingStep(0);
@@ -319,7 +328,6 @@ const MarketAnalysisPage = () => {
             setChatMessages([WELCOME_MESSAGE]);
             setCurrentStep('result');
             setIsSaved(false);
-            // Auto-save
             if (employee) {
               saveMutation.mutate({
                 tenant_id: employee.tenant_id,
@@ -346,7 +354,6 @@ const MarketAnalysisPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
-  // Advance loading steps
   useEffect(() => {
     if (currentStep !== 'loading') return;
     const interval = setInterval(() => {
@@ -355,7 +362,6 @@ const MarketAnalysisPage = () => {
     return () => clearInterval(interval);
   }, [currentStep]);
 
-  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, refineMutation.isPending]);
@@ -407,15 +413,51 @@ const MarketAnalysisPage = () => {
     }
   };
 
+  // Build breadcrumbs
+  const breadcrumbs = (() => {
+    const crumbs: { label: string; href?: string }[] = [{ label: 'Marketing' }];
+    if (currentStep === 'library') {
+      crumbs.push({ label: 'Análise de Mercado' });
+    } else {
+      crumbs.push({ label: 'Análise de Mercado', href: '#library' });
+      const stepLabels: Record<string, string> = {
+        selection: 'Seleção',
+        form: 'Formulário',
+        loading: 'Gerando...',
+        result: 'Resultado',
+      };
+      crumbs.push({ label: stepLabels[currentStep] || currentStep });
+    }
+    return crumbs;
+  })();
+
+  // Handle breadcrumb click for navigating back to library
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#library') {
+        handleBackToLibrary();
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Actions for AppLayout header
+  const headerActions = currentStep === 'library' ? (
+    <Button className="gap-2" onClick={() => setCurrentStep('selection')}>
+      <Plus className="h-4 w-4" />
+      Nova Análise
+    </Button>
+  ) : undefined;
+
   return (
     <AppLayout
       title="Análise de Mercado"
       description="Acompanhe tendências e métricas de mercado"
-      breadcrumbs={[
-        { label: 'Marketing' },
-        { label: 'Biblioteca' },
-        ...(currentStep !== 'library' ? [{ label: currentStep === 'selection' ? 'Seleção' : currentStep === 'form' ? 'Formulário' : currentStep === 'loading' ? 'Gerando...' : 'Resultado' }] : []),
-      ]}
+      breadcrumbs={breadcrumbs}
+      actions={headerActions}
     >
       {/* Exit form confirmation dialog */}
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
@@ -442,17 +484,6 @@ const MarketAnalysisPage = () => {
       {/* ── STEP: LIBRARY ── */}
       {currentStep === 'library' && (
         <div className="space-y-6 transition-all duration-300 ease-in-out">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">Biblioteca de Análises</h1>
-              <p className="text-muted-foreground mt-1">Acesse suas análises estratégicas anteriores</p>
-            </div>
-            <Button className="gap-2" onClick={() => setCurrentStep('selection')}>
-              <Plus className="h-4 w-4" />
-              Nova Análise
-            </Button>
-          </div>
-
           {isLoadingAnalyses ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
@@ -544,12 +575,6 @@ const MarketAnalysisPage = () => {
       {currentStep === 'selection' && (
         <div className="space-y-6 transition-all duration-300 ease-in-out">
           <div className="text-center max-w-2xl mx-auto">
-            <div className="flex justify-start mb-4">
-              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setCurrentStep('library')}>
-                <ArrowLeft className="h-4 w-4" />
-                Voltar para Biblioteca
-              </Button>
-            </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Qual análise você quer realizar?
             </h1>
@@ -561,7 +586,7 @@ const MarketAnalysisPage = () => {
           <div className="flex justify-center">
             <Button size="lg" className="text-base px-8 py-6 gap-2" onClick={() => handleSelectModule('all')}>
               <Zap className="h-5 w-5" />
-              Análise Completa (Módulos 1 ao 12)
+              Análise Estratégica Completa
             </Button>
           </div>
 
@@ -589,14 +614,9 @@ const MarketAnalysisPage = () => {
       {/* ── STEP: FORM ── */}
       {currentStep === 'form' && (
         <div className="max-w-3xl mx-auto space-y-6 transition-all duration-300 ease-in-out">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={handleBack}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">{selectedModuleLabel}</h2>
-              <p className="text-sm text-muted-foreground">Preencha o contexto do seu negócio para gerar a análise.</p>
-            </div>
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">{selectedModuleLabel}</h2>
+            <p className="text-sm text-muted-foreground">Preencha o contexto do seu negócio para gerar a análise.</p>
           </div>
 
           {/* Context quality indicator */}
@@ -817,10 +837,6 @@ const MarketAnalysisPage = () => {
                 <Button variant="outline" size="sm" className="gap-2" onClick={handleNewAnalysis}>
                   <RefreshCw className="h-4 w-4" />
                   Nova Análise
-                </Button>
-                <Button variant="ghost" size="sm" className="gap-2" onClick={() => { handleNewAnalysis(); setCurrentStep('library'); }}>
-                  <ArrowLeft className="h-4 w-4" />
-                  Biblioteca
                 </Button>
               </div>
             </div>
