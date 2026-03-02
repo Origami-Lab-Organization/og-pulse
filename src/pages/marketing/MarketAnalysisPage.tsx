@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,12 +76,12 @@ interface ChatMessage {
 }
 
 const loadingSteps = [
-  { label: 'Iniciando análise...', icon: Brain, delay: 5 },
+  { label: 'Iniciando análise com Claude Opus...', icon: Brain, delay: 5 },
   { label: 'Processando contexto do negócio...', icon: Search, delay: 15 },
-  { label: 'Consultando base de conhecimento...', icon: BarChart2, delay: 30 },
-  { label: 'Aplicando frameworks estratégicos...', icon: FileText, delay: 60 },
-  { label: 'Estruturando insights...', icon: Sparkles, delay: 90 },
-  { label: 'Finalizando documento...', icon: Check, delay: 120 },
+  { label: 'Consultando base de conhecimento...', icon: BarChart2, delay: 40 },
+  { label: 'Aplicando frameworks estratégicos...', icon: FileText, delay: 80 },
+  { label: 'Estruturando documento profissional...', icon: Sparkles, delay: 150 },
+  { label: 'Revisando e finalizando...', icon: Check, delay: 240 },
 ];
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -798,7 +799,7 @@ const MarketAnalysisPage = () => {
                 })}
               </div>
               <p className="text-xs text-muted-foreground text-center max-w-sm">
-                Análises completas podem levar de 1 a 3 minutos. Por favor, aguarde...
+                Análises com Claude Opus podem levar de 2 a 5 minutos para gerar documentos completos no padrão consultoria. Por favor, aguarde...
               </p>
             </>
           )}
@@ -846,24 +847,68 @@ const MarketAnalysisPage = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto bg-card rounded-lg shadow-sm border p-8">
-              <div id="analysis-content" className="prose prose-sm max-w-none dark:prose-invert">
+              <div id="analysis-content" className="bg-card rounded-lg p-8 overflow-y-auto">
+                <div className="prose prose-slate max-w-none dark:prose-invert prose-headings:font-bold prose-h1:text-2xl prose-h1:border-b-2 prose-h1:border-primary prose-h1:pb-3 prose-h2:text-xl prose-h2:border-b prose-h2:border-border prose-h2:pb-2 prose-table:border-collapse">
                 <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
                   components={{
                     table: ({ children }) => (
-                      <div className="overflow-x-auto my-4">
-                        <table className="w-full border-collapse border border-border text-sm">{children}</table>
+                      <div className="overflow-x-auto my-6">
+                        <table className="min-w-full border-collapse border border-border rounded-lg">
+                          {children}
+                        </table>
                       </div>
                     ),
+                    thead: ({ children }) => (
+                      <thead className="bg-muted">{children}</thead>
+                    ),
                     th: ({ children }) => (
-                      <th className="border border-border bg-muted px-3 py-2 text-left font-medium">{children}</th>
+                      <th className="border border-border px-4 py-3 text-left text-sm font-semibold text-foreground">
+                        {children}
+                      </th>
                     ),
                     td: ({ children }) => (
-                      <td className="border border-border px-3 py-2">{children}</td>
+                      <td className="border border-border px-4 py-3 text-sm text-muted-foreground">
+                        {children}
+                      </td>
+                    ),
+                    h1: ({ children }) => (
+                      <h1 className="text-2xl font-bold text-foreground border-b-2 border-primary pb-3 mb-6 mt-8 first:mt-0">
+                        {children}
+                      </h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2 mb-4 mt-8">
+                        {children}
+                      </h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="text-lg font-semibold text-foreground mb-3 mt-6">
+                        {children}
+                      </h3>
+                    ),
+                    strong: ({ children }) => (
+                      <strong className="font-semibold text-foreground">{children}</strong>
+                    ),
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-4 border-primary bg-primary/5 pl-4 py-2 my-4 italic">
+                        {children}
+                      </blockquote>
+                    ),
+                    hr: () => (
+                      <hr className="my-8 border-t-2 border-border" />
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="list-disc list-outside ml-6 mb-4 space-y-2">{children}</ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="list-decimal list-outside ml-6 mb-4 space-y-2">{children}</ol>
                     ),
                   }}
                 >
                   {analysisResult.markdown}
                 </ReactMarkdown>
+                </div>
               </div>
             </div>
           </div>

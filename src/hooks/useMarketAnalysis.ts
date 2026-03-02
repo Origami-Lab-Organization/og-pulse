@@ -84,7 +84,7 @@ export function useGenerateAnalysis() {
       if (!jobId) throw new Error("Job ID não retornado");
 
       // 2. Poll until completed (every 3s, max 5 minutes)
-      const maxAttempts = 100;
+      const maxAttempts = 150; // 7.5 minutes (150 × 3s)
       let attempts = 0;
 
       while (attempts < maxAttempts) {
