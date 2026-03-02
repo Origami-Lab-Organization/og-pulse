@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -143,8 +143,11 @@ export default function BudgetForm() {
     [roles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue]
   );
 
+  const initializedRef = useRef(false);
+
   useEffect(() => {
-    if (budget) {
+    if (budget && !initializedRef.current) {
+      initializedRef.current = true;
       form.reset({
         title: budget.title,
         clientType: budget.client_id ? 'client' : 'lead',
@@ -158,10 +161,8 @@ export default function BudgetForm() {
       });
       setCommissionPercent(budget.commission_percent);
       setDiscountValue((budget as any).discount_value ?? 0);
-      // Use net_margin_percent from budget snapshot (with fallback for old budgets)
       const storedNetMargin = (budget as any).net_margin_percent ?? financialSettings?.net_margin_percent ?? 0;
       setNetMarginPercent(storedNetMargin);
-      // Store snapshot limits for editing
       setSnapshotAdminExpenses(budget.admin_expenses_percent);
       setSnapshotTaxes(budget.taxes_percent);
       setSnapshotMaxCommission(budget.commission_percent);
@@ -186,8 +187,8 @@ export default function BudgetForm() {
         description: s.description || '',
         monthlyValue: s.monthly_value,
       })));
-    } else if (financialSettings) {
-      // For new budgets, initialize with settings values
+    } else if (!budget && financialSettings && !initializedRef.current) {
+      initializedRef.current = true;
       setNetMarginPercent(financialSettings.net_margin_percent);
     }
   }, [budget, financialSettings]);
