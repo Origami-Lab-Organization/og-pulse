@@ -21,7 +21,7 @@ import {
 import {
   Zap, ArrowLeft, Sparkles, Loader2, Brain, Search, BarChart2,
   FileText, Check, AlertCircle, RefreshCw, Download, MessageSquare, Send,
-  Plus, Trash2, Eye, Clock, AlertTriangle,
+  Plus, Trash2, Eye, Clock, AlertTriangle, Save,
 } from 'lucide-react';
 import {
   useGenerateAnalysis, useRefineAnalysis, useMarketAnalyses,
@@ -30,9 +30,11 @@ import {
 } from '@/hooks/useMarketAnalysis';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateDocxFromMarkdown } from '@/utils/generateDocx';
+import { generatePdfFromHtml, downloadPdf } from '@/utils/generatePdf';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 const modules = [
   { number: 1, title: 'Market Sizing & TAM Analysis', shortName: 'Dimensionamento', description: 'Estime o tamanho total do mercado, segmentos endereçáveis e oportunidades de crescimento.' },
@@ -85,9 +87,8 @@ const WELCOME_MESSAGE: ChatMessage = {
   content: 'Análise concluída! Posso aprofundar qualquer seção, ajustar o tom, comparar cenários ou responder perguntas sobre o que foi gerado. O que você quer explorar?',
 };
 
-// Context quality thresholds for text fields (stage is select, not counted the same)
 const TEXT_FIELDS: (keyof MarketFormData)[] = ['product', 'targetCustomer', 'market', 'revenueModel', 'differentials', 'mainChallenge'];
-const TOTAL_FIELDS = 7; // includes stage
+const TOTAL_FIELDS = 7;
 
 function computeContextQuality(values: MarketFormData): number {
   let score = 0;
@@ -108,7 +109,7 @@ const MarketAnalysisPage = () => {
   const { employee } = useAuth();
   const { toast } = useToast();
   const [selectedModule, setSelectedModule] = useState<number | 'all' | null>(null);
-  const [currentStep, setCurrentStep] = useState<'list' | 'selection' | 'form' | 'loading' | 'result'>('list');
+  const [currentStep, setCurrentStep] = useState<'library' | 'selection' | 'form' | 'loading' | 'result'>('library');
   const [formData, setFormData] = useState<MarketFormData | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
@@ -116,6 +117,8 @@ const MarketAnalysisPage = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [chatInput, setChatInput] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [pendingExitAction, setPendingExitAction] = useState<(() => void) | null>(null);
 
@@ -130,13 +133,7 @@ const MarketAnalysisPage = () => {
   const form = useForm<MarketFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      product: '',
-      targetCustomer: '',
-      market: '',
-      stage: '',
-      revenueModel: '',
-      differentials: '',
-      mainChallenge: '',
+      product: '', targetCustomer: '', market: '', stage: '', revenueModel: '', differentials: '', mainChallenge: '',
     },
     mode: 'onChange',
   });
@@ -181,6 +178,7 @@ const MarketAnalysisPage = () => {
     setFormData(null);
     setAnalysisResult(null);
     setSavedAnalysisId(null);
+    setIsSaved(false);
     setChatMessages([WELCOME_MESSAGE]);
     setChatInput('');
     form.reset();
@@ -196,6 +194,7 @@ const MarketAnalysisPage = () => {
       timestamp: analysis.created_at,
     });
     setSavedAnalysisId(analysis.id);
+    setIsSaved(true);
     const history = (analysis.chat_history ?? []) as ChatMessage[];
     setChatMessages(history.length > 0 ? history : [WELCOME_MESSAGE]);
     setCurrentStep('result');
@@ -209,7 +208,7 @@ const MarketAnalysisPage = () => {
     });
   };
 
-  const handleDownload = async () => {
+  const handleDownloadWord = async () => {
     if (!analysisResult) return;
     setIsDownloading(true);
     try {
@@ -219,6 +218,87 @@ const MarketAnalysisPage = () => {
       toast({ title: 'Erro ao baixar', description: 'Não foi possível gerar o documento.', variant: 'destructive' });
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!analysisResult) return;
+    setIsDownloading(true);
+    try {
+      const blob = await generatePdfFromHtml('analysis-content', analysisResult.moduleLabel);
+      const dateStr = new Date().toISOString().split('T')[0];
+      downloadPdf(blob, `analise-${analysisResult.moduleLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${dateStr}.pdf`);
+      toast({ title: 'PDF baixado!', description: 'O arquivo foi salvo na sua pasta de downloads.' });
+    } catch {
+      toast({ title: 'Erro ao baixar PDF', description: 'Não foi possível gerar o PDF.', variant: 'destructive' });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleSaveToLibrary = async () => {
+    if (!analysisResult || !employee) return;
+    setIsSaving(true);
+    try {
+      // Generate PDF blob
+      const pdfBlob = await generatePdfFromHtml('analysis-content', analysisResult.moduleLabel);
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `${employee.id}/${analysisResult.module}-${dateStr}-${Date.now()}.pdf`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('market-analysis-pdfs')
+        .upload(filename, pdfBlob, { contentType: 'application/pdf' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('market-analysis-pdfs')
+        .getPublicUrl(filename);
+
+      const pdfUrl = urlData.publicUrl;
+
+      if (savedAnalysisId) {
+        // Update existing with pdf_url
+        await supabase
+          .from('market_analyses' as any)
+          .update({ pdf_url: pdfUrl } as any)
+          .eq('id', savedAnalysisId);
+      } else if (formData) {
+        // Save new analysis
+        const { data: saved, error } = await supabase
+          .from('market_analyses' as any)
+          .insert({
+            tenant_id: employee.tenant_id,
+            user_id: employee.id,
+            module: analysisResult.module,
+            module_label: analysisResult.moduleLabel,
+            form_data: formData,
+            result_markdown: analysisResult.markdown,
+            chat_history: chatMessages,
+            pdf_url: pdfUrl,
+          } as any)
+          .select()
+          .single();
+        if (error) throw error;
+        setSavedAnalysisId((saved as any).id);
+      }
+
+      setIsSaved(true);
+      toast({ title: 'Análise salva na biblioteca!', description: 'Você pode acessá-la a qualquer momento.' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err?.message || 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDownloadSavedPdf = async (analysis: SavedAnalysis) => {
+    const pdfUrl = (analysis as any).pdf_url;
+    if (pdfUrl) {
+      window.open(pdfUrl, '_blank');
+    } else {
+      toast({ title: 'PDF não disponível', description: 'Abra a análise e salve na biblioteca primeiro.', variant: 'destructive' });
     }
   };
 
@@ -238,6 +318,7 @@ const MarketAnalysisPage = () => {
             setAnalysisResult(data);
             setChatMessages([WELCOME_MESSAGE]);
             setCurrentStep('result');
+            setIsSaved(false);
             // Auto-save
             if (employee) {
               saveMutation.mutate({
@@ -265,7 +346,7 @@ const MarketAnalysisPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
-  // Advance loading steps every 4 seconds
+  // Advance loading steps
   useEffect(() => {
     if (currentStep !== 'loading') return;
     const interval = setInterval(() => {
@@ -312,10 +393,7 @@ const MarketAnalysisPage = () => {
           ];
           setChatMessages(newMessages);
           if (savedAnalysisId) {
-            updateMutation.mutate({
-              id: savedAnalysisId,
-              chat_history: newMessages,
-            });
+            updateMutation.mutate({ id: savedAnalysisId, chat_history: newMessages });
           }
         },
       }
@@ -333,7 +411,11 @@ const MarketAnalysisPage = () => {
     <AppLayout
       title="Análise de Mercado"
       description="Acompanhe tendências e métricas de mercado"
-      breadcrumbs={[{ label: 'Marketing' }, { label: 'Análise de Mercado' }]}
+      breadcrumbs={[
+        { label: 'Marketing' },
+        { label: 'Biblioteca' },
+        ...(currentStep !== 'library' ? [{ label: currentStep === 'selection' ? 'Seleção' : currentStep === 'form' ? 'Formulário' : currentStep === 'loading' ? 'Gerando...' : 'Resultado' }] : []),
+      ]}
     >
       {/* Exit form confirmation dialog */}
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
@@ -357,13 +439,13 @@ const MarketAnalysisPage = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── STEP: LIST ── */}
-      {currentStep === 'list' && (
+      {/* ── STEP: LIBRARY ── */}
+      {currentStep === 'library' && (
         <div className="space-y-6 transition-all duration-300 ease-in-out">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">Suas Análises</h1>
-              <p className="text-muted-foreground mt-1">Análises de mercado geradas anteriormente</p>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">Biblioteca de Análises</h1>
+              <p className="text-muted-foreground mt-1">Acesse suas análises estratégicas anteriores</p>
             </div>
             <Button className="gap-2" onClick={() => setCurrentStep('selection')}>
               <Plus className="h-4 w-4" />
@@ -386,6 +468,7 @@ const MarketAnalysisPage = () => {
                     <div className="flex items-center gap-2 mt-2 pt-2 border-t">
                       <Skeleton className="h-8 flex-1" />
                       <Skeleton className="h-8 w-8" />
+                      <Skeleton className="h-8 w-8" />
                     </div>
                   </CardHeader>
                 </Card>
@@ -394,13 +477,13 @@ const MarketAnalysisPage = () => {
           ) : !savedAnalyses?.length ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium text-foreground">Nenhuma análise ainda</h3>
+              <h3 className="text-lg font-medium text-foreground">Nenhuma análise salva</h3>
               <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                Comece sua primeira análise estratégica de mercado.
+                Suas análises aparecerão aqui após serem salvas
               </p>
               <Button className="mt-6 gap-2" onClick={() => setCurrentStep('selection')}>
                 <Plus className="h-4 w-4" />
-                Nova Análise
+                Criar primeira análise
               </Button>
             </div>
           ) : (
@@ -409,12 +492,13 @@ const MarketAnalysisPage = () => {
                 <Card key={analysis.id} className="flex flex-col">
                   <CardHeader className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <Badge variant="secondary" className="text-xs">{analysis.module_label}</Badge>
+                      <Badge variant="secondary" className="text-xs">{analysis.module}</Badge>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        {format(new Date(analysis.created_at), "dd MMM yyyy", { locale: ptBR })}
+                        {format(new Date(analysis.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                       </div>
                     </div>
+                    <CardTitle className="text-base mb-1">{analysis.module_label}</CardTitle>
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {analysis.result_markdown.replace(/[#*|]/g, '').slice(0, 150)}...
                     </p>
@@ -422,6 +506,9 @@ const MarketAnalysisPage = () => {
                       <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => handleOpenSaved(analysis)}>
                         <Eye className="h-3.5 w-3.5" />
                         Abrir
+                      </Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleDownloadSavedPdf(analysis)}>
+                        <Download className="h-3.5 w-3.5" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -458,9 +545,9 @@ const MarketAnalysisPage = () => {
         <div className="space-y-6 transition-all duration-300 ease-in-out">
           <div className="text-center max-w-2xl mx-auto">
             <div className="flex justify-start mb-4">
-              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setCurrentStep('list')}>
+              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setCurrentStep('library')}>
                 <ArrowLeft className="h-4 w-4" />
-                Voltar
+                Voltar para Biblioteca
               </Button>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -536,11 +623,7 @@ const MarketAnalysisPage = () => {
                   <FormItem>
                     <FormLabel>O que é o seu produto ou serviço?</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Descreva o que é, como funciona e qual problema resolve"
-                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
-                        {...field}
-                      />
+                      <Textarea placeholder="Descreva o que é, como funciona e qual problema resolve" className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''} {...field} />
                     </FormControl>
                     {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
                     <FormMessage />
@@ -555,11 +638,7 @@ const MarketAnalysisPage = () => {
                   <FormItem>
                     <FormLabel>Quem é o seu cliente-alvo?</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Perfil, cargo, segmento, comportamento de compra"
-                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
-                        {...field}
-                      />
+                      <Textarea placeholder="Perfil, cargo, segmento, comportamento de compra" className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''} {...field} />
                     </FormControl>
                     {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
                     <FormMessage />
@@ -575,11 +654,7 @@ const MarketAnalysisPage = () => {
                     <FormItem>
                       <FormLabel>Em qual mercado e região você atua?</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Ex: SaaS B2B, Brasil e LATAM"
-                          className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
-                          {...field}
-                        />
+                        <Input placeholder="Ex: SaaS B2B, Brasil e LATAM" className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''} {...field} />
                       </FormControl>
                       {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
                       <FormMessage />
@@ -607,11 +682,7 @@ const MarketAnalysisPage = () => {
                   <FormItem>
                     <FormLabel>Como você monetiza?</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Ex: Assinatura mensal, freemium, licença anual"
-                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
-                        {...field}
-                      />
+                      <Input placeholder="Ex: Assinatura mensal, freemium, licença anual" className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''} {...field} />
                     </FormControl>
                     {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
                     <FormMessage />
@@ -626,11 +697,7 @@ const MarketAnalysisPage = () => {
                   <FormItem>
                     <FormLabel>O que você acredita que diferencia seu produto hoje?</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Pode ser uma hipótese ainda não validada"
-                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
-                        {...field}
-                      />
+                      <Textarea placeholder="Pode ser uma hipótese ainda não validada" className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''} {...field} />
                     </FormControl>
                     {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
                     <FormMessage />
@@ -645,11 +712,7 @@ const MarketAnalysisPage = () => {
                   <FormItem>
                     <FormLabel>Qual é o maior desafio ou pergunta estratégica que você tem hoje?</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="O que mais trava o crescimento ou validação"
-                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
-                        {...field}
-                      />
+                      <Textarea placeholder="O que mais trava o crescimento ou validação" className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''} {...field} />
                     </FormControl>
                     {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
                     <FormMessage />
@@ -693,40 +756,23 @@ const MarketAnalysisPage = () => {
           ) : (
             <>
               <Progress value={((activeLoadingStep + 1) / loadingSteps.length) * 100} className="w-full max-w-md" />
-
               <div className="flex items-center gap-3">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <h2 className="text-xl font-semibold text-foreground">
-                  Gerando {selectedModuleLabel}...
-                </h2>
+                <h2 className="text-xl font-semibold text-foreground">Gerando {selectedModuleLabel}...</h2>
               </div>
-
               <div className="space-y-3 w-full max-w-md">
                 {loadingSteps.map((step, idx) => {
                   const Icon = step.icon;
                   const isDone = idx < activeLoadingStep;
                   const isCurrent = idx === activeLoadingStep;
-
                   return (
-                    <div
-                      key={idx}
-                      className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                        isCurrent ? 'bg-primary/10 text-foreground' : isDone ? 'text-muted-foreground' : 'text-muted-foreground/50'
-                      }`}
-                    >
-                      {isDone ? (
-                        <Check className="h-5 w-5 text-primary shrink-0" />
-                      ) : isCurrent ? (
-                        <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
-                      ) : (
-                        <Icon className="h-5 w-5 shrink-0" />
-                      )}
+                    <div key={idx} className={`flex items-center gap-3 p-3 rounded-lg transition-all ${isCurrent ? 'bg-primary/10 text-foreground' : isDone ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
+                      {isDone ? <Check className="h-5 w-5 text-primary shrink-0" /> : isCurrent ? <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" /> : <Icon className="h-5 w-5 shrink-0" />}
                       <span className="text-sm">{step.label}</span>
                     </div>
                   );
                 })}
               </div>
-
               <p className="text-xs text-muted-foreground text-center max-w-sm">
                 Análises complexas podem levar até 1 minuto. Não feche esta janela.
               </p>
@@ -743,29 +789,44 @@ const MarketAnalysisPage = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-foreground truncate">{analysisResult.moduleLabel}</h2>
               <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={handleDownload}
-                  disabled={isDownloading}
-                >
+                {isSaved ? (
+                  <Button variant="outline" size="sm" className="gap-2 text-green-600 border-green-600" disabled>
+                    <Check className="h-4 w-4" />
+                    Salvo ✓
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleSaveToLibrary}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Salvar na Biblioteca
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleDownloadPdf} disabled={isDownloading}>
                   {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  Download Word
+                  Download PDF
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleDownloadWord} disabled={isDownloading}>
+                  <FileText className="h-4 w-4" />
+                  Word
                 </Button>
                 <Button variant="outline" size="sm" className="gap-2" onClick={handleNewAnalysis}>
                   <RefreshCw className="h-4 w-4" />
                   Nova Análise
                 </Button>
-                <Button variant="ghost" size="sm" className="gap-2" onClick={() => { handleNewAnalysis(); setCurrentStep('list'); }}>
+                <Button variant="ghost" size="sm" className="gap-2" onClick={() => { handleNewAnalysis(); setCurrentStep('library'); }}>
                   <ArrowLeft className="h-4 w-4" />
-                  Voltar
+                  Biblioteca
                 </Button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto bg-card rounded-lg shadow-sm border p-8">
-              <div className="prose prose-sm max-w-none dark:prose-invert">
+              <div id="analysis-content" className="prose prose-sm max-w-none dark:prose-invert">
                 <ReactMarkdown
                   components={{
                     table: ({ children }) => (
@@ -801,17 +862,8 @@ const MarketAnalysisPage = () => {
 
             <div className="flex-1 overflow-y-auto space-y-4 p-4">
               {chatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-lg p-3 text-sm ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
-                    }`}
-                  >
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-lg p-3 text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
                     {msg.role === 'assistant' ? (
                       <div className="prose prose-sm max-w-none dark:prose-invert">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>

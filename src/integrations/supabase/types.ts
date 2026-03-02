@@ -915,6 +915,7 @@ export type Database = {
           id: string
           module: string
           module_label: string
+          pdf_url: string | null
           result_markdown: string
           tenant_id: string
           updated_at: string
@@ -927,6 +928,7 @@ export type Database = {
           id?: string
           module: string
           module_label: string
+          pdf_url?: string | null
           result_markdown: string
           tenant_id: string
           updated_at?: string
@@ -939,6 +941,7 @@ export type Database = {
           id?: string
           module?: string
           module_label?: string
+          pdf_url?: string | null
           result_markdown?: string
           tenant_id?: string
           updated_at?: string
