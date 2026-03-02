@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -19,7 +21,7 @@ import {
 import {
   Zap, ArrowLeft, Sparkles, Loader2, Brain, Search, BarChart2,
   FileText, Check, AlertCircle, RefreshCw, Download, MessageSquare, Send,
-  Plus, Trash2, Eye, Clock,
+  Plus, Trash2, Eye, Clock, AlertTriangle,
 } from 'lucide-react';
 import {
   useGenerateAnalysis, useRefineAnalysis, useMarketAnalyses,
@@ -28,6 +30,7 @@ import {
 } from '@/hooks/useMarketAnalysis';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateDocxFromMarkdown } from '@/utils/generateDocx';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -82,8 +85,28 @@ const WELCOME_MESSAGE: ChatMessage = {
   content: 'Análise concluída! Posso aprofundar qualquer seção, ajustar o tom, comparar cenários ou responder perguntas sobre o que foi gerado. O que você quer explorar?',
 };
 
+// Context quality thresholds for text fields (stage is select, not counted the same)
+const TEXT_FIELDS: (keyof MarketFormData)[] = ['product', 'targetCustomer', 'market', 'revenueModel', 'differentials', 'mainChallenge'];
+const TOTAL_FIELDS = 7; // includes stage
+
+function computeContextQuality(values: MarketFormData): number {
+  let score = 0;
+  for (const key of TEXT_FIELDS) {
+    if ((values[key]?.length ?? 0) >= 10) score++;
+  }
+  if (values.stage) score++;
+  return Math.round((score / TOTAL_FIELDS) * 100);
+}
+
+function getQualityLabel(pct: number): { label: string; className: string } {
+  if (pct >= 70) return { label: 'Excelente', className: 'text-green-600 dark:text-green-400' };
+  if (pct >= 40) return { label: 'Bom', className: 'text-yellow-600 dark:text-yellow-400' };
+  return { label: 'Fraco', className: 'text-red-600 dark:text-red-400' };
+}
+
 const MarketAnalysisPage = () => {
   const { employee } = useAuth();
+  const { toast } = useToast();
   const [selectedModule, setSelectedModule] = useState<number | 'all' | null>(null);
   const [currentStep, setCurrentStep] = useState<'list' | 'selection' | 'form' | 'loading' | 'result'>('list');
   const [formData, setFormData] = useState<MarketFormData | null>(null);
@@ -93,6 +116,8 @@ const MarketAnalysisPage = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [chatInput, setChatInput] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [pendingExitAction, setPendingExitAction] = useState<(() => void) | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const generateMutation = useGenerateAnalysis();
@@ -113,7 +138,25 @@ const MarketAnalysisPage = () => {
       differentials: '',
       mainChallenge: '',
     },
+    mode: 'onChange',
   });
+
+  const watchedValues = form.watch();
+  const contextQuality = useMemo(() => computeContextQuality(watchedValues), [watchedValues]);
+  const qualityInfo = useMemo(() => getQualityLabel(contextQuality), [contextQuality]);
+
+  const formHasData = useMemo(() => {
+    return Object.values(watchedValues).some(v => v && v.length > 0);
+  }, [watchedValues]);
+
+  const tryNavigateFromForm = (action: () => void) => {
+    if (formHasData) {
+      setPendingExitAction(() => action);
+      setShowExitConfirm(true);
+    } else {
+      action();
+    }
+  };
 
   const handleSelectModule = (mod: number | 'all') => {
     setSelectedModule(mod);
@@ -121,8 +164,10 @@ const MarketAnalysisPage = () => {
   };
 
   const handleBack = () => {
-    setSelectedModule(null);
-    setCurrentStep('selection');
+    tryNavigateFromForm(() => {
+      setSelectedModule(null);
+      setCurrentStep('selection');
+    });
   };
 
   const onSubmit = (values: MarketFormData) => {
@@ -157,7 +202,11 @@ const MarketAnalysisPage = () => {
   };
 
   const handleDeleteAnalysis = (id: string) => {
-    deleteMutation.mutate(id);
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast({ title: 'Análise excluída', description: 'A análise foi removida com sucesso.' });
+      },
+    });
   };
 
   const handleDownload = async () => {
@@ -165,6 +214,9 @@ const MarketAnalysisPage = () => {
     setIsDownloading(true);
     try {
       await generateDocxFromMarkdown(analysisResult.markdown, analysisResult.moduleLabel);
+      toast({ title: 'Documento Word baixado!', description: 'O arquivo .docx foi salvo na sua pasta de downloads.' });
+    } catch {
+      toast({ title: 'Erro ao baixar', description: 'Não foi possível gerar o documento.', variant: 'destructive' });
     } finally {
       setIsDownloading(false);
     }
@@ -199,9 +251,13 @@ const MarketAnalysisPage = () => {
               }, {
                 onSuccess: (saved) => {
                   setSavedAnalysisId(saved.id);
+                  toast({ title: 'Análise salva com sucesso!', description: 'Você pode acessá-la novamente a qualquer momento.' });
                 },
               });
             }
+          },
+          onError: () => {
+            toast({ title: 'Erro ao gerar análise', description: 'Tente novamente em alguns instantes.', variant: 'destructive' });
           },
         }
       );
@@ -228,6 +284,11 @@ const MarketAnalysisPage = () => {
     setCurrentStep('loading');
   };
 
+  const handleBackToForm = () => {
+    generateMutation.reset();
+    setCurrentStep('form');
+  };
+
   const handleSendChat = () => {
     const question = chatInput.trim();
     if (!question || !analysisResult) return;
@@ -250,7 +311,6 @@ const MarketAnalysisPage = () => {
             { role: 'assistant', content: data.response },
           ];
           setChatMessages(newMessages);
-          // Persist chat history
           if (savedAnalysisId) {
             updateMutation.mutate({
               id: savedAnalysisId,
@@ -275,9 +335,31 @@ const MarketAnalysisPage = () => {
       description="Acompanhe tendências e métricas de mercado"
       breadcrumbs={[{ label: 'Marketing' }, { label: 'Análise de Mercado' }]}
     >
+      {/* Exit form confirmation dialog */}
+      <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sair do formulário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja sair? Os dados do formulário serão perdidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingExitAction(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              pendingExitAction?.();
+              setPendingExitAction(null);
+              setShowExitConfirm(false);
+            }}>
+              Sair mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* ── STEP: LIST ── */}
       {currentStep === 'list' && (
-        <div className="space-y-6">
+        <div className="space-y-6 transition-all duration-300 ease-in-out">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">Suas Análises</h1>
@@ -290,19 +372,35 @@ const MarketAnalysisPage = () => {
           </div>
 
           {isLoadingAnalyses ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="flex flex-col">
+                  <CardHeader className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <div className="flex items-center gap-2 mt-2 pt-2 border-t">
+                      <Skeleton className="h-8 flex-1" />
+                      <Skeleton className="h-8 w-8" />
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
             </div>
           ) : !savedAnalyses?.length ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-medium text-foreground">Nenhuma análise ainda</h3>
               <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                Crie sua primeira análise estratégica de mercado para começar.
+                Comece sua primeira análise estratégica de mercado.
               </p>
               <Button className="mt-6 gap-2" onClick={() => setCurrentStep('selection')}>
                 <Plus className="h-4 w-4" />
-                Criar primeira análise
+                Nova Análise
               </Button>
             </div>
           ) : (
@@ -357,7 +455,7 @@ const MarketAnalysisPage = () => {
 
       {/* ── STEP: SELECTION ── */}
       {currentStep === 'selection' && (
-        <div className="space-y-6">
+        <div className="space-y-6 transition-all duration-300 ease-in-out">
           <div className="text-center max-w-2xl mx-auto">
             <div className="flex justify-start mb-4">
               <Button variant="ghost" size="sm" className="gap-1" onClick={() => setCurrentStep('list')}>
@@ -403,7 +501,7 @@ const MarketAnalysisPage = () => {
 
       {/* ── STEP: FORM ── */}
       {currentStep === 'form' && (
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="max-w-3xl mx-auto space-y-6 transition-all duration-300 ease-in-out">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={handleBack}>
               <ArrowLeft className="h-5 w-5" />
@@ -414,32 +512,80 @@ const MarketAnalysisPage = () => {
             </div>
           </div>
 
+          {/* Context quality indicator */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Qualidade do contexto:</span>
+              <span className={`font-medium ${qualityInfo.className}`}>{qualityInfo.label} ({contextQuality}%)</span>
+            </div>
+            <Progress value={contextQuality} className="h-2" />
+            {contextQuality < 50 && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Contexto incompleto pode gerar análise genérica
+              </p>
+            )}
+          </div>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-              <FormField control={form.control} name="product" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>O que é o seu produto ou serviço?</FormLabel>
-                  <FormControl><Textarea placeholder="Descreva o que é, como funciona e qual problema resolve" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="targetCustomer" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quem é o seu cliente-alvo?</FormLabel>
-                  <FormControl><Textarea placeholder="Perfil, cargo, segmento, comportamento de compra" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="market" render={({ field }) => (
+              <FormField control={form.control} name="product" render={({ field }) => {
+                const len = field.value?.length ?? 0;
+                const isWarn = len >= 5 && len < 10;
+                return (
                   <FormItem>
-                    <FormLabel>Em qual mercado e região você atua?</FormLabel>
-                    <FormControl><Input placeholder="Ex: SaaS B2B, Brasil e LATAM" {...field} /></FormControl>
+                    <FormLabel>O que é o seu produto ou serviço?</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Descreva o que é, como funciona e qual problema resolve"
+                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
+                        {...field}
+                      />
+                    </FormControl>
+                    {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
                     <FormMessage />
                   </FormItem>
-                )} />
+                );
+              }} />
+
+              <FormField control={form.control} name="targetCustomer" render={({ field }) => {
+                const len = field.value?.length ?? 0;
+                const isWarn = len >= 5 && len < 10;
+                return (
+                  <FormItem>
+                    <FormLabel>Quem é o seu cliente-alvo?</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Perfil, cargo, segmento, comportamento de compra"
+                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
+                        {...field}
+                      />
+                    </FormControl>
+                    {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }} />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="market" render={({ field }) => {
+                  const len = field.value?.length ?? 0;
+                  const isWarn = len >= 3 && len < 5;
+                  return (
+                    <FormItem>
+                      <FormLabel>Em qual mercado e região você atua?</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: SaaS B2B, Brasil e LATAM"
+                          className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
+                          {...field}
+                        />
+                      </FormControl>
+                      {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }} />
                 <FormField control={form.control} name="stage" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Qual o estágio atual do negócio?</FormLabel>
@@ -454,29 +600,62 @@ const MarketAnalysisPage = () => {
                 )} />
               </div>
 
-              <FormField control={form.control} name="revenueModel" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Como você monetiza?</FormLabel>
-                  <FormControl><Input placeholder="Ex: Assinatura mensal, freemium, licença anual" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField control={form.control} name="revenueModel" render={({ field }) => {
+                const len = field.value?.length ?? 0;
+                const isWarn = len >= 3 && len < 5;
+                return (
+                  <FormItem>
+                    <FormLabel>Como você monetiza?</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex: Assinatura mensal, freemium, licença anual"
+                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
+                        {...field}
+                      />
+                    </FormControl>
+                    {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }} />
 
-              <FormField control={form.control} name="differentials" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>O que você acredita que diferencia seu produto hoje?</FormLabel>
-                  <FormControl><Textarea placeholder="Pode ser uma hipótese ainda não validada" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField control={form.control} name="differentials" render={({ field }) => {
+                const len = field.value?.length ?? 0;
+                const isWarn = len >= 5 && len < 10;
+                return (
+                  <FormItem>
+                    <FormLabel>O que você acredita que diferencia seu produto hoje?</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Pode ser uma hipótese ainda não validada"
+                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
+                        {...field}
+                      />
+                    </FormControl>
+                    {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }} />
 
-              <FormField control={form.control} name="mainChallenge" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Qual é o maior desafio ou pergunta estratégica que você tem hoje?</FormLabel>
-                  <FormControl><Textarea placeholder="O que mais trava o crescimento ou validação" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField control={form.control} name="mainChallenge" render={({ field }) => {
+                const len = field.value?.length ?? 0;
+                const isWarn = len >= 5 && len < 10;
+                return (
+                  <FormItem>
+                    <FormLabel>Qual é o maior desafio ou pergunta estratégica que você tem hoje?</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="O que mais trava o crescimento ou validação"
+                        className={isWarn ? 'border-yellow-400 focus-visible:ring-yellow-400' : ''}
+                        {...field}
+                      />
+                    </FormControl>
+                    {isWarn && <p className="text-xs text-yellow-600 dark:text-yellow-400">Adicione mais detalhes para análise mais precisa</p>}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }} />
 
               <div className="flex justify-end pt-2">
                 <Button type="submit" size="lg" className="gap-2" disabled={!form.formState.isValid}>
@@ -491,19 +670,26 @@ const MarketAnalysisPage = () => {
 
       {/* ── STEP: LOADING ── */}
       {currentStep === 'loading' && (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 transition-all duration-300 ease-in-out">
           {generateMutation.isError ? (
-            <div className="flex flex-col items-center gap-4 text-center">
-              <AlertCircle className="h-12 w-12 text-destructive" />
-              <h2 className="text-xl font-semibold text-foreground">Erro ao gerar análise</h2>
-              <p className="text-muted-foreground max-w-md">
-                {generateMutation.error?.message || 'Ocorreu um erro inesperado. Tente novamente.'}
-              </p>
-              <Button onClick={handleRetry} className="gap-2">
-                <Loader2 className="h-4 w-4" />
-                Tentar novamente
-              </Button>
-            </div>
+            <Card className="max-w-md w-full p-6">
+              <Alert variant="destructive" className="mb-4">
+                <AlertTriangle className="h-5 w-5" />
+                <AlertTitle>Não foi possível gerar a análise</AlertTitle>
+                <AlertDescription>
+                  {generateMutation.error?.message || 'Tente novamente em alguns instantes.'}
+                </AlertDescription>
+              </Alert>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={handleBackToForm}>
+                  Voltar ao formulário
+                </Button>
+                <Button className="flex-1 gap-2" onClick={handleRetry}>
+                  <RefreshCw className="h-4 w-4" />
+                  Tentar novamente
+                </Button>
+              </div>
+            </Card>
           ) : (
             <>
               <Progress value={((activeLoadingStep + 1) / loadingSteps.length) * 100} className="w-full max-w-md" />
@@ -551,7 +737,7 @@ const MarketAnalysisPage = () => {
 
       {/* ── STEP: RESULT ── */}
       {currentStep === 'result' && analysisResult && (
-        <div className="flex gap-6 h-[calc(100vh-200px)]">
+        <div className="flex gap-6 h-[calc(100vh-200px)] transition-all duration-300 ease-in-out">
           {/* Document Preview */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex items-center justify-between mb-4">
@@ -603,7 +789,6 @@ const MarketAnalysisPage = () => {
 
           {/* Chat Panel */}
           <div className="w-[400px] flex flex-col border rounded-lg bg-card">
-            {/* Chat Header */}
             <div className="p-4 border-b">
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-5 w-5 text-primary" />
@@ -614,7 +799,6 @@ const MarketAnalysisPage = () => {
               </p>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto space-y-4 p-4">
               {chatMessages.map((msg, idx) => (
                 <div
@@ -651,7 +835,6 @@ const MarketAnalysisPage = () => {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Chat Input */}
             <div className="border-t p-4">
               <div className="flex gap-2">
                 <Textarea

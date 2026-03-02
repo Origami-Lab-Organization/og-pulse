@@ -39,12 +39,23 @@ export interface SavedAnalysis {
 export function useGenerateAnalysis() {
   return useMutation<AnalysisResult, Error, GenerateParams>({
     mutationFn: async ({ module, formData }) => {
-      const { data, error } = await supabase.functions.invoke("market-analysis-generate", {
-        body: { module: String(module), formData },
-      });
-      if (error) throw new Error(error.message || "Falha ao gerar análise");
-      if (data?.error) throw new Error(data.error);
-      return data as AnalysisResult;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
+      try {
+        const { data, error } = await supabase.functions.invoke("market-analysis-generate", {
+          body: { module: String(module), formData },
+        });
+        if (error) throw new Error(error.message || "Falha ao gerar análise");
+        if (data?.error) throw new Error(data.error);
+        return data as AnalysisResult;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          throw new Error("A análise excedeu o tempo limite de 90 segundos. Tente novamente.");
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     },
   });
 }
