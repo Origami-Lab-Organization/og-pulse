@@ -75,11 +75,12 @@ interface ChatMessage {
 }
 
 const loadingSteps = [
-  { label: 'Analisando o contexto do seu negócio...', icon: Brain },
-  { label: 'Pesquisando benchmarks e dados do setor...', icon: Search },
-  { label: 'Aplicando frameworks estratégicos...', icon: BarChart2 },
-  { label: 'Estruturando insights e recomendações...', icon: FileText },
-  { label: 'Gerando documento final...', icon: Sparkles },
+  { label: 'Iniciando análise...', icon: Brain, delay: 5 },
+  { label: 'Processando contexto do negócio...', icon: Search, delay: 15 },
+  { label: 'Consultando base de conhecimento...', icon: BarChart2, delay: 30 },
+  { label: 'Aplicando frameworks estratégicos...', icon: FileText, delay: 60 },
+  { label: 'Estruturando insights...', icon: Sparkles, delay: 90 },
+  { label: 'Finalizando documento...', icon: Check, delay: 120 },
 ];
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -356,9 +357,12 @@ const MarketAnalysisPage = () => {
 
   useEffect(() => {
     if (currentStep !== 'loading') return;
+    const startTime = Date.now();
     const interval = setInterval(() => {
-      setActiveLoadingStep((prev) => (prev < loadingSteps.length - 1 ? prev + 1 : prev));
-    }, 4000);
+      const elapsed = (Date.now() - startTime) / 1000;
+      const nextStep = loadingSteps.findIndex((s) => elapsed < s.delay);
+      setActiveLoadingStep(nextStep === -1 ? loadingSteps.length - 1 : Math.max(0, nextStep - 1));
+    }, 1000);
     return () => clearInterval(interval);
   }, [currentStep]);
 
@@ -794,7 +798,7 @@ const MarketAnalysisPage = () => {
                 })}
               </div>
               <p className="text-xs text-muted-foreground text-center max-w-sm">
-                Análises complexas podem levar até 1 minuto. Não feche esta janela.
+                Análises completas podem levar de 1 a 3 minutos. Por favor, aguarde...
               </p>
             </>
           )}

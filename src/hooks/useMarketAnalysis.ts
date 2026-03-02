@@ -36,26 +36,90 @@ export interface SavedAnalysis {
   updated_at: string;
 }
 
+interface JobStatus {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  result_markdown: string | null;
+  error_message: string | null;
+  module: string;
+  module_label: string;
+  updated_at: string;
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export function useGenerateAnalysis() {
   return useMutation<AnalysisResult, Error, GenerateParams>({
     mutationFn: async ({ module, formData }) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 90000);
-      try {
-        const { data, error } = await supabase.functions.invoke("market-analysis-generate", {
-          body: { module: String(module), formData },
-        });
-        if (error) throw new Error(error.message || "Falha ao gerar análise");
-        if (data?.error) throw new Error(data.error);
-        return data as AnalysisResult;
-      } catch (err: any) {
-        if (err?.name === 'AbortError') {
-          throw new Error("A análise excedeu o tempo limite de 90 segundos. Tente novamente.");
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      // Get employee tenant
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("tenant_id, id")
+        .eq("auth_id", user.id)
+        .single();
+
+      if (!empData) throw new Error("Funcionário não encontrado");
+
+      // 1. Start the job
+      const { data: startData, error: startError } = await supabase.functions.invoke(
+        "market-analysis-start",
+        {
+          body: {
+            module: String(module),
+            formData,
+            userId: user.id,
+            tenantId: empData.tenant_id,
+          },
         }
-        throw err;
-      } finally {
-        clearTimeout(timeoutId);
+      );
+
+      if (startError) throw new Error("Falha ao iniciar análise: " + startError.message);
+      if (startData?.error) throw new Error(startData.error);
+
+      const { jobId } = startData;
+      if (!jobId) throw new Error("Job ID não retornado");
+
+      // 2. Poll until completed (every 3s, max 5 minutes)
+      const maxAttempts = 100;
+      let attempts = 0;
+
+      while (attempts < maxAttempts) {
+        await sleep(3000);
+
+        const { data: job, error: statusError } = await supabase.functions.invoke(
+          "market-analysis-status",
+          { body: { jobId } }
+        );
+
+        if (statusError) {
+          console.error("Erro ao verificar status:", statusError);
+          attempts++;
+          continue;
+        }
+
+        const jobStatus = job as JobStatus;
+
+        if (jobStatus.status === "completed" && jobStatus.result_markdown) {
+          return {
+            markdown: jobStatus.result_markdown,
+            module: jobStatus.module,
+            moduleLabel: jobStatus.module_label,
+            timestamp: jobStatus.updated_at,
+          };
+        }
+
+        if (jobStatus.status === "failed") {
+          throw new Error(jobStatus.error_message || "Falha ao gerar análise");
+        }
+
+        attempts++;
       }
+
+      throw new Error("Timeout: a análise demorou mais que o esperado. Tente novamente.");
     },
   });
 }
