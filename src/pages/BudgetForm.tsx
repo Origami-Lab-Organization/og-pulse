@@ -86,10 +86,9 @@ export default function BudgetForm() {
   // For new budgets, use financial settings. For editing, use budget snapshot.
   const adminExpensesPercent = isEditing && budget ? budget.admin_expenses_percent : (financialSettings?.admin_expenses_percent || 0);
   const taxesPercent = isEditing && budget ? budget.taxes_percent : (financialSettings?.taxes_percent || 0);
-  // Max commission: for new budgets use settings, for editing use the stored value as max
-  const maxCommissionPercent = isEditing ? snapshotMaxCommission : (financialSettings?.commission_percent || 0);
-  // Min net margin: for new budgets use settings, for editing use the stored value as min
-  const minNetMarginPercent = isEditing ? snapshotMinNetMargin : (financialSettings?.net_margin_percent || 0);
+  // Always use current financial settings for constraints
+  const maxCommissionPercent = financialSettings?.commission_percent || 0;
+  const minNetMarginPercent = financialSettings?.net_margin_percent || 0;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
