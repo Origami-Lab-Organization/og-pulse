@@ -462,6 +462,74 @@ export type Database = {
           },
         ]
       }
+      employee_terminations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          exit_interview_completed: boolean | null
+          exit_interview_notes: string | null
+          final_payroll_adjustments: Json | null
+          id: string
+          notice_period_days: number | null
+          notice_worked: boolean | null
+          notification_date: string | null
+          reason: string | null
+          reason_category: Database["public"]["Enums"]["termination_reason_category"]
+          severance_package: Json | null
+          status: Database["public"]["Enums"]["termination_status"]
+          termination_date: string
+          termination_type: Database["public"]["Enums"]["termination_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          exit_interview_completed?: boolean | null
+          exit_interview_notes?: string | null
+          final_payroll_adjustments?: Json | null
+          id?: string
+          notice_period_days?: number | null
+          notice_worked?: boolean | null
+          notification_date?: string | null
+          reason?: string | null
+          reason_category?: Database["public"]["Enums"]["termination_reason_category"]
+          severance_package?: Json | null
+          status?: Database["public"]["Enums"]["termination_status"]
+          termination_date: string
+          termination_type: Database["public"]["Enums"]["termination_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          exit_interview_completed?: boolean | null
+          exit_interview_notes?: string | null
+          final_payroll_adjustments?: Json | null
+          id?: string
+          notice_period_days?: number | null
+          notice_worked?: boolean | null
+          notification_date?: string | null
+          reason?: string | null
+          reason_category?: Database["public"]["Enums"]["termination_reason_category"]
+          severance_package?: Json | null
+          status?: Database["public"]["Enums"]["termination_status"]
+          termination_date?: string
+          termination_type?: Database["public"]["Enums"]["termination_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_terminations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_tools: {
         Row: {
           annual_amount: number
@@ -616,6 +684,7 @@ export type Database = {
           telefone: string
           temp_password: string | null
           tenant_id: string
+          termination_id: string | null
           tipo_contratacao: string
           total_annual_cost_estimated: number
           total_monthly_cost_estimated: number
@@ -657,6 +726,7 @@ export type Database = {
           telefone: string
           temp_password?: string | null
           tenant_id: string
+          termination_id?: string | null
           tipo_contratacao?: string
           total_annual_cost_estimated?: number
           total_monthly_cost_estimated?: number
@@ -698,6 +768,7 @@ export type Database = {
           telefone?: string
           temp_password?: string | null
           tenant_id?: string
+          termination_id?: string | null
           tipo_contratacao?: string
           total_annual_cost_estimated?: number
           total_monthly_cost_estimated?: number
@@ -710,6 +781,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_termination_id_fkey"
+            columns: ["termination_id"]
+            isOneToOne: false
+            referencedRelation: "employee_terminations"
             referencedColumns: ["id"]
           },
         ]
@@ -1041,6 +1119,47 @@ export type Database = {
           type?: string
         }
         Relationships: []
+      }
+      payroll_adjustments: {
+        Row: {
+          adjustment_type: Database["public"]["Enums"]["payroll_adjustment_type"]
+          amount: number
+          calculation_details: Json | null
+          created_at: string
+          description: string | null
+          id: string
+          is_credit: boolean
+          termination_id: string
+        }
+        Insert: {
+          adjustment_type: Database["public"]["Enums"]["payroll_adjustment_type"]
+          amount?: number
+          calculation_details?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_credit?: boolean
+          termination_id: string
+        }
+        Update: {
+          adjustment_type?: Database["public"]["Enums"]["payroll_adjustment_type"]
+          amount?: number
+          calculation_details?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_credit?: boolean
+          termination_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_adjustments_termination_id_fkey"
+            columns: ["termination_id"]
+            isOneToOne: false
+            referencedRelation: "employee_terminations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payroll_profiles: {
         Row: {
@@ -2193,6 +2312,50 @@ export type Database = {
         }
         Relationships: []
       }
+      termination_documents: {
+        Row: {
+          document_name: string
+          document_type: Database["public"]["Enums"]["termination_document_type"]
+          file_size: number | null
+          file_url: string
+          id: string
+          mime_type: string | null
+          termination_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          document_name: string
+          document_type?: Database["public"]["Enums"]["termination_document_type"]
+          file_size?: number | null
+          file_url: string
+          id?: string
+          mime_type?: string | null
+          termination_id: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          document_name?: string
+          document_type?: Database["public"]["Enums"]["termination_document_type"]
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          mime_type?: string | null
+          termination_id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "termination_documents_termination_id_fkey"
+            columns: ["termination_id"]
+            isOneToOne: false
+            referencedRelation: "employee_terminations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       timesheet_edit_logs: {
         Row: {
           edited_at: string
@@ -2370,12 +2533,45 @@ export type Database = {
         | "negotiation"
         | "active"
       installment_status: "pending" | "invoiced" | "received" | "overdue"
+      payroll_adjustment_type:
+        | "salary_proportional"
+        | "vacation"
+        | "thirteenth_salary"
+        | "fgts"
+        | "fgts_fine"
+        | "overtime"
+        | "benefits_discount"
+        | "advance_discount"
+        | "other"
       project_status:
         | "planning"
         | "active"
         | "paused"
         | "completed"
         | "cancelled"
+      termination_document_type:
+        | "resignation_letter"
+        | "termination_letter"
+        | "mutual_agreement"
+        | "trct"
+        | "homologation"
+        | "receipt"
+        | "other"
+      termination_reason_category:
+        | "performance"
+        | "restructuring"
+        | "personal_request"
+        | "contract_expiration"
+        | "disciplinary"
+        | "other"
+      termination_status: "pending" | "in_progress" | "completed" | "cancelled"
+      termination_type:
+        | "voluntary"
+        | "involuntary"
+        | "contract_end"
+        | "internship_end"
+        | "retirement"
+        | "mutual_agreement"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2515,12 +2711,49 @@ export const Constants = {
         "active",
       ],
       installment_status: ["pending", "invoiced", "received", "overdue"],
+      payroll_adjustment_type: [
+        "salary_proportional",
+        "vacation",
+        "thirteenth_salary",
+        "fgts",
+        "fgts_fine",
+        "overtime",
+        "benefits_discount",
+        "advance_discount",
+        "other",
+      ],
       project_status: [
         "planning",
         "active",
         "paused",
         "completed",
         "cancelled",
+      ],
+      termination_document_type: [
+        "resignation_letter",
+        "termination_letter",
+        "mutual_agreement",
+        "trct",
+        "homologation",
+        "receipt",
+        "other",
+      ],
+      termination_reason_category: [
+        "performance",
+        "restructuring",
+        "personal_request",
+        "contract_expiration",
+        "disciplinary",
+        "other",
+      ],
+      termination_status: ["pending", "in_progress", "completed", "cancelled"],
+      termination_type: [
+        "voluntary",
+        "involuntary",
+        "contract_end",
+        "internship_end",
+        "retirement",
+        "mutual_agreement",
       ],
     },
   },
