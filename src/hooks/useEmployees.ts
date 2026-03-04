@@ -10,6 +10,7 @@ import { CostBreakdown } from '@/lib/employeeCostCalculator';
 type EmployeeWithRelations = EmployeeDB & { 
   employee_tools?: { monthly_cost: number }[];
   employee_benefits?: { monthly_value: number }[];
+  termination_id?: string | null;
 };
 
 // Convert DB format to frontend format
@@ -34,7 +35,7 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     dataAdmissao: db.data_admissao,
     isGerente: db.is_gerente,
     systemRole: (db.system_role || 'user') as SystemRole,
-    status: db.status as 'ativo' | 'aguardando_confirmacao' | 'bloqueado' | 'arquivado',
+    status: db.status as 'ativo' | 'aguardando_confirmacao' | 'bloqueado' | 'arquivado' | 'desligado',
     salarioMensal: Number(db.salario_mensal),
     beneficios: Number(db.beneficios),
     encargos: Number(db.encargos),
@@ -63,6 +64,7 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     totalBenefitsCost,
     tenantId: db.tenant_id,
     authId: db.auth_id,
+    terminationId: db.termination_id || null,
     mustChangePassword: db.must_change_password,
   };
 };

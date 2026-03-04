@@ -1,5 +1,5 @@
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Pencil, Ban, Unlock, Archive, Mail, Phone, Clock, Send } from 'lucide-react';
+import { MoreHorizontal, Pencil, Ban, Unlock, Archive, Mail, Phone, Clock, Send, UserMinus, Eye } from 'lucide-react';
 import { Employee } from '@/hooks/useEmployees';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ interface EmployeeColumnsProps {
   onUnblock: (employee: Employee) => void;
   onArchive: (employee: Employee) => void;
   onResendInvite: (employee: Employee) => void;
+  onTerminate?: (employee: Employee) => void;
+  onViewTermination?: (employee: Employee) => void;
   isResendingInvite?: boolean;
 }
 
@@ -47,6 +49,20 @@ const getStatusBadge = (status: string) => {
           Bloqueado
         </Badge>
       );
+    case 'desligado':
+      return (
+        <Badge variant="outline" className="border-orange-500 text-orange-600 bg-orange-50">
+          <UserMinus className="h-3 w-3 mr-1" />
+          Desligado
+        </Badge>
+      );
+    case 'em_desligamento':
+      return (
+        <Badge variant="outline" className="border-yellow-500 text-yellow-600 bg-yellow-50">
+          <Clock className="h-3 w-3 mr-1" />
+          Desligamento Pendente
+        </Badge>
+      );
     default:
       return <Badge variant="secondary">{status}</Badge>;
   }
@@ -58,6 +74,8 @@ export const createEmployeeColumns = ({
   onUnblock,
   onArchive,
   onResendInvite,
+  onTerminate,
+  onViewTermination,
   isResendingInvite,
 }: EmployeeColumnsProps): ColumnDef<Employee>[] => [
   {
@@ -194,6 +212,7 @@ export const createEmployeeColumns = ({
       const isBlocked = employee.status === 'bloqueado';
       const isAwaiting = employee.status === 'aguardando_confirmacao';
       const isActive = employee.status === 'ativo';
+      const hasTermination = !!employee.terminationId;
 
       return (
         <DropdownMenu>
@@ -258,6 +277,34 @@ export const createEmployeeColumns = ({
                 <Archive className="mr-2 h-4 w-4" />
                 Arquivar
               </DropdownMenuItem>
+            )}
+
+            {/* Terminate - only for active employees without existing termination */}
+            {isActive && !hasTermination && onTerminate && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onTerminate(employee)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <UserMinus className="mr-2 h-4 w-4" />
+                  Desligar Funcionário
+                </DropdownMenuItem>
+              </>
+            )}
+
+            {/* View termination - for employees with pending termination */}
+            {hasTermination && onViewTermination && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onViewTermination(employee)}
+                  className="text-yellow-600 focus:text-yellow-600"
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Ver Desligamento
+                </DropdownMenuItem>
+              </>
             )}
           </DropdownMenuContent>
         </DropdownMenu>

@@ -8,6 +8,7 @@ import EmployeeFormDialog from '@/components/employees/EmployeeFormDialog';
 import BlockEmployeeDialog from '@/components/employees/BlockEmployeeDialog';
 import UnblockEmployeeDialog from '@/components/employees/UnblockEmployeeDialog';
 import ArchiveEmployeeDialog from '@/components/employees/ArchiveEmployeeDialog';
+import InitiateTerminationDialog from '@/components/employees/InitiateTerminationDialog';
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,8 @@ import { Plus, Search, Users, Calculator } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import EmployeeCalculatorDialog from '@/components/employees/EmployeeCalculatorDialog';
+import { useInitiateTermination } from '@/hooks/useInitiateTermination';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const { data: employees = [], isLoading } = useEmployees();
@@ -26,6 +29,8 @@ const Index = () => {
   const resendInvite = useResendInvite();
   const addBenefit = useAddEmployeeBenefit();
   const addTool = useAddEmployeeTool();
+  const navigate = useNavigate();
+  const termination = useInitiateTermination();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -134,6 +139,12 @@ const Index = () => {
     setSelectedEmployee(null);
   };
 
+  const handleViewTermination = (employee: Employee) => {
+    if (employee.terminationId) {
+      navigate(`/rh/funcionarios-desligados`);
+    }
+  };
+
   const columns = useMemo(
     () =>
       createEmployeeColumns({
@@ -142,6 +153,8 @@ const Index = () => {
         onUnblock: handleUnblockEmployee,
         onArchive: handleArchiveEmployee,
         onResendInvite: handleResendInvite,
+        onTerminate: termination.initiateTermination,
+        onViewTermination: handleViewTermination,
         isResendingInvite: resendInvite.isPending,
       }),
     [resendInvite.isPending]
@@ -270,6 +283,19 @@ const Index = () => {
       <EmployeeCalculatorDialog
         open={calculatorOpen}
         onOpenChange={setCalculatorOpen}
+      />
+
+      <InitiateTerminationDialog
+        open={termination.confirmDialogOpen}
+        onOpenChange={termination.setConfirmDialogOpen}
+        employee={termination.selectedEmployee}
+        onConfirm={() => {
+          termination.confirmAndOpenForm();
+          // Navigate to terminated employees page to complete the form
+          if (termination.selectedEmployee) {
+            navigate('/rh/funcionarios-desligados');
+          }
+        }}
       />
     </AppLayout>
   );

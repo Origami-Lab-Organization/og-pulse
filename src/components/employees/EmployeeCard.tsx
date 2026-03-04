@@ -2,15 +2,19 @@ import { Employee } from '@/hooks/useEmployees';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Pencil, Trash2, Phone, Mail, Crown } from 'lucide-react';
+import { Pencil, Trash2, Phone, Mail, Crown, UserMinus, Eye } from 'lucide-react';
 
 interface EmployeeCardProps {
   employee: Employee;
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
+  onTerminate?: (employee: Employee) => void;
+  onViewTermination?: (employee: Employee) => void;
 }
 
-const EmployeeCard = ({ employee, onEdit, onDelete }: EmployeeCardProps) => {
+const EmployeeCard = ({ employee, onEdit, onDelete, onTerminate, onViewTermination }: EmployeeCardProps) => {
+  const isActive = employee.status === 'ativo';
+  const hasTermination = !!employee.terminationId;
   const custoTotal = (() => {
     const estimated = employee.totalMonthlyCostEstimated;
     const benefitsFromQuery = employee.totalBenefitsCost || 0;
@@ -99,6 +103,28 @@ const EmployeeCard = ({ employee, onEdit, onDelete }: EmployeeCardProps) => {
             <Trash2 className="h-3 w-3" />
             Excluir
           </Button>
+          {isActive && !hasTermination && onTerminate && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onTerminate(employee)}
+              className="gap-1 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            >
+              <UserMinus className="h-3 w-3" />
+              Desligar
+            </Button>
+          )}
+          {hasTermination && onViewTermination && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewTermination(employee)}
+              className="gap-1 text-yellow-600 hover:bg-yellow-100"
+            >
+              <Eye className="h-3 w-3" />
+              Ver Desligamento
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
