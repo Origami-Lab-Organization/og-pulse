@@ -37,6 +37,7 @@ import Welcome from "./pages/Welcome";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import MarketAnalysisPage from "./pages/marketing/MarketAnalysisPage";
+import TerminatedEmployees from "./pages/TerminatedEmployees";
 
 const queryClient = new QueryClient();
 
@@ -237,6 +238,14 @@ const App = () => (
                   <ProtectedRoute>
                     <MarketAnalysisPage />
                   </ProtectedRoute>
+                 } 
+              />
+              <Route 
+                path="/rh/funcionarios-desligados" 
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <TerminatedEmployees />
+                  </RoleProtectedRoute>
                 } 
               />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

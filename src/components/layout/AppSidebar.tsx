@@ -12,6 +12,7 @@ import {
   Receipt,
   Archive,
   UserPlus,
+  UserMinus,
   ClipboardCheck,
   ChevronDown,
   BarChart2,
@@ -83,6 +84,7 @@ const navigationGroups = [
     items: [
       { title: 'Contratações', url: '/contratacoes', icon: UserPlus, requiresManager: true, disabled: true },
       { title: 'Funcionários', url: '/employees', icon: Users, requiresManager: true },
+      { title: 'Desligados', url: '/rh/funcionarios-desligados', icon: UserMinus, requiresManager: true },
       { title: 'Avaliações', url: '/avaliacoes', icon: ClipboardCheck, requiresManager: true, disabled: true },
     ] as NavItem[],
   },
