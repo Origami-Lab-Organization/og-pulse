@@ -9,6 +9,7 @@ import BlockEmployeeDialog from '@/components/employees/BlockEmployeeDialog';
 import UnblockEmployeeDialog from '@/components/employees/UnblockEmployeeDialog';
 import ArchiveEmployeeDialog from '@/components/employees/ArchiveEmployeeDialog';
 import InitiateTerminationDialog from '@/components/employees/InitiateTerminationDialog';
+import TerminationWizardModal from '@/components/employees/TerminationWizardModal';
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -289,12 +290,15 @@ const Index = () => {
         open={termination.confirmDialogOpen}
         onOpenChange={termination.setConfirmDialogOpen}
         employee={termination.selectedEmployee}
-        onConfirm={() => {
-          termination.confirmAndOpenForm();
-          // Navigate to terminated employees page to complete the form
-          if (termination.selectedEmployee) {
-            navigate('/rh/funcionarios-desligados');
-          }
+        onConfirm={termination.confirmAndOpenForm}
+      />
+
+      <TerminationWizardModal
+        isOpen={termination.terminationFormOpen}
+        onClose={termination.closeAll}
+        employee={termination.selectedEmployee}
+        onSuccess={() => {
+          navigate('/rh/funcionarios-desligados');
         }}
       />
     </AppLayout>
