@@ -345,8 +345,8 @@ const Index = () => {
       />
 
       <TerminationWizardModal
-        isOpen={termination.terminationFormOpen}
-        onClose={termination.closeAll}
+        isOpen={termination.isModalOpen}
+        onClose={termination.closeModal}
         employee={termination.selectedEmployee}
         onSuccess={() => {
           navigate('/rh/desligamentos');
