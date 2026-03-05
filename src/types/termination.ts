@@ -25,7 +25,7 @@ export const REASON_CATEGORY_LABELS: Record<ReasonCategory, string> = {
   other: 'Outro',
 };
 
-export const TERMINATION_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled'] as const;
+export const TERMINATION_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled', 'awaiting_documents'] as const;
 export type TerminationStatus = typeof TERMINATION_STATUSES[number];
 
 export const TERMINATION_STATUS_LABELS: Record<TerminationStatus, string> = {
@@ -33,6 +33,7 @@ export const TERMINATION_STATUS_LABELS: Record<TerminationStatus, string> = {
   in_progress: 'Em Andamento',
   completed: 'Concluído',
   cancelled: 'Cancelado',
+  awaiting_documents: 'Aguardando Documentos',
 };
 
 export const DOCUMENT_TYPES = ['resignation_letter', 'termination_letter', 'mutual_agreement', 'trct', 'homologation', 'receipt', 'other'] as const;

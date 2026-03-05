@@ -8,7 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, subDays, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TerminationWizardData } from './types';
 import { TERMINATION_TYPE_LABELS, TerminationType } from '@/types/termination';
@@ -62,6 +62,8 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
     return CONTRACT_END_REASONS;
   }, [data.termination_type, defaultType]);
 
+  const today = startOfDay(new Date());
+  const minNotifDate = subDays(today, 45);
   const notifDate = parseLocalDate(data.notification_date);
   const termDate = parseLocalDate(data.termination_date);
 
@@ -89,11 +91,13 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
               mode="single"
               selected={notifDate}
               onSelect={d => { if (d) { onChange({ notification_date: toDateStr(d) }); setNotifOpen(false); } }}
+              disabled={d => d > today || d < minNotifDate}
               className={cn("p-3 pointer-events-auto")}
               locale={ptBR}
             />
           </PopoverContent>
         </Popover>
+        <p className="text-xs text-muted-foreground">Máximo de 45 dias no passado</p>
       </div>
 
       {/* Termination date */}
@@ -111,7 +115,7 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
               mode="single"
               selected={termDate}
               onSelect={d => { if (d) { onChange({ termination_date: toDateStr(d) }); setTermOpen(false); } }}
-              disabled={d => notifDate ? d < notifDate : false}
+              disabled={d => d > today || (notifDate ? d < notifDate : false)}
               className={cn("p-3 pointer-events-auto")}
               locale={ptBR}
             />

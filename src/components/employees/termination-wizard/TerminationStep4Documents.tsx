@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,7 @@ const DOCUMENT_CHECKLISTS: Record<string, DocItem[]> = {
 };
 
 const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
+  const [isDragging, setIsDragging] = useState(false);
   const checklist = useMemo(() => {
     return DOCUMENT_CHECKLISTS[contractType] || DOCUMENT_CHECKLISTS.CLT;
   }, [contractType]);
@@ -80,6 +81,7 @@ const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    setIsDragging(false);
     const files = Array.from(e.dataTransfer.files);
     const valid = files.filter(f => {
       const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
@@ -122,9 +124,10 @@ const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
         </CardHeader>
         <CardContent className="space-y-3">
           <div
-            onDragOver={e => e.preventDefault()}
+            onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
-            className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors"
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
           >
             <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground mb-2">Arraste arquivos aqui ou</p>
@@ -166,4 +169,6 @@ const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
   );
 };
 
+export { DOCUMENT_CHECKLISTS };
+export type { DocItem };
 export default TerminationStep4Documents;

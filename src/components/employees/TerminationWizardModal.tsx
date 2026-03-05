@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,7 @@ import TerminationStep1Info from './termination-wizard/TerminationStep1Info';
 import TerminationStep2Notice from './termination-wizard/TerminationStep2Notice';
 import TerminationStep3Payroll from './termination-wizard/TerminationStep3Payroll';
 import TerminationStep4Documents from './termination-wizard/TerminationStep4Documents';
+import { DOCUMENT_CHECKLISTS } from './termination-wizard/TerminationStep4Documents';
 import TerminationStep5Review from './termination-wizard/TerminationStep5Review';
 import { TerminationWizardData, getDefaultWizardData } from './termination-wizard/types';
 
@@ -72,6 +74,7 @@ const TerminationWizardModal = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [wizardData, setWizardData] = useState<TerminationWizardData>(getDefaultWizardData());
   const [confirmed, setConfirmed] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const createTermination = useCreateTermination();
 
   const contractType = employee?.tipoContratacao || 'CLT';
@@ -86,8 +89,18 @@ const TerminationWizardModal = ({
     setCurrentStep(0);
     setWizardData(getDefaultWizardData());
     setConfirmed(false);
+    setShowExitConfirm(false);
     onClose();
   }, [onClose]);
+
+  const handleRequestClose = useCallback(() => {
+    const hasData = currentStep > 0 || wizardData.reason.length > 0 || wizardData.termination_date !== '';
+    if (hasData) {
+      setShowExitConfirm(true);
+    } else {
+      handleClose();
+    }
+  }, [currentStep, wizardData, handleClose]);
 
   const updateData = useCallback((partial: Partial<TerminationWizardData>) => {
     setWizardData(prev => ({ ...prev, ...partial }));
@@ -113,6 +126,11 @@ const TerminationWizardModal = ({
   const handleSubmit = async () => {
     if (!employee) return;
     try {
+      // Check if mandatory docs are missing
+      const docChecklist = DOCUMENT_CHECKLISTS[contractType] || DOCUMENT_CHECKLISTS.CLT;
+      const hasMissingDocs = docChecklist.some(d => d.required && !wizardData.document_checklist[d.key]);
+      const status = hasMissingDocs ? 'awaiting_documents' : 'pending';
+
       const result = await createTermination.mutateAsync({
         employee_id: employee.id,
         termination_date: wizardData.termination_date,
@@ -124,7 +142,7 @@ const TerminationWizardModal = ({
         notice_worked: skipNotice ? false : wizardData.notice_worked,
         exit_interview_completed: false,
         exit_interview_notes: null,
-        status: 'pending',
+        status,
       });
       onSuccess?.(result.id);
       handleClose();
@@ -146,8 +164,9 @@ const TerminationWizardModal = ({
   const isLastStep = currentStep === steps.length - 1;
 
   return (
-    <Dialog open={isOpen} onOpenChange={open => { if (!open) handleClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="termination-wizard-desc">
+    <>
+    <Dialog open={isOpen} onOpenChange={open => { if (!open) handleRequestClose(); }}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="termination-wizard-desc" onPointerDownOutside={e => { e.preventDefault(); handleRequestClose(); }}>
         <DialogHeader>
           <DialogTitle>Desligamento de Funcionário</DialogTitle>
           <p id="termination-wizard-desc" className="sr-only">Wizard de desligamento de funcionário</p>
@@ -256,7 +275,7 @@ const TerminationWizardModal = ({
                 <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
               </Button>
             )}
-            <Button variant="ghost" onClick={handleClose} size="sm">
+            <Button variant="ghost" onClick={handleRequestClose} size="sm">
               Cancelar
             </Button>
           </div>
@@ -280,6 +299,24 @@ const TerminationWizardModal = ({
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Sair do desligamento?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja sair? Os dados preenchidos serão perdidos.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+          <AlertDialogAction onClick={handleClose} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Sair e descartar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
