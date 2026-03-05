@@ -51,16 +51,16 @@ function toDateStr(date: Date): string {
 }
 
 const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
-  const defaultType: TerminationType = contractType === 'Estágio' || contractType === 'estagio' ? 'internship_end' : 'voluntary';
+  // termination_type is initialized by parent
   const [notifOpen, setNotifOpen] = useState(false);
   const [termOpen, setTermOpen] = useState(false);
 
   const reasonOptions = useMemo(() => {
-    const t = data.termination_type || defaultType;
+    const t = data.termination_type;
     if (t === 'voluntary') return VOLUNTARY_REASONS;
     if (t === 'involuntary') return INVOLUNTARY_REASONS;
     return CONTRACT_END_REASONS;
-  }, [data.termination_type, defaultType]);
+  }, [data.termination_type]);
 
   const today = startOfDay(new Date());
   const minNotifDate = subDays(today, 45);
@@ -132,7 +132,7 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
       <div className="space-y-2">
         <Label>Tipo de desligamento *</Label>
         <Select
-          value={data.termination_type || defaultType}
+          value={data.termination_type}
           onValueChange={v => onChange({ termination_type: v as TerminationType, reason_category: 'other' })}
         >
           <SelectTrigger><SelectValue /></SelectTrigger>

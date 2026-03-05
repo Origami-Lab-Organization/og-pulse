@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -85,6 +85,8 @@ const TerminationWizardModal = ({
     return ALL_STEPS;
   }, [skipNotice]);
 
+  // Initialize termination_type via useEffect when wizard opens
+
   const handleClose = useCallback(() => {
     setCurrentStep(0);
     setWizardData(getDefaultWizardData());
@@ -92,6 +94,14 @@ const TerminationWizardModal = ({
     setShowExitConfirm(false);
     onClose();
   }, [onClose]);
+
+  useEffect(() => {
+    if (isOpen && employee) {
+      const ct = employee.tipoContratacao || 'CLT';
+      const defType = ct === 'ESTAGIO' ? 'internship_end' : 'voluntary';
+      setWizardData(prev => ({ ...prev, termination_type: defType }));
+    }
+  }, [isOpen, employee]);
 
   const handleRequestClose = useCallback(() => {
     const hasData = currentStep > 0 || wizardData.reason.length > 0 || wizardData.termination_date !== '';
