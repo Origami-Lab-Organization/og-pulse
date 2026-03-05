@@ -120,22 +120,6 @@ const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange, 
         </AccordionItem>
       </Accordion>
 
-      {hasMissingDocs && (
-        <Alert variant="default" className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
-            <strong>Documentos obrigatórios pendentes:</strong> {missingRequiredDocs.map(d => d.label).join(', ')}.
-            O processo ficará com status <strong>"Aguardando Documentos"</strong> até que sejam anexados.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Alert variant="default" className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
-          Após confirmar, o funcionário será marcado como "Em Desligamento" e o processo poderá ser acompanhado na área de Funcionários Desligados.
-        </AlertDescription>
-      </Alert>
 
       <div className="flex items-start gap-3 p-3 rounded-lg border border-border">
         <Checkbox

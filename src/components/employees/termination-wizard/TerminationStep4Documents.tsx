@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Upload, X, FileText, Info } from 'lucide-react';
+import { Upload, X, FileText, Info, AlertTriangle } from 'lucide-react';
 import { TerminationWizardData } from './types';
 
 interface Props {
@@ -55,6 +55,10 @@ const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
   const checklist = useMemo(() => {
     return DOCUMENT_CHECKLISTS[contractType] || DOCUMENT_CHECKLISTS.CLT;
   }, [contractType]);
+
+  const missingRequiredDocs = useMemo(() => {
+    return checklist.filter(d => d.required && !data.document_checklist[d.key]);
+  }, [checklist, data.document_checklist]);
 
   const toggleChecklist = (key: string) => {
     onChange({
@@ -158,6 +162,16 @@ const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
           )}
         </CardContent>
       </Card>
+
+      {missingRequiredDocs.length > 0 && (
+        <Alert variant="default" className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+            <strong>Documentos obrigatórios pendentes:</strong> {missingRequiredDocs.map(d => d.label).join(', ')}.
+            O processo ficará com status <strong>"Aguardando Documentos"</strong> até que sejam anexados.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Alert>
         <Info className="h-4 w-4" />
