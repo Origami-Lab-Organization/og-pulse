@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,6 +52,8 @@ function toDateStr(date: Date): string {
 
 const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
   const defaultType: TerminationType = contractType === 'Estágio' || contractType === 'estagio' ? 'internship_end' : 'voluntary';
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [termOpen, setTermOpen] = useState(false);
 
   const reasonOptions = useMemo(() => {
     const t = data.termination_type || defaultType;
@@ -74,7 +77,7 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
       {/* Notification date */}
       <div className="space-y-2">
         <Label>Data de comunicação ao funcionário</Label>
-        <Popover>
+        <Popover open={notifOpen} onOpenChange={setNotifOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !notifDate && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -85,7 +88,7 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
             <Calendar
               mode="single"
               selected={notifDate}
-              onSelect={d => d && onChange({ notification_date: toDateStr(d) })}
+              onSelect={d => { if (d) { onChange({ notification_date: toDateStr(d) }); setNotifOpen(false); } }}
               className={cn("p-3 pointer-events-auto")}
               locale={ptBR}
             />
@@ -96,7 +99,7 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
       {/* Termination date */}
       <div className="space-y-2">
         <Label>Data efetiva do desligamento *</Label>
-        <Popover>
+        <Popover open={termOpen} onOpenChange={setTermOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !termDate && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -107,7 +110,7 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
             <Calendar
               mode="single"
               selected={termDate}
-              onSelect={d => d && onChange({ termination_date: toDateStr(d) })}
+              onSelect={d => { if (d) { onChange({ termination_date: toDateStr(d) }); setTermOpen(false); } }}
               disabled={d => notifDate ? d < notifDate : false}
               className={cn("p-3 pointer-events-auto")}
               locale={ptBR}

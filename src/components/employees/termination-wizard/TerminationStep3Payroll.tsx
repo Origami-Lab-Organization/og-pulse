@@ -166,30 +166,32 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
             </div>
           )}
 
-          <div className="grid grid-cols-12 gap-2 items-end">
-            <div className="col-span-3">
-              <Label className="text-xs">Tipo</Label>
-              <Select value={newAdj.type} onValueChange={v => setNewAdj(p => ({ ...p, type: v }))}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ADJUSTMENT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Tipo</Label>
+                <Select value={newAdj.type} onValueChange={v => setNewAdj(p => ({ ...p, type: v }))}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ADJUSTMENT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Descrição</Label>
+                <Input className="h-9" value={newAdj.description} onChange={e => setNewAdj(p => ({ ...p, description: e.target.value }))} placeholder="Descrição" />
+              </div>
             </div>
-            <div className="col-span-4">
-              <Label className="text-xs">Descrição</Label>
-              <Input className="h-9" value={newAdj.description} onChange={e => setNewAdj(p => ({ ...p, description: e.target.value }))} placeholder="Descrição" />
-            </div>
-            <div className="col-span-2">
-              <Label className="text-xs">Valor (R$)</Label>
-              <Input className="h-9" type="number" min={0} step={0.01} value={newAdj.amount || ''} onChange={e => setNewAdj(p => ({ ...p, amount: Number(e.target.value) }))} />
-            </div>
-            <div className="col-span-1 flex items-center justify-center gap-1 pb-1">
-              <Switch checked={newAdj.isCredit} onCheckedChange={v => setNewAdj(p => ({ ...p, isCredit: v }))} />
-              <span className="text-[10px] text-muted-foreground">{newAdj.isCredit ? 'C' : 'D'}</span>
-            </div>
-            <div className="col-span-2">
-              <Button size="sm" className="w-full h-9" onClick={addAdjustment} disabled={!newAdj.description || newAdj.amount <= 0}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+              <div>
+                <Label className="text-xs">Valor (R$)</Label>
+                <Input className="h-9" type="number" min={0} step={0.01} value={newAdj.amount || ''} onChange={e => setNewAdj(p => ({ ...p, amount: Number(e.target.value) }))} />
+              </div>
+              <div className="flex items-center gap-2 h-9">
+                <Switch checked={newAdj.isCredit} onCheckedChange={v => setNewAdj(p => ({ ...p, isCredit: v }))} />
+                <span className="text-xs text-muted-foreground">{newAdj.isCredit ? 'Crédito' : 'Débito'}</span>
+              </div>
+              <Button size="sm" className="h-9" onClick={addAdjustment} disabled={!newAdj.description || newAdj.amount <= 0}>
                 <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
               </Button>
             </div>

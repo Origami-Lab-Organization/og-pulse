@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, UserMinus } from 'lucide-react';
+import { Search, UserMinus } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable } from '@/components/data-table/DataTable';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,14 +14,10 @@ import {
   TERMINATION_TYPE_LABELS,
   TERMINATION_STATUSES,
   TERMINATION_STATUS_LABELS,
-  TerminationType,
-  TerminationStatus,
 } from '@/types/termination';
-import { useToast } from '@/hooks/use-toast';
 import { TerminationDetailDrawer } from '@/components/terminations/TerminationDetailDrawer';
 
 const TerminatedEmployees = () => {
-  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -60,17 +55,10 @@ const TerminatedEmployees = () => {
     []
   );
 
-  const actions = (
-    <Button className="gap-2" onClick={() => toast({ title: 'Novo desligamento', description: 'Use a página de funcionários para iniciar um desligamento.' })}>
-      <Plus className="h-4 w-4" />
-      Novo Desligamento
-    </Button>
-  );
-
   if (isLoading) {
     return (
       <AppLayout
-        title="Funcionários Desligados"
+        title="Desligamentos"
         description="Gerencie processos de desligamento"
         breadcrumbs={[{ label: 'RH' }, { label: 'Desligamentos' }]}
       >
@@ -92,7 +80,7 @@ const TerminatedEmployees = () => {
       title="Desligamentos"
       description="Gerencie processos de desligamento de funcionários"
       breadcrumbs={[{ label: 'RH' }, { label: 'Desligamentos' }]}
-      actions={actions}
+      
     >
       <TerminationStats terminations={terminations} />
 

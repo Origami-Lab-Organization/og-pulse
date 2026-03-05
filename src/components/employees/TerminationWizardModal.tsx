@@ -135,9 +135,10 @@ const TerminationWizardModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={open => { if (!open) handleClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="termination-wizard-desc">
         <DialogHeader>
           <DialogTitle>Desligamento de Funcionário</DialogTitle>
+          <p id="termination-wizard-desc" className="sr-only">Wizard de desligamento de funcionário</p>
         </DialogHeader>
 
         {/* Employee Card */}
