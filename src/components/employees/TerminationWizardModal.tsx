@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, formatDate, parseDateString } from '@/lib/formatters';
 import { Employee } from '@/hooks/useEmployees';
 import { useCreateTermination } from '@/hooks/useTerminations';
-import { Check, ChevronLeft, ChevronRight, Save } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import TerminationStep1Info from './termination-wizard/TerminationStep1Info';
 import TerminationStep2Notice from './termination-wizard/TerminationStep2Notice';
 import TerminationStep3Payroll from './termination-wizard/TerminationStep3Payroll';
@@ -22,30 +22,30 @@ interface TerminationWizardModalProps {
   onSuccess?: (terminationId: string) => void;
 }
 
-const STEPS = [
-  'Informações',
-  'Aviso Prévio',
-  'Folha de Pgto',
-  'Documentos',
-  'Revisão',
+const ALL_STEPS = [
+  { key: 'info', label: 'Informações' },
+  { key: 'notice', label: 'Aviso Prévio' },
+  { key: 'payroll', label: 'Folha de Pgto' },
+  { key: 'docs', label: 'Documentos' },
+  { key: 'review', label: 'Revisão' },
 ];
+
+const CONTRACT_TYPES_WITHOUT_NOTICE = ['ESTAGIO', 'PJ', 'SOCIO'];
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
   CLT: 'CLT',
   PJ: 'PJ',
-  Estágio: 'Estágio',
-  Temporário: 'Temporário',
-  estagio: 'Estágio',
-  temporario: 'Temporário',
+  ESTAGIO: 'Estágio',
+  SOCIO: 'Sócio',
+  MENOR_APRENDIZ: 'Menor Aprendiz',
 };
 
 const CONTRACT_TYPE_COLORS: Record<string, string> = {
   CLT: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   PJ: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  Estágio: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-  estagio: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-  Temporário: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-  temporario: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  ESTAGIO: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+  SOCIO: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+  MENOR_APRENDIZ: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
 };
 
 function getTimeSince(dateStr: string): string {
@@ -74,6 +74,14 @@ const TerminationWizardModal = ({
   const [confirmed, setConfirmed] = useState(false);
   const createTermination = useCreateTermination();
 
+  const contractType = employee?.tipoContratacao || 'CLT';
+  const skipNotice = CONTRACT_TYPES_WITHOUT_NOTICE.includes(contractType);
+
+  const steps = useMemo(() => {
+    if (skipNotice) return ALL_STEPS.filter(s => s.key !== 'notice');
+    return ALL_STEPS;
+  }, [skipNotice]);
+
   const handleClose = useCallback(() => {
     setCurrentStep(0);
     setWizardData(getDefaultWizardData());
@@ -86,15 +94,16 @@ const TerminationWizardModal = ({
   }, []);
 
   const canAdvance = useMemo(() => {
-    if (currentStep === 0) {
+    const stepKey = steps[currentStep]?.key;
+    if (stepKey === 'info') {
       return !!(wizardData.termination_date && wizardData.termination_type && wizardData.reason && wizardData.reason.length >= 20);
     }
-    if (currentStep === 4) return confirmed;
+    if (stepKey === 'review') return confirmed;
     return true;
-  }, [currentStep, wizardData, confirmed]);
+  }, [currentStep, steps, wizardData, confirmed]);
 
   const handleNext = () => {
-    if (currentStep < STEPS.length - 1) setCurrentStep(s => s + 1);
+    if (currentStep < steps.length - 1) setCurrentStep(s => s + 1);
   };
 
   const handleBack = () => {
@@ -111,8 +120,8 @@ const TerminationWizardModal = ({
         termination_type: wizardData.termination_type,
         reason: wizardData.reason,
         reason_category: wizardData.reason_category,
-        notice_period_days: wizardData.notice_period_days,
-        notice_worked: wizardData.notice_worked,
+        notice_period_days: skipNotice ? 0 : wizardData.notice_period_days,
+        notice_worked: skipNotice ? false : wizardData.notice_worked,
         exit_interview_completed: false,
         exit_interview_notes: null,
         status: 'pending',
@@ -132,6 +141,9 @@ const TerminationWizardModal = ({
     .slice(0, 2)
     .join('')
     .toUpperCase();
+
+  const currentStepKey = steps[currentStep]?.key;
+  const isLastStep = currentStep === steps.length - 1;
 
   return (
     <Dialog open={isOpen} onOpenChange={open => { if (!open) handleClose(); }}>
@@ -166,12 +178,19 @@ const TerminationWizardModal = ({
           </CardContent>
         </Card>
 
-        {/* Stepper */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-2">
-          {STEPS.map((label, i) => (
-            <div key={i} className="flex items-center gap-1">
+        {/* Stepper - mobile: text indicator, desktop: full stepper */}
+        <div className="sm:hidden text-center">
+          <span className="text-sm font-medium text-foreground">
+            Etapa {currentStep + 1} de {steps.length}
+          </span>
+          <span className="text-sm text-muted-foreground ml-1">— {steps[currentStep]?.label}</span>
+        </div>
+
+        <div className="hidden sm:flex items-center justify-center gap-2 py-1">
+          {steps.map((step, i) => (
+            <div key={step.key} className="flex items-center gap-2">
               <div
-                className={`flex items-center justify-center h-7 w-7 rounded-full text-xs font-medium shrink-0
+                className={`flex items-center justify-center h-7 w-7 rounded-full text-xs font-medium shrink-0 transition-colors
                   ${i < currentStep ? 'bg-primary text-primary-foreground' : ''}
                   ${i === currentStep ? 'bg-primary text-primary-foreground ring-2 ring-ring ring-offset-2' : ''}
                   ${i > currentStep ? 'bg-muted text-muted-foreground' : ''}
@@ -179,24 +198,24 @@ const TerminationWizardModal = ({
               >
                 {i < currentStep ? <Check className="h-3.5 w-3.5" /> : i + 1}
               </div>
-              <span className={`text-xs whitespace-nowrap hidden sm:inline ${i === currentStep ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
-                {label}
+              <span className={`text-xs whitespace-nowrap ${i === currentStep ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                {step.label}
               </span>
-              {i < STEPS.length - 1 && <div className="w-4 h-px bg-border shrink-0" />}
+              {i < steps.length - 1 && <div className="w-6 h-px bg-border shrink-0" />}
             </div>
           ))}
         </div>
 
         {/* Step Content */}
         <div className="min-h-[300px]">
-          {currentStep === 0 && (
+          {currentStepKey === 'info' && (
             <TerminationStep1Info
               data={wizardData}
               onChange={updateData}
               contractType={employee.tipoContratacao}
             />
           )}
-          {currentStep === 1 && (
+          {currentStepKey === 'notice' && (
             <TerminationStep2Notice
               data={wizardData}
               onChange={updateData}
@@ -204,25 +223,27 @@ const TerminationWizardModal = ({
               salary={employee.salarioMensal}
             />
           )}
-          {currentStep === 2 && (
+          {currentStepKey === 'payroll' && (
             <TerminationStep3Payroll
               data={wizardData}
               onChange={updateData}
               employee={employee}
             />
           )}
-          {currentStep === 3 && (
+          {currentStepKey === 'docs' && (
             <TerminationStep4Documents
               data={wizardData}
               onChange={updateData}
+              contractType={contractType}
             />
           )}
-          {currentStep === 4 && (
+          {currentStepKey === 'review' && (
             <TerminationStep5Review
               data={wizardData}
               employee={employee}
               confirmed={confirmed}
               onConfirmedChange={setConfirmed}
+              skipNotice={skipNotice}
             />
           )}
         </div>
@@ -240,12 +261,12 @@ const TerminationWizardModal = ({
             </Button>
           </div>
           <div className="flex gap-2">
-            {currentStep < STEPS.length - 1 && (
+            {!isLastStep && (
               <Button onClick={handleNext} disabled={!canAdvance} size="sm">
                 Próximo <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}
-            {currentStep === STEPS.length - 1 && (
+            {isLastStep && (
               <Button
                 onClick={handleSubmit}
                 disabled={!confirmed || createTermination.isPending}

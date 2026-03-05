@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Plus, Trash2, Info } from 'lucide-react';
 import { formatCurrency, parseDateString } from '@/lib/formatters';
 import { Employee } from '@/hooks/useEmployees';
 import { TerminationWizardData, ManualAdjustment } from './types';
@@ -27,50 +28,127 @@ const ADJUSTMENT_OPTIONS = [
   { value: 'other', label: 'Outro' },
 ];
 
+const CONTRACT_TYPE_MESSAGES: Record<string, { title: string; description: string }> = {
+  CLT: {
+    title: 'Rescisão CLT',
+    description: 'Cálculos incluem saldo de salário, férias proporcionais + 1/3, 13º proporcional e multa FGTS conforme tipo de desligamento.',
+  },
+  ESTAGIO: {
+    title: 'Encerramento de Estágio',
+    description: 'Conforme Lei 11.788/2008, o estagiário tem direito ao saldo de bolsa-auxílio e recesso remunerado proporcional (30 dias/ano, sem 1/3 constitucional).',
+  },
+  PJ: {
+    title: 'Rescisão de Contrato PJ',
+    description: 'Não há cálculos trabalhistas automáticos. Os valores devem seguir o previsto no contrato de prestação de serviços. Use os ajustes manuais abaixo.',
+  },
+  SOCIO: {
+    title: 'Saída de Sócio',
+    description: 'Sócio tem direito ao pró-labore proporcional. Não há férias, 13º ou FGTS. Ajustes de participação societária devem ser feitos manualmente.',
+  },
+  MENOR_APRENDIZ: {
+    title: 'Rescisão de Menor Aprendiz',
+    description: 'Segue regras da CLT com FGTS reduzido a 2% (Lei 10.097/2000). Contratos por prazo determinado não geram multa FGTS no término regular.',
+  },
+};
+
+interface AutoCalcItem {
+  desc: string;
+  value: number;
+  isCredit: boolean;
+}
+
+function calculateAutoCalcs(employee: Employee, data: TerminationWizardData): AutoCalcItem[] {
+  const salary = employee.salarioMensal;
+  const termDate = data.termination_date ? parseDateString(data.termination_date) : new Date();
+  const dayOfMonth = termDate.getDate();
+  const daysInMonth = new Date(termDate.getFullYear(), termDate.getMonth() + 1, 0).getDate();
+  const admDate = parseDateString(employee.dataAdmissao);
+  const monthsWorked = (termDate.getFullYear() - admDate.getFullYear()) * 12 + (termDate.getMonth() - admDate.getMonth());
+  const monthsInYear = termDate.getMonth() + 1;
+  const contractType = employee.tipoContratacao;
+
+  const items: AutoCalcItem[] = [];
+
+  switch (contractType) {
+    case 'CLT': {
+      const salaryBalance = (salary / daysInMonth) * dayOfMonth;
+      const vacationProp = (salary / 12) * (monthsWorked % 12) * (4 / 3);
+      const thirteenthProp = (salary / 12) * monthsInYear;
+
+      items.push({ desc: `Saldo de salário (${dayOfMonth} dias)`, value: salaryBalance, isCredit: true });
+      items.push({ desc: 'Férias proporcionais + 1/3', value: vacationProp, isCredit: true });
+      items.push({ desc: '13º proporcional', value: thirteenthProp, isCredit: true });
+
+      // FGTS fine based on termination type
+      if (data.termination_type === 'involuntary') {
+        const fgtsFine = employee.fgts * monthsWorked * 0.4;
+        if (fgtsFine > 0) items.push({ desc: 'Multa FGTS 40%', value: fgtsFine, isCredit: true });
+      } else if (data.termination_type === 'mutual_agreement') {
+        const fgtsFine = employee.fgts * monthsWorked * 0.2;
+        if (fgtsFine > 0) items.push({ desc: 'Multa FGTS 20% (acordo)', value: fgtsFine, isCredit: true });
+      }
+
+      // Notice period
+      if (!data.notice_worked && data.notice_period_days > 0) {
+        const noticeValue = (salary / 30) * data.notice_period_days;
+        items.push({
+          desc: `Aviso prévio ${data.notice_indemnified_by_company ? 'indenizado' : '(desconto)'}`,
+          value: noticeValue,
+          isCredit: data.notice_indemnified_by_company,
+        });
+      }
+      break;
+    }
+
+    case 'ESTAGIO': {
+      const stipendBalance = (salary / daysInMonth) * dayOfMonth;
+      // Recesso: 30 dias por 12 meses, proporcional, sem 1/3
+      const recessDays = (monthsWorked / 12) * 30;
+      const recessValue = (salary / 30) * recessDays;
+
+      items.push({ desc: `Saldo de bolsa-auxílio (${dayOfMonth} dias)`, value: stipendBalance, isCredit: true });
+      items.push({ desc: `Recesso remunerado proporcional (${Math.round(recessDays)} dias)`, value: recessValue, isCredit: true });
+      break;
+    }
+
+    case 'SOCIO': {
+      const proLaboreBalance = (employee.proLabore / daysInMonth) * dayOfMonth;
+      if (proLaboreBalance > 0) {
+        items.push({ desc: `Pró-labore proporcional (${dayOfMonth} dias)`, value: proLaboreBalance, isCredit: true });
+      }
+      break;
+    }
+
+    case 'MENOR_APRENDIZ': {
+      const salaryBalance = (salary / daysInMonth) * dayOfMonth;
+      const vacationProp = (salary / 12) * (monthsWorked % 12) * (4 / 3);
+      const thirteenthProp = (salary / 12) * monthsInYear;
+      // FGTS 2% instead of 8% - no fine for end of fixed-term contract
+      const fgtsValue = salary * 0.02 * monthsWorked;
+
+      items.push({ desc: `Saldo de salário (${dayOfMonth} dias)`, value: salaryBalance, isCredit: true });
+      items.push({ desc: 'Férias proporcionais + 1/3', value: vacationProp, isCredit: true });
+      items.push({ desc: '13º proporcional', value: thirteenthProp, isCredit: true });
+      items.push({ desc: 'FGTS acumulado (alíquota 2%)', value: fgtsValue, isCredit: true });
+      break;
+    }
+
+    case 'PJ':
+    default:
+      // No automatic calculations for PJ
+      break;
+  }
+
+  return items;
+}
+
 const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
   const [newAdj, setNewAdj] = useState({ type: 'other', description: '', amount: 0, isCredit: true });
 
-  // Auto calculations
-  const autoCalcs = useMemo(() => {
-    const salary = employee.salarioMensal;
-    const termDate = data.termination_date ? parseDateString(data.termination_date) : new Date();
-    const dayOfMonth = termDate.getDate();
-    const daysInMonth = new Date(termDate.getFullYear(), termDate.getMonth() + 1, 0).getDate();
+  const contractType = employee.tipoContratacao;
+  const message = CONTRACT_TYPE_MESSAGES[contractType] || CONTRACT_TYPE_MESSAGES.CLT;
 
-    const admDate = parseDateString(employee.dataAdmissao);
-    const monthsWorked = (termDate.getFullYear() - admDate.getFullYear()) * 12 + (termDate.getMonth() - admDate.getMonth());
-    const monthsInYear = termDate.getMonth() + 1;
-
-    const salaryBalance = (salary / daysInMonth) * dayOfMonth;
-    const vacationProp = (salary / 12) * (monthsWorked % 12) * (4 / 3); // + 1/3
-    const thirteenthProp = (salary / 12) * monthsInYear;
-
-    const isCLT = employee.tipoContratacao === 'CLT';
-    const fgtsFine = isCLT ? employee.fgts * monthsWorked * 0.4 : 0;
-
-    const noticeValue = !data.notice_worked ? (salary / 30) * data.notice_period_days : 0;
-    const noticeIsCredit = data.notice_indemnified_by_company;
-
-    const items = [
-      { desc: `Saldo de salário (${dayOfMonth} dias)`, value: salaryBalance, isCredit: true },
-      { desc: 'Férias proporcionais + 1/3', value: vacationProp, isCredit: true },
-      { desc: '13º proporcional', value: thirteenthProp, isCredit: true },
-    ];
-
-    if (isCLT && fgtsFine > 0) {
-      items.push({ desc: 'Multa FGTS 40%', value: fgtsFine, isCredit: true });
-    }
-
-    if (noticeValue > 0) {
-      items.push({
-        desc: `Aviso prévio ${noticeIsCredit ? 'indenizado' : '(desconto)'}`,
-        value: noticeValue,
-        isCredit: noticeIsCredit,
-      });
-    }
-
-    return items;
-  }, [employee, data]);
+  const autoCalcs = useMemo(() => calculateAutoCalcs(employee, data), [employee, data]);
 
   const totals = useMemo(() => {
     let credits = 0;
@@ -108,36 +186,46 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
 
   return (
     <div className="space-y-4">
+      {/* Context message */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription className="text-xs">
+          <strong>{message.title}</strong> — {message.description}
+        </AlertDescription>
+      </Alert>
+
       {/* Auto calculations */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Cálculos Automáticos</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="text-right">Tipo</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {autoCalcs.map((item, i) => (
-                <TableRow key={i}>
-                  <TableCell className="text-sm">{item.desc}</TableCell>
-                  <TableCell className="text-right text-sm font-medium">{formatCurrency(item.value)}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="outline" className={item.isCredit ? 'text-green-700 border-green-300' : 'text-red-700 border-red-300'}>
-                      {item.isCredit ? 'Crédito' : 'Débito'}
-                    </Badge>
-                  </TableCell>
+      {autoCalcs.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Cálculos Automáticos</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">Tipo</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {autoCalcs.map((item, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm">{item.desc}</TableCell>
+                    <TableCell className="text-right text-sm font-medium">{formatCurrency(item.value)}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="outline" className={item.isCredit ? 'text-green-700 border-green-300' : 'text-red-700 border-red-300'}>
+                        {item.isCredit ? 'Crédito' : 'Débito'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Manual adjustments */}
       <Card>
@@ -220,4 +308,5 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
   );
 };
 
+export { calculateAutoCalcs };
 export default TerminationStep3Payroll;

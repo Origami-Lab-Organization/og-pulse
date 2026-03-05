@@ -1,14 +1,14 @@
 import { useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle } from 'lucide-react';
-import { formatCurrency, formatDate, parseDateString } from '@/lib/formatters';
+import { formatCurrency, formatDate } from '@/lib/formatters';
 import { TERMINATION_TYPE_LABELS, REASON_CATEGORY_LABELS } from '@/types/termination';
 import { Employee } from '@/hooks/useEmployees';
 import { TerminationWizardData } from './types';
+import { calculateAutoCalcs } from './TerminationStep3Payroll';
 import {
   Accordion,
   AccordionContent,
@@ -21,30 +21,19 @@ interface Props {
   employee: Employee;
   confirmed: boolean;
   onConfirmedChange: (v: boolean) => void;
+  skipNotice?: boolean;
 }
 
-const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange }: Props) => {
-  const autoCalcs = useMemo(() => {
-    const salary = employee.salarioMensal;
-    const termDate = data.termination_date ? parseDateString(data.termination_date) : new Date();
-    const dayOfMonth = termDate.getDate();
-    const daysInMonth = new Date(termDate.getFullYear(), termDate.getMonth() + 1, 0).getDate();
-    const admDate = parseDateString(employee.dataAdmissao);
-    const monthsWorked = (termDate.getFullYear() - admDate.getFullYear()) * 12 + (termDate.getMonth() - admDate.getMonth());
-    const monthsInYear = termDate.getMonth() + 1;
-
-    let credits = (salary / daysInMonth) * dayOfMonth + (salary / 12) * (monthsWorked % 12) * (4 / 3) + (salary / 12) * monthsInYear;
+const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange, skipNotice }: Props) => {
+  const financials = useMemo(() => {
+    const autoCalcs = calculateAutoCalcs(employee, data);
+    let credits = 0;
     let debits = 0;
 
-    if (employee.tipoContratacao === 'CLT') {
-      credits += employee.fgts * monthsWorked * 0.4;
-    }
-
-    if (!data.notice_worked && data.notice_period_days > 0) {
-      const noticeVal = (salary / 30) * data.notice_period_days;
-      if (data.notice_indemnified_by_company) credits += noticeVal;
-      else debits += noticeVal;
-    }
+    autoCalcs.forEach(item => {
+      if (item.isCredit) credits += item.value;
+      else debits += item.value;
+    });
 
     data.manual_adjustments.forEach(adj => {
       if (adj.isCredit) credits += adj.amount;
@@ -54,9 +43,12 @@ const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange }
     return { credits, debits, net: credits - debits };
   }, [data, employee]);
 
+  const defaultAccordionValues = ['employee', 'dates', 'financial', 'docs'];
+  if (!skipNotice) defaultAccordionValues.splice(2, 0, 'notice');
+
   return (
     <div className="space-y-4">
-      <Accordion type="multiple" defaultValue={['employee', 'dates', 'notice', 'financial', 'docs']} className="space-y-2">
+      <Accordion type="multiple" defaultValue={defaultAccordionValues} className="space-y-2">
         <AccordionItem value="employee" className="border rounded-lg px-4">
           <AccordionTrigger className="text-sm font-medium">Dados do Funcionário</AccordionTrigger>
           <AccordionContent>
@@ -85,26 +77,28 @@ const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange }
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="notice" className="border rounded-lg px-4">
-          <AccordionTrigger className="text-sm font-medium">Aviso Prévio</AccordionTrigger>
-          <AccordionContent>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div><span className="text-muted-foreground">Dias:</span> <span className="font-medium">{data.notice_period_days}</span></div>
-              <div><span className="text-muted-foreground">Trabalhado:</span> <span className="font-medium">{data.notice_worked ? 'Sim' : 'Não'}</span></div>
-              {!data.notice_worked && (
-                <div className="col-span-2"><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{data.notice_indemnified_by_company ? 'Indenizado pela empresa' : 'Descontado do funcionário'}</span></div>
-              )}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+        {!skipNotice && (
+          <AccordionItem value="notice" className="border rounded-lg px-4">
+            <AccordionTrigger className="text-sm font-medium">Aviso Prévio</AccordionTrigger>
+            <AccordionContent>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-muted-foreground">Dias:</span> <span className="font-medium">{data.notice_period_days}</span></div>
+                <div><span className="text-muted-foreground">Trabalhado:</span> <span className="font-medium">{data.notice_worked ? 'Sim' : 'Não'}</span></div>
+                {!data.notice_worked && (
+                  <div className="col-span-2"><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{data.notice_indemnified_by_company ? 'Indenizado pela empresa' : 'Descontado do funcionário'}</span></div>
+                )}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
 
         <AccordionItem value="financial" className="border rounded-lg px-4">
           <AccordionTrigger className="text-sm font-medium">Resumo Financeiro</AccordionTrigger>
           <AccordionContent>
             <div className="space-y-1 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Créditos:</span><span className="font-semibold text-green-700">{formatCurrency(autoCalcs.credits)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Débitos:</span><span className="font-semibold text-red-700">{formatCurrency(autoCalcs.debits)}</span></div>
-              <div className="flex justify-between border-t border-border pt-1"><span className="font-medium">Valor Líquido:</span><span className="font-bold text-primary">{formatCurrency(autoCalcs.net)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Créditos:</span><span className="font-semibold text-green-700">{formatCurrency(financials.credits)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Débitos:</span><span className="font-semibold text-red-700">{formatCurrency(financials.debits)}</span></div>
+              <div className="flex justify-between border-t border-border pt-1"><span className="font-medium">Valor Líquido:</span><span className="font-bold text-primary">{formatCurrency(financials.net)}</span></div>
             </div>
           </AccordionContent>
         </AccordionItem>
