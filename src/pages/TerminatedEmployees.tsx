@@ -19,12 +19,14 @@ import {
   TerminationStatus,
 } from '@/types/termination';
 import { useToast } from '@/hooks/use-toast';
+import { TerminationDetailDrawer } from '@/components/terminations/TerminationDetailDrawer';
 
 const TerminatedEmployees = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [selectedTermination, setSelectedTermination] = useState<TerminationWithEmployee | null>(null);
 
   const { data, isLoading } = useTerminations({ limit: 200 });
   const terminations = data?.data ?? [];
@@ -45,23 +47,21 @@ const TerminatedEmployees = () => {
     return result;
   }, [terminations, statusFilter, typeFilter, searchQuery]);
 
-  const handleAction = (label: string) => (t: TerminationWithEmployee) => {
-    toast({ title: label, description: `Funcionalidade de ${label.toLowerCase()} será implementada em breve.` });
-  };
+  const openDetail = (t: TerminationWithEmployee) => setSelectedTermination(t);
 
   const columns = useMemo(
     () =>
       createTerminationColumns({
-        onView: handleAction('Ver detalhes'),
-        onEdit: handleAction('Editar desligamento'),
-        onDocuments: handleAction('Documentos'),
-        onPayroll: handleAction('Ajustes de folha'),
+        onView: openDetail,
+        onEdit: openDetail,
+        onDocuments: openDetail,
+        onPayroll: openDetail,
       }),
     []
   );
 
   const actions = (
-    <Button className="gap-2" onClick={() => handleAction('Novo desligamento')({} as TerminationWithEmployee)}>
+    <Button className="gap-2" onClick={() => toast({ title: 'Novo desligamento', description: 'Use a página de funcionários para iniciar um desligamento.' })}>
       <Plus className="h-4 w-4" />
       Novo Desligamento
     </Button>
@@ -151,6 +151,12 @@ const TerminatedEmployees = () => {
           </p>
         </div>
       )}
+
+      <TerminationDetailDrawer
+        isOpen={!!selectedTermination}
+        onClose={() => setSelectedTermination(null)}
+        termination={selectedTermination}
+      />
     </AppLayout>
   );
 };
