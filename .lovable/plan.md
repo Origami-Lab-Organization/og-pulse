@@ -1,39 +1,25 @@
 
 
-## Plano: Melhorias de UX no Wizard de Desligamento
+## Plano: Correções no Wizard de Desligamento
 
-### 1. Máscara de valores em reais (`TerminationStep3Payroll.tsx`)
-- Substituir `<Input type="number">` pelo componente `<CurrencyInput>` já existente em `src/components/ui/currency-input.tsx`
-- O campo de valor do ajuste manual passará a usar máscara brasileira (ex: 1.234,56)
+### Problema 1: Botão "Cancelar" ainda aparece
+O código já foi atualizado e **não contém** mais o botão "Cancelar". A screenshot provavelmente mostra o preview antes do build atualizar. Nenhuma mudança de código necessária — o botão já foi removido.
 
-### 2. Drag and drop no upload de documentos (`TerminationStep4Documents.tsx`)
-- O drag and drop já está implementado (`onDragOver` + `onDrop`), mas falta feedback visual
-- Adicionar estado `isDragging` para mudar o estilo da área quando o usuário arrasta um arquivo sobre ela (borda colorida, fundo highlight)
+### Problema 2: Botão "Próximo" desabilitado
+O botão "Próximo" na Step 1 exige que `termination_type` esteja preenchido. Porém, o campo de tipo de desligamento usa `data.termination_type || defaultType` para exibição, mas o valor real em `wizardData.termination_type` começa como `''` (string vazia). O Select mostra um valor visual via fallback, mas o dado nunca é salvo no state até o usuário interagir manualmente com o campo.
 
-### 3. Data de desligamento não pode ser no futuro (`TerminationStep1Info.tsx`)
-- Adicionar `disabled` no Calendar de data efetiva: `disabled={d => d > today}` (onde `today` é a data atual sem horário)
-- A data de comunicação também deve ter o mesmo limite
+**Correção**: Inicializar `termination_type` com o valor default correto baseado no tipo de contrato quando o wizard abre, ao invés de deixar vazio e usar fallback visual.
 
-### 4. Data de comunicação limitada a 45 dias no passado (`TerminationStep1Info.tsx`)
-- Adicionar `disabled` no Calendar de comunicação: `disabled={d => d > today || d < subDays(today, 45)}`
-- Exibir texto auxiliar informando o limite de 45 dias
+### Mudanças
 
-### 5. Confirmação ao fechar o wizard (`TerminationWizardModal.tsx`)
-- Interceptar o clique no X (botão de fechar do Dialog) e no botão "Cancelar"
-- Se o wizard tiver dados preenchidos (step > 0 ou campos alterados), exibir um `AlertDialog` de confirmação: "Tem certeza que deseja sair? Os dados preenchidos serão perdidos."
-- Usar o componente `AlertDialog` já existente no projeto
-- Controlar via `onOpenChange` do Dialog - impedir fechamento direto e mostrar confirmação
+#### `TerminationWizardModal.tsx`
+- Na inicialização do wizard (quando `isOpen` muda para `true` ou quando `employee` muda), setar `wizardData.termination_type` com o default correto baseado no `contractType`
+- Garantir que o estado inicial já contém um `termination_type` válido
 
-### 6. Status "aguardando documentos" ao salvar sem docs obrigatórios (`TerminationWizardModal.tsx` + `TerminationStep4Documents.tsx`)
-- Na função `handleSubmit`, verificar se todos os documentos obrigatórios do checklist estão marcados
-- Se faltar algum obrigatório, salvar com `status: 'awaiting_documents'` ao invés de `'pending'`
-- Adicionar alerta amarelo no Step 5 (Revisão) se houver docs obrigatórios não marcados, informando que o processo ficará com status "Aguardando Documentos"
-- Exportar a lista de checklist do Step4 para reutilizar na validação do Modal
+#### `TerminationStep1Info.tsx`
+- Remover o fallback `data.termination_type || defaultType` no Select — usar apenas `data.termination_type` já que virá inicializado corretamente
 
 ### Arquivos modificados
-- `src/components/employees/termination-wizard/TerminationStep1Info.tsx` — limites de data
-- `src/components/employees/termination-wizard/TerminationStep3Payroll.tsx` — CurrencyInput
-- `src/components/employees/termination-wizard/TerminationStep4Documents.tsx` — feedback visual drag, exportar checklist
-- `src/components/employees/termination-wizard/TerminationStep5Review.tsx` — alerta de docs faltantes
-- `src/components/employees/TerminationWizardModal.tsx` — confirmação ao fechar, status condicional
+- `src/components/employees/TerminationWizardModal.tsx` — inicializar termination_type
+- `src/components/employees/termination-wizard/TerminationStep1Info.tsx` — remover fallback
 
