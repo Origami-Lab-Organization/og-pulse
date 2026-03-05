@@ -1,98 +1,39 @@
 
 
-## Plano: Corrigir Stepper, Adaptar Wizard por Tipo de Contratação
+## Plano: Melhorias de UX no Wizard de Desligamento
 
-### Problemas Identificados
+### 1. Máscara de valores em reais (`TerminationStep3Payroll.tsx`)
+- Substituir `<Input type="number">` pelo componente `<CurrencyInput>` já existente em `src/components/ui/currency-input.tsx`
+- O campo de valor do ajuste manual passará a usar máscara brasileira (ex: 1.234,56)
 
-1. **Stepper quebrado**: Layout horizontal com `flex` + `overflow-x-auto` quebra em telas menores. Precisa ser centralizado e responsivo.
-2. **Aviso prévio para Estágio/PJ**: Step 2 mostra cálculo de aviso prévio mesmo para contratos que não têm esse direito.
-3. **Folha de pagamento genérica**: Step 3 calcula férias, 13º, FGTS para todos os tipos — Estágio só tem acerto de férias/bolsa; PJ tem apenas o previsto em contrato; Sócio tem regras próprias; Menor Aprendiz segue CLT parcial.
-4. **Documentos genéricos**: Step 4 exibe o mesmo checklist para todos os tipos, sem distinguir obrigatórios de opcionais por contratação.
+### 2. Drag and drop no upload de documentos (`TerminationStep4Documents.tsx`)
+- O drag and drop já está implementado (`onDragOver` + `onDrop`), mas falta feedback visual
+- Adicionar estado `isDragging` para mudar o estilo da área quando o usuário arrasta um arquivo sobre ela (borda colorida, fundo highlight)
 
-### Mudanças Planejadas
+### 3. Data de desligamento não pode ser no futuro (`TerminationStep1Info.tsx`)
+- Adicionar `disabled` no Calendar de data efetiva: `disabled={d => d > today}` (onde `today` é a data atual sem horário)
+- A data de comunicação também deve ter o mesmo limite
 
-#### 1. Stepper Centralizado e Responsivo (`TerminationWizardModal.tsx`)
-- Substituir o stepper inline por um layout centralizado com `justify-center`
-- Em mobile: mostrar apenas o número do step atual (ex: "Etapa 2 de 5") ao invés da barra completa
-- Skipping dinâmico: para Estágio e PJ, o step de Aviso Prévio será pulado automaticamente (stepper mostra 4 etapas ao invés de 5)
+### 4. Data de comunicação limitada a 45 dias no passado (`TerminationStep1Info.tsx`)
+- Adicionar `disabled` no Calendar de comunicação: `disabled={d => d > today || d < subDays(today, 45)}`
+- Exibir texto auxiliar informando o limite de 45 dias
 
-#### 2. Aviso Prévio Condicional (`TerminationStep2Notice.tsx` + Modal)
-- Definir constante `CONTRACT_TYPES_WITHOUT_NOTICE = ['estagio', 'Estágio', 'PJ']`
-- Quando o tipo de contrato estiver nessa lista, o wizard pula automaticamente do Step 1 para o Step 3
-- O stepper reflete as etapas filtradas dinamicamente
+### 5. Confirmação ao fechar o wizard (`TerminationWizardModal.tsx`)
+- Interceptar o clique no X (botão de fechar do Dialog) e no botão "Cancelar"
+- Se o wizard tiver dados preenchidos (step > 0 ou campos alterados), exibir um `AlertDialog` de confirmação: "Tem certeza que deseja sair? Os dados preenchidos serão perdidos."
+- Usar o componente `AlertDialog` já existente no projeto
+- Controlar via `onOpenChange` do Dialog - impedir fechamento direto e mostrar confirmação
 
-#### 3. Folha de Pagamento por Tipo de Contrato (`TerminationStep3Payroll.tsx`)
-- Criar mapeamento de cálculos por tipo de contratação:
+### 6. Status "aguardando documentos" ao salvar sem docs obrigatórios (`TerminationWizardModal.tsx` + `TerminationStep4Documents.tsx`)
+- Na função `handleSubmit`, verificar se todos os documentos obrigatórios do checklist estão marcados
+- Se faltar algum obrigatório, salvar com `status: 'awaiting_documents'` ao invés de `'pending'`
+- Adicionar alerta amarelo no Step 5 (Revisão) se houver docs obrigatórios não marcados, informando que o processo ficará com status "Aguardando Documentos"
+- Exportar a lista de checklist do Step4 para reutilizar na validação do Modal
 
-```text
-CLT:
-  - Saldo de salário
-  - Férias proporcionais + 1/3
-  - 13º proporcional
-  - Multa FGTS 40% (sem justa causa) ou 20% (acordo)
-  - Aviso prévio (se aplicável)
-
-Estágio:
-  - Saldo de bolsa-auxílio (proporcional)
-  - Recesso remunerado proporcional (30 dias/ano, sem 1/3)
-
-PJ:
-  - Apenas valores previstos em contrato (sem cálculos automáticos CLT)
-  - Exibir mensagem orientativa
-  - Manter apenas ajustes manuais
-
-Sócio:
-  - Pró-labore proporcional
-  - Sem férias/13º/FGTS
-  - Ajustes manuais para participação societária
-
-Menor Aprendiz:
-  - Saldo de salário
-  - Férias proporcionais + 1/3
-  - 13º proporcional
-  - FGTS com alíquota de 2% (não 8%)
-  - Sem multa FGTS (contrato determinado)
-```
-
-- Refatorar `autoCalcs` para usar função que recebe `tipoContratacao` e retorna apenas os itens aplicáveis
-- Mensagem contextual no topo explicando as regras do tipo
-
-#### 4. Documentos por Tipo de Contrato (`TerminationStep4Documents.tsx`)
-- Substituir `DOCUMENT_CHECKLIST` estático por mapeamento dinâmico:
-
-```text
-CLT:
-  Obrigatórios: Termo de Rescisão, TRCT, Exame Demissional
-  Opcionais: Homologação, Carta de Demissão
-
-Estágio:
-  Obrigatórios: Termo de Encerramento de Estágio, Relatório Final
-  Opcionais: Avaliação de Desempenho
-
-PJ:
-  Obrigatórios: Distrato/Rescisão Contratual
-  Opcionais: Termo de Quitação
-
-Sócio:
-  Obrigatórios: Alteração Contratual, Ata de Reunião
-  Opcionais: Termo de Cessão de Quotas
-
-Menor Aprendiz:
-  Obrigatórios: Termo de Rescisão, TRCT, Exame Demissional
-  Opcionais: Relatório de Atividades
-```
-
-- Exibir badges "Obrigatório" (vermelho) e "Opcional" (cinza) ao lado de cada item
-- Prop `contractType` passada do Modal para o Step 4
-
-#### 5. Revisão Adaptada (`TerminationStep5Review.tsx`)
-- Refatorar cálculos financeiros para reutilizar a mesma lógica do Step 3
-- Esconder seção de Aviso Prévio quando não aplicável ao tipo de contrato
-
-### Arquivos Modificados
-- `src/components/employees/TerminationWizardModal.tsx` — stepper dinâmico, skip de steps
-- `src/components/employees/termination-wizard/TerminationStep2Notice.tsx` — sem mudanças (será skipado)
-- `src/components/employees/termination-wizard/TerminationStep3Payroll.tsx` — lógica por tipo
-- `src/components/employees/termination-wizard/TerminationStep4Documents.tsx` — checklist por tipo + prop contractType
-- `src/components/employees/termination-wizard/TerminationStep5Review.tsx` — adaptar revisão
+### Arquivos modificados
+- `src/components/employees/termination-wizard/TerminationStep1Info.tsx` — limites de data
+- `src/components/employees/termination-wizard/TerminationStep3Payroll.tsx` — CurrencyInput
+- `src/components/employees/termination-wizard/TerminationStep4Documents.tsx` — feedback visual drag, exportar checklist
+- `src/components/employees/termination-wizard/TerminationStep5Review.tsx` — alerta de docs faltantes
+- `src/components/employees/TerminationWizardModal.tsx` — confirmação ao fechar, status condicional
 
