@@ -1,26 +1,60 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Upload, X, FileText, Info } from 'lucide-react';
 import { TerminationWizardData } from './types';
 
 interface Props {
   data: TerminationWizardData;
   onChange: (partial: Partial<TerminationWizardData>) => void;
+  contractType: string;
 }
 
-const DOCUMENT_CHECKLIST = [
-  { key: 'termination_letter', label: 'Termo de desligamento' },
-  { key: 'trct', label: 'TRCT - Termo de Rescisão' },
-  { key: 'homologation', label: 'Comprovante de homologação' },
-  { key: 'medical_exam', label: 'Exame demissional' },
-  { key: 'resignation_letter', label: 'Carta de demissão (se pedido de demissão)' },
-];
+interface DocItem {
+  key: string;
+  label: string;
+  required: boolean;
+}
 
-const TerminationStep4Documents = ({ data, onChange }: Props) => {
+const DOCUMENT_CHECKLISTS: Record<string, DocItem[]> = {
+  CLT: [
+    { key: 'termination_letter', label: 'Termo de Rescisão', required: true },
+    { key: 'trct', label: 'TRCT - Termo de Rescisão do Contrato de Trabalho', required: true },
+    { key: 'medical_exam', label: 'Exame demissional', required: true },
+    { key: 'homologation', label: 'Comprovante de homologação', required: false },
+    { key: 'resignation_letter', label: 'Carta de demissão (se pedido de demissão)', required: false },
+  ],
+  ESTAGIO: [
+    { key: 'termination_letter', label: 'Termo de Encerramento de Estágio', required: true },
+    { key: 'final_report', label: 'Relatório Final de Estágio', required: true },
+    { key: 'performance_eval', label: 'Avaliação de Desempenho', required: false },
+  ],
+  PJ: [
+    { key: 'contract_termination', label: 'Distrato / Rescisão Contratual', required: true },
+    { key: 'quitacao', label: 'Termo de Quitação', required: false },
+  ],
+  SOCIO: [
+    { key: 'contract_amendment', label: 'Alteração Contratual', required: true },
+    { key: 'meeting_minutes', label: 'Ata de Reunião de Sócios', required: true },
+    { key: 'quota_transfer', label: 'Termo de Cessão de Quotas', required: false },
+  ],
+  MENOR_APRENDIZ: [
+    { key: 'termination_letter', label: 'Termo de Rescisão', required: true },
+    { key: 'trct', label: 'TRCT - Termo de Rescisão do Contrato de Trabalho', required: true },
+    { key: 'medical_exam', label: 'Exame demissional', required: true },
+    { key: 'activity_report', label: 'Relatório de Atividades', required: false },
+  ],
+};
+
+const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
+  const checklist = useMemo(() => {
+    return DOCUMENT_CHECKLISTS[contractType] || DOCUMENT_CHECKLISTS.CLT;
+  }, [contractType]);
+
   const toggleChecklist = (key: string) => {
     onChange({
       document_checklist: {
@@ -62,14 +96,20 @@ const TerminationStep4Documents = ({ data, onChange }: Props) => {
           <CardTitle className="text-sm font-medium">Checklist de Documentos</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {DOCUMENT_CHECKLIST.map(doc => (
+          {checklist.map(doc => (
             <div key={doc.key} className="flex items-center gap-3">
               <Checkbox
                 id={doc.key}
                 checked={!!data.document_checklist[doc.key]}
                 onCheckedChange={() => toggleChecklist(doc.key)}
               />
-              <Label htmlFor={doc.key} className="text-sm cursor-pointer">{doc.label}</Label>
+              <Label htmlFor={doc.key} className="text-sm cursor-pointer flex-1">{doc.label}</Label>
+              <Badge
+                variant={doc.required ? 'destructive' : 'secondary'}
+                className="text-[10px] px-1.5 py-0"
+              >
+                {doc.required ? 'Obrigatório' : 'Opcional'}
+              </Badge>
             </div>
           ))}
         </CardContent>
