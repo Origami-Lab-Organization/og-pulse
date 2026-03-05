@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -267,13 +267,13 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
               </div>
               <div>
                 <Label className="text-xs">Descrição</Label>
-                <Input className="h-9" value={newAdj.description} onChange={e => setNewAdj(p => ({ ...p, description: e.target.value }))} placeholder="Descrição" />
+                <input className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" value={newAdj.description} onChange={e => setNewAdj(p => ({ ...p, description: e.target.value }))} placeholder="Descrição" />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
               <div>
                 <Label className="text-xs">Valor (R$)</Label>
-                <Input className="h-9" type="number" min={0} step={0.01} value={newAdj.amount || ''} onChange={e => setNewAdj(p => ({ ...p, amount: Number(e.target.value) }))} />
+                <CurrencyInput className="h-9" value={newAdj.amount} onValueChange={v => setNewAdj(p => ({ ...p, amount: v }))} showPrefix compact />
               </div>
               <div className="flex items-center gap-2 h-9">
                 <Switch checked={newAdj.isCredit} onCheckedChange={v => setNewAdj(p => ({ ...p, isCredit: v }))} />

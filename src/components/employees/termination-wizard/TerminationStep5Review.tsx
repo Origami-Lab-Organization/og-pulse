@@ -9,6 +9,7 @@ import { TERMINATION_TYPE_LABELS, REASON_CATEGORY_LABELS } from '@/types/termina
 import { Employee } from '@/hooks/useEmployees';
 import { TerminationWizardData } from './types';
 import { calculateAutoCalcs } from './TerminationStep3Payroll';
+import { DOCUMENT_CHECKLISTS } from './TerminationStep4Documents';
 import {
   Accordion,
   AccordionContent,
@@ -25,6 +26,10 @@ interface Props {
 }
 
 const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange, skipNotice }: Props) => {
+  const contractType = employee.tipoContratacao || 'CLT';
+  const checklist = DOCUMENT_CHECKLISTS[contractType] || DOCUMENT_CHECKLISTS.CLT;
+  const missingRequiredDocs = checklist.filter(d => d.required && !data.document_checklist[d.key]);
+  const hasMissingDocs = missingRequiredDocs.length > 0;
   const financials = useMemo(() => {
     const autoCalcs = calculateAutoCalcs(employee, data);
     let credits = 0;
@@ -114,6 +119,16 @@ const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange, 
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      {hasMissingDocs && (
+        <Alert variant="default" className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+            <strong>Documentos obrigatórios pendentes:</strong> {missingRequiredDocs.map(d => d.label).join(', ')}.
+            O processo ficará com status <strong>"Aguardando Documentos"</strong> até que sejam anexados.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Alert variant="default" className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
         <AlertTriangle className="h-4 w-4 text-amber-600" />

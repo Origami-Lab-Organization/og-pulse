@@ -2564,7 +2564,12 @@ export type Database = {
         | "contract_expiration"
         | "disciplinary"
         | "other"
-      termination_status: "pending" | "in_progress" | "completed" | "cancelled"
+      termination_status:
+        | "pending"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "awaiting_documents"
       termination_type:
         | "voluntary"
         | "involuntary"
@@ -2746,7 +2751,13 @@ export const Constants = {
         "disciplinary",
         "other",
       ],
-      termination_status: ["pending", "in_progress", "completed", "cancelled"],
+      termination_status: [
+        "pending",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "awaiting_documents",
+      ],
       termination_type: [
         "voluntary",
         "involuntary",
