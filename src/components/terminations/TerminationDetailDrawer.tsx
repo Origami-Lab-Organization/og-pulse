@@ -14,7 +14,7 @@ import { TerminationDetailFinancialTab } from './detail/TerminationDetailFinanci
 import { TerminationDetailDocumentsTab } from './detail/TerminationDetailDocumentsTab';
 import { TerminationDetailHistoryTab } from './detail/TerminationDetailHistoryTab';
 import { TerminationWithEmployee } from '@/services/terminationService';
-import { useTerminationDetail, useUpdateTermination } from '@/hooks/useTerminations';
+import { useTermination, useUpdateTermination } from '@/hooks/useTerminations';
 import { TerminationStatus } from '@/types/termination';
 import { useToast } from '@/hooks/use-toast';
 
