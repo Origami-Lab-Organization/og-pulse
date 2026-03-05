@@ -273,7 +273,7 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
               <div>
                 <Label className="text-xs">Valor (R$)</Label>
-                <CurrencyInput className="h-9" value={newAdj.amount} onValueChange={v => setNewAdj(p => ({ ...p, amount: v }))} showPrefix compact />
+                <CurrencyInput className="h-9 text-right" value={newAdj.amount} onValueChange={v => setNewAdj(p => ({ ...p, amount: v }))} showPrefix />
               </div>
               <div className="flex items-center gap-2 h-9">
                 <Switch checked={newAdj.isCredit} onCheckedChange={v => setNewAdj(p => ({ ...p, isCredit: v }))} />

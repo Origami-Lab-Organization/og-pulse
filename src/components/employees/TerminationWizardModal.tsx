@@ -275,9 +275,6 @@ const TerminationWizardModal = ({
                 <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
               </Button>
             )}
-            <Button variant="ghost" onClick={handleRequestClose} size="sm">
-              Cancelar
-            </Button>
           </div>
           <div className="flex gap-2">
             {!isLastStep && (
