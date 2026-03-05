@@ -35,7 +35,7 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     dataAdmissao: db.data_admissao,
     isGerente: db.is_gerente,
     systemRole: (db.system_role || 'user') as SystemRole,
-    status: db.status as 'ativo' | 'aguardando_confirmacao' | 'bloqueado' | 'arquivado' | 'desligado',
+    status: db.status as 'ativo' | 'aguardando_confirmacao' | 'bloqueado' | 'arquivado' | 'desligado' | 'em_desligamento',
     salarioMensal: Number(db.salario_mensal),
     beneficios: Number(db.beneficios),
     encargos: Number(db.encargos),

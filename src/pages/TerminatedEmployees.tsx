@@ -72,7 +72,7 @@ const TerminatedEmployees = () => {
       <AppLayout
         title="Funcionários Desligados"
         description="Gerencie processos de desligamento"
-        breadcrumbs={[{ label: 'RH' }, { label: 'Funcionários Desligados' }]}
+        breadcrumbs={[{ label: 'RH' }, { label: 'Desligamentos' }]}
       >
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -89,9 +89,9 @@ const TerminatedEmployees = () => {
 
   return (
     <AppLayout
-      title="Funcionários Desligados"
-      description="Gerencie processos de desligamento"
-      breadcrumbs={[{ label: 'RH' }, { label: 'Funcionários Desligados' }]}
+      title="Desligamentos"
+      description="Gerencie processos de desligamento de funcionários"
+      breadcrumbs={[{ label: 'RH' }, { label: 'Desligamentos' }]}
       actions={actions}
     >
       <TerminationStats terminations={terminations} />

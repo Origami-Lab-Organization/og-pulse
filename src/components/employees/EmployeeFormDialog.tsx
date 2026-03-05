@@ -80,7 +80,7 @@ const baseFormSchema = z.object({
   fotoUrl: z.string().optional(),
   isGerente: z.boolean(),
   systemRole: z.enum(['admin', 'manager', 'user'] as const),
-  status: z.enum(['ativo', 'aguardando_confirmacao', 'bloqueado', 'arquivado', 'desligado']),
+  status: z.enum(['ativo', 'aguardando_confirmacao', 'bloqueado', 'arquivado', 'desligado', 'em_desligamento']),
   tipoContratacao: z.enum(['SOCIO', 'CLT', 'PJ', 'MENOR_APRENDIZ', 'ESTAGIO'] as const),
   jornadaMensal: z.number().min(1, 'Jornada deve ser maior que 0'),
   jornadaDiaria: z.number().min(1, 'Jornada deve ser maior que 0').max(24, 'Máximo 24 horas'),
