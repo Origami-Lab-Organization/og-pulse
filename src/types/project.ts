@@ -221,6 +221,19 @@ export interface CreateProjectSupplierMonthInput {
   value: number;
 }
 
+// Project Commission (commission cost per installment)
+export interface ProjectCommissionDB {
+  id: string;
+  project_id: string;
+  installment_id: string;
+  planned_value: number;
+  is_paid: boolean;
+  paid_date: string | null;
+  paid_to: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 export const SENIORITY_OPTIONS = [
   { value: 'junior', label: 'Júnior' },
   { value: 'pleno', label: 'Pleno' },
