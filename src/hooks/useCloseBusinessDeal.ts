@@ -77,7 +77,7 @@ export function useCloseBusinessDeal() {
       const project = await projectService.create(
         {
           name: budget.title,
-          clientId: budget.client_id || '',
+          clientId: budget.client_id || undefined,
           managerId,
           budgetId: budget.id,
           startDate,

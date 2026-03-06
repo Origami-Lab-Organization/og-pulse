@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { formatPhone } from '@/lib/masks';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,10 +12,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, ArrowLeft, ArrowRight, Save, Check, Calculator, Percent, DollarSign } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight, Save, Check, Calculator, Percent, DollarSign, Plus } from 'lucide-react';
 import { BudgetRolesEditor } from '@/components/budgets/BudgetRolesEditor';
 import { BudgetSuppliersEditor } from '@/components/budgets/BudgetSuppliersEditor';
 import { BudgetMaterialsEditor } from '@/components/budgets/BudgetMaterialsEditor';
@@ -25,28 +23,22 @@ import { BudgetWizardFooter } from '@/components/budgets/BudgetWizardFooter';
 import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/lib/formatters';
 import { CreateBudgetInput, BudgetRoleInput, BudgetMaterialInput, BudgetSupplierInput, calculateBudgetTotals } from '@/types/budget';
-import { useClients } from '@/hooks/useClients';
+import { useClients, useCreateClient } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets';
 import { useToast } from '@/hooks/use-toast';
 import { useLead, useLinkBudgetToLead } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
+import ClientFormDialog from '@/components/clients/ClientFormDialog';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
-  clientType: z.enum(['client', 'lead']),
-  clientId: z.string().optional(),
-  leadName: z.string().optional(),
-  leadEmail: z.string().optional(),
-  leadPhone: z.string().optional(),
+  clientId: z.string().min(1, 'Selecione ou cadastre um cliente'),
   startDate: z.string().min(1, 'Data de início é obrigatória'),
   durationMonths: z.coerce.number().min(1, 'Mínimo 1 mês').max(60, 'Máximo 60 meses'),
   notes: z.string().optional(),
-}).refine((data) => {
-  if (data.clientType === 'client') return !!data.clientId;
-  return !!data.leadName;
-}, { message: 'Selecione um cliente ou informe o nome do lead', path: ['clientId'] });
+});
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -62,6 +54,7 @@ export default function BudgetForm() {
   const [searchParams] = useSearchParams();
   const leadId = searchParams.get('leadId');
   const isEditing = !!id;
+  const createClientMutation = useCreateClient();
   const { toast } = useToast();
 
   const { data: budget, isLoading: budgetLoading } = useBudget(id || null);
@@ -93,15 +86,13 @@ export default function BudgetForm() {
   const maxCommissionPercent = financialSettings?.commission_percent || 0;
   const minNetMarginPercent = financialSettings?.net_margin_percent || 0;
 
+  const [showClientDialog, setShowClientDialog] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
-      clientType: 'client',
       clientId: '',
-      leadName: '',
-      leadEmail: '',
-      leadPhone: '',
       startDate: format(new Date(), 'yyyy-MM-dd'),
       durationMonths: 6,
       notes: '',
@@ -109,17 +100,14 @@ export default function BudgetForm() {
   });
 
   const durationMonths = form.watch('durationMonths');
-  const clientType = form.watch('clientType');
-  
 
   // Pre-fill from lead data
   useEffect(() => {
     if (leadData && !isEditing) {
-      form.setValue('clientType', 'lead');
       form.setValue('title', leadData.name);
-      form.setValue('leadName', leadData.company_name || leadData.name);
-      form.setValue('leadEmail', leadData.contact_email || '');
-      form.setValue('leadPhone', leadData.contact_phone || '');
+      if (leadData.client_id) {
+        form.setValue('clientId', leadData.client_id);
+      }
     }
   }, [leadData, isEditing, form]);
 
@@ -145,11 +133,7 @@ export default function BudgetForm() {
       initializedRef.current = true;
       form.reset({
         title: budget.title,
-        clientType: budget.client_id ? 'client' : 'lead',
         clientId: budget.client_id || '',
-        leadName: budget.lead_name || '',
-        leadEmail: budget.lead_contact?.split(' / ')[0]?.trim() || '',
-        leadPhone: budget.lead_contact?.split(' / ')[1]?.trim() || '',
         startDate: budget.start_date,
         durationMonths: budget.duration_months,
         notes: budget.notes || '',
@@ -191,25 +175,19 @@ export default function BudgetForm() {
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = (values: FormValues) => {
-    // PROTEÇÃO 1: Bloquear se já estiver submetendo
     if (isSubmitting) {
       console.warn('Form submission blocked: already submitting');
       return;
     }
     
-    // PROTEÇÃO 2: No modo wizard (criação), só permite salvar na última etapa
     if (!isEditing && currentStep < WIZARD_STEPS.length) {
       console.warn('Form submission blocked: not on final step');
       return;
     }
 
-    const leadContact = [values.leadEmail, values.leadPhone].filter(Boolean).join(' / ') || undefined;
-
     const input: CreateBudgetInput = {
       title: values.title,
-      clientId: values.clientType === 'client' ? values.clientId : undefined,
-      leadName: values.clientType === 'lead' ? values.leadName : undefined,
-      leadContact: values.clientType === 'lead' ? leadContact : undefined,
+      clientId: values.clientId,
       startDate: values.startDate,
       durationMonths: values.durationMonths,
       adminExpensesPercent,
@@ -243,7 +221,7 @@ export default function BudgetForm() {
 
   const validateCurrentStep = async (): Promise<boolean> => {
     if (currentStep === 1) {
-      const result = await form.trigger(['title', 'clientType', 'clientId', 'leadName', 'startDate', 'durationMonths']);
+      const result = await form.trigger(['title', 'clientId', 'startDate', 'durationMonths']);
       return result;
     }
     return true;
@@ -293,24 +271,6 @@ export default function BudgetForm() {
               <CardTitle>Informações do Orçamento</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField control={form.control} name="clientType" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Cliente</FormLabel>
-                  <FormControl>
-                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4" disabled={isFromLead}>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="client" id="client" />
-                        <Label htmlFor="client">Cliente Existente</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="lead" id="lead" />
-                        <Label htmlFor="lead">Novo Lead</Label>
-                      </div>
-                    </RadioGroup>
-                  </FormControl>
-                </FormItem>
-              )} />
-
               <FormField control={form.control} name="title" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Título do Orçamento</FormLabel>
@@ -319,62 +279,44 @@ export default function BudgetForm() {
                 </FormItem>
               )} />
 
-              {clientType === 'client' ? (
-                <FormField control={form.control} name="clientId" render={({ field }) => (
+              <FormField control={form.control} name="clientId" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cliente</FormLabel>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {clients.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowClientDialog(true)}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="startDate" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cliente</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {clients.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Data de Início</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-              ) : (
-                <>
-                  <FormField control={form.control} name="leadName" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Lead</FormLabel>
-                      <FormControl><Input placeholder="Nome da empresa ou pessoa" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField control={form.control} name="leadEmail" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email do Lead</FormLabel>
-                        <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="leadPhone" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telefone do Lead</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="tel"
-                            placeholder="(11) 99999-0000"
-                            {...field}
-                            readOnly={isFromLead}
-                            className={isFromLead ? 'bg-muted' : ''}
-                            onChange={(e) => field.onChange(formatPhone(e.target.value))}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="durationMonths" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Duração do Projeto (meses)</FormLabel>
-                        <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  </div>
-                </>
-              )}
+                <FormField control={form.control} name="durationMonths" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duração do Projeto (meses)</FormLabel>
+                    <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
 
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem>
@@ -701,6 +643,20 @@ export default function BudgetForm() {
           )}
         </form>
       </Form>
+
+      <ClientFormDialog
+        open={showClientDialog}
+        onOpenChange={setShowClientDialog}
+        onSubmit={(data) => {
+          createClientMutation.mutate(data, {
+            onSuccess: (newClient) => {
+              form.setValue('clientId', newClient.id);
+              setShowClientDialog(false);
+            },
+          });
+        }}
+        isLoading={createClientMutation.isPending}
+      />
     </AppLayout>
   );
 }
