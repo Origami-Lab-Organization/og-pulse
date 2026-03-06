@@ -58,6 +58,7 @@ export default function BudgetForm() {
   const isEditing = !!id;
   const createClientMutation = useCreateClient();
   const { toast } = useToast();
+  const { employee } = useAuth();
 
   const { data: budget, isLoading: budgetLoading } = useBudget(id || null);
   const { data: clients = [] } = useClients();
@@ -80,6 +81,7 @@ export default function BudgetForm() {
   const [snapshotTaxes, setSnapshotTaxes] = useState(0);
   const [snapshotMaxCommission, setSnapshotMaxCommission] = useState(0);
   const [snapshotMinNetMargin, setSnapshotMinNetMargin] = useState(0);
+  const [marginOverrideConfirmed, setMarginOverrideConfirmed] = useState(false);
 
   // For new budgets, use financial settings. For editing, use budget snapshot.
   const adminExpensesPercent = isEditing && budget ? budget.admin_expenses_percent : (financialSettings?.admin_expenses_percent || 0);
