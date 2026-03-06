@@ -152,8 +152,8 @@ const TerminationWizardModal = ({
         reason_category: wizardData.reason_category,
         notice_period_days: skipNotice ? 0 : wizardData.notice_period_days,
         notice_worked: skipNotice ? false : wizardData.notice_worked,
-        exit_interview_completed: false,
-        exit_interview_notes: null,
+        exit_interview_completed: wizardData.exit_interview_completed,
+        exit_interview_notes: wizardData.exit_interview_notes || null,
         status,
       });
       onSuccess?.(result.id);

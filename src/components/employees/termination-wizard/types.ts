@@ -15,6 +15,8 @@ export interface TerminationWizardData {
   termination_type: TerminationType;
   reason_category: ReasonCategory;
   reason: string;
+  exit_interview_completed: boolean;
+  exit_interview_notes: string;
   // Step 2
   notice_period_days: number;
   notice_worked: boolean;
@@ -35,6 +37,8 @@ export function getDefaultWizardData(): TerminationWizardData {
     termination_type: 'voluntary',
     reason_category: 'other',
     reason: '',
+    exit_interview_completed: false,
+    exit_interview_notes: '',
     notice_period_days: 30,
     notice_worked: false,
     notice_indemnified_by_company: true,

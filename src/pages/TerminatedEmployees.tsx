@@ -15,26 +15,25 @@ import {
   TERMINATION_STATUSES,
   TERMINATION_STATUS_LABELS,
 } from '@/types/termination';
-import { TerminationDetailDrawer } from '@/components/terminations/TerminationDetailDrawer';
+import { TerminationDetailModal, handleExportTerminationPdf } from '@/components/terminations/TerminationDetailDrawer';
+import { TerminationEditDialog } from '@/components/terminations/TerminationEditDialog';
+import { useToast } from '@/hooks/use-toast';
 
 const TerminatedEmployees = () => {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedTermination, setSelectedTermination] = useState<TerminationWithEmployee | null>(null);
+  const [editTermination, setEditTermination] = useState<TerminationWithEmployee | null>(null);
 
   const { data, isLoading } = useTerminations({ limit: 200 });
   const terminations = data?.data ?? [];
 
-  // Client-side filtering
   const filtered = useMemo(() => {
     let result = terminations;
-    if (statusFilter !== 'all') {
-      result = result.filter((t) => t.status === statusFilter);
-    }
-    if (typeFilter !== 'all') {
-      result = result.filter((t) => t.termination_type === typeFilter);
-    }
+    if (statusFilter !== 'all') result = result.filter((t) => t.status === statusFilter);
+    if (typeFilter !== 'all') result = result.filter((t) => t.termination_type === typeFilter);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter((t) => t.employees.nome.toLowerCase().includes(q));
@@ -42,9 +41,20 @@ const TerminatedEmployees = () => {
     return result;
   }, [terminations, statusFilter, typeFilter, searchQuery]);
 
-  const openDetail = (t: TerminationWithEmployee) => setSelectedTermination(t);
+  const handleDownload = (t: TerminationWithEmployee) => {
+    // Open modal temporarily to render content, then export
+    setSelectedTermination(t);
+    setTimeout(() => {
+      handleExportTerminationPdf('termination-modal-content', t.employees.nome, () => {
+        toast({ title: 'Erro ao exportar PDF', variant: 'destructive' });
+      });
+    }, 500);
+  };
 
-  const columns = useMemo(() => createTerminationColumns(), []);
+  const columns = useMemo(() => createTerminationColumns({
+    onEdit: (t) => setEditTermination(t),
+    onDownload: handleDownload,
+  }), []);
 
   if (isLoading) {
     return (
@@ -71,7 +81,6 @@ const TerminatedEmployees = () => {
       title="Desligamentos"
       description="Gerencie processos de desligamento de funcionários"
       breadcrumbs={[{ label: 'RH' }, { label: 'Desligamentos' }]}
-      
     >
       <TerminationStats terminations={terminations} />
 
@@ -116,7 +125,7 @@ const TerminatedEmployees = () => {
 
       {/* Table or Empty State */}
       {filtered.length > 0 ? (
-        <DataTable columns={columns} data={filtered} onRowClick={openDetail} />
+        <DataTable columns={columns} data={filtered} onRowClick={(t) => setSelectedTermination(t)} />
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
           <div className="rounded-full bg-muted p-4 mb-4">
@@ -131,10 +140,16 @@ const TerminatedEmployees = () => {
         </div>
       )}
 
-      <TerminationDetailDrawer
+      <TerminationDetailModal
         isOpen={!!selectedTermination}
         onClose={() => setSelectedTermination(null)}
         termination={selectedTermination}
+      />
+
+      <TerminationEditDialog
+        open={!!editTermination}
+        onOpenChange={(open) => !open && setEditTermination(null)}
+        termination={editTermination!}
       />
     </AppLayout>
   );

@@ -48,7 +48,7 @@ const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange, 
     return { credits, debits, net: credits - debits };
   }, [data, employee]);
 
-  const defaultAccordionValues = ['employee', 'dates', 'financial', 'docs'];
+  const defaultAccordionValues = ['employee', 'dates', 'financial', 'docs', 'exit-interview'];
   if (!skipNotice) defaultAccordionValues.splice(2, 0, 'notice');
 
   return (
@@ -116,6 +116,18 @@ const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange, 
                 ? `${data.uploaded_files.length} arquivo(s) anexado(s)`
                 : 'Nenhum documento anexado'}
             </p>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="exit-interview" className="border rounded-lg px-4">
+          <AccordionTrigger className="text-sm font-medium">Entrevista de Saída</AccordionTrigger>
+          <AccordionContent>
+            <div className="text-sm space-y-1">
+              <div><span className="text-muted-foreground">Realizada:</span> <span className="font-medium">{data.exit_interview_completed ? 'Sim' : 'Não'}</span></div>
+              {data.exit_interview_completed && data.exit_interview_notes && (
+                <div><span className="text-muted-foreground">Notas:</span> <p className="mt-1 text-foreground">{data.exit_interview_notes}</p></div>
+              )}
+            </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
