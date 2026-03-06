@@ -54,6 +54,7 @@ export default function BudgetForm() {
   const [searchParams] = useSearchParams();
   const leadId = searchParams.get('leadId');
   const isEditing = !!id;
+  const createClientMutation = useCreateClient();
   const { toast } = useToast();
 
   const { data: budget, isLoading: budgetLoading } = useBudget(id || null);
@@ -642,6 +643,20 @@ export default function BudgetForm() {
           )}
         </form>
       </Form>
+
+      <ClientFormDialog
+        open={showClientDialog}
+        onOpenChange={setShowClientDialog}
+        onSubmit={(data) => {
+          createClientMutation.mutate(data, {
+            onSuccess: (newClient) => {
+              form.setValue('clientId', newClient.id);
+              setShowClientDialog(false);
+            },
+          });
+        }}
+        isLoading={createClientMutation.isPending}
+      />
     </AppLayout>
   );
 }

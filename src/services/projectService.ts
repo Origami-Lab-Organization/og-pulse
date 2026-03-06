@@ -155,8 +155,8 @@ export const projectService = {
       .from('projects')
       .insert({
         tenant_id: tenantId,
-        client_id: input.clientId,
-        manager_id: input.managerId,
+        client_id: input.clientId || null,
+        manager_id: input.managerId || null,
         budget_id: input.budgetId || null,
         name: input.name,
         description: input.description || null,
