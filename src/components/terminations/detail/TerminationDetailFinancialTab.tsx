@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,9 +17,76 @@ import {
   PayrollAdjustmentType,
 } from '@/types/termination';
 import { useToast } from '@/hooks/use-toast';
+import { calculateAutoCalcs } from '@/components/employees/termination-wizard/TerminationStep3Payroll';
+import { Employee } from '@/hooks/useEmployees';
+import { TerminationWizardData } from '@/components/employees/termination-wizard/types';
 
 interface Props {
   termination: TerminationWithEmployee;
+}
+
+function buildEmployeeLike(t: TerminationWithEmployee): Employee {
+  const emp = t.employees;
+  return {
+    id: emp.id,
+    nome: emp.nome,
+    cargo: emp.cargo,
+    email: emp.email,
+    tipoContratacao: emp.tipo_contratacao,
+    fotoUrl: emp.foto_url,
+    salarioMensal: emp.salario_mensal ?? 0,
+    fgts: emp.fgts ?? 0,
+    dataAdmissao: emp.data_admissao ?? '',
+    proLabore: emp.pro_labore ?? 0,
+    bolsaAuxilio: emp.bolsa_auxilio ?? 0,
+    cpf: '',
+    telefone: '',
+    tenantId: '',
+    status: 'ativo',
+    salarioLiquido: 0,
+    beneficios: 0,
+    encargos: 0,
+    inssEmpresa: 0,
+    decimoTerceiro: 0,
+    ferias: 0,
+    jornadaDiaria: 8,
+    jornadaMensal: 176,
+    isGerente: false,
+    valorContratoPj: 0,
+    dividendos: 0,
+    provisao13: 0,
+    provisaoFerias: 0,
+    provisaoRecesso: 0,
+    totalMonthlyCostEstimated: 0,
+    totalAnnualCostEstimated: 0,
+    systemRole: 'user',
+    mustChangePassword: false,
+    breakdownJson: null,
+    dataNascimento: null,
+    totalToolsCost: 0,
+    totalBenefitsCost: 0,
+    createdAt: '',
+    updatedAt: '',
+  } as unknown as Employee;
+}
+
+function buildWizardDataLike(t: TerminationWithEmployee): TerminationWizardData {
+  return {
+    notification_date: t.notification_date || '',
+    termination_date: t.termination_date,
+    termination_type: t.termination_type as any,
+    reason_category: t.reason_category as any,
+    reason: t.reason || '',
+    exit_interview_completed: t.exit_interview_completed ?? false,
+    exit_interview_notes: t.exit_interview_notes || '',
+    notice_period_days: t.notice_period_days ?? 30,
+    notice_worked: t.notice_worked ?? false,
+    notice_indemnified_by_company: true,
+    notice_notes: '',
+    manual_adjustments: [],
+    uploaded_files: [],
+    document_checklist: {},
+  };
 }
 
 export const TerminationDetailFinancialTab = ({ termination }: Props) => {
@@ -71,9 +139,30 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
   const fmt = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  const totalCredits = data?.totalCredits ?? 0;
-  const totalDebits = data?.totalDebits ?? 0;
-  const balance = data?.balance ?? 0;
+  // Auto-calculated rescission values
+  const autoCalcs = useMemo(() => {
+    const emp = buildEmployeeLike(termination);
+    const wizData = buildWizardDataLike(termination);
+    return calculateAutoCalcs(emp, wizData);
+  }, [termination]);
+
+  // Totals combining auto-calcs + DB adjustments
+  const totals = useMemo(() => {
+    let credits = 0;
+    let debits = 0;
+
+    autoCalcs.forEach(item => {
+      if (item.isCredit) credits += item.value;
+      else debits += item.value;
+    });
+
+    (data?.adjustments ?? []).forEach(adj => {
+      if (adj.is_credit) credits += Number(adj.amount);
+      else debits += Number(adj.amount);
+    });
+
+    return { credits, debits, net: credits - debits };
+  }, [autoCalcs, data]);
 
   return (
     <div className="space-y-4">
@@ -86,7 +175,7 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Créditos</p>
-              <p className="font-semibold text-green-600 dark:text-green-400">{fmt(totalCredits)}</p>
+              <p className="font-semibold text-green-600 dark:text-green-400">{fmt(totals.credits)}</p>
             </div>
           </CardContent>
         </Card>
@@ -97,7 +186,7 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Débitos</p>
-              <p className="font-semibold text-red-600 dark:text-red-400">{fmt(totalDebits)}</p>
+              <p className="font-semibold text-red-600 dark:text-red-400">{fmt(totals.debits)}</p>
             </div>
           </CardContent>
         </Card>
@@ -108,16 +197,49 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Líquido</p>
-              <p className="font-bold text-blue-600 dark:text-blue-400">{fmt(balance)}</p>
+              <p className="font-bold text-blue-600 dark:text-blue-400">{fmt(totals.net)}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Adjustments Table */}
+      {/* Auto-calculated Rescission Values */}
+      {autoCalcs.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Verbas Rescisórias (Calculadas)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-center">C/D</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {autoCalcs.map((item, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm">{item.desc}</TableCell>
+                    <TableCell className="text-sm text-right font-medium">{fmt(item.value)}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className={item.isCredit ? 'text-green-600 border-green-300 dark:text-green-400 dark:border-green-700' : 'text-red-600 border-red-300 dark:text-red-400 dark:border-red-700'}>
+                        {item.isCredit ? 'Crédito' : 'Débito'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Manual Adjustments Table */}
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Ajustes de Folha</CardTitle>
+          <CardTitle className="text-base">Ajustes Manuais</CardTitle>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowForm(true)}>
             <Plus className="h-3.5 w-3.5" /> Adicionar
           </Button>
@@ -162,7 +284,7 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
           {isLoading ? (
             <p className="text-sm text-muted-foreground py-4 text-center">Carregando...</p>
           ) : !data?.adjustments.length ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Nenhum ajuste registrado.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">Nenhum ajuste manual registrado.</p>
           ) : (
             <Table>
               <TableHeader>
