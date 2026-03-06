@@ -1,44 +1,36 @@
 
 
-## Plano: Gerar comissões para projetos ativos existentes
+## Plano: Corrigir cálculo de comissão e melhorar edição
 
-### Problema
-A auto-geração de comissões só acontece quando alguém abre a aba de Custos de um projeto. Projetos ativos que já têm orçamento com `commission_percent > 0` ainda não possuem registros em `project_commissions`.
+### Problemas identificados
 
-### Solução
-Executar um script SQL (via migration de dados) que:
-1. Identifica todos os projetos com `budget_id` vinculado a um orçamento com `commission_percent > 0`
-2. Que ainda **não** possuem registros em `project_commissions`
-3. Para cada projeto, calcula `(commission_percent / 100) * final_total` e divide igualmente pelas parcelas existentes em `project_installments`
-4. Insere os registros de comissão
+1. **Valor incorreto**: A comissão está sendo calculada como `commission_percent * final_total` (preço com desconto), mas no orçamento é calculada como `commission_percent * sellingPrice` (preço de venda antes do desconto = `total_with_fees`). Ex: 5% × R$225.000 = R$11.250 (correto), mas está calculando 5% × R$175.000 = R$8.750 (errado).
 
-### SQL a executar
+2. **Não permite editar valores**: Quando comissões já existem, não há como alterar o `planned_value` de cada parcela.
 
-```sql
-INSERT INTO project_commissions (project_id, installment_id, planned_value)
-SELECT 
-  pi.project_id,
-  pi.id AS installment_id,
-  ROUND((b.commission_percent / 100.0 * b.final_total) / inst_count.cnt, 2) AS planned_value
-FROM project_installments pi
-JOIN projects p ON p.id = pi.project_id
-JOIN budgets b ON b.id = p.budget_id
-JOIN (
-  SELECT project_id, COUNT(*) AS cnt 
-  FROM project_installments 
-  GROUP BY project_id
-) inst_count ON inst_count.project_id = p.id
-WHERE b.commission_percent > 0
-  AND NOT EXISTS (
-    SELECT 1 FROM project_commissions pc WHERE pc.project_id = p.id
-  );
-```
+3. **Falta percentual no header**: A seção de comissões não mostra qual percentual foi usado.
 
 ### Mudanças
-1. **Migration SQL**: Executar o INSERT acima para popular `project_commissions` para todos os projetos existentes que se qualificam.
 
-Nenhuma mudança de código e necessária -- a lógica de exibição e gestão das comissões já existe no frontend.
+**`src/components/projects/detail/ProjectCostsTab.tsx`**
+- Trocar `budget.final_total` por `budget.total_with_fees` no cálculo de `totalCommissionValue`
+- Passar `budget.total_with_fees` ao invés de `budget.final_total` para o `ProjectCommissionsSection`
+
+**`src/components/projects/detail/ProjectCommissionsSection.tsx`**
+- Receber `total_with_fees` ao invés de `final_total` no budget prop
+- Mostrar o percentual no header: "Comissões (5%)"
+- Tornar a coluna "Comissão" editável (inline input) quando `isEditable = true`
+- Ao salvar valor editado, chamar `useUpdateCommission` com o novo `planned_value`
+
+**`src/hooks/useProjectCommissions.ts`**
+- Permitir atualizar `planned_value` no `useUpdateCommission`
+
+**Migration SQL**
+- Recalcular os `planned_value` existentes usando `total_with_fees` ao invés de `final_total`
 
 ### Arquivos alterados
-- Nenhum arquivo de código (apenas execução de migration SQL)
+1. Migration SQL (recalcular valores existentes)
+2. `src/hooks/useProjectCommissions.ts`
+3. `src/components/projects/detail/ProjectCommissionsSection.tsx`
+4. `src/components/projects/detail/ProjectCostsTab.tsx`
 
