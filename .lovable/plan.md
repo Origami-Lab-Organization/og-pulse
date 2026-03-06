@@ -1,23 +1,42 @@
 
 
-## Plano: Corrigir dados da Mariana e prevenir falha silenciosa no update de status
+## Plano: Migrar sidebar lateral para menu de navegação no topo
 
-### Problema raiz
-O `terminationService.create()` cria o registro de desligamento com sucesso, mas o update subsequente no status do employee falha silenciosamente. Isso acontece porque o update via RLS pode estar sendo bloqueado (o Supabase retorna sucesso com 0 rows affected quando RLS bloqueia, sem erro). O código ignora essa falha (`// Don't throw`).
+### Visao geral
+Substituir a sidebar lateral por uma barra de navegacao fixa no topo da pagina com NavigationMenu do Radix UI. Cada grupo (Meu Espaco, Comercial, Gestao de Projetos, RH, Marketing) sera um trigger que abre um dropdown/gaveta ao hover. Breadcrumbs serao removidos para maximizar area util.
 
-### Correção imediata dos dados
-Usar o insert tool para atualizar diretamente a Mariana no banco:
-```sql
-UPDATE employees SET status = 'em_desligamento', termination_id = 'df41b502-5f02-4c1d-bbe6-3dff73ed4eb3' WHERE id = '61444641-d02c-4472-93a8-63091c612225';
+### Estrutura do header
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ [Logo] Pulse  │ Meu Espaço ▾ │ Comercial ▾ │ Gestão... ▾ │ RH ▾ │ Marketing ▾ │  ... [Inbox] [Avatar] │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Correção do código
+Cada item do menu abre um painel dropdown ao hover com os subitens (links). Items desabilitados mostram tooltip "Em breve". Permissoes (manager/admin) continuam sendo respeitadas para ocultar grupos/items.
 
-#### `src/services/terminationService.ts`
-- No método `create()`, após o update do employee, verificar se o update realmente afetou alguma row
-- Se não afetou (RLS bloqueou), logar o erro de forma mais explícita e opcionalmente usar uma abordagem via RPC/edge function
-- Alternativa mais robusta: verificar `data` retornado pelo update com `.select()` para confirmar que a mudança foi aplicada, e lançar erro se não foi
+### Arquivos
+
+#### `src/components/layout/AppNavbar.tsx` (novo)
+- Componente com NavigationMenu do Radix UI
+- Logo + "Pulse" a esquerda
+- 5 grupos como NavigationMenuTrigger, cada um abrindo NavigationMenuContent com links
+- InboxButton + UserMenu a direita
+- Respeita permissoes de manager/admin para exibir grupos e itens
+- Reutiliza a mesma estrutura de `navigationGroups` da sidebar
+
+#### `src/components/layout/AppLayout.tsx` (reescrever)
+- Remover SidebarProvider, AppSidebar, SidebarTrigger, SidebarInset
+- Remover breadcrumbs completamente
+- Layout: AppNavbar fixo no topo + page header (titulo/descricao/actions) + main content
+- Remover prop `breadcrumbs` da interface (ou manter opcional sem renderizar)
+
+#### `src/components/layout/AppSidebar.tsx`
+- Manter o arquivo (nao deletar), mas nao sera mais importado pelo AppLayout
+
+### Sobre breadcrumbs
+Breadcrumbs serao removidos. O titulo da pagina ja indica onde o usuario esta, e a navegacao por menu no topo torna o contexto claro. Isso libera ~40px de altura vertical para conteudo.
 
 ### Arquivos modificados
-- `src/services/terminationService.ts` — adicionar verificação do resultado do update + `.select()` para confirmar
+- `src/components/layout/AppNavbar.tsx` — novo
+- `src/components/layout/AppLayout.tsx` — reescrito sem sidebar, sem breadcrumbs, com navbar no topo
 
