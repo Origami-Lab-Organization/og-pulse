@@ -51,7 +51,7 @@ const navigationGroups: NavGroup[] = [
   {
     label: 'Meu Espaço',
     items: [
-      { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
+      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
     ],
