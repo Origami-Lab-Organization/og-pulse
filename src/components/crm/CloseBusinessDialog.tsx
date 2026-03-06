@@ -103,6 +103,8 @@ export function CloseBusinessDialog({
 
   // Watch startDate to auto-calculate endDate
   const startDateValue = form.watch('startDate');
+  const paymentMethodValue = form.watch('paymentMethod');
+  const isUnicoPayment = paymentMethodValue === 'unico';
 
   // Reset form when budget/lead changes
   useEffect(() => {
@@ -405,19 +407,35 @@ export function CloseBusinessDialog({
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="dueDay"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Dia de Vencimento</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="1" max="31" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {isUnicoPayment ? (
+                    <FormField
+                      control={form.control}
+                      name="dueDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data de Vencimento</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : (
+                    <FormField
+                      control={form.control}
+                      name="dueDay"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dia de Vencimento</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="1" max="31" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
               </>
             )}
