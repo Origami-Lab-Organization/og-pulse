@@ -57,6 +57,12 @@ const navigationGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Marketing',
+    items: [
+      { title: 'Análise de Mercado', url: '/marketing/analise-mercado', icon: BarChart2 },
+    ],
+  },
+  {
     label: 'Comercial',
     requiresManager: true,
     items: [
@@ -80,20 +86,14 @@ const navigationGroups: NavGroup[] = [
   },
   {
     label: 'RH',
-    requiresManager: true,
+    requiresAdmin: true,
     items: [
-      { title: 'Funcionários', url: '/employees', icon: Users, requiresManager: true },
-      { title: 'Contratos', url: '/rh/contratos', icon: FileSignature, requiresManager: true, disabled: true },
-      { title: 'Folha de Pagamento', url: '/rh/folha', icon: DollarSign, requiresManager: true, disabled: true },
-      { title: 'Férias e Afastamentos', url: '/rh/ferias', icon: Palmtree, requiresManager: true, disabled: true },
-      { title: 'Desligamentos', url: '/rh/desligamentos', icon: LogOut, requiresManager: true },
-      { title: 'Relatórios', url: '/rh/relatorios', icon: BarChart3, requiresManager: true, disabled: true },
-    ],
-  },
-  {
-    label: 'Marketing',
-    items: [
-      { title: 'Análise de Mercado', url: '/marketing/analise-mercado', icon: BarChart2 },
+      { title: 'Funcionários', url: '/employees', icon: Users, requiresAdmin: true },
+      { title: 'Contratos', url: '/rh/contratos', icon: FileSignature, requiresAdmin: true, disabled: true },
+      { title: 'Folha de Pagamento', url: '/rh/folha', icon: DollarSign, requiresAdmin: true, disabled: true },
+      { title: 'Férias e Afastamentos', url: '/rh/ferias', icon: Palmtree, requiresAdmin: true, disabled: true },
+      { title: 'Desligamentos', url: '/rh/desligamentos', icon: LogOut, requiresAdmin: true },
+      { title: 'Relatórios', url: '/rh/relatorios', icon: BarChart3, requiresAdmin: true, disabled: true },
     ],
   },
 ];
