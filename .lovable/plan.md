@@ -1,27 +1,39 @@
 
 
-## Plano: Botão de ocultar valores monetários na tela de funcionários
+## Plano: Adicionar Comissão aos KPIs do Analytics e reorganizar cards
 
-### Abordagem
-Adicionar um estado `hideValues` na página de funcionários com um botão de olhinho (Eye/EyeOff) na barra de ações. Quando ativo, todos os valores monetários (tabela e stats) mostram "•••••" ao invés dos valores reais.
+### Situação atual
+- 3 cards: Receita Recebida, Custos Totais, Margem Bruta
+- Impostos aparecem como sub-info dentro do card de Margem
+- Comissão não é buscada nem exibida
+- Margem = (Receita - Impostos - Custos) / Receita
+
+### Proposta
+Expandir para 5 cards em layout responsivo: **Receita**, **Impostos**, **Comissão**, **Custos**, **Margem Bruta**. A margem passa a descontar também a comissão.
 
 ### Mudanças
 
-**1. `src/pages/Index.tsx`**
-- Adicionar estado `const [hideValues, setHideValues] = useState(false)`
-- Adicionar botão EyeOff/Eye na barra de ações (ao lado da calculadora)
-- Passar `hideValues` para `EmployeeStats` e `createEmployeeColumns`
+**1. `src/hooks/useAnalyticsData.ts`**
+- Adicionar fetch de `project_commissions` (filtrado por `is_paid = true` e `paid_date` no período) no bloco `Promise.all`
+- Calcular `totalCommissions` (soma dos `planned_value` das comissões pagas no período)
+- Adicionar `commissionValue` ao `AnalyticsData`
+- Atualizar fórmula da margem: `(receita - impostos - comissões - custos) / receita * 100`
 
-**2. `src/components/employees/EmployeesTable.tsx`**
-- Adicionar prop `hideValues?: boolean` a `EmployeeColumnsProps`
-- Na coluna `totalMonthlyCostEstimated`: quando `hideValues` é true, mostrar `•••••` no lugar do custo mensal e custo/hora
+**2. `src/components/analytics/AnalyticsKPIs.tsx`**
+- Adicionar prop `commissionValue`
+- Layout: `grid md:grid-cols-5` (ou `grid-cols-2 lg:grid-cols-5` para responsividade)
+- 5 cards na ordem:
+  1. **Receita Recebida** -- valor + projetada + diferença (como hoje)
+  2. **Impostos** -- valor + percentual
+  3. **Comissão** -- valor total pago no período
+  4. **Custos Totais** -- valor (como hoje)
+  5. **Margem Bruta** -- percentual + meta (como hoje, mas sem sub-info de impostos que agora tem card próprio)
 
-**3. `src/components/employees/EmployeeStats.tsx`**
-- Adicionar prop `hideValues?: boolean`
-- Quando ativo, mostrar `•••••` no stat "Custo Mensal Total" e na provisão
+**3. `src/pages/Analytics.tsx`**
+- Passar `commissionValue` ao componente KPIs
 
 ### Arquivos alterados
-1. `src/pages/Index.tsx` — estado + botão
-2. `src/components/employees/EmployeesTable.tsx` — ocultar valores na tabela
-3. `src/components/employees/EmployeeStats.tsx` — ocultar valores nos cards
+1. `src/hooks/useAnalyticsData.ts`
+2. `src/components/analytics/AnalyticsKPIs.tsx`
+3. `src/pages/Analytics.tsx`
 
