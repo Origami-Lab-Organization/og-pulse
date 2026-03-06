@@ -74,10 +74,15 @@ export function useCloseBusinessDeal() {
       await budgetService.updateStatus(budget.id, 'active');
 
       // 2. Create project linked to budget
+      const resolvedClientId = budget.client_id || input.clientId;
+      if (!resolvedClientId) {
+        throw new Error('Cliente é obrigatório para criar o projeto');
+      }
+
       const project = await projectService.create(
         {
           name: budget.title,
-          clientId: budget.client_id || undefined,
+          clientId: resolvedClientId,
           managerId,
           budgetId: budget.id,
           startDate,
