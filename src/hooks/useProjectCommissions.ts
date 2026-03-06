@@ -6,6 +6,7 @@ export interface ProjectCommission {
   id: string;
   project_id: string;
   installment_id: string;
+  commission_percent: number;
   planned_value: number;
   is_paid: boolean;
   paid_date: string | null;
@@ -37,10 +38,12 @@ export function useGenerateCommissions() {
       projectId,
       installments,
       totalCommission,
+      commissionPercent,
     }: {
       projectId: string;
       installments: { id: string }[];
       totalCommission: number;
+      commissionPercent: number;
     }) => {
       if (installments.length === 0) return;
       const perInstallment = totalCommission / installments.length;
@@ -49,6 +52,7 @@ export function useGenerateCommissions() {
         project_id: projectId,
         installment_id: inst.id,
         planned_value: Math.round(perInstallment * 100) / 100,
+        commission_percent: commissionPercent,
       }));
 
       const { error } = await supabase
@@ -77,6 +81,7 @@ export function useUpdateCommission() {
       paid_to,
       notes,
       planned_value,
+      commission_percent,
     }: {
       id: string;
       is_paid?: boolean;
@@ -84,6 +89,7 @@ export function useUpdateCommission() {
       paid_to?: string | null;
       notes?: string | null;
       planned_value?: number;
+      commission_percent?: number;
     }) => {
       const updates: Record<string, any> = {};
       if (is_paid !== undefined) updates.is_paid = is_paid;
@@ -91,6 +97,7 @@ export function useUpdateCommission() {
       if (paid_to !== undefined) updates.paid_to = paid_to;
       if (notes !== undefined) updates.notes = notes;
       if (planned_value !== undefined) updates.planned_value = planned_value;
+      if (commission_percent !== undefined) updates.commission_percent = commission_percent;
 
       const { error } = await supabase
         .from('project_commissions' as any)

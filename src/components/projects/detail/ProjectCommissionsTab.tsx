@@ -32,6 +32,7 @@ export function ProjectCommissionsTab({ project, isReadOnly = false }: ProjectCo
         projectId: project.id,
         installments: project.installments.map((i) => ({ id: i.id })),
         totalCommission: totalCommissionValue,
+        commissionPercent: budget?.commission_percent || 0,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

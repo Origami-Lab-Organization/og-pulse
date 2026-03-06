@@ -1246,6 +1246,7 @@ export type Database = {
       }
       project_commissions: {
         Row: {
+          commission_percent: number
           created_at: string
           id: string
           installment_id: string
@@ -1257,6 +1258,7 @@ export type Database = {
           project_id: string
         }
         Insert: {
+          commission_percent?: number
           created_at?: string
           id?: string
           installment_id: string
@@ -1268,6 +1270,7 @@ export type Database = {
           project_id: string
         }
         Update: {
+          commission_percent?: number
           created_at?: string
           id?: string
           installment_id?: string
