@@ -61,6 +61,7 @@ export default function BudgetForm() {
   const [searchParams] = useSearchParams();
   const leadId = searchParams.get('leadId');
   const isEditing = !!id;
+  const { toast } = useToast();
 
   const { data: budget, isLoading: budgetLoading } = useBudget(id || null);
   const { data: clients = [] } = useClients();
@@ -671,7 +672,14 @@ export default function BudgetForm() {
                 onPrevious={handlePrevious}
                 onNext={handleNext}
                 onCancel={() => navigate(isFromLead ? '/crm' : '/budgets')}
-                onSubmit={() => form.handleSubmit(handleSubmit)()}
+                onSubmit={() => form.handleSubmit(handleSubmit, (errors) => {
+                  console.error('Form validation errors:', errors);
+                  toast({
+                    title: 'Erro de validação',
+                    description: 'Verifique os campos obrigatórios no passo 1.',
+                    variant: 'destructive',
+                  });
+                })()}
               />
             </>
           )}
@@ -682,7 +690,14 @@ export default function BudgetForm() {
               <Button type="button" variant="outline" onClick={() => navigate('/budgets')}>
                 Cancelar
               </Button>
-              <Button type="button" onClick={() => form.handleSubmit(handleSubmit)()} disabled={isSubmitting}>
+              <Button type="button" onClick={() => form.handleSubmit(handleSubmit, (errors) => {
+                console.error('Form validation errors:', errors);
+                toast({
+                  title: 'Erro de validação',
+                  description: 'Verifique os campos obrigatórios.',
+                  variant: 'destructive',
+                });
+              })()} disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Save className="mr-2 h-4 w-4" />
                 Salvar
