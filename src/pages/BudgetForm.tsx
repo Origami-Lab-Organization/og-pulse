@@ -37,10 +37,10 @@ const formSchema = z.object({
   clientType: z.enum(['client', 'lead']),
   clientId: z.string().optional(),
   leadName: z.string().optional(),
-  leadContact: z.string().optional(),
+  leadEmail: z.string().optional(),
+  leadPhone: z.string().optional(),
   startDate: z.string().min(1, 'Data de início é obrigatória'),
   durationMonths: z.coerce.number().min(1, 'Mínimo 1 mês').max(60, 'Máximo 60 meses'),
-  validUntil: z.string().optional(),
   notes: z.string().optional(),
 }).refine((data) => {
   if (data.clientType === 'client') return !!data.clientId;
