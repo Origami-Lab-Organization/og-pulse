@@ -29,6 +29,11 @@ export interface TerminationWithEmployee extends EmployeeTermination {
     email: string;
     tipo_contratacao: string;
     foto_url: string | null;
+    salario_mensal: number;
+    fgts: number;
+    data_admissao: string;
+    pro_labore: number;
+    bolsa_auxilio: number;
   };
 }
 
@@ -97,7 +102,7 @@ export const terminationService = {
     let query = supabase
       .from('employee_terminations')
       .select(
-        '*, employees!employee_terminations_employee_id_fkey!inner(id, nome, cargo, email, tipo_contratacao, foto_url)',
+        '*, employees!employee_terminations_employee_id_fkey!inner(id, nome, cargo, email, tipo_contratacao, foto_url, salario_mensal, fgts, data_admissao, pro_labore, bolsa_auxilio)',
         { count: 'exact' }
       )
       .order('created_at', { ascending: false })
@@ -134,7 +139,7 @@ export const terminationService = {
     const { data, error } = await supabase
       .from('employee_terminations')
       .select(
-        '*, employees!employee_terminations_employee_id_fkey!inner(id, nome, cargo, email, tipo_contratacao, foto_url), termination_documents(*), payroll_adjustments(*)'
+        '*, employees!employee_terminations_employee_id_fkey!inner(id, nome, cargo, email, tipo_contratacao, foto_url, salario_mensal, fgts, data_admissao, pro_labore, bolsa_auxilio), termination_documents(*), payroll_adjustments(*)'
       )
       .eq('id', id)
       .single();
