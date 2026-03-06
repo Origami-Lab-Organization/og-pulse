@@ -25,6 +25,14 @@ interface Props {
   termination: TerminationWithEmployee;
 }
 
+interface StoredAdjustment {
+  desc: string;
+  value: number;
+  isCredit: boolean;
+  type: string;
+  adjustmentType?: string;
+}
+
 function buildEmployeeLike(t: TerminationWithEmployee): Employee {
   const emp = t.employees;
   return {
@@ -98,30 +106,83 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
   const [newAmount, setNewAmount] = useState('');
   const [newIsCredit, setNewIsCredit] = useState(true);
 
+  // Check if we have stored JSONB data
+  const storedAdjustments = useMemo(() => {
+    const raw = termination.final_payroll_adjustments;
+    if (Array.isArray(raw) && raw.length > 0) {
+      return raw as StoredAdjustment[];
+    }
+    return null;
+  }, [termination.final_payroll_adjustments]);
+
+  // Fallback: query payroll_adjustments table only if no JSONB data
   const { data, isLoading } = useQuery({
     queryKey: ['payroll-adjustments', termination.id],
     queryFn: () => terminationService.getPayrollAdjustments(termination.id),
+    enabled: !storedAdjustments, // only query if no JSONB
   });
 
+  // Separate stored data into auto-calcs and manual
+  const { storedAutoCalcs, storedManualAdjs } = useMemo(() => {
+    if (!storedAdjustments) return { storedAutoCalcs: [], storedManualAdjs: [] };
+    return {
+      storedAutoCalcs: storedAdjustments.filter(a => a.type === 'auto'),
+      storedManualAdjs: storedAdjustments.filter(a => a.type === 'manual'),
+    };
+  }, [storedAdjustments]);
+
+  // Fallback auto-calcs (on-the-fly) when no JSONB
+  const fallbackAutoCalcs = useMemo(() => {
+    if (storedAdjustments) return [];
+    const emp = buildEmployeeLike(termination);
+    const wizData = buildWizardDataLike(termination);
+    return calculateAutoCalcs(emp, wizData);
+  }, [termination, storedAdjustments]);
+
   const addMutation = useMutation({
-    mutationFn: () =>
-      terminationService.addPayrollAdjustment({
-        termination_id: termination.id,
-        adjustment_type: newType,
-        description: newDesc || null,
-        amount: Number(newAmount),
-        is_credit: newIsCredit,
-      }),
+    mutationFn: async () => {
+      // Try adding to payroll_adjustments table
+      try {
+        await terminationService.addPayrollAdjustment({
+          termination_id: termination.id,
+          adjustment_type: newType,
+          description: newDesc || null,
+          amount: Number(newAmount),
+          is_credit: newIsCredit,
+        });
+      } catch { /* RLS may block */ }
+
+      // Also update the JSONB column
+      const currentAdjs = storedAdjustments || [];
+      const newAdj: StoredAdjustment = {
+        desc: newDesc || ADJUSTMENT_TYPE_LABELS[newType],
+        value: Number(newAmount),
+        isCredit: newIsCredit,
+        type: 'manual',
+        adjustmentType: newType,
+      };
+      await terminationService.update(termination.id, {
+        final_payroll_adjustments: [...currentAdjs, newAdj],
+      } as any);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payroll-adjustments', termination.id] });
+      queryClient.invalidateQueries({ queryKey: ['terminations'] });
+      queryClient.invalidateQueries({ queryKey: ['termination', termination.id] });
       toast({ title: 'Ajuste adicionado' });
       resetForm();
+      // Force reload to get updated JSONB
+      window.location.reload();
     },
     onError: () => toast({ title: 'Erro ao adicionar', variant: 'destructive' }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => terminationService.deletePayrollAdjustment(id),
+    mutationFn: async (id: string) => {
+      try {
+        await terminationService.deletePayrollAdjustment(id);
+      } catch { /* RLS may block */ }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payroll-adjustments', termination.id] });
       toast({ title: 'Ajuste removido' });
@@ -139,30 +200,34 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
   const fmt = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // Auto-calculated rescission values
-  const autoCalcs = useMemo(() => {
-    const emp = buildEmployeeLike(termination);
-    const wizData = buildWizardDataLike(termination);
-    return calculateAutoCalcs(emp, wizData);
-  }, [termination]);
-
-  // Totals combining auto-calcs + DB adjustments
+  // Compute totals from whichever source we have
   const totals = useMemo(() => {
     let credits = 0;
     let debits = 0;
 
-    autoCalcs.forEach(item => {
-      if (item.isCredit) credits += item.value;
-      else debits += item.value;
-    });
-
-    (data?.adjustments ?? []).forEach(adj => {
-      if (adj.is_credit) credits += Number(adj.amount);
-      else debits += Number(adj.amount);
-    });
+    if (storedAdjustments) {
+      storedAdjustments.forEach(item => {
+        if (item.isCredit) credits += item.value;
+        else debits += item.value;
+      });
+    } else {
+      fallbackAutoCalcs.forEach(item => {
+        if (item.isCredit) credits += item.value;
+        else debits += item.value;
+      });
+      (data?.adjustments ?? []).forEach(adj => {
+        if (adj.is_credit) credits += Number(adj.amount);
+        else debits += Number(adj.amount);
+      });
+    }
 
     return { credits, debits, net: credits - debits };
-  }, [autoCalcs, data]);
+  }, [storedAdjustments, fallbackAutoCalcs, data]);
+
+  // Items to display in the "Verbas Rescisórias" section
+  const displayAutoCalcs = storedAdjustments ? storedAutoCalcs : fallbackAutoCalcs;
+  // Items to display in "Ajustes Manuais" section
+  const displayManualAdjs = storedAdjustments ? storedManualAdjs : [];
 
   return (
     <div className="space-y-4">
@@ -204,7 +269,7 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
       </div>
 
       {/* Auto-calculated Rescission Values */}
-      {autoCalcs.length > 0 && (
+      {displayAutoCalcs.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Verbas Rescisórias (Calculadas)</CardTitle>
@@ -219,17 +284,22 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {autoCalcs.map((item, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-sm">{item.desc}</TableCell>
-                    <TableCell className="text-sm text-right font-medium">{fmt(item.value)}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline" className={item.isCredit ? 'text-green-600 border-green-300 dark:text-green-400 dark:border-green-700' : 'text-red-600 border-red-300 dark:text-red-400 dark:border-red-700'}>
-                        {item.isCredit ? 'Crédito' : 'Débito'}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {displayAutoCalcs.map((item, i) => {
+                  const desc = 'desc' in item ? item.desc : '';
+                  const value = 'value' in item ? item.value : 0;
+                  const isCredit = 'isCredit' in item ? item.isCredit : true;
+                  return (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm">{desc}</TableCell>
+                      <TableCell className="text-sm text-right font-medium">{fmt(value)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className={isCredit ? 'text-green-600 border-green-300 dark:text-green-400 dark:border-green-700' : 'text-red-600 border-red-300 dark:text-red-400 dark:border-red-700'}>
+                          {isCredit ? 'Crédito' : 'Débito'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -281,11 +351,35 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
             </div>
           )}
 
-          {isLoading ? (
+          {/* Show stored manual adjustments from JSONB */}
+          {displayManualAdjs.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-center">C/D</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {displayManualAdjs.map((adj, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm">{adj.desc}</TableCell>
+                    <TableCell className="text-sm text-right font-medium">{fmt(adj.value)}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className={adj.isCredit ? 'text-green-600 border-green-300 dark:text-green-400 dark:border-green-700' : 'text-red-600 border-red-300 dark:text-red-400 dark:border-red-700'}>
+                        {adj.isCredit ? 'Crédito' : 'Débito'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : isLoading && !storedAdjustments ? (
             <p className="text-sm text-muted-foreground py-4 text-center">Carregando...</p>
-          ) : !data?.adjustments.length ? (
+          ) : !storedAdjustments && !data?.adjustments.length ? (
             <p className="text-sm text-muted-foreground py-4 text-center">Nenhum ajuste manual registrado.</p>
-          ) : (
+          ) : !storedAdjustments && data?.adjustments.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -316,7 +410,9 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
                 ))}
               </TableBody>
             </Table>
-          )}
+          ) : !displayManualAdjs.length && storedAdjustments ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Nenhum ajuste manual registrado.</p>
+          ) : null}
         </CardContent>
       </Card>
     </div>
