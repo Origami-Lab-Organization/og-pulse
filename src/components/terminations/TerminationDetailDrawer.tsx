@@ -1,14 +1,18 @@
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Pencil, Printer, FileDown, Info, DollarSign, FileText, Clock } from 'lucide-react';
+import { Pencil, FileDown, Info, DollarSign, FileText, Clock } from 'lucide-react';
 import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { TerminationStatusBadge } from './TerminationStatusBadge';
 import { TerminationTypeBadge } from './TerminationTypeBadge';
+import { TerminationEditDialog } from './TerminationEditDialog';
 import { TerminationDetailInfoTab } from './detail/TerminationDetailInfoTab';
 import { TerminationDetailFinancialTab } from './detail/TerminationDetailFinancialTab';
 import { TerminationDetailDocumentsTab } from './detail/TerminationDetailDocumentsTab';
@@ -27,6 +31,7 @@ interface TerminationDetailDrawerProps {
 export const TerminationDetailDrawer = ({ isOpen, onClose, termination }: TerminationDetailDrawerProps) => {
   const { toast } = useToast();
   const updateTermination = useUpdateTermination();
+  const [editOpen, setEditOpen] = useState(false);
 
   if (!termination) return null;
 
@@ -43,6 +48,31 @@ export const TerminationDetailDrawer = ({ isOpen, onClose, termination }: Termin
         },
       }
     );
+  };
+
+  const handleExportPdf = async () => {
+    const element = document.getElementById('termination-drawer-content');
+    if (!element) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= 297;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= 297;
+      }
+      pdf.save(`desligamento-${emp.nome.replace(/\s+/g, '_')}.pdf`);
+    } catch {
+      toast({ title: 'Erro ao exportar PDF', variant: 'destructive' });
+    }
   };
 
   return (
@@ -71,13 +101,10 @@ export const TerminationDetailDrawer = ({ isOpen, onClose, termination }: Termin
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5" /> Editar
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.print()}>
-              <Printer className="h-3.5 w-3.5" /> Imprimir
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportPdf}>
               <FileDown className="h-3.5 w-3.5" /> Exportar PDF
             </Button>
           </div>
@@ -86,6 +113,7 @@ export const TerminationDetailDrawer = ({ isOpen, onClose, termination }: Termin
         <Separator />
 
         {/* Tabs */}
+        <div id="termination-drawer-content">
         <Tabs defaultValue="info" className="flex-1">
           <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-6 h-auto py-0">
             <TabsTrigger value="info" className="gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
@@ -117,6 +145,7 @@ export const TerminationDetailDrawer = ({ isOpen, onClose, termination }: Termin
             </TabsContent>
           </div>
         </Tabs>
+        </div>
 
         <Separator />
 
@@ -139,6 +168,8 @@ export const TerminationDetailDrawer = ({ isOpen, onClose, termination }: Termin
           )}
         </div>
       </SheetContent>
+
+      <TerminationEditDialog open={editOpen} onOpenChange={setEditOpen} termination={termination} />
     </Sheet>
   );
 };
