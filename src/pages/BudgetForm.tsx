@@ -30,7 +30,7 @@ import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets'
 import { useToast } from '@/hooks/use-toast';
 import { useLead, useLinkBudgetToLead } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
-import { ClientFormDialog } from '@/components/clients/ClientFormDialog';
+import ClientFormDialog from '@/components/clients/ClientFormDialog';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
