@@ -1,29 +1,37 @@
 
 
-## Plano: Corrigir drawer de desligamento (financeiro, edição, PDF, remover Imprimir)
-
-### Problemas
-
-1. **Dados financeiros "não carregam"** — Na verdade carregam (resposta 200), mas a tabela está vazia porque não há ajustes cadastrados. O problema é UX: não há feedback visual claro de que está funcionando. Vou manter como está (já mostra "Nenhum ajuste registrado") — o real problema pode ser que o usuário esperava ver cálculos automáticos (verbas rescisórias). Mas pela estrutura atual, os ajustes são manuais. Sem mudança aqui.
-
-2. **Botão "Editar" não funciona** — O botão não tem `onClick`. Preciso criar um dialog de edição com os campos do desligamento (tipo, data, motivo, aviso prévio, etc.) usando o `terminationService.update` existente.
-
-3. **Botão "Exportar PDF" não funciona** — O botão não tem `onClick`. Preciso implementar a exportação usando `html2canvas` + `jsPDF` capturando o conteúdo do drawer.
-
-4. **Botão "Imprimir" deve ser removido**.
+## Plano: Modal em vez de gaveta, coluna de ações, entrevista de saída na criação
 
 ### Alterações
 
-#### 1. Criar `src/components/terminations/TerminationEditDialog.tsx`
-- Dialog com formulário para editar campos do desligamento: tipo de desligamento, data, data de notificação, categoria do motivo, motivo (texto), dias de aviso prévio, aviso trabalhado (switch), entrevista de saída (switch + notas)
-- Usar `useUpdateTermination` para salvar
-- Pré-preencher com dados atuais do `termination`
+#### 1. Converter Drawer (Sheet) para Dialog (Modal)
+**Arquivo:** `src/components/terminations/TerminationDetailDrawer.tsx`
+- Substituir `Sheet`/`SheetContent` por `Dialog`/`DialogContent` com `max-w-4xl`
+- Manter todo o conteúdo interno (header, tabs, footer) igual
+- Renomear componente para `TerminationDetailModal` (e atualizar import em `TerminatedEmployees.tsx`)
 
-#### 2. Editar `src/components/terminations/TerminationDetailDrawer.tsx`
-- Remover botão "Imprimir"
-- Adicionar estado `editOpen` e handler para abrir `TerminationEditDialog`
-- Adicionar `onClick` no botão "Editar" para abrir o dialog
-- Adicionar `onClick` no botão "Exportar PDF" com lógica de captura do conteúdo do SheetContent via `html2canvas` + `jsPDF`
-- Adicionar `id` ao container de conteúdo para captura do PDF
-- Importar `TerminationEditDialog`
+#### 2. Adicionar coluna de Ações na tabela
+**Arquivo:** `src/components/terminations/TerminationsTable.tsx`
+- Receber callbacks `onEdit` e `onDownload` via parâmetros de `createTerminationColumns`
+- Adicionar coluna "Ações" com botões de ícone: Editar (abre `TerminationEditDialog`) e Download (exporta PDF)
+- Usar `e.stopPropagation()` nos botões para não disparar `onRowClick`
+
+**Arquivo:** `src/pages/TerminatedEmployees.tsx`
+- Adicionar estados para controlar `TerminationEditDialog` a partir da tabela
+- Passar callbacks de editar/download para `createTerminationColumns`
+- Implementar handler de download PDF reutilizando lógica existente
+
+#### 3. Entrevista de saída no wizard de criação
+**Arquivo:** `src/components/employees/termination-wizard/types.ts`
+- Adicionar campos `exit_interview_completed: boolean` e `exit_interview_notes: string` ao `TerminationWizardData`
+- Atualizar `getDefaultWizardData()` com valores padrão
+
+**Arquivo:** `src/components/employees/termination-wizard/TerminationStep1Info.tsx`
+- Adicionar seção no final do step com Switch "Entrevista de saída realizada?" e Textarea condicional para notas
+
+**Arquivo:** `src/components/employees/TerminationWizardModal.tsx`
+- Passar `exit_interview_completed` e `exit_interview_notes` no `handleSubmit` (linha 155-156 atualmente hardcoded como `false`/`null`)
+
+**Arquivo:** `src/components/employees/termination-wizard/TerminationStep5Review.tsx`
+- Mostrar status da entrevista de saída na seção de revisão
 
