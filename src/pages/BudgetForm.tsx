@@ -132,11 +132,7 @@ export default function BudgetForm() {
       initializedRef.current = true;
       form.reset({
         title: budget.title,
-        clientType: budget.client_id ? 'client' : 'lead',
         clientId: budget.client_id || '',
-        leadName: budget.lead_name || '',
-        leadEmail: budget.lead_contact?.split(' / ')[0]?.trim() || '',
-        leadPhone: budget.lead_contact?.split(' / ')[1]?.trim() || '',
         startDate: budget.start_date,
         durationMonths: budget.duration_months,
         notes: budget.notes || '',
@@ -178,25 +174,19 @@ export default function BudgetForm() {
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = (values: FormValues) => {
-    // PROTEÇÃO 1: Bloquear se já estiver submetendo
     if (isSubmitting) {
       console.warn('Form submission blocked: already submitting');
       return;
     }
     
-    // PROTEÇÃO 2: No modo wizard (criação), só permite salvar na última etapa
     if (!isEditing && currentStep < WIZARD_STEPS.length) {
       console.warn('Form submission blocked: not on final step');
       return;
     }
 
-    const leadContact = [values.leadEmail, values.leadPhone].filter(Boolean).join(' / ') || undefined;
-
     const input: CreateBudgetInput = {
       title: values.title,
-      clientId: values.clientType === 'client' ? values.clientId : undefined,
-      leadName: values.clientType === 'lead' ? values.leadName : undefined,
-      leadContact: values.clientType === 'lead' ? leadContact : undefined,
+      clientId: values.clientId,
       startDate: values.startDate,
       durationMonths: values.durationMonths,
       adminExpensesPercent,
@@ -230,7 +220,7 @@ export default function BudgetForm() {
 
   const validateCurrentStep = async (): Promise<boolean> => {
     if (currentStep === 1) {
-      const result = await form.trigger(['title', 'clientType', 'clientId', 'leadName', 'startDate', 'durationMonths']);
+      const result = await form.trigger(['title', 'clientId', 'startDate', 'durationMonths']);
       return result;
     }
     return true;
