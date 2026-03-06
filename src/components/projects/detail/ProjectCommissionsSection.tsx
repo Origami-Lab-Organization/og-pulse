@@ -12,12 +12,13 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ProjectInstallmentDB, INSTALLMENT_STATUS_LABELS } from '@/types/project';
 import { ProjectCommission, useUpdateCommission, useGenerateCommissions } from '@/hooks/useProjectCommissions';
+import { CurrencyInput } from '@/components/ui/currency-input';
 
 interface ProjectCommissionsSectionProps {
   projectId: string;
   commissions: ProjectCommission[];
   installments: ProjectInstallmentDB[];
-  budget: { commission_percent: number; final_total: number } | null;
+  budget: { commission_percent: number; total_with_fees: number } | null;
   isEditable: boolean;
 }
 
@@ -33,12 +34,13 @@ export function ProjectCommissionsSection({
   const [payDialog, setPayDialog] = useState<ProjectCommission | null>(null);
   const [paidTo, setPaidTo] = useState('');
   const [paidDate, setPaidDate] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState(0);
 
-  const totalCommission = budget ? (budget.commission_percent / 100) * budget.final_total : 0;
+  const totalCommission = budget ? (budget.commission_percent / 100) * budget.total_with_fees : 0;
   const hasCommission = totalCommission > 0;
   const needsGeneration = hasCommission && commissions.length === 0 && installments.length > 0;
 
-  // Map installment_id → commission
   const commissionMap = useMemo(() => {
     const map = new Map<string, ProjectCommission>();
     commissions.forEach((c) => map.set(c.installment_id, c));
@@ -79,6 +81,16 @@ export function ProjectCommissionsSection({
     });
   };
 
+  const handleStartEdit = (commission: ProjectCommission) => {
+    setEditingId(commission.id);
+    setEditValue(Number(commission.planned_value));
+  };
+
+  const handleSaveEdit = (commissionId: string) => {
+    updateCommission.mutate({ id: commissionId, planned_value: editValue });
+    setEditingId(null);
+  };
+
   if (!hasCommission) return null;
 
   const totalPlanned = commissions.reduce((s, c) => s + Number(c.planned_value), 0);
@@ -90,7 +102,7 @@ export function ProjectCommissionsSection({
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Percent className="h-4 w-4" />
-            Comissões
+            Comissões ({budget?.commission_percent}%)
           </CardTitle>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span>Planejado: {formatCurrency(totalPlanned || totalCommission)}</span>
@@ -131,6 +143,7 @@ export function ProjectCommissionsSection({
                     const commission = commissionMap.get(inst.id);
                     if (!commission) return null;
                     const canPay = inst.status === 'received' && !commission.is_paid;
+                    const isEditingThis = editingId === commission.id;
 
                     return (
                       <TableRow key={inst.id}>
@@ -141,7 +154,28 @@ export function ProjectCommissionsSection({
                             {INSTALLMENT_STATUS_LABELS[inst.status] || inst.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatCurrency(commission.planned_value)}</TableCell>
+                        <TableCell>
+                          {isEditingThis ? (
+                            <div className="flex items-center gap-1">
+                              <CurrencyInput
+                                value={editValue}
+                                onValueChange={setEditValue}
+                                compact
+                                className="w-28"
+                              />
+                              <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => handleSaveEdit(commission.id)}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span
+                              className={isEditable ? 'cursor-pointer hover:underline' : ''}
+                              onClick={() => isEditable && handleStartEdit(commission)}
+                            >
+                              {formatCurrency(commission.planned_value)}
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {commission.is_paid ? (
                             <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs">

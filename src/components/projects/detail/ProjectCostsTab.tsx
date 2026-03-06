@@ -173,7 +173,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   // Auto-generate commissions when budget has commission_percent > 0
   const totalCommissionValue = useMemo(() => {
     if (!budget || !budget.commission_percent) return 0;
-    return (budget.commission_percent / 100) * budget.final_total;
+    return (budget.commission_percent / 100) * budget.total_with_fees;
   }, [budget]);
 
   useEffect(() => {
@@ -416,7 +416,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
           projectId={project.id}
           commissions={commissions}
           installments={project.installments || []}
-          budget={budget ? { commission_percent: budget.commission_percent, final_total: budget.final_total } : null}
+          budget={budget ? { commission_percent: budget.commission_percent, total_with_fees: budget.total_with_fees } : null}
           isEditable={canEditActuals || isEditable}
         />
       )}

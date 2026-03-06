@@ -76,16 +76,25 @@ export function useUpdateCommission() {
       paid_date,
       paid_to,
       notes,
+      planned_value,
     }: {
       id: string;
-      is_paid: boolean;
+      is_paid?: boolean;
       paid_date?: string | null;
       paid_to?: string | null;
       notes?: string | null;
+      planned_value?: number;
     }) => {
+      const updates: Record<string, any> = {};
+      if (is_paid !== undefined) updates.is_paid = is_paid;
+      if (paid_date !== undefined) updates.paid_date = paid_date;
+      if (paid_to !== undefined) updates.paid_to = paid_to;
+      if (notes !== undefined) updates.notes = notes;
+      if (planned_value !== undefined) updates.planned_value = planned_value;
+
       const { error } = await supabase
         .from('project_commissions' as any)
-        .update({ is_paid, paid_date, paid_to, notes } as any)
+        .update(updates as any)
         .eq('id', id);
       if (error) throw error;
     },
