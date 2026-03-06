@@ -8,10 +8,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, formatDate, parseDateString } from '@/lib/formatters';
 import { Employee } from '@/hooks/useEmployees';
 import { useCreateTermination } from '@/hooks/useTerminations';
+import { terminationService } from '@/services/terminationService';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import TerminationStep1Info from './termination-wizard/TerminationStep1Info';
 import TerminationStep2Notice from './termination-wizard/TerminationStep2Notice';
-import TerminationStep3Payroll from './termination-wizard/TerminationStep3Payroll';
+import TerminationStep3Payroll, { calculateAutoCalcs } from './termination-wizard/TerminationStep3Payroll';
 import TerminationStep4Documents from './termination-wizard/TerminationStep4Documents';
 import { DOCUMENT_CHECKLISTS } from './termination-wizard/TerminationStep4Documents';
 import TerminationStep5Review from './termination-wizard/TerminationStep5Review';
@@ -156,6 +157,53 @@ const TerminationWizardModal = ({
         exit_interview_notes: wizardData.exit_interview_notes || null,
         status,
       });
+
+      // Save auto-calculated payroll adjustments
+      const autoCalcs = calculateAutoCalcs(employee, wizardData);
+      const adjustmentTypeMap: Record<string, string> = {
+        'Saldo de salário': 'salary_proportional',
+        'Saldo de bolsa-auxílio': 'salary_proportional',
+        'Pró-labore proporcional': 'salary_proportional',
+        'Férias proporcionais': 'vacation',
+        '13º proporcional': 'thirteenth_salary',
+        'Multa FGTS': 'fgts_fine',
+        'FGTS acumulado': 'fgts',
+        'Aviso prévio': 'other',
+        'Recesso remunerado': 'vacation',
+      };
+
+      const getAdjType = (desc: string): string => {
+        for (const [key, type] of Object.entries(adjustmentTypeMap)) {
+          if (desc.includes(key)) return type;
+        }
+        return 'other';
+      };
+
+      const adjustmentPromises = autoCalcs.map(item =>
+        terminationService.addPayrollAdjustment({
+          termination_id: result.id,
+          adjustment_type: getAdjType(item.desc) as any,
+          description: item.desc,
+          amount: Math.round(item.value * 100) / 100,
+          is_credit: item.isCredit,
+        })
+      );
+
+      // Save manual adjustments
+      wizardData.manual_adjustments.forEach(adj => {
+        adjustmentPromises.push(
+          terminationService.addPayrollAdjustment({
+            termination_id: result.id,
+            adjustment_type: adj.type as any,
+            description: adj.description,
+            amount: Math.round(adj.amount * 100) / 100,
+            is_credit: adj.isCredit,
+          })
+        );
+      });
+
+      await Promise.all(adjustmentPromises);
+
       onSuccess?.(result.id);
       handleClose();
     } catch {
