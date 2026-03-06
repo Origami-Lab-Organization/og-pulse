@@ -103,11 +103,10 @@ export default function BudgetForm() {
   // Pre-fill from lead data
   useEffect(() => {
     if (leadData && !isEditing) {
-      form.setValue('clientType', 'lead');
       form.setValue('title', leadData.name);
-      form.setValue('leadName', leadData.company_name || leadData.name);
-      form.setValue('leadEmail', leadData.contact_email || '');
-      form.setValue('leadPhone', leadData.contact_phone || '');
+      if (leadData.client_id) {
+        form.setValue('clientId', leadData.client_id);
+      }
     }
   }, [leadData, isEditing, form]);
 
