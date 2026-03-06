@@ -1,29 +1,23 @@
 
 
-## Plano: Corrigir grid desalinhado no timesheet
+## Plano: Corrigir overflow de texto longo nas colunas Projeto/Cliente
 
 ### Problema
-- **Header** (`TimesheetByEmployee`): `grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]` — 1 coluna para "Cliente / Projeto"
-- **Row** (`TimesheetWeekRow`): `grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]` — 2 colunas separadas para label + client
-- Isso desalinha todos os dias, total, status e ação
+Nomes longos de cliente (ex: "Confeccoes Hayann Ind e Com Lt...") estão invadindo as colunas de dias porque `1fr` no CSS Grid tem um tamanho mínimo implícito de `auto` (conteúdo). O `truncate` não funciona porque o track pode crescer além do esperado.
 
 ### Solução
-Unificar as definições de grid para que header e rows usem a mesma estrutura de colunas.
+Trocar `1fr` por `minmax(0, 1fr)` nas definições de grid em ambos os arquivos. Isso força o mínimo da coluna a zero, permitindo que `truncate` funcione corretamente.
 
 ### Mudanças
 
-**`src/components/timesheets/TimesheetByEmployee.tsx`**
-- Atualizar o grid do header para usar 2 colunas de label (Projeto + Cliente) em vez de 1:
-  - Com status/action: `grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]`
-  - Sem status/action: `grid-cols-[1fr_1fr_repeat(5,60px)_80px]`
-- Separar "Cliente / Projeto" em 2 headers: "Projeto" e "Cliente"
-- Atualizar o grid do inline edit mode para usar a mesma estrutura
+**`src/components/timesheets/TimesheetWeekRow.tsx`** (linha 246)
+- `grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]` → `grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px_120px]`
+- Idem para a variante sem action slot
 
-**`src/components/timesheets/TimesheetWeekRow.tsx`**
-- Manter a estrutura atual de 2 colunas (já correta no row)
-- Ajustar o slot de status+action para separar em 2 colunas (status 90px + action 50px) se necessário para alinhar com o header
+**`src/components/timesheets/TimesheetByEmployee.tsx`**
+- Mesma substituição em todas as ocorrências de grid-cols que usam `1fr` para Projeto/Cliente (header, inline edit, etc.)
 
 ### Arquivos alterados
+- `src/components/timesheets/TimesheetWeekRow.tsx`
 - `src/components/timesheets/TimesheetByEmployee.tsx`
-- `src/components/timesheets/TimesheetWeekRow.tsx` (se necessário ajustar status/action)
 
