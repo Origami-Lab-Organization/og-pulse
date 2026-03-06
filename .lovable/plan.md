@@ -1,31 +1,29 @@
 
 
-## Plano: Adicionar card "Impostos" entre Receita e Custos
+## Plano: Corrigir grid desalinhado no timesheet
 
-### Lógica
-- **NF emitida** = soma das parcelas com status `invoiced` ou `received`
-- **Taxa de impostos** = `financialSettings.taxes_percent` (já carregado no componente)
-- **Imposto realizado** = NF emitida × (taxes_percent / 100)
-- **Imposto planejado** = receita planejada (valor contrato) × (taxes_percent / 100)
-- **% executado** = (realizado / planejado) × 100
+### Problema
+- **Header** (`TimesheetByEmployee`): `grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]` — 1 coluna para "Cliente / Projeto"
+- **Row** (`TimesheetWeekRow`): `grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]` — 2 colunas separadas para label + client
+- Isso desalinha todos os dias, total, status e ação
 
-### Mudanças em `src/components/projects/detail/ProjectFinancialTab.tsx`
+### Solução
+Unificar as definições de grid para que header e rows usem a mesma estrutura de colunas.
 
-1. No `kpiData`, calcular:
-   - `invoicedTotal` = parcelas com status `invoiced` ou `received`
-   - `taxRate` = `financialSettings?.taxes_percent ?? 0`
-   - `taxActual` = `invoicedTotal * taxRate / 100`
-   - `taxPlanned` = `revenuePlanned * taxRate / 100`
-   - `taxExecuted` = `taxPlanned > 0 ? (taxActual / taxPlanned) * 100 : 0`
+### Mudanças
 
-2. Adicionar card "Impostos" com ícone `Receipt` entre Receita e Custos, usando o mesmo layout visual dos cards existentes
+**`src/components/timesheets/TimesheetByEmployee.tsx`**
+- Atualizar o grid do header para usar 2 colunas de label (Projeto + Cliente) em vez de 1:
+  - Com status/action: `grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]`
+  - Sem status/action: `grid-cols-[1fr_1fr_repeat(5,60px)_80px]`
+- Separar "Cliente / Projeto" em 2 headers: "Projeto" e "Cliente"
+- Atualizar o grid do inline edit mode para usar a mesma estrutura
 
-3. Atualizar o grid de `sm:grid-cols-3` para `sm:grid-cols-4`
+**`src/components/timesheets/TimesheetWeekRow.tsx`**
+- Manter a estrutura atual de 2 colunas (já correta no row)
+- Ajustar o slot de status+action para separar em 2 colunas (status 90px + action 50px) se necessário para alinhar com o header
 
-4. Atualizar cálculo de margem para descontar impostos:
-   - `marginPlanned = ((revenuePlanned - taxPlanned - costPlanned) / revenuePlanned) * 100`
-   - `marginActual = ((revenueActual - taxActual - costActual) / revenueActual) * 100`
-
-### Arquivo alterado
-- `src/components/projects/detail/ProjectFinancialTab.tsx`
+### Arquivos alterados
+- `src/components/timesheets/TimesheetByEmployee.tsx`
+- `src/components/timesheets/TimesheetWeekRow.tsx` (se necessário ajustar status/action)
 
