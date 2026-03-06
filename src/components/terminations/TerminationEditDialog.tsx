@@ -17,23 +17,24 @@ import {
 interface TerminationEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  termination: TerminationWithEmployee;
+  termination: TerminationWithEmployee | null;
 }
 
 export const TerminationEditDialog = ({ open, onOpenChange, termination }: TerminationEditDialogProps) => {
   const updateTermination = useUpdateTermination();
 
-  const [terminationType, setTerminationType] = useState<TerminationType>(termination.termination_type as TerminationType);
-  const [terminationDate, setTerminationDate] = useState(termination.termination_date);
-  const [notificationDate, setNotificationDate] = useState(termination.notification_date || '');
-  const [reasonCategory, setReasonCategory] = useState<ReasonCategory>(termination.reason_category as ReasonCategory);
-  const [reason, setReason] = useState(termination.reason || '');
-  const [noticePeriodDays, setNoticePeriodDays] = useState(termination.notice_period_days || 0);
-  const [noticeWorked, setNoticeWorked] = useState(termination.notice_worked || false);
-  const [exitInterviewCompleted, setExitInterviewCompleted] = useState(termination.exit_interview_completed || false);
-  const [exitInterviewNotes, setExitInterviewNotes] = useState(termination.exit_interview_notes || '');
+  const [terminationType, setTerminationType] = useState<TerminationType>('voluntary');
+  const [terminationDate, setTerminationDate] = useState('');
+  const [notificationDate, setNotificationDate] = useState('');
+  const [reasonCategory, setReasonCategory] = useState<ReasonCategory>('other');
+  const [reason, setReason] = useState('');
+  const [noticePeriodDays, setNoticePeriodDays] = useState(0);
+  const [noticeWorked, setNoticeWorked] = useState(false);
+  const [exitInterviewCompleted, setExitInterviewCompleted] = useState(false);
+  const [exitInterviewNotes, setExitInterviewNotes] = useState('');
 
   useEffect(() => {
+    if (!termination) return;
     setTerminationType(termination.termination_type as TerminationType);
     setTerminationDate(termination.termination_date);
     setNotificationDate(termination.notification_date || '');
@@ -44,6 +45,8 @@ export const TerminationEditDialog = ({ open, onOpenChange, termination }: Termi
     setExitInterviewCompleted(termination.exit_interview_completed || false);
     setExitInterviewNotes(termination.exit_interview_notes || '');
   }, [termination]);
+
+  if (!termination) return null;
 
   const handleSave = () => {
     updateTermination.mutate(
