@@ -34,18 +34,11 @@ import ClientFormDialog from '@/components/clients/ClientFormDialog';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
-  clientType: z.enum(['client', 'lead']),
-  clientId: z.string().optional(),
-  leadName: z.string().optional(),
-  leadEmail: z.string().optional(),
-  leadPhone: z.string().optional(),
+  clientId: z.string().min(1, 'Selecione ou cadastre um cliente'),
   startDate: z.string().min(1, 'Data de início é obrigatória'),
   durationMonths: z.coerce.number().min(1, 'Mínimo 1 mês').max(60, 'Máximo 60 meses'),
   notes: z.string().optional(),
-}).refine((data) => {
-  if (data.clientType === 'client') return !!data.clientId;
-  return !!data.leadName;
-}, { message: 'Selecione um cliente ou informe o nome do lead', path: ['clientId'] });
+});
 
 type FormValues = z.infer<typeof formSchema>;
 
