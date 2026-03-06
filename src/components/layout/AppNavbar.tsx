@@ -133,7 +133,7 @@ export function AppNavbar() {
       </button>
 
       {/* Navigation */}
-      <NavigationMenu className="flex-1">
+      <NavigationMenu className="flex-1 max-w-none">
         <NavigationMenuList className="gap-0">
           {navigationGroups.filter(isGroupVisible).map((group) => {
             const visibleItems = filterItems(group.items);
