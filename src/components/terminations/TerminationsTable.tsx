@@ -1,12 +1,19 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Pencil, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { TerminationWithEmployee } from '@/services/terminationService';
 import { TerminationStatusBadge } from './TerminationStatusBadge';
 import { TerminationTypeBadge } from './TerminationTypeBadge';
 import { TerminationStatus, TerminationType } from '@/types/termination';
 
-export const createTerminationColumns = (): ColumnDef<TerminationWithEmployee>[] => [
+interface ColumnCallbacks {
+  onEdit?: (t: TerminationWithEmployee) => void;
+  onDownload?: (t: TerminationWithEmployee) => void;
+}
+
+export const createTerminationColumns = (callbacks?: ColumnCallbacks): ColumnDef<TerminationWithEmployee>[] => [
   {
     accessorKey: 'employees.nome',
     header: 'Nome',
@@ -55,5 +62,34 @@ export const createTerminationColumns = (): ColumnDef<TerminationWithEmployee>[]
     header: 'Status',
     cell: ({ row }) => <TerminationStatusBadge status={row.original.status as TerminationStatus} />,
     filterFn: (row, id, value) => value.includes(row.getValue(id)),
+  },
+  {
+    id: 'actions',
+    header: 'Ações',
+    cell: ({ row }) => {
+      const t = row.original;
+      return (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={(e) => { e.stopPropagation(); callbacks?.onEdit?.(t); }}
+            title="Editar"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={(e) => { e.stopPropagation(); callbacks?.onDownload?.(t); }}
+            title="Exportar PDF"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+        </div>
+      );
+    },
   },
 ];

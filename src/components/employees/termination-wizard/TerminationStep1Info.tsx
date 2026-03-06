@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -10,9 +11,9 @@ import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, subDays, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Separator } from '@/components/ui/separator';
 import { TerminationWizardData } from './types';
 import { TERMINATION_TYPE_LABELS, TerminationType } from '@/types/termination';
-import { useMemo } from 'react';
 
 interface Props {
   data: TerminationWizardData;
@@ -178,6 +179,31 @@ const TerminationStep1Info = ({ data, onChange, contractType, showErrors = false
           <p className="text-xs text-destructive">Mínimo de 20 caracteres ({data.reason.length}/20)</p>
         ) : (
           <p className="text-xs text-muted-foreground">{data.reason.length}/20 caracteres mínimos</p>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Exit interview */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="exit-interview">Entrevista de saída realizada?</Label>
+          <Switch
+            id="exit-interview"
+            checked={data.exit_interview_completed}
+            onCheckedChange={v => onChange({ exit_interview_completed: v })}
+          />
+        </div>
+        {data.exit_interview_completed && (
+          <div className="space-y-2">
+            <Label>Notas da entrevista</Label>
+            <Textarea
+              value={data.exit_interview_notes}
+              onChange={e => onChange({ exit_interview_notes: e.target.value })}
+              placeholder="Registre os principais pontos da entrevista de saída..."
+              rows={3}
+            />
+          </div>
         )}
       </div>
     </div>
