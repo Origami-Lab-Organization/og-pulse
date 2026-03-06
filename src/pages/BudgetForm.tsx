@@ -23,13 +23,14 @@ import { BudgetWizardFooter } from '@/components/budgets/BudgetWizardFooter';
 import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/lib/formatters';
 import { CreateBudgetInput, BudgetRoleInput, BudgetMaterialInput, BudgetSupplierInput, calculateBudgetTotals } from '@/types/budget';
-import { useClients } from '@/hooks/useClients';
+import { useClients, useCreateClient } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets';
 import { useToast } from '@/hooks/use-toast';
 import { useLead, useLinkBudgetToLead } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
+import { ClientFormDialog } from '@/components/clients/ClientFormDialog';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
