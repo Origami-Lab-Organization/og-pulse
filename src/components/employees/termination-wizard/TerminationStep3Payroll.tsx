@@ -62,8 +62,13 @@ function calculateAutoCalcs(employee: Employee, data: TerminationWizardData): Au
   const termDate = data.termination_date ? parseDateString(data.termination_date) : new Date();
   const dayOfMonth = termDate.getDate();
   const daysInMonth = new Date(termDate.getFullYear(), termDate.getMonth() + 1, 0).getDate();
-  const admDate = parseDateString(employee.dataAdmissao);
-  const monthsWorked = (termDate.getFullYear() - admDate.getFullYear()) * 12 + (termDate.getMonth() - admDate.getMonth());
+  let monthsWorked = 0;
+  if (employee.dataAdmissao) {
+    const admDate = parseDateString(employee.dataAdmissao);
+    if (!isNaN(admDate.getTime())) {
+      monthsWorked = (termDate.getFullYear() - admDate.getFullYear()) * 12 + (termDate.getMonth() - admDate.getMonth());
+    }
+  }
   const monthsInYear = termDate.getMonth() + 1;
   const contractType = employee.tipoContratacao;
 
@@ -101,10 +106,11 @@ function calculateAutoCalcs(employee: Employee, data: TerminationWizardData): Au
     }
 
     case 'ESTAGIO': {
-      const stipendBalance = (salary / daysInMonth) * dayOfMonth;
+      const stipend = employee.bolsaAuxilio || salary;
+      const stipendBalance = (stipend / daysInMonth) * dayOfMonth;
       // Recesso: 30 dias por 12 meses, proporcional, sem 1/3
       const recessDays = (monthsWorked / 12) * 30;
-      const recessValue = (salary / 30) * recessDays;
+      const recessValue = (stipend / 30) * recessDays;
 
       items.push({ desc: `Saldo de bolsa-auxílio (${dayOfMonth} dias)`, value: stipendBalance, isCredit: true });
       items.push({ desc: `Recesso remunerado proporcional (${Math.round(recessDays)} dias)`, value: recessValue, isCredit: true });
