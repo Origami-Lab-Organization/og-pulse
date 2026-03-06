@@ -1,31 +1,37 @@
 
 
-## Plano: Persistir ajustes financeiros na coluna JSON da rescisão
+## Plano: Corrigir card "Custo Rescisões" e "Pendentes de Finalização"
 
-### Problema raiz
-Os ajustes de folha (tanto auto-calculados quanto manuais como o débito de R$300) não estão sendo salvos na tabela `payroll_adjustments` porque o usuário logado não possui registro na tabela `user_roles`, fazendo com que a política RLS bloqueie silenciosamente os INSERTs. O wizard conclui sem erro porque o `Promise.all` dos ajustes falha sem feedback.
+### Problemas encontrados
 
-A tabela `employee_terminations` já possui a coluna `final_payroll_adjustments` (JSONB) que está vazia (`null`). Vamos usá-la como fonte primária.
+1. **Custo Rescisões = R$ 0,00**: O card lê de `severance_package.total` (linha 28-31), mas os dados financeiros estão salvos em `final_payroll_adjustments` (array JSONB). Nunca encontra o campo `total`, resultando em zero.
 
-### Solução
+2. **Pendentes de Finalização = 0**: O filtro (linha 25) só checa `status === 'pending' || 'in_progress'`, mas o registro da Mariana está com status `awaiting_documents`, que não é contabilizado.
 
-#### 1. `src/components/employees/TerminationWizardModal.tsx`
-- Após criar a rescisão, salvar TODOS os ajustes (auto-calcs + manuais) na coluna `final_payroll_adjustments` do registro de termination via `terminationService.update()`
-- Formato JSON: array de objetos `{ desc, value, isCredit, type }`
-- Manter tentativa de salvar em `payroll_adjustments` como fallback (best-effort, sem bloquear)
+### Correções em `TerminationStats.tsx`
 
-#### 2. `src/components/terminations/detail/TerminationDetailFinancialTab.tsx`
-- Ler ajustes de `termination.final_payroll_adjustments` (JSONB) como fonte primária
-- Se `final_payroll_adjustments` tiver dados, mostrar na seção "Verbas Rescisórias" + "Ajustes Manuais"
-- Fallback para auto-calcs on-the-fly + `payroll_adjustments` da tabela se o JSON estiver vazio
-- Os cards de resumo somam créditos e débitos de todas as fontes
+1. **Custo**: Somar créditos - débitos de `final_payroll_adjustments` (array de `{ value, isCredit }`). Se vazio, fallback para `severance_package.total`.
 
-#### 3. `src/services/terminationService.ts`
-- Garantir que o `update()` aceita o campo `final_payroll_adjustments`
+2. **Pendentes**: Incluir `awaiting_documents` no filtro de pendências.
 
-### Resultado esperado
-- O débito de R$300 aparecerá na seção "Ajustes Manuais"
-- Os créditos de R$4.700 (bolsa + recesso) aparecerão em "Verbas Rescisórias"
-- Cards mostrarão: Créditos R$4.700, Débitos R$300, Líquido R$4.400
-- Funciona independente de RLS na tabela `payroll_adjustments`
+```typescript
+// Custo fix
+const monthlyCost = thisMonth.reduce((sum, t) => {
+  const adjs = t.final_payroll_adjustments as Array<{ value: number; isCredit: boolean }> | null;
+  if (Array.isArray(adjs) && adjs.length > 0) {
+    return sum + adjs.reduce((s, a) => s + (a.isCredit ? a.value : -a.value), 0);
+  }
+  // fallback severance_package
+  const pkg = t.severance_package as Record<string, unknown> | null;
+  return sum + (pkg?.total ? Number(pkg.total) : 0);
+}, 0);
+
+// Pendentes fix
+const pending = terminations.filter(t => 
+  ['pending', 'in_progress', 'awaiting_documents'].includes(t.status)
+);
+```
+
+### Arquivo alterado
+- `src/components/terminations/TerminationStats.tsx`
 
