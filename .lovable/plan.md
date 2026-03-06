@@ -1,39 +1,14 @@
 
 
-## Plano: Adicionar Comissão aos KPIs do Analytics e reorganizar cards
+## Plano: Corrigir NaN no card de Comissão do Analytics
 
-### Situação atual
-- 3 cards: Receita Recebida, Custos Totais, Margem Bruta
-- Impostos aparecem como sub-info dentro do card de Margem
-- Comissão não é buscada nem exibida
-- Margem = (Receita - Impostos - Custos) / Receita
+### Problema
+O card "Comissão" mostra "R$ NaN". Na linha 320 de `useAnalyticsData.ts`, o `reduce` faz `Number(c.planned_value)` que retorna NaN se algum registro tiver `planned_value` nulo.
 
-### Proposta
-Expandir para 5 cards em layout responsivo: **Receita**, **Impostos**, **Comissão**, **Custos**, **Margem Bruta**. A margem passa a descontar também a comissão.
+### Correção
 
-### Mudanças
+**`src/hooks/useAnalyticsData.ts` (linha 320)**
+- Trocar `Number(c.planned_value)` por `(Number(c.planned_value) || 0)` para tratar valores nulos
 
-**1. `src/hooks/useAnalyticsData.ts`**
-- Adicionar fetch de `project_commissions` (filtrado por `is_paid = true` e `paid_date` no período) no bloco `Promise.all`
-- Calcular `totalCommissions` (soma dos `planned_value` das comissões pagas no período)
-- Adicionar `commissionValue` ao `AnalyticsData`
-- Atualizar fórmula da margem: `(receita - impostos - comissões - custos) / receita * 100`
-
-**2. `src/components/analytics/AnalyticsKPIs.tsx`**
-- Adicionar prop `commissionValue`
-- Layout: `grid md:grid-cols-5` (ou `grid-cols-2 lg:grid-cols-5` para responsividade)
-- 5 cards na ordem:
-  1. **Receita Recebida** -- valor + projetada + diferença (como hoje)
-  2. **Impostos** -- valor + percentual
-  3. **Comissão** -- valor total pago no período
-  4. **Custos Totais** -- valor (como hoje)
-  5. **Margem Bruta** -- percentual + meta (como hoje, mas sem sub-info de impostos que agora tem card próprio)
-
-**3. `src/pages/Analytics.tsx`**
-- Passar `commissionValue` ao componente KPIs
-
-### Arquivos alterados
-1. `src/hooks/useAnalyticsData.ts`
-2. `src/components/analytics/AnalyticsKPIs.tsx`
-3. `src/pages/Analytics.tsx`
+Essa é a única mudança necessária. Os demais cálculos (receita, impostos, custos, margem) estão corretos — a margem inclusive já desconta impostos, comissões e custos corretamente pela fórmula `(Receita - Impostos - Comissões - Custos) / Receita * 100`.
 
