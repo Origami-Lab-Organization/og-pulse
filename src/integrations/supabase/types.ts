@@ -2557,6 +2557,15 @@ export type Database = {
         | "homologation"
         | "receipt"
         | "other"
+        | "medical_exam"
+        | "final_report"
+        | "performance_eval"
+        | "contract_termination"
+        | "quitacao"
+        | "contract_amendment"
+        | "meeting_minutes"
+        | "quota_transfer"
+        | "activity_report"
       termination_reason_category:
         | "performance"
         | "restructuring"
@@ -2742,6 +2751,15 @@ export const Constants = {
         "homologation",
         "receipt",
         "other",
+        "medical_exam",
+        "final_report",
+        "performance_eval",
+        "contract_termination",
+        "quitacao",
+        "contract_amendment",
+        "meeting_minutes",
+        "quota_transfer",
+        "activity_report",
       ],
       termination_reason_category: [
         "performance",

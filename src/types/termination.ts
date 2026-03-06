@@ -36,7 +36,11 @@ export const TERMINATION_STATUS_LABELS: Record<TerminationStatus, string> = {
   awaiting_documents: 'Aguardando Documentos',
 };
 
-export const DOCUMENT_TYPES = ['resignation_letter', 'termination_letter', 'mutual_agreement', 'trct', 'homologation', 'receipt', 'other'] as const;
+export const DOCUMENT_TYPES = [
+  'resignation_letter', 'termination_letter', 'mutual_agreement', 'trct', 'homologation', 'receipt',
+  'medical_exam', 'final_report', 'performance_eval', 'contract_termination', 'quitacao',
+  'contract_amendment', 'meeting_minutes', 'quota_transfer', 'activity_report', 'other',
+] as const;
 export type TerminationDocumentType = typeof DOCUMENT_TYPES[number];
 
 export const DOCUMENT_TYPE_LABELS: Record<TerminationDocumentType, string> = {
@@ -46,6 +50,15 @@ export const DOCUMENT_TYPE_LABELS: Record<TerminationDocumentType, string> = {
   trct: 'TRCT',
   homologation: 'Homologação',
   receipt: 'Recibo',
+  medical_exam: 'Exame Demissional',
+  final_report: 'Relatório Final',
+  performance_eval: 'Avaliação de Desempenho',
+  contract_termination: 'Distrato / Rescisão Contratual',
+  quitacao: 'Termo de Quitação',
+  contract_amendment: 'Alteração Contratual',
+  meeting_minutes: 'Ata de Reunião',
+  quota_transfer: 'Cessão de Quotas',
+  activity_report: 'Relatório de Atividades',
   other: 'Outro',
 };
 
