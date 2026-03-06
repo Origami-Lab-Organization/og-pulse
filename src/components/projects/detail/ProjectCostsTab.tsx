@@ -1,5 +1,5 @@
-import { useMemo, useCallback } from 'react';
-import { Users, Truck, Package, DollarSign, Receipt } from 'lucide-react';
+import { useMemo, useCallback, useEffect } from 'react';
+import { Users, Truck, Package, DollarSign, Receipt, Percent } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProjectLaborSection } from '@/components/projects/detail/ProjectLaborSection';
 import { ProjectSuppliersSection } from '@/components/projects/detail/ProjectSuppliersSection';
@@ -17,6 +17,8 @@ import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { differenceInMonths, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useProjectApprovedReimbursements } from '@/hooks/useReimbursements';
+import { useProjectCommissions, useGenerateCommissions } from '@/hooks/useProjectCommissions';
+import { ProjectCommissionsSection } from '@/components/projects/detail/ProjectCommissionsSection';
 
 interface ProjectCostsTabProps {
   project: ProjectWithRelations;
@@ -164,6 +166,33 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   // Fetch approved reimbursements for this project
   const { data: approvedReimbursements = [] } = useProjectApprovedReimbursements(project.id);
 
+  // Fetch commissions
+  const { data: commissions = [] } = useProjectCommissions(project.id);
+  const generateCommissionsMut = useGenerateCommissions();
+
+  // Auto-generate commissions when budget has commission_percent > 0
+  const totalCommissionValue = useMemo(() => {
+    if (!budget || !budget.commission_percent) return 0;
+    return (budget.commission_percent / 100) * budget.final_total;
+  }, [budget]);
+
+  useEffect(() => {
+    if (
+      totalCommissionValue > 0 &&
+      commissions.length === 0 &&
+      project.installments &&
+      project.installments.length > 0 &&
+      !generateCommissionsMut.isPending
+    ) {
+      generateCommissionsMut.mutate({
+        projectId: project.id,
+        installments: project.installments.map((i) => ({ id: i.id })),
+        totalCommission: totalCommissionValue,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalCommissionValue, commissions.length, project.installments?.length, project.id]);
+
   // Helper to get hourly cost for a member (real employee cost or budget hourly rate as fallback)
   const getMemberHourlyCost = useCallback((member: typeof project.members[0]) => {
     if (member.employee) {
@@ -242,8 +271,18 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
     return approvedReimbursements.reduce((sum, r) => sum + Number(r.total_amount), 0);
   }, [approvedReimbursements]);
 
-  const totalPlanned = laborCostsPlanned + supplierCostsPlanned + materialCostsPlanned;
-  const totalActual = laborCostsActual + supplierCostsActual + materialCostsActual + reimbursementCostsActual;
+  // Commission costs
+  const commissionCostsPlanned = useMemo(() => {
+    if (commissions.length > 0) return commissions.reduce((s, c) => s + Number(c.planned_value), 0);
+    return totalCommissionValue;
+  }, [commissions, totalCommissionValue]);
+
+  const commissionCostsActual = useMemo(() => {
+    return commissions.filter((c) => c.is_paid).reduce((s, c) => s + Number(c.planned_value), 0);
+  }, [commissions]);
+
+  const totalPlanned = laborCostsPlanned + supplierCostsPlanned + materialCostsPlanned + commissionCostsPlanned;
+  const totalActual = laborCostsActual + supplierCostsActual + materialCostsActual + reimbursementCostsActual + commissionCostsActual;
 
   // Calculate BUDGETED costs from linked budget (for planning mode comparison)
   const budgetedCosts = useMemo(() => {
@@ -269,7 +308,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   return (
     <div className="space-y-6">
       {/* Costs Summary - 5 cards grid */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <CostCard
           icon={<Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
           iconBg="bg-blue-100 dark:bg-blue-900/30"
@@ -309,6 +348,18 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
           isPlanningMode={false}
           budgetedValue={0}
         />
+
+        {totalCommissionValue > 0 && (
+          <CostCard
+            icon={<Percent className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />}
+            iconBg="bg-indigo-100 dark:bg-indigo-900/30"
+            label="Comissão"
+            plannedValue={commissionCostsPlanned}
+            actualValue={commissionCostsActual}
+            isPlanningMode={false}
+            budgetedValue={commissionCostsPlanned}
+          />
+        )}
 
         <FinancialSummaryCard
           totalPlannedCost={totalPlanned}
@@ -358,6 +409,17 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
 
       {/* Reimbursements Section */}
       <ProjectReimbursementsSection reimbursements={approvedReimbursements} isEditable={canEditActuals || isEditable} />
+
+      {/* Commissions Section */}
+      {totalCommissionValue > 0 && (
+        <ProjectCommissionsSection
+          projectId={project.id}
+          commissions={commissions}
+          installments={project.installments || []}
+          budget={budget ? { commission_percent: budget.commission_percent, final_total: budget.final_total } : null}
+          isEditable={canEditActuals || isEditable}
+        />
+      )}
     </div>
   );
 }

@@ -1244,6 +1244,57 @@ export type Database = {
           },
         ]
       }
+      project_commissions: {
+        Row: {
+          created_at: string
+          id: string
+          installment_id: string
+          is_paid: boolean
+          notes: string | null
+          paid_date: string | null
+          paid_to: string | null
+          planned_value: number
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          installment_id: string
+          is_paid?: boolean
+          notes?: string | null
+          paid_date?: string | null
+          paid_to?: string | null
+          planned_value?: number
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          installment_id?: string
+          is_paid?: boolean
+          notes?: string | null
+          paid_date?: string | null
+          paid_to?: string | null
+          planned_value?: number
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_commissions_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "project_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_commissions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_edit_logs: {
         Row: {
           changes_summary: string | null
