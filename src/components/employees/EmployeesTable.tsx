@@ -25,6 +25,7 @@ interface EmployeeColumnsProps {
   onTerminate?: (employee: Employee) => void;
   onViewTermination?: (employee: Employee) => void;
   isResendingInvite?: boolean;
+  hideValues?: boolean;
 }
 
 const getStatusBadge = (status: string) => {
@@ -63,6 +64,7 @@ export const createEmployeeColumns = ({
   onTerminate,
   onViewTermination,
   isResendingInvite,
+  hideValues,
 }: EmployeeColumnsProps): ColumnDef<Employee>[] => [
   {
     accessorKey: 'nome',
@@ -154,10 +156,10 @@ export const createEmployeeColumns = ({
       return (
         <div className="flex flex-col">
           <span className="font-medium text-foreground">
-            {formatCurrency(custoTotal)}
+            {hideValues ? '•••••' : formatCurrency(custoTotal)}
           </span>
           <span className="text-xs text-muted-foreground">
-            {formatCurrency(custoHora)}/h
+            {hideValues ? '•••••' : `${formatCurrency(custoHora)}/h`}
           </span>
         </div>
       );
