@@ -1,25 +1,25 @@
 
 
-## Plano: Correções no Wizard de Desligamento
-
-### Problema 1: Botão "Cancelar" ainda aparece
-O código já foi atualizado e **não contém** mais o botão "Cancelar". A screenshot provavelmente mostra o preview antes do build atualizar. Nenhuma mudança de código necessária — o botão já foi removido.
-
-### Problema 2: Botão "Próximo" desabilitado
-O botão "Próximo" na Step 1 exige que `termination_type` esteja preenchido. Porém, o campo de tipo de desligamento usa `data.termination_type || defaultType` para exibição, mas o valor real em `wizardData.termination_type` começa como `''` (string vazia). O Select mostra um valor visual via fallback, mas o dado nunca é salvo no state até o usuário interagir manualmente com o campo.
-
-**Correção**: Inicializar `termination_type` com o valor default correto baseado no tipo de contrato quando o wizard abre, ao invés de deixar vazio e usar fallback visual.
+## Plano: Botão "Próximo" sempre ativo + validação inline com erros visuais
 
 ### Mudanças
 
 #### `TerminationWizardModal.tsx`
-- Na inicialização do wizard (quando `isOpen` muda para `true` ou quando `employee` muda), setar `wizardData.termination_type` com o default correto baseado no `contractType`
-- Garantir que o estado inicial já contém um `termination_type` válido
+- Remover a lógica `canAdvance` que desabilita o botão no step `info`
+- Adicionar estado `showErrors` (boolean), inicializado como `false`
+- No `handleNext`, ao invés de bloquear via `disabled`, validar os campos obrigatórios do step atual. Se inválidos, setar `showErrors = true` e não avançar. Se válidos, avançar e resetar `showErrors`
+- Passar `showErrors` como prop para `TerminationStep1Info`
+- Botão "Próximo" fica sempre habilitado (exceto no step `review` que mantém o `confirmed`)
 
 #### `TerminationStep1Info.tsx`
-- Remover o fallback `data.termination_type || defaultType` no Select — usar apenas `data.termination_type` já que virá inicializado corretamente
+- Receber prop `showErrors: boolean`
+- Quando `showErrors` é `true`, mostrar borda vermelha (`border-destructive`) nos campos inválidos:
+  - Data efetiva do desligamento: se vazio → borda vermelha + "Data obrigatória"
+  - Tipo de desligamento: se vazio → borda vermelha + "Tipo obrigatório"
+  - Motivo detalhado: se < 20 chars → borda vermelha no textarea + "Mínimo de 20 caracteres"
+- Mensagens de erro em `<p className="text-xs text-destructive">`
 
 ### Arquivos modificados
-- `src/components/employees/TerminationWizardModal.tsx` — inicializar termination_type
-- `src/components/employees/termination-wizard/TerminationStep1Info.tsx` — remover fallback
+- `src/components/employees/TerminationWizardModal.tsx`
+- `src/components/employees/termination-wizard/TerminationStep1Info.tsx`
 
