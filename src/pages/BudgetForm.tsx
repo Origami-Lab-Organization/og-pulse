@@ -28,6 +28,7 @@ import { useClients } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets';
+import { useToast } from '@/hooks/use-toast';
 import { useLead, useLinkBudgetToLead } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
 
