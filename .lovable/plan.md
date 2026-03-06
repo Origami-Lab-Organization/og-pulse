@@ -1,20 +1,31 @@
 
 
-## Plano: Ajustar menu superior — ordem e permissões
+## Plano: Adicionar card "Impostos" entre Receita e Custos
 
-### Mudanças em `src/components/layout/AppNavbar.tsx`
+### Lógica
+- **NF emitida** = soma das parcelas com status `invoiced` ou `received`
+- **Taxa de impostos** = `financialSettings.taxes_percent` (já carregado no componente)
+- **Imposto realizado** = NF emitida × (taxes_percent / 100)
+- **Imposto planejado** = receita planejada (valor contrato) × (taxes_percent / 100)
+- **% executado** = (realizado / planejado) × 100
 
-1. **Reordenar grupos**: Marketing vem após "Meu Espaço", antes de "Comercial"
+### Mudanças em `src/components/projects/detail/ProjectFinancialTab.tsx`
 
-2. **Permissões por grupo**:
-   - **Meu Espaço**: todos (sem restrição)
-   - **Marketing**: todos (sem restrição)
-   - **Comercial**: `requiresManager: true` (gerentes de projeto + admins)
-   - **Gestão de Projetos**: `requiresManager: true` (gerentes de projeto + admins)
-   - **RH**: `requiresAdmin: true` (apenas admins)
+1. No `kpiData`, calcular:
+   - `invoicedTotal` = parcelas com status `invoiced` ou `received`
+   - `taxRate` = `financialSettings?.taxes_percent ?? 0`
+   - `taxActual` = `invoicedTotal * taxRate / 100`
+   - `taxPlanned` = `revenuePlanned * taxRate / 100`
+   - `taxExecuted` = `taxPlanned > 0 ? (taxActual / taxPlanned) * 100 : 0`
 
-3. **Ordem final**: Meu Espaço → Marketing → Comercial → Gestão de Projetos → RH
+2. Adicionar card "Impostos" com ícone `Receipt` entre Receita e Custos, usando o mesmo layout visual dos cards existentes
+
+3. Atualizar o grid de `sm:grid-cols-3` para `sm:grid-cols-4`
+
+4. Atualizar cálculo de margem para descontar impostos:
+   - `marginPlanned = ((revenuePlanned - taxPlanned - costPlanned) / revenuePlanned) * 100`
+   - `marginActual = ((revenueActual - taxActual - costActual) / revenueActual) * 100`
 
 ### Arquivo alterado
-- `src/components/layout/AppNavbar.tsx`
+- `src/components/projects/detail/ProjectFinancialTab.tsx`
 
