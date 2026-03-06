@@ -61,6 +61,7 @@ export interface AnalyticsData {
   materialCost: number;
   taxesPercent: number;
   taxesValue: number;
+  commissionValue: number;
   grossMargin: number; // percentage
   grossMarginTarget: number | null;
   costsByProject: CostByProject[];
@@ -110,7 +111,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         return {
           revenueActual: 0, revenueProjected: 0, revenueDiff: 0,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
-          taxesPercent: 0, taxesValue: 0,
+          taxesPercent: 0, taxesValue: 0, commissionValue: 0,
           grossMargin: 0, grossMarginTarget: null, costsByProject: [], employeeUtilization: [],
         } as AnalyticsData;
       }
@@ -118,7 +119,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const projectIds = projects.map(p => p.id);
 
       // 2. Fetch all data in parallel
-      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, supplierActualsRes, materialsRes, settingsRes, holidaysRes] = await Promise.all([
+      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, supplierActualsRes, materialsRes, settingsRes, holidaysRes, commissionsRes] = await Promise.all([
         // Revenue actual: installments with status received and payment_date in period
         supabase
           .from('project_installments')
@@ -181,6 +182,15 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .select('holiday_type, fixed_day, fixed_month, specific_date')
           .eq('tenant_id', tenantId)
           .eq('is_active', true),
+
+        // Commissions paid in period
+        supabase
+          .from('project_commissions')
+          .select('project_id, planned_value, paid_date')
+          .in('project_id', projectIds)
+          .eq('is_paid', true)
+          .gte('paid_date', startStr)
+          .lte('paid_date', endStr),
       ]);
 
       const installments = installmentsRes.data || [];
@@ -193,6 +203,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
       const taxesPercent = settingsRes.data?.taxes_percent ?? 0;
       const holidays = holidaysRes.data || [];
+      const commissions = commissionsRes.data || [];
       const workingDays = countWorkingDays(filters.startDate, filters.endDate, holidays);
 
       // Build lookup maps
@@ -306,7 +317,8 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost;
       const taxesValue = revenueActual * (Number(taxesPercent) / 100);
-      const grossMargin = revenueActual > 0 ? ((revenueActual - taxesValue - totalCosts) / revenueActual) * 100 : 0;
+      const totalCommissions = commissions.reduce((sum, c) => sum + Number(c.planned_value), 0);
+      const grossMargin = revenueActual > 0 ? ((revenueActual - taxesValue - totalCommissions - totalCosts) / revenueActual) * 100 : 0;
 
       // 7. Employee utilization
       // Also include employees allocated to projects but with 0 hours
@@ -378,6 +390,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         materialCost: totalMaterialCost,
         taxesPercent: Number(taxesPercent),
         taxesValue,
+        commissionValue: totalCommissions,
         grossMargin,
         grossMarginTarget,
         costsByProject,
