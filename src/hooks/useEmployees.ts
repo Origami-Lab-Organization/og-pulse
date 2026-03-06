@@ -82,7 +82,7 @@ export const useEmployees = () => {
       const data = await employeeService.getAll(tenantId);
       // Filter out archived employees from main listing
       return data
-        .filter(emp => emp.status !== 'arquivado')
+        .filter(emp => emp.status !== 'arquivado' && emp.status !== 'desligado' && emp.status !== 'em_desligamento')
         .map(dbToEmployee);
     },
     enabled: !!tenantId,
