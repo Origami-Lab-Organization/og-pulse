@@ -199,9 +199,10 @@ export function TimesheetByEmployee({
               {/* Header Row */}
               <div className={cn(
                 "grid gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground",
-                hasActionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+                hasActionSlot ? "grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]" : "grid-cols-[1fr_1fr_repeat(5,60px)_80px]"
               )}>
-                <div>Cliente / Projeto</div>
+                <div>Projeto</div>
+                <div>Cliente</div>
                 {weekDays.map((day) => {
                   const holiday = getHolidayForDate(day.date);
                   const isHolidayDay = !!holiday;
@@ -232,8 +233,7 @@ export function TimesheetByEmployee({
                   );
                 })}
                 <div className="text-right pr-2">Total</div>
-                {hasActionSlot && <div className="text-center">Status</div>}
-                {hasActionSlot && <div className="text-center">Ação</div>}
+                {hasActionSlot && <div className="text-center col-span-1"></div>}
               </div>
               
               {/* Project Rows */}
@@ -249,10 +249,12 @@ export function TimesheetByEmployee({
                       <div className="border border-primary/30 rounded-lg my-1 bg-primary/5">
                         <div className={cn(
                           "grid gap-2 items-center py-2 px-3",
-                          hasActionSlot ? "grid-cols-[1fr_repeat(5,60px)_80px_90px_50px]" : "grid-cols-[1fr_repeat(5,60px)_80px]"
+                          hasActionSlot ? "grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]" : "grid-cols-[1fr_1fr_repeat(5,60px)_80px]"
                         )}>
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{project.projectName}</p>
+                          </div>
+                          <div className="min-w-0">
                             <p className="text-xs text-muted-foreground truncate">{project.clientName}</p>
                           </div>
 
@@ -297,7 +299,6 @@ export function TimesheetByEmployee({
                           <div className="text-right font-medium text-sm pr-2">
                             {Object.values(editHours).reduce((s, h) => s + (h || 0), 0).toFixed(1)}h
                           </div>
-                          {hasActionSlot && <div />}
                           {hasActionSlot && <div />}
                         </div>
 
@@ -344,7 +345,7 @@ export function TimesheetByEmployee({
                       /* Normal display mode */
                       <TimesheetWeekRow
                         label={project.projectName}
-                        subLabel={project.clientName}
+                        clientName={project.clientName}
                         projectId={project.projectId}
                         memberId={project.memberId}
                         weekDays={weekDays}
