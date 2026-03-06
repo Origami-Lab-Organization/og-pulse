@@ -78,6 +78,8 @@ export function CloseBusinessDialog({
   const { data: clients = [] } = useClients();
 
   const hasBudget = !!budget;
+  const budgetMissingClient = hasBudget && !budget?.client_id;
+  const needsClientField = !hasBudget || budgetMissingClient;
 
   // Filter managers
   const managers = useMemo(() => {
@@ -224,7 +226,7 @@ export function CloseBusinessDialog({
                 : 'Informe os dados do projeto:'}
             </p>
 
-            {/* No-budget mode: show project name, client, and value */}
+            {/* No-budget mode: show project name and value */}
             {!hasBudget && (
               <>
                 <FormField
@@ -236,31 +238,6 @@ export function CloseBusinessDialog({
                       <FormControl>
                         <Input {...field} placeholder="Nome do projeto" />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="clientId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cliente *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o cliente" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.companyName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -283,6 +260,34 @@ export function CloseBusinessDialog({
                   )}
                 />
               </>
+            )}
+
+            {/* Client selector - shown when no budget OR budget missing client */}
+            {needsClientField && (
+              <FormField
+                control={form.control}
+                name="clientId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cliente *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o cliente" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.companyName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             )}
 
             <FormField
