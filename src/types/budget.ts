@@ -142,6 +142,7 @@ export interface BudgetCalculation {
   sellingPrice: number;
   discount: number;
   finalTotal: number;
+  effectiveMarginPercent: number;
 }
 
 /**
