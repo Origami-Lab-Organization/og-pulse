@@ -1,33 +1,35 @@
 
 
-## Plano: Exibir dados financeiros da rescisão no tab Financeiro
+## Plano: Corrigir cálculos financeiros para Estágio
 
 ### Problema
-A aba Financeiro do modal de desligamento mostra "Nenhum ajuste registrado" porque depende apenas de registros na tabela `payroll_adjustments`. Para desligamentos criados antes da lógica de salvamento automático, ou quando o salvamento falha, a aba fica vazia. O usuário espera ver os cálculos rescisórios (saldo de salário, férias, 13º, FGTS, etc.).
+Dois bugs no `calculateAutoCalcs` (TerminationStep3Payroll.tsx):
 
-### Solução
-Duas abordagens combinadas:
+1. **Valor R$ 0,00**: Para contrato ESTAGIO, o código usa `salary` (= `employee.salarioMensal`), mas estagiários têm remuneração em `employee.bolsaAuxilio`. Resultado: saldo = 0.
 
-1. **Expandir a query do `getAll`** no `terminationService` para incluir campos financeiros do employee (`salario_mensal`, `fgts`, `data_admissao`, `pro_labore`, `bolsa_auxilio`) — necessários para calcular verbas rescisórias on-the-fly.
+2. **NaN**: `monthsWorked` depende de `parseDateString(employee.dataAdmissao)`. Quando `dataAdmissao` é string vazia (vindo do banco como null → mapeado para `''` em `buildEmployeeLike`), `parseDateString` retorna data inválida → NaN se propaga para `recessDays` e `recessValue`.
 
-2. **Refatorar `TerminationDetailFinancialTab`** para:
-   - Computar auto-cálculos (reutilizando `calculateAutoCalcs` do wizard) com os dados do employee + termination
-   - Mostrar uma seção "Verbas Rescisórias (Calculadas)" com os itens automáticos
-   - Manter a seção "Ajustes Manuais" com os registros do banco (somente os que NÃO são auto-calculados, ou todos do banco)
-   - Atualizar os totalizadores (Créditos, Débitos, Líquido) somando ambas as fontes
+### Correções
 
-### Alterações
+#### `src/components/employees/termination-wizard/TerminationStep3Payroll.tsx`
+- No case `ESTAGIO`: usar `employee.bolsaAuxilio || salary` como base de cálculo em vez de apenas `salary`
+- Na linha 65-66: adicionar guard para `dataAdmissao` vazio — se não houver data de admissão, usar fallback (ex: 0 meses) ou a própria `termination_date`
 
-#### 1. `src/services/terminationService.ts`
-- Na query `getAll` e `getById`, adicionar `salario_mensal, fgts, data_admissao, pro_labore, bolsa_auxilio` ao select de `employees`
-- Atualizar `TerminationWithEmployee` para incluir esses campos
+#### `src/components/terminations/detail/TerminationDetailFinancialTab.tsx`
+- Em `buildEmployeeLike`: garantir que `bolsaAuxilio` está mapeado corretamente (já está na linha 41, ok)
+- Em `buildWizardDataLike`: sem alteração necessária
 
-#### 2. `src/components/terminations/detail/TerminationDetailFinancialTab.tsx`
-- Importar `calculateAutoCalcs` do wizard
-- Construir um objeto `Employee`-like a partir de `termination.employees` para alimentar `calculateAutoCalcs`
-- Exibir seção de "Verbas Rescisórias" (auto-calculadas) em tabela separada acima dos ajustes manuais
-- Atualizar cards de resumo para somar auto-calcs + ajustes do banco
+### Detalhe técnico
+```text
+ANTES (ESTAGIO):
+  salary = employee.salarioMensal  → 0 para estagiário
+  stipendBalance = (0 / 30) * 28 = 0
 
-#### 3. `src/pages/TerminatedEmployees.tsx` e `src/components/terminations/TerminationsTable.tsx`
-- Ajustar tipagem se necessário para os novos campos do employee
+DEPOIS:
+  stipend = employee.bolsaAuxilio || salary
+  stipendBalance = (stipend / 30) * 28 = valor correto
+
+monthsWorked guard:
+  if (!employee.dataAdmissao) → monthsWorked = 0 (sem NaN)
+```
 
