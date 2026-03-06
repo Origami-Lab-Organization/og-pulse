@@ -1,0 +1,2 @@
+ALTER TABLE public.employees DROP CONSTRAINT employees_status_check;
+ALTER TABLE public.employees ADD CONSTRAINT employees_status_check CHECK (status = ANY (ARRAY['ativo'::text, 'inativo'::text, 'aguardando_confirmacao'::text, 'bloqueado'::text, 'arquivado'::text, 'em_desligamento'::text, 'desligado'::text]));

@@ -68,18 +68,20 @@ export const terminationService = {
       throw new Error('Falha ao iniciar processo de desligamento');
     }
 
-    // Update employee status to 'desligado' and link termination
-    const { error: empError } = await supabase
+    // Update employee status to 'em_desligamento' and link termination
+    const { data: updatedEmp, error: empError } = await supabase
       .from('employees')
       .update({
         status: 'em_desligamento',
         termination_id: termination.id,
       })
-      .eq('id', data.employee_id);
+      .eq('id', data.employee_id)
+      .select('id')
+      .single();
 
-    if (empError) {
-      console.error('Erro ao atualizar status do funcionário:', empError);
-      // Don't throw - termination was created successfully
+    if (empError || !updatedEmp) {
+      console.error('Erro ao atualizar status do funcionário (possível bloqueio por RLS):', empError);
+      throw new Error('Falha ao atualizar status do funcionário. O desligamento foi criado, mas o status não foi alterado.');
     }
 
     return termination as unknown as EmployeeTermination;
