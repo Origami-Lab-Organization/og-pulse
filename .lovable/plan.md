@@ -1,35 +1,31 @@
 
 
-## Plano: Corrigir cálculos financeiros para Estágio
+## Plano: Persistir ajustes financeiros na coluna JSON da rescisão
 
-### Problema
-Dois bugs no `calculateAutoCalcs` (TerminationStep3Payroll.tsx):
+### Problema raiz
+Os ajustes de folha (tanto auto-calculados quanto manuais como o débito de R$300) não estão sendo salvos na tabela `payroll_adjustments` porque o usuário logado não possui registro na tabela `user_roles`, fazendo com que a política RLS bloqueie silenciosamente os INSERTs. O wizard conclui sem erro porque o `Promise.all` dos ajustes falha sem feedback.
 
-1. **Valor R$ 0,00**: Para contrato ESTAGIO, o código usa `salary` (= `employee.salarioMensal`), mas estagiários têm remuneração em `employee.bolsaAuxilio`. Resultado: saldo = 0.
+A tabela `employee_terminations` já possui a coluna `final_payroll_adjustments` (JSONB) que está vazia (`null`). Vamos usá-la como fonte primária.
 
-2. **NaN**: `monthsWorked` depende de `parseDateString(employee.dataAdmissao)`. Quando `dataAdmissao` é string vazia (vindo do banco como null → mapeado para `''` em `buildEmployeeLike`), `parseDateString` retorna data inválida → NaN se propaga para `recessDays` e `recessValue`.
+### Solução
 
-### Correções
+#### 1. `src/components/employees/TerminationWizardModal.tsx`
+- Após criar a rescisão, salvar TODOS os ajustes (auto-calcs + manuais) na coluna `final_payroll_adjustments` do registro de termination via `terminationService.update()`
+- Formato JSON: array de objetos `{ desc, value, isCredit, type }`
+- Manter tentativa de salvar em `payroll_adjustments` como fallback (best-effort, sem bloquear)
 
-#### `src/components/employees/termination-wizard/TerminationStep3Payroll.tsx`
-- No case `ESTAGIO`: usar `employee.bolsaAuxilio || salary` como base de cálculo em vez de apenas `salary`
-- Na linha 65-66: adicionar guard para `dataAdmissao` vazio — se não houver data de admissão, usar fallback (ex: 0 meses) ou a própria `termination_date`
+#### 2. `src/components/terminations/detail/TerminationDetailFinancialTab.tsx`
+- Ler ajustes de `termination.final_payroll_adjustments` (JSONB) como fonte primária
+- Se `final_payroll_adjustments` tiver dados, mostrar na seção "Verbas Rescisórias" + "Ajustes Manuais"
+- Fallback para auto-calcs on-the-fly + `payroll_adjustments` da tabela se o JSON estiver vazio
+- Os cards de resumo somam créditos e débitos de todas as fontes
 
-#### `src/components/terminations/detail/TerminationDetailFinancialTab.tsx`
-- Em `buildEmployeeLike`: garantir que `bolsaAuxilio` está mapeado corretamente (já está na linha 41, ok)
-- Em `buildWizardDataLike`: sem alteração necessária
+#### 3. `src/services/terminationService.ts`
+- Garantir que o `update()` aceita o campo `final_payroll_adjustments`
 
-### Detalhe técnico
-```text
-ANTES (ESTAGIO):
-  salary = employee.salarioMensal  → 0 para estagiário
-  stipendBalance = (0 / 30) * 28 = 0
-
-DEPOIS:
-  stipend = employee.bolsaAuxilio || salary
-  stipendBalance = (stipend / 30) * 28 = valor correto
-
-monthsWorked guard:
-  if (!employee.dataAdmissao) → monthsWorked = 0 (sem NaN)
-```
+### Resultado esperado
+- O débito de R$300 aparecerá na seção "Ajustes Manuais"
+- Os créditos de R$4.700 (bolsa + recesso) aparecerão em "Verbas Rescisórias"
+- Cards mostrarão: Créditos R$4.700, Débitos R$300, Líquido R$4.400
+- Funciona independente de RLS na tabela `payroll_adjustments`
 
