@@ -109,7 +109,7 @@ export default function BudgetForm() {
 
   const durationMonths = form.watch('durationMonths');
   const clientType = form.watch('clientType');
-  const startDate = form.watch('startDate');
+  
 
   // Pre-fill from lead data
   useEffect(() => {
