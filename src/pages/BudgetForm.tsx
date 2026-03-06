@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { formatPhone } from '@/lib/masks';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
