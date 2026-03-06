@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, Target, DollarSign, Receipt, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Target, DollarSign, Receipt, Wallet, Percent } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { formatCurrency, formatPercent, getProjectMonthLabel } from '@/lib/formatters';
@@ -12,6 +12,8 @@ import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
 import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { parseISO, differenceInMonths, startOfMonth, addMonths } from 'date-fns';
+import { useBudget } from '@/hooks/useBudgets';
+import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 
 interface ProjectFinancialTabProps {
   project: ProjectWithRelations;
@@ -32,6 +34,8 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
   const { data: financialSettings } = useFinancialSettings();
+  const { data: budget } = useBudget(project.budget_id);
+  const { data: commissions = [] } = useProjectCommissions(project.id);
   const marginTarget = financialSettings?.gross_margin_target_percent ?? 0;
 
   const projectDuration = useMemo(() => {
@@ -111,12 +115,25 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
     const costActual = costData.totalActual;
     const costExecuted = costPlanned > 0 ? (costActual / costPlanned) * 100 : 0;
 
-    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - taxPlanned - costPlanned) / revenuePlanned) * 100 : 0;
-    const marginActual = revenueActual > 0 ? ((revenueActual - taxActual - costActual) / revenueActual) * 100 : 0;
+    // Commission
+    const commissionPlanned = budget
+      ? (budget.commission_percent / 100) * budget.total_with_fees
+      : 0;
+    const commissionActual = commissions.filter((c) => c.is_paid).reduce((s, c) => s + Number(c.planned_value), 0);
+    const commissionExecuted = commissionPlanned > 0 ? (commissionActual / commissionPlanned) * 100 : 0;
+
+    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - taxPlanned - commissionPlanned - costPlanned) / revenuePlanned) * 100 : 0;
+    const marginActual = revenueActual > 0 ? ((revenueActual - taxActual - commissionActual - costActual) / revenueActual) * 100 : 0;
     const marginVar = marginActual - marginPlanned;
 
-    return { revenuePlanned, revenueActual, revenueExecuted, taxPlanned, taxActual, taxExecuted, costPlanned, costActual, costExecuted, marginPlanned, marginActual, marginVar };
-  }, [project, costData, financialSettings]);
+    return {
+      revenuePlanned, revenueActual, revenueExecuted,
+      taxPlanned, taxActual, taxExecuted,
+      commissionPlanned, commissionActual, commissionExecuted,
+      costPlanned, costActual, costExecuted,
+      marginPlanned, marginActual, marginVar,
+    };
+  }, [project, costData, financialSettings, budget, commissions]);
 
   // Monthly chart data
   const monthlyChartData = useMemo(() => {
@@ -190,7 +207,7 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         {/* Receita */}
         <Card>
           <CardContent className="pt-4 pb-4 px-4">
@@ -240,6 +257,34 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
               <div className="pt-1">
                 <span className="text-xs font-semibold text-muted-foreground">
                   {kpiData.taxExecuted.toFixed(1)}%
+                </span>
+                <span className="text-xs text-muted-foreground ml-1">executado</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Comissão */}
+        <Card>
+          <CardContent className="pt-4 pb-4 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                <Percent className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground">Comissão</p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <p className="text-xl font-bold">{formatCurrency(kpiData.commissionActual)}</p>
+                <span className="text-xs text-muted-foreground">Realizado</span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.commissionPlanned)}</p>
+                <span className="text-xs text-muted-foreground">Planejado</span>
+              </div>
+              <div className="pt-1">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {kpiData.commissionExecuted.toFixed(1)}%
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">executado</span>
               </div>
