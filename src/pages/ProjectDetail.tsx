@@ -13,6 +13,7 @@ import { ProjectOKRsTab } from '@/components/projects/detail/ProjectOKRsTab';
 import { ProjectStakeholdersTab } from '@/components/projects/detail/ProjectStakeholdersTab';
 import { ProjectScheduleTab } from '@/components/projects/detail/ProjectScheduleTab';
 import { ProjectExpectedResultTab } from '@/components/projects/detail/ProjectExpectedResultTab';
+import { ProjectCommissionsTab } from '@/components/projects/detail/ProjectCommissionsTab';
 import { ProjectFormDialog } from '@/components/projects/ProjectFormDialog';
 import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
 import { useProject, useUpdateProject, useDeleteProject } from '@/hooks/useProjects';
@@ -111,10 +112,11 @@ export default function ProjectDetail() {
         <ProjectHeader project={project} />
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="okrs">OKR</TabsTrigger>
             <TabsTrigger value="costs">Custos</TabsTrigger>
+            <TabsTrigger value="commissions">Comissão</TabsTrigger>
             <TabsTrigger value="schedule">Cronograma</TabsTrigger>
             <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
@@ -138,6 +140,10 @@ export default function ProjectDetail() {
               isEditable={isPlanning && !isReadOnly} 
               canEditActuals={!isPlanning && !isReadOnly && project.portfolio_stage !== 'completed'}
             />
+          </TabsContent>
+
+          <TabsContent value="commissions" className="mt-6">
+            <ProjectCommissionsTab project={project} isReadOnly={isReadOnly} />
           </TabsContent>
 
           <TabsContent value="schedule" className="mt-6">
