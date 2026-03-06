@@ -178,6 +178,10 @@ export default function BudgetForm() {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
+  const isMarginBelowMinimum = calculation.effectiveMarginPercent < minNetMarginPercent && discountValue > 0;
+  const isAdmin = employee?.isAdmin ?? false;
+  const canSaveWithLowMargin = isAdmin && marginOverrideConfirmed;
+  const isSaveBlocked = isMarginBelowMinimum && !canSaveWithLowMargin;
   const handleSubmit = (values: FormValues) => {
     if (isSubmitting) {
       console.warn('Form submission blocked: already submitting');
