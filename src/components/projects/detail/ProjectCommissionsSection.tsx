@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Check, Clock, Percent } from 'lucide-react';
+import { Check, Clock, Pencil, Percent } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -22,6 +22,12 @@ interface ProjectCommissionsSectionProps {
   isEditable: boolean;
 }
 
+interface EditDialogState {
+  commission: ProjectCommission;
+  installmentValue: number;
+  mode: 'pay' | 'edit';
+}
+
 export function ProjectCommissionsSection({
   projectId,
   commissions,
@@ -31,11 +37,14 @@ export function ProjectCommissionsSection({
 }: ProjectCommissionsSectionProps) {
   const updateCommission = useUpdateCommission();
   const generateCommissions = useGenerateCommissions();
-  const [payDialog, setPayDialog] = useState<ProjectCommission | null>(null);
-  const [paidTo, setPaidTo] = useState('');
-  const [paidDate, setPaidDate] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState(0);
+
+  const [dialogState, setDialogState] = useState<EditDialogState | null>(null);
+  const [dlgPercent, setDlgPercent] = useState('');
+  const [dlgValue, setDlgValue] = useState(0);
+  const [dlgPaidTo, setDlgPaidTo] = useState('');
+  const [dlgPaidDate, setDlgPaidDate] = useState('');
+  const [dlgIsPaid, setDlgIsPaid] = useState(false);
+  const [lastChanged, setLastChanged] = useState<'percent' | 'value'>('percent');
 
   const totalCommission = budget ? (budget.commission_percent / 100) * budget.total_with_fees : 0;
   const hasCommission = totalCommission > 0;
@@ -47,29 +56,72 @@ export function ProjectCommissionsSection({
     return map;
   }, [commissions]);
 
+  const installmentMap = useMemo(() => {
+    const map = new Map<string, ProjectInstallmentDB>();
+    installments.forEach((i) => map.set(i.id, i));
+    return map;
+  }, [installments]);
+
+  // Sync dialog fields when opening
+  useEffect(() => {
+    if (!dialogState) return;
+    const { commission, mode } = dialogState;
+    setDlgPercent(String(commission.commission_percent || 0));
+    setDlgValue(Number(commission.planned_value));
+    setDlgPaidTo(commission.paid_to || '');
+    setDlgPaidDate(commission.paid_date || (mode === 'pay' ? format(new Date(), 'yyyy-MM-dd') : ''));
+    setDlgIsPaid(mode === 'pay' ? true : commission.is_paid);
+    setLastChanged('percent');
+  }, [dialogState]);
+
+  const handlePercentChange = (raw: string) => {
+    setDlgPercent(raw);
+    setLastChanged('percent');
+    const pct = parseFloat(raw);
+    if (!isNaN(pct) && dialogState) {
+      setDlgValue(Math.round(dialogState.installmentValue * pct) / 100);
+    }
+  };
+
+  const handleValueChange = (val: number) => {
+    setDlgValue(val);
+    setLastChanged('value');
+    if (dialogState && dialogState.installmentValue > 0) {
+      const pct = (val / dialogState.installmentValue) * 100;
+      setDlgPercent(pct.toFixed(2));
+    }
+  };
+
   const handleGenerate = () => {
     generateCommissions.mutate({
       projectId,
       installments: installments.map((i) => ({ id: i.id })),
       totalCommission,
+      commissionPercent: budget!.commission_percent,
     });
   };
 
-  const handleOpenPay = (commission: ProjectCommission) => {
-    setPaidTo(commission.paid_to || '');
-    setPaidDate(commission.paid_date || format(new Date(), 'yyyy-MM-dd'));
-    setPayDialog(commission);
+  const openDialog = (commission: ProjectCommission, mode: 'pay' | 'edit') => {
+    const inst = installmentMap.get(commission.installment_id);
+    setDialogState({
+      commission,
+      installmentValue: inst ? Number(inst.value) : 0,
+      mode,
+    });
   };
 
-  const handleConfirmPay = () => {
-    if (!payDialog) return;
+  const handleConfirmDialog = () => {
+    if (!dialogState) return;
+    const pct = parseFloat(dlgPercent) || 0;
     updateCommission.mutate({
-      id: payDialog.id,
-      is_paid: true,
-      paid_date: paidDate || null,
-      paid_to: paidTo || null,
+      id: dialogState.commission.id,
+      commission_percent: pct,
+      planned_value: dlgValue,
+      is_paid: dlgIsPaid,
+      paid_date: dlgIsPaid ? (dlgPaidDate || null) : null,
+      paid_to: dlgIsPaid ? (dlgPaidTo || null) : null,
     });
-    setPayDialog(null);
+    setDialogState(null);
   };
 
   const handleUnpay = (commission: ProjectCommission) => {
@@ -79,16 +131,6 @@ export function ProjectCommissionsSection({
       paid_date: null,
       paid_to: null,
     });
-  };
-
-  const handleStartEdit = (commission: ProjectCommission) => {
-    setEditingId(commission.id);
-    setEditValue(Number(commission.planned_value));
-  };
-
-  const handleSaveEdit = (commissionId: string) => {
-    updateCommission.mutate({ id: commissionId, planned_value: editValue });
-    setEditingId(null);
   };
 
   if (!hasCommission) return null;
@@ -131,11 +173,12 @@ export function ProjectCommissionsSection({
                     <TableHead>Parcela</TableHead>
                     <TableHead>Valor Parcela</TableHead>
                     <TableHead>Status Parcela</TableHead>
+                    <TableHead>%</TableHead>
                     <TableHead>Comissão</TableHead>
                     <TableHead>Pago?</TableHead>
                     <TableHead>Pago a</TableHead>
                     <TableHead>Data Pgto</TableHead>
-                    {isEditable && <TableHead className="w-[100px]">Ação</TableHead>}
+                    {isEditable && <TableHead className="w-[120px]">Ação</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -143,7 +186,6 @@ export function ProjectCommissionsSection({
                     const commission = commissionMap.get(inst.id);
                     if (!commission) return null;
                     const canPay = inst.status === 'received' && !commission.is_paid;
-                    const isEditingThis = editingId === commission.id;
 
                     return (
                       <TableRow key={inst.id}>
@@ -154,28 +196,8 @@ export function ProjectCommissionsSection({
                             {INSTALLMENT_STATUS_LABELS[inst.status] || inst.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          {isEditingThis ? (
-                            <div className="flex items-center gap-1">
-                              <CurrencyInput
-                                value={editValue}
-                                onValueChange={setEditValue}
-                                compact
-                                className="w-28"
-                              />
-                              <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => handleSaveEdit(commission.id)}>
-                                <Check className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <span
-                              className={isEditable ? 'cursor-pointer hover:underline' : ''}
-                              onClick={() => isEditable && handleStartEdit(commission)}
-                            >
-                              {formatCurrency(commission.planned_value)}
-                            </span>
-                          )}
-                        </TableCell>
+                        <TableCell className="text-sm">{Number(commission.commission_percent)}%</TableCell>
+                        <TableCell>{formatCurrency(commission.planned_value)}</TableCell>
                         <TableCell>
                           {commission.is_paid ? (
                             <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs">
@@ -195,16 +217,21 @@ export function ProjectCommissionsSection({
                         </TableCell>
                         {isEditable && (
                           <TableCell>
-                            {canPay && (
-                              <Button size="sm" variant="outline" onClick={() => handleOpenPay(commission)}>
-                                Pagar
+                            <div className="flex items-center gap-1">
+                              {canPay && (
+                                <Button size="sm" variant="outline" onClick={() => openDialog(commission, 'pay')}>
+                                  Pagar
+                                </Button>
+                              )}
+                              {commission.is_paid && (
+                                <Button size="sm" variant="ghost" onClick={() => handleUnpay(commission)}>
+                                  Desfazer
+                                </Button>
+                              )}
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => openDialog(commission, 'edit')}>
+                                <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                            )}
-                            {commission.is_paid && (
-                              <Button size="sm" variant="ghost" onClick={() => handleUnpay(commission)}>
-                                Desfazer
-                              </Button>
-                            )}
+                            </div>
                           </TableCell>
                         )}
                       </TableRow>
@@ -217,29 +244,50 @@ export function ProjectCommissionsSection({
         </CardContent>
       </Card>
 
-      {/* Pay dialog */}
-      <Dialog open={!!payDialog} onOpenChange={() => setPayDialog(null)}>
+      {/* Unified edit/pay dialog */}
+      <Dialog open={!!dialogState} onOpenChange={() => setDialogState(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Registrar Pagamento de Comissão</DialogTitle>
+            <DialogTitle>
+              {dialogState?.mode === 'pay' ? 'Registrar Pagamento de Comissão' : 'Editar Comissão'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Valor</Label>
-              <p className="text-lg font-semibold">{payDialog ? formatCurrency(payDialog.planned_value) : ''}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="dlg_percent">Percentual (%)</Label>
+                <Input
+                  id="dlg_percent"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={dlgPercent}
+                  onChange={(e) => handlePercentChange(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="dlg_value">Valor (R$)</Label>
+                <CurrencyInput
+                  id="dlg_value"
+                  value={dlgValue}
+                  onValueChange={handleValueChange}
+                />
+              </div>
             </div>
             <div>
-              <Label htmlFor="paid_to">Pago a</Label>
-              <Input id="paid_to" value={paidTo} onChange={(e) => setPaidTo(e.target.value)} placeholder="Nome do beneficiário" />
+              <Label htmlFor="dlg_paid_to">Pago a</Label>
+              <Input id="dlg_paid_to" value={dlgPaidTo} onChange={(e) => setDlgPaidTo(e.target.value)} placeholder="Nome do beneficiário" />
             </div>
             <div>
-              <Label htmlFor="paid_date">Data do pagamento</Label>
-              <Input id="paid_date" type="date" value={paidDate} onChange={(e) => setPaidDate(e.target.value)} />
+              <Label htmlFor="dlg_paid_date">Data do pagamento</Label>
+              <Input id="dlg_paid_date" type="date" value={dlgPaidDate} onChange={(e) => setDlgPaidDate(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPayDialog(null)}>Cancelar</Button>
-            <Button onClick={handleConfirmPay} disabled={updateCommission.isPending}>Confirmar</Button>
+            <Button variant="outline" onClick={() => setDialogState(null)}>Cancelar</Button>
+            <Button onClick={handleConfirmDialog} disabled={updateCommission.isPending}>
+              {dialogState?.mode === 'pay' ? 'Confirmar Pagamento' : 'Salvar'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
