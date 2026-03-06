@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { formatPhone } from '@/lib/masks';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -334,7 +335,7 @@ export default function BudgetForm() {
                   </FormItem>
                 )} />
               ) : (
-              <div className="grid grid-cols-3 gap-4">
+                <>
                   <FormField control={form.control} name="leadName" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Nome do Lead</FormLabel>
@@ -342,28 +343,38 @@ export default function BudgetForm() {
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="leadEmail" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email do Lead</FormLabel>
-                      <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="leadPhone" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telefone do Lead</FormLabel>
-                      <FormControl><Input type="tel" placeholder="(11) 99999-0000" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
-                    </FormItem>
-                  )} />
-                </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField control={form.control} name="leadEmail" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email do Lead</FormLabel>
+                        <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="leadPhone" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefone do Lead</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="tel"
+                            placeholder="(11) 99999-0000"
+                            {...field}
+                            readOnly={isFromLead}
+                            className={isFromLead ? 'bg-muted' : ''}
+                            onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="durationMonths" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Duração do Projeto (meses)</FormLabel>
+                        <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </>
               )}
-
-              <FormField control={form.control} name="durationMonths" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Duração do Projeto (meses)</FormLabel>
-                  <FormControl><Input type="number" min={1} max={60} {...field} className="max-w-xs" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
 
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem>
