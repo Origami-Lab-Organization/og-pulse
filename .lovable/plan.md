@@ -1,25 +1,35 @@
 
 
-## Plano: Botão "Próximo" sempre ativo + validação inline com erros visuais
+## Plano: Corrigir fluxo de desligamento e filtrar funcionários
+
+### Problemas identificados
+
+1. **Status errado**: `terminationService.create()` (linha 74) define o status do funcionário como `'desligado'` ao criar o desligamento. Deveria ser `'em_desligamento'`.
+
+2. **Página de funcionários mostra desligados**: O `useEmployees` hook filtra apenas `'arquivado'`. Funcionários em desligamento e desligados continuam aparecendo.
+
+3. **Abas desnecessárias**: A página de funcionários tem abas "Em Desligamento", "Desligados" e "Todos" — o usuário quer que essas pessoas apareçam apenas na seção `/rh/desligamentos`.
 
 ### Mudanças
 
-#### `TerminationWizardModal.tsx`
-- Remover a lógica `canAdvance` que desabilita o botão no step `info`
-- Adicionar estado `showErrors` (boolean), inicializado como `false`
-- No `handleNext`, ao invés de bloquear via `disabled`, validar os campos obrigatórios do step atual. Se inválidos, setar `showErrors = true` e não avançar. Se válidos, avançar e resetar `showErrors`
-- Passar `showErrors` como prop para `TerminationStep1Info`
-- Botão "Próximo" fica sempre habilitado (exceto no step `review` que mantém o `confirmed`)
+#### `src/services/terminationService.ts`
+- Linha 75: Mudar `status: 'desligado'` para `status: 'em_desligamento'`
 
-#### `TerminationStep1Info.tsx`
-- Receber prop `showErrors: boolean`
-- Quando `showErrors` é `true`, mostrar borda vermelha (`border-destructive`) nos campos inválidos:
-  - Data efetiva do desligamento: se vazio → borda vermelha + "Data obrigatória"
-  - Tipo de desligamento: se vazio → borda vermelha + "Tipo obrigatório"
-  - Motivo detalhado: se < 20 chars → borda vermelha no textarea + "Mínimo de 20 caracteres"
-- Mensagens de erro em `<p className="text-xs text-destructive">`
+#### `src/hooks/useEmployees.ts`
+- Linha 85: Filtrar também `'desligado'` e `'em_desligamento'` além de `'arquivado'`
+
+#### `src/pages/Index.tsx`
+- Remover as abas de status (Em Desligamento, Desligados, Todos)
+- Remover o state `statusFilter` e a lógica de filtragem por abas
+- Remover referências ao status `em_desligamento` e `desligado` na página
+- Manter apenas a listagem simples de funcionários ativos (que já será filtrada pelo hook)
+
+#### `src/components/employees/EmployeesTable.tsx`
+- Remover os cases de status `'desligado'` e `'em_desligamento'` do `getStatusBadge` (não serão mais exibidos nesta página)
 
 ### Arquivos modificados
-- `src/components/employees/TerminationWizardModal.tsx`
-- `src/components/employees/termination-wizard/TerminationStep1Info.tsx`
+- `src/services/terminationService.ts`
+- `src/hooks/useEmployees.ts`
+- `src/pages/Index.tsx`
+- `src/components/employees/EmployeesTable.tsx`
 
