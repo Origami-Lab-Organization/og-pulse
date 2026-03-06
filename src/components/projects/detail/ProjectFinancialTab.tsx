@@ -99,16 +99,24 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
     const revenueActual = receivedValue;
     const revenueExecuted = revenuePlanned > 0 ? (revenueActual / revenuePlanned) * 100 : 0;
 
+    const taxRate = financialSettings?.taxes_percent ?? 0;
+    const invoicedTotal = (project.installments || [])
+      .filter((i) => i.status === 'invoiced' || i.status === 'received')
+      .reduce((sum, i) => sum + Number(i.value), 0);
+    const taxPlanned = revenuePlanned * taxRate / 100;
+    const taxActual = invoicedTotal * taxRate / 100;
+    const taxExecuted = taxPlanned > 0 ? (taxActual / taxPlanned) * 100 : 0;
+
     const costPlanned = costData.totalPlanned;
     const costActual = costData.totalActual;
     const costExecuted = costPlanned > 0 ? (costActual / costPlanned) * 100 : 0;
 
-    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - costPlanned) / revenuePlanned) * 100 : 0;
-    const marginActual = revenueActual > 0 ? ((revenueActual - costActual) / revenueActual) * 100 : 0;
+    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - taxPlanned - costPlanned) / revenuePlanned) * 100 : 0;
+    const marginActual = revenueActual > 0 ? ((revenueActual - taxActual - costActual) / revenueActual) * 100 : 0;
     const marginVar = marginActual - marginPlanned;
 
-    return { revenuePlanned, revenueActual, revenueExecuted, costPlanned, costActual, costExecuted, marginPlanned, marginActual, marginVar };
-  }, [project, costData]);
+    return { revenuePlanned, revenueActual, revenueExecuted, taxPlanned, taxActual, taxExecuted, costPlanned, costActual, costExecuted, marginPlanned, marginActual, marginVar };
+  }, [project, costData, financialSettings]);
 
   // Monthly chart data
   const monthlyChartData = useMemo(() => {
@@ -182,7 +190,7 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {/* Receita */}
         <Card>
           <CardContent className="pt-4 pb-4 px-4">
@@ -204,6 +212,34 @@ export function ProjectFinancialTab({ project }: ProjectFinancialTabProps) {
               <div className="pt-1">
                 <span className="text-xs font-semibold text-muted-foreground">
                   {kpiData.revenueExecuted.toFixed(1)}%
+                </span>
+                <span className="text-xs text-muted-foreground ml-1">executado</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Impostos */}
+        <Card>
+          <CardContent className="pt-4 pb-4 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                <Receipt className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground">Impostos</p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <p className="text-xl font-bold">{formatCurrency(kpiData.taxActual)}</p>
+                <span className="text-xs text-muted-foreground">Realizado</span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.taxPlanned)}</p>
+                <span className="text-xs text-muted-foreground">Planejado</span>
+              </div>
+              <div className="pt-1">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {kpiData.taxExecuted.toFixed(1)}%
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">executado</span>
               </div>
