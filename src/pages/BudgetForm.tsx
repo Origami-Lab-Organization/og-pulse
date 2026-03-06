@@ -270,24 +270,6 @@ export default function BudgetForm() {
               <CardTitle>Informações do Orçamento</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField control={form.control} name="clientType" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Cliente</FormLabel>
-                  <FormControl>
-                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4" disabled={isFromLead}>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="client" id="client" />
-                        <Label htmlFor="client">Cliente Existente</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="lead" id="lead" />
-                        <Label htmlFor="lead">Novo Lead</Label>
-                      </div>
-                    </RadioGroup>
-                  </FormControl>
-                </FormItem>
-              )} />
-
               <FormField control={form.control} name="title" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Título do Orçamento</FormLabel>
@@ -296,62 +278,44 @@ export default function BudgetForm() {
                 </FormItem>
               )} />
 
-              {clientType === 'client' ? (
-                <FormField control={form.control} name="clientId" render={({ field }) => (
+              <FormField control={form.control} name="clientId" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cliente</FormLabel>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {clients.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowClientDialog(true)}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="startDate" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cliente</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {clients.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Data de Início</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-              ) : (
-                <>
-                  <FormField control={form.control} name="leadName" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Lead</FormLabel>
-                      <FormControl><Input placeholder="Nome da empresa ou pessoa" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField control={form.control} name="leadEmail" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email do Lead</FormLabel>
-                        <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="leadPhone" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telefone do Lead</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="tel"
-                            placeholder="(11) 99999-0000"
-                            {...field}
-                            readOnly={isFromLead}
-                            className={isFromLead ? 'bg-muted' : ''}
-                            onChange={(e) => field.onChange(formatPhone(e.target.value))}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="durationMonths" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Duração do Projeto (meses)</FormLabel>
-                        <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  </div>
-                </>
-              )}
+                <FormField control={form.control} name="durationMonths" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duração do Projeto (meses)</FormLabel>
+                    <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
 
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem>
