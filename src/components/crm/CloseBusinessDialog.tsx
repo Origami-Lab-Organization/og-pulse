@@ -45,6 +45,7 @@ const closeBusinessSchema = z.object({
   paymentMethod: z.string().default('mensal'),
   installmentsCount: z.coerce.number().min(1).default(1),
   dueDay: z.coerce.number().min(1).max(31).default(10),
+  dueDate: z.string().optional().default(''),
   firstInvoiceDate: z.string().optional().default(''),
   startDate: z.string().min(1, 'Data de início é obrigatória'),
   endDate: z.string().min(1, 'Data de fim é obrigatória'),
