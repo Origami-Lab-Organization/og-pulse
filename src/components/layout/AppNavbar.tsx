@@ -138,11 +138,11 @@ export function AppNavbar() {
           {navigationGroups.filter(isGroupVisible).map((group) => {
             const visibleItems = filterItems(group.items);
             return (
-              <NavigationMenuItem key={group.label}>
+              <NavigationMenuItem key={group.label} className="relative">
                 <NavigationMenuTrigger className="h-9 px-3 text-sm font-medium bg-transparent data-[state=open]:bg-accent/50">
                   {group.label}
                 </NavigationMenuTrigger>
-                <NavigationMenuContent>
+                <NavigationMenuContent className="absolute top-full left-0 mt-1.5 rounded-md border bg-popover text-popover-foreground shadow-lg">
                   <ul className="grid w-[220px] gap-1 p-2">
                     {visibleItems.map((item) => {
                       const Icon = item.icon;
