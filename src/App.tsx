@@ -52,7 +52,7 @@ const App = () => (
             <Routes>
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              <Route path="/register" element={<Navigate to="/login" replace />} />
               <Route path="/esqueci-minha-senha" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/boas-vindas" element={<Welcome />} />

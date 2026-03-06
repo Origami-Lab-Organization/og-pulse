@@ -210,7 +210,7 @@ const LandingPage = () => {
                 <Link to="/login">Entrar</Link>
               </Button>
               <Button asChild>
-                <Link to="/register">Cadastrar Empresa</Link>
+                <Link to="/login">Entrar</Link>
               </Button>
             </nav>
           </div>
@@ -231,20 +231,14 @@ const LandingPage = () => {
                   Saiba exatamente quanto custa sua operação e maximize sua
                   margem de lucro.
                 </p>
-                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in">
-                  <Button size="lg" asChild className="w-full sm:w-auto">
-                    <Link to="/register">
-                      Cadastrar Empresa Grátis
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
+                <div className="mt-10 flex items-center justify-center animate-fade-in">
                   <Button
                     size="lg"
                     variant="outline"
                     asChild
                     className="w-full sm:w-auto"
                   >
-                    <Link to="/login">Já tenho conta</Link>
+                    <Link to="/login">Acessar minha conta</Link>
                   </Button>
                 </div>
               </div>
@@ -395,12 +389,6 @@ const LandingPage = () => {
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Login
-                </Link>
-                <Link
-                  to="/register"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Cadastrar Empresa
                 </Link>
                 <a
                   href="#funcionalidades"

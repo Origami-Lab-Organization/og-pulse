@@ -140,14 +140,6 @@ const Login = () => {
                 )}
               </Button>
 
-              <div className="text-center pt-2">
-                <span className="text-sm text-muted-foreground">
-                  Não tem uma conta?{' '}
-                  <Link to="/register" className="text-primary hover:underline font-medium">
-                    Cadastrar Empresa
-                  </Link>
-                </span>
-              </div>
             </form>
           </Form>
         </CardContent>
