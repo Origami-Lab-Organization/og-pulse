@@ -68,6 +68,7 @@ export default function Analytics() {
               totalCosts={analyticsData.totalCosts}
               taxesPercent={analyticsData.taxesPercent}
               taxesValue={analyticsData.taxesValue}
+              commissionValue={analyticsData.commissionValue}
               grossMargin={analyticsData.grossMargin}
               grossMarginTarget={analyticsData.grossMarginTarget}
             />

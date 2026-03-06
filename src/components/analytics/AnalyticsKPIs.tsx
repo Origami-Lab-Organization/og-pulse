@@ -1,4 +1,4 @@
-import { DollarSign, TrendingDown, Target } from 'lucide-react';
+import { DollarSign, TrendingDown, Target, Receipt, Handshake } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
 
@@ -9,6 +9,7 @@ interface AnalyticsKPIsProps {
   totalCosts: number;
   taxesPercent: number;
   taxesValue: number;
+  commissionValue: number;
   grossMargin: number;
   grossMarginTarget: number | null;
 }
@@ -20,6 +21,7 @@ export function AnalyticsKPIs({
   totalCosts,
   taxesPercent,
   taxesValue,
+  commissionValue,
   grossMargin,
   grossMarginTarget,
 }: AnalyticsKPIsProps) {
@@ -38,7 +40,7 @@ export function AnalyticsKPIs({
   const diffSign = revenueDiff >= 0 ? '+' : '';
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
       {/* Revenue */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -54,9 +56,41 @@ export function AnalyticsKPIs({
               Projetada: {formatCurrency(revenueProjected)}
             </p>
             <p className={`text-xs font-medium ${diffColor}`}>
-              Diferença: {diffSign}{formatCurrency(Math.abs(revenueDiff))}
+              {diffSign}{formatCurrency(Math.abs(revenueDiff))}
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Taxes */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Impostos
+          </CardTitle>
+          <Receipt className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{formatCurrency(taxesValue)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Alíquota: {formatPercent(taxesPercent)}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Commission */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Comissão
+          </CardTitle>
+          <Handshake className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{formatCurrency(commissionValue)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Pago no período
+          </p>
         </CardContent>
       </Card>
 
@@ -85,16 +119,11 @@ export function AnalyticsKPIs({
           <div className={`text-2xl font-bold ${marginColor}`}>
             {formatPercent(grossMargin)}
           </div>
-          <div className="mt-1 space-y-0.5">
-            <p className="text-xs text-muted-foreground">
-              Impostos ({formatPercent(taxesPercent)}): {formatCurrency(taxesValue)}
+          {grossMarginTarget !== null && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Meta: {formatPercent(grossMarginTarget)}
             </p>
-            {grossMarginTarget !== null && (
-              <p className="text-xs text-muted-foreground">
-                Meta: {formatPercent(grossMarginTarget)}
-              </p>
-            )}
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>
