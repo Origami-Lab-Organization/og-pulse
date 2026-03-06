@@ -1,35 +1,23 @@
 
 
-## Plano: Corrigir fluxo de desligamento e filtrar funcionários
+## Plano: Corrigir dados da Mariana e prevenir falha silenciosa no update de status
 
-### Problemas identificados
+### Problema raiz
+O `terminationService.create()` cria o registro de desligamento com sucesso, mas o update subsequente no status do employee falha silenciosamente. Isso acontece porque o update via RLS pode estar sendo bloqueado (o Supabase retorna sucesso com 0 rows affected quando RLS bloqueia, sem erro). O código ignora essa falha (`// Don't throw`).
 
-1. **Status errado**: `terminationService.create()` (linha 74) define o status do funcionário como `'desligado'` ao criar o desligamento. Deveria ser `'em_desligamento'`.
+### Correção imediata dos dados
+Usar o insert tool para atualizar diretamente a Mariana no banco:
+```sql
+UPDATE employees SET status = 'em_desligamento', termination_id = 'df41b502-5f02-4c1d-bbe6-3dff73ed4eb3' WHERE id = '61444641-d02c-4472-93a8-63091c612225';
+```
 
-2. **Página de funcionários mostra desligados**: O `useEmployees` hook filtra apenas `'arquivado'`. Funcionários em desligamento e desligados continuam aparecendo.
-
-3. **Abas desnecessárias**: A página de funcionários tem abas "Em Desligamento", "Desligados" e "Todos" — o usuário quer que essas pessoas apareçam apenas na seção `/rh/desligamentos`.
-
-### Mudanças
+### Correção do código
 
 #### `src/services/terminationService.ts`
-- Linha 75: Mudar `status: 'desligado'` para `status: 'em_desligamento'`
-
-#### `src/hooks/useEmployees.ts`
-- Linha 85: Filtrar também `'desligado'` e `'em_desligamento'` além de `'arquivado'`
-
-#### `src/pages/Index.tsx`
-- Remover as abas de status (Em Desligamento, Desligados, Todos)
-- Remover o state `statusFilter` e a lógica de filtragem por abas
-- Remover referências ao status `em_desligamento` e `desligado` na página
-- Manter apenas a listagem simples de funcionários ativos (que já será filtrada pelo hook)
-
-#### `src/components/employees/EmployeesTable.tsx`
-- Remover os cases de status `'desligado'` e `'em_desligamento'` do `getStatusBadge` (não serão mais exibidos nesta página)
+- No método `create()`, após o update do employee, verificar se o update realmente afetou alguma row
+- Se não afetou (RLS bloqueou), logar o erro de forma mais explícita e opcionalmente usar uma abordagem via RPC/edge function
+- Alternativa mais robusta: verificar `data` retornado pelo update com `.select()` para confirmar que a mudança foi aplicada, e lançar erro se não foi
 
 ### Arquivos modificados
-- `src/services/terminationService.ts`
-- `src/hooks/useEmployees.ts`
-- `src/pages/Index.tsx`
-- `src/components/employees/EmployeesTable.tsx`
+- `src/services/terminationService.ts` — adicionar verificação do resultado do update + `.select()` para confirmar
 
