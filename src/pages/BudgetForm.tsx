@@ -193,6 +193,15 @@ export default function BudgetForm() {
       return;
     }
 
+    if (isSaveBlocked) {
+      toast({
+        title: 'Margem abaixo do mínimo',
+        description: `A margem efetiva (${calculation.effectiveMarginPercent.toFixed(1)}%) está abaixo do mínimo (${minNetMarginPercent}%). Requer aprovação do administrador.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const input: CreateBudgetInput = {
       title: values.title,
       clientId: values.clientId,
@@ -207,6 +216,7 @@ export default function BudgetForm() {
       roles,
       materials,
       suppliers,
+      marginOverrideApproved: isMarginBelowMinimum && canSaveWithLowMargin,
     };
 
     if (isEditing && id) {
@@ -518,6 +528,57 @@ export default function BudgetForm() {
                   <span className="text-lg font-bold">Valor Final</span>
                   <span className="text-2xl font-bold text-primary">{formatCurrency(calculation.finalTotal)}</span>
                 </div>
+
+                {/* Margem efetiva pós-desconto */}
+                {discountValue > 0 && (
+                  <div className={`flex items-center justify-between rounded-lg border p-3 ${
+                    calculation.effectiveMarginPercent < minNetMarginPercent
+                      ? 'border-destructive bg-destructive/10'
+                      : calculation.effectiveMarginPercent < minNetMarginPercent * 1.2
+                      ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                      : 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Margem Efetiva</span>
+                      {calculation.effectiveMarginPercent < minNetMarginPercent && (
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                    <span className={`text-lg font-bold ${
+                      calculation.effectiveMarginPercent < minNetMarginPercent
+                        ? 'text-destructive'
+                        : calculation.effectiveMarginPercent < minNetMarginPercent * 1.2
+                        ? 'text-yellow-600 dark:text-yellow-400'
+                        : 'text-green-600 dark:text-green-400'
+                    }`}>
+                      {calculation.effectiveMarginPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+
+                {/* Alerta e checkbox de override para admin */}
+                {isMarginBelowMinimum && (
+                  <div className="rounded-lg border border-destructive bg-destructive/5 p-4 space-y-3">
+                    <p className="text-sm text-destructive font-medium">
+                      Margem efetiva ({calculation.effectiveMarginPercent.toFixed(1)}%) abaixo do mínimo ({minNetMarginPercent}%).
+                      {isAdmin
+                        ? ' Como administrador, você pode aprovar esta exceção.'
+                        : ' Solicite aprovação ao administrador.'}
+                    </p>
+                    {isAdmin && (
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="margin-override"
+                          checked={marginOverrideConfirmed}
+                          onCheckedChange={(checked) => setMarginOverrideConfirmed(checked === true)}
+                        />
+                        <label htmlFor="margin-override" className="text-sm cursor-pointer">
+                          Aprovar margem abaixo do mínimo configurado
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

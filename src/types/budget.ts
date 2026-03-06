@@ -123,6 +123,7 @@ export interface CreateBudgetInput {
   roles: BudgetRoleInput[];
   materials: BudgetMaterialInput[];
   suppliers: BudgetSupplierInput[];
+  marginOverrideApproved?: boolean;
 }
 
 export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {
