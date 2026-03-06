@@ -199,7 +199,7 @@ export function TimesheetByEmployee({
               {/* Header Row */}
               <div className={cn(
                 "grid gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground",
-                hasActionSlot ? "grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]" : "grid-cols-[1fr_1fr_repeat(5,60px)_80px]"
+                hasActionSlot ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px_120px]" : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px]"
               )}>
                 <div>Projeto</div>
                 <div>Cliente</div>
@@ -249,7 +249,7 @@ export function TimesheetByEmployee({
                       <div className="border border-primary/30 rounded-lg my-1 bg-primary/5">
                         <div className={cn(
                           "grid gap-2 items-center py-2 px-3",
-                          hasActionSlot ? "grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]" : "grid-cols-[1fr_1fr_repeat(5,60px)_80px]"
+                          hasActionSlot ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px_120px]" : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px]"
                         )}>
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{project.projectName}</p>
