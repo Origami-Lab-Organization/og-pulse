@@ -91,6 +91,7 @@ export function CloseBusinessDialog({
       paymentMethod: 'mensal',
       installmentsCount: budget?.duration_months || 1,
       dueDay: 10,
+      dueDate: '',
       firstInvoiceDate: '',
       startDate: '',
       endDate: '',
