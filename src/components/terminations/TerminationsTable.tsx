@@ -1,27 +1,12 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Eye, Pencil, FileText, Calculator } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { TerminationWithEmployee } from '@/services/terminationService';
 import { TerminationStatusBadge } from './TerminationStatusBadge';
 import { TerminationTypeBadge } from './TerminationTypeBadge';
 import { TerminationStatus, TerminationType } from '@/types/termination';
 
-interface CreateColumnsOptions {
-  onView: (t: TerminationWithEmployee) => void;
-  onEdit: (t: TerminationWithEmployee) => void;
-  onDocuments: (t: TerminationWithEmployee) => void;
-  onPayroll: (t: TerminationWithEmployee) => void;
-}
-
-export const createTerminationColumns = ({
-  onView,
-  onEdit,
-  onDocuments,
-  onPayroll,
-}: CreateColumnsOptions): ColumnDef<TerminationWithEmployee>[] => [
+export const createTerminationColumns = (): ColumnDef<TerminationWithEmployee>[] => [
   {
     accessorKey: 'employees.nome',
     header: 'Nome',
@@ -70,48 +55,5 @@ export const createTerminationColumns = ({
     header: 'Status',
     cell: ({ row }) => <TerminationStatusBadge status={row.original.status as TerminationStatus} />,
     filterFn: (row, id, value) => value.includes(row.getValue(id)),
-  },
-  {
-    id: 'actions',
-    header: 'Ações',
-    cell: ({ row }) => {
-      const t = row.original;
-      return (
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onView(t)}>
-                <Eye className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Ver detalhes</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(t)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Editar</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDocuments(t)}>
-                <FileText className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Documentos</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPayroll(t)}>
-                <Calculator className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Ajustes de folha</TooltipContent>
-          </Tooltip>
-        </div>
-      );
-    },
   },
 ];
