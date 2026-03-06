@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/formatters';
 
 interface EmployeeStatsProps {
   employees: Employee[];
+  hideValues?: boolean;
 }
 
 interface StatItem {
@@ -15,7 +16,7 @@ interface StatItem {
   color: string;
 }
 
-const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
+const EmployeeStats = ({ employees, hideValues }: EmployeeStatsProps) => {
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter((e) => e.status === 'ativo').length;
   const managers = employees.filter((e) => e.isGerente).length;
@@ -86,8 +87,8 @@ const EmployeeStats = ({ employees }: EmployeeStatsProps) => {
     },
     {
       label: 'Custo Mensal Total',
-      value: formatCurrency(totalMonthlyCost),
-      subValue: `Provisão Mensal: ${formatCurrency(totalMonthlyProvision)}`,
+      value: hideValues ? '•••••' : formatCurrency(totalMonthlyCost),
+      subValue: hideValues ? '•••••' : `Provisão Mensal: ${formatCurrency(totalMonthlyProvision)}`,
       icon: DollarSign,
       color: 'bg-accent/20 text-foreground',
     },

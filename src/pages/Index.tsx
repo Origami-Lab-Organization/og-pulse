@@ -13,7 +13,7 @@ import TerminationWizardModal from '@/components/employees/TerminationWizardModa
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Users, Calculator } from 'lucide-react';
+import { Plus, Search, Users, Calculator, EyeOff, Eye } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import EmployeeCalculatorDialog from '@/components/employees/EmployeeCalculatorDialog';
@@ -34,6 +34,7 @@ const Index = () => {
   const termination = useInitiateTermination();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [hideValues, setHideValues] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
@@ -154,12 +155,21 @@ const Index = () => {
         onTerminate: termination.initiateTermination,
         onViewTermination: handleViewTermination,
         isResendingInvite: resendInvite.isPending,
+        hideValues,
       }),
-    [resendInvite.isPending]
+    [resendInvite.isPending, hideValues]
   );
 
   const actions = (
     <div className="flex items-center gap-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="outline" size="icon" onClick={() => setHideValues(!hideValues)}>
+            {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{hideValues ? 'Mostrar valores' : 'Ocultar valores'}</TooltipContent>
+      </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="outline" size="icon" onClick={() => setCalculatorOpen(true)}>
@@ -203,7 +213,7 @@ const Index = () => {
       actions={actions}
     >
       {/* Stats */}
-      <EmployeeStats employees={employees} />
+      <EmployeeStats employees={employees} hideValues={hideValues} />
 
       {/* Search */}
       <div className="mt-6 mb-4">
