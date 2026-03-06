@@ -169,6 +169,7 @@ export const terminationService = {
     if (updates.exit_interview_completed !== undefined) dbUpdates.exit_interview_completed = updates.exit_interview_completed;
     if (updates.exit_interview_notes !== undefined) dbUpdates.exit_interview_notes = updates.exit_interview_notes;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.final_payroll_adjustments !== undefined) dbUpdates.final_payroll_adjustments = updates.final_payroll_adjustments;
 
     const { data, error } = await supabase
       .from('employee_terminations')

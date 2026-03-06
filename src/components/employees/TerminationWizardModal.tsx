@@ -158,8 +158,35 @@ const TerminationWizardModal = ({
         status,
       });
 
-      // Save auto-calculated payroll adjustments
+      // Build all adjustments for JSONB persistence
       const autoCalcs = calculateAutoCalcs(employee, wizardData);
+      
+      const allAdjustments = [
+        ...autoCalcs.map(item => ({
+          desc: item.desc,
+          value: Math.round(item.value * 100) / 100,
+          isCredit: item.isCredit,
+          type: 'auto',
+        })),
+        ...wizardData.manual_adjustments.map(adj => ({
+          desc: adj.description || adj.type,
+          value: Math.round(adj.amount * 100) / 100,
+          isCredit: adj.isCredit,
+          type: 'manual',
+          adjustmentType: adj.type,
+        })),
+      ];
+
+      // Save to JSONB column (primary source of truth)
+      try {
+        await terminationService.update(result.id, {
+          final_payroll_adjustments: allAdjustments,
+        } as any);
+      } catch (e) {
+        console.error('Falha ao salvar ajustes no JSON:', e);
+      }
+
+      // Best-effort: also try saving to payroll_adjustments table
       const adjustmentTypeMap: Record<string, string> = {
         'Saldo de salário': 'salary_proportional',
         'Saldo de bolsa-auxílio': 'salary_proportional',
@@ -186,10 +213,9 @@ const TerminationWizardModal = ({
           description: item.desc,
           amount: Math.round(item.value * 100) / 100,
           is_credit: item.isCredit,
-        })
+        }).catch(() => {})
       );
 
-      // Save manual adjustments
       wizardData.manual_adjustments.forEach(adj => {
         adjustmentPromises.push(
           terminationService.addPayrollAdjustment({
@@ -198,7 +224,7 @@ const TerminationWizardModal = ({
             description: adj.description,
             amount: Math.round(adj.amount * 100) / 100,
             is_credit: adj.isCredit,
-          })
+          }).catch(() => {})
         );
       });
 
