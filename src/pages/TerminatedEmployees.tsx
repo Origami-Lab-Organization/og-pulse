@@ -44,16 +44,7 @@ const TerminatedEmployees = () => {
 
   const openDetail = (t: TerminationWithEmployee) => setSelectedTermination(t);
 
-  const columns = useMemo(
-    () =>
-      createTerminationColumns({
-        onView: openDetail,
-        onEdit: openDetail,
-        onDocuments: openDetail,
-        onPayroll: openDetail,
-      }),
-    []
-  );
+  const columns = useMemo(() => createTerminationColumns(), []);
 
   if (isLoading) {
     return (
@@ -125,7 +116,7 @@ const TerminatedEmployees = () => {
 
       {/* Table or Empty State */}
       {filtered.length > 0 ? (
-        <DataTable columns={columns} data={filtered} />
+        <DataTable columns={columns} data={filtered} onRowClick={openDetail} />
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
           <div className="rounded-full bg-muted p-4 mb-4">
