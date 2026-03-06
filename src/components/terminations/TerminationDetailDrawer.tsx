@@ -104,15 +104,6 @@ export const TerminationDetailModal = ({ isOpen, onClose, termination }: Termina
               </div>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
-                <Pencil className="h-3.5 w-3.5" /> Editar
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportPdf}>
-                <FileDown className="h-3.5 w-3.5" /> Exportar PDF
-              </Button>
-            </div>
           </div>
 
           <Separator />
