@@ -317,7 +317,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost;
       const taxesValue = revenueActual * (Number(taxesPercent) / 100);
-      const totalCommissions = commissions.reduce((sum, c) => sum + Number(c.planned_value), 0);
+      const totalCommissions = commissions.reduce((sum, c) => sum + (Number(c.planned_value) || 0), 0);
       const grossMargin = revenueActual > 0 ? ((revenueActual - taxesValue - totalCommissions - totalCosts) / revenueActual) * 100 : 0;
 
       // 7. Employee utilization
