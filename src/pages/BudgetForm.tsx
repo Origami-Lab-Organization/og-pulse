@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useAuth } from '@/contexts/AuthContext';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
@@ -14,7 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, ArrowLeft, ArrowRight, Save, Check, Calculator, Percent, DollarSign, Plus } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight, Save, Check, Calculator, Percent, DollarSign, Plus, AlertTriangle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { BudgetRolesEditor } from '@/components/budgets/BudgetRolesEditor';
 import { BudgetSuppliersEditor } from '@/components/budgets/BudgetSuppliersEditor';
 import { BudgetMaterialsEditor } from '@/components/budgets/BudgetMaterialsEditor';
@@ -56,6 +58,7 @@ export default function BudgetForm() {
   const isEditing = !!id;
   const createClientMutation = useCreateClient();
   const { toast } = useToast();
+  const { employee } = useAuth();
 
   const { data: budget, isLoading: budgetLoading } = useBudget(id || null);
   const { data: clients = [] } = useClients();
@@ -78,6 +81,7 @@ export default function BudgetForm() {
   const [snapshotTaxes, setSnapshotTaxes] = useState(0);
   const [snapshotMaxCommission, setSnapshotMaxCommission] = useState(0);
   const [snapshotMinNetMargin, setSnapshotMinNetMargin] = useState(0);
+  const [marginOverrideConfirmed, setMarginOverrideConfirmed] = useState(false);
 
   // For new budgets, use financial settings. For editing, use budget snapshot.
   const adminExpensesPercent = isEditing && budget ? budget.admin_expenses_percent : (financialSettings?.admin_expenses_percent || 0);
@@ -174,6 +178,10 @@ export default function BudgetForm() {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
+  const isMarginBelowMinimum = calculation.effectiveMarginPercent < minNetMarginPercent && discountValue > 0;
+  const isAdmin = employee?.isAdmin ?? false;
+  const canSaveWithLowMargin = isAdmin && marginOverrideConfirmed;
+  const isSaveBlocked = isMarginBelowMinimum && !canSaveWithLowMargin;
   const handleSubmit = (values: FormValues) => {
     if (isSubmitting) {
       console.warn('Form submission blocked: already submitting');
@@ -182,6 +190,15 @@ export default function BudgetForm() {
     
     if (!isEditing && currentStep < WIZARD_STEPS.length) {
       console.warn('Form submission blocked: not on final step');
+      return;
+    }
+
+    if (isSaveBlocked) {
+      toast({
+        title: 'Margem abaixo do mínimo',
+        description: `A margem efetiva (${calculation.effectiveMarginPercent.toFixed(1)}%) está abaixo do mínimo (${minNetMarginPercent}%). Requer aprovação do administrador.`,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -199,6 +216,7 @@ export default function BudgetForm() {
       roles,
       materials,
       suppliers,
+      marginOverrideApproved: isMarginBelowMinimum && canSaveWithLowMargin,
     };
 
     if (isEditing && id) {
@@ -510,6 +528,57 @@ export default function BudgetForm() {
                   <span className="text-lg font-bold">Valor Final</span>
                   <span className="text-2xl font-bold text-primary">{formatCurrency(calculation.finalTotal)}</span>
                 </div>
+
+                {/* Margem efetiva pós-desconto */}
+                {discountValue > 0 && (
+                  <div className={`flex items-center justify-between rounded-lg border p-3 ${
+                    calculation.effectiveMarginPercent < minNetMarginPercent
+                      ? 'border-destructive bg-destructive/10'
+                      : calculation.effectiveMarginPercent < minNetMarginPercent * 1.2
+                      ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                      : 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Margem Efetiva</span>
+                      {calculation.effectiveMarginPercent < minNetMarginPercent && (
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                    <span className={`text-lg font-bold ${
+                      calculation.effectiveMarginPercent < minNetMarginPercent
+                        ? 'text-destructive'
+                        : calculation.effectiveMarginPercent < minNetMarginPercent * 1.2
+                        ? 'text-yellow-600 dark:text-yellow-400'
+                        : 'text-green-600 dark:text-green-400'
+                    }`}>
+                      {calculation.effectiveMarginPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+
+                {/* Alerta e checkbox de override para admin */}
+                {isMarginBelowMinimum && (
+                  <div className="rounded-lg border border-destructive bg-destructive/5 p-4 space-y-3">
+                    <p className="text-sm text-destructive font-medium">
+                      Margem efetiva ({calculation.effectiveMarginPercent.toFixed(1)}%) abaixo do mínimo ({minNetMarginPercent}%).
+                      {isAdmin
+                        ? ' Como administrador, você pode aprovar esta exceção.'
+                        : ' Solicite aprovação ao administrador.'}
+                    </p>
+                    {isAdmin && (
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="margin-override"
+                          checked={marginOverrideConfirmed}
+                          onCheckedChange={(checked) => setMarginOverrideConfirmed(checked === true)}
+                        />
+                        <label htmlFor="margin-override" className="text-sm cursor-pointer">
+                          Aprovar margem abaixo do mínimo configurado
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -606,6 +675,7 @@ export default function BudgetForm() {
                 currentStep={currentStep}
                 totalSteps={WIZARD_STEPS.length}
                 isSubmitting={isSubmitting}
+                isSaveDisabled={isSaveBlocked}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
                 onCancel={() => navigate(isFromLead ? '/crm' : '/budgets')}
@@ -634,7 +704,7 @@ export default function BudgetForm() {
                   description: 'Verifique os campos obrigatórios.',
                   variant: 'destructive',
                 });
-              })()} disabled={isSubmitting}>
+              })()} disabled={isSubmitting || isSaveBlocked}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Save className="mr-2 h-4 w-4" />
                 Salvar

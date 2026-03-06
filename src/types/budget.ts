@@ -123,6 +123,7 @@ export interface CreateBudgetInput {
   roles: BudgetRoleInput[];
   materials: BudgetMaterialInput[];
   suppliers: BudgetSupplierInput[];
+  marginOverrideApproved?: boolean;
 }
 
 export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {
@@ -142,6 +143,7 @@ export interface BudgetCalculation {
   sellingPrice: number;
   discount: number;
   finalTotal: number;
+  effectiveMarginPercent: number;
 }
 
 /**
@@ -191,6 +193,11 @@ export function calculateBudgetTotals(
   const discount = discountValue;
   const finalTotal = sellingPrice - discount;
 
+  // Effective margin after discount
+  const effectiveMarginPercent = finalTotal > 0
+    ? ((finalTotal - totalCost - taxes - adminExpenses - commission) / finalTotal) * 100
+    : 0;
+
   return {
     laborCost,
     suppliersTotal,
@@ -203,6 +210,7 @@ export function calculateBudgetTotals(
     sellingPrice,
     discount,
     finalTotal,
+    effectiveMarginPercent,
   };
 }
 

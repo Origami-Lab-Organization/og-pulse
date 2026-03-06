@@ -5,6 +5,7 @@ interface BudgetWizardFooterProps {
   currentStep: number;
   totalSteps: number;
   isSubmitting: boolean;
+  isSaveDisabled?: boolean;
   onPrevious: () => void;
   onNext: () => void;
   onCancel: () => void;
@@ -15,6 +16,7 @@ export function BudgetWizardFooter({
   currentStep,
   totalSteps,
   isSubmitting,
+  isSaveDisabled,
   onPrevious,
   onNext,
   onCancel,
@@ -50,7 +52,7 @@ export function BudgetWizardFooter({
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         ) : (
-          <Button type="button" onClick={onSubmit} disabled={isSubmitting}>
+          <Button type="button" onClick={onSubmit} disabled={isSubmitting || isSaveDisabled}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
             Criar Orçamento

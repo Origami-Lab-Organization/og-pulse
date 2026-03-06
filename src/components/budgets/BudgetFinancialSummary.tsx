@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { BudgetCalculation } from '@/types/budget';
 import { formatCurrency } from '@/lib/formatters';
+import { AlertTriangle } from 'lucide-react';
 
 interface BudgetFinancialSummaryProps {
   layout?: 'sidebar' | 'footer';
@@ -176,6 +177,24 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
                 {formatCurrency(calculation.finalTotal)}
               </span>
             </div>
+            {/* Margem efetiva pós-desconto */}
+            {discountValue > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Margem Efetiva</span>
+                <span className={`text-sm font-semibold ${
+                  calculation.effectiveMarginPercent < minNetMarginPercent
+                    ? 'text-destructive'
+                    : calculation.effectiveMarginPercent < minNetMarginPercent * 1.2
+                    ? 'text-yellow-600 dark:text-yellow-400'
+                    : 'text-green-600 dark:text-green-400'
+                }`}>
+                  {calculation.effectiveMarginPercent.toFixed(1)}%
+                </span>
+                {calculation.effectiveMarginPercent < minNetMarginPercent && (
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                )}
+              </div>
+            )}
           </div>
         </div>
       );
@@ -352,6 +371,27 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
               {formatCurrency(calculation.finalTotal)}
             </span>
           </div>
+
+          {/* Margem efetiva pós-desconto */}
+          {discountValue > 0 && (
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Margem Efetiva</span>
+                {calculation.effectiveMarginPercent < minNetMarginPercent && (
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                )}
+              </div>
+              <span className={`text-lg font-bold ${
+                calculation.effectiveMarginPercent < minNetMarginPercent
+                  ? 'text-destructive'
+                  : calculation.effectiveMarginPercent < minNetMarginPercent * 1.2
+                  ? 'text-yellow-600 dark:text-yellow-400'
+                  : 'text-green-600 dark:text-green-400'
+              }`}>
+                {calculation.effectiveMarginPercent.toFixed(1)}%
+              </span>
+            </div>
+          )}
         </CardContent>
         </Card>
       </div>
