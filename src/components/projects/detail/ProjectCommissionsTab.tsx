@@ -3,6 +3,7 @@ import { ProjectWithRelations } from '@/types/project';
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions, useGenerateCommissions } from '@/hooks/useProjectCommissions';
 import { ProjectCommissionsSection } from './ProjectCommissionsSection';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProjectCommissionsTabProps {
   project: ProjectWithRelations;
@@ -13,6 +14,8 @@ export function ProjectCommissionsTab({ project, isReadOnly = false }: ProjectCo
   const { data: budget } = useBudget(project.budget_id);
   const { data: commissions = [] } = useProjectCommissions(project.id);
   const generateCommissionsMut = useGenerateCommissions();
+  const { employee } = useAuth();
+  const isAdmin = employee?.isAdmin ?? false;
 
   const totalCommissionValue = useMemo(() => {
     if (!budget || !budget.commission_percent) return 0;
@@ -46,6 +49,8 @@ export function ProjectCommissionsTab({ project, isReadOnly = false }: ProjectCo
         installments={project.installments || []}
         budget={budget ? { commission_percent: budget.commission_percent, total_with_fees: budget.total_with_fees } : null}
         isEditable={!isReadOnly}
+        isAdmin={isAdmin}
+        employeeId={employee?.id}
       />
     </div>
   );
