@@ -19,10 +19,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import EmployeeCalculatorDialog from '@/components/employees/EmployeeCalculatorDialog';
 import { useInitiateTermination } from '@/hooks/useInitiateTermination';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-
-type StatusFilter = 'ativo' | 'em_desligamento' | 'desligado' | 'todos';
 
 const Index = () => {
   const { data: employees = [], isLoading } = useEmployees();
@@ -38,7 +34,6 @@ const Index = () => {
   const termination = useInitiateTermination();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ativo');
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
@@ -46,19 +41,6 @@ const Index = () => {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
-  // Status counts
-  const statusCounts = useMemo(() => ({
-    ativo: employees.filter(e => e.status === 'ativo').length,
-    em_desligamento: employees.filter(e => e.status === 'em_desligamento').length,
-    desligado: employees.filter(e => e.status === 'desligado').length,
-    todos: employees.length,
-  }), [employees]);
-
-  // Filtered employees
-  const filteredEmployees = useMemo(() => {
-    if (statusFilter === 'todos') return employees;
-    return employees.filter(e => e.status === statusFilter);
-  }, [employees, statusFilter]);
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
@@ -223,40 +205,8 @@ const Index = () => {
       {/* Stats */}
       <EmployeeStats employees={employees} />
 
-      {/* Status Tabs */}
-      <div className="mt-6">
-        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <TabsList>
-            <TabsTrigger value="ativo" className="gap-2">
-              Ativos
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
-                {statusCounts.ativo}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="em_desligamento" className="gap-2">
-              Em Desligamento
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
-                {statusCounts.em_desligamento}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="desligado" className="gap-2">
-              Desligados
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
-                {statusCounts.desligado}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="todos" className="gap-2">
-              Todos
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
-                {statusCounts.todos}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
       {/* Search */}
-      <div className="mt-4 mb-4">
+      <div className="mt-6 mb-4">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -269,10 +219,10 @@ const Index = () => {
       </div>
 
       {/* Table or Empty State */}
-      {filteredEmployees.length > 0 ? (
-      <DataTable
+      {employees.length > 0 ? (
+        <DataTable
           columns={columns}
-          data={filteredEmployees}
+          data={employees}
           searchKey="nome"
           searchValue={searchQuery}
           onRowClick={handleEditEmployee}
@@ -282,20 +232,14 @@ const Index = () => {
           <div className="rounded-full bg-muted p-4 mb-4">
             <Users className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium text-foreground">
-            {statusFilter === 'todos' ? 'Nenhum funcionário cadastrado' : `Nenhum funcionário com status "${statusFilter === 'ativo' ? 'Ativo' : statusFilter === 'em_desligamento' ? 'Em Desligamento' : 'Desligado'}"`}
-          </h3>
+          <h3 className="text-lg font-medium text-foreground">Nenhum funcionário cadastrado</h3>
           <p className="text-muted-foreground mt-1 max-w-sm">
-            {statusFilter === 'ativo' || statusFilter === 'todos' 
-              ? 'Comece adicionando funcionários à sua equipe para gerenciar alocações e orçamentos.'
-              : 'Nenhum registro encontrado para este filtro.'}
+            Comece adicionando funcionários à sua equipe para gerenciar alocações e orçamentos.
           </p>
-          {(statusFilter === 'ativo' || statusFilter === 'todos') && (
-            <Button onClick={handleAddEmployee} className="mt-4 gap-2">
-              <Plus className="h-4 w-4" />
-              Adicionar Funcionário
-            </Button>
-          )}
+          <Button onClick={handleAddEmployee} className="mt-4 gap-2">
+            <Plus className="h-4 w-4" />
+            Adicionar Funcionário
+          </Button>
         </div>
       )}
 

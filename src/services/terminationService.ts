@@ -72,7 +72,7 @@ export const terminationService = {
     const { error: empError } = await supabase
       .from('employees')
       .update({
-        status: 'desligado',
+        status: 'em_desligamento',
         termination_id: termination.id,
       })
       .eq('id', data.employee_id);

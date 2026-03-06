@@ -49,20 +49,6 @@ const getStatusBadge = (status: string) => {
           Bloqueado
         </Badge>
       );
-    case 'desligado':
-      return (
-        <Badge variant="outline" className="border-orange-500 text-orange-600 bg-orange-50">
-          <UserMinus className="h-3 w-3 mr-1" />
-          Desligado
-        </Badge>
-      );
-    case 'em_desligamento':
-      return (
-        <Badge variant="outline" className="border-yellow-500 text-yellow-600 bg-yellow-50">
-          <Clock className="h-3 w-3 mr-1" />
-          Desligamento Pendente
-        </Badge>
-      );
     default:
       return <Badge variant="secondary">{status}</Badge>;
   }
