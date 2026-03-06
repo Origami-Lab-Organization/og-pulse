@@ -1,14 +1,18 @@
 
 
-## Plano: Corrigir NaN no card de Comissão do Analytics
+## Plano: Migrar Portfolio.tsx para AppLayout
 
 ### Problema
-O card "Comissão" mostra "R$ NaN". Na linha 320 de `useAnalyticsData.ts`, o `reduce` faz `Number(c.planned_value)` que retorna NaN se algum registro tiver `planned_value` nulo.
+A página `Portfolio.tsx` é a **única** página do sistema que ainda usa o layout antigo com sidebar lateral (`SidebarProvider` + `AppSidebar`). Todas as outras 20+ páginas já usam `AppLayout` com a navbar superior.
 
 ### Correção
 
-**`src/hooks/useAnalyticsData.ts` (linha 320)**
-- Trocar `Number(c.planned_value)` por `(Number(c.planned_value) || 0)` para tratar valores nulos
+**`src/pages/Portfolio.tsx`**
+- Remover imports de `SidebarProvider`, `SidebarTrigger`, `SidebarInset`, `AppSidebar`, `UserMenu`, `Separator`
+- Substituir todo o layout por `AppLayout` com `title="Portfólio de Projetos"`
+- Manter a barra de busca e o `PortfolioKanbanBoard` como conteúdo interno
+- O kanban precisa de `flex-1 overflow-auto`, então usaremos uma div wrapper com altura adequada
 
-Essa é a única mudança necessária. Os demais cálculos (receita, impostos, custos, margem) estão corretos — a margem inclusive já desconta impostos, comissões e custos corretamente pela fórmula `(Receita - Impostos - Comissões - Custos) / Receita * 100`.
+### Arquivo alterado
+- `src/pages/Portfolio.tsx`
 
