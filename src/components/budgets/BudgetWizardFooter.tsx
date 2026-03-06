@@ -1,6 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { useSidebar } from '@/components/ui/sidebar';
-import { cn } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, Save, Loader2 } from 'lucide-react';
 
 interface BudgetWizardFooterProps {
@@ -22,15 +20,9 @@ export function BudgetWizardFooter({
   onCancel,
   onSubmit,
 }: BudgetWizardFooterProps) {
-  const { state: sidebarState } = useSidebar();
-  const isCollapsed = sidebarState === 'collapsed';
-
   return (
     <div 
-      className={cn(
-        "fixed bottom-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 transition-[left] duration-200 ease-linear",
-        isCollapsed ? "left-[3rem]" : "left-[16rem]"
-      )}
+      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3"
     >
       <div className="max-w-5xl mx-auto flex justify-between gap-2">
         {currentStep === 1 ? (
