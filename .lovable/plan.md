@@ -1,20 +1,27 @@
 
 
-## Plano: Desabilitar registro de novos tenants
+## Plano: Botão de ocultar valores monetários na tela de funcionários
 
 ### Abordagem
-Solução simples e reversível: redirecionar a rota `/register` para `/login` e remover links de registro da landing page e login.
+Adicionar um estado `hideValues` na página de funcionários com um botão de olhinho (Eye/EyeOff) na barra de ações. Quando ativo, todos os valores monetários (tabela e stats) mostram "•••••" ao invés dos valores reais.
 
 ### Mudanças
 
-**1. `src/App.tsx`**
-- Trocar a rota `/register` de `<Register />` para `<Navigate to="/login" replace />`
+**1. `src/pages/Index.tsx`**
+- Adicionar estado `const [hideValues, setHideValues] = useState(false)`
+- Adicionar botão EyeOff/Eye na barra de ações (ao lado da calculadora)
+- Passar `hideValues` para `EmployeeStats` e `createEmployeeColumns`
 
-**2. `src/pages/Login.tsx`**
-- Remover o link "Criar conta" / "Registre-se" que aponta para `/register`
+**2. `src/components/employees/EmployeesTable.tsx`**
+- Adicionar prop `hideValues?: boolean` a `EmployeeColumnsProps`
+- Na coluna `totalMonthlyCostEstimated`: quando `hideValues` é true, mostrar `•••••` no lugar do custo mensal e custo/hora
 
-**3. `src/pages/LandingPage.tsx`**
-- Remover ou esconder botões CTA de "Criar conta" / "Começar grátis" que apontam para `/register`
+**3. `src/components/employees/EmployeeStats.tsx`**
+- Adicionar prop `hideValues?: boolean`
+- Quando ativo, mostrar `•••••` no stat "Custo Mensal Total" e na provisão
 
-Quando o produto estiver pronto, basta reverter essas 3 mudanças.
+### Arquivos alterados
+1. `src/pages/Index.tsx` — estado + botão
+2. `src/components/employees/EmployeesTable.tsx` — ocultar valores na tabela
+3. `src/components/employees/EmployeeStats.tsx` — ocultar valores nos cards
 
