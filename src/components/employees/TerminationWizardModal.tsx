@@ -74,6 +74,7 @@ const TerminationWizardModal = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [wizardData, setWizardData] = useState<TerminationWizardData>(getDefaultWizardData());
   const [confirmed, setConfirmed] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const createTermination = useCreateTermination();
 
@@ -91,6 +92,7 @@ const TerminationWizardModal = ({
     setCurrentStep(0);
     setWizardData(getDefaultWizardData());
     setConfirmed(false);
+    setShowErrors(false);
     setShowExitConfirm(false);
     onClose();
   }, [onClose]);
@@ -116,16 +118,16 @@ const TerminationWizardModal = ({
     setWizardData(prev => ({ ...prev, ...partial }));
   }, []);
 
-  const canAdvance = useMemo(() => {
+  const handleNext = () => {
     const stepKey = steps[currentStep]?.key;
     if (stepKey === 'info') {
-      return !!(wizardData.termination_date && wizardData.termination_type && wizardData.reason && wizardData.reason.length >= 20);
+      const isValid = !!(wizardData.termination_date && wizardData.termination_type && wizardData.reason && wizardData.reason.length >= 20);
+      if (!isValid) {
+        setShowErrors(true);
+        return;
+      }
     }
-    if (stepKey === 'review') return confirmed;
-    return true;
-  }, [currentStep, steps, wizardData, confirmed]);
-
-  const handleNext = () => {
+    setShowErrors(false);
     if (currentStep < steps.length - 1) setCurrentStep(s => s + 1);
   };
 
@@ -242,6 +244,7 @@ const TerminationWizardModal = ({
               data={wizardData}
               onChange={updateData}
               contractType={employee.tipoContratacao}
+              showErrors={showErrors}
             />
           )}
           {currentStepKey === 'notice' && (
@@ -288,7 +291,7 @@ const TerminationWizardModal = ({
           </div>
           <div className="flex gap-2">
             {!isLastStep && (
-              <Button onClick={handleNext} disabled={!canAdvance} size="sm">
+              <Button onClick={handleNext} size="sm">
                 Próximo <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}
