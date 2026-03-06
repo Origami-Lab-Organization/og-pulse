@@ -1,22 +1,23 @@
 
 
-## Plano: Corrigir query ambígua de desligamentos
+## Plano: Adicionar checklist de documentos obrigatórios/opcionais na aba Documentos
 
 ### Problema
-A API retorna erro 300 (ambiguidade) porque existem duas foreign keys entre `employee_terminations` e `employees`:
-1. `employee_terminations.employee_id → employees.id`
-2. `employees.termination_id → employee_terminations.id`
-
-PostgREST exige que o relacionamento seja explicitado quando há mais de uma FK.
+A aba Documentos do drawer de desligamento mostra apenas um select de tipo + área de upload, sem o checklist de documentos obrigatórios e opcionais por tipo de contrato (que existia no wizard Step 4).
 
 ### Solução
-Em `src/services/terminationService.ts`, nas queries `getAll` e `getById`, trocar `employees!inner(...)` por `employees!employee_terminations_employee_id_fkey(...)` para disambiguar o relacionamento.
+Reintroduzir o checklist de documentos (igual ao `TerminationStep4Documents`) na aba Documentos do drawer, acima da área de upload. Cada item do checklist terá um checkbox e badge "Obrigatório"/"Opcional". Documentos já enviados (matching por `document_type`) serão automaticamente marcados.
 
 ### Alterações
 
-#### `src/services/terminationService.ts`
-- Método `getAll` (linha ~100): trocar `employees!inner(...)` por `employees!employee_terminations_employee_id_fkey!inner(...)`
-- Método `getById` (linha ~125): mesma correção no select que inclui employees, documents e adjustments
+#### `src/components/terminations/detail/TerminationDetailDocumentsTab.tsx`
+- Importar `DOCUMENT_CHECKLISTS` e `DocItem` de `TerminationStep4Documents`
+- Determinar o tipo de contrato do funcionário via `termination.employees.tipo_contratacao`
+- Adicionar um Card "Checklist de Documentos" no topo com checkboxes read-only que refletem se o tipo de documento já foi enviado (comparando `documents` com o checklist)
+- Badge "Obrigatório" (vermelho) ou "Opcional" (cinza) ao lado de cada item
+- Remover o Select de tipo de documento da área de upload — o upload passará a associar o tipo automaticamente ou manter o select simplificado
+- Manter a área de upload e a lista de documentos anexados abaixo
 
-Isso resolve tanto o problema de Mariana não aparecer quanto o carregamento lento (que na verdade era o erro impedindo qualquer dado de carregar).
+### Lógica de marcação automática
+Para cada item do checklist, verificar se existe um documento em `documents` cujo `document_type` corresponda à `key` do checklist. Se sim, checkbox marcado + indicador visual de "enviado".
 
