@@ -99,10 +99,10 @@ export default function BudgetForm() {
       clientType: 'client',
       clientId: '',
       leadName: '',
-      leadContact: '',
+      leadEmail: '',
+      leadPhone: '',
       startDate: format(new Date(), 'yyyy-MM-dd'),
       durationMonths: 6,
-      validUntil: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
       notes: '',
     },
   });
@@ -111,22 +111,14 @@ export default function BudgetForm() {
   const clientType = form.watch('clientType');
   const startDate = form.watch('startDate');
 
-  // Auto-calculate validity (startDate + 30 days) for new budgets
-  useEffect(() => {
-    if (!isEditing && startDate) {
-      const newValidUntil = format(addDays(new Date(startDate), 30), 'yyyy-MM-dd');
-      form.setValue('validUntil', newValidUntil);
-    }
-  }, [startDate, isEditing, form]);
-
   // Pre-fill from lead data
   useEffect(() => {
     if (leadData && !isEditing) {
       form.setValue('clientType', 'lead');
       form.setValue('title', leadData.name);
       form.setValue('leadName', leadData.company_name || leadData.name);
-      const contactParts = [leadData.contact_email, leadData.contact_phone].filter(Boolean);
-      form.setValue('leadContact', contactParts.join(' / '));
+      form.setValue('leadEmail', leadData.contact_email || '');
+      form.setValue('leadPhone', leadData.contact_phone || '');
     }
   }, [leadData, isEditing, form]);
 
@@ -155,10 +147,10 @@ export default function BudgetForm() {
         clientType: budget.client_id ? 'client' : 'lead',
         clientId: budget.client_id || '',
         leadName: budget.lead_name || '',
-        leadContact: budget.lead_contact || '',
+        leadEmail: budget.lead_contact?.split(' / ')[0]?.trim() || '',
+        leadPhone: budget.lead_contact?.split(' / ')[1]?.trim() || '',
         startDate: budget.start_date,
         durationMonths: budget.duration_months,
-        validUntil: budget.valid_until || '',
         notes: budget.notes || '',
       });
       setCommissionPercent(budget.commission_percent);
@@ -210,12 +202,13 @@ export default function BudgetForm() {
       return;
     }
 
+    const leadContact = [values.leadEmail, values.leadPhone].filter(Boolean).join(' / ') || undefined;
+
     const input: CreateBudgetInput = {
       title: values.title,
-      validUntil: values.validUntil || undefined,
       clientId: values.clientType === 'client' ? values.clientId : undefined,
       leadName: values.clientType === 'lead' ? values.leadName : undefined,
-      leadContact: values.clientType === 'lead' ? values.leadContact : undefined,
+      leadContact: values.clientType === 'lead' ? leadContact : undefined,
       startDate: values.startDate,
       durationMonths: values.durationMonths,
       adminExpensesPercent,
@@ -341,7 +334,7 @@ export default function BudgetForm() {
                   </FormItem>
                 )} />
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                   <FormField control={form.control} name="leadName" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Nome do Lead</FormLabel>
@@ -349,37 +342,28 @@ export default function BudgetForm() {
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="leadContact" render={({ field }) => (
+                  <FormField control={form.control} name="leadEmail" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contato</FormLabel>
-                      <FormControl><Input placeholder="Email ou telefone" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
+                      <FormLabel>Email do Lead</FormLabel>
+                      <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="leadPhone" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefone do Lead</FormLabel>
+                      <FormControl><Input type="tel" placeholder="(11) 99999-0000" {...field} readOnly={isFromLead} className={isFromLead ? 'bg-muted' : ''} /></FormControl>
                     </FormItem>
                   )} />
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-4">
-                <FormField control={form.control} name="startDate" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Válido de</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="durationMonths" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duração do Projeto (meses)</FormLabel>
-                    <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="validUntil" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Válido até</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
-                  </FormItem>
-                )} />
-              </div>
+              <FormField control={form.control} name="durationMonths" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Duração do Projeto (meses)</FormLabel>
+                  <FormControl><Input type="number" min={1} max={60} {...field} className="max-w-xs" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem>
