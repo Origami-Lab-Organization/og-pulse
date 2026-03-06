@@ -97,7 +97,7 @@ export const terminationService = {
     let query = supabase
       .from('employee_terminations')
       .select(
-        '*, employees!inner(id, nome, cargo, email, tipo_contratacao, foto_url)',
+        '*, employees!employee_terminations_employee_id_fkey!inner(id, nome, cargo, email, tipo_contratacao, foto_url)',
         { count: 'exact' }
       )
       .order('created_at', { ascending: false })
@@ -134,7 +134,7 @@ export const terminationService = {
     const { data, error } = await supabase
       .from('employee_terminations')
       .select(
-        '*, employees!inner(id, nome, cargo, email, tipo_contratacao, foto_url), termination_documents(*), payroll_adjustments(*)'
+        '*, employees!employee_terminations_employee_id_fkey!inner(id, nome, cargo, email, tipo_contratacao, foto_url), termination_documents(*), payroll_adjustments(*)'
       )
       .eq('id', id)
       .single();
