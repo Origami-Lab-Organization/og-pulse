@@ -18,6 +18,7 @@ interface Props {
   data: TerminationWizardData;
   onChange: (partial: Partial<TerminationWizardData>) => void;
   contractType: string;
+  showErrors?: boolean;
 }
 
 const VOLUNTARY_REASONS = [
@@ -50,7 +51,7 @@ function toDateStr(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
+const TerminationStep1Info = ({ data, onChange, contractType, showErrors = false }: Props) => {
   // termination_type is initialized by parent
   const [notifOpen, setNotifOpen] = useState(false);
   const [termOpen, setTermOpen] = useState(false);
@@ -105,7 +106,7 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
         <Label>Data efetiva do desligamento *</Label>
         <Popover open={termOpen} onOpenChange={setTermOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !termDate && "text-muted-foreground")}>
+            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !termDate && "text-muted-foreground", showErrors && !termDate && "border-destructive")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
               {termDate ? format(termDate, 'dd/MM/yyyy') : 'Selecionar data'}
             </Button>
@@ -121,6 +122,9 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
             />
           </PopoverContent>
         </Popover>
+        {showErrors && !termDate && (
+          <p className="text-xs text-destructive">Data obrigatória</p>
+        )}
         {daysRemaining !== null && (
           <p className="text-xs text-muted-foreground">
             {daysRemaining > 0 ? `${daysRemaining} dias restantes` : daysRemaining === 0 ? 'Hoje' : `${Math.abs(daysRemaining)} dias atrás`}
@@ -168,8 +172,13 @@ const TerminationStep1Info = ({ data, onChange, contractType }: Props) => {
           onChange={e => onChange({ reason: e.target.value })}
           placeholder="Descreva o motivo do desligamento..."
           rows={3}
+          className={cn(showErrors && data.reason.length < 20 && "border-destructive")}
         />
-        <p className="text-xs text-muted-foreground">{data.reason.length}/20 caracteres mínimos</p>
+        {showErrors && data.reason.length < 20 ? (
+          <p className="text-xs text-destructive">Mínimo de 20 caracteres ({data.reason.length}/20)</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">{data.reason.length}/20 caracteres mínimos</p>
+        )}
       </div>
     </div>
   );
