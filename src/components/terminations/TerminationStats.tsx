@@ -22,12 +22,19 @@ const TerminationStats = ({ terminations }: TerminationStatsProps) => {
     return d.getFullYear() === currentYear;
   });
 
-  const pending = terminations.filter((t) => t.status === 'pending' || t.status === 'in_progress');
+  const pending = terminations.filter((t) =>
+    ['pending', 'in_progress', 'awaiting_documents'].includes(t.status)
+  );
 
-  // Sum payroll adjustments from severance_package if available
+  // Sum payroll adjustments from final_payroll_adjustments JSONB
   const monthlyCost = thisMonth.reduce((sum, t) => {
+    const adjs = t.final_payroll_adjustments as unknown as Array<{ value: number; isCredit: boolean }> | null;
+    if (Array.isArray(adjs) && adjs.length > 0) {
+      return sum + adjs.reduce((s, a) => s + (a.isCredit ? a.value : -a.value), 0);
+    }
+    // fallback severance_package
     const pkg = t.severance_package as Record<string, unknown> | null;
-    return sum + (pkg && typeof pkg === 'object' && 'total' in pkg ? Number(pkg.total) || 0 : 0);
+    return sum + (pkg?.total ? Number(pkg.total) : 0);
   }, 0);
 
   const stats = [
