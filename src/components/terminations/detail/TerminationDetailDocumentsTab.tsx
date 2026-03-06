@@ -1,12 +1,16 @@
-import { useRef, useState } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, FileText, Image, File, Trash2, Download, Eye } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Upload, FileText, Image, File, Trash2, Download, Eye, CheckCircle2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { terminationService } from '@/services/terminationService';
 import { TerminationWithEmployee } from '@/services/terminationService';
 import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, TerminationDocumentType } from '@/types/termination';
+import { DOCUMENT_CHECKLISTS, DocItem } from '@/components/employees/termination-wizard/TerminationStep4Documents';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -31,10 +35,18 @@ export const TerminationDetailDocumentsTab = ({ termination }: Props) => {
   const [docType, setDocType] = useState<TerminationDocumentType>('other');
   const [isDragging, setIsDragging] = useState(false);
 
+  const contractType = termination.employees?.tipo_contratacao || 'CLT';
+  const checklist = useMemo(() => {
+    return DOCUMENT_CHECKLISTS[contractType] || DOCUMENT_CHECKLISTS.CLT;
+  }, [contractType]);
+
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['termination-documents', termination.id],
     queryFn: () => terminationService.getDocuments(termination.id),
   });
+
+  const isDocUploaded = (docKey: string) =>
+    documents.some(d => d.document_type === docKey);
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) =>
@@ -74,6 +86,40 @@ export const TerminationDetailDocumentsTab = ({ termination }: Props) => {
 
   return (
     <div className="space-y-4">
+      {/* Checklist de Documentos */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Checklist de Documentos</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {checklist.map(doc => {
+            const uploaded = isDocUploaded(doc.key);
+            return (
+              <div key={doc.key} className="flex items-center gap-3">
+                <Checkbox
+                  id={`checklist-${doc.key}`}
+                  checked={uploaded}
+                  disabled
+                />
+                <Label
+                  htmlFor={`checklist-${doc.key}`}
+                  className={`text-sm cursor-default flex-1 ${uploaded ? 'line-through text-muted-foreground' : ''}`}
+                >
+                  {doc.label}
+                </Label>
+                {uploaded && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
+                <Badge
+                  variant={doc.required ? 'destructive' : 'secondary'}
+                  className="text-[10px] px-1.5 py-0"
+                >
+                  {doc.required ? 'Obrigatório' : 'Opcional'}
+                </Badge>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
       {/* Upload area */}
       <Card>
         <CardHeader className="pb-3">
