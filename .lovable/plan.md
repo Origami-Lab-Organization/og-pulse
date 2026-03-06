@@ -1,14 +1,46 @@
 
 
-## Plano: Corrigir NaN no card de Comissão do Analytics
+## Plano: Corrigir botão "Criar Orçamento" que não funciona
 
-### Problema
-O card "Comissão" mostra "R$ NaN". Na linha 320 de `useAnalyticsData.ts`, o `reduce` faz `Number(c.planned_value)` que retorna NaN se algum registro tiver `planned_value` nulo.
+### Diagnóstico
+
+O problema está na linha 673 do `BudgetForm.tsx`:
+
+```typescript
+onSubmit={() => form.handleSubmit(handleSubmit)()}
+```
+
+Quando o usuário clica "Criar Orçamento" no passo 3, o `form.handleSubmit` executa a validação completa do formulário (todos os campos, incluindo os do passo 1). Se a validação do Zod falhar (por exemplo, o refine que verifica `clientId` ou `leadName`), o `handleSubmit` **nunca é chamado** e nenhum erro é mostrado ao usuário -- o botão simplesmente "não faz nada".
+
+Possíveis causas da validação falhando silenciosamente:
+- O campo `clientId` pode estar vazio mesmo após selecionar um cliente (problema de binding do Select)
+- O refine do schema pode estar falhando sem feedback visual
 
 ### Correção
 
-**`src/hooks/useAnalyticsData.ts` (linha 320)**
-- Trocar `Number(c.planned_value)` por `(Number(c.planned_value) || 0)` para tratar valores nulos
+**`src/pages/BudgetForm.tsx`**
 
-Essa é a única mudança necessária. Os demais cálculos (receita, impostos, custos, margem) estão corretos — a margem inclusive já desconta impostos, comissões e custos corretamente pela fórmula `(Receita - Impostos - Comissões - Custos) / Receita * 100`.
+1. Adicionar um callback de erro no `form.handleSubmit` para logar e mostrar feedback quando a validação falha:
+
+```typescript
+// Linha 673 - trocar:
+onSubmit={() => form.handleSubmit(handleSubmit)()}
+
+// Por:
+onSubmit={() => form.handleSubmit(handleSubmit, (errors) => {
+  console.error('Form validation errors:', errors);
+  toast({
+    title: 'Erro de validação',
+    description: 'Verifique os campos obrigatórios no passo 1.',
+    variant: 'destructive',
+  });
+})()}
+```
+
+2. Importar `useToast` no componente (se ainda não importado) e instanciar `const { toast } = useToast()`.
+
+3. Aplicar a mesma correção na linha 684 (botão de salvar no modo edição).
+
+### Arquivo alterado
+- `src/pages/BudgetForm.tsx`
 
