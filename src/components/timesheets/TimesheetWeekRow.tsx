@@ -243,7 +243,7 @@ export function TimesheetWeekRow({
   return (
     <div className={cn(
       "grid gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md",
-      (statusSlot || actionSlot) ? "grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px]" : "grid-cols-[1fr_1fr_repeat(5,60px)_80px]"
+      (statusSlot || actionSlot) ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px_120px]" : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px]"
     )}>
       <div className="flex items-center gap-2 min-w-0">
         {avatarUrl !== undefined && (
