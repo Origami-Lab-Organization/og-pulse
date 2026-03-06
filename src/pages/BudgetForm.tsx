@@ -85,15 +85,13 @@ export default function BudgetForm() {
   const maxCommissionPercent = financialSettings?.commission_percent || 0;
   const minNetMarginPercent = financialSettings?.net_margin_percent || 0;
 
+  const [showClientDialog, setShowClientDialog] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
-      clientType: 'client',
       clientId: '',
-      leadName: '',
-      leadEmail: '',
-      leadPhone: '',
       startDate: format(new Date(), 'yyyy-MM-dd'),
       durationMonths: 6,
       notes: '',
@@ -101,8 +99,6 @@ export default function BudgetForm() {
   });
 
   const durationMonths = form.watch('durationMonths');
-  const clientType = form.watch('clientType');
-  
 
   // Pre-fill from lead data
   useEffect(() => {
