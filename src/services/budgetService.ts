@@ -310,6 +310,9 @@ export const budgetService = {
         final_total: totals.finalTotal,
         notes: input.notes || null,
         created_by: createdBy,
+        margin_override_approved: input.marginOverrideApproved || false,
+        margin_override_approved_by: input.marginOverrideApproved ? createdBy : null,
+        margin_override_approved_at: input.marginOverrideApproved ? new Date().toISOString() : null,
       })
       .select()
       .single();
@@ -452,6 +455,11 @@ export const budgetService = {
     if (input.netMarginPercent !== undefined) updateData.net_margin_percent = input.netMarginPercent;
     if (input.discountValue !== undefined) updateData.discount_value = input.discountValue;
     if (input.notes !== undefined) updateData.notes = input.notes || null;
+    if (input.marginOverrideApproved !== undefined) {
+      updateData.margin_override_approved = input.marginOverrideApproved;
+      updateData.margin_override_approved_by = input.marginOverrideApproved ? (createdBy || null) : null;
+      updateData.margin_override_approved_at = input.marginOverrideApproved ? new Date().toISOString() : null;
+    }
 
     if (totals) {
       updateData.subtotal = totals.laborCost;
