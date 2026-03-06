@@ -1,23 +1,37 @@
 
 
-## Plano: Adicionar checklist de documentos obrigatórios/opcionais na aba Documentos
+## Plano: Melhorar UX do checklist de documentos no drawer de desligamento
 
-### Problema
-A aba Documentos do drawer de desligamento mostra apenas um select de tipo + área de upload, sem o checklist de documentos obrigatórios e opcionais por tipo de contrato (que existia no wizard Step 4).
+### Problemas identificados
 
-### Solução
-Reintroduzir o checklist de documentos (igual ao `TerminationStep4Documents`) na aba Documentos do drawer, acima da área de upload. Cada item do checklist terá um checkbox e badge "Obrigatório"/"Opcional". Documentos já enviados (matching por `document_type`) serão automaticamente marcados.
+1. **Checkboxes desabilitados** -- o usuario nao consegue interagir com o checklist
+2. **Tipos de documento incompativeis** -- o checklist usa keys como `medical_exam`, `final_report`, `contract_termination`, etc., mas o `DOCUMENT_TYPES` no select de upload so tem 7 tipos (`trct`, `termination_letter`, `homologation`, etc.). Quando o usuario faz upload de um TRCT pelo select, o checklist marca corretamente, mas keys como `medical_exam` nunca sao marcadas porque nao existem no select
+3. **Fluxo desconectado** -- o usuario precisa saber qual tipo selecionar no dropdown e depois fazer upload. O checklist deveria guiar o processo
 
-### Alterações
+### Solucao
+
+Transformar o checklist em ponto central da experiencia de upload:
+
+1. **Cada item do checklist tera um botao "Anexar"** ao lado -- ao clicar, abre o file picker e faz upload ja associando o `document_type` ao `key` do checklist (ex: `medical_exam`, `trct`)
+2. **Checkbox auto-marca** quando existe documento com aquele `document_type` no banco
+3. **Quando marcado**, mostra o nome do arquivo anexado e acoes (ver/excluir)
+4. **Expandir `DOCUMENT_TYPES`** em `src/types/termination.ts` para incluir todas as keys do checklist (`medical_exam`, `final_report`, `performance_eval`, `contract_termination`, `quitacao`, `contract_amendment`, `meeting_minutes`, `quota_transfer`, `activity_report`)
+5. **Manter area de upload generico** abaixo para documentos avulsos (tipo "Outro")
+6. **Remover checklist disabled** -- os checkboxes refletem automaticamente o estado real dos uploads
+
+### Alteracoes
+
+#### `src/types/termination.ts`
+- Expandir `DOCUMENT_TYPES` e `DOCUMENT_TYPE_LABELS` para incluir todas as keys usadas nos checklists: `medical_exam`, `final_report`, `performance_eval`, `contract_termination`, `quitacao`, `contract_amendment`, `meeting_minutes`, `quota_transfer`, `activity_report`
 
 #### `src/components/terminations/detail/TerminationDetailDocumentsTab.tsx`
-- Importar `DOCUMENT_CHECKLISTS` e `DocItem` de `TerminationStep4Documents`
-- Determinar o tipo de contrato do funcionário via `termination.employees.tipo_contratacao`
-- Adicionar um Card "Checklist de Documentos" no topo com checkboxes read-only que refletem se o tipo de documento já foi enviado (comparando `documents` com o checklist)
-- Badge "Obrigatório" (vermelho) ou "Opcional" (cinza) ao lado de cada item
-- Remover o Select de tipo de documento da área de upload — o upload passará a associar o tipo automaticamente ou manter o select simplificado
-- Manter a área de upload e a lista de documentos anexados abaixo
+- Cada item do checklist: se nao tem doc anexado, mostra botao "Anexar" que abre file picker com `docType` pre-setado para aquele `key`
+- Se tem doc anexado: checkbox marcado + nome do arquivo inline + botoes ver/excluir
+- Manter card "Enviar Documento" simplificado para docs avulsos
+- Remover `disabled` dos checkboxes (agora sao read-only mas refletem estado real)
 
-### Lógica de marcação automática
-Para cada item do checklist, verificar se existe um documento em `documents` cujo `document_type` corresponda à `key` do checklist. Se sim, checkbox marcado + indicador visual de "enviado".
+### Detalhes tecnicos
+- O `fileRef` sera reutilizado, mas um state `activeChecklistKey` controlara qual key do checklist esta aguardando o arquivo
+- No `onChange` do input file, se `activeChecklistKey` estiver setado, usa ele como `docType` no upload
+- Apos upload, limpa `activeChecklistKey`
 
