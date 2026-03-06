@@ -179,15 +179,6 @@ export const TerminationDetailDocumentsTab = ({ termination }: Props) => {
           <CardTitle className="text-base">Enviar Documento Avulso</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Select value={docType} onValueChange={(v) => setDocType(v as TerminationDocumentType)}>
-            <SelectTrigger><SelectValue placeholder="Tipo de documento" /></SelectTrigger>
-            <SelectContent>
-              {DOCUMENT_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>{DOCUMENT_TYPE_LABELS[t]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
