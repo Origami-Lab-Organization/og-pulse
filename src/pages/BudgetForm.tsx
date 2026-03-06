@@ -675,6 +675,7 @@ export default function BudgetForm() {
                 currentStep={currentStep}
                 totalSteps={WIZARD_STEPS.length}
                 isSubmitting={isSubmitting}
+                isSaveDisabled={isSaveBlocked}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
                 onCancel={() => navigate(isFromLead ? '/crm' : '/budgets')}
@@ -703,7 +704,7 @@ export default function BudgetForm() {
                   description: 'Verifique os campos obrigatórios.',
                   variant: 'destructive',
                 });
-              })()} disabled={isSubmitting}>
+              })()} disabled={isSubmitting || isSaveBlocked}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Save className="mr-2 h-4 w-4" />
                 Salvar
