@@ -1246,42 +1246,64 @@ export type Database = {
       }
       project_commissions: {
         Row: {
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           commission_percent: number
           created_at: string
           id: string
-          installment_id: string
+          installment_id: string | null
           is_paid: boolean
           notes: string | null
           paid_date: string | null
           paid_to: string | null
           planned_value: number
           project_id: string
+          rejection_reason: string | null
+          requested_by: string | null
         }
         Insert: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           commission_percent?: number
           created_at?: string
           id?: string
-          installment_id: string
+          installment_id?: string | null
           is_paid?: boolean
           notes?: string | null
           paid_date?: string | null
           paid_to?: string | null
           planned_value?: number
           project_id: string
+          rejection_reason?: string | null
+          requested_by?: string | null
         }
         Update: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           commission_percent?: number
           created_at?: string
           id?: string
-          installment_id?: string
+          installment_id?: string | null
           is_paid?: boolean
           notes?: string | null
           paid_date?: string | null
           paid_to?: string | null
           planned_value?: number
           project_id?: string
+          rejection_reason?: string | null
+          requested_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_commissions_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_commissions_installment_id_fkey"
             columns: ["installment_id"]
@@ -1294,6 +1316,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_commissions_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]

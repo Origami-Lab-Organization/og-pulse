@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 export interface ProjectCommission {
   id: string;
   project_id: string;
-  installment_id: string;
+  installment_id: string | null;
   commission_percent: number;
   planned_value: number;
   is_paid: boolean;
@@ -13,6 +13,11 @@ export interface ProjectCommission {
   paid_to: string | null;
   notes: string | null;
   created_at: string;
+  approval_status: 'pending' | 'approved' | 'rejected';
+  requested_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
 }
 
 export function useProjectCommissions(projectId: string | undefined) {
@@ -53,6 +58,7 @@ export function useGenerateCommissions() {
         installment_id: inst.id,
         planned_value: Math.round(perInstallment * 100) / 100,
         commission_percent: commissionPercent,
+        approval_status: 'approved',
       }));
 
       const { error } = await supabase
@@ -98,6 +104,86 @@ export function useUpdateCommission() {
       if (notes !== undefined) updates.notes = notes;
       if (planned_value !== undefined) updates.planned_value = planned_value;
       if (commission_percent !== undefined) updates.commission_percent = commission_percent;
+
+      const { error } = await supabase
+        .from('project_commissions' as any)
+        .update(updates as any)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-commissions'] });
+      toast.success('Comissão atualizada');
+    },
+    onError: (err: any) => {
+      toast.error('Erro ao atualizar comissão: ' + err.message);
+    },
+  });
+}
+
+export function useCreateManualCommission() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      projectId,
+      planned_value,
+      paid_to,
+      notes,
+      requested_by,
+    }: {
+      projectId: string;
+      planned_value: number;
+      paid_to: string;
+      notes?: string;
+      requested_by: string;
+    }) => {
+      const { error } = await supabase
+        .from('project_commissions' as any)
+        .insert({
+          project_id: projectId,
+          planned_value,
+          paid_to,
+          notes: notes || null,
+          commission_percent: 0,
+          approval_status: 'pending',
+          requested_by,
+        } as any);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['project-commissions', vars.projectId] });
+      toast.success('Solicitação de comissão enviada para aprovação');
+    },
+    onError: (err: any) => {
+      toast.error('Erro ao solicitar comissão: ' + err.message);
+    },
+  });
+}
+
+export function useApproveCommission() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      approved,
+      approved_by,
+      rejection_reason,
+    }: {
+      id: string;
+      approved: boolean;
+      approved_by: string;
+      rejection_reason?: string;
+    }) => {
+      const updates: Record<string, any> = {
+        approval_status: approved ? 'approved' : 'rejected',
+        approved_by,
+        approved_at: new Date().toISOString(),
+      };
+      if (!approved && rejection_reason) {
+        updates.rejection_reason = rejection_reason;
+      }
 
       const { error } = await supabase
         .from('project_commissions' as any)
