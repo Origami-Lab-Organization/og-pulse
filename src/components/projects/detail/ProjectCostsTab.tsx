@@ -114,36 +114,13 @@ function FinancialSummaryCard({
             <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="flex-1 min-w-0">
-            {/* Título: Custo Total */}
             <p className="text-sm font-medium text-muted-foreground">Custo Total</p>
-            
-            {/* Valor principal em destaque */}
             <p className="text-lg font-semibold">
               {formatCurrency(displayCost)}
             </p>
-            
-            {/* Valor de referência */}
             <p className="text-xs text-muted-foreground">
               {isPlanningMode ? 'Orçado' : 'Planejado'}: {formatCurrency(baseDisplayCost)}
             </p>
-            
-            {/* Margem Bruta com gap ao lado (pequeno) */}
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className={cn(
-                "text-sm font-medium",
-                marginPercent >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"
-              )}>
-                Margem: {marginPercent.toFixed(1)}%
-              </span>
-              {grossMarginTarget > 0 && (
-                <span className={cn(
-                  "text-xs",
-                  isPositive ? "text-green-600 dark:text-green-400" : "text-destructive"
-                )}>
-                  {isPositive ? '+' : ''}{gap.toFixed(1)}pp
-                </span>
-              )}
-            </div>
           </div>
         </div>
       </CardContent>
