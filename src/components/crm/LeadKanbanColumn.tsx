@@ -31,7 +31,7 @@ export function LeadKanbanColumn({ column, leads, activeId, onCardClick }: LeadK
     >
       <div className="flex items-center justify-between p-3 border-b">
         <h3 className="font-semibold text-sm">{column.label}</h3>
-        <Badge variant="secondary" className={cn('text-xs', column.color)}>
+        <Badge variant="secondary" className="text-xs">
           {leads.length}
         </Badge>
       </div>
