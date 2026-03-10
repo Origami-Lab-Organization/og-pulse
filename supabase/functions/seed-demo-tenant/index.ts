@@ -80,7 +80,15 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════════
     const createAuthUser = async (email: string) => {
       const { data, error } = await db.auth.admin.createUser({ email, password: DEMO_PASSWORD, email_confirm: true });
-      if (error) throw new Error(`auth user ${email}: ${error.message}`);
+      if (error) {
+        // User already exists — fetch existing ID
+        if (error.message?.toLowerCase().includes('already') || error.message?.toLowerCase().includes('duplicate')) {
+          const { data: list } = await db.auth.admin.listUsers();
+          const existing = list?.users?.find((u: any) => u.email === email);
+          if (existing) return existing.id;
+        }
+        throw new Error(`auth user ${email}: ${error.message}`);
+      }
       return data.user.id;
     };
 
