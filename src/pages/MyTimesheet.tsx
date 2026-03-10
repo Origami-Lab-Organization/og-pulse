@@ -51,6 +51,7 @@ const MyTimesheet = () => {
   const { data: timesheetEntries = [], isLoading: loadingEntries } = useTimesheetsByDateRange(startDate, endDate);
 
   const projectIds = useMemo(() => projects.map(p => p.projectId), [projects]);
+  const myMemberIds = useMemo(() => projects.flatMap(p => p.members.map(m => m.memberId)), [projects]);
 
   const { data: holidays = [] } = useHolidays();
   const { data: allocationData } = useMyAllocationData(employee?.id, monthKey);
@@ -93,10 +94,12 @@ const MyTimesheet = () => {
   const allDailyTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const entry of timesheetEntries) {
-      totals[entry.workDate] = (totals[entry.workDate] ?? 0) + entry.hours;
+      if (myMemberIds.includes(entry.projectMemberId)) {
+        totals[entry.workDate] = (totals[entry.workDate] ?? 0) + entry.hours;
+      }
     }
     return totals;
-  }, [timesheetEntries]);
+  }, [timesheetEntries, myMemberIds]);
 
   // Track local (unsaved) totals per member for real-time footer
   const [localTotals, setLocalTotals] = useState<Record<string, number>>({});
