@@ -180,8 +180,6 @@ const MyTimesheet = () => {
 
   const allProjectsLocked = useMemo(() => {
     return projects.every(p => {
-      const submission = submissions.get(p.projectId);
-      if (submission?.status === 'submitted') return true;
       const member = p.members[0];
       if (!member) return false;
       const memberEntries = timesheetEntries.filter(
@@ -189,7 +187,7 @@ const MyTimesheet = () => {
       );
       return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
     });
-  }, [projects, timesheetEntries, submissions]);
+  }, [projects, timesheetEntries]);
 
   const getHolidayForDate = (dateStr: string): Holiday | null => {
     const date = parseISO(dateStr);
