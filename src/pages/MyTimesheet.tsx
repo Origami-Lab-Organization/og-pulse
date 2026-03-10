@@ -277,13 +277,11 @@ const MyTimesheet = () => {
 
               {/* Uma linha por projeto */}
               {projects.map((project) => {
-                const member = project.members[0];
-                const submission = submissions.get(project.projectId);
-                const isSubmitted = submission?.status === 'submitted';
+              const member = project.members[0];
                 const memberEntries = timesheetEntries.filter(
                   e => e.projectMemberId === member.memberId
                 );
-                const isLocked = isSubmitted || (memberEntries.length > 0 && memberEntries.every(e => e.isLocked));
+                const isLocked = memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
                 const actionContent = isLocked ? (
                   <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
