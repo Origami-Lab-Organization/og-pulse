@@ -346,7 +346,7 @@ Execute a análise completa deste módulo aplicada ao contexto acima.`;
     })();
 
     // Don't await - process in background
-    EdgeRuntime.waitUntil(processPromise);
+    (globalThis as any).EdgeRuntime?.waitUntil?.(processPromise);
 
     // 3. Return immediately with jobId
     return new Response(
