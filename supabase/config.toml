@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.market-analysis-refine]
 verify_jwt = false
+
+[functions.seed-demo-tenant]
+verify_jwt = false
