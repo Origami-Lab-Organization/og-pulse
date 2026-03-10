@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════════
     const { data: tenant, error: tenantErr } = await db
       .from('tenants')
-      .insert({ name: TENANT_NAME, segment: 'Consultoria & Tecnologia', employee_count: '11-50' })
+      .insert({ name: TENANT_NAME, segment: 'Consultoria & Tecnologia', employee_count: 25 })
       .select().single();
     if (tenantErr) throw new Error(`tenant: ${tenantErr.message}`);
     const tid = tenant.id;
