@@ -94,10 +94,12 @@ const MyTimesheet = () => {
   const allDailyTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const entry of timesheetEntries) {
-      totals[entry.workDate] = (totals[entry.workDate] ?? 0) + entry.hours;
+      if (myMemberIds.includes(entry.projectMemberId)) {
+        totals[entry.workDate] = (totals[entry.workDate] ?? 0) + entry.hours;
+      }
     }
     return totals;
-  }, [timesheetEntries]);
+  }, [timesheetEntries, myMemberIds]);
 
   // Track local (unsaved) totals per member for real-time footer
   const [localTotals, setLocalTotals] = useState<Record<string, number>>({});
