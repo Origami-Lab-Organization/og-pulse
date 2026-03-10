@@ -12,7 +12,7 @@ import { SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialo
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyProjectMemberships } from '@/hooks/useMyTimesheetData';
 import { useTimesheetsByDateRange, getWeekStart, getWeekDays } from '@/hooks/useTimesheetData';
-import { useProjectWeekSubmissions, useSubmitAllProjects } from '@/hooks/useTimesheetSubmissions';
+import { useSubmitAllProjects } from '@/hooks/useTimesheetSubmissions';
 import { useHolidays } from '@/hooks/useHolidays';
 import { Badge } from '@/components/ui/badge';
 import { format, addDays, parseISO } from 'date-fns';
@@ -51,7 +51,6 @@ const MyTimesheet = () => {
   const { data: timesheetEntries = [], isLoading: loadingEntries } = useTimesheetsByDateRange(startDate, endDate);
 
   const projectIds = useMemo(() => projects.map(p => p.projectId), [projects]);
-  const { data: submissions = new Map() } = useProjectWeekSubmissions(startDate, projectIds);
 
   const { data: holidays = [] } = useHolidays();
   const { data: allocationData } = useMyAllocationData(employee?.id, monthKey);
@@ -181,8 +180,6 @@ const MyTimesheet = () => {
 
   const allProjectsLocked = useMemo(() => {
     return projects.every(p => {
-      const submission = submissions.get(p.projectId);
-      if (submission?.status === 'submitted') return true;
       const member = p.members[0];
       if (!member) return false;
       const memberEntries = timesheetEntries.filter(
@@ -190,7 +187,7 @@ const MyTimesheet = () => {
       );
       return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
     });
-  }, [projects, timesheetEntries, submissions]);
+  }, [projects, timesheetEntries]);
 
   const getHolidayForDate = (dateStr: string): Holiday | null => {
     const date = parseISO(dateStr);
@@ -280,13 +277,11 @@ const MyTimesheet = () => {
 
               {/* Uma linha por projeto */}
               {projects.map((project) => {
-                const member = project.members[0];
-                const submission = submissions.get(project.projectId);
-                const isSubmitted = submission?.status === 'submitted';
+              const member = project.members[0];
                 const memberEntries = timesheetEntries.filter(
                   e => e.projectMemberId === member.memberId
                 );
-                const isLocked = isSubmitted || (memberEntries.length > 0 && memberEntries.every(e => e.isLocked));
+                const isLocked = memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
                 const actionContent = isLocked ? (
                   <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
