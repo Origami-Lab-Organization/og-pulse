@@ -12,7 +12,7 @@ import { SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialo
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyProjectMemberships } from '@/hooks/useMyTimesheetData';
 import { useTimesheetsByDateRange, getWeekStart, getWeekDays } from '@/hooks/useTimesheetData';
-import { useProjectWeekSubmissions, useSubmitAllProjects } from '@/hooks/useTimesheetSubmissions';
+import { useSubmitAllProjects } from '@/hooks/useTimesheetSubmissions';
 import { useHolidays } from '@/hooks/useHolidays';
 import { Badge } from '@/components/ui/badge';
 import { format, addDays, parseISO } from 'date-fns';
