@@ -51,6 +51,7 @@ const MyTimesheet = () => {
   const { data: timesheetEntries = [], isLoading: loadingEntries } = useTimesheetsByDateRange(startDate, endDate);
 
   const projectIds = useMemo(() => projects.map(p => p.projectId), [projects]);
+  const myMemberIds = useMemo(() => projects.flatMap(p => p.members.map(m => m.memberId)), [projects]);
 
   const { data: holidays = [] } = useHolidays();
   const { data: allocationData } = useMyAllocationData(employee?.id, monthKey);
