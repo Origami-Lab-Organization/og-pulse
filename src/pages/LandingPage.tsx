@@ -23,7 +23,7 @@ import logo from "@/assets/logo.png";
 const softwareSchema = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "Origami Pulse",
+  name: "Propulsr",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   offers: {
@@ -48,15 +48,15 @@ const faqSchema = {
   mainEntity: [
     {
       "@type": "Question",
-      name: "O que é o Origami Pulse?",
+      name: "O que é o Propulsr?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Origami Pulse é um sistema de gestão financeira desenvolvido para empresas de serviços. Ele permite controlar funcionários, clientes, projetos e orçamentos em uma única plataforma, calculando automaticamente custos reais e margens de lucro.",
+        text: "Propulsr é um sistema de gestão financeira desenvolvido para empresas de serviços. Ele permite controlar funcionários, clientes, projetos e orçamentos em uma única plataforma, calculando automaticamente custos reais e margens de lucro.",
       },
     },
     {
       "@type": "Question",
-      name: "Para quem é indicado o Origami Pulse?",
+      name: "Para quem é indicado o Propulsr?",
       acceptedAnswer: {
         "@type": "Answer",
         text: "O sistema é ideal para agências, consultorias, software houses, escritórios de design, e qualquer empresa de serviços que precise controlar custos de equipe, criar orçamentos comerciais e acompanhar a rentabilidade de projetos.",
@@ -67,7 +67,7 @@ const faqSchema = {
       name: "Como calcular o custo real de um funcionário?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "O Origami Pulse calcula automaticamente o custo real somando salário, benefícios, encargos trabalhistas e ferramentas utilizadas. O sistema divide esse total pelas horas trabalhadas para obter o custo/hora real de cada colaborador.",
+        text: "O Propulsr calcula automaticamente o custo real somando salário, benefícios, encargos trabalhistas e ferramentas utilizadas. O sistema divide esse total pelas horas trabalhadas para obter o custo/hora real de cada colaborador.",
       },
     },
     {
@@ -83,7 +83,7 @@ const faqSchema = {
       name: "O sistema é seguro para minha empresa?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Sim. O Origami Pulse utiliza arquitetura multi-tenant onde cada empresa tem seu ambiente completamente isolado. Os dados são protegidos com políticas de segurança no nível do banco de dados e autenticação robusta.",
+        text: "Sim. O Propulsr utiliza arquitetura multi-tenant onde cada empresa tem seu ambiente completamente isolado. Os dados são protegidos com políticas de segurança no nível do banco de dados e autenticação robusta.",
       },
     },
     {
@@ -147,19 +147,19 @@ const benefits = [
 
 const faqItems = [
   {
-    question: "O que é o Origami Pulse?",
+    question: "O que é o Propulsr?",
     answer:
-      "Origami Pulse é um sistema de gestão financeira desenvolvido para empresas de serviços. Ele permite controlar funcionários, clientes, projetos e orçamentos em uma única plataforma, calculando automaticamente custos reais e margens de lucro.",
+      "Propulsr é um sistema de gestão financeira desenvolvido para empresas de serviços. Ele permite controlar funcionários, clientes, projetos e orçamentos em uma única plataforma, calculando automaticamente custos reais e margens de lucro.",
   },
   {
-    question: "Para quem é indicado o Origami Pulse?",
+    question: "Para quem é indicado o Propulsr?",
     answer:
       "O sistema é ideal para agências, consultorias, software houses, escritórios de design, e qualquer empresa de serviços que precise controlar custos de equipe, criar orçamentos comerciais e acompanhar a rentabilidade de projetos.",
   },
   {
     question: "Como calcular o custo real de um funcionário?",
     answer:
-      "O Origami Pulse calcula automaticamente o custo real somando salário, benefícios, encargos trabalhistas e ferramentas utilizadas. O sistema divide esse total pelas horas trabalhadas para obter o custo/hora real de cada colaborador.",
+      "O Propulsr calcula automaticamente o custo real somando salário, benefícios, encargos trabalhistas e ferramentas utilizadas. O sistema divide esse total pelas horas trabalhadas para obter o custo/hora real de cada colaborador.",
   },
   {
     question: "Posso criar orçamentos comerciais?",
@@ -169,7 +169,7 @@ const faqItems = [
   {
     question: "O sistema é seguro para minha empresa?",
     answer:
-      "Sim. O Origami Pulse utiliza arquitetura multi-tenant onde cada empresa tem seu ambiente completamente isolado. Os dados são protegidos com políticas de segurança no nível do banco de dados e autenticação robusta.",
+      "Sim. O Propulsr utiliza arquitetura multi-tenant onde cada empresa tem seu ambiente completamente isolado. Os dados são protegidos com políticas de segurança no nível do banco de dados e autenticação robusta.",
   },
   {
     question: "Como começo a usar?",
@@ -198,11 +198,11 @@ const LandingPage = () => {
             <div className="flex items-center gap-2">
               <img
                 src={logo}
-                alt="Origami Pulse - Sistema de Gestão Financeira"
+                alt="Propulsr - Sistema de Gestão Financeira"
                 className="h-8 w-auto"
               />
               <span className="font-semibold text-lg text-foreground">
-                Origami Pulse
+                Propulsr
               </span>
             </div>
             <nav className="flex items-center gap-4">
@@ -259,7 +259,7 @@ const LandingPage = () => {
                   prejuízos invisíveis.
                 </p>
                 <p className="mt-4 text-foreground font-medium">
-                  O Origami Pulse resolve isso calculando automaticamente o
+                  O Propulsr resolve isso calculando automaticamente o
                   custo real de cada colaborador e ajudando você a criar
                   orçamentos rentáveis.
                 </p>
@@ -311,7 +311,7 @@ const LandingPage = () => {
             <div className="container">
               <div className="mx-auto max-w-3xl text-center">
                 <h2 className="text-3xl font-bold">
-                  Por que escolher o Origami Pulse?
+                  Por que escolher o Propulsr?
                 </h2>
                 <div className="mt-10 grid gap-4 sm:grid-cols-2 text-left">
                   {benefits.map((benefit, index) => (
@@ -336,7 +336,7 @@ const LandingPage = () => {
                     Perguntas Frequentes
                   </h2>
                   <p className="mt-4 text-muted-foreground">
-                    Tire suas dúvidas sobre o Origami Pulse
+                    Tire suas dúvidas sobre o Propulsr
                   </p>
                 </div>
                 <Accordion type="single" collapsible className="w-full">

@@ -22,7 +22,7 @@ const Welcome = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardContent className="pt-8 pb-8 text-center space-y-6">
-          <img src={logo} alt="Origami Pulse" className="h-16 w-16 mx-auto" />
+          <img src={logo} alt="Propulsr" className="h-16 w-16 mx-auto" />
 
           <div className="flex justify-center">
             <CheckCircle2 className="h-16 w-16 text-green-500 animate-[scale-in_0.4s_ease-out]" />
@@ -38,7 +38,7 @@ const Welcome = () => {
           </div>
 
           <Button className="w-full" onClick={() => navigate('/dashboard')}>
-            Acessar o Origami Pulse
+            Acessar o Propulsr
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </CardContent>

@@ -8,7 +8,7 @@ const Terms = () => (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <div className="flex justify-center mb-4">
-          <img src={logo} alt="Origami Pulse" className="h-12 w-12" />
+          <img src={logo} alt="Propulsr" className="h-12 w-12" />
         </div>
         <CardTitle className="text-2xl">Termos de Uso</CardTitle>
       </CardHeader>

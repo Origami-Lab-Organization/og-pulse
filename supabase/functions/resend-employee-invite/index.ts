@@ -150,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { error: emailError } = await resend.emails.send({
       from: resendFromEmail,
       to: [employee.email],
-      subject: "Novo Convite de Acesso - OG Pulse",
+      subject: "Novo Convite de Acesso - Propulsr",
       html: `
         <!DOCTYPE html>
         <html>
@@ -162,13 +162,13 @@ const handler = async (req: Request): Promise<Response> => {
         <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
           <div style="background-color: #ffffff; border-radius: 10px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #1a1a1a; margin: 0; font-size: 28px;">OG Pulse</h1>
+              <h1 style="color: #1a1a1a; margin: 0; font-size: 28px;">Propulsr</h1>
               <p style="color: #666; margin-top: 5px;">Gestão de Equipes</p>
             </div>
             
             <h2 style="color: #333; margin-bottom: 20px;">Olá, ${employee.nome}!</h2>
             
-            <p style="margin-bottom: 20px;">Um novo convite de acesso foi gerado para você no OG Pulse.</p>
+            <p style="margin-bottom: 20px;">Um novo convite de acesso foi gerado para você no Propulsr.</p>
             
             <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 25px 0;">
               <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${employee.email}</p>

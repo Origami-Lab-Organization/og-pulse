@@ -77,7 +77,7 @@ const ChangePassword = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <img src={logo} alt="Origami Pulse" className="h-16 w-16" />
+            <img src={logo} alt="Propulsr" className="h-16 w-16" />
           </div>
           <div className="flex justify-center mb-2">
             <div className="rounded-full bg-amber-100 p-3">

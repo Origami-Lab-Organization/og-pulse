@@ -168,10 +168,10 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-3">
-          <img src={logo} alt="Origami Pulse" className="h-8 w-8 flex-shrink-0" />
+          <img src={logo} alt="Propulsr" className="h-8 w-8 flex-shrink-0" />
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-semibold text-sidebar-foreground">Origami Pulse</span>
+              <span className="font-semibold text-sidebar-foreground">Propulsr</span>
               <span className="text-xs text-sidebar-foreground/70">Gestão de Equipes</span>
             </div>
           )}

@@ -99,7 +99,7 @@ export async function generateDocxFromMarkdown(markdown: string, title: string):
           children: [new Paragraph({
             alignment: AlignmentType.CENTER,
             children: [
-              new TextRun({ text: 'Gerado por Origami Pulse | Strategy Analyst | Página ', size: 18, color: '666666' }),
+              new TextRun({ text: 'Gerado por Propulsr | Strategy Analyst | Página ', size: 18, color: '666666' }),
               new TextRun({ children: [PageNumber.CURRENT], size: 18, color: '666666' }),
             ],
           })],

@@ -219,7 +219,7 @@ const Register = () => {
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <img src={logo} alt="Origami Pulse" className="h-16 w-16" />
+            <img src={logo} alt="Propulsr" className="h-16 w-16" />
           </div>
           <CardTitle className="text-2xl">Cadastrar Empresa</CardTitle>
           <CardDescription>

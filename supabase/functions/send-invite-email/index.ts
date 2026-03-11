@@ -86,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     const emailResponse = await resend.emails.send({
-      from: Deno.env.get("RESEND_FROM_EMAIL") || "OG Pulse <noreply@resend.dev>",
+      from: Deno.env.get("RESEND_FROM_EMAIL") || "Propulsr <noreply@resend.dev>",
       to: [to],
       subject: "Bem-vindo! Suas credenciais de acesso",
       html: htmlContent,
