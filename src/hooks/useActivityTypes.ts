@@ -59,12 +59,12 @@ export const useCreateActivityType = () => {
     mutationFn: async (input: CreateActivityTypeInput) => {
       const { data, error } = await supabase
         .from('activity_types')
-        .insert({
+        .insert([{
           name: input.name,
           description: input.description || null,
           color: input.color,
           applies_to_all: input.applies_to_all,
-        })
+        }])
         .select()
         .single();
 

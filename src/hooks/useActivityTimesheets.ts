@@ -52,14 +52,14 @@ export const useUpsertActivityTimesheet = () => {
       const { data, error } = await supabase
         .from('activity_timesheets')
         .upsert(
-          {
+          [{
             employee_id: input.employeeId,
             activity_type_id: input.activityTypeId,
             work_date: input.workDate,
             hours: input.hours,
             description: input.description || null,
             updated_at: new Date().toISOString(),
-          },
+          }],
           { onConflict: 'employee_id,activity_type_id,work_date' },
         )
         .select()
