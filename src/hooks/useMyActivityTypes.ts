@@ -5,7 +5,6 @@ export interface MyActivityType {
   id: string;
   name: string;
   description: string | null;
-  color: string;
 }
 
 /**
@@ -22,7 +21,7 @@ export const useMyActivityTypes = (employeeId: string | undefined, weekEndDate?:
       let query = (supabase as any)
         .from('activity_types')
         .select(`
-          id, name, description, color, applies_to_all,
+          id, name, description, applies_to_all,
           activity_type_employees(employee_id)
         `)
         .eq('is_active', true)
@@ -46,7 +45,6 @@ export const useMyActivityTypes = (employeeId: string | undefined, weekEndDate?:
           id: at.id,
           name: at.name,
           description: at.description,
-          color: at.color,
         })) as MyActivityType[];
     },
     enabled: !!employeeId,

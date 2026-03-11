@@ -107,10 +107,6 @@ export function ActivityTypesSettings() {
             <div className="divide-y rounded-md border">
               {activityTypes.map(at => (
                 <div key={at.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30">
-                  <div
-                    className="h-3 w-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: at.color }}
-                  />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium ${!at.is_active ? 'line-through text-muted-foreground' : ''}`}>
                       {at.name}

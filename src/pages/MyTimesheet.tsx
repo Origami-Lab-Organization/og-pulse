@@ -385,7 +385,6 @@ const MyTimesheet = () => {
                       key={at.id}
                       activityTypeId={at.id}
                       activityName={at.name}
-                      color={at.color}
                       employeeId={employee!.id}
                       weekDays={weekDays}
                       existingEntries={activityEntries}

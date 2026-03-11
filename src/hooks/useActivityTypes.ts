@@ -7,7 +7,6 @@ export interface ActivityType {
   tenant_id: string;
   name: string;
   description: string | null;
-  color: string;
   applies_to_all: boolean;
   is_active: boolean;
   created_at: string;
@@ -18,7 +17,6 @@ export interface ActivityType {
 export interface CreateActivityTypeInput {
   name: string;
   description?: string;
-  color: string;
   applies_to_all: boolean;
   employee_ids?: string[];
 }
@@ -64,7 +62,6 @@ export const useCreateActivityType = () => {
           tenant_id: employee.tenant_id,
           name: input.name,
           description: input.description || null,
-          color: input.color,
           applies_to_all: input.applies_to_all,
         }])
         .select()
@@ -103,7 +100,6 @@ export const useUpdateActivityType = () => {
         .update({
           name: input.name,
           description: input.description || null,
-          color: input.color,
           applies_to_all: input.applies_to_all,
           updated_at: new Date().toISOString(),
         })

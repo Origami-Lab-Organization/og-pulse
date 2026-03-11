@@ -19,7 +19,6 @@ import type { SaveStatusInfo } from './TimesheetWeekRow';
 interface ActivityTimesheetRowProps {
   activityTypeId: string;
   activityName: string;
-  color: string;
   employeeId: string;
   weekDays: WeekDay[];
   existingEntries: ActivityTimesheetEntry[];
@@ -34,7 +33,6 @@ interface ActivityTimesheetRowProps {
 export function ActivityTimesheetRow({
   activityTypeId,
   activityName,
-  color,
   employeeId,
   weekDays,
   existingEntries,
@@ -157,7 +155,6 @@ export function ActivityTimesheetRow({
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md">
       <div className="flex items-center gap-2 min-w-0">
-        <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
         <p className="text-sm font-medium truncate">{activityName}</p>
       </div>
       {/* Empty client column */}

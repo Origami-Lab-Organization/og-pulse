@@ -27,20 +27,9 @@ import { X } from 'lucide-react';
 import { ActivityType, CreateActivityTypeInput } from '@/hooks/useActivityTypes';
 import { useEmployees } from '@/hooks/useEmployees';
 
-const PRESET_COLORS = [
-  { label: 'Índigo', value: '#6366f1' },
-  { label: 'Azul', value: '#3b82f6' },
-  { label: 'Verde', value: '#22c55e' },
-  { label: 'Laranja', value: '#f97316' },
-  { label: 'Rosa', value: '#ec4899' },
-  { label: 'Amarelo', value: '#eab308' },
-  { label: 'Cinza', value: '#6b7280' },
-];
-
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   description: z.string().optional(),
-  color: z.string().min(1, 'Cor é obrigatória'),
   applies_to_all: z.enum(['all', 'specific']),
 });
 
@@ -74,7 +63,6 @@ export function ActivityTypeFormDialog({
     defaultValues: {
       name: '',
       description: '',
-      color: '#6366f1',
       applies_to_all: 'all',
     },
   });
@@ -87,7 +75,6 @@ export function ActivityTypeFormDialog({
         form.reset({
           name: activityType.name,
           description: activityType.description ?? '',
-          color: activityType.color,
           applies_to_all: activityType.applies_to_all ? 'all' : 'specific',
         });
         setSelectedEmployeeIds(existingEmployeeIds);
@@ -95,7 +82,6 @@ export function ActivityTypeFormDialog({
         form.reset({
           name: '',
           description: '',
-          color: '#6366f1',
           applies_to_all: 'all',
         });
         setSelectedEmployeeIds([]);
@@ -108,7 +94,6 @@ export function ActivityTypeFormDialog({
     onSubmit({
       name: data.name,
       description: data.description,
-      color: data.color,
       applies_to_all: data.applies_to_all === 'all',
       employee_ids: data.applies_to_all === 'specific' ? selectedEmployeeIds : [],
     });
@@ -155,35 +140,6 @@ export function ActivityTypeFormDialog({
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
                     <Textarea placeholder="Descrição opcional..." rows={2} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cor</FormLabel>
-                  <FormControl>
-                    <div className="flex flex-wrap gap-2">
-                      {PRESET_COLORS.map(c => (
-                        <button
-                          key={c.value}
-                          type="button"
-                          title={c.label}
-                          onClick={() => field.onChange(c.value)}
-                          className="h-7 w-7 rounded-full border-2 transition-all"
-                          style={{
-                            backgroundColor: c.value,
-                            borderColor: field.value === c.value ? '#000' : 'transparent',
-                            transform: field.value === c.value ? 'scale(1.2)' : undefined,
-                          }}
-                        />
-                      ))}
-                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
