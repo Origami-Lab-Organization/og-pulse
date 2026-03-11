@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag } from 'lucide-react';
+import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { FinancialSettingsForm } from '@/components/settings/FinancialSettingsForm';
 import { PayrollProfileSettingsForm } from '@/components/settings/PayrollProfileSettingsForm';
 import { HolidaysSettingsForm } from '@/components/settings/HolidaysSettingsForm';
+import { ActivityTypesSettings } from '@/components/settings/ActivityTypesSettings';
 import { RoleRatesTable } from '@/components/pricing/RoleRatesTable';
 import { RoleRateFormDialog } from '@/components/pricing/RoleRateFormDialog';
 import { DeleteRoleRateDialog } from '@/components/pricing/DeleteRoleRateDialog';
@@ -134,6 +135,10 @@ export default function AdminPortal() {
             <PartyPopper className="h-4 w-4" />
             Feriados/Folgas
           </TabsTrigger>
+          <TabsTrigger value="activities" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Atividades
+          </TabsTrigger>
         </TabsList>
 
         {/* Tabela de Preços */}
@@ -226,6 +231,11 @@ export default function AdminPortal() {
         {/* Feriados/Folgas */}
         <TabsContent value="holidays" className="space-y-4">
           <HolidaysSettingsForm />
+        </TabsContent>
+
+        {/* Atividades Internas */}
+        <TabsContent value="activities" className="space-y-4">
+          <ActivityTypesSettings />
         </TabsContent>
       </Tabs>
     </AppLayout>

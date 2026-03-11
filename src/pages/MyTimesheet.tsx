@@ -8,12 +8,15 @@ import { useMyAllocationData } from '@/hooks/useMyAllocationData';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow';
 import type { SaveStatusInfo } from '@/components/timesheets/TimesheetWeekRow';
+import { ActivityTimesheetRow } from '@/components/timesheets/ActivityTimesheetRow';
 import { SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyProjectMemberships } from '@/hooks/useMyTimesheetData';
 import { useTimesheetsByDateRange, getWeekStart, getWeekDays } from '@/hooks/useTimesheetData';
 import { useSubmitAllProjects } from '@/hooks/useTimesheetSubmissions';
 import { useHolidays } from '@/hooks/useHolidays';
+import { useMyActivityTypes } from '@/hooks/useMyActivityTypes';
+import { useActivityTimesheetsByRange } from '@/hooks/useActivityTimesheets';
 import { Badge } from '@/components/ui/badge';
 import { format, addDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -49,6 +52,8 @@ const MyTimesheet = () => {
 
   const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(employee?.id, startDate, endDate);
   const { data: timesheetEntries = [], isLoading: loadingEntries } = useTimesheetsByDateRange(startDate, endDate);
+  const { data: myActivityTypes = [] } = useMyActivityTypes(employee?.id);
+  const { data: activityEntries = [] } = useActivityTimesheetsByRange(employee?.id, startDate, endDate);
 
   const projectIds = useMemo(() => projects.map(p => p.projectId), [projects]);
   const myMemberIds = useMemo(() => projects.flatMap(p => p.members.map(m => m.memberId)), [projects]);
@@ -90,7 +95,7 @@ const MyTimesheet = () => {
     return total;
   }, [projectHoursMap]);
 
-  // Compute daily totals across all projects for soft limit validation
+  // Compute daily totals across all projects + activities for soft limit validation
   const allDailyTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const entry of timesheetEntries) {
@@ -98,14 +103,21 @@ const MyTimesheet = () => {
         totals[entry.workDate] = (totals[entry.workDate] ?? 0) + entry.hours;
       }
     }
+    for (const entry of activityEntries) {
+      totals[entry.work_date] = (totals[entry.work_date] ?? 0) + entry.hours;
+    }
     return totals;
-  }, [timesheetEntries, myMemberIds]);
+  }, [timesheetEntries, myMemberIds, activityEntries]);
 
   // Track local (unsaved) totals per member for real-time footer
   const [localTotals, setLocalTotals] = useState<Record<string, number>>({});
 
   // Track per-day hours from each member row for daily totals footer
   const [localDayHours, setLocalDayHours] = useState<Record<string, Record<string, number>>>({});
+
+  // Track local totals for activity rows
+  const [localActivityTotals, setLocalActivityTotals] = useState<Record<string, number>>({});
+  const [localActivityDayHours, setLocalActivityDayHours] = useState<Record<string, Record<string, number>>>({});
 
   // Track save status from all rows
   const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatusInfo>>({});
@@ -125,6 +137,17 @@ const MyTimesheet = () => {
     setSaveStatuses(prev => ({ ...prev, [memberId]: info }));
   }, []);
 
+  const handleActivityLocalTotalChange = useCallback((activityTypeId: string, total: number) => {
+    setLocalActivityTotals(prev => {
+      if (prev[activityTypeId] === total) return prev;
+      return { ...prev, [activityTypeId]: total };
+    });
+  }, []);
+
+  const handleActivityLocalDayHoursChange = useCallback((activityTypeId: string, dayHours: Record<string, number>) => {
+    setLocalActivityDayHours(prev => ({ ...prev, [activityTypeId]: dayHours }));
+  }, []);
+
   // Aggregate save status across all rows
   const aggregatedSaveStatus = useMemo((): SaveStatusInfo => {
     const statuses = Object.values(saveStatuses);
@@ -142,7 +165,7 @@ const MyTimesheet = () => {
     return { status: 'idle' };
   }, [saveStatuses]);
 
-  // Real-time total: use local totals when available, fall back to server data
+  // Real-time total: use local totals when available, fall back to server data (projects + activities)
   const realTimeTotalHours = useMemo(() => {
     let total = 0;
     for (const project of projects) {
@@ -154,10 +177,19 @@ const MyTimesheet = () => {
         total += projectHoursMap.get(project.projectId) || 0;
       }
     }
+    for (const at of myActivityTypes) {
+      if (localActivityTotals[at.id] !== undefined) {
+        total += localActivityTotals[at.id];
+      } else {
+        total += activityEntries
+          .filter(e => e.activity_type_id === at.id)
+          .reduce((s, e) => s + e.hours, 0);
+      }
+    }
     return total;
-  }, [projects, localTotals, projectHoursMap]);
+  }, [projects, localTotals, projectHoursMap, myActivityTypes, localActivityTotals, activityEntries]);
 
-  // Compute real-time daily totals across all projects using local day hours
+  // Compute real-time daily totals across all projects + activities using local day hours
   const realTimeDailyTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const day of weekDays) {
@@ -169,17 +201,25 @@ const MyTimesheet = () => {
         if (memberDayHours && memberDayHours[day.date] !== undefined) {
           dayTotal += memberDayHours[day.date];
         } else {
-          // Fall back to server entries
           const entry = timesheetEntries.find(
             e => e.projectMemberId === member.memberId && e.workDate === day.date
           );
           dayTotal += entry?.hours ?? 0;
         }
       }
+      for (const at of myActivityTypes) {
+        const atDayHours = localActivityDayHours[at.id];
+        if (atDayHours && atDayHours[day.date] !== undefined) {
+          dayTotal += atDayHours[day.date];
+        } else {
+          const entry = activityEntries.find(e => e.activity_type_id === at.id && e.work_date === day.date);
+          dayTotal += entry?.hours ?? 0;
+        }
+      }
       totals[day.date] = dayTotal;
     }
     return totals;
-  }, [weekDays, projects, localDayHours, timesheetEntries]);
+  }, [weekDays, projects, localDayHours, timesheetEntries, myActivityTypes, localActivityDayHours, activityEntries]);
 
   const allProjectsLocked = useMemo(() => {
     return projects.every(p => {
@@ -227,7 +267,7 @@ const MyTimesheet = () => {
             <CardContent className="pt-4">
               <TimesheetWeekSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
-              {projects.length === 0 ? (
+              {projects.length === 0 && myActivityTypes.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Você não está alocado em nenhum projeto ativo nesta semana.</p>
@@ -329,6 +369,36 @@ const MyTimesheet = () => {
                   />
                 );
               })}
+
+              {/* Atividades Internas */}
+              {myActivityTypes.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+                    <div className="flex-1 border-t" />
+                    <span className="text-xs font-medium text-muted-foreground whitespace-nowrap px-2">
+                      Atividades Internas
+                    </span>
+                    <div className="flex-1 border-t" />
+                  </div>
+                  {myActivityTypes.map(at => (
+                    <ActivityTimesheetRow
+                      key={at.id}
+                      activityTypeId={at.id}
+                      activityName={at.name}
+                      color={at.color}
+                      employeeId={employee!.id}
+                      weekDays={weekDays}
+                      existingEntries={activityEntries}
+                      holidays={holidays}
+                      allDailyTotals={allDailyTotals}
+                      dailyWorkHours={employee?.jornada_diaria ?? 8}
+                      onLocalTotalChange={handleActivityLocalTotalChange}
+                      onLocalDayHoursChange={handleActivityLocalDayHoursChange}
+                      onSaveStatusChange={handleSaveStatusChange}
+                    />
+                  ))}
+                </>
+              )}
 
               {/* Daily totals row */}
               <div className="grid grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-t bg-muted/30">

@@ -271,6 +271,27 @@ export function useApproveReimbursement() {
         console.error('Error sending reimbursement email:', fnError);
       }
 
+      // Notify the requester that their reimbursement was approved
+      try {
+        const { data: reimb } = await supabase
+          .from('reimbursement_requests' as any)
+          .select('requested_by')
+          .eq('id', reimbursementId)
+          .single();
+        if (reimb) {
+          await supabase.from('notifications' as any).insert({
+            tenant_id: employee.tenant_id,
+            recipient_id: (reimb as any).requested_by,
+            type: 'reimbursement_approved',
+            title: 'Reembolso aprovado',
+            message: 'Seu pedido de reembolso foi aprovado e aguarda pagamento.',
+            reference_id: reimbursementId,
+          } as any);
+        }
+      } catch (e) {
+        console.error('Error creating requester approval notification:', e);
+      }
+
       // Notify all admins about approved reimbursement
       try {
         const { data: admins } = await supabase
@@ -529,12 +550,35 @@ export function useRejectReimbursement() {
         } as any)
         .eq('id', params.reimbursementId);
       if (error) throw error;
+
+      // Notify the requester of rejection
+      try {
+        const { data: reimb } = await supabase
+          .from('reimbursement_requests' as any)
+          .select('requested_by')
+          .eq('id', params.reimbursementId)
+          .single();
+        if (reimb) {
+          await supabase.from('notifications' as any).insert({
+            tenant_id: employee.tenant_id,
+            recipient_id: (reimb as any).requested_by,
+            type: 'reimbursement_rejected',
+            title: 'Reembolso rejeitado',
+            message: 'Seu pedido de reembolso foi rejeitado. Acesse os detalhes para ver o motivo.',
+            reference_id: params.reimbursementId,
+          } as any);
+        }
+      } catch (e) {
+        console.error('Error creating rejection notification:', e);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
       queryClient.invalidateQueries({ queryKey: ['my-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['all-my-reimbursements'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
       toast.success('Reembolso rejeitado.');
     },
     onError: (error: any) => {
