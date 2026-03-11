@@ -57,9 +57,11 @@ export const useCreateActivityType = () => {
   const { employee } = useAuth();
   return useMutation({
     mutationFn: async (input: CreateActivityTypeInput) => {
+      if (!employee?.tenant_id) throw new Error('Tenant não encontrado');
       const { data, error } = await supabase
         .from('activity_types')
         .insert([{
+          tenant_id: employee.tenant_id,
           name: input.name,
           description: input.description || null,
           color: input.color,
