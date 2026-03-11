@@ -54,7 +54,7 @@ export const useActivityTypes = () => {
 export const useCreateActivityType = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
+  const { employee } = useAuth();
   return useMutation({
     mutationFn: async (input: CreateActivityTypeInput) => {
       const { data, error } = await supabase
