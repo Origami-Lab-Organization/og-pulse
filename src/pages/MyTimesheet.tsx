@@ -52,7 +52,7 @@ const MyTimesheet = () => {
 
   const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(employee?.id, startDate, endDate);
   const { data: timesheetEntries = [], isLoading: loadingEntries } = useTimesheetsByDateRange(startDate, endDate);
-  const { data: myActivityTypes = [] } = useMyActivityTypes(employee?.id);
+  const { data: myActivityTypes = [] } = useMyActivityTypes(employee?.id, endDate);
   const { data: activityEntries = [] } = useActivityTimesheetsByRange(employee?.id, startDate, endDate);
 
   const projectIds = useMemo(() => projects.map(p => p.projectId), [projects]);

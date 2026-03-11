@@ -8,14 +8,18 @@ export interface MyActivityType {
   color: string;
 }
 
-export const useMyActivityTypes = (employeeId: string | undefined) => {
+/**
+ * @param weekEndDate - last day of the week being viewed (yyyy-MM-dd).
+ *   Only activity types created on or before this date are returned,
+ *   so past weeks don't show activities that didn't exist yet.
+ */
+export const useMyActivityTypes = (employeeId: string | undefined, weekEndDate?: string) => {
   return useQuery({
-    queryKey: ['my-activity-types', employeeId],
+    queryKey: ['my-activity-types', employeeId, weekEndDate],
     queryFn: async () => {
       if (!employeeId) return [];
 
-      // Fetch all active activity types for the tenant
-      const { data: allTypes, error } = await supabase
+      let query = (supabase as any)
         .from('activity_types')
         .select(`
           id, name, description, color, applies_to_all,
@@ -23,6 +27,13 @@ export const useMyActivityTypes = (employeeId: string | undefined) => {
         `)
         .eq('is_active', true)
         .order('name');
+
+      // Only show activities that existed during the viewed week
+      if (weekEndDate) {
+        query = query.lte('created_at', weekEndDate + 'T23:59:59Z');
+      }
+
+      const { data: allTypes, error } = await query;
 
       if (error) throw error;
 
