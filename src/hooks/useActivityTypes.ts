@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
+import { useAuth } from '@/contexts/AuthContext';
 export interface ActivityType {
   id: string;
   tenant_id: string;
@@ -54,17 +54,19 @@ export const useActivityTypes = () => {
 export const useCreateActivityType = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
+  const { employee } = useAuth();
   return useMutation({
     mutationFn: async (input: CreateActivityTypeInput) => {
+      if (!employee?.tenant_id) throw new Error('Tenant não encontrado');
       const { data, error } = await supabase
         .from('activity_types')
-        .insert({
+        .insert([{
+          tenant_id: employee.tenant_id,
           name: input.name,
           description: input.description || null,
           color: input.color,
           applies_to_all: input.applies_to_all,
-        })
+        }])
         .select()
         .single();
 

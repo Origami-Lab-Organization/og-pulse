@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface ActivityTimesheetEntry {
   id: string;
@@ -46,20 +47,23 @@ export interface UpsertActivityTimesheetInput {
 export const useUpsertActivityTimesheet = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { employee } = useAuth();
 
   return useMutation({
     mutationFn: async (input: UpsertActivityTimesheetInput) => {
+      if (!employee?.tenant_id) throw new Error('Tenant não encontrado');
       const { data, error } = await supabase
         .from('activity_timesheets')
         .upsert(
-          {
+          [{
+            tenant_id: employee.tenant_id,
             employee_id: input.employeeId,
             activity_type_id: input.activityTypeId,
             work_date: input.workDate,
             hours: input.hours,
             description: input.description || null,
             updated_at: new Date().toISOString(),
-          },
+          }],
           { onConflict: 'employee_id,activity_type_id,work_date' },
         )
         .select()
