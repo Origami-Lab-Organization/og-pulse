@@ -14,6 +14,141 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_timesheets: {
+        Row: {
+          activity_type_id: string
+          created_at: string
+          description: string | null
+          employee_id: string
+          hours: number
+          id: string
+          tenant_id: string
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          activity_type_id: string
+          created_at?: string
+          description?: string | null
+          employee_id: string
+          hours?: number
+          id?: string
+          tenant_id: string
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          activity_type_id?: string
+          created_at?: string
+          description?: string | null
+          employee_id?: string
+          hours?: number
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_timesheets_activity_type_id_fkey"
+            columns: ["activity_type_id"]
+            isOneToOne: false
+            referencedRelation: "activity_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_timesheets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_timesheets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_type_employees: {
+        Row: {
+          activity_type_id: string
+          employee_id: string
+          id: string
+        }
+        Insert: {
+          activity_type_id: string
+          employee_id: string
+          id?: string
+        }
+        Update: {
+          activity_type_id?: string
+          employee_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_type_employees_activity_type_id_fkey"
+            columns: ["activity_type_id"]
+            isOneToOne: false
+            referencedRelation: "activity_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_type_employees_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_types: {
+        Row: {
+          applies_to_all: boolean
+          color: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          applies_to_all?: boolean
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          applies_to_all?: boolean
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_types_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_materials: {
         Row: {
           budget_id: string
