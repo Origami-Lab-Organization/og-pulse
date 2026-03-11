@@ -221,17 +221,19 @@ const MyTimesheet = () => {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : projects.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Você não está alocado em nenhum projeto ativo.</p>
-          <p className="text-sm">Quando for incluído em um projeto, ele aparecerá aqui.</p>
-        </div>
       ) : (
         <div className="space-y-4">
           <Card>
             <CardContent className="pt-4">
               <TimesheetWeekSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
+
+              {projects.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Você não está alocado em nenhum projeto ativo nesta semana.</p>
+                  <p className="text-sm">Navegue para outra semana ou aguarde ser incluído em um projeto.</p>
+                </div>
+              ) : (<>
               {/* Header único */}
               <div className="grid grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
                 <div>Projeto</div>
@@ -401,6 +403,7 @@ const MyTimesheet = () => {
                   )}
                 </div>
               </div>
+              </>)}
             </CardContent>
           </Card>
 
