@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { differenceInMonths, parseISO } from 'date-fns';
+import { differenceInMonths, parseISO, startOfMonth } from 'date-fns';
 import { Plus, Trash2, Users, Pencil, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -374,7 +374,7 @@ export function ProjectLaborSection({
     
     timesheets.forEach((ts) => {
       const workDate = parseISO(ts.work_date);
-      const monthNumber = differenceInMonths(workDate, startDate) + 1;
+      const monthNumber = differenceInMonths(startOfMonth(workDate), startOfMonth(startDate)) + 1;
       
       if (monthNumber < 1 || monthNumber > durationMonths) return; // Skip if outside project duration
       
