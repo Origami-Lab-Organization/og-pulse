@@ -15,22 +15,14 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
     (p) => p.status === 'planning' || p.status === 'active'
   ).length;
 
-  // IDs de projetos contínuos (exceto financiamento_inovacao)
-  const continuousProjectIds = new Set(
-    projects
-      .filter((p) => p.is_continuous && p.service_line !== 'financiamento_inovacao')
-      .map((p) => p.id)
-  );
+  // Calcular receita iterando por projeto (evita depender de project_id nas parcelas)
+  const totalYearRevenue = projects.reduce((acc, p) => {
+    const isContinuous = p.is_continuous && p.service_line !== 'financiamento_inovacao';
+    const projectInstallments = (p.installments || [])
+      .filter((i) => new Date(i.due_date).getFullYear() === currentYear);
+    const installmentsSum = projectInstallments.reduce((sum, i) => sum + Number(i.value || 0), 0);
 
-  // Receita de projetos NÃO contínuos = soma das parcelas do ano
-  const fixedProjectRevenue = installments
-    .filter((i) => new Date(i.due_date).getFullYear() === currentYear && !continuousProjectIds.has(i.project_id))
-    .reduce((acc, i) => acc + Number(i.value || 0), 0);
-
-  // Receita de projetos contínuos: projeção vs parcelas reais (o maior)
-  const continuousRevenue = projects
-    .filter((p) => continuousProjectIds.has(p.id) && (p.status === 'planning' || p.status === 'active'))
-    .reduce((acc, p) => {
+    if (isContinuous && (p.status === 'planning' || p.status === 'active')) {
       const startDate = new Date(p.start_date);
       const startMonth = startDate.getFullYear() < currentYear ? 1 : startDate.getMonth() + 1;
       const endMonth = p.renewal_date
@@ -40,23 +32,20 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
         : 12;
       const monthsActive = Math.max(0, endMonth - startMonth + 1);
       const projected = Number(p.total_value || 0) * monthsActive;
+      return acc + Math.max(projected, installmentsSum);
+    }
 
-      const actualFromInstallments = (p.installments || [])
-        .filter((i) => new Date(i.due_date).getFullYear() === currentYear)
-        .reduce((sum, i) => sum + Number(i.value || 0), 0);
+    return acc + installmentsSum;
+  }, 0);
 
-      return acc + Math.max(projected, actualFromInstallments);
-    }, 0);
+  // Recebido e atrasado: usar flatMap das parcelas dos projetos
+  const allInstallments = projects.flatMap((p) => p.installments || []);
 
-  const totalYearRevenue = fixedProjectRevenue + continuousRevenue;
-
-  // Recebido no ano = parcelas pagas com payment_date no ano corrente
-  const receivedValue = installments
+  const receivedValue = allInstallments
     .filter((i) => i.status === 'received' && i.payment_date && new Date(i.payment_date).getFullYear() === currentYear)
     .reduce((acc, i) => acc + Number(i.value || 0), 0);
 
-  // Atrasado = parcelas com due_date no ano corrente e status overdue
-  const overdueValue = installments
+  const overdueValue = allInstallments
     .filter((i) => new Date(i.due_date).getFullYear() === currentYear && i.status === 'overdue')
     .reduce((acc, i) => acc + Number(i.value || 0), 0);
 

@@ -75,7 +75,7 @@ export const projectService = {
         *,
         client:clients(id, company_name, trading_name),
         manager:employees!projects_manager_id_fkey(id, nome, cargo),
-        installments:project_installments(id, installment_number, value, due_date, status, invoice_number, payment_date)
+        installments:project_installments(id, project_id, installment_number, value, due_date, status, invoice_number, payment_date)
       `)
       .eq('tenant_id', tenantId);
 
