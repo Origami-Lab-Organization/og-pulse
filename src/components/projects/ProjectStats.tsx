@@ -15,27 +15,11 @@ export function ProjectStats({ projects, installments = [] }: ProjectStatsProps)
     (p) => p.status === 'planning' || p.status === 'active'
   ).length;
 
-  // Calcular receita iterando por projeto (evita depender de project_id nas parcelas)
+  // Somar todas as parcelas do ano corrente, independente do status
   const totalYearRevenue = projects.reduce((acc, p) => {
-    const isContinuous = p.is_continuous && p.service_line !== 'financiamento_inovacao';
-    const projectInstallments = (p.installments || [])
+    const yearInstallments = (p.installments || [])
       .filter((i) => new Date(i.due_date).getFullYear() === currentYear);
-    const installmentsSum = projectInstallments.reduce((sum, i) => sum + Number(i.value || 0), 0);
-
-    if (isContinuous && (p.status === 'planning' || p.status === 'active')) {
-      const startDate = new Date(p.start_date);
-      const startMonth = startDate.getFullYear() < currentYear ? 1 : startDate.getMonth() + 1;
-      const endMonth = p.renewal_date
-        ? (new Date(p.renewal_date).getFullYear() === currentYear
-          ? new Date(p.renewal_date).getMonth() + 1
-          : (new Date(p.renewal_date).getFullYear() > currentYear ? 12 : 0))
-        : 12;
-      const monthsActive = Math.max(0, endMonth - startMonth + 1);
-      const projected = Number(p.total_value || 0) * monthsActive;
-      return acc + Math.max(projected, installmentsSum);
-    }
-
-    return acc + installmentsSum;
+    return acc + yearInstallments.reduce((sum, i) => sum + Number(i.value || 0), 0);
   }, 0);
 
   // Recebido e atrasado: usar flatMap das parcelas dos projetos
