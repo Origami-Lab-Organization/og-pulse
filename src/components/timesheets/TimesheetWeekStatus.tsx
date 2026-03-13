@@ -14,6 +14,29 @@ interface TimesheetWeekStatusProps {
   canSubmit: boolean;
   allWeekDaysReady?: boolean;
   lockedProjectCount?: number;
+  monthlyActual?: number;
+  monthlyPlanned?: number;
+  monthlyCapacity?: number;
+}
+
+function MonthlyContext({ actual, planned, capacity }: { actual: number; planned: number; capacity: number }) {
+  const pct = capacity > 0 ? (actual / capacity) * 100 : 0;
+  const color = pct > 100
+    ? 'text-red-600 dark:text-red-400'
+    : pct >= 80
+    ? 'text-green-600 dark:text-green-400'
+    : 'text-yellow-600 dark:text-yellow-400';
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span>Este mês:</span>
+      <span className={`font-semibold ${color}`}>{Math.round(actual * 10) / 10}h reais</span>
+      <span>·</span>
+      <span>{Math.round(planned * 10) / 10}h planejadas</span>
+      <span>·</span>
+      <span>{Math.round(capacity * 10) / 10}h capacidade</span>
+    </div>
+  );
 }
 
 export function TimesheetWeekStatus({
@@ -25,13 +48,17 @@ export function TimesheetWeekStatus({
   canSubmit,
   allWeekDaysReady = true,
   lockedProjectCount,
+  monthlyActual,
+  monthlyPlanned,
+  monthlyCapacity,
 }: TimesheetWeekStatusProps) {
   const submittedCount = lockedProjectCount !== undefined
     ? lockedProjectCount
     : Array.from(submissions.values()).filter(s => s.status === 'submitted').length;
-  
+
   const pendingCount = totalProjects - submittedCount;
   const allSubmitted = submittedCount === totalProjects && totalProjects > 0;
+  const showMonthly = monthlyActual !== undefined && monthlyPlanned !== undefined && monthlyCapacity !== undefined;
 
   if (allSubmitted) {
     return (
@@ -52,6 +79,9 @@ export function TimesheetWeekStatus({
                 <p className="text-sm text-green-600 dark:text-green-400">
                   Todos os projetos desta semana foram enviados e estão travados.
                 </p>
+                {showMonthly && (
+                  <MonthlyContext actual={monthlyActual!} planned={monthlyPlanned!} capacity={monthlyCapacity!} />
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -82,10 +112,13 @@ export function TimesheetWeekStatus({
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                {pendingCount > 0 
+                {pendingCount > 0
                   ? `${pendingCount} projeto(s) pendente(s) de envio. Envie cada projeto individualmente ou todos de uma vez.`
                   : 'Nenhum projeto com horas lançadas.'}
               </p>
+              {showMonthly && (
+                <MonthlyContext actual={monthlyActual!} planned={monthlyPlanned!} capacity={monthlyCapacity!} />
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4">

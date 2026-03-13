@@ -11,6 +11,7 @@ import { TimesheetByEmployee, AdminEditChange } from '@/components/timesheets/Ti
 import { TimesheetWeekStatus } from '@/components/timesheets/TimesheetWeekStatus';
 import { SubmitProjectDialog, SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
 import { AdminWeekEditDialog } from '@/components/timesheets/AdminWeekEditDialog';
+import { MonthlyTimesheetView } from '@/components/timesheets/MonthlyTimesheetView';
 import {
   useActiveProjectsWithMembers,
   useTimesheetsByDateRange,
@@ -21,6 +22,7 @@ import {
   EmployeeWithProjects,
 } from '@/hooks/useTimesheetData';
 import { useHolidays } from '@/hooks/useHolidays';
+import { useMyAllocationData } from '@/hooks/useMyAllocationData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +56,7 @@ export default function EmployeeTimesheetPage() {
   });
   const hasInitialized = useRef(false);
 
+  const [viewMode, setViewMode] = useState<'weekly' | 'monthly'>('monthly');
   const [showSubmitProjectDialog, setShowSubmitProjectDialog] = useState(false);
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false);
   const [showAdminEditDialog, setShowAdminEditDialog] = useState(false);
@@ -78,7 +81,7 @@ export default function EmployeeTimesheetPage() {
       if (!employeeId) return null;
       const { data, error } = await supabase
         .from('employees')
-        .select('id, nome, cargo, data_admissao, jornada_mensal')
+        .select('id, nome, cargo, data_admissao, jornada_mensal, status, employee_terminations!termination_id (termination_date)')
         .eq('id', employeeId)
         .single();
       if (error) throw error;
@@ -150,6 +153,9 @@ export default function EmployeeTimesheetPage() {
 
   const isLoading = isLoadingProjects || isLoadingTimesheets || isLoadingSubmissions;
 
+  const currentMonthKey = format(weekStart, 'yyyy-MM');
+  const { data: monthlyAllocation } = useMyAllocationData(employeeId, currentMonthKey);
+
   // Navigate to first unsubmitted week on initial load
   useEffect(() => {
     if (hasInitialized.current || isLoading || !monthParam || projectIds.length === 0) return;
@@ -194,6 +200,22 @@ export default function EmployeeTimesheetPage() {
     const admDate = parseLocalDate(employeeInfo.data_admissao);
     return isBefore(weekEnd, admDate);
   }, [employeeInfo?.data_admissao, weekEnd]);
+
+  // Check if week is after dismissal/blocking
+  const dismissalInfo = useMemo(() => {
+    const status = (employeeInfo as any)?.status;
+    if (!status || status === 'ativo' || status === 'aguardando_confirmacao') return null;
+    const terminationDate = (employeeInfo as any)?.employee_terminations?.termination_date;
+    const exitDate = terminationDate
+      ? parseLocalDate(terminationDate)
+      : new Date(); // blocked/archived with no date → treat as today
+    return { status, exitDate };
+  }, [employeeInfo]);
+
+  const isWeekAfterDismissal = useMemo(() => {
+    if (!dismissalInfo) return false;
+    return weekStart > dismissalInfo.exitDate;
+  }, [dismissalInfo, weekStart]);
 
   const handleSubmitProject = (projectId: string, projectName: string, totalHours: number) => {
     setSelectedProject({ id: projectId, name: projectName, hours: totalHours });
@@ -260,61 +282,101 @@ export default function EmployeeTimesheetPage() {
       ]}
     >
       <div className="space-y-6">
-        {/* Header with back button and week selector */}
-        <TimesheetWeekSelector
-          selectedDate={selectedDate}
-          onDateChange={setSelectedDate}
-        />
+        {/* View mode toggle */}
+        <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+          <Button
+            variant={viewMode === 'monthly' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('monthly')}
+          >
+            Meses
+          </Button>
+          <Button
+            variant={viewMode === 'weekly' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('weekly')}
+          >
+            Semanas
+          </Button>
+        </div>
 
-        {isWeekBeforeAdmission ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <p>Funcionário ainda não admitido neste período.</p>
-            {employeeInfo?.data_admissao && (
-              <p className="text-sm mt-1">
-                Data de admissão: {format(parseLocalDate(employeeInfo.data_admissao), 'dd/MM/yyyy')}
-              </p>
-            )}
-          </div>
+        {viewMode === 'monthly' ? (
+          <MonthlyTimesheetView employeeId={employeeId!} />
         ) : (
           <>
-            {/* Week Status */}
-            {!isLoading && (
-              <TimesheetWeekStatus
-                submissions={submissions}
-                totalProjects={projectIds.length}
-                totalHours={totalHours}
-                onSubmitAll={handleSubmitAll}
-                isSubmitting={submitAllProjects.isPending}
-                canSubmit={canSubmit}
-                lockedProjectCount={(() => {
-                  if (employeeData.length === 0 || !timesheetEntries) return 0;
-                  return employeeData[0].projects.filter(p => {
-                    const memberEntries = timesheetEntries.filter(e => e.projectMemberId === p.memberId);
-                    return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
-                  }).length;
-                })()}
-              />
-            )}
+            {/* Week selector */}
+            <TimesheetWeekSelector
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+            />
 
-            {/* Content */}
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-40 w-full" />
-                ))}
+            {isWeekBeforeAdmission ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>Funcionário ainda não admitido neste período.</p>
+                {employeeInfo?.data_admissao && (
+                  <p className="text-sm mt-1">
+                    Data de admissão: {format(parseLocalDate(employeeInfo.data_admissao), 'dd/MM/yyyy')}
+                  </p>
+                )}
+              </div>
+            ) : isWeekAfterDismissal ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>
+                  {dismissalInfo?.status === 'bloqueado'
+                    ? 'Funcionário bloqueado — sem alocações neste período.'
+                    : 'Funcionário desligado — sem alocações neste período.'}
+                </p>
+                {dismissalInfo?.exitDate && (
+                  <p className="text-sm mt-1">
+                    Data de saída: {format(dismissalInfo.exitDate, 'dd/MM/yyyy')}
+                  </p>
+                )}
               </div>
             ) : (
-              <TimesheetByEmployee
-                employees={employeeData}
-                weekDays={weekDays}
-                timesheetEntries={timesheetEntries || []}
-                holidays={holidays}
-                submissions={submissions}
-                isAdmin={isAdmin}
-                canEdit={canSubmit}
-                onAdminSaveEdit={handleAdminInlineSave}
-                isSavingEdit={adminBatchEdit.isPending}
-              />
+              <>
+                {/* Week Status */}
+                {!isLoading && (
+                  <TimesheetWeekStatus
+                    submissions={submissions}
+                    totalProjects={projectIds.length}
+                    totalHours={totalHours}
+                    onSubmitAll={handleSubmitAll}
+                    isSubmitting={submitAllProjects.isPending}
+                    canSubmit={canSubmit}
+                    lockedProjectCount={(() => {
+                      if (employeeData.length === 0 || !timesheetEntries) return 0;
+                      return employeeData[0].projects.filter(p => {
+                        const memberEntries = timesheetEntries.filter(e => e.projectMemberId === p.memberId);
+                        return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
+                      }).length;
+                    })()}
+                    monthlyActual={monthlyAllocation?.totalActualHours}
+                    monthlyPlanned={monthlyAllocation?.totalPlannedHours}
+                    monthlyCapacity={monthlyAllocation?.monthlyCapacity}
+                  />
+                )}
+
+                {/* Content */}
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-40 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <TimesheetByEmployee
+                    employees={employeeData}
+                    weekDays={weekDays}
+                    timesheetEntries={timesheetEntries || []}
+                    holidays={holidays}
+                    submissions={submissions}
+                    isAdmin={isAdmin}
+                    canEdit={canSubmit}
+                    onAdminSaveEdit={handleAdminInlineSave}
+                    isSavingEdit={adminBatchEdit.isPending}
+                  />
+                )}
+              </>
             )}
           </>
         )}

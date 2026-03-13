@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,24 +15,92 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { addMonths, format, startOfMonth, isBefore } from 'date-fns';
+import { addMonths, format, startOfMonth, isBefore, eachDayOfInterval, isWeekend, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useHolidays, isHoliday } from '@/hooks/useHolidays';
+import { Holiday } from '@/types/holiday';
+import { Info } from 'lucide-react';
 
 interface EmployeeAllocation {
   employeeId: string;
   employeeName: string;
   cargo: string;
   jornadaMensal: number;
+  jornadaDiaria: number;
   dataAdmissao?: string;
+  status: string;
+  terminationDate?: string; // yyyy-MM-dd from employee_terminations
   months: Map<string, number>;
   actualMonths: Map<string, number>;
 }
 
-function getAllocationStatus(percent: number, hours: number) {
-  if (hours === 0) return { label: 'Ocioso', className: 'bg-muted text-muted-foreground' };
-  if (percent > 100) return { label: 'Sobrealocado', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' };
-  if (percent >= 80) return { label: 'Adequado', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' };
-  return { label: 'Subalocado', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' };
+function isExcludedForMonth(emp: EmployeeAllocation, selectedMonth: string): boolean {
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  if (emp.status === 'bloqueado' || emp.status === 'arquivado') {
+    // No explicit exit date — exclude from current month onwards
+    return selectedMonth >= currentMonth;
+  }
+  if (emp.status === 'em_desligamento' || emp.status === 'desligado') {
+    const exitMonth = emp.terminationDate
+      ? emp.terminationDate.substring(0, 7)
+      : currentMonth;
+    // em_desligamento: still active until termination month (exclusive after)
+    // desligado: exclude from the month after termination
+    return selectedMonth > exitMonth;
+  }
+  return false;
+}
+
+type StatusLabel = 'Sobrealocado' | 'Subalocado' | 'Ocioso' | 'Adequado';
+
+const STATUS_ORDER: Record<StatusLabel, number> = {
+  Sobrealocado: 0,
+  Subalocado: 1,
+  Ocioso: 2,
+  Adequado: 3,
+};
+
+const STATUS_STYLES: Record<StatusLabel, { badge: string; chip: string }> = {
+  Sobrealocado: {
+    badge: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+    chip: 'border-red-200 bg-red-50 text-red-800 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300',
+  },
+  Subalocado: {
+    badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    chip: 'border-yellow-200 bg-yellow-50 text-yellow-800 hover:bg-yellow-100 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300',
+  },
+  Ocioso: {
+    badge: 'bg-muted text-muted-foreground',
+    chip: 'border-border bg-muted/40 text-muted-foreground hover:bg-muted',
+  },
+  Adequado: {
+    badge: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+    chip: 'border-green-200 bg-green-50 text-green-800 hover:bg-green-100 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300',
+  },
+};
+
+function getAllocationStatus(actualHours: number, capacity: number): StatusLabel {
+  if (actualHours === 0) return 'Ocioso';
+  const pct = capacity > 0 ? (actualHours / capacity) * 100 : 0;
+  if (pct > 100) return 'Sobrealocado';
+  if (pct >= 80) return 'Adequado';
+  return 'Subalocado';
+}
+
+function countWorkingDays(start: Date, end: Date, holidays: Holiday[]): number {
+  const days = eachDayOfInterval({ start, end });
+  let count = 0;
+  for (const day of days) {
+    if (isWeekend(day)) continue;
+    if (isHoliday(day, holidays)) continue;
+    count++;
+  }
+  return count;
+}
+
+function calculateMonthlyCapacity(monthKey: string, jornada_diaria: number, holidays: Holiday[]): number {
+  const monthStart = parseISO(`${monthKey}-01`);
+  return countWorkingDays(monthStart, endOfMonth(monthStart), holidays) * jornada_diaria;
 }
 
 function parseLocalDate(dateStr: string): Date {
@@ -40,14 +108,19 @@ function parseLocalDate(dateStr: string): Date {
   return new Date(y, m - 1, d);
 }
 
+function fmt(h: number) { return `${Math.round(h * 10) / 10}h`; }
+
 interface AllocationOverviewProps {
   searchQuery?: string;
   selectedMonth: string; // "yyyy-MM"
+  onStatusCountsChange?: (counts: Record<StatusLabel, number>) => void;
 }
 
-export function AllocationOverview({ searchQuery = '', selectedMonth }: AllocationOverviewProps) {
+export function AllocationOverview({ searchQuery = '', selectedMonth, onStatusCountsChange }: AllocationOverviewProps) {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
+  const { data: holidaysData } = useHolidays();
+  const holidays = holidaysData ?? [];
   const isAdmin = employee?.isAdmin ?? false;
   const currentEmployeeId = employee?.id;
   const navigate = useNavigate();
@@ -66,7 +139,7 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
             id,
             employee_id,
             role,
-            employees (id, nome, cargo, jornada_mensal, data_admissao)
+            employees (id, nome, cargo, jornada_mensal, jornada_diaria, data_admissao, status, employee_terminations!termination_id (termination_date))
           )
         `)
         .eq('tenant_id', tenantId)
@@ -130,7 +203,10 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
             employeeName: emp.nome,
             cargo: emp.cargo,
             jornadaMensal: Number(emp.jornada_mensal) || 176,
+            jornadaDiaria: Number(emp.jornada_diaria) || 8,
             dataAdmissao: emp.data_admissao,
+            status: emp.status ?? 'ativo',
+            terminationDate: emp.employee_terminations?.termination_date ?? undefined,
             months: new Map(),
             actualMonths: new Map(),
           });
@@ -186,21 +262,47 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
     return allMonthKeys.filter(k => k === selectedMonth);
   }, [data?.monthKeys, selectedMonth]);
 
-  const filteredEmployees = useMemo(() => {
+  // Compute per-employee status and sort by severity (problems first)
+  const employeesWithStatus = useMemo(() => {
     if (!data?.employees) return [];
-    if (!searchQuery) return data.employees;
-    const q = searchQuery.toLowerCase();
-    return data.employees.filter(e =>
-      e.employeeName.toLowerCase().includes(q) ||
-      e.cargo.toLowerCase().includes(q)
-    );
-  }, [data?.employees, searchQuery]);
+    let list = data.employees.filter(e => !isExcludedForMonth(e, selectedMonth));
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(e =>
+        e.employeeName.toLowerCase().includes(q) ||
+        e.cargo.toLowerCase().includes(q)
+      );
+    }
+    return list.map(emp => {
+      const totalActual = visibleMonthKeys.reduce((sum, k) => sum + (emp.actualMonths?.get(k) || 0), 0);
+      const totalCapacity = visibleMonthKeys.reduce((sum, k) => sum + calculateMonthlyCapacity(k, emp.jornadaDiaria, holidays), 0);
+      const status = getAllocationStatus(totalActual, totalCapacity);
+      return { emp, totalActual, totalCapacity, status };
+    }).sort((a, b) => {
+      const diff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+      if (diff !== 0) return diff;
+      return a.emp.employeeName.localeCompare(b.emp.employeeName);
+    });
+  }, [data?.employees, searchQuery, visibleMonthKeys, holidays]);
+
+  // Status counts for summary chips
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusLabel, number> = { Sobrealocado: 0, Subalocado: 0, Ocioso: 0, Adequado: 0 };
+    employeesWithStatus.forEach(({ status }) => counts[status]++);
+    return counts;
+  }, [employeesWithStatus]);
+
+  useEffect(() => {
+    onStatusCountsChange?.(statusCounts);
+  }, [statusCounts, onStatusCountsChange]);
+
+  const filteredEmployees = employeesWithStatus;
 
   const monthLabels = useMemo(() => {
     return visibleMonthKeys.map(key => {
       const [y, m] = key.split('-').map(Number);
       const d = new Date(y, m - 1, 1);
-      return format(d, "MMM/yy", { locale: ptBR });
+      return format(d, "MMMM", { locale: ptBR });
     });
   }, [visibleMonthKeys]);
 
@@ -211,18 +313,6 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
           <Skeleton key={i} className="h-16 w-full" />
         ))}
       </div>
-    );
-  }
-
-  if (filteredEmployees.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-8">
-          <p className="text-sm text-muted-foreground text-center">
-            Nenhum funcionário alocado nos projetos ativos.
-          </p>
-        </CardContent>
-      </Card>
     );
   }
 
@@ -240,14 +330,16 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
         <div>
           <CardTitle className="text-base">Visão de Alocação por Funcionário</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Horas realizadas e planejadas vs capacidade mensal. Clique em um funcionário para gerenciar horas.
+            Clique em um funcionário para gerenciar horas.
           </p>
         </div>
       </CardHeader>
-      <CardContent>
-        {visibleMonthKeys.length === 0 ? (
+      <CardContent className="space-y-4">
+        {visibleMonthKeys.length === 0 || filteredEmployees.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            Nenhuma alocação encontrada para o período selecionado.
+            {visibleMonthKeys.length === 0
+              ? 'Nenhuma alocação encontrada para o período selecionado.'
+              : 'Nenhum funcionário corresponde ao filtro selecionado.'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -257,32 +349,39 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
                 <TableRow>
                   <TableHead className="min-w-[180px]">Funcionário</TableHead>
                   <TableHead>Cargo</TableHead>
-                  <TableHead className="text-right">Jornada</TableHead>
                   {visibleMonthKeys.map((key, i) => (
                     <TableHead key={key} className="text-center min-w-[140px] capitalize">
                       {monthLabels[i]}
                     </TableHead>
                   ))}
-                  <TableHead className="text-center min-w-[100px]">Status Geral</TableHead>
+                  <TableHead className="text-center min-w-[100px]">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEmployees.map((emp) => {
-                  const totalPlanned = visibleMonthKeys.reduce((sum, k) => sum + (emp.months?.get(k) || 0), 0);
-                  const totalActual = visibleMonthKeys.reduce((sum, k) => sum + (emp.actualMonths?.get(k) || 0), 0);
-                  const totalCapacity = emp.jornadaMensal * visibleMonthKeys.length;
-                  const overallPercent = totalCapacity > 0 ? (totalPlanned / totalCapacity) * 100 : 0;
-                  const overallStatus = getAllocationStatus(overallPercent, totalPlanned);
-
+                {filteredEmployees.map(({ emp, status }) => {
                   return (
                     <TableRow
                       key={emp.employeeId}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => navigate(`/alocacao/${emp.employeeId}?month=${selectedMonth}`)}
                     >
-                      <TableCell className="font-medium">{emp.employeeName}</TableCell>
+                      <TableCell>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">{emp.employeeName}</span>
+                              <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs space-y-0.5">
+                              <div>Jornada: {emp.jornadaDiaria}h/dia</div>
+                              <div>Capacidade mensal: {calculateMonthlyCapacity(selectedMonth, emp.jornadaDiaria, holidays)}h</div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
                       <TableCell className="text-muted-foreground">{emp.cargo}</TableCell>
-                      <TableCell className="text-right">{emp.jornadaMensal}h</TableCell>
                       {visibleMonthKeys.map((key) => {
                         if (isMonthBeforeAdmission(emp, key)) {
                           return (
@@ -294,9 +393,7 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
 
                         const planned = emp.months?.get(key) || 0;
                         const actual = emp.actualMonths?.get(key) || 0;
-                        const capacity = emp.jornadaMensal;
-                        const allocPercent = capacity > 0 ? (planned / capacity) * 100 : 0;
-                        const realizedPercent = planned > 0 ? (actual / planned) * 100 : 0;
+                        const capacity = calculateMonthlyCapacity(key, emp.jornadaDiaria, holidays);
 
                         return (
                           <TableCell key={key} className="text-center">
@@ -314,15 +411,16 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
                                     />
                                   </div>
                                   <span className="text-[10px] text-muted-foreground">
-                                    {allocPercent.toFixed(0)}% aloc. {planned > 0 ? `· ${realizedPercent.toFixed(0)}% real.` : ''}
+                                    {planned > 0 ? `${fmt(planned)} plan` : '—'}
+                                    {actual > 0 ? ` · ${fmt(actual)} real` : ''}
                                   </span>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <div className="text-xs space-y-1">
-                                  <div>Realizado: {actual}h</div>
-                                  <div>Planejado: {planned}h</div>
-                                  <div>Capacidade: {emp.jornadaMensal}h</div>
+                                  <div>Realizado: {fmt(actual)}</div>
+                                  <div>Planejado: {fmt(planned)}</div>
+                                  <div>Capacidade: {fmt(capacity)}</div>
                                 </div>
                               </TooltipContent>
                             </Tooltip>
@@ -330,12 +428,7 @@ export function AllocationOverview({ searchQuery = '', selectedMonth }: Allocati
                         );
                       })}
                       <TableCell className="text-center">
-                        <div className="space-y-1">
-                          <Badge className={overallStatus.className}>{overallStatus.label}</Badge>
-                          <div className="text-[10px] text-muted-foreground">
-                            {Math.round(totalActual * 10) / 10}h / {Math.round(totalPlanned * 10) / 10}h
-                          </div>
-                        </div>
+                        <Badge className={STATUS_STYLES[status].badge}>{status}</Badge>
                       </TableCell>
                     </TableRow>
                   );
