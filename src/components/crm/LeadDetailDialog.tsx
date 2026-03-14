@@ -220,7 +220,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
       onAdvanceToClose?.();
       return;
     }
-    updateStage.mutate({ id: lead.id, stage: nextStage, fromStage: lead.crm_stage }, {
+    updateStage.mutate({ id: lead.id, stage: nextStage }, {
       onSuccess: () => onOpenChange(false),
     });
   };
