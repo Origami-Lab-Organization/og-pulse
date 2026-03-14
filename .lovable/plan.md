@@ -1,41 +1,14 @@
 
 
-## Problema
+## Plano: Corrigir NaN no card de Comissão do Analytics
 
-O preview não carrega porque `LeadDetailDialog.tsx` importa 3 módulos que não existem:
+### Problema
+O card "Comissão" mostra "R$ NaN". Na linha 320 de `useAnalyticsData.ts`, o `reduce` faz `Number(c.planned_value)` que retorna NaN se algum registro tiver `planned_value` nulo.
 
-1. `@/hooks/useServices` — hook não criado
-2. `@/types/service` — tipo `PROJECT_TYPE_LABELS` não criado
-3. `ProjectType` não é exportado de `@/types/project`
-4. `fromStage` passado ao `updateStage.mutate` mas não existe no tipo da mutation
+### Correção
 
-## Correção (4 alterações)
+**`src/hooks/useAnalyticsData.ts` (linha 320)**
+- Trocar `Number(c.planned_value)` por `(Number(c.planned_value) || 0)` para tratar valores nulos
 
-### 1. Criar `src/types/service.ts`
-Definir `ProjectType` e `PROJECT_TYPE_LABELS`:
-```typescript
-export type ProjectType = 'fixed_scope' | 'continuous' | 'success_fee' | 'non_revenue';
-
-export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
-  fixed_scope: 'Escopo Fechado',
-  continuous: 'Contínuo',
-  success_fee: 'Success Fee',
-  non_revenue: 'Sem Receita',
-};
-```
-
-### 2. Criar `src/hooks/useServices.ts`
-Hook que busca da tabela `services` (já existe no banco):
-```typescript
-export function useServices() {
-  // query supabase services table
-  // retorna { id, name, projectType, ... }
-}
-```
-
-### 3. Corrigir import em `LeadDetailDialog.tsx` (linha 34)
-Trocar `import { ProjectType } from '@/types/project'` por `import { ProjectType } from '@/types/service'` (já que o tipo estará lá).
-
-### 4. Corrigir `fromStage` em `LeadDetailDialog.tsx` (linha 224)
-Remover `fromStage` do objeto passado ao `updateStage.mutate`, pois a mutation só aceita `{ id, stage }`.
+Essa é a única mudança necessária. Os demais cálculos (receita, impostos, custos, margem) estão corretos — a margem inclusive já desconta impostos, comissões e custos corretamente pela fórmula `(Receita - Impostos - Comissões - Custos) / Receita * 100`.
 

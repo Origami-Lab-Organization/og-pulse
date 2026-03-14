@@ -30,8 +30,7 @@ import { useUpdateLead, useUpdateLeadStage } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useServices } from '@/hooks/useServices';
-import { PROJECT_TYPE_LABELS } from '@/types/service';
-import { ProjectType } from '@/types/project';
+import { PROJECT_TYPE_LABELS, ProjectType } from '@/types/service';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/formatters';
 import { formatPhone } from '@/lib/masks';
@@ -98,7 +97,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
   const { data: services = [] } = useServices();
   const PROJECT_TYPES: ProjectType[] = ['fixed_scope', 'continuous', 'success_fee', 'non_revenue'];
   const servicesByType = PROJECT_TYPES.reduce((acc, type) => {
-    acc[type] = services.filter((s) => s.projectType === type);
+    acc[type] = services.filter((s) => s.project_type === type);
     return acc;
   }, {} as Record<ProjectType, typeof services>);
 
@@ -221,7 +220,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
       onAdvanceToClose?.();
       return;
     }
-    updateStage.mutate({ id: lead.id, stage: nextStage, fromStage: lead.crm_stage }, {
+    updateStage.mutate({ id: lead.id, stage: nextStage }, {
       onSuccess: () => onOpenChange(false),
     });
   };
@@ -392,7 +391,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
                   )} />
                 </div>
 
-                {!lead.budget_id && selectedService?.unitPrice != null && (
+                {!lead.budget_id && selectedService?.unit_price != null && (
                   <FormField control={form.control} name="estimated_value" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valor Estimado</FormLabel>
