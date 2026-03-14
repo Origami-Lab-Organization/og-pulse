@@ -97,7 +97,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
   const { data: services = [] } = useServices();
   const PROJECT_TYPES: ProjectType[] = ['fixed_scope', 'continuous', 'success_fee', 'non_revenue'];
   const servicesByType = PROJECT_TYPES.reduce((acc, type) => {
-    acc[type] = services.filter((s) => s.projectType === type);
+    acc[type] = services.filter((s) => s.project_type === type);
     return acc;
   }, {} as Record<ProjectType, typeof services>);
 
