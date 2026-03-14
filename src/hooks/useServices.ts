@@ -4,8 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { ServiceDB } from '@/types/service';
 
 export function useServices() {
-  const { tenantId } = useAuth();
-
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
   return useQuery({
     queryKey: ['services', tenantId],
     queryFn: async (): Promise<ServiceDB[]> => {

@@ -391,7 +391,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
                   )} />
                 </div>
 
-                {!lead.budget_id && selectedService?.unitPrice != null && (
+                {!lead.budget_id && selectedService?.unit_price != null && (
                   <FormField control={form.control} name="estimated_value" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valor Estimado</FormLabel>
