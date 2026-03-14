@@ -7,36 +7,42 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check, Building2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCreateLead, useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
-import { LeadDB, SERVICE_LINE_OPTIONS } from '@/types/lead';
-import { formatPhone } from '@/lib/masks';
+import { useServices } from '@/hooks/useServices';
+import { useAuth } from '@/contexts/AuthContext';
+import { ProjectType } from '@/types/project';
+import { LeadDB } from '@/types/lead';
+import { PROJECT_TYPE_LABELS } from '@/types/service';
+import { formatPhone, formatCurrency } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const schema = z.object({
-  name: z.string().min(1, 'Nome é obrigatório'),
-  service_line: z.string().min(1, 'Linha de serviço é obrigatória'),
-  responsible_id: z.string().min(1, 'Responsável é obrigatório'),
-  client_type: z.enum(['existing', 'new']),
+  company_name: z.string().min(1, 'Nome da empresa é obrigatório'),
   client_id: z.string().optional(),
-  company_name: z.string().optional(),
   contact_name: z.string().optional(),
   contact_email: z.string().optional(),
   contact_phone: z.string().optional(),
   source: z.string().optional(),
+  service_line: z.string().min(1, 'Tipo de Serviço é obrigatório'),
+  responsible_id: z.string().min(1, 'Responsável é obrigatório'),
+  name: z.string().min(1, 'Nome da oportunidade é obrigatório'),
+  estimated_value: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
-}).refine(
-  (data) => data.client_type !== 'existing' || (data.client_id && data.client_id.length > 0),
-  { message: 'Selecione um cliente', path: ['client_id'] }
-);
+}).superRefine((data, ctx) => {
+  if (!data.contact_email && !data.contact_phone) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Informe ao menos email ou telefone', path: ['contact_email'] });
+  }
+});
 
 type FormValues = z.infer<typeof schema>;
 
@@ -46,42 +52,93 @@ interface LeadFormDialogProps {
   lead?: LeadDB | null;
 }
 
+
 export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps) {
+  const { employee } = useAuth();
+  const { toast } = useToast();
   const createMutation = useCreateLead();
   const updateMutation = useUpdateLead();
-  const { data: clients = [] } = useClients();
-  const { data: employees = [] } = useEmployees();
+  const { data: clients = [], isLoading: loadingClients } = useClients();
+  const { data: employees = [], isLoading: loadingEmployees } = useEmployees();
+  const { data: services = [], isLoading: loadingServices } = useServices();
   const isEditing = !!lead;
-  const [contactMode, setContactMode] = useState<'manual' | 'stakeholder'>('manual');
+
+  const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: lead?.name || '',
-      service_line: lead?.service_line || '',
-      responsible_id: lead?.responsible_id || '',
-      client_type: lead?.client_id ? 'existing' : 'new',
-      client_id: lead?.client_id || '',
-      company_name: lead?.company_name || '',
-      contact_name: lead?.contact_name || '',
-      contact_email: lead?.contact_email || '',
-      contact_phone: lead?.contact_phone || '',
-      source: lead?.source || '',
-      notes: lead?.notes || '',
+      company_name: '',
+      client_id: '',
+      contact_name: '',
+      contact_email: '',
+      contact_phone: '',
+      source: '',
+      service_line: '',
+      responsible_id: '',
+      name: '',
+      estimated_value: undefined,
+      notes: '',
     },
   });
 
-  const clientType = form.watch('client_type');
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) {
+      if (isEditing && lead) {
+        const linkedClient = lead.client_id ? clients.find((c) => c.id === lead.client_id) : null;
+        form.reset({
+          company_name: linkedClient
+            ? (linkedClient.tradingName || linkedClient.companyName)
+            : (lead.company_name || ''),
+          client_id: lead.client_id || '',
+          contact_name: lead.contact_name || '',
+          contact_email: lead.contact_email || '',
+          contact_phone: lead.contact_phone || '',
+          source: lead.source || '',
+          service_line: lead.service_line || '',
+          responsible_id: lead.responsible_id || employee?.id || '',
+          name: lead.name || '',
+          estimated_value: lead.estimated_value || undefined,
+          notes: lead.notes || '',
+        });
+      } else {
+        form.reset({
+          company_name: '',
+          client_id: '',
+          contact_name: '',
+          contact_email: '',
+          contact_phone: '',
+          source: '',
+          service_line: '',
+          responsible_id: employee?.id || '',
+          name: '',
+          estimated_value: undefined,
+          notes: '',
+        });
+      }
+    }
+  }, [open]);
+
+  const contactEmail = form.watch('contact_email');
+  const contactPhone = form.watch('contact_phone');
+  const bothContactEmpty = !contactEmail && !contactPhone;
   const clientId = form.watch('client_id');
+  const companyName = form.watch('company_name') || '';
+  const filteredClients = companyName.trim()
+    ? clients.filter((c) =>
+        (c.tradingName || c.companyName).toLowerCase().includes(companyName.toLowerCase())
+      )
+    : clients.slice(0, 8);
+  const serviceLine = form.watch('service_line');
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  // Reset contactMode when clientId changes
+  // Auto-populate estimated_value from service unit_price
   useEffect(() => {
-    setContactMode('manual');
-    form.setValue('contact_name', '');
-    form.setValue('contact_email', '');
-    form.setValue('contact_phone', '');
-  }, [clientId]);
+    if (!serviceLine) return;
+    const svc = services.find((s) => s.id === serviceLine);
+    form.setValue('estimated_value', svc?.unitPrice ?? undefined);
+  }, [serviceLine]);
 
   const { data: previousStakeholders = [] } = useQuery({
     queryKey: ['client-stakeholders', clientId],
@@ -95,7 +152,6 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
         )
         .order('created_at', { ascending: false });
       if (error) throw error;
-      // Deduplicate by name, keeping most recent
       const seen = new Set<string>();
       return (data || []).filter((s) => {
         if (seen.has(s.name)) return false;
@@ -103,20 +159,11 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
         return true;
       });
     },
-    enabled: clientType === 'existing' && !!clientId,
+    enabled: !!clientId,
   });
-
-  const handleClientSelect = (clientId: string) => {
-    form.setValue('client_id', clientId);
-    const client = clients.find((c) => c.id === clientId);
-    if (client) {
-      form.setValue('company_name', client.tradingName || client.companyName);
-    }
-  };
 
   const handleStakeholderSelect = (value: string) => {
     if (value === '__new__') {
-      setContactMode('manual');
       form.setValue('contact_name', '');
       form.setValue('contact_email', '');
       form.setValue('contact_phone', '');
@@ -124,143 +171,111 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
     }
     const stakeholder = previousStakeholders.find((s) => s.name === value);
     if (stakeholder) {
-      setContactMode('stakeholder');
       form.setValue('contact_name', stakeholder.name || '');
       form.setValue('contact_email', stakeholder.email || '');
       form.setValue('contact_phone', stakeholder.phone || '');
     }
   };
 
+  const handleClose = () => onOpenChange(false);
+
   const onSubmit = (values: FormValues) => {
+    // Block if name matches an existing client but no client_id is linked
+    if (!values.client_id && values.company_name) {
+      const duplicate = clients.find(
+        (c) => (c.tradingName || c.companyName).toLowerCase() === values.company_name!.toLowerCase()
+      );
+      if (duplicate) {
+        form.setError('company_name', {
+          message: 'Esta empresa já está cadastrada como cliente. Selecione-a no dropdown.',
+        });
+        return;
+      }
+    }
+
     const payload: any = {
       name: values.name,
       service_line: values.service_line,
       responsible_id: values.responsible_id || null,
       company_name: values.company_name || null,
-      client_id: values.client_type === 'existing' ? values.client_id : null,
+      client_id: values.client_id || null,
       contact_name: values.contact_name || null,
       contact_email: values.contact_email || null,
       contact_phone: values.contact_phone || null,
       source: values.source || null,
       notes: values.notes || null,
+      estimated_value: values.estimated_value || 0,
     };
 
     if (isEditing && lead) {
       updateMutation.mutate(
         { id: lead.id, ...payload },
-        { onSuccess: () => { onOpenChange(false); form.reset(); } }
+        { onSuccess: handleClose }
       );
     } else {
       createMutation.mutate(payload, {
-        onSuccess: () => { onOpenChange(false); form.reset(); },
+        onSuccess: () => {
+          handleClose();
+          toast({
+            title: 'Lead criado',
+            description: 'O lead foi criado e está na coluna Triagem do kanban.',
+          });
+        },
       });
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
           <DialogDescription>
             {isEditing ? 'Atualize as informações do lead.' : 'Preencha os dados do novo lead.'}
           </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 overflow-y-auto flex-1 pr-1">
-            <FormField control={form.control} name="name" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome da Oportunidade *</FormLabel>
-                <FormControl><Input placeholder="Ex: Projeto Website ABC" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+          <form
+            id="lead-form"
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex-1 overflow-y-auto px-1 py-0.5 space-y-4"
+          >
+            {/* ── Oportunidade ── */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Oportunidade</p>
 
-            <FormField control={form.control} name="service_line" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Linha de Serviço *</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a linha de serviço" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {SERVICE_LINE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="responsible_id" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Responsável *</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o responsável" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {employees
-                      .filter((e) => e.status === 'ativo')
-                      .map((emp) => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          {emp.nome} — {emp.cargo}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="client_type" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo de Empresa</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    value={field.value}
-                    onValueChange={(val) => {
-                      field.onChange(val);
-                      if (val === 'new') {
-                        form.setValue('client_id', '');
-                      } else {
-                        form.setValue('company_name', '');
-                      }
-                    }}
-                    className="flex gap-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="existing" id="existing" />
-                      <Label htmlFor="existing">Cliente existente</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="new" id="new" />
-                      <Label htmlFor="new">Nova empresa</Label>
-                    </div>
-                  </RadioGroup>
-                </FormControl>
-              </FormItem>
-            )} />
-
-            {clientType === 'existing' ? (
-              <FormField control={form.control} name="client_id" render={({ field }) => (
+              <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente *</FormLabel>
-                  <Select value={field.value} onValueChange={handleClientSelect}>
+                  <FormLabel>Nome da Oportunidade *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Consultoria estratégica — Empresa ABC" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="service_line" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Serviço *</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione um cliente" />
+                        {loadingServices
+                          ? <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Carregando...</span>
+                          : <SelectValue placeholder="Selecione o tipo de serviço" />
+                        }
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.tradingName || client.companyName}
+                      {services.map((svc) => (
+                        <SelectItem key={svc.id} value={svc.id}>
+                          <span className="flex items-center gap-2">
+                            {svc.name}
+                            <span className="text-[10px] leading-none px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium shrink-0">
+                              {PROJECT_TYPE_LABELS[svc.projectType]}
+                            </span>
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -268,103 +283,223 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                   <FormMessage />
                 </FormItem>
               )} />
-            ) : (
-              <FormField control={form.control} name="company_name" render={({ field }) => (
+
+              <FormField control={form.control} name="responsible_id" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Empresa</FormLabel>
-                  <FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl>
+                  <FormLabel>Responsável *</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        {loadingEmployees
+                          ? <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Carregando...</span>
+                          : <SelectValue placeholder="Selecione o responsável" />
+                        }
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {employees
+                        .filter((e) => e.status === 'ativo')
+                        .map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.nome} — {emp.cargo}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
                 </FormItem>
               )} />
-            )}
 
-            {clientType === 'existing' && previousStakeholders.length > 0 && (
-              <div>
-                <Label>Contato</Label>
-                <Select onValueChange={handleStakeholderSelect}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Selecione um contato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {previousStakeholders.map((s) => (
-                      <SelectItem key={s.name} value={s.name}>
-                        {s.name}{s.job_title ? ` — ${s.job_title}` : ''}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="__new__">+ Novo contato</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+              {(() => {
+                const svc = services.find((s) => s.id === serviceLine);
+                if (!svc?.unitPrice) return null;
+                return (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Valor Estimado</p>
+                    <p className="text-sm border rounded-md px-3 py-2 bg-muted text-muted-foreground">
+                      {formatCurrency(svc.unitPrice)}{' '}
+                      <span className="text-xs">(definido pelo serviço)</span>
+                    </p>
+                  </div>
+                );
+              })()}
 
-            {(contactMode === 'manual' || !(clientType === 'existing' && previousStakeholders.length > 0)) && (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField control={form.control} name="contact_name" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contato</FormLabel>
-                      <FormControl><Input placeholder="Nome" {...field} /></FormControl>
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="contact_email" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} /></FormControl>
-                    </FormItem>
-                  )} />
+              <FormField control={form.control} name="notes" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Observações</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Contexto da conversa, próximos passos, pontos de atenção..." rows={3} {...field} />
+                  </FormControl>
+                </FormItem>
+              )} />
+            </div>
+
+            <Separator />
+
+            {/* ── Empresa ── */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Empresa <span className="text-destructive normal-case">*</span>
+              </p>
+              <FormField control={form.control} name="company_name" render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        placeholder="Digite ou selecione uma empresa..."
+                        autoComplete="off"
+                        value={field.value || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          field.onChange(val);
+                          // Auto-link if typed name exactly matches an existing client
+                          const exact = clients.find(
+                            (c) => (c.tradingName || c.companyName).toLowerCase() === val.toLowerCase()
+                          );
+                          if (exact) {
+                            form.setValue('client_id', exact.id);
+                            form.clearErrors('company_name');
+                          } else if (clientId) {
+                            form.setValue('client_id', '');
+                          }
+                          setCompanyDropdownOpen(true);
+                        }}
+                        onBlur={() => setTimeout(() => setCompanyDropdownOpen(false), 150)}
+                      />
+                      {companyDropdownOpen && filteredClients.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto">
+                          {filteredClients.map((client) => (
+                            <button
+                              key={client.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-2"
+                              onMouseDown={() => {
+                                const name = client.tradingName || client.companyName;
+                                field.onChange(name);
+                                form.setValue('client_id', client.id);
+                                setCompanyDropdownOpen(false);
+                              }}
+                            >
+                              <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              {client.tradingName || client.companyName}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </FormControl>
+                  {clientId && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Check className="h-3 w-3 text-green-600" />
+                      Cliente existente vinculado
+                      <button
+                        type="button"
+                        className="ml-1 underline hover:no-underline"
+                        onClick={() => form.setValue('client_id', '')}
+                      >
+                        desvincular
+                      </button>
+                    </p>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            <Separator />
+
+            {/* ── Contato ── */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contato</p>
+
+              {!!clientId && previousStakeholders.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-1.5">Contatos anteriores</p>
+                  <Select onValueChange={handleStakeholderSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar contato do histórico..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {previousStakeholders.map((s) => (
+                        <SelectItem key={s.name} value={s.name}>
+                          {s.name}{s.job_title ? ` — ${s.job_title}` : ''}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__new__">+ Novo contato</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+              )}
 
+              <FormField control={form.control} name="contact_name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome do contato</FormLabel>
+                  <FormControl><Input placeholder="Ex: João Silva" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField control={form.control} name="contact_email" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="email@empresa.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField control={form.control} name="contact_phone" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="(00) 00000-0000"
-                        value={field.value}
+                        value={field.value || ''}
                         onChange={(e) => field.onChange(formatPhone(e.target.value))}
                       />
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )} />
-              </>
-            )}
+              </div>
+              <p className={cn('text-xs', form.formState.isSubmitted && bothContactEmpty ? 'text-destructive' : 'text-muted-foreground')}>
+                Ao menos email ou telefone é obrigatório.
+              </p>
 
-            <FormField control={form.control} name="source" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Origem</FormLabel>
-                <Select value={field.value || ''} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a origem" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="indicacao">Indicação</SelectItem>
-                    <SelectItem value="evento">Evento</SelectItem>
-                    <SelectItem value="parceiro">Parceiro</SelectItem>
-                    <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
-                    <SelectItem value="expansao">Expansão</SelectItem>
-                    <SelectItem value="outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="notes" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Observações</FormLabel>
-                <FormControl><Textarea placeholder="Notas sobre o lead..." {...field} /></FormControl>
-              </FormItem>
-            )} />
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isEditing ? 'Salvar' : 'Criar Lead'}
-              </Button>
-            </DialogFooter>
+              <FormField control={form.control} name="source" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Origem do lead</FormLabel>
+                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Como esse lead chegou?" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="indicacao">Indicação</SelectItem>
+                      <SelectItem value="evento">Evento</SelectItem>
+                      <SelectItem value="parceiro">Parceiro</SelectItem>
+                      <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
+                      <SelectItem value="expansao">Expansão</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )} />
+            </div>
           </form>
         </Form>
+
+        <DialogFooter className="border-t pt-4">
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="lead-form" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isEditing ? 'Salvar' : 'Criar Lead'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

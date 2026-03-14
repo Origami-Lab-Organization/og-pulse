@@ -1,21 +1,19 @@
 import { useState, useMemo } from 'react';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { LeadKanbanColumn } from './LeadKanbanColumn';
-import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadDetailDialog } from './LeadDetailDialog';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
 import { LeadWithBudget, CRMStage, CRM_LEAD_COLUMNS } from '@/types/lead';
 import { useUpdateLeadStage } from '@/hooks/useLeads';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
-import { toast } from '@/hooks/use-toast';
+import { useServices } from '@/hooks/useServices';
+
 interface LeadKanbanBoardProps {
   leads: LeadWithBudget[];
   searchTerm: string;
 }
 
 export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadWithBudget | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -23,13 +21,10 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
 
   const updateStage = useUpdateLeadStage();
   const closeBusinessDeal = useCloseBusinessDeal();
+  const { data: services = [] } = useServices();
 
   // Fetch full budget details when closing
   const { data: budgetForClose } = useBudget(leadToClose?.budget_id || null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
 
   const filteredLeads = useMemo(() => {
     if (!searchTerm.trim()) return leads;
@@ -47,83 +42,52 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       screening: [], qualification: [], proposal: [], negotiation: [], closed: [],
     };
     filteredLeads.forEach((lead) => {
-      if (grouped[lead.crm_stage]) {
-        grouped[lead.crm_stage].push(lead);
-      }
+      if (grouped[lead.crm_stage]) grouped[lead.crm_stage].push(lead);
     });
     return grouped;
   }, [filteredLeads]);
-
-  const activeLead = useMemo(() => {
-    if (!activeId) return null;
-    return leads.find((l) => l.id === activeId) || null;
-  }, [activeId, leads]);
-
-  const handleDragStart = (event: DragStartEvent) => setActiveId(event.active.id as string);
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveId(null);
-    const { active, over } = event;
-    if (!over) return;
-
-    const leadId = active.id as string;
-    const newStage = over.id as CRMStage;
-    const lead = leads.find((l) => l.id === leadId);
-    if (!lead || lead.crm_stage === newStage) return;
-
-    // Locked leads can't move
-    if (lead.crm_stage === 'closed') return;
-
-    // Can't move past proposal without budget (except Financiamento da Inovação)
-    const isFinInovacao = lead.service_line === 'financiamento_inovacao';
-    if ((newStage === 'negotiation' || newStage === 'closed') && !lead.budget_id && !isFinInovacao) {
-      toast({ title: 'Orçamento necessário', description: 'Atribua um orçamento ao lead antes de avançar para esta etapa.', variant: 'destructive' });
-      return;
-    }
-
-    if (newStage === 'closed') {
-      setLeadToClose(lead);
-      setCloseDialogOpen(true);
-      return;
-    }
-
-    updateStage.mutate({ id: leadId, stage: newStage });
-  };
 
   const handleCardClick = (lead: LeadWithBudget) => {
     setSelectedLead(lead);
     setDetailDialogOpen(true);
   };
 
-  const handleCloseBusinessConfirm = (formData: {
-    managerId: string;
-    paymentMethod: string;
-    installmentsCount: number;
-    dueDay: number;
-    firstInvoiceDate?: string;
-    startDate: string;
-    endDate: string;
-    projectName?: string;
-    clientId?: string;
-    totalValue?: number;
-  }) => {
+  // Called from LeadDetailDialog when user advances to "closed"
+  const handleRequestAdvanceToClose = () => {
+    if (!selectedLead) return;
+    setLeadToClose(selectedLead);
+    setDetailDialogOpen(false);
+    setSelectedLead(null);
+    setCloseDialogOpen(true);
+  };
+
+  const handleCloseBusinessConfirm = (formData: import('@/components/crm/CloseBusinessDialog').CloseBusinessFormValues) => {
     if (!leadToClose) return;
 
-    // Allow closing without budget for Financiamento da Inovação
     const budget = budgetForClose || null;
 
     closeBusinessDeal.mutate(
       {
         budget,
-        ...formData,
+        projectType: formData.projectType,
+        managerId: formData.managerId,
+        paymentMethod: formData.paymentMethod,
+        installmentsCount: formData.installmentsCount,
+        dueDay: formData.dueDay,
+        firstInvoiceDate: formData.firstInvoiceDate,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        renewalDate: formData.renewalDate,
+        successFeePercent: formData.successFeePercent,
         serviceLine: leadToClose.service_line || undefined,
         projectName: formData.projectName || leadToClose.name,
         clientId: formData.clientId || leadToClose.client_id || '',
         totalValue: formData.totalValue || leadToClose.estimated_value || 0,
+        monthlyValue: formData.monthlyValue,
       },
       {
         onSuccess: () => {
-          updateStage.mutate({ id: leadToClose.id, stage: 'closed' });
+          updateStage.mutate({ id: leadToClose.id, stage: 'closed', fromStage: leadToClose.crm_stage });
           setCloseDialogOpen(false);
           setLeadToClose(null);
         },
@@ -132,32 +96,24 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   };
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <>
       <div className="grid grid-cols-5 gap-3 h-[calc(100vh-220px)]">
         {CRM_LEAD_COLUMNS.map((column) => (
           <LeadKanbanColumn
             key={column.id}
             column={column}
             leads={leadsByStage[column.id] || []}
-            activeId={activeId}
             onCardClick={handleCardClick}
+            services={services}
           />
         ))}
       </div>
-
-      <DragOverlay>
-        {activeLead && (
-          <LeadKanbanCard
-            lead={activeLead}
-            currentStage={activeLead.crm_stage}
-          />
-        )}
-      </DragOverlay>
 
       <LeadDetailDialog
         open={detailDialogOpen}
         onOpenChange={(open) => { setDetailDialogOpen(open); if (!open) setSelectedLead(null); }}
         lead={selectedLead}
+        onAdvanceToClose={handleRequestAdvanceToClose}
       />
 
       <CloseBusinessDialog
@@ -167,7 +123,8 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
         lead={leadToClose}
         onConfirm={handleCloseBusinessConfirm}
         isSubmitting={closeBusinessDeal.isPending}
+        services={services}
       />
-    </DndContext>
+    </>
   );
 }

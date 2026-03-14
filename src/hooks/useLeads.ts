@@ -16,6 +16,7 @@ import {
   CreateLeadInput,
   ArchiveLeadInput,
 } from '@/services/leadService';
+import { leadActivityService } from '@/services/leadActivityService';
 import { CRMStage } from '@/types/lead';
 
 export function useLeads() {
@@ -45,9 +46,21 @@ export function useCreateLead() {
         tenant_id: employee!.tenant_id,
         created_by: employee!.id,
       }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
       toast({ title: 'Lead criado com sucesso' });
+
+      // Log activity (fire-and-forget)
+      if (_data?.id && employee) {
+        leadActivityService.log({
+          tenantId: employee.tenant_id,
+          leadId: _data.id,
+          activityType: 'created',
+          description: `Lead "${variables.name}" criado`,
+          metadata: { name: variables.name, service_line: variables.service_line },
+          createdBy: employee.id,
+        }).catch(console.warn);
+      }
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao criar lead', description: err.message, variant: 'destructive' });
@@ -57,11 +70,24 @@ export function useCreateLead() {
 
 export function useUpdateLeadStage() {
   const qc = useQueryClient();
+  const { employee } = useAuth();
   return useMutation({
-    mutationFn: ({ id, stage }: { id: string; stage: CRMStage }) =>
+    mutationFn: ({ id, stage, fromStage }: { id: string; stage: CRMStage; fromStage?: CRMStage }) =>
       updateLeadStage(id, stage),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-activities', variables.id] });
+
+      // Log stage change activity (fire-and-forget)
+      if (employee && variables.fromStage) {
+        leadActivityService.logStageChange(
+          employee.tenant_id,
+          variables.id,
+          variables.fromStage,
+          variables.stage,
+          employee.id
+        ).catch(console.warn);
+      }
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao mover lead', description: err.message, variant: 'destructive' });
@@ -71,12 +97,25 @@ export function useUpdateLeadStage() {
 
 export function useUpdateLead() {
   const qc = useQueryClient();
+  const { employee } = useAuth();
   return useMutation({
     mutationFn: ({ id, ...updates }: { id: string } & Partial<CreateLeadInput>) =>
       updateLead(id, updates),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-activities', variables.id] });
       toast({ title: 'Lead atualizado' });
+
+      // Log update activity (fire-and-forget)
+      if (employee) {
+        leadActivityService.log({
+          tenantId: employee.tenant_id,
+          leadId: variables.id,
+          activityType: 'lead_updated',
+          description: 'Dados do lead atualizados',
+          createdBy: employee.id,
+        }).catch(console.warn);
+      }
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao atualizar lead', description: err.message, variant: 'destructive' });
@@ -86,11 +125,27 @@ export function useUpdateLead() {
 
 export function useArchiveLead() {
   const qc = useQueryClient();
+  const { employee } = useAuth();
   return useMutation({
     mutationFn: (input: ArchiveLeadInput) => archiveLead(input),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
       toast({ title: 'Lead arquivado' });
+
+      // Log archive activity (fire-and-forget)
+      if (employee) {
+        leadActivityService.log({
+          tenantId: employee.tenant_id,
+          leadId: variables.id,
+          activityType: 'archived',
+          description: `Lead arquivado${variables.archive_reason ? ` — ${variables.archive_reason}` : ''}`,
+          metadata: {
+            reason: variables.archive_reason,
+            notes: variables.archive_notes,
+          },
+          createdBy: employee.id,
+        }).catch(console.warn);
+      }
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao arquivar lead', description: err.message, variant: 'destructive' });
@@ -100,11 +155,25 @@ export function useArchiveLead() {
 
 export function useLinkBudgetToLead() {
   const qc = useQueryClient();
+  const { employee } = useAuth();
   return useMutation({
     mutationFn: ({ leadId, budgetId }: { leadId: string; budgetId: string }) =>
       linkBudgetToLead(leadId, budgetId),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-activities', variables.leadId] });
+
+      // Log budget linked activity (fire-and-forget)
+      if (employee) {
+        leadActivityService.log({
+          tenantId: employee.tenant_id,
+          leadId: variables.leadId,
+          activityType: 'budget_created',
+          description: 'Orçamento vinculado ao lead',
+          metadata: { budget_id: variables.budgetId },
+          createdBy: employee.id,
+        }).catch(console.warn);
+      }
     },
   });
 }
@@ -120,12 +189,24 @@ export function useArchivedLeads() {
 
 export function useUnarchiveLead() {
   const qc = useQueryClient();
+  const { employee } = useAuth();
   return useMutation({
     mutationFn: (id: string) => unarchiveLead(id),
-    onSuccess: () => {
+    onSuccess: (_data, _variables, context) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['archived-leads'] });
       toast({ title: 'Lead desarquivado com sucesso' });
+
+      // Log unarchive activity (fire-and-forget)
+      if (employee && typeof _variables === 'string') {
+        leadActivityService.log({
+          tenantId: employee.tenant_id,
+          leadId: _variables,
+          activityType: 'unarchived',
+          description: 'Lead restaurado do arquivo',
+          createdBy: employee.id,
+        }).catch(console.warn);
+      }
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao desarquivar lead', description: err.message, variant: 'destructive' });

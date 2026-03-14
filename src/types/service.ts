@@ -1,11 +1,4 @@
-export type ProjectType = 'fixed_scope' | 'continuous' | 'success_fee' | 'non_revenue';
-
-export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
-  fixed_scope: 'Escopo Fechado',
-  continuous: 'Contínuo',
-  success_fee: 'Success Fee',
-  non_revenue: 'Sem Receita',
-};
+import { ProjectType } from './project';
 
 export interface ServiceDB {
   id: string;
@@ -18,3 +11,52 @@ export interface ServiceDB {
   created_at: string;
   updated_at: string;
 }
+
+export interface Service {
+  id: string;
+  tenantId: string;
+  name: string;
+  projectType: ProjectType;
+  description: string | null;
+  unitPrice: number | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateServiceInput {
+  name: string;
+  projectType: ProjectType;
+  description?: string;
+  unitPrice?: number;
+}
+
+export const dbToService = (db: ServiceDB): Service => ({
+  id: db.id,
+  tenantId: db.tenant_id,
+  name: db.name,
+  projectType: db.project_type,
+  description: db.description,
+  unitPrice: db.unit_price,
+  isActive: db.is_active,
+  createdAt: db.created_at,
+  updatedAt: db.updated_at,
+});
+
+export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
+  fixed_scope: 'Escopo Fixo',
+  continuous: 'Receita Recorrente',
+  success_fee: 'Taxa de Sucesso',
+  non_revenue: 'Sem Receita',
+};
+
+export const DEFAULT_SERVICES: CreateServiceInput[] = [
+  { name: 'Consultoria de Projeto', projectType: 'fixed_scope' },
+  { name: 'Desenvolvimento de Software', projectType: 'fixed_scope' },
+  { name: 'Suporte Técnico Mensal', projectType: 'continuous' },
+  { name: 'Gestão Contínua', projectType: 'continuous' },
+  { name: 'Consultoria em Incentivos Fiscais (Lei do Bem)', projectType: 'success_fee' },
+  { name: 'Captação de Recursos', projectType: 'success_fee' },
+  { name: 'Discovery / Pré-venda', projectType: 'non_revenue' },
+  { name: 'Prospecção', projectType: 'non_revenue' },
+];
