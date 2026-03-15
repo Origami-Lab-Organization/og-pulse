@@ -1,3 +1,5 @@
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building2, Clock, DollarSign, Lock, FileText, User } from 'lucide-react';
@@ -42,6 +44,12 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [] }: L
   const isLocked = currentStage === 'closed';
   const canCreateBudget = !lead.budget_id && ['proposal', 'negotiation'].includes(currentStage);
 
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: lead.id,
+    data: { lead, currentStage },
+    disabled: isLocked || lead.archived,
+  });
+
   const getEndDate = () => {
     if (currentStage === 'closed') return lead.closed_at || lead.updated_at;
     if (lead.archived) return lead.archived_at;
@@ -62,11 +70,21 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [] }: L
     navigate(`/budgets/new?leadId=${lead.id}`);
   };
 
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.4 : undefined,
+  };
+
   return (
     <Card
+      ref={setNodeRef}
+      style={style}
       onClick={onClick}
+      {...listeners}
+      {...attributes}
       className={cn(
-        'transition-all hover:shadow-md border-l-4 cursor-pointer',
+        'transition-all hover:shadow-md border-l-4 cursor-grab active:cursor-grabbing',
+        isLocked && 'cursor-default',
         isLocked
           ? 'border-l-chart-2 bg-chart-2/10'
           : isStuck
@@ -128,6 +146,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [] }: L
             variant="outline"
             className="w-full text-xs h-7"
             onClick={handleCreateBudget}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <FileText className="h-3 w-3 mr-1" />
             Criar Orçamento

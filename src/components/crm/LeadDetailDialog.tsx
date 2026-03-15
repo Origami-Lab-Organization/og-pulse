@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
-} from '@/components/ui/sheet';
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -20,10 +21,8 @@ import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Collapsible, CollapsibleContent, CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { MoreVertical, Archive, DollarSign, ExternalLink, Trash2, Loader2, ArrowRight, Pencil, History, ChevronDown, Check } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { MoreVertical, Archive, DollarSign, ExternalLink, Trash2, Loader2, ArrowRight, Pencil } from 'lucide-react';
 import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { DeleteLeadDialog } from './DeleteLeadDialog';
@@ -36,7 +35,6 @@ import { PROJECT_TYPE_LABELS, ProjectType } from '@/types/service';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/formatters';
 import { formatPhone } from '@/lib/masks';
-import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const schema = z.object({
@@ -81,46 +79,6 @@ function canAdvanceFrom(stage: CRMStage, lead: LeadWithBudget): { allowed: boole
   return { allowed: true };
 }
 
-/* ── Stepper ── */
-function StageStepper({ currentStage }: { currentStage: CRMStage }) {
-  const currentIdx = STAGE_ORDER.indexOf(currentStage);
-  return (
-    <div className="flex items-center gap-1 py-3 px-1">
-      {CRM_LEAD_COLUMNS.map((col, idx) => {
-        const isCompleted = idx < currentIdx;
-        const isCurrent = idx === currentIdx;
-        return (
-          <div key={col.id} className="flex items-center gap-1">
-            {idx > 0 && (
-              <div className={cn(
-                'h-px w-4 transition-colors',
-                isCompleted ? 'bg-primary' : 'bg-border'
-              )} />
-            )}
-            <div className="flex items-center gap-1.5">
-              <div className={cn(
-                'flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-semibold transition-colors shrink-0',
-                isCompleted && 'bg-primary text-primary-foreground',
-                isCurrent && 'bg-primary text-primary-foreground ring-2 ring-primary/30',
-                !isCompleted && !isCurrent && 'bg-muted text-muted-foreground'
-              )}>
-                {isCompleted ? <Check className="h-3 w-3" /> : idx + 1}
-              </div>
-              <span className={cn(
-                'text-[11px] font-medium whitespace-nowrap hidden sm:inline',
-                isCurrent ? 'text-foreground' : 'text-muted-foreground'
-              )}>
-                {col.label}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-
 export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }: LeadDetailDialogProps) {
   const navigate = useNavigate();
   const { employee } = useAuth();
@@ -128,9 +86,9 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [companySearch, setCompanySearch] = useState('');
   const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
   const companyInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = employee?.isAdmin;
   const updateLead = useUpdateLead();
@@ -179,15 +137,9 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
         estimated_value: lead.estimated_value || undefined,
       });
       setCompanySearch(lead.company_name || '');
-      // Auto-edit for early stages
-      const autoEdit = lead.crm_stage === 'screening' || lead.crm_stage === 'qualification';
-      setIsEditing(autoEdit);
-      setHistoryOpen(false);
+      setIsEditing(false);
     }
   }, [open, lead]);
-
-  const serviceLine = form.watch('service_line');
-  const selectedService = services.find((s) => s.id === serviceLine);
 
   const filteredClients = companySearch.trim().length > 0
     ? clients.filter((c) => {
@@ -201,7 +153,11 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
     form.setValue('company_name', value, { shouldDirty: true });
     form.setValue('client_type', 'new', { shouldDirty: true });
     form.setValue('client_id', '', { shouldDirty: true });
-    setCompanyDropdownOpen(value.trim().length > 0);
+    const open = value.trim().length > 0;
+    setCompanyDropdownOpen(open);
+    if (open && companyInputRef.current) {
+      setDropdownRect(companyInputRef.current.getBoundingClientRect());
+    }
   };
 
   const handleClientSelect = (clientId: string) => {
@@ -284,91 +240,86 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleSheetChange}>
-        <SheetContent
-          side="right"
-          className="w-full sm:max-w-[480px] p-0 flex flex-col [&>button:last-child]:hidden"
+      <Dialog open={open} onOpenChange={handleSheetChange}>
+        <DialogContent
+          className="max-w-[520px] p-0 flex flex-col h-[88vh] overflow-hidden gap-0"
         >
           {/* ── Header ── */}
-          <div className="px-5 pt-5 pb-0 space-y-1">
-            <StageStepper currentStage={lead.crm_stage} />
-
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <SheetTitle className="text-lg line-clamp-1">{lead.name}</SheetTitle>
-                {companyDisplayName && (
-                  <p className="text-sm text-muted-foreground truncate">{companyDisplayName}</p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-1 shrink-0">
-                {isArchived && (
-                  <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                    Arquivado
-                  </Badge>
-                )}
-                {!isArchived ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-popover">
-                      {!isEditing && (
-                        <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => setArchiveOpen(true)}>
-                        <Archive className="h-4 w-4 mr-2" />
-                        Arquivar Lead
-                      </DropdownMenuItem>
-                      {isAdmin && (
-                        <DropdownMenuItem
-                          onClick={() => setDeleteOpen(true)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir Lead
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : isAdmin ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                ) : null}
-              </div>
+          <DialogHeader className="px-5 pt-5 pb-4 space-y-1 pr-20">
+            <div className="flex items-center gap-2 min-w-0">
+              <DialogTitle className="text-lg line-clamp-1">{lead.name}</DialogTitle>
+              {isArchived && (
+                <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 shrink-0">
+                  Arquivado
+                </Badge>
+              )}
             </div>
-
+            {companyDisplayName && (
+              <p className="text-sm text-muted-foreground truncate">{companyDisplayName}</p>
+            )}
             {isArchived && (
               <p className="text-xs text-muted-foreground">
                 Arquivado em {lead.archived_at ? new Date(lead.archived_at).toLocaleDateString('pt-BR') : '-'}
                 {lead.archive_reason ? ` — ${lead.archive_reason}` : ''}
               </p>
             )}
+          </DialogHeader>
+
+          {/* ── Actions (next to X button) ── */}
+          <div className="absolute right-10 top-3">
+            {!isArchived ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover">
+                  {!isEditing && (
+                    <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                  )}
+                  {isAdmin && (
+                    <DropdownMenuItem
+                      onClick={() => setDeleteOpen(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir Lead
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : isAdmin ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            ) : null}
           </div>
 
           <Separator />
 
-          {/* ── Body (scrollable) ── */}
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="px-5 py-4">
-              <Form {...form}>
-                <div className="space-y-4">
+          {/* ── Body (tabs) ── */}
+          <Form {...form}>
+            <Tabs defaultValue="qualificacao" className="flex flex-col flex-1 min-h-0">
+              <div className="px-5 pt-3 pb-0 shrink-0">
+                <TabsList className="w-full">
+                  <TabsTrigger value="qualificacao" className="flex-1">Qualificação</TabsTrigger>
+                  <TabsTrigger value="contato" className="flex-1">Contato</TabsTrigger>
+                  <TabsTrigger value="historico" className="flex-1">Histórico</TabsTrigger>
+                </TabsList>
+              </div>
 
-                  {/* ── Qualificação: Serviço + Responsável ── */}
+              <ScrollArea className="flex-1 min-h-0">
+                <TabsContent value="qualificacao" className="px-5 py-4 space-y-4 mt-0">
                   <div className="space-y-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Qualificação</p>
-
                     <FormField control={form.control} name="service_line" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Tipo de Serviço</FormLabel>
@@ -431,21 +382,6 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
                         </FormItem>
                       )} />
                     )}
-                  </div>
-
-                  <Separator />
-
-                  {/* ── Oportunidade ── */}
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Oportunidade</p>
-
-                    <FormField control={form.control} name="name" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome da Oportunidade *</FormLabel>
-                        <FormControl><Input placeholder="Ex: Projeto Website ABC" {...field} disabled={isDisabled} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
 
                     <FormField control={form.control} name="notes" render={({ field }) => (
                       <FormItem>
@@ -453,168 +389,161 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
                         <FormControl><Textarea placeholder="Notas sobre o lead..." {...field} disabled={isDisabled} rows={3} /></FormControl>
                       </FormItem>
                     )} />
+
+                    {lead.budget && (
+                      <>
+                        <Separator />
+                        <div className="space-y-3">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orçamento</p>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-0.5">
+                              <p className="text-xs text-muted-foreground">Custo Total</p>
+                              <p className="font-medium">{formatCurrency(lead.budget.subtotal)}</p>
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="text-xs text-muted-foreground">Preço de Venda</p>
+                              <p className="font-medium">{formatCurrency(lead.budget.total_with_fees)}</p>
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="text-xs text-muted-foreground">Margem</p>
+                              <p className="font-medium">
+                                {lead.budget.total_with_fees > 0
+                                  ? `${(((lead.budget.total_with_fees - lead.budget.subtotal) / lead.budget.total_with_fees) * 100).toFixed(1)}%`
+                                  : '0%'}
+                              </p>
+                            </div>
+                          </div>
+                          {lead.budget.discount_value > 0 && (
+                            <div className="space-y-0.5">
+                              <p className="text-xs text-muted-foreground">Desconto</p>
+                              <p className="font-medium text-destructive">- {formatCurrency(lead.budget.discount_value)}</p>
+                            </div>
+                          )}
+                          <div className="rounded-md bg-primary/10 p-3 flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <p className="text-xs text-muted-foreground">Valor Final</p>
+                              <p className="text-lg font-bold text-primary flex items-center gap-1">
+                                <DollarSign className="h-4 w-4" />
+                                {formatCurrency(lead.budget.final_total)}
+                              </p>
+                            </div>
+                            <div className="text-xs text-muted-foreground text-right">
+                              {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'}
+                            </div>
+                          </div>
+                          <Button variant="outline" size="sm" className="w-full" onClick={handleViewBudget}>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Abrir Orçamento
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
+                </TabsContent>
 
-                  <Separator />
+                <TabsContent value="contato" className="px-5 py-4 space-y-3 mt-0">
+                  <FormItem>
+                    <FormLabel>Empresa</FormLabel>
+                    <Input
+                      ref={companyInputRef}
+                      placeholder="Digite ou selecione uma empresa"
+                      value={companySearch}
+                      onChange={(e) => handleCompanyInputChange(e.target.value)}
+                      onFocus={() => {
+                        if (companySearch.trim().length > 0) {
+                          setCompanyDropdownOpen(true);
+                          if (companyInputRef.current)
+                            setDropdownRect(companyInputRef.current.getBoundingClientRect());
+                        }
+                      }}
+                      onBlur={() => setTimeout(() => setCompanyDropdownOpen(false), 150)}
+                      disabled={isDisabled}
+                    />
+                    {companyDropdownOpen && filteredClients.length > 0 && !isDisabled && dropdownRect &&
+                      createPortal(
+                        <div
+                          style={{
+                            position: 'fixed',
+                            top: dropdownRect.bottom + 4,
+                            left: dropdownRect.left,
+                            width: dropdownRect.width,
+                            zIndex: 9999,
+                          }}
+                          className="bg-popover border rounded-md shadow-md"
+                        >
+                          {filteredClients.map((client) => (
+                            <button
+                              key={client.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                              onMouseDown={() => handleClientSelect(client.id)}
+                            >
+                              {client.tradingName || client.companyName}
+                            </button>
+                          ))}
+                        </div>,
+                        document.body
+                      )
+                    }
+                  </FormItem>
 
-                  {/* ── Empresa + Contato ── */}
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contato</p>
-
+                  <FormField control={form.control} name="contact_name" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Empresa</FormLabel>
-                      <div className="relative">
-                        <Input
-                          ref={companyInputRef}
-                          placeholder="Digite ou selecione uma empresa"
-                          value={companySearch}
-                          onChange={(e) => handleCompanyInputChange(e.target.value)}
-                          onFocus={() => companySearch.trim().length > 0 && setCompanyDropdownOpen(true)}
-                          onBlur={() => setTimeout(() => setCompanyDropdownOpen(false), 150)}
-                          disabled={isDisabled}
-                        />
-                        {companyDropdownOpen && filteredClients.length > 0 && (
-                          <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md">
-                            {filteredClients.map((client) => (
-                              <button
-                                key={client.id}
-                                type="button"
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                                onMouseDown={() => handleClientSelect(client.id)}
-                              >
-                                {client.tradingName || client.companyName}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <FormLabel>Nome do contato</FormLabel>
+                      <FormControl><Input placeholder="Nome" {...field} disabled={isDisabled} /></FormControl>
                     </FormItem>
+                  )} />
 
-                    <FormField control={form.control} name="contact_name" render={({ field }) => (
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField control={form.control} name="contact_email" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nome do contato</FormLabel>
-                        <FormControl><Input placeholder="Nome" {...field} disabled={isDisabled} /></FormControl>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl><Input placeholder="email@..." {...field} disabled={isDisabled} /></FormControl>
                       </FormItem>
                     )} />
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField control={form.control} name="contact_email" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl><Input placeholder="email@..." {...field} disabled={isDisabled} /></FormControl>
-                        </FormItem>
-                      )} />
-                      <FormField control={form.control} name="contact_phone" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telefone</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="(00) 00000-0000"
-                              value={field.value || ''}
-                              onChange={(e) => field.onChange(formatPhone(e.target.value))}
-                              disabled={isDisabled}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )} />
-                    </div>
-
-                    <FormField control={form.control} name="source" render={({ field }) => (
+                    <FormField control={form.control} name="contact_phone" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Origem</FormLabel>
-                        <Select value={field.value || ''} onValueChange={field.onChange} disabled={isDisabled}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione a origem" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="indicacao">Indicação</SelectItem>
-                            <SelectItem value="evento">Evento</SelectItem>
-                            <SelectItem value="parceiro">Parceiro</SelectItem>
-                            <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
-                            <SelectItem value="expansao">Expansão</SelectItem>
-                            <SelectItem value="outro">Outro</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Telefone</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="(00) 00000-0000"
+                            value={field.value || ''}
+                            onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                            disabled={isDisabled}
+                          />
+                        </FormControl>
                       </FormItem>
                     )} />
                   </div>
 
-                  {/* ── Orçamento ── */}
-                  {lead.budget && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orçamento</p>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="space-y-0.5">
-                            <p className="text-xs text-muted-foreground">Custo Total</p>
-                            <p className="font-medium">{formatCurrency(lead.budget.subtotal)}</p>
-                          </div>
-                          <div className="space-y-0.5">
-                            <p className="text-xs text-muted-foreground">Preço de Venda</p>
-                            <p className="font-medium">{formatCurrency(lead.budget.total_with_fees)}</p>
-                          </div>
-                          <div className="space-y-0.5">
-                            <p className="text-xs text-muted-foreground">Margem</p>
-                            <p className="font-medium">
-                              {lead.budget.total_with_fees > 0
-                                ? `${(((lead.budget.total_with_fees - lead.budget.subtotal) / lead.budget.total_with_fees) * 100).toFixed(1)}%`
-                                : '0%'}
-                            </p>
-                          </div>
-                        </div>
+                  <FormField control={form.control} name="source" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Origem</FormLabel>
+                      <Select value={field.value || ''} onValueChange={field.onChange} disabled={isDisabled}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a origem" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="indicacao">Indicação</SelectItem>
+                          <SelectItem value="evento">Evento</SelectItem>
+                          <SelectItem value="parceiro">Parceiro</SelectItem>
+                          <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
+                          <SelectItem value="expansao">Expansão</SelectItem>
+                          <SelectItem value="outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                </TabsContent>
 
-                        {lead.budget.discount_value > 0 && (
-                          <div className="space-y-0.5">
-                            <p className="text-xs text-muted-foreground">Desconto</p>
-                            <p className="font-medium text-destructive">- {formatCurrency(lead.budget.discount_value)}</p>
-                          </div>
-                        )}
-
-                        <div className="rounded-md bg-primary/10 p-3 flex items-center justify-between">
-                          <div className="space-y-0.5">
-                            <p className="text-xs text-muted-foreground">Valor Final</p>
-                            <p className="text-lg font-bold text-primary flex items-center gap-1">
-                              <DollarSign className="h-4 w-4" />
-                              {formatCurrency(lead.budget.final_total)}
-                            </p>
-                          </div>
-                          <div className="text-xs text-muted-foreground text-right">
-                            {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'}
-                          </div>
-                        </div>
-
-                        <Button variant="outline" size="sm" className="w-full" onClick={handleViewBudget}>
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Abrir Orçamento
-                        </Button>
-                      </div>
-                    </>
-                  )}
-
-                  {/* ── Histórico (Collapsible) ── */}
-                  <Separator />
-                  <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full py-1 group">
-                      <div className="flex items-center gap-2">
-                        <History className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Histórico</span>
-                      </div>
-                      <ChevronDown className={cn(
-                        'h-4 w-4 text-muted-foreground transition-transform',
-                        historyOpen && 'rotate-180'
-                      )} />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="pt-2">
-                      <LeadActivityTimeline leadId={lead.id} />
-                    </CollapsibleContent>
-                  </Collapsible>
-                </div>
-              </Form>
-            </div>
-          </ScrollArea>
+                <TabsContent value="historico" className="px-5 py-4 mt-0">
+                  <LeadActivityTimeline leadId={lead.id} />
+                </TabsContent>
+              </ScrollArea>
+            </Tabs>
+          </Form>
 
           {/* ── Footer ── */}
           {!isArchived && (
@@ -636,6 +565,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
                     variant="outline"
                     size="sm"
                     onClick={() => setArchiveOpen(true)}
+                    className="hover:border-destructive hover:text-destructive hover:bg-destructive/10"
                   >
                     <Archive className="h-4 w-4 mr-1.5" />
                     Arquivar
@@ -661,8 +591,8 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
               )}
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={confirmCloseOpen} onOpenChange={setConfirmCloseOpen}>
         <AlertDialogContent>

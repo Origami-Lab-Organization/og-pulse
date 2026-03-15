@@ -1,5 +1,10 @@
 import { useState, useMemo } from 'react';
+import {
+  DndContext, DragEndEvent, DragOverlay, DragStartEvent,
+  PointerSensor, useSensor, useSensors,
+} from '@dnd-kit/core';
 import { LeadKanbanColumn } from './LeadKanbanColumn';
+import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadDetailDialog } from './LeadDetailDialog';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
 import { LeadWithBudget, CRMStage, CRM_LEAD_COLUMNS } from '@/types/lead';
@@ -7,6 +12,7 @@ import { useUpdateLeadStage } from '@/hooks/useLeads';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
 import { useServices } from '@/hooks/useServices';
+import { useToast } from '@/hooks/use-toast';
 
 interface LeadKanbanBoardProps {
   leads: LeadWithBudget[];
@@ -18,10 +24,49 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const [selectedLead, setSelectedLead] = useState<LeadWithBudget | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [leadToClose, setLeadToClose] = useState<LeadWithBudget | null>(null);
+  const [activeLead, setActiveLead] = useState<LeadWithBudget | null>(null);
 
   const updateStage = useUpdateLeadStage();
   const closeBusinessDeal = useCloseBusinessDeal();
   const { data: services = [] } = useServices();
+  const { toast } = useToast();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const lead = leads.find((l) => l.id === event.active.id);
+    if (lead) setActiveLead(lead);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveLead(null);
+    const { active, over } = event;
+    if (!over) return;
+    const newStage = over.id as CRMStage;
+    const lead = leads.find((l) => l.id === active.id);
+    if (!lead || lead.crm_stage === newStage || lead.archived) return;
+
+    if (newStage === 'closed') {
+      setLeadToClose(lead);
+      setCloseDialogOpen(true);
+      return;
+    }
+
+    const stageLabel = CRM_LEAD_COLUMNS.find((c) => c.id === newStage)?.label ?? newStage;
+    updateStage.mutate(
+      { id: lead.id, stage: newStage, fromStage: lead.crm_stage },
+      {
+        onSuccess: () => {
+          toast({
+            title: 'Lead movido',
+            description: `"${lead.name}" foi movido para ${stageLabel}.`,
+          });
+        },
+      }
+    );
+  };
 
   // Fetch full budget details when closing
   const { data: budgetForClose } = useBudget(leadToClose?.budget_id || null);
@@ -97,17 +142,29 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
 
   return (
     <>
-      <div className="grid grid-cols-5 gap-3 h-[calc(100vh-220px)]">
-        {CRM_LEAD_COLUMNS.map((column) => (
-          <LeadKanbanColumn
-            key={column.id}
-            column={column}
-            leads={leadsByStage[column.id] || []}
-            onCardClick={handleCardClick}
-            services={services}
-          />
-        ))}
-      </div>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-5 gap-3 h-[calc(100vh-220px)]">
+          {CRM_LEAD_COLUMNS.map((column) => (
+            <LeadKanbanColumn
+              key={column.id}
+              column={column}
+              leads={leadsByStage[column.id] || []}
+              onCardClick={handleCardClick}
+              services={services}
+            />
+          ))}
+        </div>
+
+        <DragOverlay>
+          {activeLead && (
+            <LeadKanbanCard
+              lead={activeLead}
+              currentStage={activeLead.crm_stage}
+              services={services}
+            />
+          )}
+        </DragOverlay>
+      </DndContext>
 
       <LeadDetailDialog
         open={detailDialogOpen}
