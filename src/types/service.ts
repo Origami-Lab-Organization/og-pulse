@@ -50,7 +50,7 @@ export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
   non_revenue: 'Sem Receita',
 };
 
-export const DEFAULT_SERVICES: CreateServiceInput[] = [
+export const DEFAULT_SERVICES: Omit<CreateServiceInput, never>[] = [
   { name: 'Consultoria de Projeto', projectType: 'fixed_scope' },
   { name: 'Desenvolvimento de Software', projectType: 'fixed_scope' },
   { name: 'Suporte Técnico Mensal', projectType: 'continuous' },
