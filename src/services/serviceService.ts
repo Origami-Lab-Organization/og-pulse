@@ -38,7 +38,7 @@ export const serviceService = {
       throw error;
     }
 
-    return data;
+    return data as unknown as ServiceDB;
   },
 
   async update(id: string, input: Partial<CreateServiceInput>): Promise<ServiceDB> {
