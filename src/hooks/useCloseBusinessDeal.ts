@@ -16,6 +16,10 @@ interface CloseBusinessInput {
   startDate: string;
   endDate: string;
   serviceLine?: string;
+  projectType?: string;
+  renewalDate?: string;
+  successFeePercent?: number;
+  monthlyValue?: number;
   // No-budget mode fields
   projectName?: string;
   clientId?: string;

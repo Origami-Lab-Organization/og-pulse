@@ -58,6 +58,63 @@ export interface BudgetVersionWithCreator extends BudgetVersionDB {
     id: string;
     nome: string;
   } | null;
+  change_reason?: string | null;
+}
+
+export interface VersionDiff {
+  field: string;
+  label: string;
+  oldValue: string | number | null;
+  newValue: string | number | null;
+  type: 'added' | 'removed' | 'changed' | 'unchanged';
+}
+
+export function compareSnapshots(
+  older: BudgetVersionSnapshot,
+  newer: BudgetVersionSnapshot
+): VersionDiff[] {
+  const diffs: VersionDiff[] = [];
+
+  const fields: { key: keyof BudgetVersionSnapshot; label: string }[] = [
+    { key: 'title', label: 'Título' },
+    { key: 'status', label: 'Status' },
+    { key: 'duration_months', label: 'Duração (meses)' },
+    { key: 'admin_expenses_percent', label: 'Despesas Admin (%)' },
+    { key: 'taxes_percent', label: 'Impostos (%)' },
+    { key: 'commission_percent', label: 'Comissão (%)' },
+    { key: 'net_margin_percent', label: 'Margem Líquida (%)' },
+    { key: 'discount_value', label: 'Desconto' },
+    { key: 'subtotal', label: 'Subtotal' },
+    { key: 'total_with_fees', label: 'Total com Taxas' },
+    { key: 'final_total', label: 'Total Final' },
+    { key: 'client_name', label: 'Cliente' },
+    { key: 'notes', label: 'Observações' },
+  ];
+
+  for (const { key, label } of fields) {
+    const oldVal = older[key] as string | number | null;
+    const newVal = newer[key] as string | number | null;
+    if (oldVal !== newVal) {
+      diffs.push({ field: key, label, oldValue: oldVal, newValue: newVal, type: 'changed' });
+    }
+  }
+
+  // Roles count diff
+  if (older.roles.length !== newer.roles.length) {
+    diffs.push({ field: 'roles', label: 'Papéis', oldValue: older.roles.length, newValue: newer.roles.length, type: 'changed' });
+  }
+
+  // Suppliers count diff
+  if (older.suppliers.length !== newer.suppliers.length) {
+    diffs.push({ field: 'suppliers', label: 'Fornecedores', oldValue: older.suppliers.length, newValue: newer.suppliers.length, type: 'changed' });
+  }
+
+  // Materials count diff
+  if (older.materials.length !== newer.materials.length) {
+    diffs.push({ field: 'materials', label: 'Materiais', oldValue: older.materials.length, newValue: newer.materials.length, type: 'changed' });
+  }
+
+  return diffs;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
