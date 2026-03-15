@@ -1070,6 +1070,64 @@ export type Database = {
           },
         ]
       }
+      lead_services: {
+        Row: {
+          created_at: string
+          custom_billing_unit: string | null
+          custom_value: number | null
+          id: string
+          lead_id: string
+          notes: string | null
+          service_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custom_billing_unit?: string | null
+          custom_value?: number | null
+          id?: string
+          lead_id: string
+          notes?: string | null
+          service_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custom_billing_unit?: string | null
+          custom_value?: number | null
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          service_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_services_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_services_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           archive_notes: string | null
@@ -2486,8 +2544,12 @@ export type Database = {
       }
       services: {
         Row: {
+          billing_type: string | null
+          billing_unit: string | null
           created_at: string
+          default_value: number | null
           description: string | null
+          has_default_value: boolean
           id: string
           is_active: boolean
           name: string
@@ -2497,8 +2559,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billing_type?: string | null
+          billing_unit?: string | null
           created_at?: string
+          default_value?: number | null
           description?: string | null
+          has_default_value?: boolean
           id?: string
           is_active?: boolean
           name: string
@@ -2508,8 +2574,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billing_type?: string | null
+          billing_unit?: string | null
           created_at?: string
+          default_value?: number | null
           description?: string | null
+          has_default_value?: boolean
           id?: string
           is_active?: boolean
           name?: string
