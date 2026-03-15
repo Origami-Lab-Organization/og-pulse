@@ -113,6 +113,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
 
     closeBusinessDeal.mutate(
       {
+        leadId: leadToClose.id,
         budget,
         projectType: formData.projectType,
         managerId: formData.managerId,

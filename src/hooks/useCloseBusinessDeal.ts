@@ -5,8 +5,10 @@ import { budgetService } from '@/services/budgetService';
 import { projectService } from '@/services/projectService';
 import { BudgetWithDetails } from '@/types/budget';
 import { supabase } from '@/integrations/supabase/client';
+import { leadActivityService } from '@/services/leadActivityService';
 
 interface CloseBusinessInput {
+  leadId: string;
   budget: BudgetWithDetails | null;
   managerId: string;
   paymentMethod: string;
@@ -201,15 +203,29 @@ export function useCloseBusinessDeal() {
 
       return project;
     },
-    onSuccess: (project) => {
+    onSuccess: (project, input) => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['lead-activities', input.leadId] });
 
       toast({
         title: 'Negócio fechado com sucesso!',
         description: `O projeto "${project.name}" foi criado automaticamente.`,
       });
+
+      // Log deal closed activity (fire-and-forget)
+      if (employee && tenantId) {
+        const finalValue = input.budget?.final_total ?? input.totalValue ?? 0;
+        leadActivityService.logDealClosed(
+          tenantId,
+          input.leadId,
+          project.id,
+          input.projectType || 'fixed_scope',
+          finalValue,
+          employee.id
+        ).catch(console.warn);
+      }
     },
     onError: (error: Error) => {
       console.error('Error closing business deal:', error);
