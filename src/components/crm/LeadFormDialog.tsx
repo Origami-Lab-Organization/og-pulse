@@ -16,15 +16,15 @@ import { useCreateLead, useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useServices } from '@/hooks/useServices';
+import { useLeadServices, useSaveLeadServices } from '@/hooks/useLeadServices';
 import { useAuth } from '@/contexts/AuthContext';
-import { ProjectType } from '@/types/project';
 import { LeadDB } from '@/types/lead';
-import { PROJECT_TYPE_LABELS } from '@/types/service';
-import { formatPhone, formatCurrency } from '@/lib/masks';
+import { formatPhone } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { ServiceSelector, SelectedServiceItem } from './ServiceSelector';
 
 const schema = z.object({
   company_name: z.string().min(1, 'Nome da empresa é obrigatório'),
@@ -33,10 +33,8 @@ const schema = z.object({
   contact_email: z.string().optional(),
   contact_phone: z.string().optional(),
   source: z.string().optional(),
-  service_line: z.string().min(1, 'Tipo de Serviço é obrigatório'),
   responsible_id: z.string().min(1, 'Responsável é obrigatório'),
   name: z.string().min(1, 'Nome da oportunidade é obrigatório'),
-  estimated_value: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (!data.contact_email && !data.contact_phone) {
@@ -52,18 +50,22 @@ interface LeadFormDialogProps {
   lead?: LeadDB | null;
 }
 
-
 export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps) {
   const { employee } = useAuth();
   const { toast } = useToast();
   const createMutation = useCreateLead();
   const updateMutation = useUpdateLead();
+  const saveLeadServices = useSaveLeadServices();
+
   const { data: clients = [], isLoading: loadingClients } = useClients();
   const { data: employees = [], isLoading: loadingEmployees } = useEmployees();
   const { data: services = [], isLoading: loadingServices } = useServices();
+  const { data: existingLeadServices = [] } = useLeadServices(lead?.id);
+
   const isEditing = !!lead;
 
   const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
+  const [selectedServices, setSelectedServices] = useState<SelectedServiceItem[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -74,10 +76,8 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       contact_email: '',
       contact_phone: '',
       source: '',
-      service_line: '',
       responsible_id: '',
       name: '',
-      estimated_value: undefined,
       notes: '',
     },
   });
@@ -96,10 +96,8 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
           contact_email: lead.contact_email || '',
           contact_phone: lead.contact_phone || '',
           source: lead.source || '',
-          service_line: lead.service_line || '',
           responsible_id: lead.responsible_id || employee?.id || '',
           name: lead.name || '',
-          estimated_value: lead.estimated_value || undefined,
           notes: lead.notes || '',
         });
       } else {
@@ -110,35 +108,58 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
           contact_email: '',
           contact_phone: '',
           source: '',
-          service_line: '',
           responsible_id: employee?.id || '',
           name: '',
-          estimated_value: undefined,
           notes: '',
         });
+        setSelectedServices([]);
       }
     }
   }, [open]);
+
+  // Pre-fill selected services when editing (after lead_services loads)
+  useEffect(() => {
+    if (isEditing && open && existingLeadServices.length > 0 && services.length > 0) {
+      const items: SelectedServiceItem[] = existingLeadServices
+        .map((row) => {
+          const svc = services.find((s) => s.id === row.service_id);
+          if (!svc) return null;
+          return {
+            serviceId: row.service_id,
+            customValue: row.custom_value ?? undefined,
+            customBillingUnit: row.custom_billing_unit ?? undefined,
+            notes: row.notes ?? undefined,
+          };
+        })
+        .filter(Boolean) as SelectedServiceItem[];
+      setSelectedServices(items);
+    }
+  }, [existingLeadServices, services, isEditing, open]);
 
   const contactEmail = form.watch('contact_email');
   const contactPhone = form.watch('contact_phone');
   const bothContactEmpty = !contactEmail && !contactPhone;
   const clientId = form.watch('client_id');
   const companyName = form.watch('company_name') || '';
+
   const filteredClients = companyName.trim()
     ? clients.filter((c) =>
         (c.tradingName || c.companyName).toLowerCase().includes(companyName.toLowerCase())
       )
     : clients.slice(0, 8);
-  const serviceLine = form.watch('service_line');
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  // Auto-populate estimated_value from service unit_price
-  useEffect(() => {
-    if (!serviceLine) return;
-    const svc = services.find((s) => s.id === serviceLine);
-    form.setValue('estimated_value', svc?.unitPrice ?? undefined);
-  }, [serviceLine]);
+  // Compute estimated value from selected services
+  const estimatedValue = useMemo(() => {
+    return selectedServices.reduce((sum, item) => {
+      const svc = services.find((s) => s.id === item.serviceId);
+      if (!svc || svc.billingType === 'no_revenue') return sum;
+      if (item.customBillingUnit === '%') return sum; // percent can't be summed
+      return sum + (item.customValue ?? 0);
+    }, 0);
+  }, [selectedServices, services]);
+
+  const isSubmitting =
+    createMutation.isPending || updateMutation.isPending || saveLeadServices.isPending;
 
   const { data: previousStakeholders = [] } = useQuery({
     queryKey: ['client-stakeholders', clientId],
@@ -179,7 +200,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
 
   const handleClose = () => onOpenChange(false);
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = async (values: FormValues) => {
     // Block if name matches an existing client but no client_id is linked
     if (!values.client_id && values.company_name) {
       const duplicate = clients.find(
@@ -193,9 +214,11 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       }
     }
 
-    const payload: any = {
+    const primaryServiceId = selectedServices[0]?.serviceId ?? '';
+
+    const payload = {
       name: values.name,
-      service_line: values.service_line,
+      service_line: primaryServiceId,
       responsible_id: values.responsible_id || null,
       company_name: values.company_name || null,
       client_id: values.client_id || null,
@@ -204,30 +227,45 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       contact_phone: values.contact_phone || null,
       source: values.source || null,
       notes: values.notes || null,
-      estimated_value: values.estimated_value || 0,
+      estimated_value: estimatedValue || 0,
     };
 
-    if (isEditing && lead) {
-      updateMutation.mutate(
-        { id: lead.id, ...payload },
-        { onSuccess: handleClose }
-      );
-    } else {
-      createMutation.mutate(payload, {
-        onSuccess: () => {
-          handleClose();
-          toast({
-            title: 'Lead criado',
-            description: 'O lead foi criado e está na coluna Triagem do kanban.',
-          });
-        },
+    let leadId: string;
+
+    try {
+      if (isEditing && lead) {
+        await updateMutation.mutateAsync({ id: lead.id, ...payload });
+        leadId = lead.id;
+      } else {
+        const created = await createMutation.mutateAsync(payload);
+        leadId = (created as any).id;
+      }
+    } catch {
+      return; // errors already shown by mutation's onError
+    }
+
+    try {
+      await saveLeadServices.mutateAsync({
+        leadId,
+        tenantId: employee!.tenant_id,
+        items: selectedServices,
+      });
+    } catch {
+      // lead saved, services failed — toast shown by hook's onError
+    }
+
+    handleClose();
+    if (!isEditing) {
+      toast({
+        title: 'Lead criado',
+        description: 'O lead foi criado e está na coluna Triagem do kanban.',
       });
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
           <DialogDescription>
@@ -251,35 +289,6 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                   <FormControl>
                     <Input placeholder="Ex: Consultoria estratégica — Empresa ABC" {...field} />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="service_line" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Serviço *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        {loadingServices
-                          ? <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Carregando...</span>
-                          : <SelectValue placeholder="Selecione o tipo de serviço" />
-                        }
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {services.map((svc) => (
-                        <SelectItem key={svc.id} value={svc.id}>
-                          <span className="flex items-center gap-2">
-                            {svc.name}
-                            <span className="text-[10px] leading-none px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium shrink-0">
-                              {PROJECT_TYPE_LABELS[svc.projectType]}
-                            </span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -310,28 +319,32 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                 </FormItem>
               )} />
 
-              {(() => {
-                const svc = services.find((s) => s.id === serviceLine);
-                if (!svc?.unitPrice) return null;
-                return (
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Valor Estimado</p>
-                    <p className="text-sm border rounded-md px-3 py-2 bg-muted text-muted-foreground">
-                      {formatCurrency(svc.unitPrice)}{' '}
-                      <span className="text-xs">(definido pelo serviço)</span>
-                    </p>
-                  </div>
-                );
-              })()}
-
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Observações</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Contexto da conversa, próximos passos, pontos de atenção..." rows={3} {...field} />
+                    <Textarea placeholder="Contexto da conversa, próximos passos, pontos de atenção..." rows={2} {...field} />
                   </FormControl>
                 </FormItem>
               )} />
+            </div>
+
+            <Separator />
+
+            {/* ── Serviços ── */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Serviços</p>
+              {loadingServices ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando serviços...
+                </div>
+              ) : (
+                <ServiceSelector
+                  services={services}
+                  value={selectedServices}
+                  onChange={setSelectedServices}
+                />
+              )}
             </div>
 
             <Separator />
@@ -352,7 +365,6 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                         onChange={(e) => {
                           const val = e.target.value;
                           field.onChange(val);
-                          // Auto-link if typed name exactly matches an existing client
                           const exact = clients.find(
                             (c) => (c.tradingName || c.companyName).toLowerCase() === val.toLowerCase()
                           );

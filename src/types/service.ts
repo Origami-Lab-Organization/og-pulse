@@ -1,13 +1,25 @@
-import type { ProjectType } from './project';
-export type { ProjectType };
+export type BillingType = 'fixed_scope' | 'recurring' | 'success_fee' | 'no_revenue';
+
+export const BILLING_TYPE_LABELS: Record<BillingType, string> = {
+  fixed_scope: 'Escopo Fixo',
+  recurring: 'Receita Recorrente',
+  success_fee: 'Taxa de Sucesso',
+  no_revenue: 'Sem Receita',
+};
+
+// Backward-compat alias (used in some older components)
+export const PROJECT_TYPE_LABELS = BILLING_TYPE_LABELS;
+export type ProjectType = BillingType;
 
 export interface ServiceDB {
   id: string;
   tenant_id: string;
   name: string;
-  project_type: ProjectType;
+  billing_type: BillingType;
   description: string | null;
-  unit_price: number | null;
+  default_value: number | null;
+  billing_unit: string | null;
+  has_default_value: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -17,9 +29,11 @@ export interface Service {
   id: string;
   tenantId: string;
   name: string;
-  projectType: ProjectType;
+  billingType: BillingType;
   description: string | null;
-  unitPrice: number | null;
+  defaultValue: number | null;
+  billingUnit: string | null;
+  hasDefaultValue: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -27,37 +41,34 @@ export interface Service {
 
 export interface CreateServiceInput {
   name: string;
-  projectType: ProjectType;
+  billingType: BillingType;
   description?: string;
-  unitPrice?: number;
+  hasDefaultValue: boolean;
+  defaultValue?: number;
+  billingUnit?: string;
 }
 
 export const dbToService = (db: ServiceDB): Service => ({
   id: db.id,
   tenantId: db.tenant_id,
   name: db.name,
-  projectType: db.project_type,
+  billingType: db.billing_type,
   description: db.description,
-  unitPrice: db.unit_price,
+  defaultValue: db.default_value,
+  billingUnit: db.billing_unit,
+  hasDefaultValue: db.has_default_value,
   isActive: db.is_active,
   createdAt: db.created_at,
   updatedAt: db.updated_at,
 });
 
-export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
-  fixed_scope: 'Escopo Fixo',
-  continuous: 'Receita Recorrente',
-  success_fee: 'Taxa de Sucesso',
-  non_revenue: 'Sem Receita',
-};
-
-export const DEFAULT_SERVICES: Omit<CreateServiceInput, never>[] = [
-  { name: 'Consultoria de Projeto', projectType: 'fixed_scope' },
-  { name: 'Desenvolvimento de Software', projectType: 'fixed_scope' },
-  { name: 'Suporte Técnico Mensal', projectType: 'continuous' },
-  { name: 'Gestão Contínua', projectType: 'continuous' },
-  { name: 'Consultoria em Incentivos Fiscais (Lei do Bem)', projectType: 'success_fee' },
-  { name: 'Captação de Recursos', projectType: 'success_fee' },
-  { name: 'Discovery / Pré-venda', projectType: 'non_revenue' },
-  { name: 'Prospecção', projectType: 'non_revenue' },
+export const DEFAULT_SERVICES: CreateServiceInput[] = [
+  { name: 'Consultoria de Projeto', billingType: 'fixed_scope', hasDefaultValue: false },
+  { name: 'Desenvolvimento de Software', billingType: 'fixed_scope', hasDefaultValue: false },
+  { name: 'Suporte Técnico Mensal', billingType: 'recurring', hasDefaultValue: false },
+  { name: 'Gestão Contínua', billingType: 'recurring', hasDefaultValue: false },
+  { name: 'Consultoria em Incentivos Fiscais (Lei do Bem)', billingType: 'success_fee', hasDefaultValue: false },
+  { name: 'Captação de Recursos', billingType: 'success_fee', hasDefaultValue: false },
+  { name: 'Discovery / Pré-venda', billingType: 'no_revenue', hasDefaultValue: false },
+  { name: 'Prospecção', billingType: 'no_revenue', hasDefaultValue: false },
 ];

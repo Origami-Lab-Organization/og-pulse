@@ -74,6 +74,24 @@ export const useUpdateService = () => {
   });
 };
 
+export const useToggleServiceActive = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      return serviceService.toggleActive(id, isActive);
+    },
+    onSuccess: (_, { isActive }) => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      toast({ title: isActive ? 'Serviço ativado' : 'Serviço desativado' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    },
+  });
+};
+
 export const useDeleteService = () => {
   const queryClient = useQueryClient();
   const { employee } = useAuth();

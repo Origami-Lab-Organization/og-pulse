@@ -7,8 +7,6 @@ export const serviceService = {
       .from('services')
       .select('*')
       .eq('tenant_id', tenantId)
-      .eq('is_active', true)
-      .order('project_type')
       .order('name');
 
     if (error) {
@@ -25,9 +23,11 @@ export const serviceService = {
       .insert({
         tenant_id: tenantId,
         name: input.name,
-        project_type: input.projectType,
+        billing_type: input.billingType,
         description: input.description || null,
-        unit_price: input.unitPrice ?? null,
+        has_default_value: input.hasDefaultValue,
+        default_value: input.hasDefaultValue ? (input.defaultValue ?? null) : null,
+        billing_unit: input.hasDefaultValue ? (input.billingUnit ?? null) : null,
       })
       .select()
       .single();
@@ -44,9 +44,17 @@ export const serviceService = {
   async update(id: string, input: Partial<CreateServiceInput>): Promise<ServiceDB> {
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (input.name !== undefined) updates.name = input.name;
-    if (input.projectType !== undefined) updates.project_type = input.projectType;
+    if (input.billingType !== undefined) updates.billing_type = input.billingType;
     if (input.description !== undefined) updates.description = input.description || null;
-    if (input.unitPrice !== undefined) updates.unit_price = input.unitPrice ?? null;
+    if (input.hasDefaultValue !== undefined) {
+      updates.has_default_value = input.hasDefaultValue;
+      if (!input.hasDefaultValue) {
+        updates.default_value = null;
+        updates.billing_unit = null;
+      }
+    }
+    if (input.defaultValue !== undefined) updates.default_value = input.defaultValue ?? null;
+    if (input.billingUnit !== undefined) updates.billing_unit = input.billingUnit ?? null;
 
     const { data, error } = await supabase
       .from('services')
@@ -64,8 +72,19 @@ export const serviceService = {
     return data as unknown as ServiceDB;
   },
 
+  async toggleActive(id: string, isActive: boolean): Promise<ServiceDB> {
+    const { data, error } = await supabase
+      .from('services')
+      .update({ is_active: isActive, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as unknown as ServiceDB;
+  },
+
   async delete(id: string, tenantId: string): Promise<void> {
-    // Guard: at least one service must remain
     const { count, error: countError } = await supabase
       .from('services')
       .select('id', { count: 'exact', head: true })
@@ -89,8 +108,9 @@ export const serviceService = {
     const rows = defaults.map((s) => ({
       tenant_id: tenantId,
       name: s.name,
-      project_type: s.projectType,
+      billing_type: s.billingType,
       description: s.description || null,
+      has_default_value: false,
     }));
 
     const { error } = await supabase.from('services').insert(rows);
