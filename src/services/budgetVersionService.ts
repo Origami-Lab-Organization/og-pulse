@@ -75,43 +75,60 @@ export function compareSnapshots(
 ): VersionDiff[] {
   const diffs: VersionDiff[] = [];
 
-  const fields: { key: keyof BudgetVersionSnapshot; label: string }[] = [
+  const textFields: { key: keyof BudgetVersionSnapshot; label: string }[] = [
     { key: 'title', label: 'Título' },
     { key: 'status', label: 'Status' },
-    { key: 'duration_months', label: 'Duração (meses)' },
-    { key: 'admin_expenses_percent', label: 'Despesas Admin (%)' },
-    { key: 'taxes_percent', label: 'Impostos (%)' },
-    { key: 'commission_percent', label: 'Comissão (%)' },
-    { key: 'net_margin_percent', label: 'Margem Líquida (%)' },
-    { key: 'discount_value', label: 'Desconto' },
-    { key: 'subtotal', label: 'Subtotal' },
-    { key: 'total_with_fees', label: 'Total com Taxas' },
-    { key: 'final_total', label: 'Total Final' },
     { key: 'client_name', label: 'Cliente' },
     { key: 'notes', label: 'Observações' },
   ];
 
-  for (const { key, label } of fields) {
+  const currencyFields: { key: keyof BudgetVersionSnapshot; label: string }[] = [
+    { key: 'discount_value', label: 'Desconto' },
+    { key: 'subtotal', label: 'Subtotal' },
+    { key: 'total_with_fees', label: 'Total com Taxas' },
+    { key: 'final_total', label: 'Total Final' },
+  ];
+
+  const percentFields: { key: keyof BudgetVersionSnapshot; label: string }[] = [
+    { key: 'admin_expenses_percent', label: 'Despesas Admin (%)' },
+    { key: 'taxes_percent', label: 'Impostos (%)' },
+    { key: 'commission_percent', label: 'Comissão (%)' },
+    { key: 'net_margin_percent', label: 'Margem Líquida (%)' },
+  ];
+
+  const countFields: { key: keyof BudgetVersionSnapshot; label: string }[] = [
+    { key: 'duration_months', label: 'Duração (meses)' },
+  ];
+
+  for (const { key, label } of textFields) {
     const oldVal = older[key] as string | number | null;
     const newVal = newer[key] as string | number | null;
-    if (oldVal !== newVal) {
-      diffs.push({ field: key, label, oldValue: oldVal, newValue: newVal, type: 'changed' });
-    }
+    if (oldVal !== newVal) diffs.push({ field: key, label, oldValue: oldVal, newValue: newVal, type: 'changed' });
+  }
+  for (const { key, label } of currencyFields) {
+    const oldVal = older[key] as number | null;
+    const newVal = newer[key] as number | null;
+    if (oldVal !== newVal) diffs.push({ field: key, label, oldValue: oldVal, newValue: newVal, type: 'currency' });
+  }
+  for (const { key, label } of percentFields) {
+    const oldVal = older[key] as number | null;
+    const newVal = newer[key] as number | null;
+    if (oldVal !== newVal) diffs.push({ field: key, label, oldValue: oldVal, newValue: newVal, type: 'percent' });
+  }
+  for (const { key, label } of countFields) {
+    const oldVal = older[key] as number | null;
+    const newVal = newer[key] as number | null;
+    if (oldVal !== newVal) diffs.push({ field: key, label, oldValue: oldVal, newValue: newVal, type: 'count' });
   }
 
-  // Roles count diff
   if (older.roles.length !== newer.roles.length) {
-    diffs.push({ field: 'roles', label: 'Papéis', oldValue: older.roles.length, newValue: newer.roles.length, type: 'changed' });
+    diffs.push({ field: 'roles', label: 'Papéis', oldValue: older.roles.length, newValue: newer.roles.length, type: 'count' });
   }
-
-  // Suppliers count diff
   if (older.suppliers.length !== newer.suppliers.length) {
-    diffs.push({ field: 'suppliers', label: 'Fornecedores', oldValue: older.suppliers.length, newValue: newer.suppliers.length, type: 'changed' });
+    diffs.push({ field: 'suppliers', label: 'Fornecedores', oldValue: older.suppliers.length, newValue: newer.suppliers.length, type: 'count' });
   }
-
-  // Materials count diff
   if (older.materials.length !== newer.materials.length) {
-    diffs.push({ field: 'materials', label: 'Materiais', oldValue: older.materials.length, newValue: newer.materials.length, type: 'changed' });
+    diffs.push({ field: 'materials', label: 'Materiais', oldValue: older.materials.length, newValue: newer.materials.length, type: 'count' });
   }
 
   return diffs;
