@@ -66,7 +66,7 @@ export interface VersionDiff {
   label: string;
   oldValue: string | number | null;
   newValue: string | number | null;
-  type: 'added' | 'removed' | 'changed' | 'unchanged';
+  type: 'added' | 'removed' | 'changed' | 'unchanged' | 'currency' | 'percent' | 'count';
 }
 
 export function compareSnapshots(
