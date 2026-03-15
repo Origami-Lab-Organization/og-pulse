@@ -16,7 +16,7 @@ export const serviceService = {
       throw error;
     }
 
-    return data || [];
+    return (data || []) as unknown as ServiceDB[];
   },
 
   async create(input: CreateServiceInput, tenantId: string): Promise<ServiceDB> {
