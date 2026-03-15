@@ -293,6 +293,7 @@ export type Database = {
       budget_versions: {
         Row: {
           budget_id: string
+          change_reason: string | null
           change_summary: string | null
           created_at: string
           created_by: string | null
@@ -302,6 +303,7 @@ export type Database = {
         }
         Insert: {
           budget_id: string
+          change_reason?: string | null
           change_summary?: string | null
           created_at?: string
           created_by?: string | null
@@ -311,6 +313,7 @@ export type Database = {
         }
         Update: {
           budget_id?: string
+          change_reason?: string | null
           change_summary?: string | null
           created_at?: string
           created_by?: string | null
