@@ -10,12 +10,14 @@ import {
   Truck,
   Kanban,
   Receipt,
-  Archive,
   LogOut,
   BarChart2,
   FileSignature,
   DollarSign,
   Palmtree,
+  Briefcase,
+  Package,
+  RefreshCw,
 } from 'lucide-react';
 import {
   NavigationMenu,
@@ -68,20 +70,22 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: 'Dashboard', url: '/comercial', icon: LayoutDashboard, requiresManager: true },
       { title: 'CRM', url: '/crm', icon: Kanban, requiresManager: true },
+      { title: 'Serviços', url: '/comercial/servicos', icon: Briefcase, requiresManager: true },
       { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
       { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresManager: true },
-      { title: 'Arquivados', url: '/crm/archived', icon: Archive, requiresManager: true },
     ],
   },
   {
-    label: 'Gestão de Projetos',
+    label: 'Projetos',
     requiresManager: true,
     items: [
-      { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
       { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresManager: true },
       { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
-      { title: 'Alocação', url: '/alocacao', icon: Clock, requiresManager: true },
+      { title: 'Alocação da Equipe', url: '/alocacao', icon: Clock, requiresManager: true },
       { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
+      { title: 'Materiais', url: '/materiais', icon: Package, requiresManager: true, disabled: true },
+      { title: 'Assinaturas', url: '/assinaturas', icon: RefreshCw, requiresManager: true, disabled: true },
+      { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
     ],
   },
   {

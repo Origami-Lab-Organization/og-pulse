@@ -38,6 +38,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import MarketAnalysisPage from "./pages/marketing/MarketAnalysisPage";
 import TerminatedEmployees from "./pages/TerminatedEmployees";
+import Services from "./pages/Services";
 
 const queryClient = new QueryClient();
 
@@ -189,6 +190,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <ArchivedLeads />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/comercial/servicos"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <Services />
                   </RoleProtectedRoute>
                 }
               />
