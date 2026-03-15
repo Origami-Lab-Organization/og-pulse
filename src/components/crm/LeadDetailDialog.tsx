@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
+} from '@/components/ui/sheet';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -20,8 +20,10 @@ import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MoreVertical, Archive, DollarSign, ExternalLink, Trash2, Loader2, ArrowRight, Pencil, History } from 'lucide-react';
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { MoreVertical, Archive, DollarSign, ExternalLink, Trash2, Loader2, ArrowRight, Pencil, History, ChevronDown, Check } from 'lucide-react';
 import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { DeleteLeadDialog } from './DeleteLeadDialog';
@@ -35,6 +37,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/formatters';
 import { formatPhone } from '@/lib/masks';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -78,6 +81,45 @@ function canAdvanceFrom(stage: CRMStage, lead: LeadWithBudget): { allowed: boole
   return { allowed: true };
 }
 
+/* ── Stepper ── */
+function StageStepper({ currentStage }: { currentStage: CRMStage }) {
+  const currentIdx = STAGE_ORDER.indexOf(currentStage);
+  return (
+    <div className="flex items-center gap-1 py-3 px-1">
+      {CRM_LEAD_COLUMNS.map((col, idx) => {
+        const isCompleted = idx < currentIdx;
+        const isCurrent = idx === currentIdx;
+        return (
+          <div key={col.id} className="flex items-center gap-1">
+            {idx > 0 && (
+              <div className={cn(
+                'h-px w-4 transition-colors',
+                isCompleted ? 'bg-primary' : 'bg-border'
+              )} />
+            )}
+            <div className="flex items-center gap-1.5">
+              <div className={cn(
+                'flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-semibold transition-colors shrink-0',
+                isCompleted && 'bg-primary text-primary-foreground',
+                isCurrent && 'bg-primary text-primary-foreground ring-2 ring-primary/30',
+                !isCompleted && !isCurrent && 'bg-muted text-muted-foreground'
+              )}>
+                {isCompleted ? <Check className="h-3 w-3" /> : idx + 1}
+              </div>
+              <span className={cn(
+                'text-[11px] font-medium whitespace-nowrap hidden sm:inline',
+                isCurrent ? 'text-foreground' : 'text-muted-foreground'
+              )}>
+                {col.label}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 
 export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }: LeadDetailDialogProps) {
   const navigate = useNavigate();
@@ -86,6 +128,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [companySearch, setCompanySearch] = useState('');
   const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
   const companyInputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +179,10 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
         estimated_value: lead.estimated_value || undefined,
       });
       setCompanySearch(lead.company_name || '');
-      setIsEditing(false);
+      // Auto-edit for early stages
+      const autoEdit = lead.crm_stage === 'screening' || lead.crm_stage === 'qualification';
+      setIsEditing(autoEdit);
+      setHistoryOpen(false);
     }
   }, [open, lead]);
 
@@ -193,6 +239,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
   const handleDiscard = () => {
     form.reset();
     setIsEditing(false);
+    onOpenChange(false);
   };
 
   const handleViewBudget = () => {
@@ -200,6 +247,14 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
       onOpenChange(false);
       navigate(`/budgets/${lead.budget_id}`);
     }
+  };
+
+  const handleSheetChange = (newOpen: boolean) => {
+    if (!newOpen && isEditing && form.formState.isDirty) {
+      setConfirmCloseOpen(true);
+      return;
+    }
+    onOpenChange(newOpen);
   };
 
   if (!lead) return null;
@@ -225,364 +280,389 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
     });
   };
 
+  const companyDisplayName = lead.company_name || '';
+
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          className="max-w-2xl [&>button:last-child]:hidden"
-          onInteractOutside={(e) => {
-            if (isEditing && form.formState.isDirty) {
-              e.preventDefault();
-              setConfirmCloseOpen(true);
-            }
-          }}
+      <Sheet open={open} onOpenChange={handleSheetChange}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-[480px] p-0 flex flex-col [&>button:last-child]:hidden"
         >
-          <DialogHeader>
-            <div className="flex items-center justify-between pr-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <DialogTitle className="text-lg line-clamp-1">{lead.name}</DialogTitle>
-                {isArchived && (
-                  <Badge variant="secondary" className="shrink-0 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                    Arquivado
-                  </Badge>
+          {/* ── Header ── */}
+          <div className="px-5 pt-5 pb-0 space-y-1">
+            <StageStepper currentStage={lead.crm_stage} />
+
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <SheetTitle className="text-lg line-clamp-1">{lead.name}</SheetTitle>
+                {companyDisplayName && (
+                  <p className="text-sm text-muted-foreground truncate">{companyDisplayName}</p>
                 )}
               </div>
 
-              {advanceGate && (
-                <button
-                  type="button"
-                  onClick={handleAdvanceStage}
-                  disabled={!advanceGate.allowed || updateStage.isPending}
-                  title={!advanceGate.allowed ? advanceGate.reason : undefined}
-                  className={cn(
-                    'flex items-center gap-1 text-xs font-medium shrink-0 mx-2 outline-none focus-visible:outline-none',
-                    advanceGate.allowed
-                      ? 'text-primary hover:underline cursor-pointer'
-                      : 'text-muted-foreground opacity-50 cursor-not-allowed'
-                  )}
-                >
-                  {nextStageLabel}
-                  {updateStage.isPending
-                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                    : <ArrowRight className="h-3 w-3" />
-                  }
-                </button>
-              )}
-
-              {!isArchived ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-popover">
-                    {!isEditing && (
-                      <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Editar
+              <div className="flex items-center gap-1 shrink-0">
+                {isArchived && (
+                  <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                    Arquivado
+                  </Badge>
+                )}
+                {!isArchived ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-popover">
+                      {!isEditing && (
+                        <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => setArchiveOpen(true)}>
+                        <Archive className="h-4 w-4 mr-2" />
+                        Arquivar Lead
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onClick={() => setArchiveOpen(true)}>
-                      <Archive className="h-4 w-4 mr-2" />
-                      Arquivar Lead
-                    </DropdownMenuItem>
-                    {isAdmin && (
-                      <DropdownMenuItem
-                        onClick={() => setDeleteOpen(true)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Excluir Lead
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : isAdmin ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              ) : null}
+                      {isAdmin && (
+                        <DropdownMenuItem
+                          onClick={() => setDeleteOpen(true)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir Lead
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : isAdmin ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                ) : null}
+              </div>
             </div>
+
             {isArchived && (
               <p className="text-xs text-muted-foreground">
                 Arquivado em {lead.archived_at ? new Date(lead.archived_at).toLocaleDateString('pt-BR') : '-'}
                 {lead.archive_reason ? ` — ${lead.archive_reason}` : ''}
               </p>
             )}
-          </DialogHeader>
+          </div>
 
-          <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="details">Detalhes</TabsTrigger>
-              <TabsTrigger value="timeline" className="flex items-center gap-1.5">
-                <History className="h-3.5 w-3.5" />
-                Histórico
-              </TabsTrigger>
-            </TabsList>
+          <Separator />
 
-            <TabsContent value="timeline">
-              <LeadActivityTimeline leadId={lead.id} />
-            </TabsContent>
+          {/* ── Body (scrollable) ── */}
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="px-5 py-4">
+              <Form {...form}>
+                <div className="space-y-4">
 
-            <TabsContent value="details">
-          <Form {...form}>
-            <div className="space-y-4">
+                  {/* ── Qualificação: Serviço + Responsável ── */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Qualificação</p>
 
-              {/* ── Oportunidade ── */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Oportunidade</p>
+                    <FormField control={form.control} name="service_line" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de Serviço</FormLabel>
+                        <Select value={field.value || ''} onValueChange={field.onChange} disabled={isDisabled}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o tipo de serviço" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PROJECT_TYPES.map((type) =>
+                              servicesByType[type].length > 0 && (
+                                <SelectGroup key={type}>
+                                  <SelectLabel>{PROJECT_TYPE_LABELS[type]}</SelectLabel>
+                                  {servicesByType[type].map((svc) => (
+                                    <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )} />
 
-                <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome da Oportunidade *</FormLabel>
-                    <FormControl><Input placeholder="Ex: Projeto Website ABC" {...field} disabled={isDisabled} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                    <FormField control={form.control} name="responsible_id" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Responsável</FormLabel>
+                        <Select value={field.value || ''} onValueChange={field.onChange} disabled={isDisabled}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o responsável" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {employees.filter(e => e.status === 'ativo').map((emp) => (
+                              <SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )} />
 
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField control={form.control} name="service_line" render={({ field }) => (
+                    {!lead.budget_id && (
+                      <FormField control={form.control} name="estimated_value" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Valor Estimado</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              value={field.value ?? ''}
+                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                              disabled={isDisabled}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  {/* ── Oportunidade ── */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Oportunidade</p>
+
+                    <FormField control={form.control} name="name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome da Oportunidade *</FormLabel>
+                        <FormControl><Input placeholder="Ex: Projeto Website ABC" {...field} disabled={isDisabled} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="notes" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Observações</FormLabel>
+                        <FormControl><Textarea placeholder="Notas sobre o lead..." {...field} disabled={isDisabled} rows={3} /></FormControl>
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <Separator />
+
+                  {/* ── Empresa + Contato ── */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contato</p>
+
                     <FormItem>
-                      <FormLabel>Tipo de Serviço</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange} disabled={isDisabled}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o tipo de serviço" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {PROJECT_TYPES.map((type) =>
-                            servicesByType[type].length > 0 && (
-                              <SelectGroup key={type}>
-                                <SelectLabel>{PROJECT_TYPE_LABELS[type]}</SelectLabel>
-                                {servicesByType[type].map((svc) => (
-                                  <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
-                                ))}
-                              </SelectGroup>
-                            )
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
-
-                  <FormField control={form.control} name="responsible_id" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Responsável</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange} disabled={isDisabled}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o responsável" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {employees.filter(e => e.status === 'ativo').map((emp) => (
-                            <SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
-                </div>
-
-                {!lead.budget_id && (
-                  <FormField control={form.control} name="estimated_value" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Valor Estimado</FormLabel>
-                      <FormControl>
+                      <FormLabel>Empresa</FormLabel>
+                      <div className="relative">
                         <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="0,00"
-                          value={field.value ?? ''}
-                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                          ref={companyInputRef}
+                          placeholder="Digite ou selecione uma empresa"
+                          value={companySearch}
+                          onChange={(e) => handleCompanyInputChange(e.target.value)}
+                          onFocus={() => companySearch.trim().length > 0 && setCompanyDropdownOpen(true)}
+                          onBlur={() => setTimeout(() => setCompanyDropdownOpen(false), 150)}
                           disabled={isDisabled}
                         />
-                      </FormControl>
-                      <FormMessage />
+                        {companyDropdownOpen && filteredClients.length > 0 && (
+                          <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md">
+                            {filteredClients.map((client) => (
+                              <button
+                                key={client.id}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                                onMouseDown={() => handleClientSelect(client.id)}
+                              >
+                                {client.tradingName || client.companyName}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </FormItem>
-                  )} />
-                )}
 
-                <FormField control={form.control} name="notes" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Observações</FormLabel>
-                    <FormControl><Textarea placeholder="Notas sobre o lead..." {...field} disabled={isDisabled} /></FormControl>
-                  </FormItem>
-                )} />
-              </div>
+                    <FormField control={form.control} name="contact_name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do contato</FormLabel>
+                        <FormControl><Input placeholder="Nome" {...field} disabled={isDisabled} /></FormControl>
+                      </FormItem>
+                    )} />
 
-              <Separator />
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField control={form.control} name="contact_email" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl><Input placeholder="email@..." {...field} disabled={isDisabled} /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="contact_phone" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="(00) 00000-0000"
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                              disabled={isDisabled}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
 
-              {/* ── Empresa + Contato ── */}
-              <div className="grid grid-cols-2 gap-6">
-                {/* Empresa */}
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Empresa</p>
+                    <FormField control={form.control} name="source" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Origem</FormLabel>
+                        <Select value={field.value || ''} onValueChange={field.onChange} disabled={isDisabled}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione a origem" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="indicacao">Indicação</SelectItem>
+                            <SelectItem value="evento">Evento</SelectItem>
+                            <SelectItem value="parceiro">Parceiro</SelectItem>
+                            <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
+                            <SelectItem value="expansao">Expansão</SelectItem>
+                            <SelectItem value="outro">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )} />
+                  </div>
 
-                  <FormItem>
-                    <FormLabel>Empresa</FormLabel>
-                    <div className="relative">
-                      <Input
-                        ref={companyInputRef}
-                        placeholder="Digite ou selecione uma empresa"
-                        value={companySearch}
-                        onChange={(e) => handleCompanyInputChange(e.target.value)}
-                        onFocus={() => companySearch.trim().length > 0 && setCompanyDropdownOpen(true)}
-                        onBlur={() => setTimeout(() => setCompanyDropdownOpen(false), 150)}
-                        disabled={isDisabled}
-                      />
-                      {companyDropdownOpen && filteredClients.length > 0 && (
-                        <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md">
-                          {filteredClients.map((client) => (
-                            <button
-                              key={client.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                              onMouseDown={() => handleClientSelect(client.id)}
-                            >
-                              {client.tradingName || client.companyName}
-                            </button>
-                          ))}
+                  {/* ── Orçamento ── */}
+                  {lead.budget && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orçamento</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Custo Total</p>
+                            <p className="font-medium">{formatCurrency(lead.budget.subtotal)}</p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Preço de Venda</p>
+                            <p className="font-medium">{formatCurrency(lead.budget.total_with_fees)}</p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Margem</p>
+                            <p className="font-medium">
+                              {lead.budget.total_with_fees > 0
+                                ? `${(((lead.budget.total_with_fees - lead.budget.subtotal) / lead.budget.total_with_fees) * 100).toFixed(1)}%`
+                                : '0%'}
+                            </p>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </FormItem>
-                </div>
 
-                {/* Contato */}
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contato</p>
+                        {lead.budget.discount_value > 0 && (
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Desconto</p>
+                            <p className="font-medium text-destructive">- {formatCurrency(lead.budget.discount_value)}</p>
+                          </div>
+                        )}
 
-                  <FormField control={form.control} name="contact_name" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do contato</FormLabel>
-                      <FormControl><Input placeholder="Nome" {...field} disabled={isDisabled} /></FormControl>
-                    </FormItem>
-                  )} />
+                        <div className="rounded-md bg-primary/10 p-3 flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-muted-foreground">Valor Final</p>
+                            <p className="text-lg font-bold text-primary flex items-center gap-1">
+                              <DollarSign className="h-4 w-4" />
+                              {formatCurrency(lead.budget.final_total)}
+                            </p>
+                          </div>
+                          <div className="text-xs text-muted-foreground text-right">
+                            {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'}
+                          </div>
+                        </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField control={form.control} name="contact_email" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl><Input placeholder="email@..." {...field} disabled={isDisabled} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="contact_phone" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telefone</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="(00) 00000-0000"
-                            value={field.value || ''}
-                            onChange={(e) => field.onChange(formatPhone(e.target.value))}
-                            disabled={isDisabled}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )} />
-                  </div>
+                        <Button variant="outline" size="sm" className="w-full" onClick={handleViewBudget}>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Abrir Orçamento
+                        </Button>
+                      </div>
+                    </>
+                  )}
 
-                  <FormField control={form.control} name="source" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Origem</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange} disabled={isDisabled}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione a origem" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="indicacao">Indicação</SelectItem>
-                          <SelectItem value="evento">Evento</SelectItem>
-                          <SelectItem value="parceiro">Parceiro</SelectItem>
-                          <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
-                          <SelectItem value="expansao">Expansão</SelectItem>
-                          <SelectItem value="outro">Outro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
-                </div>
-              </div>
-
-              {/* ── Orçamento ── */}
-              {lead.budget && (
-                <>
+                  {/* ── Histórico (Collapsible) ── */}
                   <Separator />
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orçamento</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Custo Total</p>
-                        <p className="font-medium">{formatCurrency(lead.budget.subtotal)}</p>
+                  <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full py-1 group">
+                      <div className="flex items-center gap-2">
+                        <History className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Histórico</span>
                       </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Preço de Venda</p>
-                        <p className="font-medium">{formatCurrency(lead.budget.total_with_fees)}</p>
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Margem</p>
-                        <p className="font-medium">
-                          {lead.budget.total_with_fees > 0
-                            ? `${(((lead.budget.total_with_fees - lead.budget.subtotal) / lead.budget.total_with_fees) * 100).toFixed(1)}%`
-                            : '0%'}
-                        </p>
-                      </div>
-                    </div>
+                      <ChevronDown className={cn(
+                        'h-4 w-4 text-muted-foreground transition-transform',
+                        historyOpen && 'rotate-180'
+                      )} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-2">
+                      <LeadActivityTimeline leadId={lead.id} />
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              </Form>
+            </div>
+          </ScrollArea>
 
-                    {lead.budget.discount_value > 0 && (
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Desconto</p>
-                        <p className="font-medium text-destructive">- {formatCurrency(lead.budget.discount_value)}</p>
-                      </div>
-                    )}
+          {/* ── Footer ── */}
+          {!isArchived && (
+            <div className="border-t px-5 py-3 flex items-center justify-between gap-2 shrink-0 bg-background">
+              {isEditing ? (
+                <>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { form.reset(); setIsEditing(false); }}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" size="sm" onClick={handleSave} disabled={updateLead.isPending}>
+                    {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setArchiveOpen(true)}
+                  >
+                    <Archive className="h-4 w-4 mr-1.5" />
+                    Arquivar
+                  </Button>
 
-                    <div className="rounded-md bg-primary/10 p-3 flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Valor Final</p>
-                        <p className="text-lg font-bold text-primary flex items-center gap-1">
-                          <DollarSign className="h-4 w-4" />
-                          {formatCurrency(lead.budget.final_total)}
-                        </p>
-                      </div>
-                      <div className="text-xs text-muted-foreground text-right">
-                        {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'}
-                      </div>
-                    </div>
-
-                    <Button variant="outline" size="sm" className="w-full" onClick={handleViewBudget}>
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Abrir Orçamento
+                  {advanceGate && nextStageLabel && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAdvanceStage}
+                      disabled={!advanceGate.allowed || updateStage.isPending}
+                      title={!advanceGate.allowed ? advanceGate.reason : undefined}
+                    >
+                      {updateStage.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ArrowRight className="mr-1.5 h-4 w-4" />
+                      )}
+                      {nextStageLabel}
                     </Button>
-                  </div>
+                  )}
                 </>
               )}
             </div>
-          </Form>
-            </TabsContent>
-          </Tabs>
-
-          {isEditing && !isArchived && (
-            <DialogFooter className="pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => { form.reset(); setIsEditing(false); }}>
-                Cancelar
-              </Button>
-              <Button type="button" onClick={handleSave} disabled={updateLead.isPending}>
-                {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar
-              </Button>
-            </DialogFooter>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog open={confirmCloseOpen} onOpenChange={setConfirmCloseOpen}>
         <AlertDialogContent>
