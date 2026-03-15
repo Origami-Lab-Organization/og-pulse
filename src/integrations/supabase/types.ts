@@ -1015,6 +1015,61 @@ export type Database = {
           },
         ]
       }
+      lead_activity_log: {
+        Row: {
+          activity_type: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          lead_id: string
+          metadata: Json
+          tenant_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          lead_id: string
+          metadata?: Json
+          tenant_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          lead_id?: string
+          metadata?: Json
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activity_log_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_activity_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_activity_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           archive_notes: string | null

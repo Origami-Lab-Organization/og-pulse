@@ -123,6 +123,7 @@ export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
 
     closeBusinessDeal.mutate(
       {
+        leadId: '',
         budget: budgetToClose,
         ...formData,
       },
