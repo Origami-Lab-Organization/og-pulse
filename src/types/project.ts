@@ -1,3 +1,19 @@
+export type ProjectType = 'fixed_scope' | 'continuous' | 'success_fee' | 'non_revenue';
+
+export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
+  fixed_scope: 'Escopo Fechado',
+  continuous: 'Receita Recorrente',
+  success_fee: 'Taxa de Sucesso',
+  non_revenue: 'Sem Receita',
+};
+
+export const PROJECT_TYPE_DESCRIPTIONS: Record<ProjectType, string> = {
+  fixed_scope: 'Projeto com escopo e valor definidos',
+  continuous: 'Contrato recorrente com faturamento mensal',
+  success_fee: 'Remuneração atrelada ao resultado',
+  non_revenue: 'Projeto interno sem geração de receita',
+};
+
 export type ProjectStatus = 'planning' | 'active' | 'paused' | 'completed' | 'cancelled';
 export type InstallmentStatus = 'pending' | 'invoiced' | 'received' | 'overdue';
 

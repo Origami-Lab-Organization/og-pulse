@@ -97,7 +97,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
   const { data: services = [] } = useServices();
   const PROJECT_TYPES: ProjectType[] = ['fixed_scope', 'continuous', 'success_fee', 'non_revenue'];
   const servicesByType = PROJECT_TYPES.reduce((acc, type) => {
-    acc[type] = services.filter((s) => s.project_type === type);
+    acc[type] = services.filter((s) => s.projectType === type);
     return acc;
   }, {} as Record<ProjectType, typeof services>);
 
@@ -391,7 +391,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
                   )} />
                 </div>
 
-                {!lead.budget_id && selectedService?.unit_price != null && (
+                {!lead.budget_id && (
                   <FormField control={form.control} name="estimated_value" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valor Estimado</FormLabel>

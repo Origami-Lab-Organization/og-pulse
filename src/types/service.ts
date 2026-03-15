@@ -1,4 +1,5 @@
-import { ProjectType } from './project';
+import type { ProjectType } from './project';
+export type { ProjectType };
 
 export interface ServiceDB {
   id: string;
