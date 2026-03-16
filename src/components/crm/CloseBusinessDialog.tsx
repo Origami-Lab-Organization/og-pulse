@@ -158,7 +158,10 @@ export function CloseBusinessDialog({
   const startDateValue = form.watch('startDate');
   const paymentMethodValue = form.watch('paymentMethod');
   const clientIdValue = form.watch('clientId');
+  const managerIdValue = form.watch('managerId');
   const isUnicoPayment = paymentMethodValue === 'unico';
+
+  const [suggestedManagerId, setSuggestedManagerId] = useState<string>('');
 
   const showFinancialFields = projectType === 'fixed_scope' || projectType === 'continuous';
   const showInstallmentFields = projectType === 'fixed_scope' && hasBudget;
@@ -174,13 +177,18 @@ export function CloseBusinessDialog({
 
   useEffect(() => {
     if (open) {
+      const suggestedManager = lead?.responsible_id && managers.some((m) => m.id === lead.responsible_id)
+        ? lead.responsible_id
+        : '';
+      setSuggestedManagerId(suggestedManager);
+
       if (budget) {
         const start = budget.start_date;
         const end = addMonths(new Date(start), budget.duration_months).toISOString().split('T')[0];
 
         form.reset({
           projectType: derivedProjectType,
-          managerId: '',
+          managerId: suggestedManager,
           paymentMethod: 'mensal',
           installmentsCount: budget.duration_months || 1,
           dueDay: 10,
@@ -197,7 +205,7 @@ export function CloseBusinessDialog({
       } else if (lead) {
         form.reset({
           projectType: derivedProjectType,
-          managerId: '',
+          managerId: suggestedManager,
           paymentMethod: 'mensal',
           installmentsCount: 1,
           dueDay: 10,
@@ -447,6 +455,11 @@ export function CloseBusinessDialog({
                       )}
                     </SelectContent>
                   </Select>
+                  {suggestedManagerId && managerIdValue === suggestedManagerId && (
+                    <p className="text-xs text-muted-foreground">
+                      Sugerido com base no responsável do lead
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
