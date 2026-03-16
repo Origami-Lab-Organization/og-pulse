@@ -111,7 +111,7 @@ export function BudgetVersionsSection({ budgetId }: BudgetVersionsSectionProps) 
 
                       <div className="flex items-center gap-4">
                         <span className="font-semibold">
-                          {formatCurrency(version.snapshot_data.final_total)}
+                          {formatCurrency(version.snapshot_data.final_total as number)}
                         </span>
                         {!isLatest && (
                           <Button

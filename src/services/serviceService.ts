@@ -109,6 +109,7 @@ export const serviceService = {
     const rows = defaults.map((s) => ({
       tenant_id: tenantId,
       name: s.name,
+      project_type: s.billingType,
       billing_type: s.billingType,
       description: s.description || null,
       has_default_value: false,

@@ -172,7 +172,7 @@ export function CloseBusinessDialog({
   // Derive project type from the lead's service
   const derivedProjectType = useMemo((): ProjectType => {
     if (!lead?.service_line || !services.length) return 'fixed_scope';
-    return services.find((s) => s.id === lead.service_line)?.projectType ?? 'fixed_scope';
+    return services.find((s) => s.id === lead.service_line)?.billingType ?? 'fixed_scope';
   }, [lead?.service_line, services]);
 
   useEffect(() => {
