@@ -2244,6 +2244,7 @@ export type Database = {
           id: string
           installments_count: number
           is_continuous: boolean
+          lead_id: string | null
           manager_id: string
           name: string
           payment_method: string
@@ -2270,6 +2271,7 @@ export type Database = {
           id?: string
           installments_count?: number
           is_continuous?: boolean
+          lead_id?: string | null
           manager_id: string
           name: string
           payment_method?: string
@@ -2296,6 +2298,7 @@ export type Database = {
           id?: string
           installments_count?: number
           is_continuous?: boolean
+          lead_id?: string | null
           manager_id?: string
           name?: string
           payment_method?: string
@@ -2315,6 +2318,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
