@@ -23,6 +23,7 @@ export const serviceService = {
       .insert({
         tenant_id: tenantId,
         name: input.name,
+        project_type: input.billingType,
         billing_type: input.billingType,
         description: input.description || null,
         has_default_value: input.hasDefaultValue,
