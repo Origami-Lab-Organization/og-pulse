@@ -56,7 +56,6 @@ export interface BudgetVersionSnapshot {
 
 export interface BudgetVersionWithCreator extends BudgetVersionDB {
   creator?: {
-    id: string;
     nome: string;
   } | null;
 }
