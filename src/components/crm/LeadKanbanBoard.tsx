@@ -26,6 +26,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [leadToClose, setLeadToClose] = useState<LeadWithBudget | null>(null);
   const [activeLead, setActiveLead] = useState<LeadWithBudget | null>(null);
+  const [highlightField, setHighlightField] = useState<'service_line' | 'budget_id' | null>(null);
 
   const updateStage = useUpdateLeadStage();
   const closeBusinessDeal = useCloseBusinessDeal();
@@ -53,6 +54,25 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     if (newStage === 'closed') {
       setLeadToClose(lead);
       setCloseDialogOpen(true);
+      return;
+    }
+
+    // Gate validation
+    let blockedField: 'service_line' | 'budget_id' | null = null;
+    let blockReason = '';
+    if (lead.crm_stage === 'screening' && newStage === 'qualification' && !lead.service_line) {
+      blockedField = 'service_line';
+      blockReason = 'Defina o Tipo de Serviço antes de avançar para Qualificação';
+    } else if (lead.crm_stage === 'proposal' && newStage === 'negotiation' && !lead.budget_id) {
+      blockedField = 'budget_id';
+      blockReason = 'Atribua um orçamento antes de avançar para Negociação';
+    }
+
+    if (blockedField) {
+      toast({ title: 'Ação necessária', description: blockReason, variant: 'destructive' });
+      setHighlightField(blockedField);
+      setSelectedLead(lead);
+      setDetailDialogOpen(true);
       return;
     }
 
@@ -172,9 +192,10 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
 
       <LeadDetailDialog
         open={detailDialogOpen}
-        onOpenChange={(open) => { setDetailDialogOpen(open); if (!open) setSelectedLead(null); }}
+        onOpenChange={(open) => { setDetailDialogOpen(open); if (!open) { setSelectedLead(null); setHighlightField(null); } }}
         lead={selectedLead}
         onAdvanceToClose={handleRequestAdvanceToClose}
+        highlightField={highlightField}
       />
 
       <CloseBusinessDialog

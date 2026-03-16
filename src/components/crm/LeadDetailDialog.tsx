@@ -22,7 +22,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { MoreVertical, Archive, DollarSign, ExternalLink, Trash2, Loader2, ArrowRight, Pencil } from 'lucide-react';
+import { MoreVertical, Archive, DollarSign, ExternalLink, Trash2, Loader2, ArrowRight, Pencil, AlertTriangle, FileText } from 'lucide-react';
 import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { DeleteLeadDialog } from './DeleteLeadDialog';
@@ -36,6 +36,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/formatters';
 import { formatPhone } from '@/lib/masks';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -62,6 +63,7 @@ interface LeadDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   lead: LeadWithBudget | null;
   onAdvanceToClose?: () => void;
+  highlightField?: 'service_line' | 'budget_id' | null;
 }
 
 const STAGE_ORDER: CRMStage[] = ['screening', 'qualification', 'proposal', 'negotiation', 'closed'];
@@ -79,7 +81,7 @@ function canAdvanceFrom(stage: CRMStage, lead: LeadWithBudget): { allowed: boole
   return { allowed: true };
 }
 
-export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }: LeadDetailDialogProps) {
+export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, highlightField }: LeadDetailDialogProps) {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -90,6 +92,10 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
   const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
   const companyInputRef = useRef<HTMLInputElement>(null);
+  const serviceLineRef = useRef<HTMLDivElement>(null);
+  const budgetAlertRef = useRef<HTMLDivElement>(null);
+  const [fieldHighlight, setFieldHighlight] = useState<'service_line' | 'budget_id' | null>(null);
+  const [activeTab, setActiveTab] = useState('qualificacao');
   const isAdmin = employee?.isAdmin;
   const updateLead = useUpdateLead();
   const updateStage = useUpdateLeadStage();
@@ -122,6 +128,19 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
   });
 
   useEffect(() => {
+    if (!highlightField || !open) return;
+    setIsEditing(true);
+    setActiveTab('qualificacao');
+    setFieldHighlight(highlightField);
+    const scrollTimer = setTimeout(() => {
+      const ref = highlightField === 'service_line' ? serviceLineRef : budgetAlertRef;
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+    const clearTimer = setTimeout(() => setFieldHighlight(null), 3000);
+    return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
+  }, [highlightField, open]);
+
+  useEffect(() => {
     if (open && lead) {
       form.reset({
         name: lead.name || '',
@@ -139,6 +158,8 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
       });
       setCompanySearch(lead.company_name || '');
       setIsEditing(false);
+      setActiveTab('qualificacao');
+      setFieldHighlight(null);
     }
   }, [open, lead]);
 
@@ -309,7 +330,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
 
           {/* ── Body (tabs) ── */}
           <Form {...form}>
-            <Tabs defaultValue="qualificacao" className="flex flex-col flex-1 min-h-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
               <div className="px-5 pt-3 pb-0 shrink-0">
                 <TabsList className="w-full">
                   <TabsTrigger value="qualificacao" className="flex-1">Qualificação</TabsTrigger>
@@ -321,6 +342,13 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
               <ScrollArea className="flex-1 min-h-0">
                 <TabsContent value="qualificacao" className="px-5 py-4 space-y-4 mt-0">
                   <div className="space-y-3">
+                    <div
+                      ref={serviceLineRef}
+                      className={cn(
+                        'rounded-md transition-all',
+                        fieldHighlight === 'service_line' && 'ring-2 ring-amber-500 animate-pulse p-1'
+                      )}
+                    >
                     <FormField control={form.control} name="service_line" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Tipo de Serviço</FormLabel>
@@ -345,6 +373,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
                         </Select>
                       </FormItem>
                     )} />
+                    </div>
 
                     <FormField control={form.control} name="responsible_id" render={({ field }) => (
                       <FormItem>
@@ -363,6 +392,29 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
                         </Select>
                       </FormItem>
                     )} />
+
+                    {fieldHighlight === 'budget_id' && !lead.budget_id && (
+                      <div
+                        ref={budgetAlertRef}
+                        className="flex items-start gap-3 rounded-md border border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-3 animate-pulse"
+                        style={{ animationIterationCount: 3 }}
+                      >
+                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                        <div className="flex-1 space-y-2">
+                          <p className="text-sm text-amber-700 dark:text-amber-400">Crie um orçamento para avançar este lead para Negociação.</p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="border-amber-500 text-amber-700 hover:bg-amber-100 dark:text-amber-400"
+                            onClick={() => { onOpenChange(false); navigate(`/budgets/new?leadId=${lead.id}`); }}
+                          >
+                            <FileText className="h-3 w-3 mr-1.5" />
+                            Criar Orçamento
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {!lead.budget_id && (
                       <FormField control={form.control} name="estimated_value" render={({ field }) => (
