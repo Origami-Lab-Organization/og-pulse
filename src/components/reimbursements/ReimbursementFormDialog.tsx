@@ -165,17 +165,19 @@ export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: 
 
       let filtered: typeof allProjects = [];
 
+      // Fetch projects where the user is a member
+      const { data: memberRows } = await supabase
+        .from('project_members')
+        .select('project_id')
+        .eq('employee_id', employee.id);
+      const memberProjectIds = new Set((memberRows || []).map(r => r.project_id));
+
       if (isManager) {
-        // Managers see projects where they are the manager
-        filtered = (allProjects || []).filter(p => p.manager_id === employee.id);
+        // Managers see projects where they are manager OR member
+        filtered = (allProjects || []).filter(p => p.manager_id === employee.id || memberProjectIds.has(p.id));
       } else {
         // Regular employees see only projects they are members of
-        const { data: memberRows } = await supabase
-          .from('project_members')
-          .select('project_id')
-          .eq('employee_id', employee.id);
-        const memberProjectIds = (memberRows || []).map(r => r.project_id);
-        filtered = (allProjects || []).filter(p => memberProjectIds.includes(p.id));
+        filtered = (allProjects || []).filter(p => memberProjectIds.has(p.id));
       }
 
       setProjects((filtered || []).map(({ id, name, client_id }) => ({ id, name, client_id })));
