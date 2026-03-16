@@ -22,7 +22,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { MoreVertical, Archive, DollarSign, ExternalLink, Trash2, Loader2, ArrowRight, Pencil, AlertTriangle, FileText } from 'lucide-react';
+import { MoreVertical, Archive, DollarSign, ExternalLink, Trash2, Loader2, ArrowRight, Pencil, AlertTriangle, FileText, Lock } from 'lucide-react';
 import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { DeleteLeadDialog } from './DeleteLeadDialog';
@@ -70,11 +70,11 @@ interface LeadDetailDialogProps {
 const STAGE_ORDER: CRMStage[] = ['screening', 'qualification', 'proposal', 'negotiation', 'closed'];
 
 function canAdvanceFrom(stage: CRMStage, lead: LeadWithBudget): { allowed: boolean; reason?: string } {
-  if (stage === 'screening') {
-    if (!lead.service_line) return { allowed: false, reason: 'Defina o Tipo de Serviço primeiro' };
+  if (stage === 'qualification') {
+    if (!lead.service_line) return { allowed: false, reason: 'Defina o Tipo de Serviço para avançar para Proposta' };
   }
   if (stage === 'proposal') {
-    if (!lead.budget_id) return { allowed: false, reason: 'Atribua um orçamento antes de avançar para negociação' };
+    if (!lead.budget_id) return { allowed: false, reason: 'Atribua um orçamento antes de avançar para Negociação' };
   }
   if (stage === 'closed') {
     return { allowed: false, reason: undefined };
@@ -343,6 +343,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, h
               <ScrollArea className="flex-1 min-h-0">
                 <TabsContent value="qualificacao" className="px-5 py-4 space-y-4 mt-0">
                   <div className="space-y-3">
+                    {lead.crm_stage !== 'screening' && (
                     <div
                       ref={serviceLineRef}
                       className={cn(
@@ -350,31 +351,50 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, h
                         fieldHighlight === 'service_line' && 'ring-2 ring-amber-500 animate-pulse p-1'
                       )}
                     >
-                    <FormField control={form.control} name="service_line" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de Serviço</FormLabel>
-                        <Select value={field.value || ''} onValueChange={field.onChange} disabled={isDisabled}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o tipo de serviço" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {BILLING_TYPES.map((type) =>
-                              servicesByType[type].length > 0 && (
-                                <SelectGroup key={type}>
-                                  <SelectLabel>{BILLING_TYPE_LABELS[type]}</SelectLabel>
-                                  {servicesByType[type].map((svc) => (
-                                    <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              )
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
+                      <p className="text-xs font-medium mb-1.5">Tipo de Serviço</p>
+                      {lead.crm_stage === 'qualification' ? (
+                        <FormField control={form.control} name="service_line" render={({ field }) => (
+                          <FormItem>
+                            <Select
+                              value={field.value || ''}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                if (!isEditing) {
+                                  updateLead.mutate({ id: lead.id, service_line: value });
+                                }
+                              }}
+                              disabled={isArchived}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o tipo de serviço" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {BILLING_TYPES.map((type) =>
+                                  servicesByType[type].length > 0 && (
+                                    <SelectGroup key={type}>
+                                      <SelectLabel>{BILLING_TYPE_LABELS[type]}</SelectLabel>
+                                      {servicesByType[type].map((svc) => (
+                                        <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
+                                      ))}
+                                    </SelectGroup>
+                                  )
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )} />
+                      ) : (
+                        <div className="flex items-center gap-2 py-1.5">
+                          <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className={cn('text-sm', !lead.service_line && 'text-destructive')}>
+                            {services.find(s => s.id === lead.service_line)?.name || 'Não definido'}
+                          </span>
+                        </div>
+                      )}
                     </div>
+                    )}
 
                     <FormField control={form.control} name="responsible_id" render={({ field }) => (
                       <FormItem>

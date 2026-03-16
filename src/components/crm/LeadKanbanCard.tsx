@@ -2,11 +2,13 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Building2, Clock, DollarSign, Lock, FileText, User } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { LeadWithBudget, CRMStage } from '@/types/lead';
-import { Service, BillingType } from '@/types/service';
+import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
+import { useUpdateLead } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
 
 const TYPE_DOT: Record<BillingType, string> = {
@@ -48,9 +50,18 @@ interface LeadKanbanCardProps {
   leadServices?: LeadServiceRow[];
 }
 
+const BILLING_TYPES: BillingType[] = ['fixed_scope', 'recurring', 'success_fee', 'no_revenue'];
+
 export function LeadKanbanCard({ lead, currentStage, onClick, services = [], leadServices = [] }: LeadKanbanCardProps) {
   const navigate = useNavigate();
+  const updateLead = useUpdateLead();
   const isLocked = currentStage === 'closed';
+
+  const activeServices = services.filter((s) => s.isActive);
+  const servicesByType = BILLING_TYPES.reduce((acc, type) => {
+    acc[type] = activeServices.filter((s) => s.billingType === type);
+    return acc;
+  }, {} as Record<BillingType, Service[]>);
   const canCreateBudget = !lead.budget_id && ['proposal', 'negotiation'].includes(currentStage);
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -125,8 +136,31 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
           </div>
         )}
 
-        {/* Service badges */}
-        {visibleServices.length > 0 && (
+        {/* Service: inline select in qualification, badges elsewhere */}
+        {currentStage === 'qualification' ? (
+          <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+            <Select
+              value={lead.service_line || ''}
+              onValueChange={(value) => updateLead.mutate({ id: lead.id, service_line: value })}
+            >
+              <SelectTrigger className="h-7 text-xs">
+                <SelectValue placeholder="Selecionar serviço..." />
+              </SelectTrigger>
+              <SelectContent>
+                {BILLING_TYPES.map((type) =>
+                  servicesByType[type].length > 0 && (
+                    <SelectGroup key={type}>
+                      <SelectLabel className="text-xs">{BILLING_TYPE_LABELS[type]}</SelectLabel>
+                      {servicesByType[type].map((svc) => (
+                        <SelectItem key={svc.id} value={svc.id} className="text-xs">{svc.name}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : visibleServices.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {visibleServices.map((svc) => (
               <span
@@ -143,7 +177,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
               </span>
             )}
           </div>
-        )}
+        ) : null}
 
         {/* Responsible */}
         {(lead.responsible?.nome || lead.creator?.nome) && (

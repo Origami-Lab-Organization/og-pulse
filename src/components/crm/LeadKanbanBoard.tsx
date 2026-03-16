@@ -60,9 +60,9 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     // Gate validation
     let blockedField: 'service_line' | 'budget_id' | null = null;
     let blockReason = '';
-    if (lead.crm_stage === 'screening' && newStage === 'qualification' && !lead.service_line) {
+    if (lead.crm_stage === 'qualification' && newStage === 'proposal' && !lead.service_line) {
       blockedField = 'service_line';
-      blockReason = 'Defina o Tipo de Serviço antes de avançar para Qualificação';
+      blockReason = 'Defina o Tipo de Serviço para avançar para Proposta';
     } else if (lead.crm_stage === 'proposal' && newStage === 'negotiation' && !lead.budget_id) {
       blockedField = 'budget_id';
       blockReason = 'Atribua um orçamento antes de avançar para Negociação';

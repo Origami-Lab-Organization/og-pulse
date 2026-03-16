@@ -15,16 +15,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useCreateLead, useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
-import { useServices } from '@/hooks/useServices';
-import { useLeadServices, useSaveLeadServices } from '@/hooks/useLeadServices';
 import { useAuth } from '@/contexts/AuthContext';
 import { LeadDB } from '@/types/lead';
 import { formatPhone } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { ServiceSelector, SelectedServiceItem } from './ServiceSelector';
 
 const schema = z.object({
   company_name: z.string().min(1, 'Nome da empresa é obrigatório'),
@@ -55,17 +52,13 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
   const { toast } = useToast();
   const createMutation = useCreateLead();
   const updateMutation = useUpdateLead();
-  const saveLeadServices = useSaveLeadServices();
 
-  const { data: clients = [], isLoading: loadingClients } = useClients();
+  const { data: clients = [] } = useClients();
   const { data: employees = [], isLoading: loadingEmployees } = useEmployees();
-  const { data: services = [], isLoading: loadingServices } = useServices();
-  const { data: existingLeadServices = [] } = useLeadServices(lead?.id);
 
   const isEditing = !!lead;
 
   const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
-  const [selectedServices, setSelectedServices] = useState<SelectedServiceItem[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -112,29 +105,9 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
           name: '',
           notes: '',
         });
-        setSelectedServices([]);
       }
     }
   }, [open]);
-
-  // Pre-fill selected services when editing (after lead_services loads)
-  useEffect(() => {
-    if (isEditing && open && existingLeadServices.length > 0 && services.length > 0) {
-      const items: SelectedServiceItem[] = existingLeadServices
-        .map((row) => {
-          const svc = services.find((s) => s.id === row.service_id);
-          if (!svc) return null;
-          return {
-            serviceId: row.service_id,
-            customValue: row.custom_value ?? undefined,
-            customBillingUnit: row.custom_billing_unit ?? undefined,
-            notes: row.notes ?? undefined,
-          };
-        })
-        .filter(Boolean) as SelectedServiceItem[];
-      setSelectedServices(items);
-    }
-  }, [existingLeadServices, services, isEditing, open]);
 
   const contactEmail = form.watch('contact_email');
   const contactPhone = form.watch('contact_phone');
@@ -148,18 +121,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       )
     : clients.slice(0, 8);
 
-  // Compute estimated value from selected services
-  const estimatedValue = useMemo(() => {
-    return selectedServices.reduce((sum, item) => {
-      const svc = services.find((s) => s.id === item.serviceId);
-      if (!svc || svc.billingType === 'no_revenue') return sum;
-      if (item.customBillingUnit === '%') return sum; // percent can't be summed
-      return sum + (item.customValue ?? 0);
-    }, 0);
-  }, [selectedServices, services]);
-
-  const isSubmitting =
-    createMutation.isPending || updateMutation.isPending || saveLeadServices.isPending;
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const { data: previousStakeholders = [] } = useQuery({
     queryKey: ['client-stakeholders', clientId],
@@ -214,11 +176,9 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       }
     }
 
-    const primaryServiceId = selectedServices[0]?.serviceId ?? '';
-
     const payload = {
       name: values.name,
-      service_line: primaryServiceId,
+      service_line: null,
       responsible_id: values.responsible_id || null,
       company_name: values.company_name || null,
       client_id: values.client_id || null,
@@ -227,31 +187,17 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       contact_phone: values.contact_phone || null,
       source: values.source || null,
       notes: values.notes || null,
-      estimated_value: estimatedValue || 0,
+      estimated_value: 0,
     };
-
-    let leadId: string;
 
     try {
       if (isEditing && lead) {
         await updateMutation.mutateAsync({ id: lead.id, ...payload });
-        leadId = lead.id;
       } else {
-        const created = await createMutation.mutateAsync(payload);
-        leadId = (created as any).id;
+        await createMutation.mutateAsync(payload);
       }
     } catch {
       return; // errors already shown by mutation's onError
-    }
-
-    try {
-      await saveLeadServices.mutateAsync({
-        leadId,
-        tenantId: employee!.tenant_id,
-        items: selectedServices,
-      });
-    } catch {
-      // lead saved, services failed — toast shown by hook's onError
     }
 
     handleClose();
@@ -327,24 +273,6 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                   </FormControl>
                 </FormItem>
               )} />
-            </div>
-
-            <Separator />
-
-            {/* ── Serviços ── */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Serviços</p>
-              {loadingServices ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando serviços...
-                </div>
-              ) : (
-                <ServiceSelector
-                  services={services}
-                  value={selectedServices}
-                  onChange={setSelectedServices}
-                />
-              )}
             </div>
 
             <Separator />
