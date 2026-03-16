@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useBudgetVersions } from '@/hooks/useBudgetVersions';
-import { BudgetVersionWithCreator } from '@/services/budgetVersionService';
+import { BudgetVersionWithCreator } from '@/hooks/useBudgetVersions';
 import { formatCurrency } from '@/lib/formatters';
 import { BudgetVersionModal } from './BudgetVersionModal';
 import { cn } from '@/lib/utils';
