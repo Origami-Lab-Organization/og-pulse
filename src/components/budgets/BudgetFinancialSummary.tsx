@@ -4,12 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { BudgetCalculation } from '@/types/budget';
+import { BudgetCalculation, RecurringCalculation } from '@/types/budget';
+import { BillingType } from '@/types/service';
 import { formatCurrency } from '@/lib/formatters';
 
 interface BudgetFinancialSummaryProps {
   layout?: 'sidebar' | 'footer';
   calculation: BudgetCalculation;
+  billingType?: BillingType;
   adminExpensesPercent: number;
   taxesPercent: number;
   commissionPercent: number;
@@ -27,6 +29,7 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
     {
       layout = 'sidebar',
       calculation,
+      billingType,
       adminExpensesPercent,
       taxesPercent,
       commissionPercent,
@@ -40,6 +43,9 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
     },
     ref
   ) {
+    const isRecurring = billingType === 'recurring';
+    const rec = isRecurring ? (calculation as RecurringCalculation) : null;
+
     // Footer layout (horizontal - 2 lines)
     if (layout === 'footer') {
       return (
@@ -49,14 +55,16 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
             <div className="flex flex-wrap items-start gap-6 lg:gap-10">
               {/* Grupo: Custos */}
               <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Custos</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {isRecurring ? 'Custos / mês' : 'Custos'}
+                </span>
                 <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-sm">
-                  <span className="text-muted-foreground">Mão de Obra</span>
-                  <span className="text-right font-medium">{formatCurrency(calculation.laborCost)}</span>
-                  {calculation.suppliersTotal > 0 && (
+                  <span className="text-muted-foreground">Mão de Obra{isRecurring ? '/mês' : ''}</span>
+                  <span className="text-right font-medium">{formatCurrency(isRecurring && rec ? rec.monthlyCost : calculation.laborCost)}</span>
+                  {(isRecurring ? true : calculation.suppliersTotal > 0) && (
                     <>
-                      <span className="text-muted-foreground">Fornecedores</span>
-                      <span className="text-right font-medium">{formatCurrency(calculation.suppliersTotal)}</span>
+                      <span className="text-muted-foreground">Fornecedores{isRecurring ? '/mês' : ''}</span>
+                      <span className="text-right font-medium">{formatCurrency(isRecurring && rec ? (rec.suppliersTotal / (rec.contractTotal > 0 ? 1 : 1)) : calculation.suppliersTotal)}</span>
                     </>
                   )}
                   {calculation.materialsTotal > 0 && (
@@ -68,8 +76,8 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
                 </div>
                 <div className="pt-1 border-t border-border/30">
                   <div className="flex justify-between text-sm">
-                    <span className="font-medium">Total</span>
-                    <span className="font-semibold">{formatCurrency(calculation.totalCost)}</span>
+                    <span className="font-medium">{isRecurring ? 'Custo/mês' : 'Total'}</span>
+                    <span className="font-semibold">{formatCurrency(isRecurring && rec ? rec.monthlyCost : calculation.totalCost)}</span>
                   </div>
                 </div>
               </div>
@@ -142,8 +150,12 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
           <div className="px-6 py-3 flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-6">
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm">Preço de Venda</span>
-                <span className="font-semibold text-lg">{formatCurrency(calculation.sellingPrice)}</span>
+                <span className="text-muted-foreground text-sm">
+                  {isRecurring ? 'Preço/mês' : 'Preço de Venda'}
+                </span>
+                <span className="font-semibold text-lg">
+                  {formatCurrency(isRecurring && rec ? rec.monthlySellingPrice : calculation.sellingPrice)}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Label htmlFor="discount-footer" className="text-muted-foreground text-sm">Desconto</Label>
@@ -171,11 +183,20 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
             </div>
             
             {/* Destaque do valor final */}
-            <div className="flex items-center gap-3 bg-primary/10 rounded-xl px-6 py-3">
-              <span className="font-semibold text-sm">Valor Final</span>
-              <span className="text-2xl font-bold text-primary">
-                {formatCurrency(calculation.finalTotal)}
-              </span>
+            <div className="flex flex-col items-end gap-0.5">
+              <div className="flex items-center gap-3 bg-primary/10 rounded-xl px-6 py-3">
+                <span className="font-semibold text-sm">
+                  {isRecurring ? 'Valor Mensal Final' : 'Valor Final'}
+                </span>
+                <span className="text-2xl font-bold text-primary">
+                  {formatCurrency(isRecurring && rec ? rec.monthlyFinalPrice : calculation.finalTotal)}
+                </span>
+              </div>
+              {isRecurring && rec && (
+                <span className="text-xs text-muted-foreground pr-2">
+                  Total do contrato: {formatCurrency(rec.contractTotal)}
+                </span>
+              )}
             </div>
             <div className="w-64">
               <MarginGauge
@@ -199,15 +220,17 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
         <CardContent className="space-y-6">
           {/* Cost breakdown */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Custos</h4>
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              {isRecurring ? 'Custos Mensais' : 'Custos'}
+            </h4>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Mão de Obra</span>
-              <span className="font-medium">{formatCurrency(calculation.laborCost)}</span>
+              <span className="text-muted-foreground">Mão de Obra{isRecurring ? '/mês' : ''}</span>
+              <span className="font-medium">{formatCurrency(isRecurring && rec ? rec.monthlyCost : calculation.laborCost)}</span>
             </div>
-            {calculation.suppliersTotal > 0 && (
+            {(isRecurring ? true : calculation.suppliersTotal > 0) && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Fornecedores</span>
-                <span className="font-medium">{formatCurrency(calculation.suppliersTotal)}</span>
+                <span className="text-muted-foreground">Fornecedores{isRecurring ? '/mês' : ''}</span>
+                <span className="font-medium">{formatCurrency(isRecurring && rec ? rec.suppliersTotal / (rec.contractTotal > 0 ? 1 : 1) : calculation.suppliersTotal)}</span>
               </div>
             )}
             {calculation.materialsTotal > 0 && (
@@ -217,8 +240,8 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
               </div>
             )}
             <div className="flex items-center justify-between bg-muted/50 rounded-md p-2 -mx-2">
-              <span className="font-medium">Custo Total</span>
-              <span className="font-semibold">{formatCurrency(calculation.totalCost)}</span>
+              <span className="font-medium">{isRecurring ? 'Custo Mensal' : 'Custo Total'}</span>
+              <span className="font-semibold">{formatCurrency(isRecurring && rec ? rec.monthlyCost : calculation.totalCost)}</span>
             </div>
           </div>
 
@@ -311,8 +334,8 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
 
           {/* Selling price */}
           <div className="flex items-center justify-between">
-            <span className="font-medium">Preço de Venda</span>
-            <span className="text-lg font-semibold">{formatCurrency(calculation.sellingPrice)}</span>
+            <span className="font-medium">{isRecurring ? 'Preço de Venda/mês' : 'Preço de Venda'}</span>
+            <span className="text-lg font-semibold">{formatCurrency(isRecurring && rec ? rec.monthlySellingPrice : calculation.sellingPrice)}</span>
           </div>
 
           <Separator />
@@ -355,11 +378,17 @@ export const BudgetFinancialSummary = forwardRef<HTMLDivElement, BudgetFinancial
 
           {/* Final total */}
           <div className="flex items-center justify-between rounded-lg bg-primary/10 p-4">
-            <span className="text-lg font-bold">Valor Final</span>
+            <span className="text-lg font-bold">{isRecurring ? 'Valor Mensal Final' : 'Valor Final'}</span>
             <span className="text-2xl font-bold text-primary">
-              {formatCurrency(calculation.finalTotal)}
+              {formatCurrency(isRecurring && rec ? rec.monthlyFinalPrice : calculation.finalTotal)}
             </span>
           </div>
+          {isRecurring && rec && (
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Total do contrato</span>
+              <span className="font-semibold text-foreground">{formatCurrency(rec.contractTotal)}</span>
+            </div>
+          )}
 
           <MarginGauge
             effectiveMarginPercent={calculation.effectiveMarginPercent}

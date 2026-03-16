@@ -1,3 +1,5 @@
+import { BillingType } from './service';
+
 // CRM Status Types
 export type BudgetStatus = 'proposal' | 'negotiation' | 'active' | 'draft' | 'sent' | 'approved' | 'rejected' | 'expired';
 
@@ -124,6 +126,9 @@ export interface CreateBudgetInput {
   materials: BudgetMaterialInput[];
   suppliers: BudgetSupplierInput[];
   marginOverrideApproved?: boolean;
+  billingType?: BillingType;
+  successFeePercent?: number;
+  estimatedBase?: number;
 }
 
 export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {
@@ -144,6 +149,21 @@ export interface BudgetCalculation {
   discount: number;
   finalTotal: number;
   effectiveMarginPercent: number;
+}
+
+export interface RecurringCalculation extends BudgetCalculation {
+  monthlyCost: number;
+  monthlySellingPrice: number;
+  monthlyFinalPrice: number;
+  contractTotal: number;
+}
+
+export interface SuccessFeeCalculation extends BudgetCalculation {
+  successFeePercent: number;
+  estimatedBase: number;
+  estimatedRevenue: number;
+  estimatedMargin: number;
+  estimatedMarginPercent: number;
 }
 
 /**
@@ -211,6 +231,122 @@ export function calculateBudgetTotals(
     discount,
     finalTotal,
     effectiveMarginPercent,
+  };
+}
+
+/**
+ * Calcula os totais de um orçamento de receita recorrente.
+ * Tudo é calculado em base mensal; os valores totais são projeções do contrato.
+ */
+export function calculateRecurringTotals(
+  roles: BudgetRoleInput[],
+  materials: BudgetMaterialInput[],
+  suppliers: BudgetSupplierInput[],
+  durationMonths: number,
+  adminExpensesPercent: number,
+  taxesPercent: number,
+  commissionPercent: number,
+  netMarginPercent: number,
+  monthlyDiscountValue: number
+): RecurringCalculation {
+  const laborCost = roles.reduce((acc, role) => {
+    const roleHours = role.months.reduce((h, m) => h + m.hours, 0);
+    return acc + roleHours * role.hourlyRate;
+  }, 0);
+
+  const monthlyLaborCost = durationMonths > 0 ? laborCost / durationMonths : 0;
+  const monthlySuppliersCost = suppliers.reduce((acc, s) => acc + (s.monthlyValue || 0), 0);
+  const materialsTotal = materials.reduce((acc, m) => acc + (m.value || 0), 0);
+  const monthlyMaterialsCost = durationMonths > 0 ? materialsTotal / durationMonths : 0;
+
+  const monthlyCost = monthlyLaborCost + monthlySuppliersCost + monthlyMaterialsCost;
+
+  const totalPercentages = (taxesPercent + adminExpensesPercent + commissionPercent + netMarginPercent) / 100;
+  const markupDivisor = 1 - totalPercentages;
+  const monthlySellingPrice = markupDivisor > 0 ? monthlyCost / markupDivisor : monthlyCost;
+
+  const taxes = monthlySellingPrice * (taxesPercent / 100);
+  const adminExpenses = monthlySellingPrice * (adminExpensesPercent / 100);
+  const commission = monthlySellingPrice * (commissionPercent / 100);
+  const netMargin = monthlySellingPrice * (netMarginPercent / 100);
+
+  const monthlyFinalPrice = monthlySellingPrice - monthlyDiscountValue;
+  const contractTotal = monthlyFinalPrice * durationMonths;
+
+  const effectiveMarginPercent = monthlyFinalPrice > 0
+    ? ((monthlyFinalPrice - monthlyCost - taxes - adminExpenses - commission) / monthlyFinalPrice) * 100
+    : 0;
+
+  return {
+    // BudgetCalculation compatibility (totals for DB persistence)
+    laborCost,
+    suppliersTotal: monthlySuppliersCost * durationMonths,
+    materialsTotal,
+    totalCost: monthlyCost * durationMonths,
+    taxes: taxes * durationMonths,
+    adminExpenses: adminExpenses * durationMonths,
+    commission: commission * durationMonths,
+    netMargin: netMargin * durationMonths,
+    sellingPrice: monthlySellingPrice * durationMonths,
+    discount: monthlyDiscountValue * durationMonths,
+    finalTotal: contractTotal,
+    effectiveMarginPercent,
+    // Recurring-specific monthly values
+    monthlyCost,
+    monthlySellingPrice,
+    monthlyFinalPrice,
+    contractTotal,
+  };
+}
+
+/**
+ * Calcula os totais de um orçamento de taxa de sucesso.
+ * A receita vem de um percentual sobre uma base estimada (resultado externo).
+ * Não há markup sobre os custos da equipe de apoio.
+ */
+export function calculateSuccessFeeTotals(
+  roles: BudgetRoleInput[],
+  materials: BudgetMaterialInput[],
+  suppliers: BudgetSupplierInput[],
+  durationMonths: number,
+  successFeePercent: number,
+  estimatedBase: number
+): SuccessFeeCalculation {
+  const laborCost = roles.reduce((acc, role) => {
+    const roleHours = role.months.reduce((h, m) => h + m.hours, 0);
+    return acc + roleHours * role.hourlyRate;
+  }, 0);
+
+  const suppliersTotal = suppliers.reduce((acc, s) => acc + (s.monthlyValue || 0) * durationMonths, 0);
+  const materialsTotal = materials.reduce((acc, m) => acc + (m.value || 0), 0);
+  const totalCost = laborCost + suppliersTotal + materialsTotal;
+
+  const estimatedRevenue = estimatedBase * (successFeePercent / 100);
+  const estimatedMargin = estimatedRevenue - totalCost;
+  const estimatedMarginPercent = estimatedRevenue > 0
+    ? (estimatedMargin / estimatedRevenue) * 100
+    : 0;
+
+  return {
+    // BudgetCalculation compatibility
+    laborCost,
+    suppliersTotal,
+    materialsTotal,
+    totalCost,
+    taxes: 0,
+    adminExpenses: 0,
+    commission: 0,
+    netMargin: estimatedMargin,
+    sellingPrice: estimatedRevenue,
+    discount: 0,
+    finalTotal: estimatedRevenue,
+    effectiveMarginPercent: estimatedMarginPercent,
+    // SuccessFee-specific fields
+    successFeePercent,
+    estimatedBase,
+    estimatedRevenue,
+    estimatedMargin,
+    estimatedMarginPercent,
   };
 }
 

@@ -5,7 +5,9 @@ import {
   CreateBudgetInput,
   UpdateBudgetInput,
   BudgetStatus,
+  BudgetCalculation,
   calculateBudgetTotals,
+  calculateSuccessFeeTotals,
   BudgetRoleWithMonths,
 } from '@/types/budget';
 
@@ -77,6 +79,30 @@ type BudgetSupplierRow = {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const fromTable = (table: string) => supabase.from(table as any);
+
+function computeTotals(input: CreateBudgetInput, durationMonths: number): BudgetCalculation {
+  if (input.billingType === 'success_fee') {
+    return calculateSuccessFeeTotals(
+      input.roles,
+      input.materials || [],
+      input.suppliers || [],
+      durationMonths,
+      input.successFeePercent ?? 0,
+      input.estimatedBase ?? 0
+    );
+  }
+  return calculateBudgetTotals(
+    input.roles,
+    input.materials || [],
+    input.suppliers || [],
+    durationMonths,
+    input.adminExpensesPercent,
+    input.taxesPercent,
+    input.commissionPercent,
+    input.netMarginPercent,
+    input.discountValue
+  );
+}
 
 export const budgetService = {
   async getAll(tenantId: string): Promise<BudgetWithDetails[]> {
@@ -275,18 +301,8 @@ export const budgetService = {
     // Generate budget number
     const budgetNumber = await this.generateBudgetNumber(tenantId);
 
-    // Calculate totals
-    const totals = calculateBudgetTotals(
-      input.roles,
-      input.materials || [],
-      input.suppliers || [],
-      input.durationMonths,
-      input.adminExpensesPercent,
-      input.taxesPercent,
-      input.commissionPercent,
-      input.netMarginPercent,
-        input.discountValue
-    );
+    // Calculate totals using the appropriate formula for the billing type
+    const totals = computeTotals(input, input.durationMonths);
 
     // Insert budget
     const { data: budget, error: budgetError } = await fromTable('budgets')
@@ -423,19 +439,12 @@ export const budgetService = {
     
     const durationMonths = input.durationMonths ?? existing?.duration_months ?? 1;
 
-    // If roles are being updated, recalculate totals
-    let totals = null;
+    // If roles are being updated, recalculate totals using the appropriate formula
+    let totals: BudgetCalculation | null = null;
     if (input.roles && input.adminExpensesPercent !== undefined) {
-      totals = calculateBudgetTotals(
-        input.roles,
-        input.materials || [],
-        input.suppliers || [],
-        durationMonths,
-        input.adminExpensesPercent,
-        input.taxesPercent || 0,
-        input.commissionPercent || 0,
-        input.netMarginPercent || 0,
-        input.discountValue || 0
+      totals = computeTotals(
+        { ...input, adminExpensesPercent: input.adminExpensesPercent, taxesPercent: input.taxesPercent || 0, commissionPercent: input.commissionPercent || 0, netMarginPercent: input.netMarginPercent || 0, discountValue: input.discountValue || 0 } as CreateBudgetInput,
+        durationMonths
       );
     }
 
