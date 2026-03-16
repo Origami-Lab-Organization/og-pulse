@@ -1,6 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { leadServicesService, UpsertLeadServicesInput } from '@/services/leadServicesService';
+import { leadServicesService, LeadServiceRow, UpsertLeadServicesInput } from '@/services/leadServicesService';
 import { useToast } from '@/hooks/use-toast';
+
+// All lead_services for the current tenant — used in kanban for batch display
+export function useAllLeadServices() {
+  return useQuery({
+    queryKey: ['lead-services-all'],
+    queryFn: () => leadServicesService.getAll(),
+    staleTime: 30_000,
+  });
+}
+
+// Build a lookup map from all lead_services: leadId → LeadServiceRow[]
+export function useLeadServicesMap(): Record<string, LeadServiceRow[]> {
+  const { data = [] } = useAllLeadServices();
+  return data.reduce<Record<string, LeadServiceRow[]>>((acc, row) => {
+    (acc[row.lead_id] ??= []).push(row);
+    return acc;
+  }, {});
+}
 
 export function useLeadServices(leadId?: string | null) {
   return useQuery({

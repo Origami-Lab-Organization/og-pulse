@@ -5,8 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Building2, Clock, DollarSign, Lock, FileText, User } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { LeadWithBudget, CRMStage } from '@/types/lead';
-import { Service } from '@/types/service';
+import { Service, BillingType } from '@/types/service';
+import { LeadServiceRow } from '@/services/leadServicesService';
 import { cn } from '@/lib/utils';
+
+const TYPE_DOT: Record<BillingType, string> = {
+  fixed_scope: 'bg-green-500',
+  recurring: 'bg-blue-500',
+  success_fee: 'bg-amber-500',
+  no_revenue: 'bg-gray-400',
+};
 import { useNavigate } from 'react-router-dom';
 
 function formatElapsedTime(createdAt: string, endDate?: string | null): string {
@@ -37,9 +45,10 @@ interface LeadKanbanCardProps {
   currentStage: CRMStage;
   onClick?: () => void;
   services?: Service[];
+  leadServices?: LeadServiceRow[];
 }
 
-export function LeadKanbanCard({ lead, currentStage, onClick, services = [] }: LeadKanbanCardProps) {
+export function LeadKanbanCard({ lead, currentStage, onClick, services = [], leadServices = [] }: LeadKanbanCardProps) {
   const navigate = useNavigate();
   const isLocked = currentStage === 'closed';
   const canCreateBudget = !lead.budget_id && ['proposal', 'negotiation'].includes(currentStage);
@@ -61,9 +70,12 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [] }: L
   const stuckThreshold = ['screening', 'qualification'].includes(currentStage) ? 14 : 7;
   const isStuck = !isLocked && daysInStage > stuckThreshold;
 
-  const serviceLabel = lead.service_line
-    ? (services.find((s) => s.id === lead.service_line)?.name ?? null)
-    : null;
+  const linkedServices = leadServices
+    .map((ls) => services.find((s) => s.id === ls.service_id))
+    .filter(Boolean) as Service[];
+
+  const visibleServices = linkedServices.slice(0, 3);
+  const extraCount = linkedServices.length - visibleServices.length;
 
   const handleCreateBudget = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -113,9 +125,24 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [] }: L
           </div>
         )}
 
-        {/* Service Line */}
-        {serviceLabel && (
-          <span className="text-xs text-muted-foreground">{serviceLabel}</span>
+        {/* Service badges */}
+        {visibleServices.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {visibleServices.map((svc) => (
+              <span
+                key={svc.id}
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground max-w-[90px]"
+              >
+                <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', TYPE_DOT[svc.billingType])} />
+                <span className="truncate">{svc.name}</span>
+              </span>
+            ))}
+            {extraCount > 0 && (
+              <span className="inline-flex items-center rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
+                +{extraCount}
+              </span>
+            )}
+          </div>
         )}
 
         {/* Responsible */}

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r \"allocation\\\\|percentage\\\\|percent\" /Users/vrcouto/Projects/og-pulse/src/types/*.ts)",
+      "Bash(grep -l \"project_members\\\\|project_member_id\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)",
+      "Bash(xargs ls:*)",
+      "Bash(grep -r \"created_at\\\\|creation\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)",
+      "Bash(grep -r \"project_timesheets\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)",
+      "Bash(grep -A 20 \"CREATE TABLE.*project_member_months\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)",
+      "Bash(grep -r \"filter\\\\|where\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)",
+      "Bash(grep -r \"timesheet_submissions\\\\|week_created\\\\|created\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)",
+      "Bash(grep -n \"CREATE TABLE.*timesheet_submission\\\\|week_creation_date\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)",
+      "Bash(grep -l \"project_timesheet_submissions\\\\|project_timesheets\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)",
+      "Bash(grep -l \"week\\\\|Week\" /Users/vrcouto/Projects/og-pulse/src/pages/*.tsx)",
+      "Bash(grep -l \"project_timesheets\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)"
+    ]
+  }
+}

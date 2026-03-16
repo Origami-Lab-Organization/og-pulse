@@ -31,7 +31,7 @@ import { useUpdateLead, useUpdateLeadStage } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useServices } from '@/hooks/useServices';
-import { PROJECT_TYPE_LABELS, ProjectType } from '@/types/service';
+import { BILLING_TYPE_LABELS, BillingType } from '@/types/service';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/formatters';
 import { formatPhone } from '@/lib/masks';
@@ -96,11 +96,12 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
   const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
   const { data: services = [] } = useServices();
-  const PROJECT_TYPES: ProjectType[] = ['fixed_scope', 'continuous', 'success_fee', 'non_revenue'];
-  const servicesByType = PROJECT_TYPES.reduce((acc, type) => {
-    acc[type] = services.filter((s) => s.projectType === type);
+  const BILLING_TYPES: BillingType[] = ['fixed_scope', 'recurring', 'success_fee', 'no_revenue'];
+  const activeServices = services.filter((s) => s.isActive);
+  const servicesByType = BILLING_TYPES.reduce((acc, type) => {
+    acc[type] = activeServices.filter((s) => s.billingType === type);
     return acc;
-  }, {} as Record<ProjectType, typeof services>);
+  }, {} as Record<BillingType, typeof services>);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -330,10 +331,10 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose }:
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {PROJECT_TYPES.map((type) =>
+                            {BILLING_TYPES.map((type) =>
                               servicesByType[type].length > 0 && (
                                 <SelectGroup key={type}>
-                                  <SelectLabel>{PROJECT_TYPE_LABELS[type]}</SelectLabel>
+                                  <SelectLabel>{BILLING_TYPE_LABELS[type]}</SelectLabel>
                                   {servicesByType[type].map((svc) => (
                                     <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
                                   ))}

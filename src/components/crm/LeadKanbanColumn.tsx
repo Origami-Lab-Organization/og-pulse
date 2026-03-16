@@ -4,6 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadWithBudget, CRMStage } from '@/types/lead';
 import { Service } from '@/types/service';
+import { LeadServiceRow } from '@/services/leadServicesService';
 import { cn } from '@/lib/utils';
 
 interface ColumnConfig {
@@ -17,9 +18,10 @@ interface LeadKanbanColumnProps {
   leads: LeadWithBudget[];
   onCardClick: (lead: LeadWithBudget) => void;
   services: Service[];
+  leadServicesMap: Record<string, LeadServiceRow[]>;
 }
 
-export function LeadKanbanColumn({ column, leads, onCardClick, services }: LeadKanbanColumnProps) {
+export function LeadKanbanColumn({ column, leads, onCardClick, services, leadServicesMap }: LeadKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
@@ -43,6 +45,7 @@ export function LeadKanbanColumn({ column, leads, onCardClick, services }: LeadK
               currentStage={column.id}
               onClick={() => onCardClick(lead)}
               services={services}
+              leadServices={leadServicesMap[lead.id] ?? []}
             />
           ))}
           {leads.length === 0 && (

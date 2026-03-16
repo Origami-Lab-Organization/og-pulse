@@ -22,6 +22,16 @@ export interface UpsertLeadServicesInput {
 }
 
 export const leadServicesService = {
+  // Fetch all lead_services for the current tenant (RLS applies)
+  async getAll(): Promise<LeadServiceRow[]> {
+    const { data, error } = await supabase
+      .from('lead_services')
+      .select('*');
+
+    if (error) throw error;
+    return (data || []) as unknown as LeadServiceRow[];
+  },
+
   async getByLead(leadId: string): Promise<LeadServiceRow[]> {
     const { data, error } = await supabase
       .from('lead_services')

@@ -12,6 +12,7 @@ import { useUpdateLeadStage } from '@/hooks/useLeads';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
 import { useServices } from '@/hooks/useServices';
+import { useLeadServicesMap } from '@/hooks/useLeadServices';
 import { useToast } from '@/hooks/use-toast';
 
 interface LeadKanbanBoardProps {
@@ -29,6 +30,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const updateStage = useUpdateLeadStage();
   const closeBusinessDeal = useCloseBusinessDeal();
   const { data: services = [] } = useServices();
+  const leadServicesMap = useLeadServicesMap();
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -152,6 +154,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
               leads={leadsByStage[column.id] || []}
               onCardClick={handleCardClick}
               services={services}
+              leadServicesMap={leadServicesMap}
             />
           ))}
         </div>
