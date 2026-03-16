@@ -135,7 +135,7 @@ export function BudgetVersionsSection({ budgetId }: BudgetVersionsSectionProps) 
 
       {selectedVersion && (
         <BudgetVersionModal
-          version={selectedVersion}
+          version={selectedVersion as any}
           open={!!selectedVersion}
           onClose={() => setSelectedVersion(null)}
         />
