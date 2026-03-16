@@ -27,6 +27,7 @@ import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { DeleteLeadDialog } from './DeleteLeadDialog';
 import { LeadActivityTimeline } from './LeadActivityTimeline';
+import { BudgetVersionHistory } from './BudgetVersionHistory';
 import { useUpdateLead, useUpdateLeadStage } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
@@ -488,6 +489,13 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, h
                             <ExternalLink className="h-4 w-4 mr-2" />
                             Abrir Orçamento
                           </Button>
+
+                          {['negotiation', 'closed'].includes(lead.crm_stage) && lead.budget_id && (
+                            <>
+                              <Separator />
+                              <BudgetVersionHistory budgetId={lead.budget_id} />
+                            </>
+                          )}
                         </div>
                       </>
                     )}
