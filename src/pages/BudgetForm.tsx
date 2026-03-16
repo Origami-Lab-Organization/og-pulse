@@ -15,12 +15,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, ArrowLeft, ArrowRight, Save, Check, Calculator, Percent, DollarSign, Plus, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight, Save, Check, Calculator, Percent, DollarSign, Plus } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BudgetRolesEditor } from '@/components/budgets/BudgetRolesEditor';
 import { BudgetSuppliersEditor } from '@/components/budgets/BudgetSuppliersEditor';
 import { BudgetMaterialsEditor } from '@/components/budgets/BudgetMaterialsEditor';
 import { BudgetFinancialSummary } from '@/components/budgets/BudgetFinancialSummary';
+import { MarginGauge } from '@/components/budgets/MarginGauge';
 import { BudgetWizardFooter } from '@/components/budgets/BudgetWizardFooter';
 import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/lib/formatters';
@@ -529,32 +530,11 @@ export default function BudgetForm() {
                   <span className="text-2xl font-bold text-primary">{formatCurrency(calculation.finalTotal)}</span>
                 </div>
 
-                {/* Margem efetiva pós-desconto */}
-                {discountValue > 0 && (
-                  <div className={`flex items-center justify-between rounded-lg border p-3 ${
-                    calculation.effectiveMarginPercent < minNetMarginPercent
-                      ? 'border-destructive bg-destructive/10'
-                      : calculation.effectiveMarginPercent < minNetMarginPercent * 1.2
-                      ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
-                      : 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Margem Efetiva</span>
-                      {calculation.effectiveMarginPercent < minNetMarginPercent && (
-                        <AlertTriangle className="h-4 w-4 text-destructive" />
-                      )}
-                    </div>
-                    <span className={`text-lg font-bold ${
-                      calculation.effectiveMarginPercent < minNetMarginPercent
-                        ? 'text-destructive'
-                        : calculation.effectiveMarginPercent < minNetMarginPercent * 1.2
-                        ? 'text-yellow-600 dark:text-yellow-400'
-                        : 'text-green-600 dark:text-green-400'
-                    }`}>
-                      {calculation.effectiveMarginPercent.toFixed(1)}%
-                    </span>
-                  </div>
-                )}
+                <MarginGauge
+                  effectiveMarginPercent={calculation.effectiveMarginPercent}
+                  minMarginPercent={minNetMarginPercent}
+                  netMarginPercent={netMarginPercent}
+                />
 
                 {/* Alerta e checkbox de override para admin */}
                 {isMarginBelowMinimum && (
