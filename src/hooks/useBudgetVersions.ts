@@ -6,6 +6,7 @@ export interface BudgetVersionWithCreator {
   budget_id: string;
   version_number: number;
   created_at: string;
+  created_by: string | null;
   change_summary: string | null;
   change_reason: string | null;
   snapshot_data: Record<string, unknown>;
