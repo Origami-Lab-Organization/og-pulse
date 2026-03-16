@@ -58,7 +58,6 @@ export interface BudgetVersionWithCreator extends BudgetVersionDB {
     id: string;
     nome: string;
   } | null;
-  change_reason?: string | null;
 }
 
 export interface VersionDiff {
