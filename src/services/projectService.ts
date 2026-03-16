@@ -174,6 +174,7 @@ export const projectService = {
         renewal_date: input.renewalDate || null,
         service_line: input.serviceLine || null,
         success_fee_percent: input.successFeePercent ?? null,
+        lead_id: input.leadId || null,
       } as any)
       .select()
       .single();

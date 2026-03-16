@@ -14,6 +14,7 @@ import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { ProjectMembersTable } from './ProjectMembersTable';
 import { ProjectInstallmentsTable } from './ProjectInstallmentsTable';
+import { LeadHistoryLink } from './LeadHistoryLink';
 import {
   Building2,
   User,
@@ -23,6 +24,7 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
+  History,
 } from 'lucide-react';
 
 interface ProjectDetailDialogProps {
@@ -257,6 +259,15 @@ export function ProjectDetailDialog({
                   </p>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Lead de origem */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <History className="h-3.5 w-3.5" />
+                Lead de Origem
+              </p>
+              <LeadHistoryLink leadId={project.lead_id} />
             </div>
           </TabsContent>
 

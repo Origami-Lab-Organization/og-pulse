@@ -41,6 +41,7 @@ export interface ProjectDB {
   updated_at: string;
   service_line: string | null;
   success_fee_percent: number | null;
+  lead_id: string | null;
 }
 
 export interface ProjectMemberDB {
@@ -116,6 +117,7 @@ export interface CreateProjectInput {
   renewalDate?: string;
   serviceLine?: string;
   successFeePercent?: number;
+  leadId?: string;
 }
 
 export interface CreateProjectMemberInput {

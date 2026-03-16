@@ -10,6 +10,7 @@ export interface PortfolioProject {
   total_value: number;
   start_date: string;
   portfolio_stage: PortfolioStage;
+  lead_id: string | null;
   client?: {
     id: string;
     company_name: string;
@@ -44,6 +45,7 @@ export const usePortfolioProjects = (searchQuery?: string) => {
           total_value,
           start_date,
           portfolio_stage,
+          lead_id,
           service_line,
           manager_id,
           client:clients(id, company_name, trading_name),

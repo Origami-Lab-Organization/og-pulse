@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
-import { Building2, User, Calendar, Layers } from 'lucide-react';
+import { Building2, User, Calendar, Layers, History } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -91,6 +91,13 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
           </div>
         )}
       </div>
+
+      {project.lead_id && (
+        <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
+          <History className="h-3 w-3" />
+          <span>Histórico comercial disponível</span>
+        </div>
+      )}
 
       <div className="mt-3 pt-2 border-t border-border">
         <div className="flex items-center justify-between text-xs mb-1.5">

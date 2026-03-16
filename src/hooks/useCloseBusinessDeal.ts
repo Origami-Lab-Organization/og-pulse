@@ -67,6 +67,7 @@ export function useCloseBusinessDeal() {
             status: 'planning',
             durationMonths: 1,
             serviceLine: serviceLine || undefined,
+            leadId: input.leadId,
           },
           tenantId
         );
@@ -102,6 +103,7 @@ export function useCloseBusinessDeal() {
           status: 'planning',
           durationMonths: budget.duration_months,
           serviceLine: serviceLine || undefined,
+          leadId: input.leadId,
         },
         tenantId
       );
