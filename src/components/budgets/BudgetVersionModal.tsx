@@ -11,7 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { BudgetVersionWithCreator } from '@/services/budgetVersionService';
+import type { BudgetVersionWithCreator } from '@/services/budgetVersionService';
 import { formatCurrency, parseDateString } from '@/lib/formatters';
 import { getBudgetStatusOption } from '@/types/budget';
 

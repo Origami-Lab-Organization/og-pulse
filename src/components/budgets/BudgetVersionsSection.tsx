@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useBudgetVersions } from '@/hooks/useBudgetVersions';
-import { BudgetVersionWithCreator } from '@/services/budgetVersionService';
+import { BudgetVersionWithCreator } from '@/hooks/useBudgetVersions';
 import { formatCurrency } from '@/lib/formatters';
 import { BudgetVersionModal } from './BudgetVersionModal';
 import { cn } from '@/lib/utils';
@@ -111,7 +111,7 @@ export function BudgetVersionsSection({ budgetId }: BudgetVersionsSectionProps) 
 
                       <div className="flex items-center gap-4">
                         <span className="font-semibold">
-                          {formatCurrency(version.snapshot_data.final_total)}
+                          {formatCurrency(version.snapshot_data.final_total as number)}
                         </span>
                         {!isLatest && (
                           <Button
@@ -135,7 +135,7 @@ export function BudgetVersionsSection({ budgetId }: BudgetVersionsSectionProps) 
 
       {selectedVersion && (
         <BudgetVersionModal
-          version={selectedVersion}
+          version={selectedVersion as any}
           open={!!selectedVersion}
           onClose={() => setSelectedVersion(null)}
         />

@@ -23,6 +23,7 @@ export const serviceService = {
       .insert({
         tenant_id: tenantId,
         name: input.name,
+        project_type: input.billingType,
         billing_type: input.billingType,
         description: input.description || null,
         has_default_value: input.hasDefaultValue,
@@ -108,6 +109,7 @@ export const serviceService = {
     const rows = defaults.map((s) => ({
       tenant_id: tenantId,
       name: s.name,
+      project_type: s.billingType,
       billing_type: s.billingType,
       description: s.description || null,
       has_default_value: false,

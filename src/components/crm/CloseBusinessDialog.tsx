@@ -172,7 +172,16 @@ export function CloseBusinessDialog({
   // Derive project type from the lead's service
   const derivedProjectType = useMemo((): ProjectType => {
     if (!lead?.service_line || !services.length) return 'fixed_scope';
-    return services.find((s) => s.id === lead.service_line)?.projectType ?? 'fixed_scope';
+    const billingType = services.find((s) => s.id === lead.service_line)?.billingType;
+    if (!billingType) return 'fixed_scope';
+    // Map service billing types to project types
+    const billingToProject: Record<string, ProjectType> = {
+      fixed_scope: 'fixed_scope',
+      recurring: 'continuous',
+      success_fee: 'success_fee',
+      no_revenue: 'non_revenue',
+    };
+    return billingToProject[billingType] ?? 'fixed_scope';
   }, [lead?.service_line, services]);
 
   useEffect(() => {

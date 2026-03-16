@@ -9,6 +9,7 @@ export interface BudgetVersionDB {
   created_by: string | null;
   snapshot_data: BudgetVersionSnapshot;
   change_summary: string | null;
+  change_reason: string | null;
 }
 
 export interface BudgetVersionSnapshot {
@@ -55,10 +56,8 @@ export interface BudgetVersionSnapshot {
 
 export interface BudgetVersionWithCreator extends BudgetVersionDB {
   creator?: {
-    id: string;
     nome: string;
   } | null;
-  change_reason?: string | null;
 }
 
 export interface VersionDiff {
