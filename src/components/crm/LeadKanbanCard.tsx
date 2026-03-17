@@ -160,31 +160,8 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
           </div>
         )}
 
-        {/* Service: inline select in qualification, badges elsewhere */}
-        {currentStage === 'qualification' ? (
-          <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-            <Select
-              value={lead.service_line || ''}
-              onValueChange={(value) => updateLead.mutate({ id: lead.id, service_line: value })}
-            >
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="Selecionar serviço..." />
-              </SelectTrigger>
-              <SelectContent>
-                {BILLING_TYPES.map((type) =>
-                  servicesByType[type].length > 0 && (
-                    <SelectGroup key={type}>
-                      <SelectLabel className="text-xs">{BILLING_TYPE_LABELS[type]}</SelectLabel>
-                      {servicesByType[type].map((svc) => (
-                        <SelectItem key={svc.id} value={svc.id} className="text-xs">{svc.name}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
+        {/* Service badges (all stages except qualification) */}
+        {currentStage !== 'qualification' && (
           <>
             {linkedService && (
               <span className={cn(
@@ -248,6 +225,36 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
             <FileText className="h-3 w-3 mr-1" />
             Criar Orçamento
           </Button>
+        )}
+
+        {/* Service select — qualification only, always last */}
+        {currentStage === 'qualification' && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="pt-1 border-t border-border/50"
+          >
+            <Select
+              value={lead.service_line || ''}
+              onValueChange={(value) => updateLead.mutate({ id: lead.id, service_line: value })}
+            >
+              <SelectTrigger className="h-7 text-xs w-full">
+                <SelectValue placeholder="Selecionar serviço..." />
+              </SelectTrigger>
+              <SelectContent>
+                {BILLING_TYPES.map((type) =>
+                  servicesByType[type].length > 0 && (
+                    <SelectGroup key={type}>
+                      <SelectLabel className="text-xs">{BILLING_TYPE_LABELS[type]}</SelectLabel>
+                      {servicesByType[type].map((svc) => (
+                        <SelectItem key={svc.id} value={svc.id} className="text-xs">{svc.name}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         )}
       </CardContent>
     </Card>

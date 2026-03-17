@@ -78,9 +78,6 @@ export function canAdvanceFrom(stage: CRMStage, lead: LeadWithBudget): { allowed
   if (stage === 'proposal') {
     if (!lead.budget_id) return { allowed: false, reason: 'Atribua um orçamento antes de avançar para Negociação' };
   }
-  if (stage === 'closed') {
-    return { allowed: false, reason: undefined };
-  }
   return { allowed: true };
 }
 
@@ -346,58 +343,92 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
               <ScrollArea className="flex-1 min-h-0">
                 <TabsContent value="qualificacao" className="px-5 py-4 space-y-4 mt-0">
                   <div className="space-y-3">
-                    {lead.crm_stage !== 'screening' && (
-                    <div
-                      ref={serviceLineRef}
-                      className={cn(
-                        'rounded-md transition-all',
-                        fieldHighlight === 'service_line' && 'ring-2 ring-amber-500 animate-pulse p-1'
-                      )}
-                    >
-                      <p className="text-xs font-medium mb-1.5">Tipo de Serviço</p>
-                      {lead.crm_stage === 'qualification' ? (
-                        <FormField control={form.control} name="service_line" render={({ field }) => (
-                          <FormItem>
-                            <Select
-                              value={field.value || ''}
-                              onValueChange={(value) => {
-                                field.onChange(value);
-                                if (!isEditing) {
-                                  updateLead.mutate({ id: lead.id, service_line: value });
-                                }
-                              }}
-                              disabled={isArchived}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione o tipo de serviço" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {BILLING_TYPES.map((type) =>
-                                  servicesByType[type].length > 0 && (
-                                    <SelectGroup key={type}>
-                                      <SelectLabel>{BILLING_TYPE_LABELS[type]}</SelectLabel>
-                                      {servicesByType[type].map((svc) => (
-                                        <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
-                                      ))}
-                                    </SelectGroup>
-                                  )
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
-                        )} />
-                      ) : (
-                        <div className="flex items-center gap-2 py-1.5">
-                          <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className={cn('text-sm', !lead.service_line && 'text-destructive')}>
-                            {services.find(s => s.id === lead.service_line)?.name || 'Não definido'}
-                          </span>
+                    {lead.crm_stage !== 'screening' && (() => {
+                      const isPostQualification = ['proposal', 'negotiation', 'closed'].includes(lead.crm_stage);
+                      const showEdit = lead.crm_stage === 'qualification' || (isAdmin && !lead.service_line && isPostQualification);
+                      const showReadonly = isPostQualification && !!lead.service_line;
+                      const showLegacyAlert = isAdmin && !lead.service_line && isPostQualification;
+
+                      const ServiceSelect = ({ field }: { field: any }) => (
+                        <Select
+                          value={field?.value || lead.service_line || ''}
+                          onValueChange={(value) => {
+                            field?.onChange(value);
+                            if (!isEditing || showLegacyAlert) {
+                              updateLead.mutate({ id: lead.id, service_line: value });
+                            }
+                          }}
+                          disabled={isArchived}
+                        >
+                          {field ? (
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o tipo de serviço" />
+                              </SelectTrigger>
+                            </FormControl>
+                          ) : (
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o tipo de serviço" />
+                            </SelectTrigger>
+                          )}
+                          <SelectContent>
+                            {BILLING_TYPES.map((type) =>
+                              servicesByType[type].length > 0 && (
+                                <SelectGroup key={type}>
+                                  <SelectLabel>{BILLING_TYPE_LABELS[type]}</SelectLabel>
+                                  {servicesByType[type].map((svc) => (
+                                    <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      );
+
+                      return (
+                        <div
+                          ref={serviceLineRef}
+                          className={cn(
+                            'rounded-md transition-all',
+                            fieldHighlight === 'service_line' && 'ring-2 ring-amber-500 animate-pulse p-1'
+                          )}
+                        >
+                          <p className="text-xs font-medium mb-1.5">Tipo de Serviço</p>
+                          {showEdit && !showLegacyAlert ? (
+                            <FormField control={form.control} name="service_line" render={({ field }) => (
+                              <FormItem>
+                                <ServiceSelect field={field} />
+                              </FormItem>
+                            )} />
+                          ) : showReadonly ? (
+                            <div className="flex items-center gap-2 py-1.5">
+                              <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="text-sm">
+                                {services.find(s => s.id === lead.service_line)?.name}
+                              </span>
+                            </div>
+                          ) : isPostQualification && !lead.service_line ? (
+                            // Non-admin: show "not defined" in red
+                            !isAdmin && (
+                              <div className="flex items-center gap-2 py-1.5">
+                                <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <span className="text-sm text-destructive">Não definido</span>
+                              </div>
+                            )
+                          ) : null}
+                          {showLegacyAlert && (
+                            <div className="flex items-start gap-3 rounded-md border border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 mt-1">
+                              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                              <div className="flex-1 space-y-2">
+                                <p className="text-xs text-amber-700 dark:text-amber-400">Tipo de serviço não definido (dado legado)</p>
+                                <ServiceSelect field={null} />
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    )}
+                      );
+                    })()}
 
                     <FormField control={form.control} name="responsible_id" render={({ field }) => (
                       <FormItem>

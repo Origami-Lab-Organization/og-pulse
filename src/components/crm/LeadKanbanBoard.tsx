@@ -8,6 +8,14 @@ import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadDetailDialog, canAdvanceFrom } from './LeadDetailDialog';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
 import { LeadWithBudget, CRMStage, CRM_LEAD_COLUMNS } from '@/types/lead';
+
+const STAGE_INDEX: Record<CRMStage, number> = {
+  screening: 0,
+  qualification: 1,
+  proposal: 2,
+  negotiation: 3,
+  closed: 4,
+};
 import { useUpdateLeadStage } from '@/hooks/useLeads';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
@@ -57,18 +65,22 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       return;
     }
 
-    // Gate validation
-    const gate = canAdvanceFrom(lead.crm_stage, lead);
-    if (!gate.allowed) {
-      toast({ title: 'Não é possível mover', description: gate.reason || 'Preencha os campos obrigatórios', variant: 'destructive' });
-      const blockedField: 'service_line' | 'budget_id' | undefined =
-        lead.crm_stage === 'qualification' && !lead.service_line ? 'service_line' :
-        lead.crm_stage === 'proposal' && !lead.budget_id ? 'budget_id' :
-        undefined;
-      setHighlightField(blockedField ?? null);
-      setSelectedLead(lead);
-      setDetailDialogOpen(true);
-      return;
+    const isAdvancing = STAGE_INDEX[newStage] > STAGE_INDEX[lead.crm_stage];
+
+    // Gate validation only when advancing
+    if (isAdvancing) {
+      const gate = canAdvanceFrom(lead.crm_stage, lead);
+      if (!gate.allowed) {
+        toast({ title: 'Não é possível avançar', description: gate.reason || 'Preencha os campos obrigatórios', variant: 'destructive' });
+        const blockedField: 'service_line' | 'budget_id' | undefined =
+          lead.crm_stage === 'qualification' && !lead.service_line ? 'service_line' :
+          lead.crm_stage === 'proposal' && !lead.budget_id ? 'budget_id' :
+          undefined;
+        setHighlightField(blockedField ?? null);
+        setSelectedLead(lead);
+        setDetailDialogOpen(true);
+        return;
+      }
     }
 
     const stageLabel = CRM_LEAD_COLUMNS.find((c) => c.id === newStage)?.label ?? newStage;
