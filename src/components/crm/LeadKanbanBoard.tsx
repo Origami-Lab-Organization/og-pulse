@@ -5,7 +5,7 @@ import {
 } from '@dnd-kit/core';
 import { LeadKanbanColumn } from './LeadKanbanColumn';
 import { LeadKanbanCard } from './LeadKanbanCard';
-import { LeadDetailDialog } from './LeadDetailDialog';
+import { LeadDetailDialog, canAdvanceFrom } from './LeadDetailDialog';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
 import { LeadWithBudget, CRMStage, CRM_LEAD_COLUMNS } from '@/types/lead';
 import { useUpdateLeadStage } from '@/hooks/useLeads';
@@ -58,19 +58,14 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     }
 
     // Gate validation
-    let blockedField: 'service_line' | 'budget_id' | null = null;
-    let blockReason = '';
-    if (lead.crm_stage === 'qualification' && newStage === 'proposal' && !lead.service_line) {
-      blockedField = 'service_line';
-      blockReason = 'Defina o Tipo de Serviço para avançar para Proposta';
-    } else if (lead.crm_stage === 'proposal' && newStage === 'negotiation' && !lead.budget_id) {
-      blockedField = 'budget_id';
-      blockReason = 'Atribua um orçamento antes de avançar para Negociação';
-    }
-
-    if (blockedField) {
-      toast({ title: 'Ação necessária', description: blockReason, variant: 'destructive' });
-      setHighlightField(blockedField);
+    const gate = canAdvanceFrom(lead.crm_stage, lead);
+    if (!gate.allowed) {
+      toast({ title: 'Não é possível mover', description: gate.reason || 'Preencha os campos obrigatórios', variant: 'destructive' });
+      const blockedField: 'service_line' | 'budget_id' | undefined =
+        lead.crm_stage === 'qualification' && !lead.service_line ? 'service_line' :
+        lead.crm_stage === 'proposal' && !lead.budget_id ? 'budget_id' :
+        undefined;
+      setHighlightField(blockedField ?? null);
       setSelectedLead(lead);
       setDetailDialogOpen(true);
       return;
@@ -195,6 +190,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
         onOpenChange={(open) => { setDetailDialogOpen(open); if (!open) { setSelectedLead(null); setHighlightField(null); } }}
         lead={selectedLead}
         onAdvanceToClose={handleRequestAdvanceToClose}
+        initialEditMode={highlightField === 'service_line'}
         highlightField={highlightField}
       />
 

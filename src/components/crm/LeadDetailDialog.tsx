@@ -64,12 +64,13 @@ interface LeadDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   lead: LeadWithBudget | null;
   onAdvanceToClose?: () => void;
+  initialEditMode?: boolean;
   highlightField?: 'service_line' | 'budget_id' | null;
 }
 
 const STAGE_ORDER: CRMStage[] = ['screening', 'qualification', 'proposal', 'negotiation', 'closed'];
 
-function canAdvanceFrom(stage: CRMStage, lead: LeadWithBudget): { allowed: boolean; reason?: string } {
+export function canAdvanceFrom(stage: CRMStage, lead: LeadWithBudget): { allowed: boolean; reason?: string } {
   if (stage === 'qualification') {
     if (!lead.service_line) return { allowed: false, reason: 'Defina o Tipo de Serviço para avançar para Proposta' };
   }
@@ -82,7 +83,7 @@ function canAdvanceFrom(stage: CRMStage, lead: LeadWithBudget): { allowed: boole
   return { allowed: true };
 }
 
-export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, highlightField }: LeadDetailDialogProps) {
+export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, initialEditMode, highlightField }: LeadDetailDialogProps) {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -158,7 +159,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, h
         estimated_value: lead.estimated_value || undefined,
       });
       setCompanySearch(lead.company_name || '');
-      setIsEditing(false);
+      setIsEditing(initialEditMode ?? false);
       setActiveTab('qualificacao');
       setFieldHighlight(null);
     }
