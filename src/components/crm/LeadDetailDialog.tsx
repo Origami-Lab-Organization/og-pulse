@@ -679,16 +679,18 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                 </>
               ) : (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setArchiveOpen(true)}
-                    className="hover:border-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <Archive className="h-4 w-4 mr-1.5" />
-                    Arquivar
-                  </Button>
+                  {lead.crm_stage !== 'closed' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setArchiveOpen(true)}
+                      className="hover:border-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Archive className="h-4 w-4 mr-1.5" />
+                      Arquivar
+                    </Button>
+                  )}
 
                   {advanceGate && nextStageLabel && (
                     <Button
