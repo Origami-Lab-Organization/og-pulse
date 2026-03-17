@@ -45,7 +45,10 @@ export const serviceService = {
   async update(id: string, input: Partial<CreateServiceInput>): Promise<ServiceDB> {
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (input.name !== undefined) updates.name = input.name;
-    if (input.billingType !== undefined) updates.billing_type = input.billingType;
+    if (input.billingType !== undefined) {
+      updates.billing_type = input.billingType;
+      updates.project_type = input.billingType;
+    }
     if (input.description !== undefined) updates.description = input.description || null;
     if (input.hasDefaultValue !== undefined) {
       updates.has_default_value = input.hasDefaultValue;
