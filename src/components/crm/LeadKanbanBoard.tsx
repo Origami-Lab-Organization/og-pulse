@@ -55,20 +55,44 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     setActiveLead(null);
     const { active, over } = event;
     if (!over) return;
-    const newStage = over.id as CRMStage;
-    const lead = leads.find((l) => l.id === active.id);
-    if (!lead || lead.crm_stage === newStage || lead.archived) return;
 
-    // Fechamento sempre abre o dialog dedicado
+    const lead = leads.find((l) => l.id === active.id);
+    if (!lead || lead.archived) return;
+
+    // Resolver a coluna de destino: over pode ser uma coluna ou um card
+    let newStage: CRMStage;
+    const validStages: string[] = ['screening', 'qualification', 'proposal', 'negotiation', 'closed'];
+
+    if (validStages.includes(over.id as string)) {
+      newStage = over.id as CRMStage;
+    } else {
+      const targetLead = leads.find((l) => l.id === over.id);
+      if (targetLead) {
+        newStage = targetLead.crm_stage;
+      } else {
+        const overData = over.data?.current;
+        if (overData?.stage) {
+          newStage = overData.stage as CRMStage;
+        } else {
+          return;
+        }
+      }
+    }
+
+    if (lead.crm_stage === newStage) return;
+
     if (newStage === 'closed') {
       setLeadToClose(lead);
       setCloseDialogOpen(true);
       return;
     }
 
+    const currentIndex = STAGE_INDEX[lead.crm_stage];
+    const targetIndex = STAGE_INDEX[newStage];
+    const diff = targetIndex - currentIndex;
+
     // Bloquear pulo de colunas — só adjacente permitido
-    const distance = Math.abs(STAGE_INDEX[newStage] - STAGE_INDEX[lead.crm_stage]);
-    if (distance > 1) {
+    if (Math.abs(diff) > 1) {
       toast({
         title: 'Movimento inválido',
         description: 'Só é permitido mover para a coluna adjacente.',
@@ -77,12 +101,8 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       return;
     }
 
-    // Determinar se está avançando ou retrocedendo
-    const isAdvancing = STAGE_INDEX[newStage] > STAGE_INDEX[lead.crm_stage];
-
     // Validar gates APENAS ao avançar
-    if (isAdvancing) {
-      // Gate: Qualificação → Proposta exige service_line
+    if (diff > 0) {
       if (lead.crm_stage === 'qualification' && !lead.service_line) {
         toast({
           title: 'Tipo de serviço obrigatório',
@@ -93,8 +113,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
         setDetailDialogOpen(true);
         return;
       }
-
-      // Gate: Proposta → Negociação exige budget_id
       if (lead.crm_stage === 'proposal' && !lead.budget_id) {
         toast({
           title: 'Orçamento obrigatório',
@@ -107,7 +125,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       }
     }
 
-    // Se chegou aqui, pode mover (avançar ou retroceder)
     const stageLabel = CRM_LEAD_COLUMNS.find((c) => c.id === newStage)?.label ?? newStage;
     updateStage.mutate(
       { id: lead.id, stage: newStage, fromStage: lead.crm_stage },
