@@ -265,14 +265,6 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                 </FormItem>
               )} />
 
-              <FormField control={form.control} name="notes" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Contexto da conversa, próximos passos, pontos de atenção..." rows={2} {...field} />
-                  </FormControl>
-                </FormItem>
-              )} />
             </div>
 
             <Separator />
@@ -425,6 +417,15 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                       <SelectItem value="outro">Outro</SelectItem>
                     </SelectContent>
                   </Select>
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="notes" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Observações</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Contexto da conversa, próximos passos, pontos de atenção..." rows={2} {...field} />
+                  </FormControl>
                 </FormItem>
               )} />
             </div>
