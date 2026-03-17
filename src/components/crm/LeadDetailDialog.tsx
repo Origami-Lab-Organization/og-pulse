@@ -408,30 +408,8 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                       </FormItem>
                     )} />
 
-                    {fieldHighlight === 'budget_id' && !lead.budget_id && (
-                      <div
-                        ref={budgetAlertRef}
-                        className="flex items-start gap-3 rounded-md border border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-3 animate-pulse"
-                        style={{ animationIterationCount: 3 }}
-                      >
-                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                        <div className="flex-1 space-y-2">
-                          <p className="text-sm text-amber-700 dark:text-amber-400">Crie um orçamento para avançar este lead para Negociação.</p>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="border-amber-500 text-amber-700 hover:bg-amber-100 dark:text-amber-400"
-                            onClick={() => { onOpenChange(false); navigate(`/budgets/new?leadId=${lead.id}`); }}
-                          >
-                            <FileText className="h-3 w-3 mr-1.5" />
-                            Criar Orçamento
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {!lead.budget_id && (
+                    {/* Estimated value: only when no budget and not in proposal/negotiation/closed */}
+                    {!lead.budget_id && !['proposal', 'negotiation', 'closed'].includes(lead.crm_stage) && (
                       <FormField control={form.control} name="estimated_value" render={({ field }) => (
                         <FormItem>
                           <FormLabel>Valor Estimado</FormLabel>
@@ -451,68 +429,110 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                       )} />
                     )}
 
+                    {/* Budget section: proposal / negotiation / closed */}
+                    {['proposal', 'negotiation', 'closed'].includes(lead.crm_stage) && (
+                      <>
+                        <Separator />
+                        <div className="space-y-3" ref={budgetAlertRef}>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                            <DollarSign className="h-3.5 w-3.5" />
+                            Orçamento
+                          </p>
+
+                          {/* CTA: proposal with no budget */}
+                          {!lead.budget_id && lead.crm_stage === 'proposal' && (
+                            <div className={cn(
+                              'rounded-lg border border-dashed p-4 flex flex-col items-center gap-3 text-center',
+                              fieldHighlight === 'budget_id' && 'border-amber-400 bg-amber-50 dark:bg-amber-950/20 animate-pulse',
+                              fieldHighlight !== 'budget_id' && 'border-border bg-muted/30',
+                            )}>
+                              <FileText className="h-8 w-8 text-muted-foreground/40" />
+                              <div>
+                                <p className="text-sm font-medium">Nenhum orçamento vinculado</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Crie um orçamento para definir o valor desta proposta</p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => { onOpenChange(false); navigate(`/budgets/new?leadId=${lead.id}`); }}
+                              >
+                                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                                Criar Orçamento
+                              </Button>
+                            </div>
+                          )}
+
+                          {/* Summary card: has budget */}
+                          {lead.budget && (
+                            <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                              {lead.budget.budget_number && (
+                                <p className="text-xs font-mono font-medium text-muted-foreground">{lead.budget.budget_number}</p>
+                              )}
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                <div className="space-y-0.5">
+                                  <p className="text-xs text-muted-foreground">Subtotal</p>
+                                  <p className="text-sm font-medium">{formatCurrency(lead.budget.subtotal)}</p>
+                                </div>
+                                <div className="space-y-0.5">
+                                  <p className="text-xs text-muted-foreground">Margem</p>
+                                  <p className="text-sm font-medium">
+                                    {lead.budget.total_with_fees > 0
+                                      ? `${(((lead.budget.total_with_fees - lead.budget.subtotal) / lead.budget.total_with_fees) * 100).toFixed(1)}%`
+                                      : '0%'}
+                                  </p>
+                                </div>
+                                {lead.budget.discount_value > 0 && (
+                                  <div className="space-y-0.5">
+                                    <p className="text-xs text-muted-foreground">Desconto</p>
+                                    <p className="text-sm font-medium text-destructive">-{formatCurrency(lead.budget.discount_value)}</p>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="rounded-md bg-primary/10 px-3 py-2.5 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-muted-foreground">Valor Final</p>
+                                  <p className="text-base font-bold text-primary">{formatCurrency(lead.budget.final_total)}</p>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm" className="flex-1" onClick={handleViewBudget}>
+                                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                                  Ver Orçamento
+                                </Button>
+                                {lead.crm_stage !== 'closed' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => { onOpenChange(false); navigate(`/budgets/${lead.budget_id}/edit`); }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                                    Editar
+                                  </Button>
+                                )}
+                              </div>
+                              {['negotiation', 'closed'].includes(lead.crm_stage) && lead.budget_id && (
+                                <>
+                                  <Separator />
+                                  <BudgetVersionHistory budgetId={lead.budget_id} />
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <Separator />
+                      </>
+                    )}
+
                     <FormField control={form.control} name="notes" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Observações</FormLabel>
                         <FormControl><Textarea placeholder="Notas sobre o lead..." {...field} disabled={isDisabled} rows={3} /></FormControl>
                       </FormItem>
                     )} />
-
-                    {lead.budget && (
-                      <>
-                        <Separator />
-                        <div className="space-y-3">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orçamento</p>
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className="space-y-0.5">
-                              <p className="text-xs text-muted-foreground">Custo Total</p>
-                              <p className="font-medium">{formatCurrency(lead.budget.subtotal)}</p>
-                            </div>
-                            <div className="space-y-0.5">
-                              <p className="text-xs text-muted-foreground">Preço de Venda</p>
-                              <p className="font-medium">{formatCurrency(lead.budget.total_with_fees)}</p>
-                            </div>
-                            <div className="space-y-0.5">
-                              <p className="text-xs text-muted-foreground">Margem</p>
-                              <p className="font-medium">
-                                {lead.budget.total_with_fees > 0
-                                  ? `${(((lead.budget.total_with_fees - lead.budget.subtotal) / lead.budget.total_with_fees) * 100).toFixed(1)}%`
-                                  : '0%'}
-                              </p>
-                            </div>
-                          </div>
-                          {lead.budget.discount_value > 0 && (
-                            <div className="space-y-0.5">
-                              <p className="text-xs text-muted-foreground">Desconto</p>
-                              <p className="font-medium text-destructive">- {formatCurrency(lead.budget.discount_value)}</p>
-                            </div>
-                          )}
-                          <div className="rounded-md bg-primary/10 p-3 flex items-center justify-between">
-                            <div className="space-y-0.5">
-                              <p className="text-xs text-muted-foreground">Valor Final</p>
-                              <p className="text-lg font-bold text-primary flex items-center gap-1">
-                                <DollarSign className="h-4 w-4" />
-                                {formatCurrency(lead.budget.final_total)}
-                              </p>
-                            </div>
-                            <div className="text-xs text-muted-foreground text-right">
-                              {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'}
-                            </div>
-                          </div>
-                          <Button variant="outline" size="sm" className="w-full" onClick={handleViewBudget}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Abrir Orçamento
-                          </Button>
-
-                          {['negotiation', 'closed'].includes(lead.crm_stage) && lead.budget_id && (
-                            <>
-                              <Separator />
-                              <BudgetVersionHistory budgetId={lead.budget_id} />
-                            </>
-                          )}
-                        </div>
-                      </>
-                    )}
                   </div>
                 </TabsContent>
 
