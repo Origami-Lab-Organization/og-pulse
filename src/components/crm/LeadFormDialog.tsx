@@ -7,7 +7,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Check, Building2 } from 'lucide-react';
@@ -225,11 +224,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex-1 overflow-y-auto px-1 py-0.5 space-y-4"
           >
-            {/* ── Oportunidade ── */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Oportunidade</p>
-
-              <FormField control={form.control} name="name" render={({ field }) => (
+            <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nome da Oportunidade *</FormLabel>
                   <FormControl>
@@ -265,16 +260,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                 </FormItem>
               )} />
 
-            </div>
-
-            <Separator />
-
-            {/* ── Empresa ── */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Empresa <span className="text-destructive normal-case">*</span>
-              </p>
-              <FormField control={form.control} name="company_name" render={({ field }) => (
+            <FormField control={form.control} name="company_name" render={({ field }) => (
                 <FormItem>
                   <FormControl>
                     <div className="relative">
@@ -336,15 +322,8 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                   <FormMessage />
                 </FormItem>
               )} />
-            </div>
 
-            <Separator />
-
-            {/* ── Contato ── */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contato</p>
-
-              {!!clientId && previousStakeholders.length > 0 && (
+            {!!clientId && previousStakeholders.length > 0 && (
                 <div>
                   <p className="text-sm font-medium mb-1.5">Contatos anteriores</p>
                   <Select onValueChange={handleStakeholderSelect}>
@@ -414,6 +393,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                       <SelectItem value="parceiro">Parceiro</SelectItem>
                       <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
                       <SelectItem value="expansao">Expansão</SelectItem>
+                      <SelectItem value="inbound">Inbound — cliente nos procurou</SelectItem>
                       <SelectItem value="outro">Outro</SelectItem>
                     </SelectContent>
                   </Select>
@@ -428,7 +408,6 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                   </FormControl>
                 </FormItem>
               )} />
-            </div>
           </form>
         </Form>
 
