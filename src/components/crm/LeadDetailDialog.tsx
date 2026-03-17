@@ -27,6 +27,7 @@ import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { DeleteLeadDialog } from './DeleteLeadDialog';
 import { LeadActivityTimeline } from './LeadActivityTimeline';
+import { LeadFollowUpSection } from './LeadFollowUpSection';
 import { BudgetVersionHistory } from './BudgetVersionHistory';
 import { useUpdateLead, useUpdateLeadStage } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
@@ -337,6 +338,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                 <TabsList className="w-full">
                   <TabsTrigger value="qualificacao" className="flex-1">Qualificação</TabsTrigger>
                   <TabsTrigger value="contato" className="flex-1">Contato</TabsTrigger>
+                  <TabsTrigger value="followups" className="flex-1">Follow-ups</TabsTrigger>
                   <TabsTrigger value="historico" className="flex-1">Histórico</TabsTrigger>
                 </TabsList>
               </div>
@@ -618,6 +620,10 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                       </Select>
                     </FormItem>
                   )} />
+                </TabsContent>
+
+                <TabsContent value="followups" className="px-5 py-4 mt-0">
+                  <LeadFollowUpSection leadId={lead.id} disabled={isArchived} />
                 </TabsContent>
 
                 <TabsContent value="historico" className="px-5 py-4 mt-0">

@@ -3,11 +3,12 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building2, Clock, DollarSign, Lock, FileText, User } from 'lucide-react';
+import { Building2, Clock, DollarSign, Lock, FileText, User, CalendarClock } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { LeadWithBudget, CRMStage } from '@/types/lead';
 import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
+import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
 import { useUpdateLead } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
 
@@ -55,11 +56,12 @@ interface LeadKanbanCardProps {
   onClick?: () => void;
   services?: Service[];
   leadServices?: LeadServiceRow[];
+  pendingFollowUps?: LeadFollowUp[];
 }
 
 const BILLING_TYPES: BillingType[] = ['fixed_scope', 'recurring', 'success_fee', 'no_revenue'];
 
-export function LeadKanbanCard({ lead, currentStage, onClick, services = [], leadServices = [] }: LeadKanbanCardProps) {
+export function LeadKanbanCard({ lead, currentStage, onClick, services = [], leadServices = [], pendingFollowUps = [] }: LeadKanbanCardProps) {
   const navigate = useNavigate();
   const updateLead = useUpdateLead();
   const isLocked = currentStage === 'closed';
@@ -99,6 +101,11 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
     ? services.find((s) => s.id === lead.service_line) ?? null
     : null;
 
+  const now = new Date();
+  const overdueFollowUp = pendingFollowUps.find(f => new Date(f.scheduled_at) < now);
+  const upcomingFollowUp = !overdueFollowUp && pendingFollowUps.length > 0 ? pendingFollowUps[0] : null;
+  const followUpIndicator = overdueFollowUp ? 'overdue' : upcomingFollowUp ? 'upcoming' : null;
+
   const handleCreateBudget = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(`/budgets/new?leadId=${lead.id}`);
@@ -131,6 +138,12 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
         <div className="flex items-center justify-between gap-1">
           <h4 className="font-medium text-sm line-clamp-1 flex-1">{lead.name}</h4>
           <div className="flex items-center gap-1 flex-shrink-0">
+            {followUpIndicator && (
+              <CalendarClock className={cn(
+                'h-3.5 w-3.5',
+                followUpIndicator === 'overdue' ? 'text-red-500' : 'text-amber-500',
+              )} />
+            )}
             <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
               <Clock className="h-3 w-3" />
               {elapsedTime}
