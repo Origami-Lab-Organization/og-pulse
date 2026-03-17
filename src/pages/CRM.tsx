@@ -243,7 +243,7 @@ export default function CRM() {
             </button>
           </div>
 
-          <div className="relative max-w-sm">
+          <div className="relative w-[480px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={viewMode === 'active' ? 'Buscar leads...' : 'Buscar arquivados...'}
