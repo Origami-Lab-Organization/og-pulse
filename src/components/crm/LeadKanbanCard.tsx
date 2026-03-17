@@ -17,6 +17,13 @@ const TYPE_DOT: Record<BillingType, string> = {
   success_fee: 'bg-amber-500',
   no_revenue: 'bg-gray-400',
 };
+
+const TYPE_BADGE_CLASSES: Record<BillingType, string> = {
+  fixed_scope: 'bg-green-100 text-green-800 border-green-200',
+  recurring: 'bg-blue-100 text-blue-800 border-blue-200',
+  success_fee: 'bg-amber-100 text-amber-800 border-amber-200',
+  no_revenue: 'bg-gray-100 text-gray-600 border-gray-200',
+};
 import { useNavigate } from 'react-router-dom';
 
 function formatElapsedTime(createdAt: string, endDate?: string | null): string {
@@ -87,6 +94,10 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
 
   const visibleServices = linkedServices.slice(0, 3);
   const extraCount = linkedServices.length - visibleServices.length;
+
+  const linkedService = lead.service_line
+    ? services.find((s) => s.id === lead.service_line) ?? null
+    : null;
 
   const handleCreateBudget = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -160,24 +171,36 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
               </SelectContent>
             </Select>
           </div>
-        ) : visibleServices.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {visibleServices.map((svc) => (
-              <span
-                key={svc.id}
-                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground max-w-[90px]"
-              >
-                <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', TYPE_DOT[svc.billingType])} />
-                <span className="truncate">{svc.name}</span>
-              </span>
-            ))}
-            {extraCount > 0 && (
-              <span className="inline-flex items-center rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
-                +{extraCount}
+        ) : (
+          <>
+            {linkedService && (
+              <span className={cn(
+                'inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none',
+                TYPE_BADGE_CLASSES[linkedService.billingType]
+              )}>
+                {linkedService.name}
               </span>
             )}
-          </div>
-        ) : null}
+            {visibleServices.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {visibleServices.map((svc) => (
+                  <span
+                    key={svc.id}
+                    className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground max-w-[90px]"
+                  >
+                    <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', TYPE_DOT[svc.billingType])} />
+                    <span className="truncate">{svc.name}</span>
+                  </span>
+                ))}
+                {extraCount > 0 && (
+                  <span className="inline-flex items-center rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
+                    +{extraCount}
+                  </span>
+                )}
+              </div>
+            )}
+          </>
+        )}
 
         {/* Responsible */}
         {(lead.responsible?.nome || lead.creator?.nome) && (
