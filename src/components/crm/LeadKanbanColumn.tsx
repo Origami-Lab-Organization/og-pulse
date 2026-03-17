@@ -1,5 +1,4 @@
 import { useDroppable } from '@dnd-kit/core';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadWithBudget, CRMStage } from '@/types/lead';
@@ -31,9 +30,9 @@ export function LeadKanbanColumn({ column, leads, onCardClick, services, leadSer
     )}>
       <div className="flex items-center justify-between p-3 border-b">
         <h3 className="font-semibold text-sm">{column.label}</h3>
-        <Badge variant="secondary" className="text-xs">
+        <span className="flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-muted text-xs font-medium text-muted-foreground">
           {leads.length}
-        </Badge>
+        </span>
       </div>
 
       <ScrollArea className="flex-1 p-2">
