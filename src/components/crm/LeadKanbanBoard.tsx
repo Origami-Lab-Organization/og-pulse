@@ -5,9 +5,10 @@ import {
 } from '@dnd-kit/core';
 import { LeadKanbanColumn } from './LeadKanbanColumn';
 import { LeadKanbanCard } from './LeadKanbanCard';
-import { LeadDetailDialog, canAdvanceFrom } from './LeadDetailDialog';
+import { LeadDetailDialog } from './LeadDetailDialog';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
 import { LeadWithBudget, CRMStage, CRM_LEAD_COLUMNS } from '@/types/lead';
+import { useUpdateLeadStage } from '@/hooks/useLeads';
 
 const STAGE_INDEX: Record<CRMStage, number> = {
   screening: 0,
@@ -16,7 +17,6 @@ const STAGE_INDEX: Record<CRMStage, number> = {
   negotiation: 3,
   closed: 4,
 };
-import { useUpdateLeadStage } from '@/hooks/useLeads';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
 import { useServices } from '@/hooks/useServices';
@@ -59,30 +59,44 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     const lead = leads.find((l) => l.id === active.id);
     if (!lead || lead.crm_stage === newStage || lead.archived) return;
 
+    // Fechamento sempre abre o dialog dedicado
     if (newStage === 'closed') {
       setLeadToClose(lead);
       setCloseDialogOpen(true);
       return;
     }
 
+    // Determinar se está avançando ou retrocedendo
     const isAdvancing = STAGE_INDEX[newStage] > STAGE_INDEX[lead.crm_stage];
 
-    // Gate validation only when advancing
+    // Validar gates APENAS ao avançar
     if (isAdvancing) {
-      const gate = canAdvanceFrom(lead.crm_stage, lead);
-      if (!gate.allowed) {
-        toast({ title: 'Não é possível avançar', description: gate.reason || 'Preencha os campos obrigatórios', variant: 'destructive' });
-        const blockedField: 'service_line' | 'budget_id' | undefined =
-          lead.crm_stage === 'qualification' && !lead.service_line ? 'service_line' :
-          lead.crm_stage === 'proposal' && !lead.budget_id ? 'budget_id' :
-          undefined;
-        setHighlightField(blockedField ?? null);
+      // Gate: Qualificação → Proposta exige service_line
+      if (lead.crm_stage === 'qualification' && !lead.service_line) {
+        toast({
+          title: 'Tipo de serviço obrigatório',
+          description: 'Defina o tipo de serviço antes de avançar para Proposta.',
+          variant: 'destructive',
+        });
+        setSelectedLead(lead);
+        setDetailDialogOpen(true);
+        return;
+      }
+
+      // Gate: Proposta → Negociação exige budget_id
+      if (lead.crm_stage === 'proposal' && !lead.budget_id) {
+        toast({
+          title: 'Orçamento obrigatório',
+          description: 'Atribua um orçamento antes de avançar para Negociação.',
+          variant: 'destructive',
+        });
         setSelectedLead(lead);
         setDetailDialogOpen(true);
         return;
       }
     }
 
+    // Se chegou aqui, pode mover (avançar ou retroceder)
     const stageLabel = CRM_LEAD_COLUMNS.find((c) => c.id === newStage)?.label ?? newStage;
     updateStage.mutate(
       { id: lead.id, stage: newStage, fromStage: lead.crm_stage },
