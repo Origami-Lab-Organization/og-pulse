@@ -66,6 +66,17 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       return;
     }
 
+    // Bloquear pulo de colunas — só adjacente permitido
+    const distance = Math.abs(STAGE_INDEX[newStage] - STAGE_INDEX[lead.crm_stage]);
+    if (distance > 1) {
+      toast({
+        title: 'Movimento inválido',
+        description: 'Só é permitido mover para a coluna adjacente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Determinar se está avançando ou retrocedendo
     const isAdvancing = STAGE_INDEX[newStage] > STAGE_INDEX[lead.crm_stage];
 
