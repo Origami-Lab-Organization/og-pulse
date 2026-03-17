@@ -349,21 +349,18 @@ export default function BudgetForm() {
               <FormField control={form.control} name="clientId" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cliente</FormLabel>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {clients.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowClientDialog(true)}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {clients.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" className="w-full mt-1" onClick={() => setShowClientDialog(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Cliente
+                  </Button>
                   <FormMessage />
                 </FormItem>
               )} />
