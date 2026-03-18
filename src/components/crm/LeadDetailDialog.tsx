@@ -27,7 +27,7 @@ import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
 import { ArchiveLeadDialog } from './ArchiveLeadDialog';
 import { DeleteLeadDialog } from './DeleteLeadDialog';
 import { LeadActivityTimeline } from './LeadActivityTimeline';
-import { LeadFollowUpSection } from './LeadFollowUpSection';
+import { LeadInteractionsTab } from './LeadInteractionsTab';
 import { BudgetVersionHistory } from './BudgetVersionHistory';
 import { useUpdateLead, useUpdateLeadStage } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
@@ -634,7 +634,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                 </TabsContent>
 
                 <TabsContent value="followups" className="px-5 py-4 mt-0">
-                  <LeadFollowUpSection leadId={lead.id} disabled={isArchived} />
+                  <LeadInteractionsTab leadId={lead.id} disabled={lead.crm_stage === 'closed' || isArchived} />
                 </TabsContent>
 
                 <TabsContent value="historico" className="px-5 py-4 mt-0">
