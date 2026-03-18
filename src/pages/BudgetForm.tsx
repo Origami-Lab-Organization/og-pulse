@@ -635,10 +635,7 @@ export default function BudgetForm() {
                   )}
                 >
                   {tab.label}
-                  <span className={cn(
-                    'text-[11px] px-1.5 py-0.5 rounded-full',
-                    compositionTab === tab.key ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-secondary text-secondary-foreground',
-                  )}>
+                  <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground">
                     {tab.count}
                   </span>
                 </button>
