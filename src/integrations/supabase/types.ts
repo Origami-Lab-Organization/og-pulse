@@ -350,6 +350,7 @@ export type Database = {
           duration_months: number
           final_total: number
           id: string
+          is_recurring: boolean
           lead_contact: string | null
           lead_name: string | null
           margin_override_approved: boolean
@@ -379,6 +380,7 @@ export type Database = {
           duration_months?: number
           final_total?: number
           id?: string
+          is_recurring?: boolean
           lead_contact?: string | null
           lead_name?: string | null
           margin_override_approved?: boolean
@@ -408,6 +410,7 @@ export type Database = {
           duration_months?: number
           final_total?: number
           id?: string
+          is_recurring?: boolean
           lead_contact?: string | null
           lead_name?: string | null
           margin_override_approved?: boolean
