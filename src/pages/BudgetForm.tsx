@@ -612,14 +612,14 @@ export default function BudgetForm() {
                   className={cn(
                     'flex items-center gap-1.5 px-1 py-3 mr-6 text-sm font-medium border-b-2 -mb-px transition-colors',
                     compositionTab === tab.key
-                      ? 'border-primary text-primary'
+                      ? 'border-green-600 text-green-700 dark:text-green-500 dark:border-green-500'
                       : 'border-transparent text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {tab.label}
                   <span className={cn(
                     'text-[11px] px-1.5 py-0.5 rounded-full',
-                    compositionTab === tab.key ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground',
+                    compositionTab === tab.key ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-secondary text-secondary-foreground',
                   )}>
                     {tab.count}
                   </span>
