@@ -489,7 +489,17 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                                 )}
                               </div>
                               <div className="rounded-md bg-primary/10 px-3 py-2.5 flex items-center justify-between">
-                                {lead.budget.monthly_value != null ? (
+                                {lead.budget.monthly_value != null && lead.budget.final_total === 0 ? (
+                                  // no_revenue continuous — show as cost
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Custo Mensal</p>
+                                    <p className="text-base font-bold">{formatCurrency(lead.budget.monthly_value)}/mês</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      Período: {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'} · Custo total: {formatCurrency(lead.budget.monthly_value * lead.budget.duration_months)}
+                                    </p>
+                                  </div>
+                                ) : lead.budget.monthly_value != null ? (
+                                  // recurring revenue
                                   <div>
                                     <p className="text-xs text-muted-foreground">Valor Mensal</p>
                                     <p className="text-base font-bold text-primary">{formatCurrency(lead.budget.monthly_value)}/mês</p>

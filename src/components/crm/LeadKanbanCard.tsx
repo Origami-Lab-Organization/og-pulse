@@ -201,12 +201,19 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
         )}
 
         {/* Value */}
-        {lead.budget?.monthly_value != null ? (
+        {lead.budget?.monthly_value != null && lead.budget.final_total === 0 ? (
+          // no_revenue continuous — show as cost
+          <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+            <DollarSign className="h-3 w-3" />
+            Custo: {formatCurrency(lead.budget.monthly_value)}/mês
+          </div>
+        ) : lead.budget?.monthly_value != null ? (
+          // recurring revenue
           <div className="flex items-center gap-1 text-xs font-semibold text-primary">
             <DollarSign className="h-3 w-3" />
             {formatCurrency(lead.budget.monthly_value)}/mês
           </div>
-        ) : lead.budget?.final_total != null ? (
+        ) : lead.budget?.final_total != null && lead.budget.final_total > 0 ? (
           <div className="flex items-center gap-1 text-xs font-semibold text-primary">
             <DollarSign className="h-3 w-3" />
             {formatCurrency(lead.budget.final_total)}

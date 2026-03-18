@@ -71,6 +71,16 @@ const WIZARD_STEPS_BY_TYPE: Record<BillingType, { id: number; title: string }[]>
   ],
 };
 
+function getWizardSteps(billingType: BillingType, isContinuous: boolean) {
+  if (billingType === 'no_revenue' && isContinuous) {
+    return [
+      { id: 1, title: 'Dados do Período' },
+      { id: 2, title: 'Equipe Mensal' },
+    ];
+  }
+  return WIZARD_STEPS_BY_TYPE[billingType];
+}
+
 const TYPE_BADGE_CLASSES: Record<BillingType, string> = {
   fixed_scope: 'bg-green-100 text-green-800 border-green-200',
   recurring: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -101,6 +111,8 @@ export default function BudgetForm() {
 
   // Manual override: set when user changes billing type via selector (no-lead edit/create)
   const [overrideBillingType, setOverrideBillingType] = useState<BillingType | null>(null);
+  // Whether the budget uses continuous (monthly) mode — relevant for no_revenue budgets
+  const [isContinuous, setIsContinuous] = useState(false);
 
   const billingType = useMemo<BillingType>(() => {
     // Manual override always wins (user changed the selector)
@@ -115,7 +127,7 @@ export default function BudgetForm() {
     return 'fixed_scope';
   }, [overrideBillingType, isFromLead, leadData?.service_line, services, isEditing, budget]);
 
-  const wizardSteps = WIZARD_STEPS_BY_TYPE[billingType];
+  const wizardSteps = getWizardSteps(billingType, isContinuous);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [roles, setRoles] = useState<BudgetRoleInput[]>([]);
@@ -174,13 +186,15 @@ export default function BudgetForm() {
     }
   }, [billingType, leadData?.service_line, services]);
 
+  const isMonthlyMode = billingType === 'recurring' || (billingType === 'no_revenue' && isContinuous);
+
   const calculation = useMemo<BudgetCalculation>(() => {
     if (billingType === 'success_fee') {
       return calculateSuccessFeeTotals(roles, materials, suppliers, durationMonths, successFeePercent, estimatedBase);
     }
-    // For recurring, BudgetRolesEditor uses a single column (monthlyMode). Expand roles to N months
-    // so calculateRecurringTotals receives the correct total hours across all months.
-    const expandedRoles = billingType === 'recurring'
+    // For recurring/continuous modes, BudgetRolesEditor uses a single column (monthlyMode).
+    // Expand roles to N months so calculateRecurringTotals receives the correct total hours.
+    const expandedRoles = isMonthlyMode
       ? roles.map((r) => ({
           ...r,
           months: Array.from({ length: durationMonths }, (_, i) => ({
@@ -189,11 +203,12 @@ export default function BudgetForm() {
           })),
         }))
       : roles;
+    // For no_revenue, all markup percentages are 0 — monthlyCost === monthlySellingPrice
     const args = [expandedRoles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue] as const;
-    return billingType === 'recurring'
+    return isMonthlyMode
       ? calculateRecurringTotals(...args)
       : calculateBudgetTotals(...args);
-  }, [roles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue, billingType, successFeePercent, estimatedBase]);
+  }, [roles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue, billingType, isContinuous, isMonthlyMode, successFeePercent, estimatedBase]);
 
   const initializedRef = useRef(false);
 
@@ -215,6 +230,12 @@ export default function BudgetForm() {
       setSnapshotTaxes(budget.taxes_percent);
       setSnapshotMaxCommission(budget.commission_percent);
       setSnapshotMinNetMargin(storedNetMargin);
+
+      // Detect no_revenue + continuous: is_recurring with no markup percentages and final_total = 0
+      if (budget.is_recurring && budget.final_total === 0) {
+        setOverrideBillingType('no_revenue');
+        setIsContinuous(true);
+      }
       
       setRoles(budget.roles.map((r) => ({
         tempId: crypto.randomUUID(),
@@ -287,8 +308,8 @@ export default function BudgetForm() {
       billingType,
       successFeePercent: billingType === 'success_fee' ? successFeePercent : undefined,
       estimatedBase: billingType === 'success_fee' ? estimatedBase : undefined,
-      monthlyValue: billingType === 'recurring' ? (calculation as RecurringCalculation).monthlyFinalPrice : undefined,
-      isRecurring: billingType === 'recurring',
+      monthlyValue: isMonthlyMode ? (calculation as RecurringCalculation).monthlyFinalPrice : undefined,
+      isRecurring: isMonthlyMode,
     };
 
     if (isEditing && id) {
@@ -312,7 +333,7 @@ export default function BudgetForm() {
   const validateCurrentStep = async (): Promise<boolean> => {
     if (currentStep === 1) {
       const fields: ('title' | 'clientId' | 'startDate' | 'durationMonths')[] =
-        billingType === 'recurring'
+        isMonthlyMode
           ? ['title', 'clientId', 'durationMonths']
           : ['title', 'clientId', 'startDate', 'durationMonths'];
       const result = await form.trigger(fields);
@@ -423,15 +444,45 @@ export default function BudgetForm() {
                 </FormItem>
               )} />
 
-              {billingType === 'recurring' ? (
+              {/* Duration type selector — only for no_revenue */}
+              {billingType === 'no_revenue' && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Tipo de Duração</p>
+                  <Select
+                    value={isContinuous ? 'continuous' : 'one_time'}
+                    onValueChange={(v) => setIsContinuous(v === 'continuous')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="one_time">Pontual (escopo fechado)</SelectItem>
+                      <SelectItem value="continuous">Contínuo (recorrente)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {isMonthlyMode ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">Receita Recorrente</Badge>
-                    <span className="text-xs text-muted-foreground">As horas serão registradas por mês e replicadas durante o contrato.</span>
+                    {billingType === 'recurring' ? (
+                      <>
+                        <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">Receita Recorrente</Badge>
+                        <span className="text-xs text-muted-foreground">As horas serão registradas por mês e replicadas durante o contrato.</span>
+                      </>
+                    ) : (
+                      <>
+                        <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-xs">Contínuo (sem receita)</Badge>
+                        <span className="text-xs text-muted-foreground">Equipe e custos orçados mensalmente.</span>
+                      </>
+                    )}
                   </div>
                   <FormField control={form.control} name="durationMonths" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Duração do Contrato (meses)</FormLabel>
+                      <FormLabel>
+                        {billingType === 'no_revenue' ? 'Período de planejamento (meses)' : 'Duração do Contrato (meses)'}
+                      </FormLabel>
                       <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -490,10 +541,10 @@ export default function BudgetForm() {
                 <CardContent className="pt-6">
                   <BudgetRolesEditor
                     roles={roles}
-                    durationMonths={billingType === 'recurring' ? 1 : durationMonths}
+                    durationMonths={isMonthlyMode ? 1 : durationMonths}
                     availableRoles={roleRates}
                     onRolesChange={setRoles}
-                    monthlyMode={billingType === 'recurring'}
+                    monthlyMode={isMonthlyMode}
                   />
                 </CardContent>
               </Card>
@@ -506,7 +557,7 @@ export default function BudgetForm() {
               />
 
               {/* Materiais */}
-              {billingType === 'recurring' && (
+              {isMonthlyMode && (
                 <p className="text-sm font-medium text-muted-foreground -mb-4">Custos de Implantação (pontual, rateado no contrato)</p>
               )}
               <BudgetMaterialsEditor
@@ -515,8 +566,8 @@ export default function BudgetForm() {
               />
             </div>
 
-            {billingType === 'no_revenue' ? (
-              /* Budget interno: resumo de custo inline */
+            {billingType === 'no_revenue' && !isContinuous ? (
+              /* Budget interno pontual: resumo de custo total */
               <Card className="border-dashed">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -549,6 +600,45 @@ export default function BudgetForm() {
                   )}
                 </CardContent>
               </Card>
+            ) : billingType === 'no_revenue' && isContinuous ? (
+              /* Budget interno contínuo: resumo de custo mensal */
+              (() => {
+                const rec = calculation as RecurringCalculation;
+                const monthlyLabor = rec.monthlyCost - suppliers.reduce((a, s) => a + s.monthlyValue, 0) - (durationMonths > 0 ? rec.materialsTotal / durationMonths : 0);
+                return (
+                  <Card className="border-dashed">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Calculator className="h-4 w-4" />
+                        Custos Mensais
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Mão de obra/mês</span>
+                        <span>{formatCurrency(monthlyLabor)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Fornecedores/mês</span>
+                        <span>{formatCurrency(suppliers.reduce((a, s) => a + s.monthlyValue, 0))}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Implantação (rateado)</span>
+                        <span>{formatCurrency(durationMonths > 0 ? rec.materialsTotal / durationMonths : 0)}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between font-semibold">
+                        <span>Custo mensal total</span>
+                        <span className="text-lg">{formatCurrency(rec.monthlyCost)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground pt-1">
+                        <span>Custo total do período ({durationMonths} {durationMonths === 1 ? 'mês' : 'meses'})</span>
+                        <strong className="text-foreground">{formatCurrency(rec.contractTotal)}</strong>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()
             ) : (
               /* Rodapé simples com totais para outros tipos */
               <div className="sticky bottom-0 z-40 -mx-6 -mb-6 border-t bg-muted/50 px-6 py-3 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.05)]">

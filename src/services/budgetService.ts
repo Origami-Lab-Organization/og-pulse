@@ -322,8 +322,8 @@ export const budgetService = {
         net_margin_percent: input.netMarginPercent,
         discount_value: input.discountValue,
         subtotal: totals.laborCost,
-        total_with_fees: totals.sellingPrice,
-        final_total: totals.finalTotal,
+        total_with_fees: input.billingType === 'no_revenue' ? 0 : totals.sellingPrice,
+        final_total: input.billingType === 'no_revenue' ? 0 : totals.finalTotal,
         monthly_value: input.monthlyValue ?? null,
         is_recurring: input.isRecurring ?? false,
         notes: input.notes || null,
@@ -473,9 +473,10 @@ export const budgetService = {
     }
 
     if (totals) {
+      const isNoRevenue = input.billingType === 'no_revenue';
       updateData.subtotal = totals.laborCost;
-      updateData.total_with_fees = totals.sellingPrice;
-      updateData.final_total = totals.finalTotal;
+      updateData.total_with_fees = isNoRevenue ? 0 : totals.sellingPrice;
+      updateData.final_total = isNoRevenue ? 0 : totals.finalTotal;
     }
     if (input.monthlyValue !== undefined) updateData.monthly_value = input.monthlyValue ?? null;
     if (input.isRecurring !== undefined) updateData.is_recurring = input.isRecurring;
