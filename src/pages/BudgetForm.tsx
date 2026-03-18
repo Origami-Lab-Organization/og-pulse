@@ -623,20 +623,17 @@ export default function BudgetForm() {
                   suppliers={suppliers}
                   durationMonths={durationMonths}
                   onSuppliersChange={setSuppliers}
+                  isRecurring={isMonthlyMode}
                 />
               </div>
 
               {/* Materiais */}
               <div className="pt-4 border-t">
-                {isMonthlyMode && (
-                  <div className="mb-3">
-                    <p className="text-sm font-medium">Custos de implantação (pontual)</p>
-                    <p className="text-xs text-muted-foreground">Rateados ao longo do contrato</p>
-                  </div>
-                )}
                 <BudgetMaterialsEditor
                   materials={materials}
                   onMaterialsChange={setMaterials}
+                  isRecurring={isMonthlyMode}
+                  durationMonths={durationMonths}
                 />
               </div>
             </CardContent>

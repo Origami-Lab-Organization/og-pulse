@@ -1,126 +1,122 @@
 import { forwardRef } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Package } from 'lucide-react';
+import { X, Plus, Info } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { BudgetMaterialInput } from '@/types/budget';
+import { cn } from '@/lib/utils';
 
 interface BudgetMaterialsEditorProps {
   materials: BudgetMaterialInput[];
   onMaterialsChange: (materials: BudgetMaterialInput[]) => void;
+  isRecurring?: boolean;
+  durationMonths?: number;
 }
 
 export const BudgetMaterialsEditor = forwardRef<HTMLDivElement, BudgetMaterialsEditorProps>(
-  function BudgetMaterialsEditor({ materials, onMaterialsChange }, ref) {
+  function BudgetMaterialsEditor(
+    { materials, onMaterialsChange, isRecurring = false, durationMonths = 1 },
+    ref
+  ) {
     const handleAddMaterial = () => {
-      const newMaterial: BudgetMaterialInput = {
-        tempId: crypto.randomUUID(),
-        description: '',
-        value: 0,
-      };
-      onMaterialsChange([...materials, newMaterial]);
+      onMaterialsChange([
+        ...materials,
+        { tempId: crypto.randomUUID(), description: '', value: 0 },
+      ]);
     };
 
     const handleRemoveMaterial = (tempId: string) => {
       onMaterialsChange(materials.filter((m) => m.tempId !== tempId));
     };
 
-    const handleUpdateMaterial = (
+    const handleUpdate = (
       tempId: string,
       field: 'description' | 'value',
       value: string | number
     ) => {
-      onMaterialsChange(
-        materials.map((m) =>
-          m.tempId === tempId ? { ...m, [field]: value } : m
-        )
-      );
+      onMaterialsChange(materials.map((m) => (m.tempId === tempId ? { ...m, [field]: value } : m)));
     };
 
     const totalMaterials = materials.reduce((sum, m) => sum + (m.value || 0), 0);
+    const monthlyRateio = durationMonths > 0 ? totalMaterials / durationMonths : 0;
 
     return (
-      <div ref={ref}>
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Materiais
-            </CardTitle>
-            <Button type="button" onClick={handleAddMaterial} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar Material
-            </Button>
+      <div ref={ref} className="space-y-2">
+        <p className="text-sm font-medium">
+          {isRecurring ? 'Custos de implantação (pontual)' : 'Materiais'}
+        </p>
+
+        {isRecurring && (
+          <div className="flex items-start gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-700 dark:text-blue-300">
+            <Info className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              Custos pontuais de implantação. O valor será rateado ao longo dos{' '}
+              <strong>{durationMonths} meses</strong> do contrato na precificação.
+            </span>
           </div>
-        </CardHeader>
-          <CardContent>
-            {materials.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Nenhum material adicionado</p>
-                <p className="text-sm">Clique em "Adicionar Material" para incluir custos extras</p>
-              </div>
-            ) : (
-              <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[60%]">Descrição</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="w-[60px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {materials.map((material) => (
-                      <TableRow key={material.tempId}>
-                        <TableCell>
-                          <Input
-                            placeholder="Descrição do material..."
-                            value={material.description}
-                            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-                            onChange={(e) =>
-                              handleUpdateMaterial(material.tempId, 'description', e.target.value)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <CurrencyInput
-                            value={material.value}
-                            onValueChange={(v) =>
-                              handleUpdateMaterial(material.tempId, 'value', v)
-                            }
-                            className="text-right"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveMaterial(material.tempId)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="flex justify-end mt-4 pt-4 border-t">
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total Materiais</p>
-                    <p className="text-lg font-semibold">{formatCurrency(totalMaterials)}</p>
-                  </div>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        )}
+
+        {materials.map((material) => (
+          <div key={material.tempId} className="rounded-lg border bg-card p-3 space-y-2">
+            <div className="flex items-start gap-2">
+              <Input
+                placeholder={isRecurring ? 'Descrição do custo...' : 'Descrição do material...'}
+                value={material.description}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                onChange={(e) => handleUpdate(material.tempId, 'description', e.target.value)}
+                className="flex-1 text-sm font-medium h-8"
+              />
+              <button
+                type="button"
+                onClick={() => handleRemoveMaterial(material.tempId)}
+                className="mt-1 text-destructive hover:text-destructive/80 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-0.5">
+              <CurrencyInput
+                value={material.value}
+                onValueChange={(v) => handleUpdate(material.tempId, 'value', v)}
+                className="h-8 text-sm font-semibold w-36"
+              />
+              {isRecurring && durationMonths > 1 && (
+                <p className="text-xs text-muted-foreground pl-1">
+                  {formatCurrency((material.value || 0) / durationMonths)}/mês rateado
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={handleAddMaterial}
+          className={cn(
+            'w-full rounded-lg py-2.5 text-sm font-medium text-primary transition-colors',
+            'border-[1.5px] border-dashed border-primary/40 hover:border-primary hover:bg-primary/5',
+          )}
+        >
+          <Plus className="inline h-4 w-4 mr-1.5" />
+          {isRecurring ? 'Adicionar custo de implantação' : 'Adicionar material'}
+        </button>
+
+        {materials.length > 0 && (
+          <div className="flex items-center justify-between pt-2 border-t text-sm">
+            <span className="text-muted-foreground">
+              {isRecurring ? 'Total implantação' : 'Total materiais'}
+            </span>
+            <div className="text-right">
+              <span className="font-semibold">{formatCurrency(totalMaterials)}</span>
+              {isRecurring && durationMonths > 1 && (
+                <span className="block text-xs text-muted-foreground">
+                  Rateio: {formatCurrency(totalMaterials)} ÷ {durationMonths} = {formatCurrency(monthlyRateio)}/mês
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
