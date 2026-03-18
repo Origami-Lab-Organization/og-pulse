@@ -324,6 +324,7 @@ export const budgetService = {
         subtotal: totals.laborCost,
         total_with_fees: totals.sellingPrice,
         final_total: totals.finalTotal,
+        monthly_value: input.monthlyValue ?? null,
         notes: input.notes || null,
         created_by: createdBy,
         margin_override_approved: input.marginOverrideApproved || false,
@@ -475,6 +476,7 @@ export const budgetService = {
       updateData.total_with_fees = totals.sellingPrice;
       updateData.final_total = totals.finalTotal;
     }
+    if (input.monthlyValue !== undefined) updateData.monthly_value = input.monthlyValue ?? null;
 
     const { data, error } = await fromTable('budgets')
       .update(updateData)

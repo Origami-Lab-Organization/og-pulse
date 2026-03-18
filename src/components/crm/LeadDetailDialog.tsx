@@ -489,13 +489,25 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                                 )}
                               </div>
                               <div className="rounded-md bg-primary/10 px-3 py-2.5 flex items-center justify-between">
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Valor Final</p>
-                                  <p className="text-base font-bold text-primary">{formatCurrency(lead.budget.final_total)}</p>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'}
-                                </p>
+                                {lead.budget.monthly_value != null ? (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Valor Mensal</p>
+                                    <p className="text-base font-bold text-primary">{formatCurrency(lead.budget.monthly_value)}/mês</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      Contrato: {formatCurrency(lead.budget.final_total)} ({lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'})
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Valor Final</p>
+                                    <p className="text-base font-bold text-primary">{formatCurrency(lead.budget.final_total)}</p>
+                                  </div>
+                                )}
+                                {lead.budget.monthly_value == null && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'}
+                                  </p>
+                                )}
                               </div>
                               <div className="flex gap-2">
                                 <Button variant="outline" size="sm" className="flex-1" onClick={handleViewBudget}>

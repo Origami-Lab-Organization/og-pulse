@@ -30,6 +30,7 @@ export interface BudgetDB {
   subtotal: number;
   total_with_fees: number;
   final_total: number;
+  monthly_value?: number | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -129,6 +130,7 @@ export interface CreateBudgetInput {
   billingType?: BillingType;
   successFeePercent?: number;
   estimatedBase?: number;
+  monthlyValue?: number;
 }
 
 export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {

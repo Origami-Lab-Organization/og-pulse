@@ -42,7 +42,7 @@ import ClientFormDialog from '@/components/clients/ClientFormDialog';
 const formSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
   clientId: z.string().min(1, 'Selecione ou cadastre um cliente'),
-  startDate: z.string().min(1, 'Data de início é obrigatória'),
+  startDate: z.string().optional(),
   durationMonths: z.coerce.number().min(1, 'Mínimo 1 mês').max(60, 'Máximo 60 meses'),
   notes: z.string().optional(),
 });
@@ -168,7 +168,18 @@ export default function BudgetForm() {
     if (billingType === 'success_fee') {
       return calculateSuccessFeeTotals(roles, materials, suppliers, durationMonths, successFeePercent, estimatedBase);
     }
-    const args = [roles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue] as const;
+    // For recurring, BudgetRolesEditor uses a single column (monthlyMode). Expand roles to N months
+    // so calculateRecurringTotals receives the correct total hours across all months.
+    const expandedRoles = billingType === 'recurring'
+      ? roles.map((r) => ({
+          ...r,
+          months: Array.from({ length: durationMonths }, (_, i) => ({
+            monthNumber: i + 1,
+            hours: r.months[0]?.hours ?? 0,
+          })),
+        }))
+      : roles;
+    const args = [expandedRoles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue] as const;
     return billingType === 'recurring'
       ? calculateRecurringTotals(...args)
       : calculateBudgetTotals(...args);
@@ -250,7 +261,7 @@ export default function BudgetForm() {
     const input: CreateBudgetInput = {
       title: values.title,
       clientId: values.clientId,
-      startDate: values.startDate,
+      startDate: values.startDate || format(new Date(), 'yyyy-MM-dd'),
       durationMonths: values.durationMonths,
       adminExpensesPercent: isNoRevenue ? 0 : adminExpensesPercent,
       taxesPercent: isNoRevenue ? 0 : taxesPercent,
@@ -266,6 +277,7 @@ export default function BudgetForm() {
       billingType,
       successFeePercent: billingType === 'success_fee' ? successFeePercent : undefined,
       estimatedBase: billingType === 'success_fee' ? estimatedBase : undefined,
+      monthlyValue: billingType === 'recurring' ? (calculation as RecurringCalculation).monthlyFinalPrice : undefined,
     };
 
     if (isEditing && id) {
@@ -288,7 +300,11 @@ export default function BudgetForm() {
 
   const validateCurrentStep = async (): Promise<boolean> => {
     if (currentStep === 1) {
-      const result = await form.trigger(['title', 'clientId', 'startDate', 'durationMonths']);
+      const fields: ('title' | 'clientId' | 'startDate' | 'durationMonths')[] =
+        billingType === 'recurring'
+          ? ['title', 'clientId', 'durationMonths']
+          : ['title', 'clientId', 'startDate', 'durationMonths'];
+      const result = await form.trigger(fields);
       return result;
     }
     return true;
@@ -365,38 +381,45 @@ export default function BudgetForm() {
                 </FormItem>
               )} />
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="startDate" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data de Início</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="durationMonths" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {billingType === 'recurring'
-                        ? 'Período até renovação (meses)'
-                        : billingType === 'success_fee'
-                        ? 'Duração estimada (meses)'
-                        : 'Duração do Projeto (meses)'}
-                    </FormLabel>
-                    {billingType === 'recurring' && (
-                      <p className="text-xs text-muted-foreground -mt-1">Data de renovação: {
-                        form.watch('startDate')
-                          ? format(new Date(new Date(form.watch('startDate')).setMonth(new Date(form.watch('startDate')).getMonth() + Number(field.value || 0))), 'dd/MM/yyyy')
-                          : '—'
-                      }</p>
-                    )}
-                    {billingType === 'success_fee' && (
-                      <p className="text-xs text-muted-foreground -mt-1">Estimativa para alocação de equipe de apoio</p>
-                    )}
-                    <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
+              {billingType === 'recurring' ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">Receita Recorrente</Badge>
+                    <span className="text-xs text-muted-foreground">As horas serão registradas por mês e replicadas durante o contrato.</span>
+                  </div>
+                  <FormField control={form.control} name="durationMonths" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duração do Contrato (meses)</FormLabel>
+                      <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="startDate" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data de Início</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="durationMonths" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {billingType === 'success_fee'
+                          ? 'Duração estimada (meses)'
+                          : 'Duração do Projeto (meses)'}
+                      </FormLabel>
+                      {billingType === 'success_fee' && (
+                        <p className="text-xs text-muted-foreground -mt-1">Estimativa para alocação de equipe de apoio</p>
+                      )}
+                      <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              )}
 
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem>
@@ -425,9 +448,10 @@ export default function BudgetForm() {
                 <CardContent className="pt-6">
                   <BudgetRolesEditor
                     roles={roles}
-                    durationMonths={durationMonths}
+                    durationMonths={billingType === 'recurring' ? 1 : durationMonths}
                     availableRoles={roleRates}
                     onRolesChange={setRoles}
+                    monthlyMode={billingType === 'recurring'}
                   />
                 </CardContent>
               </Card>
@@ -440,6 +464,9 @@ export default function BudgetForm() {
               />
 
               {/* Materiais */}
+              {billingType === 'recurring' && (
+                <p className="text-sm font-medium text-muted-foreground -mb-4">Custos de Implantação (pontual, rateado no contrato)</p>
+              )}
               <BudgetMaterialsEditor
                 materials={materials}
                 onMaterialsChange={setMaterials}

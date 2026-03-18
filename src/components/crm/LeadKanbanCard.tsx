@@ -201,7 +201,12 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
         )}
 
         {/* Value */}
-        {lead.budget?.final_total != null ? (
+        {lead.budget?.monthly_value != null ? (
+          <div className="flex items-center gap-1 text-xs font-semibold text-primary">
+            <DollarSign className="h-3 w-3" />
+            {formatCurrency(lead.budget.monthly_value)}/mês
+          </div>
+        ) : lead.budget?.final_total != null ? (
           <div className="flex items-center gap-1 text-xs font-semibold text-primary">
             <DollarSign className="h-3 w-3" />
             {formatCurrency(lead.budget.final_total)}

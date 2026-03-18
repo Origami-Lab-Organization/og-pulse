@@ -27,6 +27,7 @@ interface BudgetRolesEditorProps {
   durationMonths: number;
   availableRoles: RoleRateDB[];
   onRolesChange: (roles: BudgetRoleInput[]) => void;
+  monthlyMode?: boolean;
 }
 
 export function BudgetRolesEditor({
@@ -34,6 +35,7 @@ export function BudgetRolesEditor({
   durationMonths,
   availableRoles,
   onRolesChange,
+  monthlyMode = false,
 }: BudgetRolesEditorProps) {
   const months = useMemo(
     () => Array.from({ length: durationMonths }, (_, i) => i + 1),
@@ -152,7 +154,7 @@ export function BudgetRolesEditor({
                   <TableHead className="min-w-[100px] text-right">Valor/Hora</TableHead>
                   {months.map((m) => (
                     <TableHead key={m} className="min-w-[80px] text-center">
-                      Mês {m}
+                      {monthlyMode ? 'Horas/mês' : `Mês ${m}`}
                     </TableHead>
                   ))}
                   <TableHead className="min-w-[80px] text-center">Total Horas</TableHead>
