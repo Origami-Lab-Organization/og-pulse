@@ -326,7 +326,6 @@ export const budgetService = {
         final_total: input.billingType === 'no_revenue' ? 0 : totals.finalTotal,
         monthly_value: input.monthlyValue ?? null,
         is_recurring: input.isRecurring ?? false,
-        is_indefinite: input.isIndefinite ?? false,
         notes: input.notes || null,
         created_by: createdBy,
         margin_override_approved: input.marginOverrideApproved || false,
@@ -481,7 +480,6 @@ export const budgetService = {
     }
     if (input.monthlyValue !== undefined) updateData.monthly_value = input.monthlyValue ?? null;
     if (input.isRecurring !== undefined) updateData.is_recurring = input.isRecurring;
-    if (input.isIndefinite !== undefined) updateData.is_indefinite = input.isIndefinite;
 
     const { data, error } = await fromTable('budgets')
       .update(updateData)

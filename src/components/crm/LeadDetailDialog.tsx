@@ -495,9 +495,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                                     <p className="text-xs text-muted-foreground">Custo Mensal</p>
                                     <p className="text-base font-bold">{formatCurrency(lead.budget.monthly_value)}/mês</p>
                                     <p className="text-xs text-muted-foreground mt-0.5">
-                                      {lead.budget.is_indefinite
-                                        ? `Contrato contínuo · Projeção anual: ${formatCurrency(lead.budget.monthly_value * 12)}`
-                                        : `Período: ${lead.budget.duration_months} ${lead.budget.duration_months === 1 ? 'mês' : 'meses'} · Custo total: ${formatCurrency(lead.budget.monthly_value * lead.budget.duration_months)}`}
+                                      Período: {lead.budget.duration_months} {lead.budget.duration_months === 1 ? 'mês' : 'meses'} · Custo total: {formatCurrency(lead.budget.monthly_value * lead.budget.duration_months)}
                                     </p>
                                   </div>
                                 ) : lead.budget.monthly_value != null ? (
