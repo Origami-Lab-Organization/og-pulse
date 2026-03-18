@@ -32,6 +32,7 @@ export interface BudgetDB {
   final_total: number;
   monthly_value?: number | null;
   is_recurring: boolean;
+  is_indefinite: boolean;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -133,6 +134,7 @@ export interface CreateBudgetInput {
   estimatedBase?: number;
   monthlyValue?: number;
   isRecurring?: boolean;
+  isIndefinite?: boolean;
 }
 
 export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {

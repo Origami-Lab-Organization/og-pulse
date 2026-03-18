@@ -112,6 +112,8 @@ export default function BudgetForm() {
   const [overrideBillingType, setOverrideBillingType] = useState<BillingType | null>(null);
   // Whether the budget uses continuous (monthly) mode — relevant for no_revenue budgets
   const [isContinuous, setIsContinuous] = useState(false);
+  // Whether the continuous project has no defined end date
+  const [isIndefinite, setIsIndefinite] = useState(false);
 
   const billingType = useMemo<BillingType>(() => {
     // Manual override always wins (user changed the selector)
@@ -187,28 +189,30 @@ export default function BudgetForm() {
   }, [billingType, leadData?.service_line, services]);
 
   const isMonthlyMode = billingType === 'recurring' || (billingType === 'no_revenue' && isContinuous);
+  // When indefinite, use 12 months as the calculation baseline
+  const calcDurationMonths = isMonthlyMode && isIndefinite ? 12 : durationMonths;
 
   const calculation = useMemo<BudgetCalculation>(() => {
     if (billingType === 'success_fee') {
-      return calculateSuccessFeeTotals(roles, materials, suppliers, durationMonths, successFeePercent, estimatedBase);
+      return calculateSuccessFeeTotals(roles, materials, suppliers, calcDurationMonths, successFeePercent, estimatedBase);
     }
     // For recurring/continuous modes, BudgetRolesEditor uses a single column (monthlyMode).
     // Expand roles to N months so calculateRecurringTotals receives the correct total hours.
     const expandedRoles = isMonthlyMode
       ? roles.map((r) => ({
           ...r,
-          months: Array.from({ length: durationMonths }, (_, i) => ({
+          months: Array.from({ length: calcDurationMonths }, (_, i) => ({
             monthNumber: i + 1,
             hours: r.months[0]?.hours ?? 0,
           })),
         }))
       : roles;
     // For no_revenue, all markup percentages are 0 — monthlyCost === monthlySellingPrice
-    const args = [expandedRoles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue] as const;
+    const args = [expandedRoles, materials, suppliers, calcDurationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue] as const;
     return isMonthlyMode
       ? calculateRecurringTotals(...args)
       : calculateBudgetTotals(...args);
-  }, [roles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue, billingType, isContinuous, isMonthlyMode, successFeePercent, estimatedBase]);
+  }, [roles, materials, suppliers, calcDurationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue, billingType, isContinuous, isMonthlyMode, isIndefinite, successFeePercent, estimatedBase]);
 
   const initializedRef = useRef(false);
 
@@ -231,10 +235,11 @@ export default function BudgetForm() {
       setSnapshotMaxCommission(budget.commission_percent);
       setSnapshotMinNetMargin(storedNetMargin);
 
-      // Detect no_revenue + continuous: is_recurring with no markup percentages and final_total = 0
+      // Detect no_revenue + continuous: is_recurring with final_total = 0
       if (budget.is_recurring && budget.final_total === 0) {
         setOverrideBillingType('no_revenue');
         setIsContinuous(true);
+        if ((budget as any).is_indefinite) setIsIndefinite(true);
       }
       
       setRoles(budget.roles.map((r) => ({
@@ -289,17 +294,18 @@ export default function BudgetForm() {
     }
 
     const isNoRevenue = billingType === 'no_revenue';
+    const effectiveDuration = isMonthlyMode && isIndefinite ? 12 : values.durationMonths;
     const input: CreateBudgetInput = {
       title: values.title,
       clientId: values.clientId,
       startDate: values.startDate || format(new Date(), 'yyyy-MM-dd'),
-      durationMonths: values.durationMonths,
+      durationMonths: effectiveDuration,
       adminExpensesPercent: isNoRevenue ? 0 : adminExpensesPercent,
       taxesPercent: isNoRevenue ? 0 : taxesPercent,
       commissionPercent: isNoRevenue ? 0 : commissionPercent,
       netMarginPercent: isNoRevenue ? 0 : netMarginPercent,
       // For recurring, discountValue state is monthly — save total to DB. For success_fee/no_revenue, no discount.
-      discountValue: (billingType === 'success_fee' || isNoRevenue) ? 0 : billingType === 'recurring' ? discountValue * values.durationMonths : discountValue,
+      discountValue: (billingType === 'success_fee' || isNoRevenue) ? 0 : billingType === 'recurring' ? discountValue * effectiveDuration : discountValue,
       notes: values.notes,
       roles,
       materials,
@@ -310,6 +316,7 @@ export default function BudgetForm() {
       estimatedBase: billingType === 'success_fee' ? estimatedBase : undefined,
       monthlyValue: isMonthlyMode ? (calculation as RecurringCalculation).monthlyFinalPrice : undefined,
       isRecurring: isMonthlyMode,
+      isIndefinite: isMonthlyMode ? isIndefinite : undefined,
     };
 
     if (isEditing && id) {
@@ -504,7 +511,14 @@ export default function BudgetForm() {
                         {billingType === 'no_revenue' ? 'Período de planejamento' : 'Duração do Contrato'}
                       </FormLabel>
                       <div className="flex items-center gap-2">
-                        <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                        <FormControl>
+                          <Input
+                            type="number" min={1} max={60}
+                            disabled={isIndefinite}
+                            placeholder={isIndefinite ? 'Indefinido' : undefined}
+                            {...field}
+                          />
+                        </FormControl>
                         <span className="text-sm text-muted-foreground shrink-0">meses</span>
                       </div>
                       <FormMessage />
@@ -556,6 +570,30 @@ export default function BudgetForm() {
                     )} />
                   </div>
                 </>
+              )}
+
+              {/* Indefinite duration checkbox — only for continuous mode */}
+              {isMonthlyMode && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="indefinite"
+                      checked={isIndefinite}
+                      onCheckedChange={(c) => {
+                        setIsIndefinite(c === true);
+                        if (c === true) form.setValue('durationMonths', 12);
+                      }}
+                    />
+                    <label htmlFor="indefinite" className="text-sm cursor-pointer">
+                      Sem prazo definido (renovação automática)
+                    </label>
+                  </div>
+                  {isIndefinite && (
+                    <p className="text-xs text-muted-foreground ml-6">
+                      Para fins de orçamento, o cálculo considera 12 meses. O projeto será renovado automaticamente.
+                    </p>
+                  )}
+                </div>
               )}
 
               <FormField control={form.control} name="notes" render={({ field }) => (
@@ -665,8 +703,17 @@ export default function BudgetForm() {
                       <span>{formatCurrency(rec2.monthlyCost)}/mês</span>
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Período: {durationMonths} {durationMonths === 1 ? 'mês' : 'meses'}</span>
-                      <span>Custo total: <strong className="text-foreground">{formatCurrency(rec2.contractTotal)}</strong></span>
+                      {isIndefinite ? (
+                        <>
+                          <span>Contrato contínuo (sem prazo)</span>
+                          <span>Projeção anual: <strong className="text-foreground">{formatCurrency(rec2.contractTotal)}</strong></span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Período: {calcDurationMonths} {calcDurationMonths === 1 ? 'mês' : 'meses'}</span>
+                          <span>Custo total: <strong className="text-foreground">{formatCurrency(rec2.contractTotal)}</strong></span>
+                        </>
+                      )}
                     </div>
                   </>
                 ) : (
