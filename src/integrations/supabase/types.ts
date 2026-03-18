@@ -355,6 +355,7 @@ export type Database = {
           margin_override_approved: boolean
           margin_override_approved_at: string | null
           margin_override_approved_by: string | null
+          monthly_value: number | null
           net_margin_percent: number
           notes: string | null
           start_date: string
@@ -383,6 +384,7 @@ export type Database = {
           margin_override_approved?: boolean
           margin_override_approved_at?: string | null
           margin_override_approved_by?: string | null
+          monthly_value?: number | null
           net_margin_percent?: number
           notes?: string | null
           start_date: string
@@ -411,6 +413,7 @@ export type Database = {
           margin_override_approved?: boolean
           margin_override_approved_at?: string | null
           margin_override_approved_by?: string | null
+          monthly_value?: number | null
           net_margin_percent?: number
           notes?: string | null
           start_date?: string
