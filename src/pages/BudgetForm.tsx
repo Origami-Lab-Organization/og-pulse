@@ -15,13 +15,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, ArrowLeft, ArrowRight, Save, Check, Calculator, Percent, DollarSign, Plus, TrendingUp, Info } from 'lucide-react';
+import { Loader2, Save, Calculator, Percent, DollarSign, Plus, TrendingUp, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BudgetRolesEditor } from '@/components/budgets/BudgetRolesEditor';
 import { BudgetSuppliersEditor } from '@/components/budgets/BudgetSuppliersEditor';
 import { BudgetMaterialsEditor } from '@/components/budgets/BudgetMaterialsEditor';
-import { BudgetFinancialSummary } from '@/components/budgets/BudgetFinancialSummary';
 import { MarginGauge } from '@/components/budgets/MarginGauge';
 import { BudgetWizardFooter } from '@/components/budgets/BudgetWizardFooter';
 import { Separator } from '@/components/ui/separator';
@@ -165,6 +164,7 @@ export default function BudgetForm() {
   });
 
   const durationMonths = form.watch('durationMonths');
+  const watchedTitle = form.watch('title');
 
   // Pre-fill from lead data
   useEffect(() => {
@@ -382,17 +382,50 @@ export default function BudgetForm() {
       case 1:
         return (
           <Card>
-            <CardHeader>
-              <CardTitle>Informações do Orçamento</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            {/* Informative header with title input + type badge */}
+            <div className="px-6 pt-5 pb-4 border-b">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium mb-1">
+                    {isEditing ? `Editando: ${budget?.title || ''}` : 'Novo Orçamento'}
+                  </p>
+                  <FormField control={form.control} name="title" render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <input
+                          {...field}
+                          placeholder="Nome do orçamento..."
+                          className="w-full text-xl font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/50 focus:outline-none"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+                <Badge className={cn('text-xs border shrink-0 mt-0.5', TYPE_BADGE_CLASSES[billingType])}>
+                  {BILLING_TYPE_LABELS[billingType]}
+                </Badge>
+              </div>
+            </div>
+
+            <CardContent className="pt-5 space-y-4">
+              {/* Banner for budgets that predate recurring mode */}
+              {isEditing && !budget?.is_recurring && billingType === 'recurring' && (
+                <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Este orçamento foi criado antes do modo recorrente. Os valores salvos representam o total do contrato. Salve para converter para precificação mensal.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Billing type selector — shown when there's no lead context to auto-detect */}
               {!isFromLead && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Tipo de Orçamento</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Orçamento</p>
                   <Select
                     value={billingType}
-                    onValueChange={(v) => setOverrideBillingType(v as BillingType)}
+                    onValueChange={(v) => { setOverrideBillingType(v as BillingType); setIsContinuous(false); }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -407,111 +440,122 @@ export default function BudgetForm() {
                 </div>
               )}
 
-              {/* Banner for budgets that predate recurring mode */}
-              {isEditing && !budget?.is_recurring && billingType === 'recurring' && (
-                <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    Este orçamento foi criado antes do modo recorrente. Os valores salvos representam o total do contrato. Salve para converter para precificação mensal.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <FormField control={form.control} name="title" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Título do Orçamento</FormLabel>
-                  <FormControl><Input placeholder="Ex: Projeto Website Corporativo" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="clientId" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cliente</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {clients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button type="button" variant="outline" className="w-full mt-1" onClick={() => setShowClientDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Novo Cliente
-                  </Button>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              {/* Duration type selector — only for no_revenue */}
+              {/* Segmented control Pontual/Contínuo — only for no_revenue */}
               {billingType === 'no_revenue' && (
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Tipo de Duração</p>
-                  <Select
-                    value={isContinuous ? 'continuous' : 'one_time'}
-                    onValueChange={(v) => setIsContinuous(v === 'continuous')}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="one_time">Pontual (escopo fechado)</SelectItem>
-                      <SelectItem value="continuous">Contínuo (recorrente)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2">
+                  <div className="flex rounded-lg bg-muted p-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsContinuous(false)}
+                      className={cn(
+                        'flex-1 rounded-md py-1.5 text-sm font-medium transition-all',
+                        !isContinuous
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      Pontual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsContinuous(true)}
+                      className={cn(
+                        'flex-1 rounded-md py-1.5 text-sm font-medium transition-all',
+                        isContinuous
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      Contínuo
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {isContinuous
+                      ? 'Projeto contínuo com custos mensais recorrentes'
+                      : 'Projeto com escopo definido e duração fixa'}
+                  </p>
                 </div>
               )}
 
+              {/* Client + duration layout */}
               {isMonthlyMode ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    {billingType === 'recurring' ? (
-                      <>
-                        <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">Receita Recorrente</Badge>
-                        <span className="text-xs text-muted-foreground">As horas serão registradas por mês e replicadas durante o contrato.</span>
-                      </>
-                    ) : (
-                      <>
-                        <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-xs">Contínuo (sem receita)</Badge>
-                        <span className="text-xs text-muted-foreground">Equipe e custos orçados mensalmente.</span>
-                      </>
-                    )}
-                  </div>
-                  <FormField control={form.control} name="durationMonths" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {billingType === 'no_revenue' ? 'Período de planejamento (meses)' : 'Duração do Contrato (meses)'}
-                      </FormLabel>
-                      <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </>
-              ) : (
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="startDate" render={({ field }) => (
+                  <FormField control={form.control} name="clientId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Data de Início</FormLabel>
-                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormLabel>Cliente</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {clients.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <button type="button" className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-0.5" onClick={() => setShowClientDialog(true)}>
+                        <Plus className="h-3 w-3" />
+                        Novo cliente
+                      </button>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="durationMonths" render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {billingType === 'success_fee'
-                          ? 'Duração estimada (meses)'
-                          : 'Duração do Projeto (meses)'}
+                        {billingType === 'no_revenue' ? 'Período de planejamento' : 'Duração do Contrato'}
                       </FormLabel>
-                      {billingType === 'success_fee' && (
-                        <p className="text-xs text-muted-foreground -mt-1">Estimativa para alocação de equipe de apoio</p>
-                      )}
-                      <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                      <div className="flex items-center gap-2">
+                        <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                        <span className="text-sm text-muted-foreground shrink-0">meses</span>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )} />
                 </div>
+              ) : (
+                <>
+                  <FormField control={form.control} name="clientId" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cliente</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {clients.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <button type="button" className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-0.5" onClick={() => setShowClientDialog(true)}>
+                        <Plus className="h-3 w-3" />
+                        Novo cliente
+                      </button>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="startDate" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data de Início</FormLabel>
+                        <FormControl><Input type="date" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="durationMonths" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {billingType === 'success_fee' ? 'Duração estimada' : 'Duração do Projeto'}
+                        </FormLabel>
+                        {billingType === 'success_fee' && (
+                          <p className="text-xs text-muted-foreground -mt-1">Estimativa para equipe de apoio</p>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                          <span className="text-sm text-muted-foreground shrink-0">meses</span>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </>
               )}
 
               <FormField control={form.control} name="notes" render={({ field }) => (
@@ -523,136 +567,153 @@ export default function BudgetForm() {
             </CardContent>
           </Card>
         );
-      case 2:
+      case 2: {
+        const rec2 = billingType === 'no_revenue' && isContinuous ? calculation as RecurringCalculation : null;
+        const monthlyLabor2 = rec2
+          ? rec2.monthlyCost - suppliers.reduce((a, s) => a + s.monthlyValue, 0) - (durationMonths > 0 ? rec2.materialsTotal / durationMonths : 0)
+          : 0;
+
         return (
-          <>
-            {billingType === 'no_revenue' && (
-              <Alert className="border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  Orçamento interno — Este serviço não gera receita. O orçamento serve para controle de custos.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex flex-col space-y-6">
-              {/* Mão de Obra */}
-              <Card>
-                <CardContent className="pt-6">
-                  <BudgetRolesEditor
-                    roles={roles}
-                    durationMonths={isMonthlyMode ? 1 : durationMonths}
-                    availableRoles={roleRates}
-                    onRolesChange={setRoles}
-                    monthlyMode={isMonthlyMode}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Fornecedores */}
-              <BudgetSuppliersEditor
-                suppliers={suppliers}
-                durationMonths={durationMonths}
-                onSuppliersChange={setSuppliers}
-              />
-
-              {/* Materiais */}
-              {isMonthlyMode && (
-                <p className="text-sm font-medium text-muted-foreground -mb-4">Custos de Implantação (pontual, rateado no contrato)</p>
-              )}
-              <BudgetMaterialsEditor
-                materials={materials}
-                onMaterialsChange={setMaterials}
-              />
+          <Card className="overflow-hidden">
+            {/* Step 2 header */}
+            <div className="px-6 pt-5 pb-4 border-b">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{watchedTitle || 'Novo Orçamento'}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {wizardSteps.find((s) => s.id === 2)?.title}
+                  </p>
+                </div>
+                <div className="flex gap-1.5 shrink-0 mt-0.5">
+                  <Badge className={cn('text-xs border', TYPE_BADGE_CLASSES[billingType])}>
+                    {BILLING_TYPE_LABELS[billingType]}
+                  </Badge>
+                  {billingType === 'no_revenue' && isContinuous && (
+                    <Badge className="text-xs border bg-gray-100 text-gray-600 border-gray-200">Contínuo</Badge>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {billingType === 'no_revenue' && !isContinuous ? (
-              /* Budget interno pontual: resumo de custo total */
-              <Card className="border-dashed">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Calculator className="h-4 w-4" />
-                    Budget Interno
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Custo de mão de obra</span>
-                    <span>{formatCurrency(calculation.laborCost)}</span>
+            <CardContent className="pt-5 space-y-6">
+              {/* Banner */}
+              {billingType === 'no_revenue' && (
+                <Alert className="border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    {isContinuous
+                      ? 'Orçamento interno — custos mensais sem faturamento. Defina a alocação mensal fixa de cada perfil.'
+                      : 'Orçamento interno — Este serviço não gera receita. O orçamento serve para controle de custos.'}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Mão de Obra */}
+              <BudgetRolesEditor
+                roles={roles}
+                durationMonths={isMonthlyMode ? 1 : durationMonths}
+                availableRoles={roleRates}
+                onRolesChange={setRoles}
+                monthlyMode={isMonthlyMode}
+              />
+
+              {/* Fornecedores */}
+              <div className="pt-4 border-t">
+                <BudgetSuppliersEditor
+                  suppliers={suppliers}
+                  durationMonths={durationMonths}
+                  onSuppliersChange={setSuppliers}
+                />
+              </div>
+
+              {/* Materiais */}
+              <div className="pt-4 border-t">
+                {isMonthlyMode && (
+                  <div className="mb-3">
+                    <p className="text-sm font-medium">Custos de implantação (pontual)</p>
+                    <p className="text-xs text-muted-foreground">Rateados ao longo do contrato</p>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Fornecedores</span>
-                    <span>{formatCurrency(calculation.suppliersTotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Materiais</span>
-                    <span>{formatCurrency(calculation.materialsTotal)}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between font-semibold">
-                    <span>Custo total estimado</span>
-                    <span className="text-lg">{formatCurrency(calculation.totalCost)}</span>
-                  </div>
-                  {durationMonths > 0 && calculation.totalCost > 0 && (
-                    <p className="text-xs text-muted-foreground text-right">
-                      {formatCurrency(calculation.totalCost)} / {durationMonths} {durationMonths === 1 ? 'mês' : 'meses'} = <strong>{formatCurrency(calculation.totalCost / durationMonths)}/mês</strong>
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            ) : billingType === 'no_revenue' && isContinuous ? (
-              /* Budget interno contínuo: resumo de custo mensal */
-              (() => {
-                const rec = calculation as RecurringCalculation;
-                const monthlyLabor = rec.monthlyCost - suppliers.reduce((a, s) => a + s.monthlyValue, 0) - (durationMonths > 0 ? rec.materialsTotal / durationMonths : 0);
-                return (
-                  <Card className="border-dashed">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Calculator className="h-4 w-4" />
-                        Custos Mensais
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Mão de obra/mês</span>
-                        <span>{formatCurrency(monthlyLabor)}</span>
+                )}
+                <BudgetMaterialsEditor
+                  materials={materials}
+                  onMaterialsChange={setMaterials}
+                />
+              </div>
+            </CardContent>
+
+            {/* Cost summary for no_revenue — muted footer inside card */}
+            {billingType === 'no_revenue' && (
+              <div className="border-t bg-muted/30 px-6 py-4 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Resumo de custos</p>
+                {isContinuous && rec2 ? (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Mão de obra/mês</span>
+                      <span>{formatCurrency(monthlyLabor2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Fornecedores/mês</span>
+                      <span>{formatCurrency(suppliers.reduce((a, s) => a + s.monthlyValue, 0))}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Implantação (rateado)</span>
+                      <span>{formatCurrency(durationMonths > 0 ? rec2.materialsTotal / durationMonths : 0)}</span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between font-semibold">
+                      <span>Custo mensal</span>
+                      <span>{formatCurrency(rec2.monthlyCost)}/mês</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Período: {durationMonths} {durationMonths === 1 ? 'mês' : 'meses'}</span>
+                      <span>Custo total: <strong className="text-foreground">{formatCurrency(rec2.contractTotal)}</strong></span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Mão de obra</span>
+                      <span>{formatCurrency(calculation.laborCost)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Fornecedores</span>
+                      <span>{formatCurrency(calculation.suppliersTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Materiais</span>
+                      <span>{formatCurrency(calculation.materialsTotal)}</span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between font-semibold">
+                      <span>Custo total estimado</span>
+                      <span>{formatCurrency(calculation.totalCost)}</span>
+                    </div>
+                    {durationMonths > 0 && calculation.totalCost > 0 && (
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Custo mensal médio</span>
+                        <span>{formatCurrency(calculation.totalCost / durationMonths)}/mês</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Fornecedores/mês</span>
-                        <span>{formatCurrency(suppliers.reduce((a, s) => a + s.monthlyValue, 0))}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Implantação (rateado)</span>
-                        <span>{formatCurrency(durationMonths > 0 ? rec.materialsTotal / durationMonths : 0)}</span>
-                      </div>
-                      <Separator />
-                      <div className="flex justify-between font-semibold">
-                        <span>Custo mensal total</span>
-                        <span className="text-lg">{formatCurrency(rec.monthlyCost)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm text-muted-foreground pt-1">
-                        <span>Custo total do período ({durationMonths} {durationMonths === 1 ? 'mês' : 'meses'})</span>
-                        <strong className="text-foreground">{formatCurrency(rec.contractTotal)}</strong>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })()
-            ) : (
-              /* Rodapé simples com totais para outros tipos */
-              <div className="sticky bottom-0 z-40 -mx-6 -mb-6 border-t bg-muted/50 px-6 py-3 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.05)]">
-                <div className="flex items-center justify-center gap-8 text-sm">
-                  <span>Mão de Obra: <strong>{formatCurrency(calculation.laborCost)}</strong></span>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Sticky totals bar for non-no_revenue types */}
+            {billingType !== 'no_revenue' && (
+              <div className="border-t bg-muted/30 px-6 py-3">
+                <div className="flex items-center justify-center gap-6 text-sm">
+                  <span className="text-muted-foreground">Mão de Obra: <strong className="text-foreground">{formatCurrency(calculation.laborCost)}</strong></span>
                   <span className="text-border">|</span>
-                  <span>Fornecedores: <strong>{formatCurrency(calculation.suppliersTotal)}</strong></span>
+                  <span className="text-muted-foreground">Fornecedores: <strong className="text-foreground">{formatCurrency(calculation.suppliersTotal)}</strong></span>
                   <span className="text-border">|</span>
-                  <span>Materiais: <strong>{formatCurrency(calculation.materialsTotal)}</strong></span>
+                  <span className="text-muted-foreground">Materiais: <strong className="text-foreground">{formatCurrency(calculation.materialsTotal)}</strong></span>
                 </div>
               </div>
             )}
-          </>
+          </Card>
         );
+      }
       case 3: {
         // Shared markup controls (used by both layouts)
         const markupControls = (
@@ -1004,64 +1065,16 @@ export default function BudgetForm() {
           ) : (
             // Creation mode: Use wizard
             <>
-              {/* Service type badge */}
-              <div className="flex items-center gap-2 mb-2">
-                <Badge className={cn('text-xs border', TYPE_BADGE_CLASSES[billingType])}>
-                  {BILLING_TYPE_LABELS[billingType]}
-                </Badge>
-              </div>
-
-              {/* Wizard step indicator */}
-              <div className="flex items-center justify-center mb-8">
-                {wizardSteps.map((step, index) => (
-                  <div key={step.id} className="flex items-center">
-                    <div
-                      className={cn(
-                        "flex items-center justify-center w-10 h-10 rounded-full border-2 font-medium transition-colors",
-                        currentStep === step.id
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : currentStep > step.id
-                          ? "border-primary bg-primary/20 text-primary"
-                          : "border-muted bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {currentStep > step.id ? (
-                        <Check className="h-5 w-5" />
-                      ) : (
-                        step.id
-                      )}
-                    </div>
-                    <span
-                      className={cn(
-                        "ml-2 text-sm font-medium hidden sm:inline",
-                        currentStep === step.id
-                          ? "text-foreground"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      {step.title}
-                    </span>
-                    {index < wizardSteps.length - 1 && (
-                      <div
-                        className={cn(
-                          "w-8 h-0.5 mx-2 sm:w-12 lg:w-16",
-                          currentStep > step.id ? "bg-primary" : "bg-muted"
-                        )}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-
               {/* Current step content */}
-              <div className="mt-6 pb-16">
+              <div className="pb-16">
                 {renderStepContent(currentStep)}
               </div>
 
-              {/* Wizard navigation - fixed footer */}
+              {/* Wizard navigation - fixed footer with inline stepper */}
               <BudgetWizardFooter
                 currentStep={currentStep}
                 totalSteps={wizardSteps.length}
+                wizardSteps={wizardSteps}
                 isSubmitting={isSubmitting}
                 isSaveDisabled={isSaveBlocked}
                 onPrevious={handlePrevious}
