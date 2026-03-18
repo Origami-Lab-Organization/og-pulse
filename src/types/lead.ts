@@ -68,6 +68,7 @@ export interface LeadWithBudget extends LeadDB {
     duration_months: number;
     start_date: string;
     monthly_value?: number | null;
+    is_recurring?: boolean;
   } | null;
   creator?: {
     id: string;

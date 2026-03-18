@@ -6,7 +6,7 @@ export async function fetchLeads(tenantId: string): Promise<LeadWithBudget[]> {
     .from('leads')
     .select(`
       *,
-      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date, monthly_value),
+      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date, monthly_value, is_recurring),
       creator:employees!leads_created_by_fkey(id, nome),
       responsible:employees!leads_responsible_id_fkey(id, nome)
     `)
@@ -23,7 +23,7 @@ export async function fetchLeadById(id: string): Promise<LeadWithBudget | null> 
     .from('leads')
     .select(`
       *,
-      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date, monthly_value),
+      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date, monthly_value, is_recurring),
       creator:employees!leads_created_by_fkey(id, nome),
       responsible:employees!leads_responsible_id_fkey(id, nome)
     `)
@@ -120,7 +120,7 @@ export async function fetchArchivedLeads(tenantId: string): Promise<LeadWithBudg
     .from('leads')
     .select(`
       *,
-      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date, monthly_value),
+      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date, monthly_value, is_recurring),
       creator:employees!leads_created_by_fkey(id, nome),
       responsible:employees!leads_responsible_id_fkey(id, nome)
     `)

@@ -99,11 +99,21 @@ export default function BudgetForm() {
   const linkBudgetToLead = useLinkBudgetToLead();
   const isFromLead = !!leadId;
 
+  // Manual override: set when user changes billing type via selector (no-lead edit/create)
+  const [overrideBillingType, setOverrideBillingType] = useState<BillingType | null>(null);
+
   const billingType = useMemo<BillingType>(() => {
-    if (!leadData?.service_line || !services.length) return 'fixed_scope';
-    const service = services.find(s => s.id === leadData.service_line);
-    return service?.billingType ?? 'fixed_scope';
-  }, [leadData?.service_line, services]);
+    // Manual override always wins (user changed the selector)
+    if (overrideBillingType) return overrideBillingType;
+    // When creating from a lead, derive from lead's service
+    if (isFromLead && leadData?.service_line && services.length) {
+      const service = services.find(s => s.id === leadData.service_line);
+      if (service?.billingType) return service.billingType;
+    }
+    // When editing an existing budget, derive from is_recurring flag
+    if (isEditing && budget) return budget.is_recurring ? 'recurring' : 'fixed_scope';
+    return 'fixed_scope';
+  }, [overrideBillingType, isFromLead, leadData?.service_line, services, isEditing, budget]);
 
   const wizardSteps = WIZARD_STEPS_BY_TYPE[billingType];
 
@@ -278,6 +288,7 @@ export default function BudgetForm() {
       successFeePercent: billingType === 'success_fee' ? successFeePercent : undefined,
       estimatedBase: billingType === 'success_fee' ? estimatedBase : undefined,
       monthlyValue: billingType === 'recurring' ? (calculation as RecurringCalculation).monthlyFinalPrice : undefined,
+      isRecurring: billingType === 'recurring',
     };
 
     if (isEditing && id) {
@@ -354,6 +365,37 @@ export default function BudgetForm() {
               <CardTitle>Informações do Orçamento</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Billing type selector — shown when there's no lead context to auto-detect */}
+              {!isFromLead && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Tipo de Orçamento</p>
+                  <Select
+                    value={billingType}
+                    onValueChange={(v) => setOverrideBillingType(v as BillingType)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed_scope">Escopo Fixo</SelectItem>
+                      <SelectItem value="recurring">Receita Recorrente</SelectItem>
+                      <SelectItem value="success_fee">Taxa de Sucesso</SelectItem>
+                      <SelectItem value="no_revenue">Interno (sem receita)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Banner for budgets that predate recurring mode */}
+              {isEditing && !budget?.is_recurring && billingType === 'recurring' && (
+                <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Este orçamento foi criado antes do modo recorrente. Os valores salvos representam o total do contrato. Salve para converter para precificação mensal.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <FormField control={form.control} name="title" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Título do Orçamento</FormLabel>
