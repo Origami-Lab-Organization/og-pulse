@@ -27,6 +27,7 @@ import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/lib/formatters';
 import { CreateBudgetInput, BudgetRoleInput, BudgetMaterialInput, BudgetSupplierInput, BudgetCalculation, RecurringCalculation, SuccessFeeCalculation, calculateBudgetTotals, calculateRecurringTotals, calculateSuccessFeeTotals } from '@/types/budget';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useClients, useCreateClient } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
@@ -592,9 +593,26 @@ export default function BudgetForm() {
                   </p>
                 </div>
                 <div className="flex gap-1.5 shrink-0 mt-0.5">
-                  <Badge className={cn('text-xs border', TYPE_BADGE_CLASSES[billingType])}>
-                    {BILLING_TYPE_LABELS[billingType]}
-                  </Badge>
+                  {billingType === 'no_revenue' ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge className={cn('text-xs border cursor-help', TYPE_BADGE_CLASSES[billingType])}>
+                            {BILLING_TYPE_LABELS[billingType]}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-center">
+                          {isContinuous
+                            ? 'Orçamento interno — custos mensais sem faturamento. Defina a alocação mensal fixa de cada perfil.'
+                            : 'Orçamento interno — Este serviço não gera receita. O orçamento serve para controle de custos.'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <Badge className={cn('text-xs border', TYPE_BADGE_CLASSES[billingType])}>
+                      {BILLING_TYPE_LABELS[billingType]}
+                    </Badge>
+                  )}
                   {billingType === 'no_revenue' && isContinuous && (
                     <Badge className="text-xs border bg-gray-100 text-gray-600 border-gray-200">Contínuo</Badge>
                   )}
@@ -628,18 +646,6 @@ export default function BudgetForm() {
             </div>
 
             <CardContent className="pt-5">
-              {/* Banner for no_revenue */}
-              {billingType === 'no_revenue' && (
-                <Alert className="border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300 mb-4">
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    {isContinuous
-                      ? 'Orçamento interno — custos mensais sem faturamento. Defina a alocação mensal fixa de cada perfil.'
-                      : 'Orçamento interno — Este serviço não gera receita. O orçamento serve para controle de custos.'}
-                  </AlertDescription>
-                </Alert>
-              )}
-
               {compositionTab === 'roles' && (
                 <BudgetRolesEditor
                   roles={roles}
