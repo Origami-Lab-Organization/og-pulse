@@ -79,7 +79,7 @@ const navigationGroups = [
     label: 'Projetos',
     requiresManager: true,
     items: [
-      { title: 'Portfólio de Projetos', url: '/portfolio', icon: LayoutDashboard, requiresManager: true },
+      { title: 'Portfólio de Projetos', url: '/portfolio', icon: Kanban, requiresManager: true },
       { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
       { title: 'Alocação da Equipe', url: '/alocacao', icon: Clock, requiresManager: true },
       { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
