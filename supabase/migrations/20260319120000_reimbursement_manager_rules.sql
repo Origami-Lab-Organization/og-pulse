@@ -1,0 +1,17 @@
+-- Reimbursement rules for project managers (gerentes de projeto)
+--
+-- RULE 1 — Visibility:
+--   Gerentes see only: (a) reimbursements from projects they belong to, (b) their own requests.
+--   Admins see everything in the tenant.
+--   Enforced by SELECT RLS policy "reimbursement_requests_select"
+--   (defined in 20260311120000_fix_reimbursement_permissions.sql).
+--
+-- RULE 2 — Auto-approval:
+--   When a gerente submits a reimbursement, it is inserted directly with status = 'approved',
+--   reviewed_by = their employee id, and reviewed_at = now().
+--   This is handled in the application layer (useCreateReimbursement hook).
+--   The INSERT policy "Users can create reimbursements" (user_belongs_to_tenant check only)
+--   already allows inserting with any status value — no DB change needed.
+--
+-- No SQL changes are required. This migration documents the intended behavior.
+SELECT 1;

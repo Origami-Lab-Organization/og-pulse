@@ -66,18 +66,49 @@ export function usePendingReimbursements() {
   const { employee } = useAuth();
 
   return useQuery({
-    queryKey: ['pending-reimbursements', employee?.tenant_id],
+    queryKey: ['pending-reimbursements', employee?.id, employee?.tenant_id],
     queryFn: async () => {
       if (!employee) return [];
-      const { data, error } = await supabase
-        .from('reimbursement_requests' as any)
-        .select('*')
-        .eq('tenant_id', employee.tenant_id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
 
-      const requests = (data || []) as unknown as ReimbursementRequest[];
+      let requests: ReimbursementRequest[] = [];
+
+      if (employee.isAdmin) {
+        // Admin sees all tenant pending reimbursements
+        const { data, error } = await supabase
+          .from('reimbursement_requests' as any)
+          .select('*')
+          .eq('tenant_id', employee.tenant_id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        requests = (data || []) as unknown as ReimbursementRequest[];
+      } else {
+        // Pure gerente: own pending + pending from their projects
+        const { data: memberships } = await supabase
+          .from('project_members' as any)
+          .select('project_id')
+          .eq('employee_id', employee.id);
+        const projectIds = ((memberships || []) as any[]).map((m: any) => m.project_id);
+
+        const [ownRes, projectRes] = await Promise.all([
+          supabase.from('reimbursement_requests' as any).select('*')
+            .eq('requested_by', employee.id).eq('status', 'pending').order('created_at', { ascending: false }),
+          projectIds.length > 0
+            ? supabase.from('reimbursement_requests' as any).select('*')
+                .in('project_id', projectIds).eq('status', 'pending').order('created_at', { ascending: false })
+            : { data: [], error: null },
+        ]);
+        if (ownRes.error) throw ownRes.error;
+        if ((projectRes as any).error) throw (projectRes as any).error;
+
+        const seen = new Set<string>();
+        const merged: ReimbursementRequest[] = [];
+        for (const r of [...((ownRes.data || []) as any[]), ...((projectRes as any).data || []) as any[]]) {
+          if (!seen.has(r.id)) { seen.add(r.id); merged.push(r as unknown as ReimbursementRequest); }
+        }
+        requests = merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      }
+
       if (requests.length === 0) return requests;
 
       const employeeIds = [...new Set(requests.map(r => r.requested_by))];
@@ -109,16 +140,41 @@ export function usePendingReimbursementsCount() {
   const { employee } = useAuth();
 
   return useQuery({
-    queryKey: ['pending-reimbursements-count', employee?.tenant_id],
+    queryKey: ['pending-reimbursements-count', employee?.id, employee?.tenant_id],
     queryFn: async () => {
       if (!employee) return 0;
-      const { count, error } = await supabase
-        .from('reimbursement_requests' as any)
-        .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', employee.tenant_id)
-        .eq('status', 'pending');
-      if (error) throw error;
-      return count || 0;
+
+      if (employee.isAdmin) {
+        const { count, error } = await supabase
+          .from('reimbursement_requests' as any)
+          .select('id', { count: 'exact', head: true })
+          .eq('tenant_id', employee.tenant_id)
+          .eq('status', 'pending');
+        if (error) throw error;
+        return count || 0;
+      }
+
+      // Pure gerente: count pending from own requests + their projects
+      const { data: memberships } = await supabase
+        .from('project_members' as any)
+        .select('project_id')
+        .eq('employee_id', employee.id);
+      const projectIds = ((memberships || []) as any[]).map((m: any) => m.project_id);
+
+      const [ownRes, projectRes] = await Promise.all([
+        supabase.from('reimbursement_requests' as any)
+          .select('id', { count: 'exact', head: true })
+          .eq('requested_by', employee.id).eq('status', 'pending'),
+        projectIds.length > 0
+          ? supabase.from('reimbursement_requests' as any)
+              .select('id', { count: 'exact', head: true })
+              .in('project_id', projectIds).eq('status', 'pending').neq('requested_by', employee.id)
+          : { count: 0, error: null },
+      ]);
+      if (ownRes.error) throw ownRes.error;
+      if ((projectRes as any).error) throw (projectRes as any).error;
+
+      return (ownRes.count || 0) + ((projectRes as any).count || 0);
     },
     enabled: !!employee && (employee.is_gerente || employee.isAdmin),
     refetchInterval: 30000,
@@ -175,6 +231,10 @@ export function useCreateReimbursement() {
     }) => {
       if (!employee) throw new Error('Não autenticado');
 
+      // Gerentes de projeto têm seus pedidos auto-aprovados (vão direto para pagamento)
+      const isManager = employee.is_gerente;
+      const now = new Date().toISOString();
+
       // 1. Create request
       const { data: request, error: reqError } = await supabase
         .from('reimbursement_requests' as any)
@@ -187,6 +247,7 @@ export function useCreateReimbursement() {
           description: params.description,
           total_amount: params.total_amount,
           corrected_from_id: params.corrected_from_id || null,
+          ...(isManager ? { status: 'approved', reviewed_by: employee.id, reviewed_at: now } : {}),
         } as any)
         .select()
         .single();
@@ -231,6 +292,38 @@ export function useCreateReimbursement() {
         if (attachError) throw attachError;
       }
 
+      // If manager submitted, notify admins directly (awaiting payment)
+      if (isManager) {
+        try {
+          const { data: admins } = await supabase
+            .from('user_roles' as any)
+            .select('user_id')
+            .eq('tenant_id', employee.tenant_id)
+            .eq('role', 'admin');
+          if (admins && (admins as any[]).length > 0) {
+            const adminUserIds = (admins as any[]).map((a: any) => a.user_id);
+            const { data: adminEmps } = await supabase
+              .from('employees')
+              .select('id, auth_id')
+              .in('auth_id', adminUserIds);
+            if (adminEmps && adminEmps.length > 0) {
+              await supabase.from('notifications' as any).insert(
+                adminEmps.map((emp: any) => ({
+                  tenant_id: employee.tenant_id,
+                  recipient_id: emp.id,
+                  type: 'reimbursement_approved',
+                  title: 'Reembolso aprovado aguardando pagamento',
+                  message: 'Um reembolso de gerente foi enviado e aguarda confirmação de pagamento.',
+                  reference_id: requestId,
+                })) as any
+              );
+            }
+          }
+        } catch (e) {
+          console.error('Error notifying admins of manager reimbursement:', e);
+        }
+      }
+
       return request;
     },
     onSuccess: () => {
@@ -238,7 +331,9 @@ export function useCreateReimbursement() {
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
       queryClient.invalidateQueries({ queryKey: ['all-my-reimbursements'] });
-      toast.success('Pedido de reembolso enviado com sucesso!');
+      toast.success(employee?.is_gerente
+        ? 'Pedido de reembolso enviado e aprovado automaticamente!'
+        : 'Pedido de reembolso enviado com sucesso!');
     },
     onError: (error: any) => {
       toast.error('Erro ao enviar pedido: ' + error.message);
@@ -437,23 +532,53 @@ export function useAllMyReimbursements() {
     queryFn: async () => {
       if (!employee) return [];
 
-      const isManager = employee.is_gerente || employee.isAdmin;
+      let requests: ReimbursementRequest[] = [];
 
-      let query = supabase
-        .from('reimbursement_requests' as any)
-        .select('*')
-        .order('created_at', { ascending: false });
+      if (employee.isAdmin) {
+        // Admin sees everything in tenant
+        const { data, error } = await supabase
+          .from('reimbursement_requests' as any)
+          .select('*')
+          .eq('tenant_id', employee.tenant_id)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        requests = (data || []) as unknown as ReimbursementRequest[];
+      } else if (employee.is_gerente) {
+        // Pure gerente: own requests + requests from their projects
+        const { data: memberships } = await supabase
+          .from('project_members' as any)
+          .select('project_id')
+          .eq('employee_id', employee.id);
+        const projectIds = ((memberships || []) as any[]).map((m: any) => m.project_id);
 
-      if (isManager) {
-        query = query.eq('tenant_id', employee.tenant_id);
+        const [ownRes, projectRes] = await Promise.all([
+          supabase.from('reimbursement_requests' as any).select('*')
+            .eq('requested_by', employee.id).order('created_at', { ascending: false }),
+          projectIds.length > 0
+            ? supabase.from('reimbursement_requests' as any).select('*')
+                .in('project_id', projectIds).order('created_at', { ascending: false })
+            : { data: [], error: null },
+        ]);
+        if (ownRes.error) throw ownRes.error;
+        if ((projectRes as any).error) throw (projectRes as any).error;
+
+        const seen = new Set<string>();
+        const merged: ReimbursementRequest[] = [];
+        for (const r of [...((ownRes.data || []) as any[]), ...((projectRes as any).data || []) as any[]]) {
+          if (!seen.has(r.id)) { seen.add(r.id); merged.push(r as unknown as ReimbursementRequest); }
+        }
+        requests = merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       } else {
-        query = query.eq('requested_by', employee.id);
+        // Regular employee: own requests only
+        const { data, error } = await supabase
+          .from('reimbursement_requests' as any)
+          .select('*')
+          .eq('requested_by', employee.id)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        requests = (data || []) as unknown as ReimbursementRequest[];
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const requests = (data || []) as unknown as ReimbursementRequest[];
       if (requests.length === 0) return requests;
 
       const employeeIds = [...new Set([
