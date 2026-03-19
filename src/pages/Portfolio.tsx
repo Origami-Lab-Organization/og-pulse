@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { PortfolioKanbanBoard } from '@/components/portfolio/PortfolioKanbanBoard';
 import { PortfolioKPIBar } from '@/components/portfolio/PortfolioKPIBar';
+import { PortfolioFilters } from '@/components/portfolio/PortfolioFilters';
 import { usePortfolioProjects } from '@/hooks/usePortfolioProjects';
 import { Search, Building2, User } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -11,9 +12,12 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function Portfolio() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [serviceLine, setServiceLine] = useState('');
+  const [managerId, setManagerId] = useState('');
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
-  const { data: projects, isLoading } = usePortfolioProjects(searchQuery);
+  const { data: projects, isLoading } = usePortfolioProjects(searchQuery, { clientId, serviceLine, managerId });
 
   const scopeBadge = isAdmin ? (
     <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800 gap-1">
@@ -43,13 +47,24 @@ export default function Portfolio() {
         ) : (
           <>
             <PortfolioKPIBar projects={projects || []} />
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por projeto, cliente ou gerente..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por projeto, cliente ou gerente..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-64"
+                />
+              </div>
+              <PortfolioFilters
+                isAdmin={isAdmin}
+                clientId={clientId}
+                serviceLine={serviceLine}
+                managerId={managerId}
+                onClientChange={setClientId}
+                onServiceLineChange={setServiceLine}
+                onManagerChange={setManagerId}
               />
             </div>
             <div className="flex-1 overflow-auto bg-muted/30 rounded-lg">

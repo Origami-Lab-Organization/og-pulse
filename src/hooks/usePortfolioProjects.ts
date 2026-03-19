@@ -32,14 +32,25 @@ export interface PortfolioProject {
   }[];
 }
 
-export const usePortfolioProjects = (searchQuery?: string) => {
+interface PortfolioFilters {
+  searchQuery?: string;
+  clientId?: string;
+  serviceLine?: string;
+  managerId?: string;
+}
+
+export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFilters) => {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const isAdmin = employee?.isAdmin ?? false;
   const employeeId = employee?.id;
 
+  const clientId = filters?.clientId;
+  const serviceLineFilter = filters?.serviceLine;
+  const managerIdFilter = filters?.managerId;
+
   return useQuery({
-    queryKey: ['portfolio-projects', tenantId, searchQuery, isAdmin, employeeId],
+    queryKey: ['portfolio-projects', tenantId, searchQuery, isAdmin, employeeId, clientId, serviceLineFilter, managerIdFilter],
     queryFn: async () => {
       let query = supabase
         .from('projects')
@@ -62,6 +73,11 @@ export const usePortfolioProjects = (searchQuery?: string) => {
       if (!isAdmin && employeeId) {
         query = query.eq('manager_id', employeeId);
       }
+
+      // Filtros avançados
+      if (clientId) query = query.eq('client_id', clientId);
+      if (serviceLineFilter) query = query.eq('service_line', serviceLineFilter);
+      if (isAdmin && managerIdFilter) query = query.eq('manager_id', managerIdFilter);
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
