@@ -35,16 +35,9 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
     transition,
   };
 
-  // Calculate annual projected value for the current year
-  const currentYear = new Date().getFullYear();
   const installments = project.installments || [];
-  const startDate = new Date(project.start_date);
-  const startMonth = startDate.getFullYear() < currentYear ? 1 : startDate.getMonth() + 1;
-  const endMonth = 12; // portfolio projects are active
-  const monthsActive = Math.max(0, endMonth - startMonth + 1);
-  const projectedAnnual = (project.total_value || 0) * monthsActive;
   const installmentsSum = installments.reduce((sum, i) => sum + Number(i.value), 0);
-  const totalValue = Math.max(projectedAnnual, installmentsSum);
+  const totalValue = installmentsSum > 0 ? installmentsSum : (project.total_value || 0);
 
   const receivedValue = installments
     .filter(i => i.status === 'received')
