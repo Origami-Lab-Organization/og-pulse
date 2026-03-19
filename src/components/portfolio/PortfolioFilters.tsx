@@ -15,9 +15,11 @@ interface PortfolioFiltersProps {
   clientId: string;
   serviceLine: string;
   managerId: string;
+  year: string;
   onClientChange: (value: string) => void;
   onServiceLineChange: (value: string) => void;
   onManagerChange: (value: string) => void;
+  onYearChange: (value: string) => void;
 }
 
 interface ClientOption {
@@ -36,10 +38,14 @@ export function PortfolioFilters({
   clientId,
   serviceLine,
   managerId,
+  year,
   onClientChange,
   onServiceLineChange,
   onManagerChange,
+  onYearChange,
 }: PortfolioFiltersProps) {
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const [clients, setClients] = useState<ClientOption[]>([]);
@@ -69,6 +75,19 @@ export function PortfolioFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
+      {/* Filtro de Ano */}
+      <Select value={year || '__all__'} onValueChange={v => onYearChange(v === '__all__' ? '' : v)}>
+        <SelectTrigger className="w-[120px]">
+          <SelectValue placeholder="Todos os anos" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">Todos os anos</SelectItem>
+          {years.map(y => (
+            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
       {/* Filtro de Cliente */}
       <Select value={clientId || '__all__'} onValueChange={v => onClientChange(v === '__all__' ? '' : v)}>
         <SelectTrigger className="w-[180px]">

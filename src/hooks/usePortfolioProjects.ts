@@ -29,6 +29,7 @@ export interface PortfolioProject {
   installments?: {
     value: number;
     status: string;
+    due_date: string;
   }[];
 }
 
@@ -37,6 +38,7 @@ interface PortfolioFilters {
   clientId?: string;
   serviceLine?: string;
   managerId?: string;
+  year?: number;
 }
 
 export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFilters) => {
@@ -48,9 +50,10 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
   const clientId = filters?.clientId;
   const serviceLineFilter = filters?.serviceLine;
   const managerIdFilter = filters?.managerId;
+  const yearFilter = filters?.year;
 
   return useQuery({
-    queryKey: ['portfolio-projects', tenantId, searchQuery, isAdmin, employeeId, clientId, serviceLineFilter, managerIdFilter],
+    queryKey: ['portfolio-projects', tenantId, searchQuery, isAdmin, employeeId, clientId, serviceLineFilter, managerIdFilter, yearFilter],
     queryFn: async () => {
       let query = supabase
         .from('projects')
@@ -65,7 +68,7 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
           manager_id,
           client:clients(id, company_name, trading_name),
           manager:employees!projects_manager_id_fkey(id, nome, cargo),
-          installments:project_installments(value, status)
+          installments:project_installments(value, status, due_date)
         `)
         .eq('tenant_id', tenantId!);
 
@@ -96,6 +99,17 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
           (p.client?.trading_name || '').toLowerCase().includes(q) ||
           (p.manager?.nome || '').toLowerCase().includes(q)
         );
+      }
+
+      // Filter installments by year if selected
+      if (yearFilter) {
+        projects = projects.map(p => ({
+          ...p,
+          installments: (p.installments || []).filter(i => {
+            if (!i.due_date) return false;
+            return new Date(i.due_date).getFullYear() === yearFilter;
+          }),
+        }));
       }
 
       // service_line is a plain text column — some projects may have old slugs instead of UUIDs

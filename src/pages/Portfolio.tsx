@@ -15,9 +15,15 @@ export default function Portfolio() {
   const [clientId, setClientId] = useState('');
   const [serviceLine, setServiceLine] = useState('');
   const [managerId, setManagerId] = useState('');
+  const [year, setYear] = useState('');
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
-  const { data: projects, isLoading } = usePortfolioProjects(searchQuery, { clientId, serviceLine, managerId });
+  const { data: projects, isLoading } = usePortfolioProjects(searchQuery, {
+    clientId,
+    serviceLine,
+    managerId,
+    year: year ? Number(year) : undefined,
+  });
 
   const scopeBadge = isAdmin ? (
     <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800 gap-1">
@@ -62,9 +68,11 @@ export default function Portfolio() {
                 clientId={clientId}
                 serviceLine={serviceLine}
                 managerId={managerId}
+                year={year}
                 onClientChange={setClientId}
                 onServiceLineChange={setServiceLine}
                 onManagerChange={setManagerId}
+                onYearChange={setYear}
               />
             </div>
             <div className="flex-1 overflow-auto bg-muted/30 rounded-lg">
