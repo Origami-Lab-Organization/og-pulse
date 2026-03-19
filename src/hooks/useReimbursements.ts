@@ -83,19 +83,19 @@ export function usePendingReimbursements() {
         if (error) throw error;
         requests = (data || []) as unknown as ReimbursementRequest[];
       } else {
-        // Pure gerente: own pending + pending from their projects
-        const { data: memberships } = await supabase
-          .from('project_members' as any)
-          .select('project_id')
-          .eq('employee_id', employee.id);
-        const projectIds = ((memberships || []) as any[]).map((m: any) => m.project_id);
+        // Gerente puro: pedidos próprios + pedidos de projetos onde ele é o manager_id
+        const { data: managedProjects } = await supabase
+          .from('projects' as any)
+          .select('id')
+          .eq('manager_id', employee.id);
+        const managedProjectIds = ((managedProjects || []) as any[]).map((p: any) => p.id);
 
         const [ownRes, projectRes] = await Promise.all([
           supabase.from('reimbursement_requests' as any).select('*')
             .eq('requested_by', employee.id).eq('status', 'pending').order('created_at', { ascending: false }),
-          projectIds.length > 0
+          managedProjectIds.length > 0
             ? supabase.from('reimbursement_requests' as any).select('*')
-                .in('project_id', projectIds).eq('status', 'pending').order('created_at', { ascending: false })
+                .in('project_id', managedProjectIds).eq('status', 'pending').order('created_at', { ascending: false })
             : { data: [], error: null },
         ]);
         if (ownRes.error) throw ownRes.error;
@@ -154,21 +154,21 @@ export function usePendingReimbursementsCount() {
         return count || 0;
       }
 
-      // Pure gerente: count pending from own requests + their projects
-      const { data: memberships } = await supabase
-        .from('project_members' as any)
-        .select('project_id')
-        .eq('employee_id', employee.id);
-      const projectIds = ((memberships || []) as any[]).map((m: any) => m.project_id);
+      // Gerente puro: conta pendentes dos projetos que gerencia + próprios
+      const { data: managedProjects } = await supabase
+        .from('projects' as any)
+        .select('id')
+        .eq('manager_id', employee.id);
+      const managedProjectIds = ((managedProjects || []) as any[]).map((p: any) => p.id);
 
       const [ownRes, projectRes] = await Promise.all([
         supabase.from('reimbursement_requests' as any)
           .select('id', { count: 'exact', head: true })
           .eq('requested_by', employee.id).eq('status', 'pending'),
-        projectIds.length > 0
+        managedProjectIds.length > 0
           ? supabase.from('reimbursement_requests' as any)
               .select('id', { count: 'exact', head: true })
-              .in('project_id', projectIds).eq('status', 'pending').neq('requested_by', employee.id)
+              .in('project_id', managedProjectIds).eq('status', 'pending').neq('requested_by', employee.id)
           : { count: 0, error: null },
       ]);
       if (ownRes.error) throw ownRes.error;
@@ -231,8 +231,10 @@ export function useCreateReimbursement() {
     }) => {
       if (!employee) throw new Error('Não autenticado');
 
-      // Gerentes de projeto têm seus pedidos auto-aprovados (vão direto para pagamento)
-      const isManager = employee.is_gerente;
+      // Gerente + projeto → auto-aprovado (vai direto para pagamento pelo admin)
+      // Gerente + interno → pending (precisa de aprovação do admin)
+      // Funcionário + qualquer → pending
+      const autoApprove = employee.is_gerente && !params.is_internal;
       const now = new Date().toISOString();
 
       // 1. Create request
@@ -247,7 +249,7 @@ export function useCreateReimbursement() {
           description: params.description,
           total_amount: params.total_amount,
           corrected_from_id: params.corrected_from_id || null,
-          ...(isManager ? { status: 'approved', reviewed_by: employee.id, reviewed_at: now } : {}),
+          ...(autoApprove ? { status: 'approved', reviewed_by: employee.id, reviewed_at: now } : {}),
         } as any)
         .select()
         .single();
@@ -292,36 +294,65 @@ export function useCreateReimbursement() {
         if (attachError) throw attachError;
       }
 
-      // If manager submitted, notify admins directly (awaiting payment)
-      if (isManager) {
-        try {
+      // 4. Notifications — routing by case
+      try {
+        // Helper: notify all admins in tenant
+        const notifyAdmins = async (title: string, message: string, type: string) => {
           const { data: admins } = await supabase
-            .from('user_roles' as any)
-            .select('user_id')
-            .eq('tenant_id', employee.tenant_id)
-            .eq('role', 'admin');
-          if (admins && (admins as any[]).length > 0) {
-            const adminUserIds = (admins as any[]).map((a: any) => a.user_id);
-            const { data: adminEmps } = await supabase
-              .from('employees')
-              .select('id, auth_id')
-              .in('auth_id', adminUserIds);
-            if (adminEmps && adminEmps.length > 0) {
-              await supabase.from('notifications' as any).insert(
-                adminEmps.map((emp: any) => ({
-                  tenant_id: employee.tenant_id,
-                  recipient_id: emp.id,
-                  type: 'reimbursement_approved',
-                  title: 'Reembolso aprovado aguardando pagamento',
-                  message: 'Um reembolso de gerente foi enviado e aguarda confirmação de pagamento.',
-                  reference_id: requestId,
-                })) as any
-              );
-            }
+            .from('user_roles' as any).select('user_id')
+            .eq('tenant_id', employee.tenant_id).eq('role', 'admin');
+          if (!admins || (admins as any[]).length === 0) return;
+          const adminUserIds = (admins as any[]).map((a: any) => a.user_id);
+          const { data: adminEmps } = await supabase
+            .from('employees').select('id, auth_id').in('auth_id', adminUserIds);
+          if (adminEmps && adminEmps.length > 0) {
+            await supabase.from('notifications' as any).insert(
+              adminEmps.map((emp: any) => ({
+                tenant_id: employee.tenant_id, recipient_id: emp.id,
+                type, title, message, reference_id: requestId,
+              })) as any
+            );
           }
-        } catch (e) {
-          console.error('Error notifying admins of manager reimbursement:', e);
+        };
+
+        if (autoApprove) {
+          // Gerente + projeto: auto-aprovado, notifica admins para pagamento
+          await notifyAdmins(
+            'Reembolso aprovado aguardando pagamento',
+            'Um reembolso de gerente foi enviado e aguarda confirmação de pagamento.',
+            'reimbursement_approved',
+          );
+        } else if (employee.is_gerente && params.is_internal) {
+          // Gerente + interno: precisa de aprovação do admin
+          await notifyAdmins(
+            'Novo pedido de reembolso',
+            'Um gerente enviou um pedido de reembolso administrativo aguardando sua aprovação.',
+            'reimbursement_pending',
+          );
+        } else if (!params.is_internal && params.project_id) {
+          // Funcionário + projeto: notifica o gerente do projeto
+          const { data: project } = await supabase
+            .from('projects' as any).select('manager_id').eq('id', params.project_id).maybeSingle();
+          if (project && (project as any).manager_id) {
+            await supabase.from('notifications' as any).insert({
+              tenant_id: employee.tenant_id,
+              recipient_id: (project as any).manager_id,
+              type: 'reimbursement_pending',
+              title: 'Novo pedido de reembolso',
+              message: 'Um funcionário enviou um pedido de reembolso de projeto aguardando sua aprovação.',
+              reference_id: requestId,
+            } as any);
+          }
+        } else {
+          // Funcionário + interno: notifica admins
+          await notifyAdmins(
+            'Novo pedido de reembolso',
+            'Um funcionário enviou um pedido de reembolso administrativo aguardando sua aprovação.',
+            'reimbursement_pending',
+          );
         }
+      } catch (e) {
+        console.error('Error sending reimbursement notifications:', e);
       }
 
       return request;
@@ -331,9 +362,7 @@ export function useCreateReimbursement() {
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements'] });
       queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
       queryClient.invalidateQueries({ queryKey: ['all-my-reimbursements'] });
-      toast.success(employee?.is_gerente
-        ? 'Pedido de reembolso enviado e aprovado automaticamente!'
-        : 'Pedido de reembolso enviado com sucesso!');
+      toast.success('Pedido de reembolso enviado com sucesso!');
     },
     onError: (error: any) => {
       toast.error('Erro ao enviar pedido: ' + error.message);
@@ -544,19 +573,19 @@ export function useAllMyReimbursements() {
         if (error) throw error;
         requests = (data || []) as unknown as ReimbursementRequest[];
       } else if (employee.is_gerente) {
-        // Pure gerente: own requests + requests from their projects
-        const { data: memberships } = await supabase
-          .from('project_members' as any)
-          .select('project_id')
-          .eq('employee_id', employee.id);
-        const projectIds = ((memberships || []) as any[]).map((m: any) => m.project_id);
+        // Gerente puro: pedidos próprios + pedidos de projetos onde ele é o manager_id
+        const { data: managedProjects } = await supabase
+          .from('projects' as any)
+          .select('id')
+          .eq('manager_id', employee.id);
+        const managedProjectIds = ((managedProjects || []) as any[]).map((p: any) => p.id);
 
         const [ownRes, projectRes] = await Promise.all([
           supabase.from('reimbursement_requests' as any).select('*')
             .eq('requested_by', employee.id).order('created_at', { ascending: false }),
-          projectIds.length > 0
+          managedProjectIds.length > 0
             ? supabase.from('reimbursement_requests' as any).select('*')
-                .in('project_id', projectIds).order('created_at', { ascending: false })
+                .in('project_id', managedProjectIds).order('created_at', { ascending: false })
             : { data: [], error: null },
         ]);
         if (ownRes.error) throw ownRes.error;

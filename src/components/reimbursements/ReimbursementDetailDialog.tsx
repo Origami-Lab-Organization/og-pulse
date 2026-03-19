@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,15 +61,35 @@ export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement, o
   const [rejectReason, setRejectReason] = useState('');
   const [signedUrls, setSignedUrls] = useState<Map<string, string>>(new Map());
 
-  const isAdmin = employee?.isAdmin;
-  const isManager = employee?.is_gerente || employee?.isAdmin;
+  const isAdmin = employee?.isAdmin ?? false;
   const isPending = reimbursement?.status === 'pending';
   const isApproved = reimbursement?.status === 'approved';
   const isRejected = reimbursement?.status === 'rejected';
   const isOwner = reimbursement?.requested_by === employee?.id;
-  const canAct = isManager && isPending;
+
+  // Fetch projects managed by current user (where manager_id = employee.id)
+  const [managedProjectIds, setManagedProjectIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (!employee?.is_gerente || !employee?.id) { setManagedProjectIds([]); return; }
+    supabase.from('projects' as any).select('id').eq('manager_id', employee.id)
+      .then(({ data }) => setManagedProjectIds(((data || []) as any[]).map((p: any) => p.id)));
+  }, [employee?.id, employee?.is_gerente]);
+
+  // Who can approve/reject:
+  // - Admin can approve any pending reimbursement
+  // - Gerente can approve pending reimbursements from projects they manage (not internal)
+  const canAct = useMemo(() => {
+    if (!isPending) return false;
+    if (isAdmin) return true;
+    if (employee?.is_gerente && !reimbursement?.is_internal && reimbursement?.project_id) {
+      return managedProjectIds.includes(reimbursement.project_id);
+    }
+    return false;
+  }, [isPending, isAdmin, employee?.is_gerente, reimbursement?.is_internal, reimbursement?.project_id, managedProjectIds]);
+
   const canPay = isAdmin && isApproved;
   const canCorrect = isRejected && isOwner && onCorrectAndResend;
+  const isManager = isAdmin || (employee?.is_gerente ?? false);
 
   // Generate signed URLs for all attachments - use stable key to avoid infinite loop
   const attachmentIds = attachments.map(a => a.id).join(',');
