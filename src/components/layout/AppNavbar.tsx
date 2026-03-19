@@ -60,8 +60,9 @@ const navigationGroups: NavGroup[] = [
   },
   {
     label: 'Marketing',
+    requiresManager: true,
     items: [
-      { title: 'Análise de Mercado', url: '/marketing/analise-mercado', icon: BarChart2 },
+      { title: 'Análise de Mercado', url: '/marketing/analise-mercado', icon: BarChart2, requiresManager: true },
     ],
   },
   {

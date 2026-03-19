@@ -241,13 +241,13 @@ const App = () => (
                   </RoleProtectedRoute>
                 } 
               />
-              <Route 
-                path="/marketing/analise-mercado" 
+              <Route
+                path="/marketing/analise-mercado"
                 element={
-                  <ProtectedRoute>
+                  <RoleProtectedRoute requireManager>
                     <MarketAnalysisPage />
-                  </ProtectedRoute>
-                 } 
+                  </RoleProtectedRoute>
+                 }
               />
               <Route 
                 path="/rh/funcionarios-desligados" 
