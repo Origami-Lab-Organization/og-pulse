@@ -54,8 +54,7 @@ export const usePortfolioProjects = (searchQuery?: string) => {
           manager_id,
           client:clients(id, company_name, trading_name),
           manager:employees!projects_manager_id_fkey(id, nome, cargo),
-          installments:project_installments(value, status),
-          service:services!projects_service_line_fkey(name, billing_type)
+          installments:project_installments(value, status)
         `)
         .eq('tenant_id', tenantId!);
 
@@ -75,7 +74,25 @@ export const usePortfolioProjects = (searchQuery?: string) => {
         throw error;
       }
 
-      return (data || []) as unknown as PortfolioProject[];
+      const projects = (data || []) as unknown as PortfolioProject[];
+
+      // service_line is a plain text FK (no formal constraint), fetch services separately
+      const serviceIds = [...new Set(projects.map(p => p.service_line).filter(Boolean))] as string[];
+      let serviceMap = new Map<string, { name: string; billing_type: string }>();
+      if (serviceIds.length > 0) {
+        const { data: services } = await supabase
+          .from('services' as any)
+          .select('id, name, billing_type')
+          .in('id', serviceIds);
+        serviceMap = new Map(
+          ((services || []) as any[]).map((s: any) => [s.id, { name: s.name, billing_type: s.billing_type }])
+        );
+      }
+
+      return projects.map(p => ({
+        ...p,
+        service: p.service_line ? (serviceMap.get(p.service_line) ?? null) : null,
+      }));
     },
     enabled: !!tenantId,
   });
