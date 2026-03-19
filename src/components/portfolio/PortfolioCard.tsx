@@ -98,9 +98,6 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
             <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-800 dark:text-gray-400 font-medium">
               Sem receita
             </span>
-            {totalValue > 0 && (
-              <span className="text-muted-foreground">Custo: {formatCurrency(totalValue)}</span>
-            )}
           </div>
         ) : (
           <>
