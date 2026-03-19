@@ -104,6 +104,8 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
   const { data: services = [] } = useServices();
   const BILLING_TYPES: BillingType[] = ['fixed_scope', 'recurring', 'success_fee', 'no_revenue'];
   const activeServices = services.filter((s) => s.isActive);
+  const selectedService = services.find((s) => s.id === lead?.service_line);
+  const isNoRevenue = selectedService?.billingType === 'no_revenue';
   const servicesByType = BILLING_TYPES.reduce((acc, type) => {
     acc[type] = activeServices.filter((s) => s.billingType === type);
     return acc;
@@ -209,7 +211,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
       contact_phone: values.contact_phone || null,
       source: values.source || null,
       notes: values.notes || null,
-      estimated_value: values.estimated_value ?? lead.estimated_value,
+      estimated_value: isNoRevenue ? 0 : (values.estimated_value ?? lead.estimated_value),
     };
     updateLead.mutate(payload, { onSuccess: () => setIsEditing(false) });
   };
@@ -408,8 +410,8 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                       </FormItem>
                     )} />
 
-                    {/* Estimated value: only when no budget and not in proposal/negotiation/closed */}
-                    {!lead.budget_id && !['proposal', 'negotiation', 'closed'].includes(lead.crm_stage) && (
+                    {/* Estimated value: only when no budget, not in proposal/negotiation/closed, and service generates revenue */}
+                    {!lead.budget_id && !['proposal', 'negotiation', 'closed'].includes(lead.crm_stage) && !isNoRevenue && (
                       <FormField control={form.control} name="estimated_value" render={({ field }) => (
                         <FormItem>
                           <FormLabel>Valor Estimado</FormLabel>
