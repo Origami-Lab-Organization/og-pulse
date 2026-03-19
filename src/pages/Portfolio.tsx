@@ -15,7 +15,7 @@ export default function Portfolio() {
   const [clientId, setClientId] = useState('');
   const [serviceLine, setServiceLine] = useState('');
   const [managerId, setManagerId] = useState('');
-  const [year, setYear] = useState('');
+  const [year, setYear] = useState(String(new Date().getFullYear()));
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
   const { data: projects, isLoading } = usePortfolioProjects(searchQuery, {
@@ -54,15 +54,6 @@ export default function Portfolio() {
           <>
             <PortfolioKPIBar projects={projects || []} />
             <div className="flex flex-wrap items-center gap-3">
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por projeto, cliente ou gerente..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-64"
-                />
-              </div>
               <PortfolioFilters
                 isAdmin={isAdmin}
                 clientId={clientId}
@@ -74,6 +65,15 @@ export default function Portfolio() {
                 onManagerChange={setManagerId}
                 onYearChange={setYear}
               />
+              <div className="relative flex-1 min-w-[280px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por projeto, cliente ou gerente..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-full"
+                />
+              </div>
             </div>
             <div className="flex-1 overflow-auto bg-muted/30 rounded-lg">
               <PortfolioKanbanBoard projects={projects || []} />
