@@ -79,7 +79,7 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
     health = 'late';
   }
 
-  const healthBadge = isNoRevenue ? null : {
+  const healthBadge = isNoRevenue || stage === 'completed' ? null : {
     ok:      { label: 'Em dia',   className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 text-[10px]' },
     warning: { label: 'Atenção',  className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 text-[10px]' },
     late:    { label: 'Atrasado', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 text-[10px]' },
