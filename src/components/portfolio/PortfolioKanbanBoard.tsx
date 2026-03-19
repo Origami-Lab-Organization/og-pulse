@@ -115,7 +115,7 @@ export function PortfolioKanbanBoard({ projects }: PortfolioKanbanBoardProps) {
       onDragEnd={handleDragEnd}
     >
       <ScrollArea className="w-full h-full">
-        <div className="flex gap-4 p-4 pb-6">
+        <div className="grid grid-cols-5 gap-4 p-4 pb-6 min-h-full">
           {PORTFOLIO_COLUMNS.map((column) => (
             <PortfolioColumn
               key={column.id}

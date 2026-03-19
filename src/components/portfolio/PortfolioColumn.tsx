@@ -26,7 +26,7 @@ export function PortfolioColumn({ id, label, color, projects }: PortfolioColumnP
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col w-[260px] shrink-0 h-full rounded-lg border border-border bg-card transition-colors',
+        'flex flex-col h-full rounded-lg border border-border bg-card transition-colors',
         isOver && 'border-primary/50 bg-primary/5'
       )}
     >
