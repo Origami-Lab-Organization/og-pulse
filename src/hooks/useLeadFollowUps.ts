@@ -12,6 +12,7 @@ export interface LeadFollowUp {
   status: 'pending' | 'done' | 'skipped';
   notified: boolean;
   created_by: string | null;
+  completed_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -107,11 +108,17 @@ export function useCreateFollowUp() {
 
 export function useUpdateFollowUp() {
   const qc = useQueryClient();
+  const { employee } = useAuth();
   return useMutation({
     mutationFn: async ({ id, leadId, ...patch }: { id: string; leadId: string; status?: LeadFollowUp['status']; notified?: boolean }) => {
+      const isCompleting = patch.status === 'done' || patch.status === 'skipped';
       const { data, error } = await supabase
         .from('lead_follow_ups' as any)
-        .update({ ...patch, updated_at: new Date().toISOString() } as any)
+        .update({
+          ...patch,
+          ...(isCompleting ? { completed_by: employee!.id } : {}),
+          updated_at: new Date().toISOString(),
+        } as any)
         .eq('id', id)
         .select()
         .single();

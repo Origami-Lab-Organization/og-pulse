@@ -246,25 +246,35 @@ export function LeadFollowUpSection({ leadId, disabled }: LeadFollowUpSectionPro
             <>
               {pending.length > 0 && <Separator className="my-1" />}
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Concluídos</p>
-              {completed.map(fu => (
-                <div key={fu.id} className="flex items-start gap-2 rounded-md border border-border/40 bg-muted/30 p-2.5 opacity-60">
-                  <CalendarClock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                  <div className="flex-1 min-w-0 space-y-0.5">
-                    <p className="text-xs line-through text-muted-foreground leading-snug">{fu.description}</p>
-                    <p className="text-[10px] text-muted-foreground">{formatScheduledAt(fu.scheduled_at)}</p>
+              {completed.map(fu => {
+                const completedByEmployee = fu.completed_by
+                  ? employees.find(e => e.id === fu.completed_by)
+                  : null;
+                return (
+                  <div key={fu.id} className="flex items-start gap-2 rounded-md border border-border/40 bg-muted/30 p-2.5 opacity-60">
+                    <CalendarClock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <p className="text-xs line-through text-muted-foreground leading-snug">{fu.description}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatScheduledAt(fu.scheduled_at)}
+                        {completedByEmployee && (
+                          <span className="ml-1">· por {completedByEmployee.nome}</span>
+                        )}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        'text-[9px] h-4 px-1.5',
+                        fu.status === 'done' && 'bg-green-100 text-green-700 dark:bg-green-900/30',
+                        fu.status === 'skipped' && 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {fu.status === 'done' ? 'Feito' : 'Pulado'}
+                    </Badge>
                   </div>
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      'text-[9px] h-4 px-1.5',
-                      fu.status === 'done' && 'bg-green-100 text-green-700 dark:bg-green-900/30',
-                      fu.status === 'skipped' && 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    {fu.status === 'done' ? 'Feito' : 'Pulado'}
-                  </Badge>
-                </div>
-              ))}
+                );
+              })}
             </>
           )}
         </div>
