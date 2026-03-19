@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, Save, Calculator, Percent, DollarSign, Plus, TrendingUp, Info } from 'lucide-react';
+import { Loader2, Save, Plus, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BudgetRolesEditor } from '@/components/budgets/BudgetRolesEditor';
@@ -27,6 +27,7 @@ import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/lib/formatters';
 import { CreateBudgetInput, BudgetRoleInput, BudgetMaterialInput, BudgetSupplierInput, BudgetCalculation, RecurringCalculation, SuccessFeeCalculation, calculateBudgetTotals, calculateRecurringTotals, calculateSuccessFeeTotals } from '@/types/budget';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useClients, useCreateClient } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
@@ -129,6 +130,7 @@ export default function BudgetForm() {
   const wizardSteps = getWizardSteps(billingType, isContinuous);
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [compositionTab, setCompositionTab] = useState<'roles' | 'suppliers' | 'materials'>('roles');
   const [roles, setRoles] = useState<BudgetRoleInput[]>([]);
   const [materials, setMaterials] = useState<BudgetMaterialInput[]>([]);
   const [suppliers, setSuppliers] = useState<BudgetSupplierInput[]>([]);
@@ -568,10 +570,16 @@ export default function BudgetForm() {
           </Card>
         );
       case 2: {
-        const rec2 = billingType === 'no_revenue' && isContinuous ? calculation as RecurringCalculation : null;
-        const monthlyLabor2 = rec2
-          ? rec2.monthlyCost - suppliers.reduce((a, s) => a + s.monthlyValue, 0) - (durationMonths > 0 ? rec2.materialsTotal / durationMonths : 0)
+        const recCalc2 = isMonthlyMode ? calculation as RecurringCalculation : null;
+        const monthlyLaborCost2 = recCalc2
+          ? recCalc2.monthlyCost - suppliers.reduce((a, s) => a + s.monthlyValue, 0) - (durationMonths > 0 ? recCalc2.materialsTotal / durationMonths : 0)
           : 0;
+
+        const compositionTabs = [
+          { key: 'roles' as const, label: 'Mão de Obra', count: roles.length },
+          { key: 'suppliers' as const, label: 'Fornecedores', count: suppliers.length },
+          { key: 'materials' as const, label: 'Materiais', count: materials.length },
+        ];
 
         return (
           <Card className="overflow-hidden">
@@ -585,9 +593,26 @@ export default function BudgetForm() {
                   </p>
                 </div>
                 <div className="flex gap-1.5 shrink-0 mt-0.5">
-                  <Badge className={cn('text-xs border', TYPE_BADGE_CLASSES[billingType])}>
-                    {BILLING_TYPE_LABELS[billingType]}
-                  </Badge>
+                  {billingType === 'no_revenue' ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge className={cn('text-xs border cursor-help', TYPE_BADGE_CLASSES[billingType])}>
+                            {BILLING_TYPE_LABELS[billingType]}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-center">
+                          {isContinuous
+                            ? 'Orçamento interno — custos mensais sem faturamento. Defina a alocação mensal fixa de cada perfil.'
+                            : 'Orçamento interno — Este serviço não gera receita. O orçamento serve para controle de custos.'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <Badge className={cn('text-xs border', TYPE_BADGE_CLASSES[billingType])}>
+                      {BILLING_TYPE_LABELS[billingType]}
+                    </Badge>
+                  )}
                   {billingType === 'no_revenue' && isContinuous && (
                     <Badge className="text-xs border bg-gray-100 text-gray-600 border-gray-200">Contínuo</Badge>
                   )}
@@ -595,182 +620,124 @@ export default function BudgetForm() {
               </div>
             </div>
 
-            <CardContent className="pt-5 space-y-6">
-              {/* Banner */}
-              {billingType === 'no_revenue' && (
-                <Alert className="border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    {isContinuous
-                      ? 'Orçamento interno — custos mensais sem faturamento. Defina a alocação mensal fixa de cada perfil.'
-                      : 'Orçamento interno — Este serviço não gera receita. O orçamento serve para controle de custos.'}
-                  </AlertDescription>
-                </Alert>
+            {/* Sub-tabs */}
+            <div className="flex border-b px-6">
+              {compositionTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setCompositionTab(tab.key)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-1 py-3 mr-6 text-sm font-medium border-b-2 -mb-px transition-colors',
+                    compositionTab === tab.key
+                      ? 'border-green-600 text-green-700 dark:text-green-500 dark:border-green-500'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {tab.label}
+                  <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <CardContent className="pt-5">
+              {compositionTab === 'roles' && (
+                <BudgetRolesEditor
+                  roles={roles}
+                  durationMonths={isMonthlyMode ? 1 : durationMonths}
+                  availableRoles={roleRates}
+                  onRolesChange={setRoles}
+                  monthlyMode={isMonthlyMode}
+                />
               )}
 
-              {/* Mão de Obra */}
-              <BudgetRolesEditor
-                roles={roles}
-                durationMonths={isMonthlyMode ? 1 : durationMonths}
-                availableRoles={roleRates}
-                onRolesChange={setRoles}
-                monthlyMode={isMonthlyMode}
-              />
-
-              {/* Fornecedores */}
-              <div className="pt-4 border-t">
+              {compositionTab === 'suppliers' && (
                 <BudgetSuppliersEditor
                   suppliers={suppliers}
                   durationMonths={durationMonths}
                   onSuppliersChange={setSuppliers}
+                  isRecurring={isMonthlyMode}
                 />
-              </div>
+              )}
 
-              {/* Materiais */}
-              <div className="pt-4 border-t">
-                {isMonthlyMode && (
-                  <div className="mb-3">
-                    <p className="text-sm font-medium">Custos de implantação (pontual)</p>
-                    <p className="text-xs text-muted-foreground">Rateados ao longo do contrato</p>
-                  </div>
-                )}
+              {compositionTab === 'materials' && (
                 <BudgetMaterialsEditor
                   materials={materials}
                   onMaterialsChange={setMaterials}
+                  isRecurring={isMonthlyMode}
+                  durationMonths={durationMonths}
                 />
-              </div>
+              )}
             </CardContent>
 
-            {/* Cost summary for no_revenue — muted footer inside card */}
-            {billingType === 'no_revenue' && (
-              <div className="border-t bg-muted/30 px-6 py-4 space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Resumo de custos</p>
-                {isContinuous && rec2 ? (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Mão de obra/mês</span>
-                      <span>{formatCurrency(monthlyLabor2)}</span>
+            {/* Cost summary footer — always visible */}
+            <div className="border-t bg-muted/30 px-6 py-4 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Resumo de custos</p>
+              {isMonthlyMode && recCalc2 ? (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Mão de obra/mês</span>
+                    <span>{formatCurrency(monthlyLaborCost2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Fornecedores/mês</span>
+                    <span>{formatCurrency(suppliers.reduce((a, s) => a + s.monthlyValue, 0))}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Materiais (rateado)</span>
+                    <span>{formatCurrency(durationMonths > 0 ? recCalc2.materialsTotal / durationMonths : 0)}</span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex justify-between font-semibold">
+                    <span>Custo mensal</span>
+                    <span>{formatCurrency(recCalc2.monthlyCost)}/mês</span>
+                  </div>
+                  {billingType === 'no_revenue' ? (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Projeção {durationMonths} meses</span>
+                      <span>{formatCurrency(recCalc2.contractTotal)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Fornecedores/mês</span>
-                      <span>{formatCurrency(suppliers.reduce((a, s) => a + s.monthlyValue, 0))}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Implantação (rateado)</span>
-                      <span>{formatCurrency(durationMonths > 0 ? rec2.materialsTotal / durationMonths : 0)}</span>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="flex justify-between font-semibold">
-                      <span>Custo mensal</span>
-                      <span>{formatCurrency(rec2.monthlyCost)}/mês</span>
-                    </div>
+                  ) : (
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>Período: {durationMonths} {durationMonths === 1 ? 'mês' : 'meses'}</span>
-                      <span>Custo total: <strong className="text-foreground">{formatCurrency(rec2.contractTotal)}</strong></span>
+                      <span>Total: <strong className="text-foreground">{formatCurrency(recCalc2.contractTotal)}</strong></span>
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Mão de obra</span>
-                      <span>{formatCurrency(calculation.laborCost)}</span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Mão de obra</span>
+                    <span>{formatCurrency(calculation.laborCost)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Fornecedores</span>
+                    <span>{formatCurrency(calculation.suppliersTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Materiais</span>
+                    <span>{formatCurrency(calculation.materialsTotal)}</span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex justify-between font-semibold">
+                    <span>Custo total</span>
+                    <span>{formatCurrency(calculation.totalCost)}</span>
+                  </div>
+                  {billingType === 'no_revenue' && durationMonths > 0 && calculation.totalCost > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Custo mensal médio</span>
+                      <span>{formatCurrency(calculation.totalCost / durationMonths)}/mês</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Fornecedores</span>
-                      <span>{formatCurrency(calculation.suppliersTotal)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Materiais</span>
-                      <span>{formatCurrency(calculation.materialsTotal)}</span>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="flex justify-between font-semibold">
-                      <span>Custo total estimado</span>
-                      <span>{formatCurrency(calculation.totalCost)}</span>
-                    </div>
-                    {durationMonths > 0 && calculation.totalCost > 0 && (
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Custo mensal médio</span>
-                        <span>{formatCurrency(calculation.totalCost / durationMonths)}/mês</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Sticky totals bar for non-no_revenue types */}
-            {billingType !== 'no_revenue' && (
-              <div className="border-t bg-muted/30 px-6 py-3">
-                <div className="flex items-center justify-center gap-6 text-sm">
-                  <span className="text-muted-foreground">Mão de Obra: <strong className="text-foreground">{formatCurrency(calculation.laborCost)}</strong></span>
-                  <span className="text-border">|</span>
-                  <span className="text-muted-foreground">Fornecedores: <strong className="text-foreground">{formatCurrency(calculation.suppliersTotal)}</strong></span>
-                  <span className="text-border">|</span>
-                  <span className="text-muted-foreground">Materiais: <strong className="text-foreground">{formatCurrency(calculation.materialsTotal)}</strong></span>
-                </div>
-              </div>
-            )}
+                  )}
+                </>
+              )}
+            </div>
           </Card>
         );
       }
       case 3: {
-        // Shared markup controls (used by both layouts)
-        const markupControls = (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Percent className="h-5 w-5" />
-                {billingType === 'recurring' ? 'Markup Mensal' : 'Composição do Preço'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Despesas Administrativas ({adminExpensesPercent}%)</span>
-                <span>{formatCurrency(billingType === 'recurring' ? (calculation as RecurringCalculation).monthlySellingPrice * adminExpensesPercent / 100 : calculation.adminExpenses)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Impostos ({taxesPercent}%)</span>
-                <span>{formatCurrency(billingType === 'recurring' ? (calculation as RecurringCalculation).monthlySellingPrice * taxesPercent / 100 : calculation.taxes)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between items-center">
-                <Label>Comissão (máx. {maxCommissionPercent}%)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number" min={0} max={maxCommissionPercent} step={0.1}
-                    className="w-20 text-right" value={commissionPercent}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-                    onChange={(e) => setCommissionPercent(Math.min(parseFloat(e.target.value) || 0, maxCommissionPercent))}
-                  />
-                  <span className="text-muted-foreground">%</span>
-                  <span className="text-muted-foreground w-28 text-right">
-                    = {formatCurrency(billingType === 'recurring' ? (calculation as RecurringCalculation).monthlySellingPrice * commissionPercent / 100 : calculation.commission)}
-                    {billingType === 'recurring' && <span className="text-xs">/mês</span>}
-                  </span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <Label>Margem Líquida (mín. {minNetMarginPercent}%)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number" min={minNetMarginPercent} max={100} step={0.1}
-                    className="w-20 text-right" value={netMarginPercent}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-                    onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) setNetMarginPercent(v); }}
-                    onBlur={(e) => setNetMarginPercent(Math.max(minNetMarginPercent, Math.min(parseFloat(e.target.value) || minNetMarginPercent, 100)))}
-                  />
-                  <span className="text-muted-foreground">%</span>
-                  <span className="text-muted-foreground w-28 text-right">
-                    = {formatCurrency(billingType === 'recurring' ? (calculation as RecurringCalculation).monthlySellingPrice * netMarginPercent / 100 : calculation.netMargin)}
-                    {billingType === 'recurring' && <span className="text-xs">/mês</span>}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-
         const marginAlert = isMarginBelowMinimum && (
           <div className="rounded-lg border border-destructive bg-destructive/5 p-4 space-y-3">
             <p className="text-sm text-destructive font-medium">
@@ -786,243 +753,297 @@ export default function BudgetForm() {
           </div>
         );
 
+        const stepHeader = (stepTitle: string) => (
+          <div className="px-6 pt-5 pb-4 border-b">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate">{watchedTitle || 'Novo Orçamento'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{stepTitle}</p>
+              </div>
+              <Badge className={cn('text-xs border shrink-0 mt-0.5', TYPE_BADGE_CLASSES[billingType])}>
+                {BILLING_TYPE_LABELS[billingType]}
+              </Badge>
+            </div>
+          </div>
+        );
+
+        const markupSection = (isMonthly: boolean) => {
+          const recCalc = calculation as RecurringCalculation;
+          return (
+            <div className="space-y-1">
+              <p className="text-sm font-medium mb-3">{isMonthly ? 'Markup mensal' : 'Composição do preço'}</p>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm text-muted-foreground">Desp. Administrativas ({adminExpensesPercent}%)</span>
+                <span className="text-sm font-medium">
+                  {formatCurrency(isMonthly ? recCalc.monthlySellingPrice * adminExpensesPercent / 100 : calculation.adminExpenses)}
+                  {isMonthly && <span className="text-xs text-muted-foreground ml-0.5">/mês</span>}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm text-muted-foreground">Impostos ({taxesPercent}%)</span>
+                <span className="text-sm font-medium">
+                  {formatCurrency(isMonthly ? recCalc.monthlySellingPrice * taxesPercent / 100 : calculation.taxes)}
+                  {isMonthly && <span className="text-xs text-muted-foreground ml-0.5">/mês</span>}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <Label className="text-sm font-normal">Comissão (máx. {maxCommissionPercent}%)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number" min={0} max={maxCommissionPercent} step={0.1}
+                    className="w-20 h-8 text-right" value={commissionPercent}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                    onChange={(e) => setCommissionPercent(Math.min(parseFloat(e.target.value) || 0, maxCommissionPercent))}
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                  <span className="text-sm font-medium w-28 text-right">
+                    = {formatCurrency(isMonthly ? recCalc.monthlySellingPrice * commissionPercent / 100 : calculation.commission)}
+                    {isMonthly && <span className="text-xs text-muted-foreground">/mês</span>}
+                  </span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <Label className="text-sm font-normal">Margem líquida (mín. {minNetMarginPercent}%)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number" min={minNetMarginPercent} max={100} step={0.1}
+                    className="w-20 h-8 text-right" value={netMarginPercent}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                    onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) setNetMarginPercent(v); }}
+                    onBlur={(e) => setNetMarginPercent(Math.max(minNetMarginPercent, Math.min(parseFloat(e.target.value) || minNetMarginPercent, 100)))}
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                  <span className="text-sm font-medium w-28 text-right">
+                    = {formatCurrency(isMonthly ? recCalc.monthlySellingPrice * netMarginPercent / 100 : calculation.netMargin)}
+                    {isMonthly && <span className="text-xs text-muted-foreground">/mês</span>}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
         if (billingType === 'success_fee') {
           const sf = calculation as SuccessFeeCalculation;
           return (
-            <div className="space-y-6">
-              {/* Custos da equipe de apoio */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5" />Custos da Equipe de Apoio</CardTitle>
-                </CardHeader>
-                <CardContent>
+            <Card className="overflow-hidden">
+              {stepHeader('Taxa de Sucesso')}
+              <CardContent className="pt-5 space-y-6">
+                {/* Block 1: Support team costs */}
+                <div>
+                  <p className="text-sm font-medium mb-3">Custos da equipe de apoio</p>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <span className="text-sm text-muted-foreground">Mão de Obra</span>
-                      <p className="text-lg font-semibold">{formatCurrency(sf.laborCost)}</p>
+                      <span className="text-xs text-muted-foreground">Mão de Obra</span>
+                      <p className="text-base font-semibold mt-1">{formatCurrency(sf.laborCost)}</p>
                     </div>
                     <div>
-                      <span className="text-sm text-muted-foreground">Fornecedores</span>
-                      <p className="text-lg font-semibold">{formatCurrency(sf.suppliersTotal)}</p>
+                      <span className="text-xs text-muted-foreground">Fornecedores</span>
+                      <p className="text-base font-semibold mt-1">{formatCurrency(sf.suppliersTotal)}</p>
                     </div>
                     <div>
-                      <span className="text-sm text-muted-foreground">Materiais</span>
-                      <p className="text-lg font-semibold">{formatCurrency(sf.materialsTotal)}</p>
+                      <span className="text-xs text-muted-foreground">Materiais</span>
+                      <p className="text-base font-semibold mt-1">{formatCurrency(sf.materialsTotal)}</p>
                     </div>
                   </div>
-                  <Separator className="my-4" />
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Custo Total</span>
-                    <span className="text-xl font-bold">{formatCurrency(sf.totalCost)}</span>
+                  <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                    <span className="text-sm font-medium">Custo Total</span>
+                    <span className="text-lg font-bold">{formatCurrency(sf.totalCost)}</span>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              {/* Configuração da Taxa de Sucesso */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5" />Taxa de Sucesso</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    A receita será calculada como um percentual sobre o resultado obtido para o cliente.
-                  </p>
-                  <div className="flex justify-between items-center">
-                    <Label>Percentual da taxa (%)</Label>
+                <div className="border-t" />
+
+                {/* Block 2: Fee configuration */}
+                <div className="space-y-1">
+                  <p className="text-sm font-medium mb-3">Configuração da taxa</p>
+                  <p className="text-xs text-muted-foreground mb-3">A receita será calculada como um percentual sobre o resultado obtido para o cliente.</p>
+                  <div className="flex justify-between items-center py-2">
+                    <Label className="text-sm font-normal">Percentual da taxa (%)</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="number" min={0} max={100} step={0.1}
-                        className="w-24 text-right" value={successFeePercent}
+                        className="w-24 h-8 text-right" value={successFeePercent}
                         onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                         onChange={(e) => setSuccessFeePercent(Math.min(parseFloat(e.target.value) || 0, 100))}
                       />
-                      <span className="text-muted-foreground">%</span>
+                      <span className="text-sm text-muted-foreground">%</span>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <Label>Base estimada (R$)</Label>
+                  <div className="flex justify-between items-center py-2">
+                    <Label className="text-sm font-normal">Base estimada (R$)</Label>
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">R$</span>
+                      <span className="text-sm text-muted-foreground">R$</span>
                       <CurrencyInput className="w-40 text-right" value={estimatedBase} onValueChange={(v) => setEstimatedBase(v)} />
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Ex: valor do contrato do cliente, recursos captados, incentivos fiscais obtidos.
-                  </p>
-                </CardContent>
-              </Card>
+                  <p className="text-xs text-muted-foreground">Ex: valor do contrato do cliente, recursos captados, incentivos fiscais obtidos.</p>
+                </div>
 
-              {/* Resultado Estimado */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5" />Resultado Estimado</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Base estimada</span>
-                    <span>{formatCurrency(sf.estimatedBase)}</span>
+                <div className="border-t" />
+
+                {/* Block 3: Estimated result */}
+                <div className="space-y-1">
+                  <p className="text-sm font-medium mb-3">Resultado estimado</p>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm text-muted-foreground">Base estimada</span>
+                    <span className="text-sm font-medium">{formatCurrency(sf.estimatedBase)}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Taxa de sucesso ({sf.successFeePercent}%)</span>
-                    <span className="text-lg font-semibold">{formatCurrency(sf.estimatedRevenue)}</span>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm text-muted-foreground">Taxa de sucesso ({sf.successFeePercent}%)</span>
+                    <span className="text-sm font-semibold">{formatCurrency(sf.estimatedRevenue)}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Custos de apoio</span>
-                    <span className="text-destructive">- {formatCurrency(sf.totalCost)}</span>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm text-muted-foreground">Custos de apoio</span>
+                    <span className="text-sm text-destructive">- {formatCurrency(sf.totalCost)}</span>
                   </div>
-                  <Separator />
-                  <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4">
+                  <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4 mt-2">
                     <div>
-                      <span className="text-lg font-bold">Margem Estimada</span>
+                      <span className="text-base font-bold">Margem Estimada</span>
                       {sf.estimatedRevenue > 0 && (
-                        <p className="text-sm text-muted-foreground">{sf.estimatedMarginPercent.toFixed(1)}% da receita</p>
+                        <p className="text-xs text-muted-foreground">{sf.estimatedMarginPercent.toFixed(1)}% da receita</p>
                       )}
                     </div>
-                    <span className={cn(
-                      'text-2xl font-bold',
-                      sf.estimatedMargin >= 0 ? 'text-primary' : 'text-destructive'
-                    )}>
+                    <span className={cn('text-xl font-bold', sf.estimatedMargin >= 0 ? 'text-primary' : 'text-destructive')}>
                       {formatCurrency(sf.estimatedMargin)}
                     </span>
                   </div>
                   {sf.estimatedRevenue === 0 && (
-                    <p className="text-xs text-muted-foreground text-center">
+                    <p className="text-xs text-muted-foreground text-center mt-2">
                       Preencha o percentual e a base estimada para ver o resultado projetado.
                     </p>
                   )}
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           );
         }
 
         if (billingType === 'recurring') {
           const rec = calculation as RecurringCalculation;
+          const monthlyLaborCost = rec.monthlyCost - suppliers.reduce((a, s) => a + s.monthlyValue, 0) - (durationMonths > 0 ? rec.materialsTotal / durationMonths : 0);
           return (
-            <div className="space-y-6">
-              {/* Custos Mensais */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5" />Custos Mensais</CardTitle>
-                </CardHeader>
-                <CardContent>
+            <Card className="overflow-hidden">
+              {stepHeader(wizardSteps.find((s) => s.id === 3)?.title || 'Valor Mensal')}
+              <CardContent className="pt-5 space-y-6">
+                {/* Block 1: Monthly costs */}
+                <div>
+                  <p className="text-sm font-medium mb-3">Custos mensais</p>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <span className="text-sm text-muted-foreground">Mão de obra/mês</span>
-                      <p className="text-lg font-semibold">{formatCurrency(rec.monthlyCost - (suppliers.reduce((a, s) => a + s.monthlyValue, 0)) - (durationMonths > 0 ? rec.materialsTotal / durationMonths : 0))}</p>
+                      <span className="text-xs text-muted-foreground">Mão de obra/mês</span>
+                      <p className="text-base font-semibold mt-1">{formatCurrency(monthlyLaborCost)}</p>
                     </div>
                     <div>
-                      <span className="text-sm text-muted-foreground">Fornecedores/mês</span>
-                      <p className="text-lg font-semibold">{formatCurrency(suppliers.reduce((a, s) => a + s.monthlyValue, 0))}</p>
+                      <span className="text-xs text-muted-foreground">Fornecedores/mês</span>
+                      <p className="text-base font-semibold mt-1">{formatCurrency(suppliers.reduce((a, s) => a + s.monthlyValue, 0))}</p>
                     </div>
                     <div>
-                      <span className="text-sm text-muted-foreground">Materiais (rateado)</span>
-                      <p className="text-lg font-semibold">{formatCurrency(durationMonths > 0 ? rec.materialsTotal / durationMonths : 0)}</p>
+                      <span className="text-xs text-muted-foreground">Implantação rateada</span>
+                      <p className="text-base font-semibold mt-1">{formatCurrency(durationMonths > 0 ? rec.materialsTotal / durationMonths : 0)}</p>
                     </div>
                   </div>
-                  <Separator className="my-4" />
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Custo mensal total</span>
-                    <span className="text-xl font-bold">{formatCurrency(rec.monthlyCost)}</span>
+                  <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                    <span className="text-sm font-medium">Custo mensal total</span>
+                    <span className="text-lg font-bold">{formatCurrency(rec.monthlyCost)}</span>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              {markupControls}
+                <div className="border-t" />
 
-              {/* Valor Mensal */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5" />Valor Mensal</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                {/* Block 2: Markup */}
+                {markupSection(true)}
+
+                <div className="border-t" />
+
+                {/* Block 3: Final monthly value */}
+                <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <span>Preço de venda mensal</span>
-                    <span className="text-xl font-semibold">{formatCurrency(rec.monthlySellingPrice)}</span>
+                    <span className="text-sm">Preço de venda mensal</span>
+                    <span className="text-lg font-semibold">{formatCurrency(rec.monthlySellingPrice)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <Label>Desconto mensal</Label>
+                    <Label className="text-sm font-normal">Desconto mensal</Label>
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">R$</span>
+                      <span className="text-sm text-muted-foreground">R$</span>
                       <CurrencyInput className="w-32 text-right" value={discountValue} onValueChange={(v) => setDiscountValue(v)} />
                     </div>
                   </div>
                   <Separator />
                   <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4">
-                    <span className="text-lg font-bold">Valor Mensal Final</span>
+                    <span className="text-xl font-semibold">Valor Mensal Final</span>
                     <span className="text-2xl font-bold text-primary">{formatCurrency(rec.monthlyFinalPrice)}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Período: {durationMonths} {durationMonths === 1 ? 'mês' : 'meses'}</span>
                     <span>Total do contrato: <strong className="text-foreground">{formatCurrency(rec.contractTotal)}</strong></span>
                   </div>
                   <MarginGauge effectiveMarginPercent={calculation.effectiveMarginPercent} minMarginPercent={minNetMarginPercent} netMarginPercent={netMarginPercent} />
                   {marginAlert}
-                </CardContent>
-              </Card>
-            </div>
-          );
-        }
-
-        return (
-          <div className="space-y-6">
-            {/* Card: Custos */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5" />Custos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <span className="text-sm text-muted-foreground">Mão de Obra</span>
-                    <p className="text-lg font-semibold">{formatCurrency(calculation.laborCost)}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-muted-foreground">Fornecedores</span>
-                    <p className="text-lg font-semibold">{formatCurrency(calculation.suppliersTotal)}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-muted-foreground">Materiais</span>
-                    <p className="text-lg font-semibold">{formatCurrency(calculation.materialsTotal)}</p>
-                  </div>
-                </div>
-                <Separator className="my-4" />
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Custo Total</span>
-                  <span className="text-xl font-bold">{formatCurrency(calculation.totalCost)}</span>
                 </div>
               </CardContent>
             </Card>
+          );
+        }
 
-            {markupControls}
+        // fixed_scope
+        return (
+          <Card className="overflow-hidden">
+            {stepHeader(wizardSteps.find((s) => s.id === 3)?.title || 'Precificação')}
+            <CardContent className="pt-5 space-y-6">
+              {/* Block 1: Total costs */}
+              <div>
+                <p className="text-sm font-medium mb-3">Custos totais</p>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Mão de Obra</span>
+                    <p className="text-base font-semibold mt-1">{formatCurrency(calculation.laborCost)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Fornecedores</span>
+                    <p className="text-base font-semibold mt-1">{formatCurrency(calculation.suppliersTotal)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Materiais</span>
+                    <p className="text-base font-semibold mt-1">{formatCurrency(calculation.materialsTotal)}</p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                  <span className="text-sm font-medium">Custo Total</span>
+                  <span className="text-lg font-bold">{formatCurrency(calculation.totalCost)}</span>
+                </div>
+              </div>
 
-            {/* Card: Valor Final */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5" />Valor Final</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <div className="border-t" />
+
+              {/* Block 2: Markup */}
+              {markupSection(false)}
+
+              <div className="border-t" />
+
+              {/* Block 3: Final value */}
+              <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span>Preço de Venda</span>
-                  <span className="text-xl font-semibold">{formatCurrency(calculation.sellingPrice)}</span>
+                  <span className="text-sm">Preço de Venda</span>
+                  <span className="text-lg font-semibold">{formatCurrency(calculation.sellingPrice)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <Label>Desconto</Label>
+                  <Label className="text-sm font-normal">Desconto</Label>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">R$</span>
+                    <span className="text-sm text-muted-foreground">R$</span>
                     <CurrencyInput className="w-32 text-right" value={discountValue} onValueChange={(v) => setDiscountValue(v)} />
                   </div>
                 </div>
                 <Separator />
                 <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4">
-                  <span className="text-lg font-bold">Valor Final</span>
+                  <span className="text-xl font-semibold">Valor Final</span>
                   <span className="text-2xl font-bold text-primary">{formatCurrency(calculation.finalTotal)}</span>
                 </div>
                 <MarginGauge effectiveMarginPercent={calculation.effectiveMarginPercent} minMarginPercent={minNetMarginPercent} netMarginPercent={netMarginPercent} />
                 {marginAlert}
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         );
       }
       default:
@@ -1051,15 +1072,15 @@ export default function BudgetForm() {
               </TabsList>
 
               <TabsContent value="basic" className="mt-6">
-                {renderStepContent(1)}
+                <div className="max-w-[720px] mx-auto">{renderStepContent(1)}</div>
               </TabsContent>
 
               <TabsContent value="composition" className="mt-6">
-                {renderStepContent(2)}
+                <div className="max-w-[720px] mx-auto">{renderStepContent(2)}</div>
               </TabsContent>
 
               <TabsContent value="pricing" className="mt-6">
-                {renderStepContent(3)}
+                <div className="max-w-[720px] mx-auto">{renderStepContent(3)}</div>
               </TabsContent>
             </Tabs>
           ) : (
@@ -1067,7 +1088,9 @@ export default function BudgetForm() {
             <>
               {/* Current step content */}
               <div className="pb-16">
-                {renderStepContent(currentStep)}
+                <div className="max-w-[720px] mx-auto">
+                  {renderStepContent(currentStep)}
+                </div>
               </div>
 
               {/* Wizard navigation - fixed footer with inline stepper */}
