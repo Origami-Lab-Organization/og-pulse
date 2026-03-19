@@ -218,7 +218,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
             <DollarSign className="h-3 w-3" />
             {formatCurrency(lead.budget.final_total)}
           </div>
-        ) : lead.estimated_value > 0 ? (
+        ) : lead.estimated_value > 0 && linkedService?.billingType !== 'no_revenue' ? (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <DollarSign className="h-3 w-3" />
             <span>~ {formatCurrency(lead.estimated_value)}</span>
