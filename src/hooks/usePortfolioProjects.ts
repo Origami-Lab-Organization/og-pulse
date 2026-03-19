@@ -9,6 +9,7 @@ export interface PortfolioProject {
   name: string;
   total_value: number;
   start_date: string;
+  end_date?: string | null;
   portfolio_stage: PortfolioStage;
   lead_id: string | null;
   client?: {
@@ -30,6 +31,12 @@ export interface PortfolioProject {
     value: number;
     status: string;
     due_date: string;
+  }[];
+  milestones?: {
+    status: string | null;
+    start_date: string;
+    end_date: string;
+    completed_date: string | null;
   }[];
 }
 
@@ -62,13 +69,15 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
           name,
           total_value,
           start_date,
+          end_date,
           portfolio_stage,
           lead_id,
           service_line,
           manager_id,
           client:clients(id, company_name, trading_name),
           manager:employees!projects_manager_id_fkey(id, nome, cargo),
-          installments:project_installments(value, status, due_date)
+          installments:project_installments(value, status, due_date),
+          milestones:project_milestones(status, start_date, end_date, completed_date)
         `)
         .eq('tenant_id', tenantId!);
 
