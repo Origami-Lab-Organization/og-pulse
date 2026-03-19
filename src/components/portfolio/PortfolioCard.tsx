@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Building2, User, Calendar, Layers, History } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { format, parseISO } from 'date-fns';
@@ -100,18 +101,28 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
             </span>
           </div>
         ) : (
-          <>
-            <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="font-medium text-foreground">{formatCurrency(totalValue)}</span>
-              <span className="text-muted-foreground">{progressPercent}%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="cursor-default">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Recebimento</span>
+                <div className="flex items-center justify-between text-xs mb-1.5 mt-0.5">
+                  <span className="font-medium text-foreground">{formatCurrency(totalValue)}</span>
+                  <span className="text-muted-foreground">{progressPercent}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs space-y-0.5">
+              <p>Valor projetado: {formatCurrency(totalValue)}</p>
+              <p>Valor recebido: {formatCurrency(receivedValue)}</p>
+              <p>Percentual: {progressPercent}%</p>
+            </TooltipContent>
+          </Tooltip>
         )}
         <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
           <Calendar className="h-3 w-3" />
