@@ -80,12 +80,16 @@ export const usePortfolioProjects = (searchQuery?: string) => {
       const serviceIds = [...new Set(projects.map(p => p.service_line).filter(Boolean))] as string[];
       let serviceMap = new Map<string, { name: string; billing_type: string }>();
       if (serviceIds.length > 0) {
-        const { data: services } = await supabase
-          .from('services' as any)
+        const { data: services, error: svcError } = await supabase
+          .from('services')
           .select('id, name, billing_type')
+          .eq('tenant_id', tenantId!)
           .in('id', serviceIds);
+        if (svcError) {
+          console.error('Error fetching services for portfolio:', svcError);
+        }
         serviceMap = new Map(
-          ((services || []) as any[]).map((s: any) => [s.id, { name: s.name, billing_type: s.billing_type }])
+          (services || []).map(s => [s.id, { name: s.name, billing_type: s.billing_type ?? '' }])
         );
       }
 

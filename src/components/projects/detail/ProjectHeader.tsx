@@ -2,7 +2,6 @@ import { Building2, Calendar, User, Layers } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations } from '@/types/project';
 import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
-import { SERVICE_LINE_LABELS } from '@/types/lead';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -42,12 +41,12 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
       <Badge className={stageColors[(project.portfolio_stage || 'planning') as PortfolioStage]}>
         {PORTFOLIO_STAGE_LABELS[(project.portfolio_stage || 'planning') as PortfolioStage]}
       </Badge>
-      {project.service_line && (
+      {project.service?.name && (
         <>
           <span className="hidden sm:inline text-muted-foreground/50">•</span>
           <span className="flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5" />
-            <span>{SERVICE_LINE_LABELS[project.service_line] || project.service_line}</span>
+            <span>{project.service.name}</span>
           </span>
         </>
       )}

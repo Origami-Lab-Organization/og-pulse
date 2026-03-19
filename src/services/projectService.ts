@@ -140,12 +140,25 @@ export const projectService = {
       .eq('project_id', id)
       .order('created_at', { ascending: true });
 
+    // Fetch service name (service_line is plain text, no FK constraint)
+    let service: { name: string; billing_type: string } | null = null;
+    if (data.service_line) {
+      const { data: svc } = await supabase
+        .from('services')
+        .select('name, billing_type')
+        .eq('tenant_id', data.tenant_id)
+        .eq('id', data.service_line)
+        .single();
+      if (svc) service = { name: svc.name, billing_type: svc.billing_type ?? '' };
+    }
+
     return {
       ...data,
       members: members || [],
       installments: installments || [],
       suppliers: suppliers || [],
       materials: materials || [],
+      service,
     } as unknown as ProjectWithRelations;
   },
 

@@ -194,6 +194,10 @@ export interface ProjectWithRelations extends ProjectDB {
   installments?: ProjectInstallmentDB[];
   suppliers?: ProjectSupplierDB[];
   materials?: ProjectMaterialDB[];
+  service?: {
+    name: string;
+    billing_type: string;
+  } | null;
 }
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
