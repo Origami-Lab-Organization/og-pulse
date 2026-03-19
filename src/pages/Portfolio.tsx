@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { PortfolioKanbanBoard } from '@/components/portfolio/PortfolioKanbanBoard';
+import { PortfolioKPIBar } from '@/components/portfolio/PortfolioKPIBar';
 import { usePortfolioProjects } from '@/hooks/usePortfolioProjects';
 import { Search, Building2, User } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -39,21 +40,24 @@ export default function Portfolio() {
           />
         </div>
 
-        <div className="flex-1 overflow-auto bg-muted/30 rounded-lg">
-          {isLoading ? (
-            <div className="flex gap-4 p-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="min-w-[240px]">
-                  <Skeleton className="h-10 w-full mb-2 rounded-t-lg" />
-                  <Skeleton className="h-32 w-full" />
-                  <Skeleton className="h-32 w-full mt-2" />
-                </div>
-              ))}
+        {isLoading ? (
+          <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="min-w-[240px]">
+                <Skeleton className="h-10 w-full mb-2 rounded-t-lg" />
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full mt-2" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <PortfolioKPIBar projects={projects || []} />
+            <div className="flex-1 overflow-auto bg-muted/30 rounded-lg">
+              <PortfolioKanbanBoard projects={projects || []} />
             </div>
-          ) : (
-            <PortfolioKanbanBoard projects={projects || []} />
-          )}
-        </div>
+          </>
+        )}
       </div>
     </AppLayout>
   );
