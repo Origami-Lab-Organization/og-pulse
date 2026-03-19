@@ -1,10 +1,11 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Building2, User, Calendar, Layers, History } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import { useNavigate } from 'react-router-dom';
@@ -48,6 +49,42 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
   const clientName = project.client?.trading_name || project.client?.company_name || 'Cliente não definido';
   const managerName = project.manager?.nome || 'Gerente não definido';
 
+  // Health badge
+  const stage = project.portfolio_stage;
+  const monthsElapsed = project.start_date
+    ? Math.max(differenceInMonths(new Date(), parseISO(project.start_date)), 0)
+    : 0;
+  const expectedReceived = Math.min((monthsElapsed / 12) * totalValue, totalValue);
+  const expectedPercent = totalValue > 0 ? (expectedReceived / totalValue) * 100 : 0;
+  const actualPercent = totalValue > 0 ? (receivedValue / totalValue) * 100 : 0;
+  const planningDays = project.start_date
+    ? differenceInMonths(new Date(), parseISO(project.start_date)) * 30
+    : 0;
+
+  type HealthStatus = 'ok' | 'warning' | 'late';
+  let health: HealthStatus = 'ok';
+  if (stage === 'completed' || (!isNoRevenue && actualPercent >= Math.max(expectedPercent * 0.8, 0))) {
+    health = 'ok';
+  }
+  if (
+    (!isNoRevenue && actualPercent >= expectedPercent * 0.5 && actualPercent < expectedPercent * 0.8) ||
+    (stage === 'planning' && planningDays > 30)
+  ) {
+    health = 'warning';
+  }
+  if (
+    (!isNoRevenue && actualPercent < expectedPercent * 0.5) ||
+    (!isNoRevenue && receivedValue === 0 && ['value_delivery', 'results_presentation', 'learning_case'].includes(stage))
+  ) {
+    health = 'late';
+  }
+
+  const healthBadge = isNoRevenue ? null : {
+    ok:      { label: 'Em dia',   className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 text-[10px]' },
+    warning: { label: 'Atenção',  className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 text-[10px]' },
+    late:    { label: 'Atrasado', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 text-[10px]' },
+  }[health];
+
   const handleClick = (e: React.MouseEvent) => {
     // Don't navigate if dragging
     if (isDragging) return;
@@ -65,9 +102,16 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
       {...listeners}
       onClick={handleClick}
     >
-      <h4 className="font-medium text-sm text-foreground line-clamp-2 mb-2">
-        {project.name}
-      </h4>
+      <div className="flex items-start justify-between gap-1.5 mb-2">
+        <h4 className="font-medium text-sm text-foreground line-clamp-2 flex-1">
+          {project.name}
+        </h4>
+        {healthBadge && (
+          <Badge variant="outline" className={`shrink-0 ${healthBadge.className}`}>
+            {healthBadge.label}
+          </Badge>
+        )}
+      </div>
 
       <div className="space-y-1.5 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
