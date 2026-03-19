@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { PortfolioKanbanBoard } from '@/components/portfolio/PortfolioKanbanBoard';
+import { PortfolioTable } from '@/components/portfolio/PortfolioTable';
 import { PortfolioKPIBar } from '@/components/portfolio/PortfolioKPIBar';
 import { PortfolioFilters } from '@/components/portfolio/PortfolioFilters';
 import { usePortfolioProjects } from '@/hooks/usePortfolioProjects';
-import { Search, Building2, User } from 'lucide-react';
+import { Search, Building2, User, Kanban, List } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -16,6 +18,7 @@ export default function Portfolio() {
   const [serviceLine, setServiceLine] = useState('');
   const [managerId, setManagerId] = useState('');
   const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
   const { data: projects, isLoading } = usePortfolioProjects(searchQuery, {
@@ -53,6 +56,7 @@ export default function Portfolio() {
         ) : (
           <>
             <PortfolioKPIBar projects={projects || []} />
+
             <div className="flex flex-wrap items-center gap-3">
               <PortfolioFilters
                 isAdmin={isAdmin}
@@ -74,10 +78,36 @@ export default function Portfolio() {
                   className="pl-9 w-full"
                 />
               </div>
+              {/* View toggle */}
+              <div className="flex items-center rounded-md border border-border overflow-hidden shrink-0">
+                <Button
+                  variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-none h-9 px-3"
+                  onClick={() => setViewMode('kanban')}
+                >
+                  <Kanban className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-none h-9 px-3"
+                  onClick={() => setViewMode('table')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="flex-1 overflow-auto bg-muted/30 rounded-lg">
-              <PortfolioKanbanBoard projects={projects || []} />
-            </div>
+
+            {viewMode === 'kanban' ? (
+              <div className="flex-1 overflow-auto bg-muted/30 rounded-lg">
+                <PortfolioKanbanBoard projects={projects || []} />
+              </div>
+            ) : (
+              <div className="overflow-auto">
+                <PortfolioTable projects={projects || []} />
+              </div>
+            )}
           </>
         )}
       </div>
