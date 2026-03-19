@@ -38,9 +38,9 @@ import {
   PAYMENT_METHOD_OPTIONS,
   ProjectStatus,
 } from '@/types/project';
-import { SERVICE_LINE_OPTIONS } from '@/types/lead';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
+import { useServices } from '@/hooks/useServices';
 import { formatCurrency, parseCurrency } from '@/lib/masks';
 
 const projectSchema = z.object({
@@ -91,6 +91,7 @@ export function ProjectFormDialog({
   const [justification, setJustification] = useState('');
   const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
+  const { data: services = [] } = useServices();
 
   // Filter managers - employees with manager or admin role
   const managers = employees.filter((e) => e.systemRole === 'manager' || e.systemRole === 'admin');
@@ -145,7 +146,11 @@ export function ProjectFormDialog({
 
   const isContinuous = form.watch('isContinuous');
   const watchedServiceLine = form.watch('serviceLine');
-  const isFinanciamento = watchedServiceLine === 'financiamento_inovacao';
+  const selectedService = services.find(s => s.id === watchedServiceLine);
+  const isFinanciamento = watchedServiceLine === 'financiamento_inovacao'
+    || selectedService?.name?.toLowerCase().includes('financiamento') === true;
+  const isVentures = watchedServiceLine === 'ventures'
+    || selectedService?.name?.toLowerCase().includes('ventures') === true;
 
   const handleSubmit = (values: ProjectFormValues) => {
     if (requireJustification && justification.trim().length < 10) {
@@ -211,16 +216,16 @@ export function ProjectFormDialog({
                   name="serviceLine"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Linha de Serviço</FormLabel>
+                      <FormLabel>Tipo de Serviço</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione a linha de serviço" />
+                            <SelectValue placeholder="Selecione o tipo de serviço" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {SERVICE_LINE_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          {services.filter(s => s.isActive).map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -307,7 +312,7 @@ export function ProjectFormDialog({
                   />
                 </div>
 
-                {watchedServiceLine !== 'ventures' && (
+                {!isVentures && (
                 <FormField
                   control={form.control}
                   name="isContinuous"
@@ -348,7 +353,7 @@ export function ProjectFormDialog({
                     )}
                   />
 
-                  {isContinuous && watchedServiceLine !== 'ventures' ? (
+                  {isContinuous && !isVentures ? (
                     <FormField
                       control={form.control}
                       name="renewalDate"
@@ -379,7 +384,7 @@ export function ProjectFormDialog({
                   ) : null}
                 </div>
 
-                {isContinuous && watchedServiceLine !== 'financiamento_inovacao' && watchedServiceLine !== 'ventures' && (
+                {isContinuous && !isFinanciamento && !isVentures && (
                   <p className="text-sm text-muted-foreground">
                     Data de renovação automática do contrato. Será gerada uma NF por mês até esta data.
                   </p>
