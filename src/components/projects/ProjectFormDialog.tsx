@@ -38,6 +38,7 @@ import {
   PAYMENT_METHOD_OPTIONS,
   ProjectStatus,
 } from '@/types/project';
+import { BILLING_TYPE_LABELS } from '@/types/service';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useServices } from '@/hooks/useServices';
@@ -239,7 +240,12 @@ export function ProjectFormDialog({
                         </FormControl>
                         <SelectContent>
                           {services.filter(s => s.isActive).map((s) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            <SelectItem key={s.id} value={s.id}>
+                              <span>{s.name}</span>
+                              <span className="ml-1.5 text-muted-foreground text-xs">
+                                — {BILLING_TYPE_LABELS[s.billingType] ?? s.billingType}
+                              </span>
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
