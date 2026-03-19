@@ -18,6 +18,7 @@ export interface PortfolioProject {
   };
   service_line?: string;
   service?: {
+    name: string;
     billing_type: string;
   } | null;
   manager?: {
@@ -54,7 +55,7 @@ export const usePortfolioProjects = (searchQuery?: string) => {
           client:clients(id, company_name, trading_name),
           manager:employees!projects_manager_id_fkey(id, nome, cargo),
           installments:project_installments(value, status),
-          service:services!projects_service_line_fkey(billing_type)
+          service:services!projects_service_line_fkey(name, billing_type)
         `)
         .eq('tenant_id', tenantId!);
 
