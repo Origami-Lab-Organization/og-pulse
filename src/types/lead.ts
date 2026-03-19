@@ -25,6 +25,7 @@ export const ARCHIVE_REASONS = [
   { value: 'price', label: 'Preço / Budget do cliente' },
   { value: 'deadline', label: 'Prazo / Disponibilidade' },
   { value: 'competitor', label: 'Concorrência' },
+  { value: 'out_of_portfolio', label: 'Não aderência ao portfólio' },
   { value: 'canceled', label: 'Projeto cancelado pelo cliente' },
   { value: 'other', label: 'Outro' },
 ] as const;
