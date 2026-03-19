@@ -64,9 +64,6 @@ const projectSchema = z.object({
 }).refine((data) => data.isContinuous || (data.endDate && data.endDate.length > 0), {
   message: 'Data de fim é obrigatória para projetos com prazo determinado',
   path: ['endDate'],
-}).refine((data) => !data.isContinuous || data.serviceLine === 'ventures' || (data.renewalDate && data.renewalDate.length > 0), {
-  message: 'Data de renovação é obrigatória para projetos contínuos',
-  path: ['renewalDate'],
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -169,6 +166,10 @@ export function ProjectFormDialog({
 
   const handleSubmit = (values: ProjectFormValues) => {
     if (requireJustification && justification.trim().length < 10) {
+      return;
+    }
+    if (values.isContinuous && !isVentures && (!values.renewalDate || values.renewalDate.length === 0)) {
+      form.setError('renewalDate', { message: 'Data de renovação é obrigatória para projetos contínuos' });
       return;
     }
     onSubmit({
