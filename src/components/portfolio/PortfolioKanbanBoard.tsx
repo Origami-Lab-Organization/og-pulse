@@ -41,7 +41,6 @@ export function PortfolioKanbanBoard({ projects }: PortfolioKanbanBoardProps) {
       planning: [],
       value_delivery: [],
       results_presentation: [],
-      value_book: [],
       learning_case: [],
       completed: [],
     };
