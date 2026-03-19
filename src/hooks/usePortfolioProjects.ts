@@ -76,8 +76,11 @@ export const usePortfolioProjects = (searchQuery?: string) => {
 
       const projects = (data || []) as unknown as PortfolioProject[];
 
-      // service_line is a plain text FK (no formal constraint), fetch services separately
-      const serviceIds = [...new Set(projects.map(p => p.service_line).filter(Boolean))] as string[];
+      // service_line is a plain text column — some projects may have old slugs instead of UUIDs
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const serviceIds = [...new Set(
+        projects.map(p => p.service_line).filter((s): s is string => !!s && uuidPattern.test(s))
+      )];
       let serviceMap = new Map<string, { name: string; billing_type: string }>();
       if (serviceIds.length > 0) {
         const { data: services, error: svcError } = await supabase

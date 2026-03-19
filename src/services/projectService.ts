@@ -140,9 +140,10 @@ export const projectService = {
       .eq('project_id', id)
       .order('created_at', { ascending: true });
 
-    // Fetch service name (service_line is plain text, no FK constraint)
+    // Fetch service name (service_line is plain text — only query if it looks like a UUID)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     let service: { name: string; billing_type: string } | null = null;
-    if (data.service_line) {
+    if (data.service_line && uuidPattern.test(data.service_line)) {
       const { data: svc } = await supabase
         .from('services')
         .select('name, billing_type')
