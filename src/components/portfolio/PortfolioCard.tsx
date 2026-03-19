@@ -35,6 +35,7 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
     transition,
   };
 
+  const isNoRevenue = project.service?.billing_type === 'no_revenue';
   const installments = project.installments || [];
   const installmentsSum = installments.reduce((sum, i) => sum + Number(i.value), 0);
   const totalValue = installmentsSum > 0 ? installmentsSum : (project.total_value || 0);
@@ -93,16 +94,29 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
       )}
 
       <div className="mt-3 pt-2 border-t border-border">
-        <div className="flex items-center justify-between text-xs mb-1.5">
-          <span className="font-medium text-foreground">{formatCurrency(totalValue)}</span>
-          <span className="text-muted-foreground">{progressPercent}%</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <div 
-            className="h-full bg-primary rounded-full transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+        {isNoRevenue ? (
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-800 dark:text-gray-400 font-medium">
+              Sem receita
+            </span>
+            {totalValue > 0 && (
+              <span className="text-muted-foreground">Custo: {formatCurrency(totalValue)}</span>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="font-medium text-foreground">{formatCurrency(totalValue)}</span>
+              <span className="text-muted-foreground">{progressPercent}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </>
+        )}
         <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
           <Calendar className="h-3 w-3" />
           <span>
