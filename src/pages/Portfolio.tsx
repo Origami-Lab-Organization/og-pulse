@@ -30,16 +30,6 @@ export default function Portfolio() {
   return (
     <AppLayout title="Portfólio de Projetos" actions={scopeBadge}>
       <div className="flex flex-col gap-4 h-[calc(100vh-10rem)]">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por projeto, cliente ou gerente..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
         {isLoading ? (
           <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -53,6 +43,15 @@ export default function Portfolio() {
         ) : (
           <>
             <PortfolioKPIBar projects={projects || []} />
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por projeto, cliente ou gerente..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
             <div className="flex-1 overflow-auto bg-muted/30 rounded-lg">
               <PortfolioKanbanBoard projects={projects || []} />
             </div>
