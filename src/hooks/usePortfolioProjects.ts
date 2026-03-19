@@ -63,10 +63,6 @@ export const usePortfolioProjects = (searchQuery?: string) => {
         query = query.eq('manager_id', employeeId);
       }
 
-      if (searchQuery && searchQuery.length > 0) {
-        query = query.or(`name.ilike.%${searchQuery}%`);
-      }
-
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
@@ -74,7 +70,17 @@ export const usePortfolioProjects = (searchQuery?: string) => {
         throw error;
       }
 
-      const projects = (data || []) as unknown as PortfolioProject[];
+      let projects = (data || []) as unknown as PortfolioProject[];
+
+      if (searchQuery && searchQuery.length > 0) {
+        const q = searchQuery.toLowerCase();
+        projects = projects.filter(p =>
+          p.name.toLowerCase().includes(q) ||
+          (p.client?.company_name || '').toLowerCase().includes(q) ||
+          (p.client?.trading_name || '').toLowerCase().includes(q) ||
+          (p.manager?.nome || '').toLowerCase().includes(q)
+        );
+      }
 
       // service_line is a plain text column — some projects may have old slugs instead of UUIDs
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
