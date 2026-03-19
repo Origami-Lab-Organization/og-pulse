@@ -121,9 +121,23 @@ export function ProjectFormDialog({
   // Reset form when project changes (for edit mode)
   useEffect(() => {
     if (open) {
+      // Resolve service_line: prefer UUID that exists in catalog, else match by service name
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      let resolvedServiceLine = '';
+      if (project?.service_line) {
+        if (uuidPattern.test(project.service_line) && services.some(s => s.id === project.service_line)) {
+          resolvedServiceLine = project.service_line;
+        } else {
+          const serviceName = (project as any).service?.name;
+          if (serviceName) {
+            resolvedServiceLine = services.find(s => s.name === serviceName)?.id || '';
+          }
+        }
+      }
+
       form.reset({
         name: project?.name || '',
-        serviceLine: project?.service_line || '',
+        serviceLine: resolvedServiceLine,
         description: project?.description || '',
         clientId: project?.client_id || '',
         managerId: project?.manager_id || '',
@@ -142,7 +156,7 @@ export function ProjectFormDialog({
       setActiveTab('basic');
       setJustification('');
     }
-  }, [open, project, form]);
+  }, [open, project, form, services]);
 
   const isContinuous = form.watch('isContinuous');
   const watchedServiceLine = form.watch('serviceLine');
