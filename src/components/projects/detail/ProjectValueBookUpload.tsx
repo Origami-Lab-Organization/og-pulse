@@ -66,7 +66,7 @@ export function ProjectValueBookUpload({
 
       const { error: updateError } = await supabase
         .from('projects')
-        .update({ value_book_url: publicUrl })
+        .update({ contract_url: publicUrl })
         .eq('id', projectId);
 
       if (updateError) throw updateError;

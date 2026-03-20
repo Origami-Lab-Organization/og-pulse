@@ -155,6 +155,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          material_id: string | null
           value: number
         }
         Insert: {
@@ -162,6 +163,7 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          material_id?: string | null
           value?: number
         }
         Update: {
@@ -169,6 +171,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          material_id?: string | null
           value?: number
         }
         Relationships: [
@@ -177,6 +180,13 @@ export type Database = {
             columns: ["budget_id"]
             isOneToOne: false
             referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_materials_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
             referencedColumns: ["id"]
           },
         ]
@@ -1418,6 +1428,59 @@ export type Database = {
         }
         Relationships: []
       }
+      materials: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          notes: string | null
+          sku: string | null
+          status: string
+          tenant_id: string
+          unit: string
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          sku?: string | null
+          status?: string
+          tenant_id: string
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          sku?: string | null
+          status?: string
+          tenant_id?: string
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "materials_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1796,6 +1859,7 @@ export type Database = {
           description: string
           id: string
           is_realized: boolean
+          material_id: string | null
           month_number: number | null
           project_id: string
           purchase_date: string | null
@@ -1806,6 +1870,7 @@ export type Database = {
           description: string
           id?: string
           is_realized?: boolean
+          material_id?: string | null
           month_number?: number | null
           project_id: string
           purchase_date?: string | null
@@ -1816,12 +1881,20 @@ export type Database = {
           description?: string
           id?: string
           is_realized?: boolean
+          material_id?: string | null
           month_number?: number | null
           project_id?: string
           purchase_date?: string | null
           value?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "project_materials_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_materials_project_id_fkey"
             columns: ["project_id"]
