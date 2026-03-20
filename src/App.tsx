@@ -15,7 +15,6 @@ import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
-import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import AdminPortal from "./pages/AdminPortal";
 import Budgets from "./pages/Budgets";
@@ -129,15 +128,7 @@ const App = () => (
                   </RoleProtectedRoute>
                 } 
               />
-              <Route 
-                path="/projects" 
-                element={
-                  <RoleProtectedRoute requireManager>
-                    <Projects />
-                  </RoleProtectedRoute>
-                } 
-              />
-              <Route 
+              <Route
                 path="/projects/:id" 
                 element={
                   <RoleProtectedRoute requireManager>

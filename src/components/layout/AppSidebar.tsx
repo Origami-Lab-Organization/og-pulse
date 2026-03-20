@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   Users,
   Building2,
-  FolderKanban,
   Clock,
   FileText,
   BarChart3,
@@ -80,7 +79,6 @@ const navigationGroups = [
     requiresManager: true,
     items: [
       { title: 'Portfólio de Projetos', url: '/portfolio', icon: Kanban, requiresManager: true },
-      { title: 'Projetos', url: '/projects', icon: FolderKanban, requiresManager: true },
       { title: 'Alocação da Equipe', url: '/alocacao', icon: Clock, requiresManager: true },
       { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
       { title: 'Materiais', url: '/materiais', icon: Package, requiresManager: true, disabled: true },
