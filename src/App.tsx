@@ -19,7 +19,6 @@ import Materials from "@/pages/Materials";
 import Subscriptions from "@/pages/Subscriptions";
 import ProjectDetail from "./pages/ProjectDetail";
 import AdminPortal from "./pages/AdminPortal";
-import Budgets from "./pages/Budgets";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import LandingPage from "./pages/LandingPage";
@@ -193,14 +192,7 @@ const App = () => (
                   </RoleProtectedRoute>
                 }
               />
-              <Route 
-                path="/budgets" 
-                element={
-                  <RoleProtectedRoute requireManager>
-                    <Budgets />
-                  </RoleProtectedRoute>
-                } 
-              />
+              <Route path="/budgets" element={<Navigate to="/crm" replace />} />
               <Route 
                 path="/budgets/new" 
                 element={

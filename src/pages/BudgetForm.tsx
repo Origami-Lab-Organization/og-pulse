@@ -168,6 +168,18 @@ export default function BudgetForm() {
   const durationMonths = form.watch('durationMonths');
   const watchedTitle = form.watch('title');
 
+  // Guard: new budgets must come from a lead
+  useEffect(() => {
+    if (!isEditing && !leadId) {
+      toast({
+        title: 'Aviso',
+        description: 'Orçamentos devem ser criados a partir de um lead no CRM',
+        variant: 'destructive',
+      });
+      navigate('/crm');
+    }
+  }, [isEditing, leadId, navigate, toast]);
+
   // Pre-fill from lead data
   useEffect(() => {
     if (leadData && !isEditing) {
@@ -363,7 +375,7 @@ export default function BudgetForm() {
     return (
       <AppLayout
         title="Carregando..."
-        breadcrumbs={[{ label: 'Orçamentos', href: '/budgets' }, { label: 'Carregando...' }]}
+        breadcrumbs={[{ label: 'CRM', href: '/crm' }, { label: 'Carregando...' }]}
       >
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -1056,7 +1068,7 @@ export default function BudgetForm() {
       title={isEditing ? 'Editar Orçamento' : 'Novo Orçamento'}
       description={isEditing ? `Editando: ${budget?.title}` : 'Crie uma nova proposta comercial'}
       breadcrumbs={[
-        { label: isFromLead ? 'CRM' : 'Orçamentos', href: isFromLead ? '/crm' : '/budgets' },
+        { label: 'CRM', href: '/crm' },
         { label: isEditing ? 'Editar' : 'Novo' },
       ]}
     >
@@ -1102,7 +1114,7 @@ export default function BudgetForm() {
                 isSaveDisabled={isSaveBlocked}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
-                onCancel={() => navigate(isFromLead ? '/crm' : '/budgets')}
+                onCancel={() => navigate('/crm')}
                 onSubmit={() => form.handleSubmit(handleSubmit, (errors) => {
                   console.error('Form validation errors:', errors);
                   toast({

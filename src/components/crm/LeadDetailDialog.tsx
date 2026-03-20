@@ -683,7 +683,7 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                 </>
               ) : (
                 <>
-                  {lead.crm_stage !== 'closed' && (
+                  {lead.crm_stage !== 'closed' ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -694,24 +694,47 @@ export function LeadDetailDialog({ open, onOpenChange, lead, onAdvanceToClose, i
                       <Archive className="h-4 w-4 mr-1.5" />
                       Arquivar
                     </Button>
-                  )}
+                  ) : <div />}
 
-                  {advanceGate && nextStageLabel && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleAdvanceStage}
-                      disabled={!advanceGate.allowed || updateStage.isPending}
-                      title={!advanceGate.allowed ? advanceGate.reason : undefined}
-                    >
-                      {updateStage.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <ArrowRight className="mr-1.5 h-4 w-4" />
-                      )}
-                      {nextStageLabel}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!lead.budget_id ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => { onOpenChange(false); navigate(`/budgets/new?leadId=${lead.id}`); }}
+                      >
+                        <FileText className="h-4 w-4 mr-1.5" />
+                        Criar Orçamento
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleViewBudget}
+                      >
+                        <FileText className="h-4 w-4 mr-1.5" />
+                        Ver Orçamento
+                      </Button>
+                    )}
+
+                    {advanceGate && nextStageLabel && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleAdvanceStage}
+                        disabled={!advanceGate.allowed || updateStage.isPending}
+                        title={!advanceGate.allowed ? advanceGate.reason : undefined}
+                      >
+                        {updateStage.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <ArrowRight className="mr-1.5 h-4 w-4" />
+                        )}
+                        {nextStageLabel}
+                      </Button>
+                    )}
+                  </div>
                 </>
               )}
             </div>

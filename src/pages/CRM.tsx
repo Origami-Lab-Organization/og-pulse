@@ -1,12 +1,17 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Search, Loader2, Plus, Archive, TrendingDown, BarChart3, CalendarDays,
   ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, ArchiveRestore, Trash2,
+  MoreHorizontal, FileText, Eye, Kanban, List,
 } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -21,11 +26,12 @@ import { LeadDetailDialog } from '@/components/crm/LeadDetailDialog';
 import { useLeads, useArchivedLeads, useUnarchiveLead, useDeleteLead } from '@/hooks/useLeads';
 import { useAuth } from '@/contexts/AuthContext';
 import CRMStats from '@/components/crm/CRMStats';
-import { formatCurrency, formatDate } from '@/lib/formatters';
-import { ARCHIVE_REASONS, CRM_LEAD_COLUMNS, LeadWithBudget } from '@/types/lead';
+import { formatCurrency, formatDate, formatShortDate } from '@/lib/formatters';
+import { ARCHIVE_REASONS, CRM_LEAD_COLUMNS, LeadWithBudget, SERVICE_LINE_LABELS, SERVICE_LINE_OPTIONS } from '@/types/lead';
+import { BudgetStatusBadge } from '@/components/budgets/BudgetStatusBadge';
 import { cn } from '@/lib/utils';
 
-type SortKey = 'name' | 'archived_at' | 'estimated_value';
+type SortKey = 'name' | 'archived_at' | 'estimated_value' | 'created_at';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
@@ -55,11 +61,13 @@ function SortableHead({ label, sortKey, currentKey, currentDir, onSort, classNam
 }
 
 export default function CRM() {
+  const navigate = useNavigate();
   const { employee } = useAuth();
   const isManager = employee?.is_gerente || employee?.isAdmin;
   const isAdmin = employee?.isAdmin;
 
-  const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
+  const [displayMode, setDisplayMode] = useState<'kanban' | 'list'>('kanban');
   const [searchTerm, setSearchTerm] = useState('');
   const [newLeadOpen, setNewLeadOpen] = useState(false);
 
@@ -78,15 +86,28 @@ export default function CRM() {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedArchivedLead, setSelectedArchivedLead] = useState<LeadWithBudget | null>(null);
+  const [selectedActiveLead, setSelectedActiveLead] = useState<LeadWithBudget | null>(null);
 
-  const isLoading = viewMode === 'active' ? loadingActive : loadingArchived;
+  // List view sort state
+  const [listSortKey, setListSortKey] = useState<SortKey>('name');
+  const [listSortDir, setListSortDir] = useState<SortDir>('asc');
 
-  // Reset search and filters when switching views
+  // List view filters
+  const [listStageFilter, setListStageFilter] = useState<string>('all');
+  const [listServiceFilter, setListServiceFilter] = useState<string>('all');
+  const [listBudgetFilter, setListBudgetFilter] = useState<string>('all');
+
+  const isLoading = activeTab === 'archived' ? loadingArchived : loadingActive;
+
+  // Reset search and filters when switching primary tab
   useEffect(() => {
     setSearchTerm('');
     setReasonFilter('all');
+    setListStageFilter('all');
+    setListServiceFilter('all');
+    setListBudgetFilter('all');
     setCurrentPage(0);
-  }, [viewMode]);
+  }, [activeTab]);
 
   useEffect(() => { setCurrentPage(0); }, [reasonFilter, searchTerm]);
 
@@ -96,6 +117,15 @@ export default function CRM() {
     } else {
       setSortKey(key);
       setSortDir(key === 'archived_at' ? 'desc' : 'asc');
+    }
+  };
+
+  const handleListSort = (key: SortKey) => {
+    if (listSortKey === key) {
+      setListSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setListSortKey(key);
+      setListSortDir(key === 'created_at' ? 'desc' : 'asc');
     }
   };
 
@@ -123,6 +153,39 @@ export default function CRM() {
     });
     return result;
   }, [archivedLeads, reasonFilter, searchTerm, sortKey, sortDir]);
+
+  const filteredActiveList = useMemo(() => {
+    let result = [...activeLeads];
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      result = result.filter(l =>
+        l.name.toLowerCase().includes(q) ||
+        (l.company_name || '').toLowerCase().includes(q) ||
+        (l.contact_name || '').toLowerCase().includes(q)
+      );
+    }
+    if (listStageFilter !== 'all') {
+      result = result.filter(l => l.crm_stage === listStageFilter);
+    }
+    if (listServiceFilter !== 'all') {
+      result = result.filter(l => l.service_line === listServiceFilter);
+    }
+    if (listBudgetFilter === 'with') {
+      result = result.filter(l => l.budget_id !== null);
+    } else if (listBudgetFilter === 'without') {
+      result = result.filter(l => l.budget_id === null);
+    }
+    const dir = listSortDir === 'asc' ? 1 : -1;
+    result.sort((a, b) => {
+      switch (listSortKey) {
+        case 'name': return dir * a.name.localeCompare(b.name);
+        case 'created_at': return dir * (new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+        case 'estimated_value': return dir * ((a.budget?.final_total ?? a.estimated_value) - (b.budget?.final_total ?? b.estimated_value));
+        default: return 0;
+      }
+    });
+    return result;
+  }, [activeLeads, searchTerm, listStageFilter, listServiceFilter, listBudgetFilter, listSortKey, listSortDir]);
 
   const archivedStats = useMemo(() => {
     const now = new Date();
@@ -165,7 +228,7 @@ export default function CRM() {
         }
       >
         {/* Stats */}
-        {viewMode === 'active' ? (
+        {activeTab !== 'archived' ? (
           <CRMStats leads={activeLeads} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -216,25 +279,37 @@ export default function CRM() {
           </div>
         )}
 
-        {/* Toggle + Search */}
-        <div className="mt-6 mb-4 flex items-center gap-4">
-          <div className="flex items-center rounded-lg border bg-muted/50 p-0.5">
+        {/* Toggle + Search + Filters */}
+        <div className="mt-6 mb-4 flex flex-wrap items-center gap-3">
+          {/* Search — first field */}
+          <div className="relative flex-1 min-w-[280px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={activeTab === 'archived' ? 'Buscar arquivados...' : 'Buscar leads...'}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 w-full"
+            />
+          </div>
+
+          {/* Primary tab toggle */}
+          <div className="flex items-center rounded-lg border bg-muted/50 p-0.5 shrink-0">
             <button
-              onClick={() => setViewMode('active')}
+              onClick={() => setActiveTab('active')}
               className={cn(
                 'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                viewMode === 'active'
+                activeTab === 'active'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              Leads Ativos
+              Ativos
             </button>
             <button
-              onClick={() => setViewMode('archived')}
+              onClick={() => setActiveTab('archived')}
               className={cn(
                 'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                viewMode === 'archived'
+                activeTab === 'archived'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
@@ -243,17 +318,48 @@ export default function CRM() {
             </button>
           </div>
 
-          <div className="relative w-[480px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={viewMode === 'active' ? 'Buscar leads...' : 'Buscar arquivados...'}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          {/* List-mode filters */}
+          {activeTab === 'active' && displayMode === 'list' && (
+            <>
+              <Select value={listStageFilter} onValueChange={setListStageFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Todas as etapas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as etapas</SelectItem>
+                  {CRM_LEAD_COLUMNS.map((col) => (
+                    <SelectItem key={col.id} value={col.id}>{col.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-          {viewMode === 'archived' && (
+              <Select value={listServiceFilter} onValueChange={setListServiceFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Todas as linhas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as linhas</SelectItem>
+                  {SERVICE_LINE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={listBudgetFilter} onValueChange={setListBudgetFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="with">Com orçamento</SelectItem>
+                  <SelectItem value="without">Sem orçamento</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          {/* Archived filter */}
+          {activeTab === 'archived' && (
             <Select value={reasonFilter} onValueChange={setReasonFilter}>
               <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Filtrar por motivo" />
@@ -266,6 +372,28 @@ export default function CRM() {
               </SelectContent>
             </Select>
           )}
+
+          {/* Kanban / Lista icon toggle — only when active */}
+          {activeTab === 'active' && (
+            <div className="flex items-center rounded-md border border-border overflow-hidden shrink-0">
+              <Button
+                variant={displayMode === 'kanban' ? 'default' : 'ghost'}
+                size="sm"
+                className="rounded-none h-9 px-3"
+                onClick={() => setDisplayMode('kanban')}
+              >
+                <Kanban className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={displayMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                className="rounded-none h-9 px-3"
+                onClick={() => setDisplayMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -273,8 +401,103 @@ export default function CRM() {
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
-        ) : viewMode === 'active' ? (
+        ) : activeTab === 'active' && displayMode === 'kanban' ? (
           <LeadKanbanBoard leads={activeLeads} searchTerm={searchTerm} />
+        ) : activeTab === 'active' ? (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableHead label="Nome" sortKey="name" currentKey={listSortKey} currentDir={listSortDir} onSort={handleListSort} />
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Etapa</TableHead>
+                  <TableHead>Linha de Serviço</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead>Nº Orçamento</TableHead>
+                  <SortableHead label="Valor" sortKey="estimated_value" currentKey={listSortKey} currentDir={listSortDir} onSort={handleListSort} className="text-right" />
+                  <TableHead>Status Orçamento</TableHead>
+                  <SortableHead label="Criado em" sortKey="created_at" currentKey={listSortKey} currentDir={listSortDir} onSort={handleListSort} />
+                  <TableHead className="w-[60px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredActiveList.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      Nenhum lead encontrado
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredActiveList.map((lead) => (
+                    <TableRow
+                      key={lead.id}
+                      className="cursor-pointer hover:bg-accent/40 transition-colors"
+                      onClick={() => setSelectedActiveLead(lead)}
+                    >
+                      <TableCell className="font-medium max-w-[200px]">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block truncate">{lead.name}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{lead.name}</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell className="max-w-[160px]">
+                        <span className="block truncate">{lead.company_name || '-'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={stageColor(lead.crm_stage)} variant="secondary">
+                          {stageLabel(lead.crm_stage)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[160px]">
+                        <span className="block truncate">{SERVICE_LINE_LABELS[lead.service_line] || lead.service_line || '-'}</span>
+                      </TableCell>
+                      <TableCell>{lead.responsible?.nome || '-'}</TableCell>
+                      <TableCell>{lead.budget?.budget_number ?? '—'}</TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(lead.budget?.final_total ?? lead.estimated_value)}
+                      </TableCell>
+                      <TableCell>
+                        {lead.budget
+                          ? <BudgetStatusBadge status={lead.budget.status} />
+                          : <span className="text-sm text-muted-foreground">Sem orçamento</span>
+                        }
+                      </TableCell>
+                      <TableCell>{formatShortDate(lead.created_at)}</TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setSelectedActiveLead(lead)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {!lead.budget_id ? (
+                              <DropdownMenuItem onClick={() => navigate(`/budgets/new?leadId=${lead.id}`)}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Criar Orçamento
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => navigate(`/budgets/${lead.budget_id}`)}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Ver Orçamento
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="rounded-md border">
@@ -401,6 +624,12 @@ export default function CRM() {
         )}
 
         <LeadFormDialog open={newLeadOpen} onOpenChange={setNewLeadOpen} />
+
+        <LeadDetailDialog
+          open={!!selectedActiveLead}
+          onOpenChange={(open) => { if (!open) setSelectedActiveLead(null); }}
+          lead={selectedActiveLead}
+        />
 
         <LeadDetailDialog
           open={!!selectedArchivedLead}

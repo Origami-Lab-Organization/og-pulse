@@ -64,7 +64,6 @@ const navigationGroups = [
       { title: 'CRM', url: '/crm', icon: Kanban, requiresManager: true },
       { title: 'Serviços', url: '/comercial/servicos', icon: Briefcase, requiresManager: true },
       { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
-      { title: 'Orçamentos', url: '/budgets', icon: FileText, requiresManager: true },
     ] as NavItem[],
   },
   {
