@@ -33,6 +33,7 @@ import { Loader2 } from 'lucide-react';
 import {
   useTimesheetReminderSettings,
   useUpdateTimesheetReminderSettings,
+  UpdateTimesheetReminderSettingsInput,
 } from '@/hooks/useTimesheetReminderSettings';
 
 const DAYS_OF_WEEK = [
@@ -81,7 +82,7 @@ export function TimesheetReminderSettings() {
   }, [settings, form]);
 
   const onSubmit = (values: FormValues) => {
-    updateMutation.mutate(values);
+    updateMutation.mutate(values as UpdateTimesheetReminderSettingsInput);
   };
 
   if (isLoading) {

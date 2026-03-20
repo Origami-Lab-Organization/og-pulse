@@ -29,6 +29,7 @@ import CRMStats from '@/components/crm/CRMStats';
 import { formatCurrency, formatDate, formatShortDate } from '@/lib/formatters';
 import { ARCHIVE_REASONS, CRM_LEAD_COLUMNS, LeadWithBudget, SERVICE_LINE_LABELS, SERVICE_LINE_OPTIONS } from '@/types/lead';
 import { BudgetStatusBadge } from '@/components/budgets/BudgetStatusBadge';
+import { BudgetStatus } from '@/types/budget';
 import { cn } from '@/lib/utils';
 
 type SortKey = 'name' | 'archived_at' | 'estimated_value' | 'created_at';
@@ -460,7 +461,7 @@ export default function CRM() {
                       </TableCell>
                       <TableCell>
                         {lead.budget
-                          ? <BudgetStatusBadge status={lead.budget.status} />
+                          ? <BudgetStatusBadge status={lead.budget.status as BudgetStatus} />
                           : <span className="text-sm text-muted-foreground">Sem orçamento</span>
                         }
                       </TableCell>
