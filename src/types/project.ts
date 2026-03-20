@@ -42,6 +42,7 @@ export interface ProjectDB {
   service_line: string | null;
   success_fee_percent: number | null;
   lead_id: string | null;
+  value_book_url: string | null;
 }
 
 export interface ProjectMemberDB {
@@ -118,6 +119,7 @@ export interface CreateProjectInput {
   serviceLine?: string;
   successFeePercent?: number;
   leadId?: string;
+  valueBookUrl?: string;
 }
 
 export interface CreateProjectMemberInput {

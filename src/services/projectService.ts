@@ -250,6 +250,7 @@ export const projectService = {
     if (updates.durationMonths !== undefined) updateData.duration_months = updates.durationMonths;
     if (updates.serviceLine !== undefined) updateData.service_line = updates.serviceLine;
     if (updates.successFeePercent !== undefined) updateData.success_fee_percent = updates.successFeePercent;
+    if (updates.valueBookUrl !== undefined) updateData.value_book_url = updates.valueBookUrl || null;
 
     const { data, error } = await supabase
       .from('projects')
@@ -510,6 +511,27 @@ export const projectService = {
     }
 
     return data as unknown as ProjectInstallmentDB;
+  },
+
+  // Value Book upload
+  async uploadValueBook(file: File, projectId: string): Promise<string> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${projectId}/value-book-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('contracts')
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error('Error uploading value book:', uploadError);
+      throw uploadError;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('contracts')
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
   },
 
   // Contract upload

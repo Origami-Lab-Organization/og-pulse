@@ -16,6 +16,7 @@ import { ProjectExpectedResultTab } from '@/components/projects/detail/ProjectEx
 import { ProjectCommissionsTab } from '@/components/projects/detail/ProjectCommissionsTab';
 import { ProjectFormDialog } from '@/components/projects/ProjectFormDialog';
 import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
+import { ProjectValueBookSection } from '@/components/projects/detail/ProjectValueBookSection';
 import { useProject, useUpdateProject, useDeleteProject } from '@/hooks/useProjects';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreateProjectInput } from '@/types/project';
@@ -110,6 +111,8 @@ export default function ProjectDetail() {
     >
       <div className="space-y-6">
         <ProjectHeader project={project} />
+
+        <ProjectValueBookSection project={project} isReadOnly={isReadOnly} />
 
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">

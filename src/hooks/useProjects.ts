@@ -121,6 +121,26 @@ export const useUpdateProject = () => {
   });
 };
 
+export const useUploadValueBook = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ file, projectId }: { file: File; projectId: string }) => {
+      const url = await projectService.uploadValueBook(file, projectId);
+      await projectService.update(projectId, { valueBookUrl: url });
+      return url;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      toast({ title: 'Value Book enviado com sucesso.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao enviar Value Book', description: error.message, variant: 'destructive' });
+    },
+  });
+};
+
 export const useDeleteProject = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
