@@ -1,13 +1,11 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Building2, User, Calendar, Layers, History, Lock } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { getProjectHealth } from '@/lib/projectHealth';
 import { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,10 +52,7 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
   const clientName = project.client?.trading_name || project.client?.company_name || 'Cliente não definido';
   const managerName = project.manager?.nome || 'Gerente não definido';
 
-  const health = getProjectHealth(project);
-
   const handleClick = (e: React.MouseEvent) => {
-    // Don't navigate if dragging
     if (isDragging) return;
     navigate(`/projects/${project.id}`);
   };
@@ -82,30 +77,16 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
         <h4 className="font-medium text-sm text-foreground line-clamp-2 flex-1">
           {project.name}
         </h4>
-        <div className="flex items-center gap-1 shrink-0">
-          {isLocked && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Lock className="h-3 w-3 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                Apenas administradores podem alterar projetos concluídos
-              </TooltipContent>
-            </Tooltip>
-          )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant="outline" className={`cursor-default ${health.className}`}>
-              {health.label}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs space-y-0.5 max-w-[220px]">
-            {health.tooltipLines.map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-          </TooltipContent>
-        </Tooltip>
-        </div>
+        {isLocked && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              Apenas administradores podem alterar projetos concluídos
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       <div className="space-y-1.5 text-xs text-muted-foreground">

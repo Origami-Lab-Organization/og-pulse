@@ -33,12 +33,6 @@ export interface PortfolioProject {
     status: string;
     due_date: string;
   }[];
-  milestones?: {
-    status: string | null;
-    start_date: string;
-    end_date: string;
-    completed_date: string | null;
-  }[];
 }
 
 interface PortfolioFilters {
@@ -78,8 +72,7 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
           manager_id,
           client:clients(id, company_name, trading_name),
           manager:employees!projects_manager_id_fkey(id, nome, cargo),
-          installments:project_installments(value, status, due_date),
-          milestones:project_milestones(status, start_date, end_date, completed_date)
+          installments:project_installments(value, status, due_date)
         `)
         .eq('tenant_id', tenantId!);
 
