@@ -81,7 +81,7 @@ export function useProjectPlanningReadiness() {
       missing.push('Progresso registrado nos OKRs');
     }
 
-    const valueBookUrl = projectRes.data?.value_book_url;
+    const valueBookUrl = (projectRes.data as any)?.contract_url;
     if (!valueBookUrl) {
       missing.push('Documento do Value Book anexado');
     }
