@@ -1047,6 +1047,41 @@ export type Database = {
           },
         ]
       }
+      holidays: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          is_national: boolean | null
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          is_national?: boolean | null
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          is_national?: boolean | null
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holidays_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       key_result_history: {
         Row: {
           changed_at: string
@@ -1531,10 +1566,16 @@ export type Database = {
       }
       notifications: {
         Row: {
+          action_type: string | null
+          action_url: string | null
+          category: string
           created_at: string
           id: string
           is_read: boolean
+          is_resolved: boolean
           message: string | null
+          metadata: Json | null
+          priority: string
           recipient_id: string
           reference_id: string | null
           tenant_id: string
@@ -1542,10 +1583,16 @@ export type Database = {
           type: string
         }
         Insert: {
+          action_type?: string | null
+          action_url?: string | null
+          category?: string
           created_at?: string
           id?: string
           is_read?: boolean
+          is_resolved?: boolean
           message?: string | null
+          metadata?: Json | null
+          priority?: string
           recipient_id: string
           reference_id?: string | null
           tenant_id: string
@@ -1553,10 +1600,16 @@ export type Database = {
           type: string
         }
         Update: {
+          action_type?: string | null
+          action_url?: string | null
+          category?: string
           created_at?: string
           id?: string
           is_read?: boolean
+          is_resolved?: boolean
           message?: string | null
+          metadata?: Json | null
+          priority?: string
           recipient_id?: string
           reference_id?: string | null
           tenant_id?: string
