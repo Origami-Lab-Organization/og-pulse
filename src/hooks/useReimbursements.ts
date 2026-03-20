@@ -297,7 +297,12 @@ export function useCreateReimbursement() {
       // 4. Notifications — routing by case
       try {
         // Helper: notify all admins in tenant
-        const notifyAdmins = async (title: string, message: string, type: string) => {
+        const notifyAdmins = async (
+          title: string,
+          message: string,
+          type: string,
+          extraFields: Record<string, any> = {},
+        ) => {
           const { data: admins } = await supabase
             .from('user_roles' as any).select('user_id')
             .eq('tenant_id', employee.tenant_id).eq('role', 'admin');
@@ -310,6 +315,7 @@ export function useCreateReimbursement() {
               adminEmps.map((emp: any) => ({
                 tenant_id: employee.tenant_id, recipient_id: emp.id,
                 type, title, message, reference_id: requestId,
+                ...extraFields,
               })) as any
             );
           }
@@ -317,10 +323,26 @@ export function useCreateReimbursement() {
 
         if (autoApprove) {
           // Gerente + projeto: auto-aprovado, notifica admins para pagamento
+          let projectName = '';
+          if (params.project_id) {
+            const { data: proj } = await supabase
+              .from('projects').select('name').eq('id', params.project_id).maybeSingle();
+            projectName = (proj as any)?.name || '';
+          }
           await notifyAdmins(
             'Reembolso aprovado aguardando pagamento',
             'Um reembolso de gerente foi enviado e aguarda confirmação de pagamento.',
             'reimbursement_approved',
+            {
+              category: 'reimbursement',
+              action_type: 'approve_reject',
+              priority: 'high',
+              metadata: {
+                amount: params.total_amount,
+                project_name: projectName,
+                requester_name: employee.nome,
+              },
+            },
           );
         } else if (employee.is_gerente && params.is_internal) {
           // Gerente + interno: precisa de aprovação do admin
@@ -328,11 +350,21 @@ export function useCreateReimbursement() {
             'Novo pedido de reembolso',
             'Um gerente enviou um pedido de reembolso administrativo aguardando sua aprovação.',
             'reimbursement_pending',
+            {
+              category: 'reimbursement',
+              action_type: 'approve_reject',
+              priority: 'high',
+              metadata: {
+                amount: params.total_amount,
+                project_name: '',
+                requester_name: employee.nome,
+              },
+            },
           );
         } else if (!params.is_internal && params.project_id) {
           // Funcionário + projeto: notifica o gerente do projeto
           const { data: project } = await supabase
-            .from('projects' as any).select('manager_id').eq('id', params.project_id).maybeSingle();
+            .from('projects' as any).select('manager_id, name').eq('id', params.project_id).maybeSingle();
           if (project && (project as any).manager_id) {
             await supabase.from('notifications' as any).insert({
               tenant_id: employee.tenant_id,
@@ -341,6 +373,14 @@ export function useCreateReimbursement() {
               title: 'Novo pedido de reembolso',
               message: 'Um funcionário enviou um pedido de reembolso de projeto aguardando sua aprovação.',
               reference_id: requestId,
+              category: 'reimbursement',
+              action_type: 'approve_reject',
+              priority: 'high',
+              metadata: {
+                amount: params.total_amount,
+                project_name: (project as any).name || '',
+                requester_name: employee.nome,
+              },
             } as any);
           }
         } else {
@@ -349,6 +389,16 @@ export function useCreateReimbursement() {
             'Novo pedido de reembolso',
             'Um funcionário enviou um pedido de reembolso administrativo aguardando sua aprovação.',
             'reimbursement_pending',
+            {
+              category: 'reimbursement',
+              action_type: 'approve_reject',
+              priority: 'high',
+              metadata: {
+                amount: params.total_amount,
+                project_name: '',
+                requester_name: employee.nome,
+              },
+            },
           );
         }
       } catch (e) {
@@ -399,7 +449,7 @@ export function useApproveReimbursement() {
       try {
         const { data: reimb } = await supabase
           .from('reimbursement_requests' as any)
-          .select('requested_by')
+          .select('requested_by, total_amount')
           .eq('id', reimbursementId)
           .single();
         if (reimb) {
@@ -410,6 +460,13 @@ export function useApproveReimbursement() {
             title: 'Reembolso aprovado',
             message: 'Seu pedido de reembolso foi aprovado e aguarda pagamento.',
             reference_id: reimbursementId,
+            category: 'reimbursement',
+            action_type: 'info',
+            priority: 'normal',
+            metadata: {
+              amount: (reimb as any).total_amount,
+              reviewer_name: employee.nome,
+            },
           } as any);
         }
       } catch (e) {
@@ -418,6 +475,12 @@ export function useApproveReimbursement() {
 
       // Notify all admins about approved reimbursement
       try {
+        const { data: reimb } = await supabase
+          .from('reimbursement_requests' as any)
+          .select('total_amount')
+          .eq('id', reimbursementId)
+          .maybeSingle();
+
         const { data: admins } = await supabase
           .from('user_roles' as any)
           .select('user_id')
@@ -425,7 +488,6 @@ export function useApproveReimbursement() {
           .eq('role', 'admin');
 
         if (admins && admins.length > 0) {
-          // Get admin employee IDs
           const adminUserIds = (admins as any[]).map((a: any) => a.user_id);
           const { data: adminEmps } = await supabase
             .from('employees')
@@ -440,6 +502,13 @@ export function useApproveReimbursement() {
               title: 'Reembolso aprovado aguardando pagamento',
               message: `Um reembolso foi aprovado e aguarda confirmação de pagamento.`,
               reference_id: reimbursementId,
+              category: 'reimbursement',
+              action_type: 'info',
+              priority: 'normal',
+              metadata: {
+                amount: (reimb as any)?.total_amount,
+                reviewer_name: employee.nome,
+              },
             }));
 
             await supabase.from('notifications' as any).insert(notifications as any);
@@ -486,7 +555,7 @@ export function useMarkReimbursementPaid() {
       // Get the requester to notify them
       const { data: reimb } = await supabase
         .from('reimbursement_requests' as any)
-        .select('requested_by')
+        .select('requested_by, total_amount')
         .eq('id', reimbursementId)
         .single();
 
@@ -498,6 +567,13 @@ export function useMarkReimbursementPaid() {
           title: 'Reembolso pago',
           message: 'Seu pedido de reembolso foi pago!',
           reference_id: reimbursementId,
+          category: 'reimbursement',
+          action_type: 'info',
+          priority: 'normal',
+          metadata: {
+            amount: (reimb as any).total_amount,
+            paid_by_name: employee.nome,
+          },
         } as any);
       }
     },
@@ -709,7 +785,7 @@ export function useRejectReimbursement() {
       try {
         const { data: reimb } = await supabase
           .from('reimbursement_requests' as any)
-          .select('requested_by')
+          .select('requested_by, total_amount')
           .eq('id', params.reimbursementId)
           .single();
         if (reimb) {
@@ -720,6 +796,14 @@ export function useRejectReimbursement() {
             title: 'Reembolso rejeitado',
             message: 'Seu pedido de reembolso foi rejeitado. Acesse os detalhes para ver o motivo.',
             reference_id: params.reimbursementId,
+            category: 'reimbursement',
+            action_type: 'navigate',
+            priority: 'normal',
+            metadata: {
+              amount: (reimb as any).total_amount,
+              reviewer_name: employee.nome,
+              rejection_reason: params.reason,
+            },
           } as any);
         }
       } catch (e) {

@@ -7,10 +7,16 @@ export interface Notification {
   tenant_id: string;
   recipient_id: string;
   type: string;
+  category: string;
+  priority: string;
+  action_type: string | null;
+  action_url: string | null;
+  metadata: Record<string, any> | null;
   title: string;
   message: string | null;
   reference_id: string | null;
   is_read: boolean;
+  is_resolved: boolean;
   created_at: string;
 }
 
@@ -63,6 +69,24 @@ export function useMarkNotificationRead() {
       const { error } = await supabase
         .from('notifications' as any)
         .update({ is_read: true } as any)
+        .eq('id', notificationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+    },
+  });
+}
+
+export function useMarkNotificationResolved() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { error } = await supabase
+        .from('notifications' as any)
+        .update({ is_read: true, is_resolved: true } as any)
         .eq('id', notificationId);
       if (error) throw error;
     },

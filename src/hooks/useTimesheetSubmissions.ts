@@ -1,13 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  TimesheetSubmission, 
+import { useAuth } from '@/contexts/AuthContext';
+import { format } from 'date-fns';
+import {
+  TimesheetSubmission,
   ProjectTimesheetSubmission,
-  SubmitWeekInput, 
+  SubmitWeekInput,
   SubmitProjectWeekInput,
-  AdminEditInput, 
-  AdminBatchEditInput 
+  AdminEditInput,
+  AdminBatchEditInput
 } from '@/types/timesheetSubmission';
 
 // ============= Legacy Global Submission Hooks =============
@@ -152,6 +154,7 @@ export const useProjectWeekSubmissions = (weekStart: string, projectIds: string[
 export const useSubmitProjectWeek = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { employee } = useAuth();
 
   return useMutation({
     mutationFn: async ({ projectId, weekStart, totalHours, memberIds }: SubmitProjectWeekInput) => {
@@ -211,10 +214,27 @@ export const useSubmitProjectWeek = () => {
 
       return submission;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['project-timesheet-submissions'] });
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+
+      // Best-effort: auto-resolve timesheet_pending notifications for this employee
+      try {
+        if (employee?.id) {
+          await supabase
+            .from('notifications' as any)
+            .update({ is_resolved: true } as any)
+            .eq('type', 'timesheet_pending')
+            .eq('recipient_id', employee.id)
+            .eq('is_resolved', false);
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+          queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+        }
+      } catch (e) {
+        console.error('Error auto-resolving timesheet_pending notifications:', e);
+      }
+
       toast({
         title: 'Projeto enviado',
         description: 'Os timesheets do projeto foram enviados e travados.',
@@ -233,6 +253,7 @@ export const useSubmitProjectWeek = () => {
 export const useSubmitAllProjects = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { employee } = useAuth();
 
   return useMutation({
     mutationFn: async ({ 
@@ -376,10 +397,27 @@ export const useSubmitAllProjects = () => {
 
       return results;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['project-timesheet-submissions'] });
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+
+      // Best-effort: auto-resolve timesheet_pending notifications for this employee
+      try {
+        if (employee?.id) {
+          await supabase
+            .from('notifications' as any)
+            .update({ is_resolved: true } as any)
+            .eq('type', 'timesheet_pending')
+            .eq('recipient_id', employee.id)
+            .eq('is_resolved', false);
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+          queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+        }
+      } catch (e) {
+        console.error('Error auto-resolving timesheet_pending notifications:', e);
+      }
+
       toast({
         title: 'Todos os projetos enviados',
         description: 'Os timesheets de todos os projetos foram enviados e travados.',
@@ -492,6 +530,7 @@ export const useAdminEditTimesheet = () => {
 export const useAdminBatchEditTimesheets = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { employee } = useAuth();
 
   return useMutation({
     mutationFn: async ({ changes, justification }: AdminBatchEditInput) => {
@@ -522,9 +561,9 @@ export const useAdminBatchEditTimesheets = () => {
         } else {
           const { error: updateError } = await supabase
             .from('project_timesheets')
-            .update({ 
-              hours: change.newHours, 
-              updated_by: user.id 
+            .update({
+              hours: change.newHours,
+              updated_by: user.id
             })
             .eq('id', timesheetId);
 
@@ -546,12 +585,75 @@ export const useAdminBatchEditTimesheets = () => {
         results.push({ timesheetId, success: true });
       }
 
+      // Best-effort: notify the timesheet owner about the edit
+      try {
+        if (employee?.tenant_id && changes.length > 0) {
+          const uniqueProjectIds = [...new Set(changes.map(c => c.projectId))];
+          const uniqueMemberIds = [...new Set(changes.map(c => c.projectMemberId))];
+
+          const [{ data: projectsData }, { data: membersData }] = await Promise.all([
+            supabase.from('projects').select('id, name').in('id', uniqueProjectIds),
+            supabase.from('project_members').select('id, employee_id').in('id', uniqueMemberIds),
+          ]);
+
+          const projectMap = new Map((projectsData || []).map((p: any) => [p.id, p.name]));
+          const memberMap = new Map((membersData || []).map((m: any) => [m.id, m.employee_id]));
+
+          const notifications = changes
+            .map(change => {
+              const recipientId = memberMap.get(change.projectMemberId);
+              // Skip if recipient couldn't be resolved or editor is editing their own timesheet
+              if (!recipientId || recipientId === employee.id) return null;
+
+              const projectName = projectMap.get(change.projectId) || '';
+              const workDate = new Date(change.workDate + 'T12:00:00');
+
+              // Calculate the Monday of the edited week for the action URL
+              const dow = workDate.getDay();
+              const daysToMonday = dow === 0 ? -6 : 1 - dow;
+              const monday = new Date(workDate);
+              monday.setDate(monday.getDate() + daysToMonday);
+              const mondayStr = format(monday, 'yyyy-MM-dd');
+
+              return {
+                type: 'timesheet_modified',
+                category: 'timesheet',
+                priority: 'normal',
+                action_type: 'navigate',
+                action_url: `/my-timesheet?week=${mondayStr}`,
+                recipient_id: recipientId,
+                tenant_id: employee.tenant_id,
+                title: 'Timesheet alterada pelo gestor',
+                message: `${employee.nome} ajustou suas horas no projeto "${projectName}" de ${format(workDate, 'dd/MM')}.`,
+                metadata: {
+                  editor_name: employee.nome,
+                  project_name: projectName,
+                  date: change.workDate,
+                  old_hours: change.previousHours,
+                  new_hours: change.newHours,
+                },
+                is_read: false,
+                is_resolved: false,
+              };
+            })
+            .filter(Boolean);
+
+          if (notifications.length > 0) {
+            await supabase.from('notifications' as any).insert(notifications as any);
+          }
+        }
+      } catch (notifError) {
+        console.error('Failed to create timesheet_modified notifications:', notifError);
+      }
+
       return results;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
       queryClient.invalidateQueries({ queryKey: ['project-timesheet-submissions'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
       toast({
         title: 'Timesheets atualizados',
         description: `${variables.changes.length} alteração(ões) registrada(s) com sucesso.`,
