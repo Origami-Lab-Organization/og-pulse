@@ -57,7 +57,7 @@ export default function ProjectDetail() {
       <AppLayout
         title="Carregando..."
         breadcrumbs={[
-          { label: 'Projetos', href: '/projects' },
+          { label: 'Portfólio', href: '/portfolio' },
           { label: 'Carregando...' },
         ]}
       >
@@ -75,14 +75,14 @@ export default function ProjectDetail() {
       <AppLayout
         title="Projeto não encontrado"
         breadcrumbs={[
-          { label: 'Projetos', href: '/projects' },
+          { label: 'Portfólio', href: '/portfolio' },
           { label: 'Não encontrado' },
         ]}
       >
         <div className="flex flex-col items-center justify-center h-64 gap-4">
           <p className="text-muted-foreground">O projeto solicitado não foi encontrado.</p>
-          <Button onClick={() => navigate('/projects')}>
-            Voltar para Projetos
+          <Button onClick={() => navigate('/portfolio')}>
+            Voltar para Portfólio
           </Button>
         </div>
       </AppLayout>
@@ -100,7 +100,7 @@ export default function ProjectDetail() {
     <AppLayout
       title={project.name}
       breadcrumbs={[
-        { label: 'Projetos', href: '/projects' },
+        { label: 'Portfólio', href: '/portfolio' },
         { label: project.name },
       ]}
       actions={
