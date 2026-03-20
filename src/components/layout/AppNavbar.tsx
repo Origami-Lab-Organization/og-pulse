@@ -16,6 +16,8 @@ import {
   Briefcase,
   Package,
   RefreshCw,
+  Inbox,
+  FolderOpen,
 } from 'lucide-react';
 import {
   NavigationMenu,
@@ -52,6 +54,8 @@ const navigationGroups: NavGroup[] = [
     label: 'Meu Espaço',
     items: [
       { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+      { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox, disabled: true },
+      { title: 'Meus Projetos', url: '/my-projects', icon: FolderOpen, disabled: true },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
     ],
@@ -131,6 +135,43 @@ export function AppNavbar() {
         <NavigationMenuList className="gap-0">
           {navigationGroups.filter(isGroupVisible).map((group) => {
             const visibleItems = filterItems(group.items);
+            const isRegularUserPersonalGroup = group.label === 'Meu Espaço' && !isManager && !isAdmin;
+
+            if (isRegularUserPersonalGroup) {
+              return visibleItems.map((item) => {
+                const Icon = item.icon;
+                const flatButton = (
+                  <NavigationMenuItem key={item.title}>
+                    <button
+                      disabled={item.disabled}
+                      onClick={() => !item.disabled && navigate(item.url)}
+                      className={cn(
+                        'flex items-center gap-2 h-9 px-3 rounded-md text-sm font-medium transition-colors',
+                        isActive(item.url)
+                          ? 'bg-accent text-accent-foreground'
+                          : 'hover:bg-accent/50 text-foreground',
+                        item.disabled && 'opacity-50 cursor-not-allowed'
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{item.title}</span>
+                    </button>
+                  </NavigationMenuItem>
+                );
+
+                if (item.disabled) {
+                  return (
+                    <Tooltip key={item.title}>
+                      <TooltipTrigger asChild>{flatButton}</TooltipTrigger>
+                      <TooltipContent><p>Em breve</p></TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return flatButton;
+              });
+            }
+
             return (
               <NavigationMenuItem key={group.label} className="relative">
                 <NavigationMenuTrigger className="h-9 px-3 text-sm font-medium bg-transparent data-[state=open]:bg-accent/50">
