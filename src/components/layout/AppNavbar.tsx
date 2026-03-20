@@ -146,10 +146,10 @@ export function AppNavbar() {
                       disabled={item.disabled}
                       onClick={() => !item.disabled && navigate(item.url)}
                       className={cn(
-                        'flex items-center gap-2 h-9 px-3 rounded-md text-sm font-medium transition-colors',
+                        'relative flex items-center gap-2 h-9 px-3 text-sm font-medium transition-colors',
                         isActive(item.url)
-                          ? 'bg-accent text-accent-foreground'
-                          : 'hover:bg-accent/50 text-foreground',
+                          ? 'text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary after:rounded-full'
+                          : 'text-muted-foreground hover:text-primary',
                         item.disabled && 'opacity-50 cursor-not-allowed'
                       )}
                     >
