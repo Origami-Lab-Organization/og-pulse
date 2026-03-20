@@ -446,9 +446,12 @@ const MyTimesheet = () => {
                   {/* Header único */}
                   <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
                     <div>Projeto</div>
-                    {weekDays.map((day) => {
+                    {(() => {
+                      const todayStr = format(new Date(), 'yyyy-MM-dd');
+                      return weekDays.map((day) => {
                       const holiday = getHolidayForDate(day.date);
                       const isHolidayDay = !!holiday;
+                      const isToday = day.date === todayStr;
                       return (
                         <TooltipProvider key={day.date}>
                           <Tooltip>
@@ -456,8 +459,8 @@ const MyTimesheet = () => {
                               <div
                                 className={cn(
                                   "text-center rounded-md py-1",
-                                  isHolidayDay &&
-                                    "bg-destructive/10 text-destructive"
+                                  isHolidayDay && "bg-destructive/10 text-destructive",
+                                  isToday && !isHolidayDay && "bg-primary/10 text-primary font-medium"
                                 )}
                               >
                                 {format(
@@ -486,7 +489,8 @@ const MyTimesheet = () => {
                           </Tooltip>
                         </TooltipProvider>
                       );
-                    })}
+                    });
+                    })()}
                     <div className="text-right pr-2">Total</div>
                     <div className="text-center">Status</div>
                   </div>
@@ -616,29 +620,34 @@ const MyTimesheet = () => {
                     {weekDays.map((day) => {
                       const dayTotal = realTimeDailyTotals[day.date] ?? 0;
                       const jornada = employee?.jornada_diaria ?? 8;
-                      const diff = dayTotal - jornada;
-                      let colorClass = "text-muted-foreground"; // 0h
-                      if (dayTotal > 0) {
-                        if (dayTotal === jornada) {
-                          colorClass = "text-emerald-700 dark:text-emerald-400"; // exact jornada
-                        } else if (dayTotal < jornada) {
-                          colorClass = "text-amber-600 dark:text-amber-400"; // under-allocated
-                        } else if (diff <= 2) {
-                          colorClass = "text-amber-600 dark:text-amber-400"; // slightly over (1-2h)
-                        } else {
-                          colorClass = "text-red-600 dark:text-red-400"; // way over (>2h)
-                        }
-                      }
+                      const isZero = dayTotal === 0;
+                      const isOverJornada = dayTotal > jornada;
+                      const isOverHardLimit = dayTotal > 12;
+
                       return (
-                        <div
-                          key={day.date}
-                          className={cn(
-                            "text-center text-sm font-semibold tabular-nums",
-                            colorClass
-                          )}
-                        >
-                          {dayTotal > 0 ? `${dayTotal.toFixed(1)}` : "0"}
-                        </div>
+                        <TooltipProvider key={day.date}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className={cn(
+                                  "text-center text-xs font-medium tabular-nums",
+                                  isZero && "text-muted-foreground/50",
+                                  !isZero && !isOverJornada && dayTotal === jornada && "text-emerald-700 dark:text-emerald-400",
+                                  !isZero && !isOverJornada && dayTotal < jornada && "text-muted-foreground",
+                                  isOverJornada && !isOverHardLimit && "text-amber-600 dark:text-amber-400 font-semibold",
+                                  isOverHardLimit && "text-destructive font-semibold"
+                                )}
+                              >
+                                {dayTotal > 0 ? `${Math.round(dayTotal * 10) / 10}h` : "—"}
+                              </div>
+                            </TooltipTrigger>
+                            {isOverJornada && (
+                              <TooltipContent>
+                                <p>Excede a jornada diária de {jornada}h em {Math.round((dayTotal - jornada) * 10) / 10}h</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
                       );
                     })}
                     <div />

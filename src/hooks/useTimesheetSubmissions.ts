@@ -335,6 +335,45 @@ export const useSubmitAllProjects = () => {
         results.push(submission);
       }
 
+      // Notify managers — wrapped in try/catch so failures don't block the submit
+      try {
+        const { data: projectData } = await supabase
+          .from('projects')
+          .select('id, name, manager_id')
+          .in('id', projects.map(p => p.projectId));
+
+        const managerProjects = new Map<string, string[]>();
+        (projectData || []).forEach((p: any) => {
+          if (!p.manager_id) return;
+          const existing = managerProjects.get(p.manager_id) || [];
+          existing.push(p.name);
+          managerProjects.set(p.manager_id, existing);
+        });
+
+        const { data: submitterEmployee } = await supabase
+          .from('employees')
+          .select('id, nome, tenant_id')
+          .eq('auth_id', user.id)
+          .single();
+
+        if (submitterEmployee) {
+          for (const [managerId, projectNames] of managerProjects) {
+            if (managerId === submitterEmployee.id) continue;
+            await supabase.from('notifications').insert({
+              tenant_id: submitterEmployee.tenant_id,
+              recipient_id: managerId,
+              type: 'timesheet_submitted',
+              title: `${submitterEmployee.nome} enviou timesheet`,
+              message: projectNames.length === 1
+                ? `Horas enviadas no projeto ${projectNames[0]}.`
+                : `Horas enviadas em ${projectNames.length} projetos: ${projectNames.join(', ')}.`,
+            });
+          }
+        }
+      } catch (notifError) {
+        console.error('Erro ao enviar notificações de timesheet:', notifError);
+      }
+
       return results;
     },
     onSuccess: () => {

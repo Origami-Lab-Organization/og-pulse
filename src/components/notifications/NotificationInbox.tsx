@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, X, Paperclip, Bell, CheckCheck, Clock, AlertTriangle } from 'lucide-react';
+import { Check, X, Paperclip, Bell, CheckCheck, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   usePendingReimbursements,
@@ -58,6 +58,17 @@ function useNotificationConfig(onOpenChange: (open: boolean) => void) {
         onClick: () => { onOpenChange(false); navigate('/my-timesheet'); },
       };
     }
+    if (n.type === 'timesheet_submitted') {
+      return {
+        icon: <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />,
+        badgeClass: 'bg-green-100 text-green-700',
+        label: 'Timesheet Enviado',
+        onClick: () => {
+          onOpenChange(false);
+          navigate(n.reference_id ? `/alocacao/${n.reference_id}` : '/alocacao');
+        },
+      };
+    }
     if (n.type === 'timesheet_manager_alert') {
       return {
         icon: <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-red-600" />,
@@ -77,7 +88,7 @@ function useNotificationConfig(onOpenChange: (open: boolean) => void) {
   };
 }
 
-export function ReimbursementInbox({ open, onOpenChange }: Props) {
+export function NotificationInbox({ open, onOpenChange }: Props) {
   const { employee } = useAuth();
   const { data: pending = [], isLoading } = usePendingReimbursements();
   const { data: notifications = [], isLoading: loadingNotifs } = useNotifications();

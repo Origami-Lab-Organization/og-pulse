@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity } from 'lucide-react';
+import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity, Bell } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { FinancialSettingsForm } from '@/components/settings/FinancialSettingsFo
 import { PayrollProfileSettingsForm } from '@/components/settings/PayrollProfileSettingsForm';
 import { HolidaysSettingsForm } from '@/components/settings/HolidaysSettingsForm';
 import { ActivityTypesSettings } from '@/components/settings/ActivityTypesSettings';
+import { TimesheetReminderSettings } from '@/components/admin/TimesheetReminderSettings';
 import { RoleRatesTable } from '@/components/pricing/RoleRatesTable';
 import { RoleRateFormDialog } from '@/components/pricing/RoleRateFormDialog';
 import { DeleteRoleRateDialog } from '@/components/pricing/DeleteRoleRateDialog';
@@ -139,6 +140,10 @@ export default function AdminPortal() {
             <Activity className="h-4 w-4" />
             Atividades
           </TabsTrigger>
+          <TabsTrigger value="reminders" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Lembretes
+          </TabsTrigger>
         </TabsList>
 
         {/* Tabela de Preços */}
@@ -236,6 +241,11 @@ export default function AdminPortal() {
         {/* Atividades Internas */}
         <TabsContent value="activities" className="space-y-4">
           <ActivityTypesSettings />
+        </TabsContent>
+
+        {/* Lembretes */}
+        <TabsContent value="reminders" className="space-y-4">
+          <TimesheetReminderSettings />
         </TabsContent>
       </Tabs>
     </AppLayout>

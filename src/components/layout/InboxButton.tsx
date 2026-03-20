@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { usePendingReimbursementsCount } from '@/hooks/useReimbursements';
 import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
 import { useAuth } from '@/contexts/AuthContext';
-import { ReimbursementInbox } from '@/components/reimbursements/ReimbursementInbox';
+import { NotificationInbox } from '@/components/notifications/NotificationInbox';
 
 export function InboxButton() {
   const { employee } = useAuth();
@@ -34,7 +34,7 @@ export function InboxButton() {
         )}
       </Button>
 
-      <ReimbursementInbox open={open} onOpenChange={setOpen} />
+      <NotificationInbox open={open} onOpenChange={setOpen} />
     </>
   );
 }
