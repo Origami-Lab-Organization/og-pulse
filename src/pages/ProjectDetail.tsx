@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { Edit } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,9 +15,9 @@ import { ProjectStakeholdersTab } from '@/components/projects/detail/ProjectStak
 import { ProjectScheduleTab } from '@/components/projects/detail/ProjectScheduleTab';
 import { ProjectExpectedResultTab } from '@/components/projects/detail/ProjectExpectedResultTab';
 import { ProjectCommissionsTab } from '@/components/projects/detail/ProjectCommissionsTab';
+import { ProjectValueBookUpload } from '@/components/projects/detail/ProjectValueBookUpload';
 import { ProjectFormDialog } from '@/components/projects/ProjectFormDialog';
 import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
-import { ProjectValueBookSection } from '@/components/projects/detail/ProjectValueBookSection';
 import { useProject, useUpdateProject, useDeleteProject } from '@/hooks/useProjects';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreateProjectInput } from '@/types/project';
@@ -25,12 +26,13 @@ import { useState } from 'react';
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
   const { data: project, isLoading } = useProject(id);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
-  
+
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -92,6 +94,7 @@ export default function ProjectDetail() {
   const isCompleted = project.portfolio_stage === 'completed';
   const canEdit = isAdmin || !isCompleted;
   const isReadOnly = isCompleted && !isAdmin;
+  const showValueBook = !isPlanning;
 
   return (
     <AppLayout
@@ -112,10 +115,8 @@ export default function ProjectDetail() {
       <div className="space-y-6">
         <ProjectHeader project={project} />
 
-        <ProjectValueBookSection project={project} isReadOnly={isReadOnly} />
-
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">
+          <TabsList className={`grid w-full ${showValueBook ? 'grid-cols-8' : 'grid-cols-7'} lg:w-auto lg:inline-flex`}>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="okrs">OKR</TabsTrigger>
             <TabsTrigger value="costs">Custos</TabsTrigger>
@@ -123,6 +124,9 @@ export default function ProjectDetail() {
             <TabsTrigger value="schedule">Cronograma</TabsTrigger>
             <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
+            {showValueBook && (
+              <TabsTrigger value="valuebook">Value Book</TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
@@ -138,9 +142,9 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="costs" className="mt-6">
-            <ProjectCostsTab 
-              project={project} 
-              isEditable={isPlanning && !isReadOnly} 
+            <ProjectCostsTab
+              project={project}
+              isEditable={isPlanning && !isReadOnly}
               canEditActuals={!isPlanning && !isReadOnly && project.portfolio_stage !== 'completed'}
             />
           </TabsContent>
@@ -164,6 +168,17 @@ export default function ProjectDetail() {
               <ProjectFinancialTab project={project} />
             )}
           </TabsContent>
+
+          {showValueBook && (
+            <TabsContent value="valuebook" className="mt-6">
+              <ProjectValueBookUpload
+                projectId={project.id}
+                currentUrl={project.value_book_url || null}
+                isReadOnly={isReadOnly}
+                onUploadSuccess={() => queryClient.invalidateQueries({ queryKey: ['project', id] })}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
