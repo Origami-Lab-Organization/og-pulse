@@ -9,7 +9,8 @@ export interface PortfolioProject {
   name: string;
   total_value: number;
   start_date: string;
-  end_date?: string | null;
+  end_date: string | null;
+  is_continuous: boolean;
   portfolio_stage: PortfolioStage;
   lead_id: string | null;
   client?: {
@@ -70,6 +71,7 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
           total_value,
           start_date,
           end_date,
+          is_continuous,
           portfolio_stage,
           lead_id,
           service_line,

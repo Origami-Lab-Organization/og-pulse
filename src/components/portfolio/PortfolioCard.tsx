@@ -164,11 +164,20 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
           </Tooltip>
         )}
         <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-          <Calendar className="h-3 w-3" />
+          <Calendar className="h-3 w-3 shrink-0" />
           <span>
-            {project.start_date 
-              ? format(parseISO(project.start_date), "dd MMM yyyy", { locale: ptBR })
-              : 'Sem data'
+            {project.start_date
+              ? format(parseISO(project.start_date), "dd/MM/yy", { locale: ptBR })
+              : '—'
+            }
+          </span>
+          <span>→</span>
+          <span className={!project.is_continuous && !project.end_date ? 'text-amber-500 dark:text-amber-400' : ''}>
+            {project.is_continuous
+              ? 'Contínuo'
+              : project.end_date
+                ? format(parseISO(project.end_date), "dd/MM/yy", { locale: ptBR })
+                : 'Sem previsão'
             }
           </span>
         </div>
