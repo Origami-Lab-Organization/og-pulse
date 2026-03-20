@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, X, Paperclip, Bell, CheckCheck } from 'lucide-react';
+import { Check, X, Paperclip, Bell, CheckCheck, Clock, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   usePendingReimbursements,
   useApproveReimbursement,
@@ -38,6 +39,44 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+type NotificationConfig = {
+  icon: React.ReactNode;
+  badgeClass: string;
+  label: string;
+  onClick?: () => void;
+};
+
+function useNotificationConfig(onOpenChange: (open: boolean) => void) {
+  const navigate = useNavigate();
+
+  return (n: { type?: string; reference_id?: string }): NotificationConfig => {
+    if (n.type === 'timesheet_reminder') {
+      return {
+        icon: <Clock className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />,
+        badgeClass: 'bg-amber-100 text-amber-700',
+        label: 'Lembrete de Timesheet',
+        onClick: () => { onOpenChange(false); navigate('/my-timesheet'); },
+      };
+    }
+    if (n.type === 'timesheet_manager_alert') {
+      return {
+        icon: <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-red-600" />,
+        badgeClass: 'bg-red-100 text-red-700',
+        label: 'Timesheet Pendente',
+        onClick: () => {
+          onOpenChange(false);
+          navigate(n.reference_id ? `/alocacao/${n.reference_id}?tab=timesheet` : '/alocacao');
+        },
+      };
+    }
+    return {
+      icon: <Bell className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />,
+      badgeClass: '',
+      label: '',
+    };
+  };
+}
+
 export function ReimbursementInbox({ open, onOpenChange }: Props) {
   const { employee } = useAuth();
   const { data: pending = [], isLoading } = usePendingReimbursements();
@@ -53,6 +92,7 @@ export function ReimbursementInbox({ open, onOpenChange }: Props) {
 
   const isManagerOrAdmin = employee?.is_gerente || employee?.isAdmin;
   const unreadNotifs = notifications.filter(n => !n.is_read);
+  const getNotifConfig = useNotificationConfig(onOpenChange);
 
   const handleApprove = (id: string) => {
     approveMutation.mutate(id);
@@ -174,37 +214,50 @@ export function ReimbursementInbox({ open, onOpenChange }: Props) {
                       </Button>
                     </div>
                   )}
-                  {notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className={`rounded-lg border p-3 space-y-1 transition-colors ${
-                        !n.is_read ? 'bg-primary/5 border-primary/20' : ''
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2">
-                          <Bell className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? 'text-primary' : 'text-muted-foreground'}`} />
-                          <div>
-                            <p className={`text-sm ${!n.is_read ? 'font-medium' : ''}`}>{n.title}</p>
-                            {n.message && <p className="text-xs text-muted-foreground">{n.message}</p>}
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(n.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                            </p>
+                  {notifications.map((n) => {
+                    const config = getNotifConfig(n);
+                    return (
+                      <div
+                        key={n.id}
+                        className={`rounded-lg border p-3 space-y-1 transition-colors ${
+                          !n.is_read ? 'bg-primary/5 border-primary/20' : ''
+                        } ${config.onClick ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                        onClick={config.onClick}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2">
+                            {config.label ? (
+                              config.icon
+                            ) : (
+                              <Bell className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? 'text-primary' : 'text-muted-foreground'}`} />
+                            )}
+                            <div>
+                              {config.label && (
+                                <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-1 ${config.badgeClass}`}>
+                                  {config.label}
+                                </span>
+                              )}
+                              <p className={`text-sm ${!n.is_read ? 'font-medium' : ''}`}>{n.title}</p>
+                              {n.message && <p className="text-xs text-muted-foreground">{n.message}</p>}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(n.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                              </p>
+                            </div>
                           </div>
+                          {!n.is_read && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs h-7 px-2 shrink-0"
+                              onClick={(e) => { e.stopPropagation(); markReadMutation.mutate(n.id); }}
+                            >
+                              <Check className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
-                        {!n.is_read && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-xs h-7 px-2 shrink-0"
-                            onClick={() => markReadMutation.mutate(n.id)}
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>

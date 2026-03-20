@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { MonthlyTimesheetView } from "@/components/timesheets/MonthlyTimesheetView";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,14 +8,21 @@ import {
   Loader2,
   CheckCircle2,
   Send,
-  Check,
-  AlertCircle,
   Info,
-  CircleAlert
+  CircleAlert,
+  ChevronRight,
+  AlertCircle
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { MyTimesheetAllocation } from "@/components/timesheets/MyTimesheetAllocation";
 import { useMyAllocationData } from "@/hooks/useMyAllocationData";
 import { TimesheetWeekSelector } from "@/components/timesheets/TimesheetWeekSelector";
+import { GlobalSaveIndicator } from "@/components/timesheets/GlobalSaveIndicator";
+import { TimesheetWeekSummaryBar } from "@/components/timesheets/TimesheetWeekSummaryBar";
 import { TimesheetWeekRow } from "@/components/timesheets/TimesheetWeekRow";
 import type { SaveStatusInfo } from "@/components/timesheets/TimesheetWeekRow";
 import { ActivityTimesheetRow } from "@/components/timesheets/ActivityTimesheetRow";
@@ -46,6 +54,9 @@ import {
 const MyTimesheet = () => {
   const { employee } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'weekly' | 'monthly'>('weekly');
+  const [projectsOpen, setProjectsOpen] = useState(true);
+  const [activitiesOpen, setActivitiesOpen] = useState(true);
 
   // Dialog states
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false);
@@ -62,6 +73,8 @@ const MyTimesheet = () => {
   const currentWeekStart = getWeekStart(new Date());
   const isFutureWeek = weekStart > currentWeekStart;
   const allWeekDaysReady = weekEnd <= today;
+  const isFriday = today.getDay() === 5;
+  const isCurrentWeek = !isFutureWeek && weekStart <= today;
 
   const { data: projects = [], isLoading: loadingProjects } =
     useMyProjectMemberships(employee?.id, startDate, endDate);
@@ -307,6 +320,28 @@ const MyTimesheet = () => {
     });
   }, [projects, timesheetEntries]);
 
+  const { lockedCount, draftCount } = useMemo(() => {
+    let locked = 0;
+    let draft = 0;
+    for (const p of projects) {
+      const member = p.members[0];
+      if (!member) continue;
+      const memberEntries = timesheetEntries.filter(
+        (e) => e.projectMemberId === member.memberId
+      );
+      if (memberEntries.length > 0 && memberEntries.every((e) => e.isLocked)) {
+        locked++;
+      } else {
+        draft++;
+      }
+    }
+    return { lockedCount: locked, draftCount: draft };
+  }, [projects, timesheetEntries]);
+
+  const monthLabel = format(parseISO(monthKey + '-01'), "MMMM/yyyy", { locale: ptBR });
+
+  const showFridayReminder = isFriday && isCurrentWeek && !allProjectsLocked;
+
   const getHolidayForDate = (dateStr: string): Holiday | null => {
     const date = parseISO(dateStr);
     return isHoliday(date, holidays);
@@ -341,12 +376,39 @@ const MyTimesheet = () => {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* View mode toggle */}
+          <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+            <Button
+              variant={viewMode === 'monthly' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('monthly')}
+            >
+              Meses
+            </Button>
+            <Button
+              variant={viewMode === 'weekly' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('weekly')}
+            >
+              Semanas
+            </Button>
+          </div>
+
+          {viewMode === 'monthly' ? (
+            <MonthlyTimesheetView employeeId={employee!.id} />
+          ) : (
+          <>
           <Card>
             <CardContent className="pt-4">
-              <TimesheetWeekSelector
-                selectedDate={selectedDate}
-                onDateChange={setSelectedDate}
-              />
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <TimesheetWeekSelector
+                    selectedDate={selectedDate}
+                    onDateChange={setSelectedDate}
+                  />
+                </div>
+                <GlobalSaveIndicator saveStatuses={saveStatuses} />
+              </div>
 
               {projects.length === 0 && myActivityTypes.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
@@ -361,10 +423,29 @@ const MyTimesheet = () => {
                 </div>
               ) : (
                 <>
+                  <TimesheetWeekSummaryBar
+                    totalWeekHours={totalHoursAllProjects}
+                    projectCount={projects.length}
+                    activityCount={myActivityTypes.length}
+                    draftCount={draftCount}
+                    lockedCount={lockedCount}
+                    monthlyActualHours={allocationData?.totalActualHours}
+                    monthlyPlannedHours={allocationData?.totalPlannedHours}
+                    monthlyCapacity={allocationData?.monthlyCapacity}
+                    monthlyExpectedHours={allocationData?.expectedHours}
+                    monthLabel={monthLabel}
+                  />
+                  {showFridayReminder && (
+                    <div className="flex items-start gap-2.5 mx-0 mt-2 mb-1 px-3 py-2.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-500">
+                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-amber-800 dark:text-amber-200">
+                        <span className="font-medium">Lembrete:</span> Envie suas horas até o final do dia. Após o envio, somente seu gerente ou admin poderá fazer alterações.
+                      </div>
+                    </div>
+                  )}
                   {/* Header único */}
-                  <div className="grid grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
+                  <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
                     <div>Projeto</div>
-                    <div>Cliente</div>
                     {weekDays.map((day) => {
                       const holiday = getHolidayForDate(day.date);
                       const isHolidayDay = !!holiday;
@@ -421,105 +502,117 @@ const MyTimesheet = () => {
                     </div>
                   )}
 
-                  {/* Uma linha por projeto */}
-                  {projects.map((project) => {
-                    const member = project.members[0];
-                    const memberEntries = timesheetEntries.filter(
-                      (e) => e.projectMemberId === member.memberId
-                    );
-                    const isLocked =
-                      memberEntries.length > 0 &&
-                      memberEntries.every((e) => e.isLocked);
-                    const actionContent = isLocked ? (
-                      <Badge
-                        variant="secondary"
-                        className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap"
-                      >
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Enviado
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="whitespace-nowrap">
-                        Rascunho
-                      </Badge>
-                    );
+                  {/* Projetos */}
+                  <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
+                    <CollapsibleTrigger asChild>
+                      <button className="flex items-center gap-2 px-3 py-2 w-full text-left hover:bg-muted/50 rounded-md transition-colors">
+                        <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", projectsOpen && "rotate-90")} />
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Projetos ({projects.length})
+                        </span>
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      {projects.map((project) => {
+                        const member = project.members[0];
+                        const memberEntries = timesheetEntries.filter(
+                          (e) => e.projectMemberId === member.memberId
+                        );
+                        const isLocked =
+                          memberEntries.length > 0 &&
+                          memberEntries.every((e) => e.isLocked);
+                        const actionContent = isLocked ? (
+                          <Badge
+                            variant="secondary"
+                            className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 whitespace-nowrap"
+                          >
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Enviado
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="whitespace-nowrap">
+                            Rascunho
+                          </Badge>
+                        );
 
-                    return (
-                      <TimesheetWeekRow
-                        key={member.memberId}
-                        label={project.projectName}
-                        clientName={project.clientName}
-                        labelExtra={
-                          unplannedProjectIds.has(project.projectId) ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <CircleAlert className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>
-                                    Este projeto não possui alocação planejada
-                                    para o mês.
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : undefined
-                        }
-                        projectId={project.projectId}
-                        memberId={member.memberId}
-                        weekDays={weekDays}
-                        existingEntries={timesheetEntries}
-                        holidays={holidays}
-                        isLocked={isLocked || isFutureWeek}
-                        isAdmin={false}
-                        actionSlot={actionContent}
-                        allDailyTotals={allDailyTotals}
-                        dailyWorkHours={employee?.jornada_diaria ?? 8}
-                        onLocalTotalChange={handleLocalTotalChange}
-                        onLocalDayHoursChange={handleLocalDayHoursChange}
-                        onSaveStatusChange={handleSaveStatusChange}
-                      />
-                    );
-                  })}
+                        return (
+                          <TimesheetWeekRow
+                            key={member.memberId}
+                            label={project.projectName}
+                            clientName={project.clientName}
+                            labelExtra={
+                              unplannedProjectIds.has(project.projectId) ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <CircleAlert className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>
+                                        Este projeto não possui alocação planejada
+                                        para o mês.
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : undefined
+                            }
+                            projectId={project.projectId}
+                            memberId={member.memberId}
+                            weekDays={weekDays}
+                            existingEntries={timesheetEntries}
+                            holidays={holidays}
+                            isLocked={isLocked || isFutureWeek}
+                            isAdmin={false}
+                            actionSlot={actionContent}
+                            allDailyTotals={allDailyTotals}
+                            dailyWorkHours={employee?.jornada_diaria ?? 8}
+                            onLocalTotalChange={handleLocalTotalChange}
+                            onLocalDayHoursChange={handleLocalDayHoursChange}
+                            onSaveStatusChange={handleSaveStatusChange}
+                          />
+                        );
+                      })}
+                    </CollapsibleContent>
+                  </Collapsible>
 
                   {/* Atividades Internas */}
                   {myActivityTypes.length > 0 && (
-                    <>
-                      <div className="flex items-center gap-2 px-3 pt-3 pb-1">
-                        <div className="flex-1 border-t" />
-                        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap px-2">
-                          Atividades Internas
-                        </span>
-                        <div className="flex-1 border-t" />
-                      </div>
-                      {myActivityTypes.map((at) => (
-                        <ActivityTimesheetRow
-                          key={at.id}
-                          activityTypeId={at.id}
-                          activityName={at.name}
-                          employeeId={employee!.id}
-                          weekDays={weekDays}
-                          existingEntries={activityEntries}
-                          holidays={holidays}
-                          allDailyTotals={allDailyTotals}
-                          dailyWorkHours={employee?.jornada_diaria ?? 8}
-                          onLocalTotalChange={handleActivityLocalTotalChange}
-                          onLocalDayHoursChange={
-                            handleActivityLocalDayHoursChange
-                          }
-                          onSaveStatusChange={handleSaveStatusChange}
-                        />
-                      ))}
-                    </>
+                    <Collapsible open={activitiesOpen} onOpenChange={setActivitiesOpen}>
+                      <CollapsibleTrigger asChild>
+                        <button className="flex items-center gap-2 px-3 py-2 w-full text-left hover:bg-muted/50 rounded-md transition-colors">
+                          <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", activitiesOpen && "rotate-90")} />
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Atividades internas ({myActivityTypes.length})
+                          </span>
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        {myActivityTypes.map((at) => (
+                          <ActivityTimesheetRow
+                            key={at.id}
+                            activityTypeId={at.id}
+                            activityName={at.name}
+                            employeeId={employee!.id}
+                            weekDays={weekDays}
+                            existingEntries={activityEntries}
+                            holidays={holidays}
+                            allDailyTotals={allDailyTotals}
+                            dailyWorkHours={employee?.jornada_diaria ?? 8}
+                            onLocalTotalChange={handleActivityLocalTotalChange}
+                            onLocalDayHoursChange={handleActivityLocalDayHoursChange}
+                            onSaveStatusChange={handleSaveStatusChange}
+                          />
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
                   )}
 
                   {/* Daily totals row */}
-                  <div className="grid grid-cols-[1fr_1fr_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 border-t bg-muted/30">
+                  <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 border-t bg-muted/50 font-medium">
                     <div className="text-xs italic text-muted-foreground">
                       Total/dia
                     </div>
-                    <div />
                     {weekDays.map((day) => {
                       const dayTotal = realTimeDailyTotals[day.date] ?? 0;
                       const jornada = employee?.jornada_diaria ?? 8;
@@ -552,45 +645,13 @@ const MyTimesheet = () => {
                     <div />
                   </div>
 
-                  {/* Footer: total + enviar */}
-                  <div className="border-t mt-2 pt-3 px-3 flex items-center justify-between">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total da Semana:{" "}
-                      <span className="text-foreground font-semibold">
-                        {realTimeTotalHours.toFixed(1)}h
-                      </span>
-                    </p>
-                    <div className="flex items-center gap-3">
-                      {/* Save status indicator */}
-                      {aggregatedSaveStatus.status === "unsaved" && (
-                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="h-2 w-2 rounded-full bg-amber-400" />
-                          Alterações não salvas
-                        </span>
-                      )}
-                      {aggregatedSaveStatus.status === "saving" && (
-                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Salvando...
-                        </span>
-                      )}
-                      {aggregatedSaveStatus.status === "saved" &&
-                        aggregatedSaveStatus.lastSavedAt && (
-                          <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-                            <Check className="h-3 w-3" />
-                            Salvo automaticamente às{" "}
-                            {aggregatedSaveStatus.lastSavedAt.toLocaleTimeString(
-                              "pt-BR",
-                              { hour: "2-digit", minute: "2-digit" }
-                            )}
-                          </span>
-                        )}
-                      {aggregatedSaveStatus.status === "error" && (
-                        <span className="flex items-center gap-1.5 text-xs text-destructive">
-                          <AlertCircle className="h-3 w-3" />
-                          Erro ao salvar. Tentando novamente...
-                        </span>
-                      )}
+                  {/* Footer de ações */}
+                  <div className="flex items-center justify-between px-3 py-2.5 border-t bg-background sticky bottom-0">
+                    <div className="text-xs text-muted-foreground">
+                      Jornada: {employee?.jornada_diaria ?? 8}h/dia · {draftCount} {draftCount === 1 ? 'projeto em rascunho' : 'projetos em rascunho'}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <GlobalSaveIndicator saveStatuses={saveStatuses} />
                       {!isFutureWeek && (
                         <Button
                           size="sm"
@@ -602,7 +663,7 @@ const MyTimesheet = () => {
                           }
                         >
                           <Send className="h-4 w-4 mr-1.5" />
-                          Enviar
+                          Enviar semana
                         </Button>
                       )}
                     </div>
@@ -616,19 +677,23 @@ const MyTimesheet = () => {
             employeeId={employee?.id}
             monthKey={monthKey}
           />
+          </>
+          )}
         </div>
       )}
 
-      <SubmitAllProjectsDialog
-        open={showSubmitAllDialog}
-        onOpenChange={setShowSubmitAllDialog}
-        pendingCount={projects.length}
-        weekStart={weekStart}
-        weekEnd={weekEnd}
-        totalHours={totalHoursAllProjects}
-        onConfirm={handleSubmitAll}
-        isSubmitting={submitAllProjects.isPending}
-      />
+      {viewMode === 'weekly' && (
+        <SubmitAllProjectsDialog
+          open={showSubmitAllDialog}
+          onOpenChange={setShowSubmitAllDialog}
+          pendingCount={projects.length}
+          weekStart={weekStart}
+          weekEnd={weekEnd}
+          totalHours={totalHoursAllProjects}
+          onConfirm={handleSubmitAll}
+          isSubmitting={submitAllProjects.isPending}
+        />
+      )}
     </AppLayout>
   );
 };

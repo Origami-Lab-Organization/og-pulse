@@ -153,12 +153,11 @@ export function ActivityTimesheetRow({
   useEffect(() => { onLocalDayHoursChange?.(activityTypeId, hours); }, [hours, activityTypeId, onLocalDayHoursChange]);
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px_120px] gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md">
-      <div className="flex items-center gap-2 min-w-0">
+    <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md">
+      <div className="min-w-0">
         <p className="text-sm font-medium truncate">{activityName}</p>
+        <p className="text-xs text-muted-foreground">Atividade interna</p>
       </div>
-      {/* Empty client column */}
-      <div />
 
       {weekDays.map(day => {
         const holiday = isHoliday(parseISO(day.date), holidays);

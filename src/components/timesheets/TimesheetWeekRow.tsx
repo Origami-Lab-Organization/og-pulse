@@ -243,7 +243,7 @@ export function TimesheetWeekRow({
   return (
     <div className={cn(
       "grid gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md",
-      (statusSlot || actionSlot) ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px_120px]" : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px]"
+      (statusSlot || actionSlot) ? "grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px]" : "grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px]"
     )}>
       <div className="flex items-center gap-2 min-w-0">
         {avatarUrl !== undefined && (
@@ -252,17 +252,15 @@ export function TimesheetWeekRow({
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
         )}
-        <div className="min-w-0 flex items-center gap-1">
-          <div className="min-w-0">
-            <p className="text-sm font-medium truncate">{label}</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 min-w-0">
+            <div className="text-sm font-medium truncate">{label}</div>
+            {labelExtra}
           </div>
-          {labelExtra}
+          {clientName && (
+            <div className="text-xs text-muted-foreground truncate">{clientName}</div>
+          )}
         </div>
-      </div>
-      <div className="min-w-0">
-        {clientName && (
-          <p className="text-sm text-muted-foreground truncate">{clientName}</p>
-        )}
       </div>
       
       {weekDays.map((day) => {

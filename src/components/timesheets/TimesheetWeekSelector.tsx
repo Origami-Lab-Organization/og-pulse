@@ -96,6 +96,16 @@ export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetW
       <Button variant="ghost" size="icon" className="shrink-0" onClick={() => scrollBy(1)}>
         <ChevronRight className="h-4 w-4" />
       </Button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        className="shrink-0 ml-1"
+        disabled={isSameDay(selectedWeekStart, currentWeekStart)}
+        onClick={() => onDateChange(new Date())}
+      >
+        Hoje
+      </Button>
     </div>
   );
 }
