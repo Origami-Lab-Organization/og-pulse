@@ -26,7 +26,7 @@ export function GlobalSaveIndicator({ saveStatuses }: GlobalSaveIndicatorProps) 
     );
   }
 
-  if (statuses.some((s) => s.status === "retrying")) {
+  if (statuses.some((s) => (s.status as string) === "retrying")) {
     return (
       <span className="flex items-center gap-1.5 text-xs text-amber-600 ml-auto shrink-0">
         <Loader2 className="h-3 w-3 animate-spin" />
