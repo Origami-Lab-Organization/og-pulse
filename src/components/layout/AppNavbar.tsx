@@ -10,7 +10,6 @@ import {
   Kanban,
   Receipt,
   LogOut,
-  BarChart2,
   FileSignature,
   DollarSign,
   Palmtree,
@@ -55,13 +54,6 @@ const navigationGroups: NavGroup[] = [
       { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
-    ],
-  },
-  {
-    label: 'Marketing',
-    requiresManager: true,
-    items: [
-      { title: 'Análise de Mercado', url: '/marketing/analise-mercado', icon: BarChart2, requiresManager: true },
     ],
   },
   {

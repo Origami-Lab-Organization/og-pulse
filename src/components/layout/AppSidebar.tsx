@@ -10,7 +10,6 @@ import {
   Kanban,
   Receipt,
   ChevronDown,
-  BarChart2,
   FileSignature,
   DollarSign,
   Palmtree,
@@ -55,12 +54,6 @@ const navigationGroups = [
       { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
-    ] as NavItem[],
-  },
-  {
-    label: 'Marketing',
-    items: [
-      { title: 'Análise de Mercado', url: '/marketing/analise-mercado', icon: BarChart2 },
     ] as NavItem[],
   },
   {

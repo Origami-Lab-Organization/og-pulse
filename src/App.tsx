@@ -35,7 +35,6 @@ import CommercialDashboard from "./pages/CommercialDashboard";
 import Welcome from "./pages/Welcome";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
-import MarketAnalysisPage from "./pages/marketing/MarketAnalysisPage";
 import TerminatedEmployees from "./pages/TerminatedEmployees";
 import Services from "./pages/Services";
 
@@ -231,14 +230,6 @@ const App = () => (
                     <AdminPortal />
                   </RoleProtectedRoute>
                 } 
-              />
-              <Route
-                path="/marketing/analise-mercado"
-                element={
-                  <RoleProtectedRoute requireManager>
-                    <MarketAnalysisPage />
-                  </RoleProtectedRoute>
-                 }
               />
               <Route 
                 path="/rh/funcionarios-desligados" 
