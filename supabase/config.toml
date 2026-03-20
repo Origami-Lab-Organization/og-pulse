@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.seed-demo-tenant]
 verify_jwt = false
+
+[functions.notify-timesheet-reminder]
+verify_jwt = false
+
+[functions.notify-timesheet-pending]
+verify_jwt = false
