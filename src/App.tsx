@@ -68,6 +68,7 @@ const App = () => (
               />
               {/* Root redirect */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/inbox" element={<Navigate to="/dashboard?inbox=open" replace />} />
               {/* Dashboard - accessible to all authenticated users */}
               <Route 
                 path="/dashboard" 

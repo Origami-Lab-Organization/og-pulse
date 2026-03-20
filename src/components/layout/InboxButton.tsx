@@ -5,6 +5,7 @@ import { usePendingReimbursementsCount } from '@/hooks/useReimbursements';
 import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { NotificationInbox } from '@/components/notifications/NotificationInbox';
 import { cn } from '@/lib/utils';
@@ -12,9 +13,20 @@ import { cn } from '@/lib/utils';
 export function InboxButton() {
   const { employee } = useAuth();
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data: pendingCount = 0 } = usePendingReimbursementsCount();
   const { data: notifCount = 0 } = useUnreadNotificationsCount();
   const [open, setOpen] = useState(false);
+
+  // Open inbox sheet when navigated via sidebar (/inbox → /dashboard?inbox=open)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('inbox') === 'open') {
+      setOpen(true);
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search]);
 
   const isManagerOrAdmin = employee?.is_gerente || employee?.isAdmin;
   const totalCount = (isManagerOrAdmin ? pendingCount : 0) + notifCount;
