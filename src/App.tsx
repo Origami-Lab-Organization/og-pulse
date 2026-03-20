@@ -16,6 +16,7 @@ import ChangePassword from "./pages/ChangePassword";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 import Materials from "@/pages/Materials";
+import Subscriptions from "@/pages/Subscriptions";
 import ProjectDetail from "./pages/ProjectDetail";
 import AdminPortal from "./pages/AdminPortal";
 import Budgets from "./pages/Budgets";
@@ -249,6 +250,7 @@ const App = () => (
                 } 
               />
               <Route path="/materiais" element={<RoleProtectedRoute requireManager><Materials /></RoleProtectedRoute>} />
+              <Route path="/assinaturas" element={<RoleProtectedRoute requireManager><Subscriptions /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
