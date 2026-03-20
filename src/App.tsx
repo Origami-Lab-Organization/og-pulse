@@ -15,6 +15,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
+import Materials from "@/pages/Materials";
 import ProjectDetail from "./pages/ProjectDetail";
 import AdminPortal from "./pages/AdminPortal";
 import Budgets from "./pages/Budgets";
@@ -247,6 +248,7 @@ const App = () => (
                   </RoleProtectedRoute>
                 } 
               />
+              <Route path="/materiais" element={<RoleProtectedRoute requireManager><Materials /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

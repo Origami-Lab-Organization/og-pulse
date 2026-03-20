@@ -74,7 +74,7 @@ const navigationGroups: NavGroup[] = [
       { title: 'Portfólio de Projetos', url: '/portfolio', icon: Kanban, requiresManager: true },
       { title: 'Alocação da Equipe', url: '/alocacao', icon: Clock, requiresManager: true },
       { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
-      { title: 'Materiais', url: '/materiais', icon: Package, requiresManager: true, disabled: true },
+      { title: 'Materiais', url: '/materiais', icon: Package, requiresManager: true },
       { title: 'Assinaturas', url: '/assinaturas', icon: RefreshCw, requiresManager: true, disabled: true },
       { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
     ],
