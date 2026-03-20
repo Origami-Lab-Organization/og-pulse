@@ -265,6 +265,54 @@ export type Database = {
           },
         ]
       }
+      budget_subscriptions: {
+        Row: {
+          budget_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_recurring: boolean
+          monthly_value: number
+          name: string
+          subscription_id: string | null
+        }
+        Insert: {
+          budget_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_recurring?: boolean
+          monthly_value?: number
+          name: string
+          subscription_id?: string | null
+        }
+        Update: {
+          budget_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_recurring?: boolean
+          monthly_value?: number
+          name?: string
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_subscriptions_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_subscriptions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_suppliers: {
         Row: {
           budget_id: string
@@ -2138,6 +2186,73 @@ export type Database = {
           },
         ]
       }
+      project_subscriptions: {
+        Row: {
+          budget_subscription_id: string | null
+          created_at: string
+          description: string | null
+          end_month: number | null
+          id: string
+          is_realized: boolean
+          is_recurring: boolean
+          monthly_value: number
+          name: string
+          project_id: string
+          start_month: number
+          subscription_id: string | null
+        }
+        Insert: {
+          budget_subscription_id?: string | null
+          created_at?: string
+          description?: string | null
+          end_month?: number | null
+          id?: string
+          is_realized?: boolean
+          is_recurring?: boolean
+          monthly_value?: number
+          name: string
+          project_id: string
+          start_month?: number
+          subscription_id?: string | null
+        }
+        Update: {
+          budget_subscription_id?: string | null
+          created_at?: string
+          description?: string | null
+          end_month?: number | null
+          id?: string
+          is_realized?: boolean
+          is_recurring?: boolean
+          monthly_value?: number
+          name?: string
+          project_id?: string
+          start_month?: number
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_subscriptions_budget_subscription_id_fkey"
+            columns: ["budget_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "budget_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_subscriptions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_subscriptions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_supplier_actuals: {
         Row: {
           created_at: string
@@ -2751,6 +2866,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "services_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          annual_cost: number
+          billing_cycle: string
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          monthly_cost: number
+          name: string
+          notes: string | null
+          tenant_id: string
+          updated_at: string
+          url: string | null
+          vendor: string | null
+        }
+        Insert: {
+          annual_cost?: number
+          billing_cycle?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          monthly_cost?: number
+          name: string
+          notes?: string | null
+          tenant_id: string
+          updated_at?: string
+          url?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          annual_cost?: number
+          billing_cycle?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          monthly_cost?: number
+          name?: string
+          notes?: string | null
+          tenant_id?: string
+          updated_at?: string
+          url?: string | null
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
