@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Edit } from 'lucide-react';
+import { Edit, Lock } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -115,6 +115,13 @@ export default function ProjectDetail() {
       <div className="space-y-6">
         <ProjectHeader project={project} />
 
+        {isReadOnly && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm">
+            <Lock className="h-4 w-4 shrink-0" />
+            <span>Este projeto está concluído. Apenas administradores podem realizar alterações.</span>
+          </div>
+        )}
+
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className={`grid w-full ${showValueBook ? 'grid-cols-8' : 'grid-cols-7'} lg:w-auto lg:inline-flex`}>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
@@ -165,7 +172,7 @@ export default function ProjectDetail() {
             {isPlanning ? (
               <ProjectExpectedResultTab project={project} />
             ) : (
-              <ProjectFinancialTab project={project} />
+              <ProjectFinancialTab project={project} isReadOnly={isReadOnly} />
             )}
           </TabsContent>
 

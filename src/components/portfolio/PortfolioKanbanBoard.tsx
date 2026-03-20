@@ -27,6 +27,7 @@ import { PortfolioProject, useUpdatePortfolioStage } from '@/hooks/usePortfolioP
 import { PORTFOLIO_COLUMNS, PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useProjectPlanningReadiness } from '@/hooks/useProjectPlanningReadiness';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 const STAGE_ORDER: PortfolioStage[] = [
@@ -60,6 +61,9 @@ export function PortfolioKanbanBoard({ projects }: PortfolioKanbanBoardProps) {
   const [retroDialog, setRetroDialog] = useState<RetroDialogState | null>(null);
   const [retroJustification, setRetroJustification] = useState('');
   const [completionDialog, setCompletionDialog] = useState<CompletionDialogState | null>(null);
+
+  const { employee } = useAuth();
+  const isAdmin = employee?.isAdmin ?? false;
 
   const updateStage = useUpdatePortfolioStage();
   const {
@@ -123,6 +127,16 @@ export function PortfolioKanbanBoard({ projects }: PortfolioKanbanBoardProps) {
     }
 
     if (!targetStage || targetStage === project.portfolio_stage) return;
+
+    // Projetos concluídos só podem ser movidos por admins
+    if (project.portfolio_stage === 'completed' && !isAdmin) {
+      toast({
+        title: 'Ação não permitida',
+        description: 'Apenas administradores podem mover projetos concluídos.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const currentIndex = STAGE_ORDER.indexOf(project.portfolio_stage as PortfolioStage);
     const targetIndex = STAGE_ORDER.indexOf(targetStage);

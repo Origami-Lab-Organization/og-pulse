@@ -41,6 +41,7 @@ interface ProjectInstallmentsTableProps {
   installments: ProjectInstallmentDB[];
   projectId: string;
   isManualInstallments?: boolean;
+  isReadOnly?: boolean;
 }
 
 const statusColors: Record<InstallmentStatus, string> = {
@@ -54,6 +55,7 @@ export function ProjectInstallmentsTable({
   installments,
   projectId,
   isManualInstallments = false,
+  isReadOnly = false,
 }: ProjectInstallmentsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<{
@@ -181,7 +183,7 @@ export function ProjectInstallmentsTable({
 
   return (
     <div className="space-y-3">
-      {isManualInstallments && (
+      {isManualInstallments && !isReadOnly && (
         <div className="flex justify-end">
           <Button
             size="sm"
@@ -211,7 +213,7 @@ export function ProjectInstallmentsTable({
                 <TableHead>Data Emissão</TableHead>
                 <TableHead>Data Pagamento</TableHead>
                 {isManualInstallments && <TableHead>Descrição</TableHead>}
-                <TableHead className="w-[100px]">Ações</TableHead>
+                {!isReadOnly && <TableHead className="w-[100px]">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -396,7 +398,7 @@ export function ProjectInstallmentsTable({
                       {installment.notes || '-'}
                     </TableCell>
                   )}
-                  <TableCell>
+                  {!isReadOnly && <TableCell>
                     {editingId === installment.id ? (
                       <div className="flex gap-1">
                         <Button
@@ -436,7 +438,7 @@ export function ProjectInstallmentsTable({
                         )}
                       </div>
                     )}
-                  </TableCell>
+                  </TableCell>}
                 </TableRow>
               ))}
             </TableBody>

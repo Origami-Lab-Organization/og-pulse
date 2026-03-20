@@ -3,13 +3,14 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Building2, User, Calendar, Layers, History } from 'lucide-react';
+import { Building2, User, Calendar, Layers, History, Lock } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getProjectHealth } from '@/lib/projectHealth';
 import { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PortfolioCardProps {
   project: PortfolioProject;
@@ -17,6 +18,9 @@ interface PortfolioCardProps {
 
 export function PortfolioCard({ project }: PortfolioCardProps) {
   const navigate = useNavigate();
+  const { employee } = useAuth();
+  const isAdmin = employee?.isAdmin ?? false;
+  const isLocked = project.portfolio_stage === 'completed' && !isAdmin;
   const {
     attributes,
     listeners,
@@ -58,24 +62,40 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
     navigate(`/projects/${project.id}`);
   };
 
+  const dragProps = isLocked ? {} : { ...attributes, ...listeners };
+
   return (
     <Card
       ref={setNodeRef}
       style={style}
-      className={`p-3 cursor-grab active:cursor-grabbing transition-all ${
-        isDragging ? 'opacity-50 shadow-lg rotate-2' : 'hover:shadow-md'
+      className={`p-3 transition-all ${
+        isLocked
+          ? 'cursor-default'
+          : isDragging
+          ? 'cursor-grabbing opacity-50 shadow-lg rotate-2'
+          : 'cursor-grab hover:shadow-md'
       }`}
-      {...attributes}
-      {...listeners}
+      {...dragProps}
       onClick={handleClick}
     >
       <div className="flex items-start justify-between gap-1.5 mb-2">
         <h4 className="font-medium text-sm text-foreground line-clamp-2 flex-1">
           {project.name}
         </h4>
+        <div className="flex items-center gap-1 shrink-0">
+          {isLocked && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Lock className="h-3 w-3 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                Apenas administradores podem alterar projetos concluídos
+              </TooltipContent>
+            </Tooltip>
+          )}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge variant="outline" className={`shrink-0 cursor-default ${health.className}`}>
+            <Badge variant="outline" className={`cursor-default ${health.className}`}>
               {health.label}
             </Badge>
           </TooltipTrigger>
@@ -85,6 +105,7 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
             ))}
           </TooltipContent>
         </Tooltip>
+        </div>
       </div>
 
       <div className="space-y-1.5 text-xs text-muted-foreground">
