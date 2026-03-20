@@ -81,7 +81,7 @@ export function TimesheetReminderSettings() {
   }, [settings, form]);
 
   const onSubmit = (values: FormValues) => {
-    updateMutation.mutate(values);
+    updateMutation.mutate(values as UpdateTimesheetReminderSettingsInput);
   };
 
   if (isLoading) {
