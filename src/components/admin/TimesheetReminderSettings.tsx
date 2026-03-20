@@ -33,6 +33,7 @@ import { Loader2 } from 'lucide-react';
 import {
   useTimesheetReminderSettings,
   useUpdateTimesheetReminderSettings,
+  UpdateTimesheetReminderSettingsInput,
 } from '@/hooks/useTimesheetReminderSettings';
 
 const DAYS_OF_WEEK = [

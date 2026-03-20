@@ -460,7 +460,7 @@ export default function CRM() {
                       </TableCell>
                       <TableCell>
                         {lead.budget
-                          ? <BudgetStatusBadge status={lead.budget.status} />
+                          ? <BudgetStatusBadge status={lead.budget.status as BudgetStatus} />
                           : <span className="text-sm text-muted-foreground">Sem orçamento</span>
                         }
                       </TableCell>
