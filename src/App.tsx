@@ -24,7 +24,6 @@ import AdminPortal from "./pages/AdminPortal";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import LandingPage from "./pages/LandingPage";
-import UnderConstruction from "./pages/UnderConstruction";
 import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
 import ArchivedLeads from "./pages/ArchivedLeads";
@@ -72,15 +71,6 @@ const App = () => (
               {/* Root redirect */}
               <Route path="/" element={<Navigate to="/inbox" replace />} />
               <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
-              {/* Dashboard - accessible to all authenticated users */}
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <UnderConstruction />
-                  </ProtectedRoute>
-                } 
-              />
               {/* My Timesheet - all authenticated users */}
               <Route 
                 path="/my-timesheet" 
