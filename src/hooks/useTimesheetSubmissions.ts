@@ -214,7 +214,7 @@ export const useSubmitProjectWeek = () => {
 
       return submission;
     },
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['project-timesheet-submissions'] });
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
@@ -233,6 +233,48 @@ export const useSubmitProjectWeek = () => {
         }
       } catch (e) {
         console.error('Error auto-resolving timesheet_pending notifications:', e);
+      }
+
+      // Best-effort: notify project manager about this submission
+      try {
+        if (employee?.id && employee?.tenant_id && variables.projectId) {
+          const { data: project } = await supabase
+            .from('projects' as any)
+            .select('name, manager_id')
+            .eq('id', variables.projectId)
+            .maybeSingle();
+          if (project && (project as any).manager_id && (project as any).manager_id !== employee.id) {
+            const weekStartDate = new Date(variables.weekStart);
+            const weekEndDate = new Date(weekStartDate);
+            weekEndDate.setDate(weekEndDate.getDate() + 4);
+            const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            const projectName = (project as any).name || '';
+            const weekEnd = weekEndDate.toISOString().split('T')[0];
+            await supabase.from('notifications' as any).insert({
+              tenant_id: employee.tenant_id,
+              recipient_id: (project as any).manager_id,
+              type: 'timesheet_submitted',
+              category: 'timesheet',
+              priority: 'normal',
+              action_type: 'info',
+              title: `${employee.nome} enviou timesheet — ${projectName}`,
+              message: `${employee.nome} enviou as horas da semana ${fmt(weekStartDate)} a ${fmt(weekEndDate)} no projeto "${projectName}". Total: ${variables.totalHours}h.`,
+              metadata: {
+                employee_name: employee.nome,
+                project_name: projectName,
+                week_start: variables.weekStart,
+                week_end: weekEnd,
+                total_hours: variables.totalHours,
+              },
+              is_read: false,
+              is_resolved: false,
+            } as any);
+            queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
+            queryClient.invalidateQueries({ queryKey: ['inbox-counts'] });
+          }
+        }
+      } catch (e) {
+        console.error('Error creating timesheet_submitted notification:', e);
       }
 
       toast({
@@ -378,17 +420,47 @@ export const useSubmitAllProjects = () => {
           .single();
 
         if (submitterEmployee) {
+          const weekStartDate = new Date(weekStart);
+          const weekEndDate = new Date(weekStartDate);
+          weekEndDate.setDate(weekEndDate.getDate() + 4);
+          const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
           for (const [managerId, projectNames] of managerProjects) {
             if (managerId === submitterEmployee.id) continue;
-            await supabase.from('notifications').insert({
+            const totalHoursForManager = projects
+              .filter(p => {
+                const proj = (projectData || []).find((pd: any) => pd.id === p.projectId);
+                return (proj as any)?.manager_id === managerId;
+              })
+              .reduce((sum, p) => sum + p.totalHours, 0);
+
+            const firstProject = projectNames[0] || '';
+            const title = projectNames.length === 1
+              ? `${submitterEmployee.nome} enviou timesheet — ${firstProject}`
+              : `${submitterEmployee.nome} enviou timesheet — ${projectNames.length} projetos`;
+            const message = projectNames.length === 1
+              ? `${submitterEmployee.nome} enviou as horas da semana ${fmt(weekStartDate)} a ${fmt(weekEndDate)} no projeto "${firstProject}". Total: ${totalHoursForManager}h.`
+              : `${submitterEmployee.nome} enviou as horas da semana ${fmt(weekStartDate)} a ${fmt(weekEndDate)} em ${projectNames.length} projetos: ${projectNames.join(', ')}. Total: ${totalHoursForManager}h.`;
+
+            await supabase.from('notifications' as any).insert({
               tenant_id: submitterEmployee.tenant_id,
               recipient_id: managerId,
               type: 'timesheet_submitted',
-              title: `${submitterEmployee.nome} enviou timesheet`,
-              message: projectNames.length === 1
-                ? `Horas enviadas no projeto ${projectNames[0]}.`
-                : `Horas enviadas em ${projectNames.length} projetos: ${projectNames.join(', ')}.`,
-            });
+              category: 'timesheet',
+              priority: 'normal',
+              action_type: 'info',
+              title,
+              message,
+              metadata: {
+                employee_name: submitterEmployee.nome,
+                project_names: projectNames,
+                week_start: weekStart,
+                week_end: weekEndDate.toISOString().split('T')[0],
+                total_hours: totalHoursForManager,
+              },
+              is_read: false,
+              is_resolved: false,
+            } as any);
           }
         }
       } catch (notifError) {
@@ -623,8 +695,8 @@ export const useAdminBatchEditTimesheets = () => {
                 action_url: `/my-timesheet?week=${mondayStr}`,
                 recipient_id: recipientId,
                 tenant_id: employee.tenant_id,
-                title: 'Timesheet alterada pelo gestor',
-                message: `${employee.nome} ajustou suas horas no projeto "${projectName}" de ${format(workDate, 'dd/MM')}.`,
+                title: `Timesheet alterada por ${employee.nome} — ${format(workDate, 'dd/MM')}`,
+                message: `Suas horas no projeto "${projectName}" foram ajustadas de ${change.previousHours}h para ${change.newHours}h.`,
                 metadata: {
                   editor_name: employee.nome,
                   project_name: projectName,

@@ -321,6 +321,10 @@ export function useCreateReimbursement() {
           }
         };
 
+        const fmtCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+        const fmtAmount = fmtCurrency(params.total_amount);
+        const shortDesc = params.description ? params.description.slice(0, 80) : '';
+
         if (autoApprove) {
           // Gerente + projeto: auto-aprovado, notifica admins para pagamento
           let projectName = '';
@@ -330,25 +334,26 @@ export function useCreateReimbursement() {
             projectName = (proj as any)?.name || '';
           }
           await notifyAdmins(
-            'Reembolso aprovado aguardando pagamento',
-            'Um reembolso de gerente foi enviado e aguarda confirmação de pagamento.',
+            `Reembolso de ${employee.nome} aprovado — ${fmtAmount}`,
+            `Projeto "${projectName}". Aprovação automática (gerente do projeto). Aguarda confirmação de pagamento.`,
             'reimbursement_approved',
             {
               category: 'reimbursement',
-              action_type: 'approve_reject',
+              action_type: 'info',
               priority: 'high',
               metadata: {
                 amount: params.total_amount,
                 project_name: projectName,
                 requester_name: employee.nome,
+                auto_approved: true,
               },
             },
           );
         } else if (employee.is_gerente && params.is_internal) {
           // Gerente + interno: precisa de aprovação do admin
           await notifyAdmins(
-            'Novo pedido de reembolso',
-            'Um gerente enviou um pedido de reembolso administrativo aguardando sua aprovação.',
+            `${employee.nome} (gerente) solicitou reembolso de ${fmtAmount}`,
+            `Pedido administrativo aguardando sua aprovação.${shortDesc ? ' ' + shortDesc : ''}`,
             'reimbursement_pending',
             {
               category: 'reimbursement',
@@ -356,8 +361,9 @@ export function useCreateReimbursement() {
               priority: 'high',
               metadata: {
                 amount: params.total_amount,
-                project_name: '',
                 requester_name: employee.nome,
+                description: shortDesc,
+                is_internal: true,
               },
             },
           );
@@ -366,28 +372,31 @@ export function useCreateReimbursement() {
           const { data: project } = await supabase
             .from('projects' as any).select('manager_id, name').eq('id', params.project_id).maybeSingle();
           if (project && (project as any).manager_id) {
+            const projectName = (project as any).name || '';
             await supabase.from('notifications' as any).insert({
               tenant_id: employee.tenant_id,
               recipient_id: (project as any).manager_id,
               type: 'reimbursement_pending',
-              title: 'Novo pedido de reembolso',
-              message: 'Um funcionário enviou um pedido de reembolso de projeto aguardando sua aprovação.',
+              title: `${employee.nome} solicitou reembolso de ${fmtAmount}`,
+              message: `Pedido vinculado ao projeto "${projectName}".${shortDesc ? ' ' + shortDesc : ''}`,
               reference_id: requestId,
               category: 'reimbursement',
               action_type: 'approve_reject',
               priority: 'high',
               metadata: {
                 amount: params.total_amount,
-                project_name: (project as any).name || '',
+                project_name: projectName,
                 requester_name: employee.nome,
+                description: shortDesc,
+                is_internal: false,
               },
             } as any);
           }
         } else {
           // Funcionário + interno: notifica admins
           await notifyAdmins(
-            'Novo pedido de reembolso',
-            'Um funcionário enviou um pedido de reembolso administrativo aguardando sua aprovação.',
+            `${employee.nome} solicitou reembolso interno de ${fmtAmount}`,
+            shortDesc || 'Pedido de reembolso interno aguardando aprovação.',
             'reimbursement_pending',
             {
               category: 'reimbursement',
@@ -395,8 +404,9 @@ export function useCreateReimbursement() {
               priority: 'high',
               metadata: {
                 amount: params.total_amount,
-                project_name: '',
                 requester_name: employee.nome,
+                description: shortDesc,
+                is_internal: true,
               },
             },
           );
@@ -449,23 +459,32 @@ export function useApproveReimbursement() {
       try {
         const { data: reimb } = await supabase
           .from('reimbursement_requests' as any)
-          .select('requested_by, total_amount')
+          .select('requested_by, total_amount, project_id, is_internal')
           .eq('id', reimbursementId)
           .single();
         if (reimb) {
+          const fmtAmount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((reimb as any).total_amount);
+          let projectName = '';
+          if ((reimb as any).project_id) {
+            const { data: proj } = await supabase.from('projects').select('name').eq('id', (reimb as any).project_id).maybeSingle();
+            projectName = (proj as any)?.name || '';
+          }
+          const typeLabel = (reimb as any).is_internal ? 'Reembolso interno' : projectName ? `Projeto "${projectName}"` : 'Reembolso';
           await supabase.from('notifications' as any).insert({
             tenant_id: employee.tenant_id,
             recipient_id: (reimb as any).requested_by,
             type: 'reimbursement_approved',
-            title: 'Reembolso aprovado',
-            message: 'Seu pedido de reembolso foi aprovado e aguarda pagamento.',
+            title: `Reembolso aprovado — ${fmtAmount}`,
+            message: `${typeLabel} aprovado por ${employee.nome}. Aguardando pagamento pelo financeiro.`,
             reference_id: reimbursementId,
             category: 'reimbursement',
             action_type: 'info',
             priority: 'normal',
             metadata: {
               amount: (reimb as any).total_amount,
+              project_name: projectName,
               reviewer_name: employee.nome,
+              is_internal: (reimb as any).is_internal,
             },
           } as any);
         }
@@ -477,41 +496,58 @@ export function useApproveReimbursement() {
       try {
         const { data: reimb } = await supabase
           .from('reimbursement_requests' as any)
-          .select('total_amount')
+          .select('total_amount, project_id, is_internal, requested_by')
           .eq('id', reimbursementId)
           .maybeSingle();
 
-        const { data: admins } = await supabase
-          .from('user_roles' as any)
-          .select('user_id')
-          .eq('tenant_id', employee.tenant_id)
-          .eq('role', 'admin');
+        if (reimb) {
+          const fmtAmount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((reimb as any).total_amount);
+          let requesterName = '';
+          let projectName = '';
+          if ((reimb as any).requested_by) {
+            const { data: req } = await supabase.from('employees').select('nome').eq('id', (reimb as any).requested_by).maybeSingle();
+            requesterName = (req as any)?.nome || '';
+          }
+          if ((reimb as any).project_id) {
+            const { data: proj } = await supabase.from('projects').select('name').eq('id', (reimb as any).project_id).maybeSingle();
+            projectName = (proj as any)?.name || '';
+          }
+          const typeLabel = (reimb as any).is_internal ? 'Reembolso interno' : projectName ? `Projeto "${projectName}"` : 'Reembolso';
 
-        if (admins && admins.length > 0) {
-          const adminUserIds = (admins as any[]).map((a: any) => a.user_id);
-          const { data: adminEmps } = await supabase
-            .from('employees')
-            .select('id, auth_id')
-            .in('auth_id', adminUserIds);
+          const { data: admins } = await supabase
+            .from('user_roles' as any)
+            .select('user_id')
+            .eq('tenant_id', employee.tenant_id)
+            .eq('role', 'admin');
 
-          if (adminEmps && adminEmps.length > 0) {
-            const notifications = adminEmps.map((emp: any) => ({
-              tenant_id: employee.tenant_id,
-              recipient_id: emp.id,
-              type: 'reimbursement_approved',
-              title: 'Reembolso aprovado aguardando pagamento',
-              message: `Um reembolso foi aprovado e aguarda confirmação de pagamento.`,
-              reference_id: reimbursementId,
-              category: 'reimbursement',
-              action_type: 'info',
-              priority: 'normal',
-              metadata: {
-                amount: (reimb as any)?.total_amount,
-                reviewer_name: employee.nome,
-              },
-            }));
+          if (admins && admins.length > 0) {
+            const adminUserIds = (admins as any[]).map((a: any) => a.user_id);
+            const { data: adminEmps } = await supabase
+              .from('employees')
+              .select('id, auth_id')
+              .in('auth_id', adminUserIds);
 
-            await supabase.from('notifications' as any).insert(notifications as any);
+            if (adminEmps && adminEmps.length > 0) {
+              const notifications = adminEmps.map((emp: any) => ({
+                tenant_id: employee.tenant_id,
+                recipient_id: emp.id,
+                type: 'reimbursement_approved',
+                title: `Reembolso de ${requesterName || 'funcionário'} aprovado — ${fmtAmount}`,
+                message: `${typeLabel}. Aprovado por ${employee.nome}. Aguarda confirmação de pagamento.`,
+                reference_id: reimbursementId,
+                category: 'reimbursement',
+                action_type: 'info',
+                priority: 'normal',
+                metadata: {
+                  amount: (reimb as any).total_amount,
+                  project_name: projectName,
+                  requester_name: requesterName,
+                  reviewer_name: employee.nome,
+                  is_internal: (reimb as any).is_internal,
+                },
+              }));
+              await supabase.from('notifications' as any).insert(notifications as any);
+            }
           }
         }
       } catch (e) {
@@ -555,24 +591,37 @@ export function useMarkReimbursementPaid() {
       // Get the requester to notify them
       const { data: reimb } = await supabase
         .from('reimbursement_requests' as any)
-        .select('requested_by, total_amount')
+        .select('requested_by, total_amount, project_id, is_internal')
         .eq('id', reimbursementId)
         .single();
 
       if (reimb) {
+        const fmtAmount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((reimb as any).total_amount);
+        let projectName = '';
+        try {
+          if ((reimb as any).project_id) {
+            const { data: proj } = await supabase.from('projects').select('name').eq('id', (reimb as any).project_id).maybeSingle();
+            projectName = (proj as any)?.name || '';
+          }
+        } catch { /* best-effort */ }
+        const today = new Date().toLocaleDateString('pt-BR');
+        const typeLabel = (reimb as any).is_internal ? 'Reembolso interno' : projectName ? `Projeto "${projectName}"` : 'Reembolso';
         await supabase.from('notifications' as any).insert({
           tenant_id: employee.tenant_id,
           recipient_id: (reimb as any).requested_by,
           type: 'reimbursement_paid',
-          title: 'Reembolso pago',
-          message: 'Seu pedido de reembolso foi pago!',
+          title: `Reembolso pago — ${fmtAmount}`,
+          message: `${typeLabel} pago em ${today}.`,
           reference_id: reimbursementId,
           category: 'reimbursement',
           action_type: 'info',
           priority: 'normal',
           metadata: {
             amount: (reimb as any).total_amount,
+            project_name: projectName,
             paid_by_name: employee.nome,
+            paid_at: new Date().toISOString(),
+            is_internal: (reimb as any).is_internal,
           },
         } as any);
       }
@@ -785,24 +834,34 @@ export function useRejectReimbursement() {
       try {
         const { data: reimb } = await supabase
           .from('reimbursement_requests' as any)
-          .select('requested_by, total_amount')
+          .select('requested_by, total_amount, project_id, is_internal')
           .eq('id', params.reimbursementId)
           .single();
         if (reimb) {
+          const fmtAmount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((reimb as any).total_amount);
+          let projectName = '';
+          if ((reimb as any).project_id) {
+            const { data: proj } = await supabase.from('projects').select('name').eq('id', (reimb as any).project_id).maybeSingle();
+            projectName = (proj as any)?.name || '';
+          }
+          const typeLabel = (reimb as any).is_internal ? 'Reembolso interno' : projectName ? `Projeto "${projectName}"` : 'Reembolso';
+          const shortReason = params.reason.slice(0, 100);
           await supabase.from('notifications' as any).insert({
             tenant_id: employee.tenant_id,
             recipient_id: (reimb as any).requested_by,
             type: 'reimbursement_rejected',
-            title: 'Reembolso rejeitado',
-            message: 'Seu pedido de reembolso foi rejeitado. Acesse os detalhes para ver o motivo.',
+            title: `Reembolso rejeitado — ${fmtAmount}`,
+            message: `${typeLabel} rejeitado por ${employee.nome}. Motivo: "${shortReason}"`,
             reference_id: params.reimbursementId,
             category: 'reimbursement',
             action_type: 'navigate',
             priority: 'normal',
             metadata: {
               amount: (reimb as any).total_amount,
+              project_name: projectName,
               reviewer_name: employee.nome,
               rejection_reason: params.reason,
+              is_internal: (reimb as any).is_internal,
             },
           } as any);
         }

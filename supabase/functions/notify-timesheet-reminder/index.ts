@@ -128,6 +128,9 @@ serve(async (req) => {
         if (existing && existing.length > 0) continue;
 
         // Insert notification
+        const weekStartFmt = weekStart.slice(8, 10) + "/" + weekStart.slice(5, 7);
+        const weekEndFmt = weekEnd.slice(8, 10) + "/" + weekEnd.slice(5, 7);
+
         const { error: insertError } = await supabase
           .from("notifications")
           .insert({
@@ -138,9 +141,10 @@ serve(async (req) => {
             priority: "normal",
             action_type: "navigate",
             action_url: "/my-timesheet",
-            title: "Lançar timesheet da semana",
+            title: `Lançar timesheet — semana ${weekStartFmt} a ${weekEndFmt}`,
             message:
-              "Lembre-se de lançar e enviar suas horas trabalhadas desta semana para todos os seus projetos.",
+              "Lembre-se de lançar e enviar as horas trabalhadas desta semana em todos os seus projetos antes do final do dia.",
+            metadata: { week_start: weekStart, week_end: weekEnd },
             is_read: false,
             is_resolved: false,
           });
