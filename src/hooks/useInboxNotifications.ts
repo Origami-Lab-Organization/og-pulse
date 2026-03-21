@@ -28,7 +28,7 @@ export function useInboxNotifications(folder: InboxFolder = 'all') {
       if (folder === 'archived') {
         query = query.eq('is_archived', true);
       } else {
-        query = query.eq('is_archived', false);
+        query = query.neq('is_archived', true);
         if (folder === 'unread') query = query.eq('is_read', false);
         if (folder === 'timesheet') query = query.eq('category', 'timesheet');
         if (folder === 'reimbursement') query = query.eq('category', 'reimbursement');

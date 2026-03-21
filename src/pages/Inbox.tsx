@@ -161,14 +161,6 @@ export default function InboxPage() {
     <AppLayout
       title="Caixa de entrada"
       description="Notificações e ações pendentes"
-      actions={
-        <InboxNewActionMenu
-          onReimbursementClick={() => {
-            setCorrectionData(null);
-            setReimbursementFormOpen(true);
-          }}
-        />
-      }
     >
       <div
         className="flex border rounded-lg bg-card overflow-hidden"

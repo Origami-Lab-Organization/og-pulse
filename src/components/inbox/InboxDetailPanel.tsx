@@ -133,7 +133,7 @@ export function InboxDetailPanel({
 /** Empty state shown when no notification is selected */
 export function InboxDetailEmpty() {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-16 text-center px-6 animate-in fade-in-0 duration-300">
+    <div className="flex flex-1 flex-col items-center justify-center py-16 text-center px-6 animate-in fade-in-0 duration-300">
       <div className="p-4 rounded-full bg-muted mb-4">
         <Inbox className="h-10 w-10 text-muted-foreground opacity-50" />
       </div>
