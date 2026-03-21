@@ -18,6 +18,8 @@ import NotFound from "./pages/NotFound";
 import Materials from "@/pages/Materials";
 import Subscriptions from "@/pages/Subscriptions";
 import ProjectDetail from "./pages/ProjectDetail";
+import MyProjects from "./pages/MyProjects";
+import MyProjectDetail from "./pages/MyProjectDetail";
 import AdminPortal from "./pages/AdminPortal";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
@@ -245,6 +247,8 @@ const App = () => (
               />
               <Route path="/materiais" element={<RoleProtectedRoute requireManager><Materials /></RoleProtectedRoute>} />
               <Route path="/assinaturas" element={<RoleProtectedRoute requireManager><Subscriptions /></RoleProtectedRoute>} />
+              <Route path="/my-projects" element={<ProtectedRoute><MyProjects /></ProtectedRoute>} />
+              <Route path="/my-projects/:id" element={<ProtectedRoute><MyProjectDetail /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
