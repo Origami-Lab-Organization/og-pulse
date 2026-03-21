@@ -53,7 +53,6 @@ const navigationGroups: NavGroup[] = [
     label: 'Meu Espaço',
     items: [
       { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
-      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Meus Projetos', url: '/my-projects', icon: FolderKanban },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
@@ -122,7 +121,7 @@ export function AppNavbar() {
     <header className="sticky top-0 z-50 flex h-14 items-center border-b bg-background px-4 gap-4">
       {/* Logo */}
       <button
-        onClick={() => navigate('/dashboard')}
+        onClick={() => navigate('/inbox')}
         className="flex items-center gap-2 shrink-0 mr-2 hover:opacity-80 transition-opacity"
       >
         <img src={logo} alt="Pulse" className="h-7 w-7" />

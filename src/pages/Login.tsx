@@ -34,7 +34,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const from = location.state?.from?.pathname || '/dashboard';
+  const from = location.state?.from?.pathname || '/inbox';
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),

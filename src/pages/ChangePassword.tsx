@@ -69,7 +69,7 @@ const ChangePassword = () => {
       description: 'Você será redirecionado para o sistema.',
     });
 
-    navigate('/dashboard', { replace: true });
+    navigate('/inbox', { replace: true });
   };
 
   return (
