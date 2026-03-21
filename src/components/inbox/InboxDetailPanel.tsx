@@ -62,7 +62,7 @@ export function InboxDetailPanel({
   }
 
   return (
-    <div className="flex flex-col h-full animate-in fade-in-0 duration-150">
+    <div className="flex flex-col h-full w-full animate-in fade-in-0 duration-150">
       {/* Header */}
       <div className="px-6 py-5 border-b flex items-start gap-4">
         <div
