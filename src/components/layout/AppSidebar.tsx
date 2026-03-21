@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-import { 
+import {
   LayoutDashboard,
   Users,
   Building2,
@@ -17,6 +17,7 @@ import {
   Briefcase,
   Package,
   RefreshCw,
+  Inbox,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,6 +52,7 @@ const navigationGroups = [
   {
     label: 'Meu Espaço',
     items: [
+      { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
       { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },

@@ -38,6 +38,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import TerminatedEmployees from "./pages/TerminatedEmployees";
 import Services from "./pages/Services";
+import Inbox from "./pages/Inbox";
 
 const queryClient = new QueryClient();
 
@@ -68,7 +69,7 @@ const App = () => (
               />
               {/* Root redirect */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/inbox" element={<Navigate to="/dashboard?inbox=open" replace />} />
+              <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
               {/* Dashboard - accessible to all authenticated users */}
               <Route 
                 path="/dashboard" 

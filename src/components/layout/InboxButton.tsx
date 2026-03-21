@@ -1,53 +1,35 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { usePendingReimbursementsCount } from '@/hooks/useReimbursements';
 import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { NotificationInbox } from '@/components/notifications/NotificationInbox';
 import { cn } from '@/lib/utils';
 
 export function InboxButton() {
   const { employee } = useAuth();
   const queryClient = useQueryClient();
-  const location = useLocation();
   const navigate = useNavigate();
-  const { data: pendingCount = 0 } = usePendingReimbursementsCount();
   const { data: notifCount = 0 } = useUnreadNotificationsCount();
-  const [open, setOpen] = useState(false);
-
-  // Open inbox sheet when navigated via sidebar (/inbox → /dashboard?inbox=open)
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('inbox') === 'open') {
-      setOpen(true);
-      navigate(location.pathname, { replace: true });
-    }
-  }, [location.search]);
-
-  const isManagerOrAdmin = employee?.is_gerente || employee?.isAdmin;
-  const totalCount = (isManagerOrAdmin ? pendingCount : 0) + notifCount;
 
   // Badge bounce when count increases
-  const prevCountRef = useRef(totalCount);
+  const prevCountRef = useRef(notifCount);
   const [bouncing, setBouncing] = useState(false);
   useEffect(() => {
-    if (totalCount > prevCountRef.current) {
+    if (notifCount > prevCountRef.current) {
       setBouncing(true);
       const t = setTimeout(() => setBouncing(false), 300);
-      prevCountRef.current = totalCount;
+      prevCountRef.current = notifCount;
       return () => clearTimeout(t);
     }
-    prevCountRef.current = totalCount;
-  }, [totalCount]);
+    prevCountRef.current = notifCount;
+  }, [notifCount]);
 
-  // Realtime subscription: invalidate badge count on new notification
+  // Realtime: invalidate badge count on new notification
   useEffect(() => {
     if (!employee?.id) return;
-
     const channel = supabase
       .channel('inbox-badge-' + employee.id)
       .on(
@@ -60,38 +42,33 @@ export function InboxButton() {
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
-          queryClient.invalidateQueries({ queryKey: ['pending-reimbursements-count'] });
+          queryClient.invalidateQueries({ queryKey: ['inbox-counts'] });
         },
       )
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [employee?.id, queryClient]);
 
   if (!employee) return null;
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="relative"
-        onClick={() => setOpen(true)}
-      >
-        <Inbox className="h-5 w-5" />
-        {totalCount > 0 && (
-          <span
-            className={cn(
-              'absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground',
-              bouncing && 'animate-bounce-badge',
-            )}
-          >
-            {totalCount > 9 ? '9+' : totalCount}
-          </span>
-        )}
-      </Button>
-
-      <NotificationInbox open={open} onOpenChange={setOpen} />
-    </>
+    <Button
+      variant="ghost"
+      size="icon"
+      className="relative"
+      onClick={() => navigate('/inbox')}
+    >
+      <Inbox className="h-5 w-5" />
+      {notifCount > 0 && (
+        <span
+          className={cn(
+            'absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground',
+            bouncing && 'animate-bounce-badge',
+          )}
+        >
+          {notifCount > 9 ? '9+' : notifCount}
+        </span>
+      )}
+    </Button>
   );
 }

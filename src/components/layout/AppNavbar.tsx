@@ -53,8 +53,8 @@ const navigationGroups: NavGroup[] = [
   {
     label: 'Meu Espaço',
     items: [
-      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
+      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Meus Projetos', url: '/my-projects', icon: FolderOpen, disabled: true },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
