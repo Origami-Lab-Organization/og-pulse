@@ -7,6 +7,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getFirstName(fullName: string): string {
+  return fullName.split(" ")[0];
+}
+
+function buildMessage(firstName: string, body: string): string {
+  return `Olá, ${firstName}!\n\n${body}\n\nAtenciosamente,\nPulse`;
+}
+
 /** Get ISO week start (Monday) for a given date, offset weeks back */
 function getISOWeekStart(date: Date, weeksBack = 0): Date {
   const d = new Date(date);
@@ -79,7 +87,7 @@ serve(async (req) => {
       // Get active employees
       const { data: employees, error: empError } = await supabase
         .from("employees")
-        .select("id")
+        .select("id, nome")
         .eq("tenant_id", tenant.id)
         .eq("status", "ativo");
       if (empError) {
@@ -152,8 +160,14 @@ serve(async (req) => {
           ? pendingProjectNames.join(", ")
           : "projetos ativos";
 
+        const firstName = getFirstName((emp as any).nome ?? "");
+        const empBody =
+          `Identificamos que você ainda possui horas lançadas que não foram enviadas referentes à semana de ${mondayFormatted} a ${sundayFormatted}.\n\n` +
+          `Projetos pendentes: ${projectsList}.\n\n` +
+          "Acesse o sistema para revisar e enviar o seu timesheet o quanto antes.";
+
         const title = `Timesheet pendente — semana ${mondayFormatted} a ${sundayFormatted}`;
-        const message = `Você tem horas lançadas que ainda não foram enviadas. Projetos pendentes: ${projectsList}.`;
+        const message = buildMessage(firstName, empBody);
         const metadata = {
           week_start: prevWeekStart,
           week_end: prevWeekSunday.toISOString().split("T")[0],
@@ -254,11 +268,20 @@ serve(async (req) => {
           managerMap.set(managerId, existing);
         }
 
+        // Fetch manager names for greeting
+        const allManagerIds = Array.from(managerMap.keys());
+        const { data: mgrNameData } = await supabase
+          .from("employees")
+          .select("id, nome")
+          .in("id", allManagerIds);
+        const mgrNamesMap = new Map((mgrNameData ?? []).map((m: any) => [m.id, m.nome as string]));
+
         // Create one notification per manager
         for (const [managerId, entries] of managerMap) {
           if (entries.length === 0) continue;
           const n = entries.length;
           const uniqueNames = [...new Set(entries.map(e => e.name))];
+          const mgrFirstName = getFirstName(mgrNamesMap.get(managerId) ?? "");
           const messageLines = entries
             .map(e => `• ${e.name} — ${e.project} (${e.hours}h lançadas, não enviado)`)
             .join("\n");
@@ -272,6 +295,11 @@ serve(async (req) => {
             .limit(1);
 
           const notifTitle = `${uniqueNames.length} funcionário(s) com timesheet pendente — semana ${mondayFormatted} a ${sundayFormatted}`;
+          const mgrBody =
+            `Os seguintes colaboradores possuem horas lançadas que ainda não foram enviadas referentes à semana de ${mondayFormatted} a ${sundayFormatted}:\n\n` +
+            messageLines + "\n\n" +
+            "Por favor, entre em contato com os colaboradores listados para que regularizem seus timesheets o quanto antes.";
+          const notifMessage = buildMessage(mgrFirstName, mgrBody);
           const notifMetadata = {
             week_start: prevWeekStart,
             week_end: prevWeekSunday.toISOString().split("T")[0],
@@ -284,7 +312,7 @@ serve(async (req) => {
               .update({
                 created_at: new Date().toISOString(),
                 title: notifTitle,
-                message: messageLines,
+                message: notifMessage,
                 metadata: notifMetadata,
               })
               .eq("id", existingMgrNotif[0].id);
@@ -297,7 +325,7 @@ serve(async (req) => {
               priority: "high",
               action_type: "info",
               title: notifTitle,
-              message: messageLines,
+              message: notifMessage,
               metadata: notifMetadata,
               is_read: false,
               is_resolved: false,

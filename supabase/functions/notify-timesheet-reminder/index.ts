@@ -7,6 +7,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getFirstName(fullName: string): string {
+  return fullName.split(" ")[0];
+}
+
+function buildMessage(firstName: string, body: string): string {
+  return `Olá, ${firstName}!\n\n${body}\n\nAtenciosamente,\nPulse`;
+}
+
 /** Get ISO week start (Monday) for a given date */
 function getISOWeekStart(date: Date): string {
   const d = new Date(date);
@@ -105,7 +113,7 @@ serve(async (req) => {
       // Get active employees for this tenant
       const { data: employees, error: empError } = await supabase
         .from("employees")
-        .select("id")
+        .select("id, nome")
         .eq("tenant_id", tenant.id)
         .eq("status", "ativo");
       if (empError) {
@@ -131,6 +139,11 @@ serve(async (req) => {
         const weekStartFmt = weekStart.slice(8, 10) + "/" + weekStart.slice(5, 7);
         const weekEndFmt = weekEnd.slice(8, 10) + "/" + weekEnd.slice(5, 7);
 
+        const firstName = getFirstName((emp as any).nome ?? "");
+        const body =
+          `Esta é uma lembrança para registrar e enviar as horas trabalhadas da semana atual (${weekStartFmt} a ${weekEndFmt}) em todos os seus projetos.\n\n` +
+          "Por favor, acesse o sistema antes do final do dia de hoje para evitar pendências no seu timesheet.";
+
         const { error: insertError } = await supabase
           .from("notifications")
           .insert({
@@ -142,8 +155,7 @@ serve(async (req) => {
             action_type: "navigate",
             action_url: "/my-timesheet",
             title: `Lançar timesheet — semana ${weekStartFmt} a ${weekEndFmt}`,
-            message:
-              "Lembre-se de lançar e enviar as horas trabalhadas desta semana em todos os seus projetos antes do final do dia.",
+            message: buildMessage(firstName, body),
             metadata: { week_start: weekStart, week_end: weekEnd },
             is_read: false,
             is_resolved: false,

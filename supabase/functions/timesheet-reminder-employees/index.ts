@@ -7,6 +7,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getFirstName(fullName: string): string {
+  return fullName.split(" ")[0];
+}
+
+function buildMessage(firstName: string, body: string): string {
+  return `Olá, ${firstName}!\n\n${body}\n\nAtenciosamente,\nPulse`;
+}
+
 /** Returns the ISO date string (yyyy-MM-dd) for Monday of the current week. */
 function getCurrentWeekStart(): string {
   const today = new Date();
@@ -50,7 +58,7 @@ serve(async (req) => {
       // 2a. Fetch active employees for this tenant
       const { data: employees, error: empError } = await supabase
         .from("employees")
-        .select("id")
+        .select("id, nome")
         .eq("tenant_id", tenant_id)
         .eq("status", "ativo");
 
@@ -111,6 +119,11 @@ serve(async (req) => {
         if (existing && existing.length > 0) continue;
 
         // 2e. Insert reminder notification
+        const firstName = getFirstName((employee as any).nome ?? "");
+        const body =
+          "Você ainda tem horas pendentes de lançamento nesta semana. " +
+          "Por favor, acesse o sistema e registre as horas trabalhadas em todos os seus projetos antes do final do dia.";
+
         const { error: insertError } = await supabase
           .from("notifications")
           .insert({
@@ -118,8 +131,7 @@ serve(async (req) => {
             recipient_id: employee.id,
             type: "timesheet_reminder",
             title: "Lembre-se de lançar suas horas",
-            message:
-              "Você tem horas pendentes esta semana. Acesse sua timesheet para enviar.",
+            message: buildMessage(firstName, body),
           });
 
         if (insertError) {

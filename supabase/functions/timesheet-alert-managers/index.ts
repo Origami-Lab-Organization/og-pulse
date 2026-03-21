@@ -7,6 +7,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getFirstName(fullName: string): string {
+  return fullName.split(" ")[0];
+}
+
+function buildMessage(firstName: string, body: string): string {
+  return `Olá, ${firstName}!\n\n${body}\n\nAtenciosamente,\nPulse`;
+}
+
 /** Returns ISO date strings for Monday and Friday of the current week. */
 function getCurrentWeekRange(): { weekStart: string; weekEnd: string } {
   const today = new Date();
@@ -149,9 +157,19 @@ serve(async (req) => {
         });
       }
 
+      // Fetch manager names for greeting
+      const allManagerIds = Array.from(managerPendencies.keys());
+      const { data: mgrNameData } = await supabase
+        .from("employees")
+        .select("id, nome")
+        .in("id", allManagerIds);
+      const mgrNamesMap = new Map((mgrNameData ?? []).map((m: any) => [m.id, m.nome as string]));
+
       // 2f. Send one notification per project per manager
       for (const [managerId, projectPendencies] of managerPendencies) {
         if (alertedManagerIds.has(managerId)) continue;
+
+        const mgrFirstName = getFirstName(mgrNamesMap.get(managerId) ?? "");
 
         for (const { projectId, projectName, pendingEmployees } of projectPendencies) {
           const count = pendingEmployees.length;
@@ -162,10 +180,12 @@ serve(async (req) => {
               ? `${pendingEmployees[0].nome} não lançou horas`
               : `${count} funcionários com horas pendentes`;
 
-          const message =
+          const bodyText =
             count === 1
-              ? `${pendingEmployees[0].nome} não enviou as horas no projeto ${projectName} esta semana.`
-              : `${nameList} não enviaram horas no projeto ${projectName} esta semana.`;
+              ? `${pendingEmployees[0].nome} ainda não enviou as horas trabalhadas no projeto ${projectName} nesta semana.\n\nPor favor, entre em contato para garantir que o timesheet seja enviado em dia.`
+              : `Os seguintes colaboradores ainda não enviaram as horas trabalhadas no projeto ${projectName} nesta semana: ${nameList}.\n\nPor favor, entre em contato com eles para garantir que os timesheets sejam enviados em dia.`;
+
+          const message = buildMessage(mgrFirstName, bodyText);
 
           const referenceId = count === 1 ? pendingEmployees[0].id : projectId;
 
