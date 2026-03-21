@@ -2575,6 +2575,7 @@ export type Database = {
           tenant_id: string
           total_value: number
           updated_at: string
+          value_book_url: string | null
         }
         Insert: {
           budget_id?: string | null
@@ -2602,6 +2603,7 @@ export type Database = {
           tenant_id: string
           total_value?: number
           updated_at?: string
+          value_book_url?: string | null
         }
         Update: {
           budget_id?: string | null
@@ -2629,6 +2631,7 @@ export type Database = {
           tenant_id?: string
           total_value?: number
           updated_at?: string
+          value_book_url?: string | null
         }
         Relationships: [
           {
