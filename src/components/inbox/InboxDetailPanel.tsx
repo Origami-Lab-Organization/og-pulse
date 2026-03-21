@@ -5,7 +5,7 @@ import { InboxReimbursementDetail } from './InboxReimbursementDetail';
 import { CorrectionData } from '@/components/reimbursements/ReimbursementFormDialog';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Archive, Trash2, Inbox } from 'lucide-react';
+import { Archive, Trash2, Inbox, Clock, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const statusBadge: Record<string, { label: string; className: string }> = {
@@ -19,18 +19,18 @@ const statusBadge: Record<string, { label: string; className: string }> = {
   reimbursement_paid: { label: 'Pago', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
 };
 
-const categoryConfig: Record<string, { bg: string; text: string; label: string; badge: string; badgeClass: string }> = {
+const categoryConfig: Record<string, { bg: string; text: string; icon: React.ElementType; badge: string; badgeClass: string }> = {
   timesheet: {
     bg: 'bg-amber-100 dark:bg-amber-900/30',
     text: 'text-amber-600 dark:text-amber-400',
-    label: 'T',
+    icon: Clock,
     badge: 'Timesheet',
     badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   },
   reimbursement: {
     bg: 'bg-green-100 dark:bg-green-900/30',
     text: 'text-green-600 dark:text-green-400',
-    label: '$',
+    icon: DollarSign,
     badge: 'Reembolso',
     badgeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   },
@@ -53,6 +53,7 @@ export function InboxDetailPanel({
 }: Props) {
   const badge = statusBadge[notification.type];
   const catConfig = categoryConfig[notification.category] ?? categoryConfig.timesheet;
+  const CatIcon = catConfig.icon;
 
   let timestamp = '';
   try {
@@ -67,12 +68,12 @@ export function InboxDetailPanel({
       <div className="px-6 py-5 border-b flex items-start gap-4">
         <div
           className={cn(
-            'flex h-9 w-9 items-center justify-center rounded-md flex-shrink-0 text-sm font-bold mt-0.5',
+            'flex h-9 w-9 items-center justify-center rounded-md flex-shrink-0 mt-0.5',
             catConfig.bg,
             catConfig.text,
           )}
         >
-          {catConfig.label}
+          <CatIcon className="h-4 w-4" />
         </div>
 
         <div className="flex-1 min-w-0">

@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import { Notification } from '@/hooks/useNotifications';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Archive, Trash2 } from 'lucide-react';
+import { Archive, Trash2, Clock, DollarSign } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 
@@ -17,16 +17,16 @@ const statusBadge: Record<string, { label: string; className: string }> = {
   reimbursement_paid: { label: 'Pago', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
 };
 
-const categoryIcon: Record<string, { bg: string; text: string; label: string }> = {
+const categoryIcon: Record<string, { bg: string; text: string; icon: React.ElementType }> = {
   timesheet: {
     bg: 'bg-amber-100 dark:bg-amber-900/30',
     text: 'text-amber-600 dark:text-amber-400',
-    label: 'T',
+    icon: Clock,
   },
   reimbursement: {
     bg: 'bg-green-100 dark:bg-green-900/30',
     text: 'text-green-600 dark:text-green-400',
-    label: '$',
+    icon: DollarSign,
   },
 };
 
@@ -63,6 +63,7 @@ export function InboxNotificationRow({
   isFocused = false,
 }: Props) {
   const iconConfig = categoryIcon[notification.category] ?? categoryIcon.timesheet;
+  const CategoryIcon = iconConfig.icon;
   const badge = statusBadge[notification.type];
   const showCheckbox = hasAnyChecked || isChecked;
 
@@ -116,12 +117,12 @@ export function InboxNotificationRow({
       {/* Category icon */}
       <div
         className={cn(
-          'flex h-8 w-8 items-center justify-center rounded-md flex-shrink-0 text-sm font-bold mt-0.5',
+          'flex h-8 w-8 items-center justify-center rounded-md flex-shrink-0 mt-0.5',
           iconConfig.bg,
           iconConfig.text,
         )}
       >
-        {iconConfig.label}
+        <CategoryIcon className="h-4 w-4" />
       </div>
 
       {/* Body */}
