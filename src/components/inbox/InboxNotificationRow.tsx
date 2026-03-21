@@ -6,16 +6,6 @@ import { Archive, Trash2, Clock, DollarSign } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 
-const statusBadge: Record<string, { label: string; className: string }> = {
-  timesheet_reminder: { label: 'Ação necessária', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  timesheet_pending: { label: 'Pendente', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  timesheet_modified: { label: 'Informativo', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  timesheet_submitted: { label: 'Enviado', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  reimbursement_pending: { label: 'Aprovar/Rejeitar', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  reimbursement_approved: { label: 'Aprovado', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  reimbursement_rejected: { label: 'Rejeitado', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  reimbursement_paid: { label: 'Pago', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-};
 
 const categoryIcon: Record<string, { bg: string; text: string; icon: React.ElementType }> = {
   timesheet: {
@@ -64,7 +54,6 @@ export function InboxNotificationRow({
 }: Props) {
   const iconConfig = categoryIcon[notification.category] ?? categoryIcon.timesheet;
   const CategoryIcon = iconConfig.icon;
-  const badge = statusBadge[notification.type];
   const showCheckbox = hasAnyChecked || isChecked;
 
   return (
@@ -134,22 +123,12 @@ export function InboxNotificationRow({
           {notification.message && (
             <p className="text-xs text-muted-foreground truncate max-w-[180px]">{notification.message}</p>
           )}
-          {badge && (
-            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full sm:hidden inline-block flex-shrink-0', badge.className)}>
-              {badge.label}
-            </span>
-          )}
         </div>
       </div>
 
-      {/* Meta — timestamp + badge, desktop only */}
+      {/* Meta — timestamp, desktop only */}
       <div className="text-right shrink-0 hidden sm:block">
         <p className="text-[11px] text-muted-foreground">{formatTime(notification.created_at)}</p>
-        {badge && (
-          <span className={cn('text-[10px] px-2 py-0.5 rounded-full mt-1 inline-block', badge.className)}>
-            {badge.label}
-          </span>
-        )}
       </div>
 
       {/* Quick actions on hover — desktop only, hidden in bulk-select mode */}
