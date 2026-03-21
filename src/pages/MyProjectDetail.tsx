@@ -27,6 +27,7 @@ export default function MyProjectDetail() {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const { data: project, isLoading } = useMyProjectDetail(id);
+  const isEmployeeOnly = !(employee?.is_gerente || employee?.isAdmin);
 
   if (isLoading) {
     return (
@@ -96,10 +97,12 @@ export default function MyProjectDetail() {
         <div className="space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <Badge className={cn('text-xs border-0', stageBadgeClass)}>{stageLabel}</Badge>
-            <Badge variant="outline" className="gap-1 text-xs">
-              <Lock className="h-3 w-3" />
-              Somente leitura
-            </Badge>
+            {isEmployeeOnly && (
+              <Badge variant="outline" className="gap-1 text-xs">
+                <Lock className="h-3 w-3" />
+                Somente leitura
+              </Badge>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted-foreground">

@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMyProjects } from '@/hooks/useMyProjects';
+import { useAuth } from '@/contexts/AuthContext';
 import { PORTFOLIO_COLUMNS, PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
 import { formatDate } from '@/lib/formatters';
@@ -31,7 +32,19 @@ function getStageBadgeClass(stage: string): string {
 
 export default function MyProjects() {
   const navigate = useNavigate();
+  const { employee } = useAuth();
+  const isManager = employee?.is_gerente ?? false;
+  const isAdmin = employee?.isAdmin ?? false;
+  const isEmployeeOnly = !isManager && !isAdmin;
   const { data: projects = [], isLoading } = useMyProjects();
+
+  const handleProjectClick = (projectId: string) => {
+    if (isAdmin || isManager) {
+      navigate(`/projects/${projectId}`);
+    } else {
+      navigate(`/my-projects/${projectId}`);
+    }
+  };
 
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
@@ -99,14 +112,16 @@ export default function MyProjects() {
               </p>
             </CardContent>
           </Card>
-          <Card className="col-span-2 md:col-span-1 flex items-center justify-center">
-            <CardContent className="pt-5 pb-4 flex items-center justify-center">
-              <Badge variant="secondary" className="gap-1 text-sm px-3 py-1.5">
-                <Eye className="h-3 w-3" />
-                Somente leitura
-              </Badge>
-            </CardContent>
-          </Card>
+          {isEmployeeOnly && (
+            <Card className="col-span-2 md:col-span-1 flex items-center justify-center">
+              <CardContent className="pt-5 pb-4 flex items-center justify-center">
+                <Badge variant="secondary" className="gap-1 text-sm px-3 py-1.5">
+                  <Eye className="h-3 w-3" />
+                  Somente leitura
+                </Badge>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Filters */}
@@ -177,7 +192,7 @@ export default function MyProjects() {
                 <Card
                   key={project.id}
                   className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all"
-                  onClick={() => navigate(`/my-projects/${project.id}`)}
+                  onClick={() => handleProjectClick(project.id)}
                 >
                   <CardContent className="pt-4 pb-5 space-y-3">
                     {/* Stage badge + service line */}
