@@ -219,7 +219,7 @@ export default function MyProjects() {
                   : 0;
               const stageBadgeClass = getStageBadgeClass(project.portfolioStage);
               const serviceLabel = project.serviceLine
-                ? (SERVICE_LINE_LABELS[project.serviceLine] ?? project.serviceLine)
+                ? (SERVICE_LINE_LABELS[project.serviceLine] ?? null)
                 : null;
 
               const barColorClass =
@@ -236,6 +236,15 @@ export default function MyProjects() {
                   ? 'bg-amber-500'
                   : project.status === 'planning'
                   ? 'bg-blue-500'
+                  : null;
+
+              const statusLabel =
+                project.status === 'active'
+                  ? 'Ativo'
+                  : project.status === 'paused'
+                  ? 'Pausado'
+                  : project.status === 'planning'
+                  ? 'Em planejamento'
                   : null;
 
               const tooltipText =
@@ -265,8 +274,17 @@ export default function MyProjects() {
                             {serviceLabel}
                           </span>
                         )}
-                        {statusDotClass && (
-                          <div className={cn('w-2 h-2 rounded-full', statusDotClass)} />
+                        {statusDotClass && statusLabel && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className={cn('w-2 h-2 rounded-full cursor-default', statusDotClass)} />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">{statusLabel}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                       </div>
                     </div>
