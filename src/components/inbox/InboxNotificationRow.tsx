@@ -47,6 +47,7 @@ interface Props {
   onArchive: (id: string) => void;
   onDelete: (id: string) => void;
   hasAnyChecked: boolean;
+  isFocused?: boolean;
 }
 
 export function InboxNotificationRow({
@@ -59,6 +60,7 @@ export function InboxNotificationRow({
   onArchive,
   onDelete,
   hasAnyChecked,
+  isFocused = false,
 }: Props) {
   const iconConfig = categoryIcon[notification.category] ?? categoryIcon.timesheet;
   const badge = statusBadge[notification.type];
@@ -66,37 +68,47 @@ export function InboxNotificationRow({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onClick();
+      }}
+      aria-selected={isSelected}
       className={cn(
-        'group relative flex items-start gap-2.5 px-3 py-3 cursor-pointer border-b transition-colors border-l-[3px]',
+        'group relative flex items-start gap-2.5 px-2.5 py-2.5 sm:px-3 sm:py-3 cursor-pointer border-b transition-colors border-l-[3px]',
         'animate-in fade-in-0 slide-in-from-bottom-1 duration-200 fill-mode-backwards',
+        'outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
         notification.is_read ? 'border-l-transparent' : 'border-l-primary',
         isSelected
           ? 'bg-accent'
           : isChecked
             ? 'bg-accent/50 hover:bg-accent/60'
             : 'hover:bg-muted/50',
+        isFocused && !isSelected && 'ring-2 ring-inset ring-primary/40',
       )}
       style={{ animationDelay: `${index * 30}ms` }}
     >
       {/* Checkbox / unread-dot area */}
       <div className="flex-shrink-0 w-5 flex items-center justify-center mt-1 relative">
-        {/* Unread dot — visible only when checkbox is hidden and notification is unread */}
+        {/* Unread dot — desktop only, hidden when checkbox is visible */}
         {!showCheckbox && !notification.is_read && (
-          <div className="absolute inset-0 flex items-center justify-center group-hover:hidden pointer-events-none">
-            <div className="h-2 w-2 rounded-full bg-primary" />
+          <div className="absolute inset-0 hidden sm:flex items-center justify-center group-hover:hidden pointer-events-none">
+            <div className="h-2 w-2 rounded-full bg-primary transition-all duration-200" />
           </div>
         )}
+        {/* Checkbox: always visible on mobile (touch), hover-only on desktop */}
         <div
           className={cn(
-            'transition-opacity',
-            showCheckbox ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+            'transition-opacity duration-200',
+            showCheckbox ? 'opacity-100' : 'sm:opacity-0 sm:group-hover:opacity-100',
           )}
           onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
             checked={isChecked}
             onCheckedChange={() => onToggleCheck(notification.id)}
+            aria-label={`Selecionar notificação: ${notification.title}`}
           />
         </div>
       </div>
@@ -129,7 +141,7 @@ export function InboxNotificationRow({
         </div>
       </div>
 
-      {/* Meta — timestamp + badge (desktop) */}
+      {/* Meta — timestamp + badge, desktop only */}
       <div className="text-right shrink-0 hidden sm:block">
         <p className="text-[11px] text-muted-foreground">{formatTime(notification.created_at)}</p>
         {badge && (
@@ -139,19 +151,20 @@ export function InboxNotificationRow({
         )}
       </div>
 
-      {/* Quick actions on row hover (hidden in bulk-select mode) */}
+      {/* Quick actions on hover — desktop only, hidden in bulk-select mode */}
       {!hasAnyChecked && (
         <div
           className={cn(
             'absolute right-2 top-1/2 -translate-y-1/2',
-            'opacity-0 group-hover:opacity-100 transition-opacity',
-            'bg-card border rounded-md shadow-sm p-0.5 flex gap-0.5',
+            'hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity duration-150',
+            'bg-card border rounded-md shadow-sm p-0.5 gap-0.5',
           )}
         >
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label="Arquivar notificação"
             onClick={(e) => { e.stopPropagation(); onArchive(notification.id); }}
           >
             <Archive className="h-3.5 w-3.5" />
@@ -160,6 +173,7 @@ export function InboxNotificationRow({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label="Excluir notificação"
             onClick={(e) => { e.stopPropagation(); onDelete(notification.id); }}
           >
             <Trash2 className="h-3.5 w-3.5" />

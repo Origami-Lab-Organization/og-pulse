@@ -1,5 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { Notification, useMarkNotificationRead } from '@/hooks/useNotifications';
 import {
@@ -19,10 +27,12 @@ import { InboxDetailPanel, InboxDetailEmpty } from '@/components/inbox/InboxDeta
 import { InboxNewActionMenu } from '@/components/inbox/InboxNewActionMenu';
 import { ReimbursementFormDialog, CorrectionData } from '@/components/reimbursements/ReimbursementFormDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function InboxPage() {
   const { employee } = useAuth();
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
 
   const [activeFolder, setActiveFolder] = useState<InboxFolder>('all');
@@ -43,7 +53,7 @@ export default function InboxPage() {
   const markMultipleRead = useMarkMultipleNotificationsRead();
   const markMultipleUnread = useMarkMultipleNotificationsUnread();
 
-  // Realtime: refresh on new notifications
+  // Realtime: refresh on all notification changes (INSERT, UPDATE, DELETE)
   useEffect(() => {
     if (!employee?.id) return;
     const channel = supabase
@@ -51,7 +61,7 @@ export default function InboxPage() {
       .on(
         'postgres_changes' as any,
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'notifications',
           filter: `recipient_id=eq.${employee.id}`,
@@ -164,17 +174,19 @@ export default function InboxPage() {
         className="flex border rounded-lg bg-card overflow-hidden"
         style={{ height: 'calc(100vh - 180px)' }}
       >
-        {/* Column 1: Sidebar */}
-        <InboxSidebar
-          activeFolder={activeFolder}
-          onFolderChange={handleFolderChange}
-          counts={counts}
-          onNewAction={() => { setCorrectionData(null); setReimbursementFormOpen(true); }}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
+        {/* Column 1: Sidebar — desktop only */}
+        <div className="hidden md:flex">
+          <InboxSidebar
+            activeFolder={activeFolder}
+            onFolderChange={handleFolderChange}
+            counts={counts}
+            onNewAction={() => { setCorrectionData(null); setReimbursementFormOpen(true); }}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        </div>
 
-        {/* Column 2: List */}
+        {/* Column 2: List — full width on mobile */}
         <InboxListPanel
           notifications={filteredNotifications}
           selectedId={selectedId}
@@ -187,12 +199,13 @@ export default function InboxPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           folder={activeFolder}
+          onFolderChange={handleFolderChange}
           onArchive={handleArchive}
           onDelete={handleDelete}
         />
 
-        {/* Column 3: Detail */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Column 3: Detail — desktop only */}
+        <div className="hidden md:flex flex-1 overflow-y-auto min-h-0">
           {selected ? (
             <InboxDetailPanel
               key={selected.id}
@@ -207,6 +220,42 @@ export default function InboxPage() {
           )}
         </div>
       </div>
+
+      {/* Mobile: detail in fullscreen Dialog */}
+      {isMobile && (
+        <Dialog
+          open={!!selected}
+          onOpenChange={(open) => { if (!open) setSelectedId(null); }}
+        >
+          <DialogContent className="max-w-full h-[90dvh] flex flex-col p-0 gap-0">
+            <DialogHeader className="px-4 py-3 border-b flex-row items-center gap-3 space-y-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => setSelectedId(null)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <DialogTitle className="text-base font-medium truncate">
+                {selected?.title ?? ''}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto">
+              {selected && (
+                <InboxDetailPanel
+                  key={selected.id}
+                  notification={selected}
+                  onActionComplete={handleActionComplete}
+                  onOpenCorrectForm={handleOpenCorrectForm}
+                  onArchive={() => { handleArchive(selected.id); setSelectedId(null); }}
+                  onDelete={() => { handleDelete(selected.id); setSelectedId(null); }}
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <ReimbursementFormDialog
         open={reimbursementFormOpen}
