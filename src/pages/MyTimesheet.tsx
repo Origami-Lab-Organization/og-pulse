@@ -12,7 +12,6 @@ import {
   Info,
   CircleAlert,
   ChevronRight,
-  ChevronDown,
   AlertCircle
 } from "lucide-react";
 import {
@@ -24,7 +23,6 @@ import { MyTimesheetAllocation } from "@/components/timesheets/MyTimesheetAlloca
 import { useMyAllocationData } from "@/hooks/useMyAllocationData";
 import { TimesheetWeekSelector } from "@/components/timesheets/TimesheetWeekSelector";
 import { GlobalSaveIndicator } from "@/components/timesheets/GlobalSaveIndicator";
-import { TimesheetWeekSummaryBar } from "@/components/timesheets/TimesheetWeekSummaryBar";
 import { TimesheetWeekRow } from "@/components/timesheets/TimesheetWeekRow";
 import type { SaveStatusInfo } from "@/components/timesheets/TimesheetWeekRow";
 import { ActivityTimesheetRow } from "@/components/timesheets/ActivityTimesheetRow";
@@ -37,15 +35,13 @@ import {
   getWeekDays
 } from "@/hooks/useTimesheetData";
 import { useSubmitAllProjects } from "@/hooks/useTimesheetSubmissions";
-import { useHolidays } from "@/hooks/useHolidays";
+import { useHolidays, isHoliday } from "@/hooks/useHolidays";
 import { useMyActivityTypes } from "@/hooks/useMyActivityTypes";
 import { useActivityTimesheetsByRange } from "@/hooks/useActivityTimesheets";
 import { Badge } from "@/components/ui/badge";
 import { format, addDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { isHoliday } from "@/hooks/useHolidays";
-import { Holiday } from "@/types/holiday";
 import {
   Tooltip,
   TooltipContent,
@@ -57,23 +53,12 @@ const MyTimesheet = () => {
   const { employee } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'weekly' | 'monthly'>('weekly');
+  const [weekSelectorMonth, setWeekSelectorMonth] = useState<Date>(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [activitiesOpen, setActivitiesOpen] = useState(true);
-  const [allocationExpanded, setAllocationExpanded] = useState(() => {
-    try {
-      return sessionStorage.getItem('timesheet-allocation-collapsed') !== 'true';
-    } catch {
-      return true;
-    }
-  });
-
-  const toggleAllocation = () => {
-    const next = !allocationExpanded;
-    setAllocationExpanded(next);
-    try {
-      sessionStorage.setItem('timesheet-allocation-collapsed', String(!next));
-    } catch {}
-  };
 
   // Dialog states
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false);
@@ -355,14 +340,7 @@ const MyTimesheet = () => {
     return { lockedCount: locked, draftCount: draft };
   }, [projects, timesheetEntries]);
 
-  const monthLabel = format(parseISO(monthKey + '-01'), "MMMM/yyyy", { locale: ptBR });
-
   const showFridayReminder = isFriday && isCurrentWeek && !allProjectsLocked;
-
-  const getHolidayForDate = (dateStr: string): Holiday | null => {
-    const date = parseISO(dateStr);
-    return isHoliday(date, holidays);
-  };
 
   const handleSubmitAll = () => {
     const projectsToSubmit = projects.map((p) => ({
@@ -412,112 +390,64 @@ const MyTimesheet = () => {
           </div>
 
           {viewMode === 'monthly' ? (
-            <MonthlyTimesheetView employeeId={employee!.id} />
+            <div className="space-y-4">
+              <MyTimesheetAllocation
+                employeeId={employee?.id}
+                monthKey={format(new Date(), 'yyyy-MM')}
+              />
+              <MonthlyTimesheetView employeeId={employee!.id} />
+            </div>
           ) : (
           <>
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <TimesheetWeekSelector
-                    selectedDate={selectedDate}
-                    onDateChange={setSelectedDate}
-                  />
-                </div>
-                <GlobalSaveIndicator saveStatuses={saveStatuses} />
+              {/* Linha 1: Navegador de mês — largura total */}
+              <div className="px-3 pb-1">
+                <TimesheetWeekSelector
+                  selectedDate={selectedDate}
+                  onDateChange={setSelectedDate}
+                  viewMonth={weekSelectorMonth}
+                  onViewMonthChange={setWeekSelectorMonth}
+                  part="month-nav"
+                />
               </div>
 
               {projects.length === 0 && myActivityTypes.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>
-                    Você não está alocado em nenhum projeto ativo nesta semana.
-                  </p>
-                  <p className="text-sm">
-                    Navegue para outra semana ou aguarde ser incluído em um
-                    projeto.
-                  </p>
-                </div>
+                <>
+                  <div className="px-3 pb-2">
+                    <TimesheetWeekSelector
+                      selectedDate={selectedDate}
+                      onDateChange={setSelectedDate}
+                      viewMonth={weekSelectorMonth}
+                      onViewMonthChange={setWeekSelectorMonth}
+                      part="chips"
+                    />
+                  </div>
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>
+                      Você não está alocado em nenhum projeto ativo nesta semana.
+                    </p>
+                    <p className="text-sm">
+                      Navegue para outra semana ou aguarde ser incluído em um
+                      projeto.
+                    </p>
+                  </div>
+                </>
               ) : (
                 <>
-                  <TimesheetWeekSummaryBar
-                    totalWeekHours={totalHoursAllProjects}
-                    projectCount={projects.length}
-                    activityCount={myActivityTypes.length}
-                    draftCount={draftCount}
-                    lockedCount={lockedCount}
-                    monthlyActualHours={allocationData?.totalActualHours}
-                    monthlyPlannedHours={allocationData?.totalPlannedHours}
-                    monthlyCapacity={allocationData?.monthlyCapacity}
-                    monthlyExpectedHours={allocationData?.expectedHours}
-                    monthLabel={monthLabel}
-                  />
-                  {showFridayReminder && (
-                    <div className="flex items-start gap-2.5 mx-0 mt-2 mb-1 px-3 py-2.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-500">
-                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-amber-800 dark:text-amber-200">
-                        <span className="font-medium">Lembrete:</span> Envie suas horas até o final do dia. Após o envio, somente seu gerente ou admin poderá fazer alterações.
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Alocação mensal — colapsável */}
-                  <Collapsible open={allocationExpanded} onOpenChange={setAllocationExpanded}>
-                    <CollapsibleTrigger asChild>
-                      <button
-                        className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted/50 rounded-md transition-colors"
-                        onClick={toggleAllocation}
-                      >
-                        <ChevronDown className={cn(
-                          "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
-                          !allocationExpanded && "-rotate-90"
-                        )} />
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex-1">
-                          Alocação — <span className="capitalize">{monthLabel}</span>
-                        </span>
-                        {!allocationExpanded && allocationData && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="text-muted-foreground">
-                              {allocationData.totalActualHours.toFixed(1)}h / {allocationData.totalPlannedHours.toFixed(0)}h
-                            </span>
-                            {allocationData.monthlyCapacity > 0 && (() => {
-                              const pct = Math.round((allocationData.totalActualHours / allocationData.monthlyCapacity) * 100);
-                              const isOver = pct > 100;
-                              const isUnder = pct < 80;
-                              return (
-                                <span className={cn(
-                                  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                                  isOver  && "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400",
-                                  isUnder && "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
-                                  !isOver && !isUnder && "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400",
-                                )}>
-                                  {pct}% · {isOver ? "Sobrealocado" : isUnder ? "Subalocado" : "Adequado"}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="pt-1 pb-3">
-                        <MyTimesheetAllocation
-                          employeeId={employee?.id}
-                          monthKey={monthKey}
-                        />
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-
-                  {/* Header único */}
-                  <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
-                    <div>Projeto</div>
-                    {(() => {
-                      const todayStr = format(new Date(), 'yyyy-MM-dd');
-                      return weekDays.map((day) => {
-                      const holiday = getHolidayForDate(day.date);
-                      const isHolidayDay = !!holiday;
-                      const isToday = day.date === todayStr;
+                  {/* Linha 2: chips de semana + cabeçalho de dias na mesma linha */}
+                  <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-start px-3 pb-1 text-xs font-medium text-muted-foreground">
+                    <TimesheetWeekSelector
+                      selectedDate={selectedDate}
+                      onDateChange={setSelectedDate}
+                      viewMonth={weekSelectorMonth}
+                      onViewMonthChange={setWeekSelectorMonth}
+                      part="chips"
+                    />
+                    {weekDays.map((day) => {
+                      const holiday = isHoliday(parseISO(day.date), holidays);
+                      const isToday = day.date === format(new Date(), 'yyyy-MM-dd');
                       return (
                         <TooltipProvider key={day.date}>
                           <Tooltip>
@@ -525,44 +455,36 @@ const MyTimesheet = () => {
                               <div
                                 className={cn(
                                   "text-center rounded-md py-1",
-                                  isHolidayDay && "bg-destructive/10 text-destructive",
-                                  isToday && !isHolidayDay && "bg-primary/10 text-primary font-medium rounded-t-md"
+                                  holiday && "bg-destructive/10 text-destructive",
+                                  isToday && !holiday && "bg-primary/10 text-primary font-medium"
                                 )}
                               >
-                                {format(
-                                  new Date(day.date + "T12:00:00"),
-                                  "EEE",
-                                  { locale: ptBR }
-                                )}
+                                {format(new Date(day.date + "T12:00:00"), "EEE", { locale: ptBR })}
                                 <br />
                                 <span className="text-[10px]">
-                                  {format(
-                                    new Date(day.date + "T12:00:00"),
-                                    "dd/MM",
-                                    { locale: ptBR }
-                                  )}
+                                  {format(new Date(day.date + "T12:00:00"), "dd/MM", { locale: ptBR })}
                                 </span>
-                                {isHolidayDay && (
-                                  <span className="text-[8px] block">*</span>
-                                )}
-                                {isToday && !isHolidayDay && (
-                                  <span className="text-[10px] text-primary font-medium block">hoje</span>
-                                )}
+                                {holiday && <span className="text-[8px] block">*</span>}
+                                {isToday && !holiday && <span className="text-[10px] text-primary font-medium block">hoje</span>}
                               </div>
                             </TooltipTrigger>
-                            {isHolidayDay && (
-                              <TooltipContent>
-                                <p>{holiday.name}</p>
-                              </TooltipContent>
-                            )}
+                            {holiday && <TooltipContent><p>{holiday.name}</p></TooltipContent>}
                           </Tooltip>
                         </TooltipProvider>
                       );
-                    });
-                    })()}
-                    <div className="text-right pr-2">Total</div>
-                    <div className="text-center">Status</div>
+                    })}
+                    <div className="text-right pr-2 pt-6">Total</div>
+                    <div className="text-center pt-6">Status</div>
                   </div>
+
+                  {showFridayReminder && (
+                    <div className="flex items-start gap-2.5 mx-0 mt-1 mb-1 px-3 py-2.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-500">
+                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-amber-800 dark:text-amber-200">
+                        <span className="font-medium">Lembrete:</span> Envie suas horas até o final do dia. Após o envio, somente seu gerente ou admin poderá fazer alterações.
+                      </div>
+                    </div>
+                  )}
 
                   {/* Future week info banner */}
                   {isFutureWeek && (
@@ -578,11 +500,14 @@ const MyTimesheet = () => {
                   {/* Projetos */}
                   <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
                     <CollapsibleTrigger asChild>
-                      <button className="flex items-center gap-2 px-3 py-2 w-full text-left hover:bg-muted/50 rounded-md transition-colors">
-                        <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", projectsOpen && "rotate-90")} />
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Projetos ({projects.length})
+                      <button className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-muted/30 rounded-md transition-colors">
+                        <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium text-muted-foreground">Projetos</span>
+                        <span className="bg-muted text-muted-foreground text-xs rounded-full px-2 py-0.5 shrink-0">
+                          {projects.length}
                         </span>
+                        <div className="flex-1 h-px bg-border" />
+                        <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0", projectsOpen && "rotate-90")} />
                       </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>

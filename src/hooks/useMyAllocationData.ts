@@ -16,6 +16,7 @@ export interface MyAllocationData {
   projects: ProjectAllocation[];
   totalPlannedHours: number;
   totalActualHours: number;
+  totalActivityHours: number;
   monthlyCapacity: number;
   expectedHours: number;
 }
@@ -84,7 +85,15 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
       if (membersError) throw membersError;
       if (!members || members.length === 0) {
         const expectedHoursEmpty = calculateExpectedHours(monthKey, jornada_diaria, typedHolidays);
-        return { projects: [], totalPlannedHours: 0, totalActualHours: 0, monthlyCapacity, expectedHours: expectedHoursEmpty };
+        // Still fetch activity hours even without project allocations
+        const { data: activityTimesheetsEmpty } = await supabase
+          .from('activity_timesheets')
+          .select('hours')
+          .eq('employee_id', employeeId)
+          .gte('work_date', `${monthKey}-01`)
+          .lt('work_date', format(addMonths(parseISO(`${monthKey}-01`), 1), 'yyyy-MM-dd'));
+        const totalActivityHoursEmpty = (activityTimesheetsEmpty || []).reduce((sum, r: any) => sum + Number(r.hours), 0);
+        return { projects: [], totalPlannedHours: 0, totalActualHours: 0, totalActivityHours: totalActivityHoursEmpty, monthlyCapacity, expectedHours: expectedHoursEmpty };
       }
 
       const memberIds = members.map((m: any) => m.id);
@@ -95,18 +104,26 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
         .select('project_member_id, month_number, hours')
         .in('project_member_id', memberIds);
 
-      // 4. Get timesheets for the month
+      // 4. Get timesheets and activity timesheets for the month
       const monthStart = `${monthKey}-01`;
       const monthDate = parseISO(monthStart);
       const nextMonth = addMonths(monthDate, 1);
       const monthEnd = format(nextMonth, 'yyyy-MM-dd');
 
-      const { data: timesheets } = await supabase
-        .from('project_timesheets')
-        .select('project_id, project_member_id, hours')
-        .in('project_member_id', memberIds)
-        .gte('work_date', monthStart)
-        .lt('work_date', monthEnd);
+      const [{ data: timesheets }, { data: activityTimesheets }] = await Promise.all([
+        supabase
+          .from('project_timesheets')
+          .select('project_id, project_member_id, hours')
+          .in('project_member_id', memberIds)
+          .gte('work_date', monthStart)
+          .lt('work_date', monthEnd),
+        supabase
+          .from('activity_timesheets')
+          .select('hours')
+          .eq('employee_id', employeeId)
+          .gte('work_date', monthStart)
+          .lt('work_date', monthEnd),
+      ]);
 
       // 5. Build allocation per project
       const projectMap = new Map<string, ProjectAllocation>();
@@ -154,10 +171,11 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
 
       const totalPlannedHours = projects.reduce((sum, p) => sum + p.plannedHours, 0);
       const totalActualHours = projects.reduce((sum, p) => sum + p.actualHours, 0);
+      const totalActivityHours = (activityTimesheets || []).reduce((sum, r: any) => sum + Number(r.hours), 0);
 
       const expectedHours = calculateExpectedHours(monthKey, jornada_diaria, typedHolidays);
 
-      return { projects, totalPlannedHours, totalActualHours, monthlyCapacity, expectedHours };
+      return { projects, totalPlannedHours, totalActualHours, totalActivityHours, monthlyCapacity, expectedHours };
     },
     enabled: !!employeeId && !!monthKey,
   });

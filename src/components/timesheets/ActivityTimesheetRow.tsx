@@ -46,7 +46,10 @@ export function ActivityTimesheetRow({
   onSaveStatusChange,
 }: ActivityTimesheetRowProps) {
   const upsert = useUpsertActivityTimesheet();
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const hasExistingEntries = weekDays.some(day =>
+    existingEntries.some(e => e.activity_type_id === activityTypeId && e.work_date === day.date && e.hours > 0)
+  );
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>(hasExistingEntries ? 'saved' : 'idle');
 
   const getInitialHours = useCallback(() => {
     const hours: Record<string, number> = {};
@@ -90,6 +93,10 @@ export function ActivityTimesheetRow({
       });
       return merged;
     });
+    const hasEntries = weekDays.some(day =>
+      existingEntries.some(e => e.activity_type_id === activityTypeId && e.work_date === day.date && e.hours > 0)
+    );
+    setSaveStatus(prev => prev === 'idle' ? (hasEntries ? 'saved' : 'idle') : prev);
   }, [existingEntries, weekDays, activityTypeId]);
 
   const MAX_HOURS = 12;

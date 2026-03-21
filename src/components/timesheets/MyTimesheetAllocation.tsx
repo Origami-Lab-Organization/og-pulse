@@ -5,6 +5,12 @@ import { useMyAllocationData } from '@/hooks/useMyAllocationData';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface MyTimesheetAllocationProps {
   employeeId: string | undefined;
@@ -26,32 +32,51 @@ function getTextColorClass(percent: number) {
   return 'text-primary';
 }
 
-function DonutRing({ percent }: { percent: number }) {
-  const clamped = Math.min(percent, 100);
-  const dashOffset = CIRCUMFERENCE * (1 - clamped / 100);
+function DonutRing({ projectPercent, adminPercent }: { projectPercent: number; adminPercent: number }) {
+  const totalPercent = projectPercent + adminPercent;
+  // Clamp each segment so combined never exceeds 100%
+  const projPct = Math.min(projectPercent, 100);
+  const admPct = Math.min(adminPercent, Math.max(0, 100 - projPct));
+  const projectArc = CIRCUMFERENCE * (projPct / 100);
+  const adminArc = CIRCUMFERENCE * (admPct / 100);
+  // SVG rotate: each segment starts at top (via parent -rotate-90),
+  // admin is rotated clockwise by the project's angle so it starts right after project ends.
+  const adminRotateDeg = (projPct / 100) * 360;
 
   return (
     <div className="relative flex items-center justify-center w-36 h-36">
       <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" aria-hidden>
-        <circle
-          cx="60" cy="60" r={RADIUS}
-          fill="none"
-          strokeWidth="10"
-          className="stroke-muted"
-        />
-        <circle
-          cx="60" cy="60" r={RADIUS}
-          fill="none"
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={dashOffset}
-          className={cn('transition-all duration-700', getRingColorClass(percent))}
-        />
+        {/* Background track */}
+        <circle cx="60" cy="60" r={RADIUS} fill="none" strokeWidth="10" className="stroke-muted" />
+        {/* Project hours segment — starts at top */}
+        {projectArc > 0 && (
+          <circle
+            cx="60" cy="60" r={RADIUS}
+            fill="none"
+            strokeWidth="10"
+            strokeLinecap="butt"
+            strokeDasharray={`${projectArc} ${CIRCUMFERENCE}`}
+            strokeDashoffset={0}
+            className="stroke-primary transition-all duration-700"
+          />
+        )}
+        {/* Admin/activity segment — rotated to start where project ends */}
+        {adminArc > 0 && (
+          <circle
+            cx="60" cy="60" r={RADIUS}
+            fill="none"
+            strokeWidth="10"
+            strokeLinecap="butt"
+            strokeDasharray={`${adminArc} ${CIRCUMFERENCE}`}
+            strokeDashoffset={0}
+            transform={`rotate(${adminRotateDeg}, 60, 60)`}
+            className="stroke-amber-400 transition-all duration-700"
+          />
+        )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
-        <span className={cn('text-3xl font-bold leading-none tabular-nums', getTextColorClass(percent))}>
-          {Math.round(percent)}%
+        <span className={cn('text-3xl font-bold leading-none tabular-nums', getTextColorClass(totalPercent))}>
+          {Math.round(totalPercent)}%
         </span>
       </div>
     </div>
@@ -89,11 +114,15 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
 
   if (!data) return null;
 
-  const utilizationPercent = data.monthlyCapacity > 0
+  const projectPercent = data.monthlyCapacity > 0
     ? (data.totalActualHours / data.monthlyCapacity) * 100
     : 0;
+  const adminPercent = data.monthlyCapacity > 0
+    ? (data.totalActivityHours / data.monthlyCapacity) * 100
+    : 0;
+  const utilizationPercent = projectPercent + adminPercent;
 
-  const freeHours = Math.max(data.monthlyCapacity - data.totalPlannedHours, 0);
+  const freeHours = Math.max(data.monthlyCapacity - data.totalActualHours - data.totalActivityHours, 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -109,25 +138,57 @@ export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAlloc
             role="img"
             aria-label={`Utilização mensal: ${Math.round(utilizationPercent)}%`}
           >
-            <DonutRing percent={utilizationPercent} />
+            <DonutRing projectPercent={projectPercent} adminPercent={adminPercent} />
             <p className="text-xs text-muted-foreground tabular-nums">
               {data.totalActualHours.toFixed(1)}h / {data.monthlyCapacity}h
             </p>
           </div>
 
           <div className="grid grid-cols-3 gap-3 w-full">
-            <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Planejado</span>
-              <span className="text-sm font-semibold tabular-nums">{data.totalPlannedHours.toFixed(0)}h</span>
-            </div>
-            <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Realizado</span>
-              <span className="text-sm font-semibold tabular-nums">{data.totalActualHours.toFixed(1)}h</span>
-            </div>
-            <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Capacidade</span>
-              <span className="text-sm font-semibold tabular-nums">{data.monthlyCapacity}h</span>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5 cursor-default">
+                    <div className="flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-primary shrink-0" />
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Projetos</span>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums">{data.totalActualHours.toFixed(1)}h</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent><p>{Math.round(projectPercent)}% da capacidade mensal</p></TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5 cursor-default">
+                    <div className="flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Admin</span>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums">{data.totalActivityHours.toFixed(1)}h</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent><p>{Math.round(adminPercent)}% da capacidade mensal</p></TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5 cursor-default">
+                    <div className="flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/40 shrink-0" />
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Livre</span>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums">{freeHours.toFixed(0)}h</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{Math.round(data.monthlyCapacity > 0 ? (freeHours / data.monthlyCapacity) * 100 : 0)}% da capacidade mensal</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </CardContent>
       </Card>
