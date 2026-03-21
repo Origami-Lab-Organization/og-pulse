@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban, Building2, Users, Calendar, Clock, Search, User } from 'lucide-react';
+import { FolderKanban, Building2, Users, Calendar, Clock, Search, User, AlertTriangle } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -81,7 +81,16 @@ export default function MyProjects() {
       <AppLayout title="Meus Projetos" description={pageDescription}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-64 rounded-lg" />
+            <Card key={i}>
+              <CardContent className="pt-4 pb-5 space-y-3">
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-6 w-32 rounded-full" />
+                <Skeleton className="h-1.5 w-full rounded-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </CardContent>
+            </Card>
           ))}
         </div>
       </AppLayout>
@@ -92,14 +101,14 @@ export default function MyProjects() {
     <AppLayout title="Meus Projetos" description={pageDescription}>
       <div className="space-y-6">
         {/* Summary cards — 3a */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card aria-label={`${activeCount} projeto${activeCount !== 1 ? 's' : ''} ativo${activeCount !== 1 ? 's' : ''}`}>
             <CardContent className="pt-4 pb-4">
               <p className="text-2xl font-bold text-primary">{activeCount}</p>
               <p className="text-xs text-muted-foreground mt-0.5">Projetos ativos</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card aria-label={`${totalHoursPerMonth} horas por mês alocadas`}>
             <CardContent className="pt-4 pb-4">
               <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 {totalHoursPerMonth}h
@@ -108,7 +117,7 @@ export default function MyProjects() {
             </CardContent>
           </Card>
           {isEmployeeOnly ? (
-            <Card>
+            <Card aria-label={`${totalHoursActual} horas lançadas no total`}>
               <CardContent className="pt-4 pb-4">
                 <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                   {totalHoursActual}h
@@ -117,7 +126,7 @@ export default function MyProjects() {
               </CardContent>
             </Card>
           ) : (
-            <Card>
+            <Card aria-label={`${managerProjectsCount} projeto${managerProjectsCount !== 1 ? 's' : ''} como gerente de projetos`}>
               <CardContent className="pt-4 pb-4">
                 <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">
                   {managerProjectsCount}
@@ -157,11 +166,11 @@ export default function MyProjects() {
         {/* Project grid / empty state — 3e */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
-            <div className="rounded-full bg-muted p-4 mb-4">
-              <FolderKanban className="h-8 w-8 text-muted-foreground" />
-            </div>
             {search || stageFilter !== 'all' ? (
               <>
+                <div className="rounded-full bg-muted p-4 mb-4">
+                  <FolderKanban className="h-8 w-8 text-muted-foreground" />
+                </div>
                 <h3 className="text-lg font-medium">Nenhum projeto encontrado</h3>
                 <p className="text-muted-foreground mt-1 max-w-sm text-sm">
                   Tente ajustar os filtros de busca.
@@ -169,13 +178,19 @@ export default function MyProjects() {
               </>
             ) : isEmployeeOnly ? (
               <>
+                <div className="rounded-full bg-muted p-3 mb-4">
+                  <FolderKanban className="h-12 w-12 text-muted-foreground" />
+                </div>
                 <h3 className="text-lg font-medium">Você ainda não está alocado em projetos</h3>
                 <p className="text-muted-foreground mt-1 max-w-sm text-sm">
-                  Quando um gerente de projetos alocar você em um projeto, ele aparecerá aqui automaticamente.
+                  Quando um gerente de projetos alocar você, seus projetos aparecerão aqui.
                 </p>
               </>
             ) : (
               <>
+                <div className="rounded-full bg-muted p-4 mb-4">
+                  <FolderKanban className="h-8 w-8 text-muted-foreground" />
+                </div>
                 <h3 className="text-lg font-medium">Nenhum projeto com sua participação</h3>
                 <p className="text-muted-foreground mt-1 max-w-sm text-sm">
                   Você não está alocado como membro em nenhum projeto ativo. Projetos que você gerencia estão disponíveis em "Projetos".
@@ -214,6 +229,15 @@ export default function MyProjects() {
                   ? 'bg-amber-500'
                   : 'bg-primary';
 
+              const statusDotClass =
+                project.status === 'active'
+                  ? 'bg-green-500 animate-pulse'
+                  : project.status === 'paused'
+                  ? 'bg-amber-500'
+                  : project.status === 'planning'
+                  ? 'bg-blue-500'
+                  : null;
+
               const tooltipText =
                 hoursPercent > 90
                   ? `${hoursPercent}% executado — Atenção: próximo do limite`
@@ -224,20 +248,27 @@ export default function MyProjects() {
               return (
                 <Card
                   key={project.id}
-                  className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all"
+                  role="article"
+                  aria-label={project.name}
+                  className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200"
                   onClick={() => handleProjectClick(project.id)}
                 >
                   <CardContent className="pt-4 pb-5 space-y-3">
-                    {/* Stage badge + service line */}
+                    {/* Stage badge + service line + status dot */}
                     <div className="flex items-center justify-between gap-2">
                       <Badge className={cn('text-xs border-0', stageBadgeClass)}>
                         {PORTFOLIO_STAGE_LABELS[project.portfolioStage as PortfolioStage] ?? project.portfolioStage}
                       </Badge>
-                      {serviceLabel && (
-                        <span className="text-xs text-muted-foreground truncate max-w-[140px]">
-                          {serviceLabel}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {serviceLabel && (
+                          <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                            {serviceLabel}
+                          </span>
+                        )}
+                        {statusDotClass && (
+                          <div className={cn('w-2 h-2 rounded-full', statusDotClass)} />
+                        )}
+                      </div>
                     </div>
 
                     {/* Project name */}
@@ -285,11 +316,20 @@ export default function MyProjects() {
                                 Horas do projeto
                               </span>
                               {project.totalHoursPlanned > 0 && (
-                                <span className="font-medium text-foreground">{hoursPercent}%</span>
+                                <span className="flex items-center gap-1 font-medium text-foreground">
+                                  {hoursPercent > 90 && (
+                                    <AlertTriangle className="h-3 w-3 text-destructive" />
+                                  )}
+                                  {hoursPercent}%
+                                </span>
                               )}
                             </div>
                             <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                               <div
+                                role="progressbar"
+                                aria-valuenow={hoursPercent}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
                                 className={cn('h-full rounded-full transition-all', barColorClass)}
                                 style={{ width: `${hoursPercent}%` }}
                               />
@@ -322,6 +362,7 @@ export default function MyProjects() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            aria-label={`Lançar horas no projeto ${project.name}`}
                             className="h-7 px-2 text-xs text-muted-foreground hover:text-primary gap-1"
                             onClick={(e) => {
                               e.stopPropagation();

@@ -173,7 +173,7 @@ export function MyProjectOverviewTab({ project, currentEmployeeId }: MyProjectOv
       </div>
 
       {/* ── Minha Participação — 4c ── */}
-      <Card>
+      <Card className="border-primary/20 bg-primary/5">
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center gap-6 flex-wrap">
             <div>
