@@ -158,13 +158,10 @@ export default function InboxPage() {
   };
 
   return (
-    <AppLayout
-      title="Caixa de entrada"
-      description="Notificações e ações pendentes"
-    >
+    <AppLayout title="Caixa de entrada" hideHeader>
       <div
         className="flex bg-card overflow-hidden border-y -mx-6"
-        style={{ height: 'calc(100vh - 180px)' }}
+        style={{ height: 'calc(100vh - 104px)' }}
       >
         {/* Column 1: Sidebar — desktop only */}
         <div className="hidden md:flex">
