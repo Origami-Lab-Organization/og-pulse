@@ -1,8 +1,7 @@
 import { cn } from '@/lib/utils';
-import { Inbox, Mail, Clock, DollarSign, Archive, Search, Plus } from 'lucide-react';
+import { Inbox, Mail, Clock, DollarSign, Archive, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import type { InboxFolder } from '@/hooks/useInboxNotifications';
 
 interface FolderItem {
@@ -28,8 +27,6 @@ interface Props {
   onFolderChange: (folder: InboxFolder) => void;
   counts: { all: number; unread: number; timesheet: number; reimbursement: number; archived: number };
   onNewAction: () => void;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
 }
 
 export function InboxSidebar({
@@ -37,8 +34,6 @@ export function InboxSidebar({
   onFolderChange,
   counts,
   onNewAction,
-  searchQuery,
-  onSearchChange,
 }: Props) {
   const countMap: Record<InboxFolder, number> = {
     all: counts.all,
@@ -99,18 +94,6 @@ export function InboxSidebar({
         })}
       </nav>
 
-      {/* Search */}
-      <div className="p-4 border-t mt-auto">
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar notificações..."
-            className="h-8 pl-7 text-xs"
-          />
-        </div>
-      </div>
     </div>
   );
 }

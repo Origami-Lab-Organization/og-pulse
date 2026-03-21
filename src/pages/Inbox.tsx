@@ -173,8 +173,6 @@ export default function InboxPage() {
             onFolderChange={handleFolderChange}
             counts={counts}
             onNewAction={() => { setCorrectionData(null); setReimbursementFormOpen(true); }}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
           />
         </div>
 

@@ -27,7 +27,6 @@ import {
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu';
 import { useAuth } from '@/contexts/AuthContext';
-import { InboxButton } from './InboxButton';
 import { UserMenu } from './UserMenu';
 import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
@@ -221,7 +220,6 @@ export function AppNavbar() {
 
       {/* Right side */}
       <div className="flex items-center gap-1 shrink-0">
-        <InboxButton />
         <UserMenu />
       </div>
     </header>
