@@ -399,6 +399,7 @@ export type Database = {
       budgets: {
         Row: {
           admin_expenses_percent: number
+          billing_type: string | null
           budget_number: string
           client_id: string | null
           commission_percent: number
@@ -406,6 +407,7 @@ export type Database = {
           created_by: string | null
           discount_value: number
           duration_months: number
+          expected_revenue_12m: number | null
           final_total: number
           id: string
           is_recurring: boolean
@@ -417,9 +419,12 @@ export type Database = {
           monthly_value: number | null
           net_margin_percent: number
           notes: string | null
+          planned_costs: number | null
           start_date: string
           status: Database["public"]["Enums"]["budget_status"]
           subtotal: number
+          success_fee_percent: number | null
+          success_fee_type: string | null
           taxes_percent: number
           tenant_id: string
           title: string
@@ -429,6 +434,7 @@ export type Database = {
         }
         Insert: {
           admin_expenses_percent?: number
+          billing_type?: string | null
           budget_number: string
           client_id?: string | null
           commission_percent?: number
@@ -436,6 +442,7 @@ export type Database = {
           created_by?: string | null
           discount_value?: number
           duration_months?: number
+          expected_revenue_12m?: number | null
           final_total?: number
           id?: string
           is_recurring?: boolean
@@ -447,9 +454,12 @@ export type Database = {
           monthly_value?: number | null
           net_margin_percent?: number
           notes?: string | null
+          planned_costs?: number | null
           start_date: string
           status?: Database["public"]["Enums"]["budget_status"]
           subtotal?: number
+          success_fee_percent?: number | null
+          success_fee_type?: string | null
           taxes_percent?: number
           tenant_id: string
           title: string
@@ -459,6 +469,7 @@ export type Database = {
         }
         Update: {
           admin_expenses_percent?: number
+          billing_type?: string | null
           budget_number?: string
           client_id?: string | null
           commission_percent?: number
@@ -466,6 +477,7 @@ export type Database = {
           created_by?: string | null
           discount_value?: number
           duration_months?: number
+          expected_revenue_12m?: number | null
           final_total?: number
           id?: string
           is_recurring?: boolean
@@ -477,9 +489,12 @@ export type Database = {
           monthly_value?: number | null
           net_margin_percent?: number
           notes?: string | null
+          planned_costs?: number | null
           start_date?: string
           status?: Database["public"]["Enums"]["budget_status"]
           subtotal?: number
+          success_fee_percent?: number | null
+          success_fee_type?: string | null
           taxes_percent?: number
           tenant_id?: string
           title?: string
