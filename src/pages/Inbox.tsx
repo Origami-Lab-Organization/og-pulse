@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Inbox } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Inbox, Filter } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,17 +11,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useQueryClient } from '@tanstack/react-query';
 import { Notification, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { useInboxNotifications, useInboxCounts, useMarkAllInboxRead } from '@/hooks/useInboxNotifications';
 import { InboxNotificationList } from '@/components/inbox/InboxNotificationList';
 import { InboxDetailPanel } from '@/components/inbox/InboxDetailPanel';
 import { InboxNewActionMenu } from '@/components/inbox/InboxNewActionMenu';
 import { ReimbursementFormDialog, CorrectionData } from '@/components/reimbursements/ReimbursementFormDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { ChevronLeft } from 'lucide-react';
 
 type ActiveTab = 'all' | 'timesheet' | 'reimbursement';
 type StatusFilter = 'all' | 'unread' | 'action';
 
 export default function InboxPage() {
+  const isMobile = useIsMobile();
+  const { employee } = useAuth();
+  const queryClient = useQueryClient();
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
@@ -36,6 +51,29 @@ export default function InboxPage() {
 
   const markAllRead = useMarkAllInboxRead();
   const markRead = useMarkNotificationRead();
+
+  // Realtime: refresh list on new notification
+  useEffect(() => {
+    if (!employee?.id) return;
+    const channel = supabase
+      .channel('inbox-page-' + employee.id)
+      .on(
+        'postgres_changes' as any,
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `recipient_id=eq.${employee.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
+          queryClient.invalidateQueries({ queryKey: ['inbox-counts'] });
+          queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [employee?.id, queryClient]);
 
   const handleSelectNotification = (n: Notification) => {
     setSelectedNotification(n);
@@ -87,14 +125,13 @@ export default function InboxPage() {
       description="Notificações e ações pendentes"
       actions={headerActions}
     >
-      {/* Negative margin to cancel AppLayout padding, then control height */}
       <div className="-mx-6 -mt-6 flex flex-col" style={{ height: 'calc(100vh - 130px)' }}>
         {/* Tabs + filter bar */}
-        <div className="px-6 py-3 border-b flex items-center justify-between gap-4 flex-shrink-0 bg-background">
+        <div className="px-3 sm:px-6 py-3 border-b flex items-center justify-between gap-2 flex-shrink-0 bg-background">
           <div className="overflow-x-auto">
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList>
-                <TabsTrigger value="all" className="gap-2">
+              <TabsList className="whitespace-nowrap">
+                <TabsTrigger value="all" className="gap-1.5">
                   Todas
                   {counts.total > 0 && (
                     <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] bg-destructive text-destructive-foreground hover:bg-destructive">
@@ -102,7 +139,7 @@ export default function InboxPage() {
                     </Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="timesheet" className="gap-2">
+                <TabsTrigger value="timesheet" className="gap-1.5">
                   Timesheet
                   {counts.timesheet > 0 && (
                     <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] bg-amber-500 text-white hover:bg-amber-500">
@@ -110,7 +147,7 @@ export default function InboxPage() {
                     </Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="reimbursement" className="gap-2">
+                <TabsTrigger value="reimbursement" className="gap-1.5">
                   Reembolsos
                   {counts.reimbursement > 0 && (
                     <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] bg-blue-500 text-white hover:bg-blue-500">
@@ -122,22 +159,28 @@ export default function InboxPage() {
             </Tabs>
           </div>
 
-          <Select value={statusFilter} onValueChange={handleFilterChange}>
-            <SelectTrigger className="w-[170px] shrink-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              <SelectItem value="unread">Não lidas</SelectItem>
-              <SelectItem value="action">Ação necessária</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Desktop: full select; Mobile: icon-only trigger */}
+          <div className="shrink-0">
+            <Select value={statusFilter} onValueChange={handleFilterChange}>
+              <SelectTrigger className="hidden sm:flex w-[170px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectTrigger className="flex sm:hidden w-9 h-9 p-0 justify-center">
+                <Filter className="h-4 w-4" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="unread">Não lidas</SelectItem>
+                <SelectItem value="action">Ação necessária</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Master-detail */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* Left: notification list */}
-          <div className="w-[420px] border-r overflow-y-auto flex-shrink-0">
+          {/* Left: notification list — full width on mobile */}
+          <div className="w-full md:w-[420px] md:border-r overflow-y-auto flex-shrink-0">
             <InboxNotificationList
               notifications={notifications}
               selectedId={selectedNotification?.id ?? null}
@@ -148,8 +191,8 @@ export default function InboxPage() {
             />
           </div>
 
-          {/* Right: detail panel */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Right: detail panel — desktop only */}
+          <div className="hidden md:flex flex-1 overflow-y-auto">
             {selectedNotification ? (
               <InboxDetailPanel
                 key={selectedNotification.id}
@@ -158,19 +201,53 @@ export default function InboxPage() {
                 onOpenCorrectForm={handleOpenCorrectForm}
               />
             ) : (
-              <div className="flex flex-col items-center justify-center h-full py-16 text-center">
+              <div className="flex flex-col items-center justify-center h-full py-16 text-center px-6 animate-in fade-in-0 duration-300">
                 <div className="p-4 rounded-full bg-muted mb-4">
-                  <Inbox className="h-10 w-10 text-muted-foreground" />
+                  <Inbox className="h-10 w-10 text-muted-foreground opacity-50" />
                 </div>
                 <p className="text-sm font-medium text-foreground">Selecione uma notificação</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Escolha um item à esquerda para ver os detalhes
+                  Clique em um item à esquerda para ver os detalhes
                 </p>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Mobile: detail in Dialog */}
+      {isMobile && (
+        <Dialog
+          open={!!selectedNotification}
+          onOpenChange={(open) => { if (!open) setSelectedNotification(null); }}
+        >
+          <DialogContent className="sm:max-w-full h-[90dvh] flex flex-col p-0 gap-0">
+            <DialogHeader className="px-4 py-3 border-b flex-row items-center gap-3 space-y-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => setSelectedNotification(null)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <DialogTitle className="text-base font-medium truncate">
+                {selectedNotification?.title ?? ''}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto">
+              {selectedNotification && (
+                <InboxDetailPanel
+                  key={selectedNotification.id}
+                  notification={selectedNotification}
+                  onActionComplete={handleActionComplete}
+                  onOpenCorrectForm={handleOpenCorrectForm}
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <ReimbursementFormDialog
         open={reimbursementFormOpen}

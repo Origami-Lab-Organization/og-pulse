@@ -36,12 +36,13 @@ export function InboxNotificationList({
 
   return (
     <div>
-      {notifications.map((n) => (
+      {notifications.map((n, index) => (
         <InboxNotificationRow
           key={n.id}
           notification={n}
           isSelected={n.id === selectedId}
           onClick={() => onSelect(n)}
+          index={index}
         />
       ))}
     </div>

@@ -37,9 +37,10 @@ interface Props {
   notification: Notification;
   isSelected: boolean;
   onClick: () => void;
+  index?: number;
 }
 
-export function InboxNotificationRow({ notification, isSelected, onClick }: Props) {
+export function InboxNotificationRow({ notification, isSelected, onClick, index = 0 }: Props) {
   const iconConfig = categoryIcon[notification.category] ?? categoryIcon.timesheet;
   const badge = statusBadge[notification.type];
 
@@ -47,23 +48,25 @@ export function InboxNotificationRow({ notification, isSelected, onClick }: Prop
     <div
       onClick={onClick}
       className={cn(
-        'flex items-center gap-3 px-4 py-3 cursor-pointer border-b transition-colors border-l-[3px]',
+        'flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3 cursor-pointer border-b transition-colors border-l-[3px]',
+        'animate-in fade-in-0 slide-in-from-bottom-1 duration-200 fill-mode-backwards',
         notification.is_read ? 'border-l-transparent' : 'border-l-blue-500',
         isSelected ? 'bg-accent' : 'hover:bg-muted/50',
       )}
+      style={{ animationDelay: `${index * 30}ms` }}
     >
       {/* Unread dot */}
       <div
         className={cn(
           'h-2 w-2 rounded-full flex-shrink-0 transition-all duration-300',
-          notification.is_read ? 'opacity-0' : 'bg-blue-500',
+          notification.is_read ? 'scale-0 opacity-0' : 'scale-100 opacity-100 bg-blue-500',
         )}
       />
 
       {/* Category icon */}
       <div
         className={cn(
-          'flex h-9 w-9 items-center justify-center rounded-md flex-shrink-0 text-sm font-bold',
+          'flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md flex-shrink-0 text-sm font-bold',
           iconConfig.bg,
           iconConfig.text,
         )}
@@ -76,13 +79,20 @@ export function InboxNotificationRow({ notification, isSelected, onClick }: Prop
         <p className={cn('text-sm truncate', notification.is_read ? 'font-normal' : 'font-medium')}>
           {notification.title}
         </p>
-        {notification.message && (
-          <p className="text-xs text-muted-foreground truncate">{notification.message}</p>
-        )}
+        <div className="flex flex-wrap items-center gap-1 mt-0.5">
+          {notification.message && (
+            <p className="text-xs text-muted-foreground truncate">{notification.message}</p>
+          )}
+          {badge && (
+            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full sm:hidden inline-block flex-shrink-0', badge.className)}>
+              {badge.label}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Meta */}
-      <div className="text-right shrink-0">
+      {/* Meta — hidden on mobile */}
+      <div className="text-right shrink-0 hidden sm:block">
         <p className="text-[11px] text-muted-foreground">{formatTime(notification.created_at)}</p>
         {badge && (
           <span className={cn('text-[10px] px-2 py-0.5 rounded-full mt-1 inline-block', badge.className)}>
