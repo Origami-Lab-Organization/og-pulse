@@ -17,6 +17,7 @@ export interface Notification {
   reference_id: string | null;
   is_read: boolean;
   is_resolved: boolean;
+  is_archived: boolean;
   created_at: string;
 }
 

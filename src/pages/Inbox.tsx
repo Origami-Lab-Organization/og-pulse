@@ -1,58 +1,49 @@
-import { useState, useEffect } from 'react';
-import { Inbox, Filter } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { Notification, useMarkNotificationRead } from '@/hooks/useNotifications';
-import { useInboxNotifications, useInboxCounts, useMarkAllInboxRead } from '@/hooks/useInboxNotifications';
-import { InboxNotificationList } from '@/components/inbox/InboxNotificationList';
-import { InboxDetailPanel } from '@/components/inbox/InboxDetailPanel';
+import {
+  useInboxNotifications,
+  useInboxCounts,
+  useArchiveNotification,
+  useArchiveMultipleNotifications,
+  useDeleteNotification,
+  useDeleteMultipleNotifications,
+  useMarkMultipleNotificationsRead,
+  useMarkMultipleNotificationsUnread,
+  type InboxFolder,
+} from '@/hooks/useInboxNotifications';
+import { InboxSidebar } from '@/components/inbox/InboxSidebar';
+import { InboxListPanel, type BulkAction } from '@/components/inbox/InboxListPanel';
+import { InboxDetailPanel, InboxDetailEmpty } from '@/components/inbox/InboxDetailPanel';
 import { InboxNewActionMenu } from '@/components/inbox/InboxNewActionMenu';
 import { ReimbursementFormDialog, CorrectionData } from '@/components/reimbursements/ReimbursementFormDialog';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { ChevronLeft } from 'lucide-react';
-
-type ActiveTab = 'all' | 'timesheet' | 'reimbursement';
-type StatusFilter = 'all' | 'unread' | 'action';
 
 export default function InboxPage() {
-  const isMobile = useIsMobile();
   const { employee } = useAuth();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('all');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  const [activeFolder, setActiveFolder] = useState<InboxFolder>('all');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
   const [reimbursementFormOpen, setReimbursementFormOpen] = useState(false);
   const [correctionData, setCorrectionData] = useState<CorrectionData | null>(null);
 
-  const { data: counts = { total: 0, timesheet: 0, reimbursement: 0 } } = useInboxCounts();
-  const { data: notifications = [], isLoading } = useInboxNotifications({
-    category: activeTab,
-    status: statusFilter,
-  });
+  const { data: counts = { all: 0, unread: 0, timesheet: 0, reimbursement: 0, archived: 0 } } = useInboxCounts();
+  const { data: notifications = [], isLoading } = useInboxNotifications(activeFolder);
 
-  const markAllRead = useMarkAllInboxRead();
   const markRead = useMarkNotificationRead();
+  const archiveNotification = useArchiveNotification();
+  const archiveMultiple = useArchiveMultipleNotifications();
+  const deleteNotification = useDeleteNotification();
+  const deleteMultiple = useDeleteMultipleNotifications();
+  const markMultipleRead = useMarkMultipleNotificationsRead();
+  const markMultipleUnread = useMarkMultipleNotificationsUnread();
 
-  // Realtime: refresh list on new notification
+  // Realtime: refresh on new notifications
   useEffect(() => {
     if (!employee?.id) return;
     const channel = supabase
@@ -75,179 +66,147 @@ export default function InboxPage() {
     return () => { supabase.removeChannel(channel); };
   }, [employee?.id, queryClient]);
 
-  const handleSelectNotification = (n: Notification) => {
-    setSelectedNotification(n);
+  // Client-side search filter
+  const filteredNotifications = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return notifications;
+    return notifications.filter(
+      (n) =>
+        n.title.toLowerCase().includes(q) ||
+        (n.message?.toLowerCase().includes(q) ?? false),
+    );
+  }, [notifications, searchQuery]);
+
+  const selected = filteredNotifications.find((n) => n.id === selectedId) ?? null;
+
+  // Handlers
+  const handleSelect = (n: Notification) => {
+    setSelectedId(n.id);
     if (!n.is_read) markRead.mutate(n.id);
   };
 
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab as ActiveTab);
-    setSelectedNotification(null);
+  const handleFolderChange = (folder: InboxFolder) => {
+    setActiveFolder(folder);
+    setSelectedId(null);
+    setCheckedIds(new Set());
+    setSearchQuery('');
   };
 
-  const handleFilterChange = (filter: string) => {
-    setStatusFilter(filter as StatusFilter);
-    setSelectedNotification(null);
+  const toggleCheck = (id: string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  const handleActionComplete = () => {
-    setSelectedNotification(null);
+  const toggleSelectAll = () => {
+    if (checkedIds.size === filteredNotifications.length && filteredNotifications.length > 0) {
+      setCheckedIds(new Set());
+    } else {
+      setCheckedIds(new Set(filteredNotifications.map((n) => n.id)));
+    }
   };
+
+  const handleBulkAction = (action: BulkAction) => {
+    const ids = Array.from(checkedIds);
+    const clear = () => setCheckedIds(new Set());
+
+    if (action === 'cancel') { clear(); return; }
+    if (action === 'read') { markMultipleRead.mutate(ids, { onSuccess: clear }); return; }
+    if (action === 'unread') { markMultipleUnread.mutate(ids, { onSuccess: clear }); return; }
+    if (action === 'archive') {
+      archiveMultiple.mutate(ids, {
+        onSuccess: () => { clear(); if (ids.includes(selectedId ?? '')) setSelectedId(null); },
+      });
+      return;
+    }
+    if (action === 'delete') {
+      deleteMultiple.mutate(ids, {
+        onSuccess: () => { clear(); if (ids.includes(selectedId ?? '')) setSelectedId(null); },
+      });
+    }
+  };
+
+  const handleArchive = (id: string) => {
+    archiveNotification.mutate(id);
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const handleDelete = (id: string) => {
+    deleteNotification.mutate(id);
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const handleActionComplete = () => setSelectedId(null);
 
   const handleOpenCorrectForm = (data: CorrectionData) => {
     setCorrectionData(data);
     setReimbursementFormOpen(true);
-    setSelectedNotification(null);
+    setSelectedId(null);
   };
-
-  const headerActions = (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => markAllRead.mutate()}
-        disabled={counts.total === 0 || markAllRead.isPending}
-      >
-        Marcar todas como lidas
-      </Button>
-      <InboxNewActionMenu
-        onReimbursementClick={() => {
-          setCorrectionData(null);
-          setReimbursementFormOpen(true);
-        }}
-      />
-    </>
-  );
 
   return (
     <AppLayout
       title="Caixa de entrada"
       description="Notificações e ações pendentes"
-      actions={headerActions}
+      actions={
+        <InboxNewActionMenu
+          onReimbursementClick={() => {
+            setCorrectionData(null);
+            setReimbursementFormOpen(true);
+          }}
+        />
+      }
     >
-      <div className="-mx-6 -mt-6 flex flex-col" style={{ height: 'calc(100vh - 130px)' }}>
-        {/* Tabs + filter bar */}
-        <div className="px-3 sm:px-6 py-3 border-b flex items-center justify-between gap-2 flex-shrink-0 bg-background">
-          <div className="overflow-x-auto">
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="whitespace-nowrap">
-                <TabsTrigger value="all" className="gap-1.5">
-                  Todas
-                  {counts.total > 0 && (
-                    <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] bg-destructive text-destructive-foreground hover:bg-destructive">
-                      {counts.total > 99 ? '99+' : counts.total}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="timesheet" className="gap-1.5">
-                  Timesheet
-                  {counts.timesheet > 0 && (
-                    <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] bg-amber-500 text-white hover:bg-amber-500">
-                      {counts.timesheet}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="reimbursement" className="gap-1.5">
-                  Reembolsos
-                  {counts.reimbursement > 0 && (
-                    <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] bg-blue-500 text-white hover:bg-blue-500">
-                      {counts.reimbursement}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+      <div
+        className="flex border rounded-lg bg-card overflow-hidden"
+        style={{ height: 'calc(100vh - 180px)' }}
+      >
+        {/* Column 1: Sidebar */}
+        <InboxSidebar
+          activeFolder={activeFolder}
+          onFolderChange={handleFolderChange}
+          counts={counts}
+          onNewAction={() => { setCorrectionData(null); setReimbursementFormOpen(true); }}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
 
-          {/* Desktop: full select; Mobile: icon-only trigger */}
-          <div className="shrink-0">
-            <Select value={statusFilter} onValueChange={handleFilterChange}>
-              <SelectTrigger className="hidden sm:flex w-[170px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectTrigger className="flex sm:hidden w-9 h-9 p-0 justify-center">
-                <Filter className="h-4 w-4" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="unread">Não lidas</SelectItem>
-                <SelectItem value="action">Ação necessária</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        {/* Column 2: List */}
+        <InboxListPanel
+          notifications={filteredNotifications}
+          selectedId={selectedId}
+          onSelect={handleSelect}
+          checkedIds={checkedIds}
+          onToggleCheck={toggleCheck}
+          onToggleAll={toggleSelectAll}
+          onBulkAction={handleBulkAction}
+          isLoading={isLoading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          folder={activeFolder}
+          onArchive={handleArchive}
+          onDelete={handleDelete}
+        />
 
-        {/* Master-detail */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* Left: notification list — full width on mobile */}
-          <div className="w-full md:w-[420px] md:border-r overflow-y-auto flex-shrink-0">
-            <InboxNotificationList
-              notifications={notifications}
-              selectedId={selectedNotification?.id ?? null}
-              onSelect={handleSelectNotification}
-              isLoading={isLoading}
-              category={activeTab}
-              filter={statusFilter}
+        {/* Column 3: Detail */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {selected ? (
+            <InboxDetailPanel
+              key={selected.id}
+              notification={selected}
+              onActionComplete={handleActionComplete}
+              onOpenCorrectForm={handleOpenCorrectForm}
+              onArchive={() => handleArchive(selected.id)}
+              onDelete={() => handleDelete(selected.id)}
             />
-          </div>
-
-          {/* Right: detail panel — desktop only */}
-          <div className="hidden md:flex flex-1 overflow-y-auto">
-            {selectedNotification ? (
-              <InboxDetailPanel
-                key={selectedNotification.id}
-                notification={selectedNotification}
-                onActionComplete={handleActionComplete}
-                onOpenCorrectForm={handleOpenCorrectForm}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full py-16 text-center px-6 animate-in fade-in-0 duration-300">
-                <div className="p-4 rounded-full bg-muted mb-4">
-                  <Inbox className="h-10 w-10 text-muted-foreground opacity-50" />
-                </div>
-                <p className="text-sm font-medium text-foreground">Selecione uma notificação</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Clique em um item à esquerda para ver os detalhes
-                </p>
-              </div>
-            )}
-          </div>
+          ) : (
+            <InboxDetailEmpty />
+          )}
         </div>
       </div>
-
-      {/* Mobile: detail in Dialog */}
-      {isMobile && (
-        <Dialog
-          open={!!selectedNotification}
-          onOpenChange={(open) => { if (!open) setSelectedNotification(null); }}
-        >
-          <DialogContent className="sm:max-w-full h-[90dvh] flex flex-col p-0 gap-0">
-            <DialogHeader className="px-4 py-3 border-b flex-row items-center gap-3 space-y-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={() => setSelectedNotification(null)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <DialogTitle className="text-base font-medium truncate">
-                {selectedNotification?.title ?? ''}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto">
-              {selectedNotification && (
-                <InboxDetailPanel
-                  key={selectedNotification.id}
-                  notification={selectedNotification}
-                  onActionComplete={handleActionComplete}
-                  onOpenCorrectForm={handleOpenCorrectForm}
-                />
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
       <ReimbursementFormDialog
         open={reimbursementFormOpen}

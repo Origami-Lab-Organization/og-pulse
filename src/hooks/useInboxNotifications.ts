@@ -1,19 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Notification } from './useNotifications';
 
-interface InboxFilters {
-  category?: 'timesheet' | 'reimbursement' | 'all';
-  status?: 'unread' | 'action' | 'all';
+export type InboxFolder = 'all' | 'unread' | 'timesheet' | 'reimbursement' | 'archived';
+
+function invalidateAll(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
+  queryClient.invalidateQueries({ queryKey: ['inbox-counts'] });
+  queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
 }
 
-export function useInboxNotifications(filters: InboxFilters = {}) {
+export function useInboxNotifications(folder: InboxFolder = 'all') {
   const { employee } = useAuth();
-  const { category = 'all', status = 'all' } = filters;
 
   return useQuery({
-    queryKey: ['inbox-notifications', employee?.id, category, status],
+    queryKey: ['inbox-notifications', employee?.id, folder],
     queryFn: async () => {
       if (!employee) return [];
       let query = (supabase as any)
@@ -21,13 +25,18 @@ export function useInboxNotifications(filters: InboxFilters = {}) {
         .select('*')
         .eq('recipient_id', employee.id);
 
-      if (category !== 'all') query = query.eq('category', category);
-      if (status === 'unread') query = query.eq('is_read', false);
-      if (status === 'action') query = query.neq('action_type', 'info').eq('is_resolved', false);
+      if (folder === 'archived') {
+        query = query.eq('is_archived', true);
+      } else {
+        query = query.eq('is_archived', false);
+        if (folder === 'unread') query = query.eq('is_read', false);
+        if (folder === 'timesheet') query = query.eq('category', 'timesheet');
+        if (folder === 'reimbursement') query = query.eq('category', 'reimbursement');
+      }
 
       const { data, error } = await query
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
       if (error) throw error;
       return (data || []) as unknown as Notification[];
     },
@@ -42,30 +51,40 @@ export function useInboxCounts() {
   return useQuery({
     queryKey: ['inbox-counts', employee?.id],
     queryFn: async () => {
-      if (!employee) return { total: 0, timesheet: 0, reimbursement: 0 };
-      const [totalRes, timesheetRes, reimbursementRes] = await Promise.all([
-        (supabase as any)
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('recipient_id', employee.id)
-          .eq('is_read', false),
+      if (!employee) return { all: 0, unread: 0, timesheet: 0, reimbursement: 0, archived: 0 };
+      const [totalRes, timesheetRes, reimbursementRes, archivedRes] = await Promise.all([
         (supabase as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('recipient_id', employee.id)
           .eq('is_read', false)
-          .eq('category', 'timesheet'),
+          .eq('is_archived', false),
         (supabase as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('recipient_id', employee.id)
           .eq('is_read', false)
-          .eq('category', 'reimbursement'),
+          .eq('category', 'timesheet')
+          .eq('is_archived', false),
+        (supabase as any)
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('recipient_id', employee.id)
+          .eq('is_read', false)
+          .eq('category', 'reimbursement')
+          .eq('is_archived', false),
+        (supabase as any)
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('recipient_id', employee.id)
+          .eq('is_archived', true),
       ]);
       return {
-        total: totalRes.count || 0,
+        all: totalRes.count || 0,
+        unread: totalRes.count || 0,
         timesheet: timesheetRes.count || 0,
         reimbursement: reimbursementRes.count || 0,
+        archived: archivedRes.count || 0,
       };
     },
     enabled: !!employee,
@@ -87,12 +106,7 @@ export function useMarkAllInboxRead() {
         .eq('is_read', false);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['inbox-counts'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
-    },
+    onSuccess: () => invalidateAll(queryClient),
   });
 }
 
@@ -107,11 +121,96 @@ export function useResolveNotification() {
         .eq('id', notificationId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['inbox-counts'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+export function useArchiveNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .update({ is_archived: true })
+        .eq('id', id);
+      if (error) throw error;
     },
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+export function useArchiveMultipleNotifications() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .update({ is_archived: true })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+export function useDeleteMultipleNotifications() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+export function useMarkMultipleNotificationsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .update({ is_read: true })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+export function useMarkMultipleNotificationsUnread() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .update({ is_read: false })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateAll(queryClient),
   });
 }
