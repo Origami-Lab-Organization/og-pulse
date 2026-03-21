@@ -30,9 +30,10 @@ interface Props {
   notification: Notification;
   onActionComplete: () => void;
   onOpenCorrectForm: (data: CorrectionData) => void;
+  onLiveStatusLoaded?: (status: string) => void;
 }
 
-export function InboxReimbursementDetail({ notification, onActionComplete, onOpenCorrectForm }: Props) {
+export function InboxReimbursementDetail({ notification, onActionComplete, onOpenCorrectForm, onLiveStatusLoaded }: Props) {
   const { employee } = useAuth();
   const queryClient = useQueryClient();
   const approveMutation = useApproveReimbursement();
@@ -63,6 +64,10 @@ export function InboxReimbursementDetail({ notification, onActionComplete, onOpe
     },
     enabled: !!notification.reference_id,
   });
+
+  useEffect(() => {
+    if (reimbursement?.status) onLiveStatusLoaded?.(reimbursement.status);
+  }, [reimbursement?.status]);
 
   const [managedProjectIds, setManagedProjectIds] = useState<string[]>([]);
   useEffect(() => {

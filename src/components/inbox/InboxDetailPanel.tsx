@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Notification } from '@/hooks/useNotifications';
 import { InboxTimesheetDetail } from './InboxTimesheetDetail';
@@ -51,7 +52,17 @@ export function InboxDetailPanel({
   onArchive,
   onDelete,
 }: Props) {
-  const badge = statusBadge[notification.type];
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  // Reset when notification changes
+  const [lastNotifId, setLastNotifId] = useState(notification.id);
+  if (notification.id !== lastNotifId) {
+    setLastNotifId(notification.id);
+    setLiveStatus(null);
+  }
+
+  const liveReimbursementBadgeKey = liveStatus ? `reimbursement_${liveStatus}` : null;
+  const badge = (liveReimbursementBadgeKey && statusBadge[liveReimbursementBadgeKey])
+    ?? statusBadge[notification.type];
   const catConfig = categoryConfig[notification.category] ?? categoryConfig.timesheet;
   const CatIcon = catConfig.icon;
 
@@ -124,6 +135,7 @@ export function InboxDetailPanel({
             notification={notification}
             onActionComplete={onActionComplete}
             onOpenCorrectForm={onOpenCorrectForm}
+            onLiveStatusLoaded={setLiveStatus}
           />
         )}
       </div>
