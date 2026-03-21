@@ -54,7 +54,6 @@ const navigationGroups = [
     label: 'Meu Espaço',
     items: [
       { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
-      { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Meus Projetos', url: '/my-projects', icon: FolderKanban },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },

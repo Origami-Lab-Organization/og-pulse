@@ -70,7 +70,7 @@ const App = () => (
                 } 
               />
               {/* Root redirect */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<Navigate to="/inbox" replace />} />
               <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
               {/* Dashboard - accessible to all authenticated users */}
               <Route 
