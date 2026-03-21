@@ -2,14 +2,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Notification } from '@/hooks/useNotifications';
 import { InboxNotificationRow } from './InboxNotificationRow';
 import { InboxEmptyState } from './InboxEmptyState';
+import type { InboxFolder } from '@/hooks/useInboxNotifications';
 
 interface Props {
   notifications: Notification[];
   selectedId: string | null;
   onSelect: (notification: Notification) => void;
   isLoading: boolean;
-  category: 'all' | 'timesheet' | 'reimbursement';
-  filter: 'all' | 'unread' | 'action';
+  folder?: InboxFolder;
 }
 
 export function InboxNotificationList({
@@ -17,8 +17,7 @@ export function InboxNotificationList({
   selectedId,
   onSelect,
   isLoading,
-  category,
-  filter,
+  folder = 'all',
 }: Props) {
   if (isLoading) {
     return (
@@ -31,7 +30,7 @@ export function InboxNotificationList({
   }
 
   if (notifications.length === 0) {
-    return <InboxEmptyState category={category} filter={filter} />;
+    return <InboxEmptyState folder={folder} />;
   }
 
   return (
@@ -43,6 +42,11 @@ export function InboxNotificationList({
           isSelected={n.id === selectedId}
           onClick={() => onSelect(n)}
           index={index}
+          isChecked={false}
+          onToggleCheck={() => {}}
+          onArchive={() => {}}
+          onDelete={() => {}}
+          hasAnyChecked={false}
         />
       ))}
     </div>

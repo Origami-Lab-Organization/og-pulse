@@ -50,6 +50,8 @@ serve(async (req) => {
 
     const prevWeekStart = prevWeekMonday.toISOString().split("T")[0];
     const prevWeekEnd = prevWeekSunday.toISOString().split("T")[0];
+    const mondayFormatted = `${String(prevWeekMonday.getDate()).padStart(2, "0")}/${String(prevWeekMonday.getMonth() + 1).padStart(2, "0")}`;
+    const sundayFormatted = `${String(prevWeekSunday.getDate()).padStart(2, "0")}/${String(prevWeekSunday.getMonth() + 1).padStart(2, "0")}`;
 
     let totalCreated = 0;
     let totalResolved = 0;
