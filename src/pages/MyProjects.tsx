@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban, Building2, Users, Calendar, Clock, Search, Eye, User } from 'lucide-react';
+import { FolderKanban, Building2, Users, Calendar, Clock, Search, User } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +67,11 @@ export default function MyProjects() {
     [projects, employee?.nome]
   );
 
+  const totalHoursActual = useMemo(
+    () => projects.reduce((sum, p) => sum + p.totalHoursActual, 0),
+    [projects]
+  );
+
   const pageDescription = isEmployeeOnly
     ? 'Acompanhe os projetos em que você está alocado'
     : 'Visão pessoal dos projetos em que você participa como membro da equipe';
@@ -103,12 +108,14 @@ export default function MyProjects() {
             </CardContent>
           </Card>
           {isEmployeeOnly ? (
-            <div className="col-span-2 md:col-span-1 flex items-center justify-end">
-              <Badge variant="secondary" className="gap-1">
-                <Eye className="h-3 w-3" />
-                Somente leitura
-              </Badge>
-            </div>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {totalHoursActual}h
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Horas lançadas (total)</p>
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardContent className="pt-4 pb-4">
@@ -234,7 +241,7 @@ export default function MyProjects() {
                     </div>
 
                     {/* Project name */}
-                    <p className="font-medium text-base leading-snug line-clamp-2">{project.name}</p>
+                    <p className="font-semibold text-base leading-snug line-clamp-2">{project.name}</p>
 
                     {/* Client */}
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -243,54 +250,60 @@ export default function MyProjects() {
                     </div>
 
                     {/* Minha alocação — 3b */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <User className="h-3 w-3 text-primary" />
-                        </div>
-                        <span className="font-medium text-sm truncate">{project.myRole}</span>
-                        <span className="text-muted-foreground text-sm">·</span>
-                        <span className="text-muted-foreground text-sm shrink-0">
-                          {project.myHoursPerMonth}h/mês
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary rounded-full px-2.5 py-0.5 text-xs font-medium">
+                        <User className="h-3 w-3" />
+                        {project.myRole}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {project.myHoursPerMonth}h/mês
+                      </span>
                       {project.manager.nome && (
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          GP: {project.manager.nome.split(' ')[0]}
-                        </span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="ml-auto text-[11px] text-muted-foreground/70 shrink-0 cursor-default">
+                                GP: {project.manager.nome.split(' ')[0]}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">Gerente: {project.manager.nome}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
 
                     {/* Horas do projeto com tooltip — 3b + 3c */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Horas do projeto
-                        </span>
-                        <span className="font-medium text-foreground">
-                          {project.totalHoursActual}h / {project.totalHoursPlanned}h
-                          {project.totalHoursPlanned > 0 && (
-                            <span className="ml-1 text-muted-foreground font-normal">({hoursPercent}%)</span>
-                          )}
-                        </span>
-                      </div>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden cursor-help">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="space-y-1.5 cursor-help">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                Horas do projeto
+                              </span>
+                              {project.totalHoursPlanned > 0 && (
+                                <span className="font-medium text-foreground">{hoursPercent}%</span>
+                              )}
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                               <div
                                 className={cn('h-full rounded-full transition-all', barColorClass)}
                                 style={{ width: `${hoursPercent}%` }}
                               />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">{tooltipText}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs font-medium">
+                            {project.totalHoursActual}h / {project.totalHoursPlanned}h
+                          </p>
+                          <p className="text-xs text-muted-foreground">{tooltipText}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
 
                     {/* Footer: period + members + atalho timesheet — 3d */}
                     <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
