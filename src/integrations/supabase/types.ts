@@ -1571,6 +1571,7 @@ export type Database = {
           category: string
           created_at: string
           id: string
+          is_archived: boolean
           is_read: boolean
           is_resolved: boolean
           message: string | null
@@ -1588,6 +1589,7 @@ export type Database = {
           category?: string
           created_at?: string
           id?: string
+          is_archived?: boolean
           is_read?: boolean
           is_resolved?: boolean
           message?: string | null
@@ -1605,6 +1607,7 @@ export type Database = {
           category?: string
           created_at?: string
           id?: string
+          is_archived?: boolean
           is_read?: boolean
           is_resolved?: boolean
           message?: string | null
