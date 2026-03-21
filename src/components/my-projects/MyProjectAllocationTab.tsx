@@ -126,15 +126,18 @@ export function MyProjectAllocationTab({
     [memberTotals]
   );
 
-  if (allocation.length === 0) {
+  if (allocation.length === 0 || allMonths.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-        <Clock className="h-10 w-10 text-muted-foreground/40" />
-        <p className="text-sm font-medium text-muted-foreground">Nenhuma alocação registrada</p>
-        <p className="text-xs text-muted-foreground/70">
-          Os dados de alocação deste projeto ainda não foram configurados.
-        </p>
-      </div>
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Clock className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
+          <p className="font-medium text-foreground">Nenhuma alocação planejada</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+            O planejamento de horas por membro ainda não foi definido para este projeto.
+            As horas executadas via timesheet aparecerão aqui quando houver lançamentos.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -241,7 +244,7 @@ export function MyProjectAllocationTab({
                   return (
                     <TableRow
                       key={member.memberId}
-                      className={cn(isCurrentUser && 'bg-primary/5')}
+                      className={cn(isCurrentUser && 'bg-primary/5 dark:bg-primary/10')}
                     >
                       {/* Sticky member cell */}
                       <TableCell className="sticky left-0 z-10 border-r py-2 px-3 bg-inherit">
@@ -282,6 +285,7 @@ export function MyProjectAllocationTab({
                         const planned = row?.planned ?? 0;
                         const actual = row?.actual ?? 0;
                         const isEmpty = planned === 0 && actual === 0;
+                        const isFutureMonth = month > currentMonth;
 
                         return (
                           <TableCell
@@ -292,12 +296,21 @@ export function MyProjectAllocationTab({
                             )}
                           >
                             {isEmpty ? (
-                              <span className="text-muted-foreground">—</span>
+                              <span className="text-muted-foreground/30">—</span>
                             ) : (
-                              <div>
-                                <span className="font-semibold text-xs">{actual}</span>
-                                <span className="text-muted-foreground text-[10px]">/{planned}h</span>
-                                <ProgressBar actual={actual} planned={planned} />
+                              <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex items-baseline gap-0.5">
+                                  <span className="font-semibold text-xs text-foreground">{actual}</span>
+                                  <span className="text-muted-foreground/50 text-[10px]">/</span>
+                                  <span className="text-[10px] text-muted-foreground">{planned}h</span>
+                                </div>
+                                {actual > 0 ? (
+                                  <ProgressBar actual={actual} planned={planned} />
+                                ) : isFutureMonth ? (
+                                  <span className="text-[10px] text-muted-foreground/40">planejado</span>
+                                ) : (
+                                  <div className="h-[3px] w-full rounded-full bg-muted mt-0.5" />
+                                )}
                               </div>
                             )}
                           </TableCell>
@@ -356,6 +369,22 @@ export function MyProjectAllocationTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Legend — 5b ── */}
+      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+        <span className="flex items-center gap-1.5">
+          <div className="w-3 h-1.5 rounded-full bg-emerald-500" />
+          ≥ 90% (no prazo)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <div className="w-3 h-1.5 rounded-full bg-amber-500" />
+          40–89% (em progresso)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <div className="w-3 h-1.5 rounded-full bg-destructive" />
+          &gt; 110% (acima do planejado)
+        </span>
+      </div>
 
       {/* ── Comparative bar chart ── */}
       <Card>

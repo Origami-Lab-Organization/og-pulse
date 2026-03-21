@@ -19,23 +19,23 @@ function krColor(progress: number): string {
 }
 
 function krBarColor(progress: number): string {
-  if (progress >= 70) return 'bg-emerald-500';
-  if (progress >= 40) return 'bg-amber-500';
+  if (progress >= 70) return 'bg-emerald-500 dark:bg-emerald-400';
+  if (progress >= 40) return 'bg-amber-500 dark:bg-amber-400';
   return 'bg-destructive';
 }
 
 export function MyProjectOKRsTab({ okrs }: MyProjectOKRsTabProps) {
   if (okrs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-        <Target className="h-10 w-10 text-muted-foreground/40" />
-        <p className="text-sm font-medium text-muted-foreground">
-          Nenhum OKR definido para este projeto.
-        </p>
-        <p className="text-xs text-muted-foreground/70">
-          Os objetivos e resultados-chave serão exibidos aqui quando definidos pelo gerente.
-        </p>
-      </div>
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Target className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
+          <p className="font-medium text-foreground">Nenhum OKR definido</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+            Os objetivos e resultados-chave deste projeto ainda não foram cadastrados.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 

@@ -1,4 +1,5 @@
 import { CalendarDays, ArrowRight } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -48,15 +49,15 @@ function DotIndicator({ status }: { status: string }) {
 export function MyProjectScheduleTab({ phases }: MyProjectScheduleTabProps) {
   if (phases.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-        <CalendarDays className="h-10 w-10 text-muted-foreground/40" />
-        <p className="text-sm font-medium text-muted-foreground">
-          Nenhuma fase definida no cronograma.
-        </p>
-        <p className="text-xs text-muted-foreground/70">
-          O cronograma do projeto será exibido aqui quando definido pelo gerente.
-        </p>
-      </div>
+      <Card>
+        <CardContent className="py-12 text-center">
+          <CalendarDays className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
+          <p className="font-medium text-foreground">Nenhuma fase no cronograma</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+            O cronograma de fases deste projeto ainda não foi configurado.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 

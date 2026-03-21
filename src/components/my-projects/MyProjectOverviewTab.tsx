@@ -94,7 +94,16 @@ export function MyProjectOverviewTab({ project, currentEmployeeId }: MyProjectOv
     const completedPhases = project.schedulePhases.filter((p) => p.status === 'completed').length;
     const scheduleProgress = totalPhases > 0 ? (completedPhases / totalPhases) * 100 : 0;
 
-    return { hoursProgress, timeProgress, isContinuousNoEnd, okrProgress, scheduleProgress, completedPhases, totalPhases, allKRs };
+    // Meses ativos para projetos contínuos sem data fim
+    const monthsActive = isContinuousNoEnd
+      ? Math.max(
+          0,
+          (today.getFullYear() - start.getFullYear()) * 12 +
+            (today.getMonth() - start.getMonth())
+        )
+      : 0;
+
+    return { hoursProgress, timeProgress, isContinuousNoEnd, monthsActive, okrProgress, scheduleProgress, completedPhases, totalPhases, allKRs };
   }, [project]);
 
   // ── Meu membro na equipe ─────────────────────────────────────────────────
@@ -130,8 +139,8 @@ export function MyProjectOverviewTab({ project, currentEmployeeId }: MyProjectOv
         />
         <KpiCard
           label="Tempo Decorrido"
-          value={kpis.isContinuousNoEnd ? 'Contínuo' : formatPercent(Math.min(kpis.timeProgress, 100))}
-          sub={`${formatDate(project.startDate)} → ${project.endDate ? formatDate(project.endDate) : 'em aberto'}`}
+          value={kpis.isContinuousNoEnd ? `${kpis.monthsActive}m` : formatPercent(Math.min(kpis.timeProgress, 100))}
+          sub={kpis.isContinuousNoEnd ? 'Meses ativos' : `${formatDate(project.startDate)} → ${project.endDate ? formatDate(project.endDate) : 'em aberto'}`}
           progress={kpis.timeProgress}
           barColor="bg-violet-500"
           hideBar={kpis.isContinuousNoEnd}
@@ -162,6 +171,37 @@ export function MyProjectOverviewTab({ project, currentEmployeeId }: MyProjectOv
           icon={<CheckSquare className="h-4 w-4" />}
         />
       </div>
+
+      {/* ── Minha Participação — 4c ── */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-6 flex-wrap">
+            <div>
+              <p className="text-xs text-muted-foreground">Meu papel</p>
+              <p className="font-medium">{project.myRole}</p>
+            </div>
+            <div className="h-8 w-px bg-border hidden sm:block" />
+            <div>
+              <p className="text-xs text-muted-foreground">Horas/mês</p>
+              <p className="font-medium">{project.myHoursPerMonth}h</p>
+            </div>
+            <div className="h-8 w-px bg-border hidden sm:block" />
+            <div>
+              <p className="text-xs text-muted-foreground">Equipe</p>
+              <p className="font-medium">{project.members.length} membro{project.members.length !== 1 ? 's' : ''}</p>
+            </div>
+            {project.isContinuous && (
+              <>
+                <div className="h-8 w-px bg-border hidden sm:block" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Tipo</p>
+                  <Badge variant="secondary" className="text-xs">Contínuo</Badge>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Info Cards ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

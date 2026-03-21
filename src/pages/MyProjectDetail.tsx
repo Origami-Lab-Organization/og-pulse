@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Lock, Building2, Calendar, FolderKanban } from 'lucide-react';
+import { Lock, Building2, Calendar, FolderKanban, Clock } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,6 +21,15 @@ import { cn } from '@/lib/utils';
 function getStageBadgeClass(stage: string): string {
   const col = PORTFOLIO_COLUMNS.find((c) => c.id === stage);
   return col?.color ?? 'bg-muted text-muted-foreground';
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0].toUpperCase())
+    .join('');
 }
 
 export default function MyProjectDetail() {
@@ -93,12 +103,12 @@ export default function MyProjectDetail() {
       ]}
     >
       <div className="space-y-6">
-        {/* Project header */}
+        {/* Project header — 4a + 4b */}
         <div className="space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <Badge className={cn('text-xs border-0', stageBadgeClass)}>{stageLabel}</Badge>
             {isEmployeeOnly && (
-              <Badge variant="outline" className="gap-1 text-xs">
+              <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3" />
                 Somente leitura
               </Badge>
@@ -123,17 +133,44 @@ export default function MyProjectDetail() {
               <span className="flex items-center gap-1.5">{serviceLabel}</span>
             )}
           </div>
+
+          {/* Minha participação — destaque */}
+          {employee?.nome && (
+            <div className="flex items-center gap-3 mt-1 p-2.5 rounded-lg bg-primary/5 border border-primary/10 text-sm">
+              <Avatar className="h-7 w-7 border border-primary/20 shrink-0">
+                <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
+                  {getInitials(employee.nome)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="font-medium text-foreground truncate">{project.myRole}</span>
+                <span className="text-muted-foreground shrink-0">·</span>
+                <span className="text-muted-foreground shrink-0">{project.myHoursPerMonth}h/mês</span>
+              </div>
+              {isEmployeeOnly && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto h-7 text-xs text-muted-foreground hover:text-primary gap-1 shrink-0"
+                  onClick={() => navigate('/my-timesheet')}
+                >
+                  <Clock className="h-3 w-3" />
+                  Lançar horas
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — 4e */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 lg:w-auto lg:inline-flex">
-            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="okrs">OKRs</TabsTrigger>
-            <TabsTrigger value="allocation">Alocação</TabsTrigger>
-            <TabsTrigger value="schedule">Cronograma</TabsTrigger>
-            <TabsTrigger value="team">Equipe</TabsTrigger>
-            <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
+          <TabsList className="w-full overflow-x-auto flex flex-nowrap lg:inline-flex lg:w-auto">
+            <TabsTrigger value="overview" className="shrink-0">Visão Geral</TabsTrigger>
+            <TabsTrigger value="okrs" className="shrink-0">OKRs</TabsTrigger>
+            <TabsTrigger value="allocation" className="shrink-0">Alocação</TabsTrigger>
+            <TabsTrigger value="schedule" className="shrink-0">Cronograma</TabsTrigger>
+            <TabsTrigger value="team" className="shrink-0">Equipe</TabsTrigger>
+            <TabsTrigger value="stakeholders" className="shrink-0">Stakeholders</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">

@@ -29,6 +29,20 @@ function getInitials(name: string): string {
 }
 
 export function MyProjectTeamTab({ members, currentEmployeeId }: MyProjectTeamTabProps) {
+  if (members.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Users className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
+          <p className="font-medium text-foreground">Nenhum membro alocado</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+            A equipe deste projeto ainda não foi definida.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -41,59 +55,56 @@ export function MyProjectTeamTab({ members, currentEmployeeId }: MyProjectTeamTa
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {members.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
-            <Users className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Nenhum membro alocado.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {members.map((member) => {
-              const isCurrentUser = member.employeeId === currentEmployeeId;
-              return (
-                <div
-                  key={member.id}
-                  className={cn(
-                    'flex items-start gap-3 p-3 rounded-lg border transition-colors',
-                    isCurrentUser
-                      ? 'border-primary/50 bg-primary/5'
-                      : 'border-border bg-muted/20'
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {members.map((member) => {
+            const isCurrentUser = member.employeeId === currentEmployeeId;
+            return (
+              <div
+                key={member.id}
+                className={cn(
+                  'flex items-start gap-3 p-3 rounded-lg border transition-colors',
+                  isCurrentUser
+                    ? 'border-primary/50 bg-primary/5'
+                    : 'border-border bg-muted/20'
+                )}
+              >
+                <Avatar className="h-10 w-10 border-2 border-background shadow-sm shrink-0">
+                  {member.fotoUrl && (
+                    <AvatarImage src={member.fotoUrl} alt={member.nome} />
                   )}
-                >
-                  <Avatar className="h-10 w-10 border-2 border-background shadow-sm shrink-0">
-                    {member.fotoUrl && (
-                      <AvatarImage src={member.fotoUrl} alt={member.nome} />
+                  <AvatarFallback
+                    className={cn(
+                      'text-sm font-medium',
+                      isCurrentUser
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
                     )}
-                    <AvatarFallback
-                      className={cn(
-                        'text-sm font-medium',
-                        isCurrentUser
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-muted-foreground'
-                      )}
-                    >
-                      {getInitials(member.nome)}
-                    </AvatarFallback>
-                  </Avatar>
+                  >
+                    {getInitials(member.nome)}
+                  </AvatarFallback>
+                </Avatar>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-sm font-medium leading-none truncate">{member.nome}</p>
-                      {isCurrentUser && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground font-medium shrink-0 leading-tight">
-                          Você
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{member.cargo}</p>
-                    <p className="text-xs text-muted-foreground/80 mt-1 truncate">{member.role}</p>
-                    <p className="text-xs font-medium mt-1">{member.hoursPerMonth}h/mês</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-medium leading-none truncate">{member.nome}</p>
+                    {isCurrentUser && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground font-medium shrink-0 leading-tight">
+                        Você
+                      </span>
+                    )}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{member.cargo}</p>
+                  <p className="text-xs text-muted-foreground/80 mt-1 truncate">{member.role}</p>
+                  <p className="text-xs font-medium mt-1">
+                    {member.hoursPerMonth > 0
+                      ? `${member.hoursPerMonth}h/mês`
+                      : 'Sem alocação definida'}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
