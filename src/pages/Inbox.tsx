@@ -163,7 +163,7 @@ export default function InboxPage() {
       description="Notificações e ações pendentes"
     >
       <div
-        className="flex border rounded-lg bg-card overflow-hidden"
+        className="flex bg-card overflow-hidden border-y -mx-6"
         style={{ height: 'calc(100vh - 180px)' }}
       >
         {/* Column 1: Sidebar — desktop only */}

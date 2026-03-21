@@ -76,7 +76,17 @@ export function InboxDetailPanel({
         </div>
 
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-medium leading-snug">{notification.title}</h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-base font-medium leading-snug">{notification.title}</h2>
+            <div className="flex gap-1 flex-shrink-0">
+              <Button variant="outline" size="icon" className="h-7 w-7" title="Arquivar" onClick={onArchive}>
+                <Archive className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="outline" size="icon" className="h-7 w-7" title="Excluir" onClick={onDelete}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">{timestamp}</p>
 
           {/* Tags row */}
@@ -95,16 +105,6 @@ export function InboxDetailPanel({
               </span>
             )}
           </div>
-        </div>
-
-        {/* Quick actions */}
-        <div className="flex gap-1 flex-shrink-0">
-          <Button variant="outline" size="icon" className="h-8 w-8" title="Arquivar" onClick={onArchive}>
-            <Archive className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" title="Excluir" onClick={onDelete}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
