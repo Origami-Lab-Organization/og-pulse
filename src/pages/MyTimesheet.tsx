@@ -5,12 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Building2,
+  Briefcase,
   Loader2,
   CheckCircle2,
   Send,
   Info,
   CircleAlert,
   ChevronRight,
+  ChevronDown,
   AlertCircle
 } from "lucide-react";
 import {
@@ -57,6 +59,21 @@ const MyTimesheet = () => {
   const [viewMode, setViewMode] = useState<'weekly' | 'monthly'>('weekly');
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [activitiesOpen, setActivitiesOpen] = useState(true);
+  const [allocationExpanded, setAllocationExpanded] = useState(() => {
+    try {
+      return sessionStorage.getItem('timesheet-allocation-collapsed') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleAllocation = () => {
+    const next = !allocationExpanded;
+    setAllocationExpanded(next);
+    try {
+      sessionStorage.setItem('timesheet-allocation-collapsed', String(!next));
+    } catch {}
+  };
 
   // Dialog states
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false);
@@ -443,6 +460,55 @@ const MyTimesheet = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Alocação mensal — colapsável */}
+                  <Collapsible open={allocationExpanded} onOpenChange={setAllocationExpanded}>
+                    <CollapsibleTrigger asChild>
+                      <button
+                        className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted/50 rounded-md transition-colors"
+                        onClick={toggleAllocation}
+                      >
+                        <ChevronDown className={cn(
+                          "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
+                          !allocationExpanded && "-rotate-90"
+                        )} />
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex-1">
+                          Alocação — <span className="capitalize">{monthLabel}</span>
+                        </span>
+                        {!allocationExpanded && allocationData && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">
+                              {allocationData.totalActualHours.toFixed(1)}h / {allocationData.totalPlannedHours.toFixed(0)}h
+                            </span>
+                            {allocationData.monthlyCapacity > 0 && (() => {
+                              const pct = Math.round((allocationData.totalActualHours / allocationData.monthlyCapacity) * 100);
+                              const isOver = pct > 100;
+                              const isUnder = pct < 80;
+                              return (
+                                <span className={cn(
+                                  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+                                  isOver  && "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400",
+                                  isUnder && "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
+                                  !isOver && !isUnder && "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400",
+                                )}>
+                                  {pct}% · {isOver ? "Sobrealocado" : isUnder ? "Subalocado" : "Adequado"}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="pt-1 pb-3">
+                        <MyTimesheetAllocation
+                          employeeId={employee?.id}
+                          monthKey={monthKey}
+                        />
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+
                   {/* Header único */}
                   <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground">
                     <div>Projeto</div>
@@ -460,7 +526,7 @@ const MyTimesheet = () => {
                                 className={cn(
                                   "text-center rounded-md py-1",
                                   isHolidayDay && "bg-destructive/10 text-destructive",
-                                  isToday && !isHolidayDay && "bg-primary/10 text-primary font-medium"
+                                  isToday && !isHolidayDay && "bg-primary/10 text-primary font-medium rounded-t-md"
                                 )}
                               >
                                 {format(
@@ -478,6 +544,9 @@ const MyTimesheet = () => {
                                 </span>
                                 {isHolidayDay && (
                                   <span className="text-[8px] block">*</span>
+                                )}
+                                {isToday && !isHolidayDay && (
+                                  <span className="text-[10px] text-primary font-medium block">hoje</span>
                                 )}
                               </div>
                             </TooltipTrigger>
@@ -584,30 +653,46 @@ const MyTimesheet = () => {
                   {myActivityTypes.length > 0 && (
                     <Collapsible open={activitiesOpen} onOpenChange={setActivitiesOpen}>
                       <CollapsibleTrigger asChild>
-                        <button className="flex items-center gap-2 px-3 py-2 w-full text-left hover:bg-muted/50 rounded-md transition-colors">
-                          <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", activitiesOpen && "rotate-90")} />
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Atividades internas ({myActivityTypes.length})
-                          </span>
-                        </button>
+                        {projects.length > 0 ? (
+                          /* Separador visual — só aparece quando há projetos E atividades */
+                          <button className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-muted/30 rounded-md transition-colors mt-1">
+                            <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="text-sm font-medium text-muted-foreground">Atividades Internas</span>
+                            <span className="bg-muted text-muted-foreground text-xs rounded-full px-2 py-0.5 shrink-0">
+                              {myActivityTypes.length}
+                            </span>
+                            <div className="flex-1 h-px bg-border" />
+                            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0", activitiesOpen && "rotate-90")} />
+                          </button>
+                        ) : (
+                          /* Trigger simples — sem separador quando não há projetos */
+                          <button className="flex items-center gap-2 px-3 py-2 w-full text-left hover:bg-muted/50 rounded-md transition-colors">
+                            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", activitiesOpen && "rotate-90")} />
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Atividades internas ({myActivityTypes.length})
+                            </span>
+                          </button>
+                        )}
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        {myActivityTypes.map((at) => (
-                          <ActivityTimesheetRow
-                            key={at.id}
-                            activityTypeId={at.id}
-                            activityName={at.name}
-                            employeeId={employee!.id}
-                            weekDays={weekDays}
-                            existingEntries={activityEntries}
-                            holidays={holidays}
-                            allDailyTotals={allDailyTotals}
-                            dailyWorkHours={employee?.jornada_diaria ?? 8}
-                            onLocalTotalChange={handleActivityLocalTotalChange}
-                            onLocalDayHoursChange={handleActivityLocalDayHoursChange}
-                            onSaveStatusChange={handleSaveStatusChange}
-                          />
-                        ))}
+                        <div className={cn(projects.length > 0 && "bg-muted/20 rounded-md")}>
+                          {myActivityTypes.map((at) => (
+                            <ActivityTimesheetRow
+                              key={at.id}
+                              activityTypeId={at.id}
+                              activityName={at.name}
+                              employeeId={employee!.id}
+                              weekDays={weekDays}
+                              existingEntries={activityEntries}
+                              holidays={holidays}
+                              allDailyTotals={allDailyTotals}
+                              dailyWorkHours={employee?.jornada_diaria ?? 8}
+                              onLocalTotalChange={handleActivityLocalTotalChange}
+                              onLocalDayHoursChange={handleActivityLocalDayHoursChange}
+                              onSaveStatusChange={handleSaveStatusChange}
+                            />
+                          ))}
+                        </div>
                       </CollapsibleContent>
                     </Collapsible>
                   )}
@@ -682,10 +767,6 @@ const MyTimesheet = () => {
             </CardContent>
           </Card>
 
-          <MyTimesheetAllocation
-            employeeId={employee?.id}
-            monthKey={monthKey}
-          />
           </>
           )}
         </div>

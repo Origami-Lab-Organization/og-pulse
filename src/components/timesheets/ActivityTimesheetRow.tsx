@@ -6,7 +6,8 @@ import { ActivityTimesheetEntry } from '@/hooks/useActivityTimesheets';
 import { cn } from '@/lib/utils';
 import { Holiday } from '@/types/holiday';
 import { isHoliday } from '@/hooks/useHolidays';
-import { parseISO, isAfter, startOfDay } from 'date-fns';
+import { parseISO, isAfter, startOfDay, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   Tooltip,
   TooltipContent,
@@ -14,7 +15,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
-import type { SaveStatusInfo } from './TimesheetWeekRow';
+import { Briefcase, Check, Loader2, Circle, AlertCircle } from 'lucide-react';
+import type { SaveStatus, SaveStatusInfo } from './TimesheetWeekRow';
 
 interface ActivityTimesheetRowProps {
   activityTypeId: string;
@@ -44,6 +46,7 @@ export function ActivityTimesheetRow({
   onSaveStatusChange,
 }: ActivityTimesheetRowProps) {
   const upsert = useUpsertActivityTimesheet();
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
 
   const getInitialHours = useCallback(() => {
     const hours: Record<string, number> = {};
@@ -91,22 +94,27 @@ export function ActivityTimesheetRow({
 
   const MAX_HOURS = 12;
 
+  const reportStatus = useCallback((info: SaveStatusInfo) => {
+    setSaveStatus(info.status);
+    onSaveStatusChange?.(activityTypeId, info);
+  }, [activityTypeId, onSaveStatusChange]);
+
   const saveDate = useCallback(async (date: string) => {
     const value = hoursRef.current[date] ?? 0;
-    onSaveStatusChange?.(activityTypeId, { status: 'saving' });
+    reportStatus({ status: 'saving' });
     try {
       await upsert.mutateAsync({ employeeId, activityTypeId, workDate: date, hours: value });
       setPendingSaves(prev => { const next = new Set(prev); next.delete(date); return next; });
       const remaining = new Set(pendingSavesRef.current);
       remaining.delete(date);
       if (remaining.size === 0) {
-        onSaveStatusChange?.(activityTypeId, { status: 'saved', lastSavedAt: new Date() });
+        reportStatus({ status: 'saved', lastSavedAt: new Date() });
       }
     } catch {
-      onSaveStatusChange?.(activityTypeId, { status: 'error' });
+      reportStatus({ status: 'error' });
       retryTimerRef.current = setTimeout(() => saveDate(date), 5000);
     }
-  }, [employeeId, activityTypeId, upsert, onSaveStatusChange]);
+  }, [employeeId, activityTypeId, upsert, reportStatus]);
 
   const scheduleSave = useCallback((date: string) => {
     const existing = debounceTimersRef.current.get(date);
@@ -128,7 +136,7 @@ export function ActivityTimesheetRow({
     }
     setHours(prev => ({ ...prev, [date]: numValue }));
     setPendingSaves(prev => new Set(prev).add(date));
-    onSaveStatusChange?.(activityTypeId, { status: 'unsaved' });
+    reportStatus({ status: 'unsaved' });
     scheduleSave(date);
   };
 
@@ -152,21 +160,33 @@ export function ActivityTimesheetRow({
   useEffect(() => { onLocalTotalChange?.(activityTypeId, totalHours); }, [totalHours, activityTypeId, onLocalTotalChange]);
   useEffect(() => { onLocalDayHoursChange?.(activityTypeId, hours); }, [hours, activityTypeId, onLocalDayHoursChange]);
 
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
   return (
     <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md">
       <div className="min-w-0">
-        <p className="text-sm font-medium truncate">{activityName}</p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Briefcase className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <p className="text-sm font-medium truncate">{activityName}</p>
+        </div>
         <p className="text-xs text-muted-foreground">Atividade interna</p>
       </div>
 
       {weekDays.map(day => {
         const holiday = isHoliday(parseISO(day.date), holidays);
+        const isToday = day.date === todayStr;
+        const dayName = format(parseISO(day.date), 'EEEE', { locale: ptBR });
+
         if (holiday) {
           return (
             <TooltipProvider key={day.date}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-destructive/10 rounded-md border border-destructive/20 cursor-not-allowed">
+                  <div
+                    className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-destructive/10 rounded-md border border-destructive/20 cursor-not-allowed"
+                    aria-label={`Feriado: ${holiday.name}`}
+                    tabIndex={-1}
+                  >
                     --
                   </div>
                 </TooltipTrigger>
@@ -182,7 +202,12 @@ export function ActivityTimesheetRow({
             <TooltipProvider key={day.date}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-md border cursor-not-allowed">
+                  <div
+                    className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-md border cursor-not-allowed"
+                    aria-label={`${dayName}: dia futuro, lançamento não permitido`}
+                    aria-disabled="true"
+                    tabIndex={-1}
+                  >
                     —
                   </div>
                 </TooltipTrigger>
@@ -205,8 +230,10 @@ export function ActivityTimesheetRow({
             value={hours[day.date] || ''}
             onChange={e => handleHoursChange(day.date, e.target.value)}
             onBlur={() => handleBlur(day.date)}
+            aria-label={`Horas ${dayName}, atividade ${activityName}`}
             className={cn(
               'h-8 text-center text-sm px-1',
+              isToday && 'bg-primary/5 ring-1 ring-primary/20',
               pendingSaves.has(day.date) && 'border-primary',
               isOverWorkday && 'border-amber-500 focus-visible:ring-amber-500',
             )}
@@ -231,8 +258,33 @@ export function ActivityTimesheetRow({
       <div className="text-right font-medium text-sm pr-2">
         {totalHours.toFixed(1)}h
       </div>
-      {/* Empty status column */}
-      <div />
+
+      <div className="flex items-center justify-center">
+        {saveStatus === 'saved' && (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400">
+            <Check className="h-3 w-3" />
+            Salvo
+          </span>
+        )}
+        {saveStatus === 'saving' && (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Salvando...
+          </span>
+        )}
+        {saveStatus === 'unsaved' && (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+            <Circle className="h-3 w-3" />
+            Pendente
+          </span>
+        )}
+        {saveStatus === 'error' && (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400">
+            <AlertCircle className="h-3 w-3" />
+            Erro ao salvar
+          </span>
+        )}
+      </div>
     </div>
   );
 }

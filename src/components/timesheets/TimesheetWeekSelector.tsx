@@ -1,7 +1,16 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { format, subWeeks, isSameDay } from 'date-fns';
+import {
+  format,
+  isSameDay,
+  isSameMonth,
+  addMonths,
+  subMonths,
+  startOfMonth,
+  endOfMonth,
+  addWeeks,
+} from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getWeekStart, getWeekEnd } from '@/hooks/useTimesheetData';
 import { cn } from '@/lib/utils';
@@ -11,101 +20,125 @@ interface TimesheetWeekSelectorProps {
   onDateChange: (date: Date) => void;
 }
 
-const WEEKS_BACK = 26;
-const WEEKS_FORWARD = 12;
+const MONTHS_BACK = 6;
+const MONTHS_FORWARD = 3;
+
+function formatWeekChip(weekStart: Date, weekEnd: Date): string {
+  if (isSameMonth(weekStart, weekEnd)) {
+    return `${format(weekStart, 'd', { locale: ptBR })}–${format(weekEnd, 'd MMM', { locale: ptBR })}`;
+  }
+  return `${format(weekStart, 'd MMM', { locale: ptBR })}–${format(weekEnd, 'd MMM', { locale: ptBR })}`;
+}
 
 export function TimesheetWeekSelector({ selectedDate, onDateChange }: TimesheetWeekSelectorProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const selectedChipRef = useRef<HTMLButtonElement>(null);
-  const currentChipRef = useRef<HTMLButtonElement>(null);
-  const hasMounted = useRef(false);
-
-  const currentWeekStart = getWeekStart(new Date());
+  const today = new Date();
+  const currentWeekStart = getWeekStart(today);
   const selectedWeekStart = getWeekStart(selectedDate);
 
-  const weeks = useMemo(() => {
-    const list: Date[] = [];
-    for (let i = WEEKS_BACK; i >= 0; i--) {
-      list.push(getWeekStart(subWeeks(new Date(), i)));
-    }
-    for (let i = 1; i <= WEEKS_FORWARD; i++) {
-      list.push(getWeekStart(subWeeks(new Date(), -i)));
-    }
-    return list;
-  }, []);
+  const [viewMonth, setViewMonth] = useState(() => startOfMonth(today));
 
-  // On mount, center the current week
-  useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      setTimeout(() => {
-        currentChipRef.current?.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'center' });
-      }, 50);
-    }
-  }, []);
+  const minMonth = startOfMonth(subMonths(today, MONTHS_BACK));
+  const maxMonth = startOfMonth(addMonths(today, MONTHS_FORWARD));
 
-  // On selection change, scroll to selected chip
-  useEffect(() => {
-    if (hasMounted.current) {
-      setTimeout(() => {
-        selectedChipRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      }, 50);
-    }
-  }, [selectedDate]);
+  const canGoPrev = viewMonth > minMonth;
+  const canGoNext = viewMonth < maxMonth;
 
-  const scrollBy = (dir: number) => {
-    scrollRef.current?.scrollBy({ left: dir * 200, behavior: 'smooth' });
+  const weeksInMonth = useMemo(() => {
+    const monthEnd = endOfMonth(viewMonth);
+    const weeks: Date[] = [];
+    // Start from the Monday of the week containing the 1st of the month
+    let current = getWeekStart(viewMonth);
+    // Collect all weeks that start before or on the last day of the month
+    while (current <= monthEnd) {
+      weeks.push(current);
+      current = addWeeks(current, 1);
+    }
+    return weeks;
+  }, [viewMonth]);
+
+  const handlePrevMonth = () => {
+    if (canGoPrev) setViewMonth((m) => startOfMonth(subMonths(m, 1)));
+  };
+
+  const handleNextMonth = () => {
+    if (canGoNext) setViewMonth((m) => startOfMonth(addMonths(m, 1)));
+  };
+
+  const handleToday = () => {
+    setViewMonth(startOfMonth(today));
+    onDateChange(today);
   };
 
   return (
-    <div className="flex items-center gap-0">
-      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => scrollBy(-1)}>
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
+    <nav className="flex flex-col gap-2" aria-label="Seletor de semana">
+      {/* Month navigator */}
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          disabled={!canGoPrev}
+          onClick={handlePrevMonth}
+          aria-label={`Mês anterior: ${format(subMonths(viewMonth, 1), 'MMMM yyyy', { locale: ptBR })}`}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
 
-      <div ref={scrollRef} className="flex-1 overflow-x-auto scrollbar-hide scroll-smooth">
-        <div className="flex gap-1.5 px-1 py-1.5">
-          {weeks.map((weekStart) => {
-            const weekEnd = getWeekEnd(weekStart);
-            const isCurrent = isSameDay(weekStart, currentWeekStart);
-            const isSelected = isSameDay(weekStart, selectedWeekStart);
+        <span className="flex-1 text-center text-sm font-medium capitalize" aria-live="polite">
+          {format(viewMonth, 'MMMM yyyy', { locale: ptBR })}
+        </span>
 
-            return (
-              <button
-                key={weekStart.toISOString()}
-                ref={(el) => {
-                  if (isSelected) (selectedChipRef as any).current = el;
-                  if (isCurrent) (currentChipRef as any).current = el;
-                }}
-                onClick={() => onDateChange(weekStart)}
-                className={cn(
-                  'shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap',
-                  isCurrent && !isSelected && 'bg-primary text-primary-foreground',
-                  isCurrent && isSelected && 'bg-primary text-primary-foreground ring-2 ring-primary/50',
-                  !isCurrent && isSelected && 'border border-primary bg-primary/10 text-foreground',
-                  !isCurrent && !isSelected && 'text-muted-foreground hover:bg-muted',
-                )}
-              >
-                {format(weekStart, 'dd/MM', { locale: ptBR })} - {format(weekEnd, 'dd/MM', { locale: ptBR })}
-              </button>
-            );
-          })}
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          disabled={!canGoNext}
+          onClick={handleNextMonth}
+          aria-label={`Próximo mês: ${format(addMonths(viewMonth, 1), 'MMMM yyyy', { locale: ptBR })}`}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-1 h-7 text-xs shrink-0"
+          disabled={isSameDay(selectedWeekStart, currentWeekStart)}
+          onClick={handleToday}
+          aria-label="Ir para semana atual"
+        >
+          Hoje
+        </Button>
       </div>
 
-      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => scrollBy(1)}>
-        <ChevronRight className="h-4 w-4" />
-      </Button>
+      {/* Week chips */}
+      <div className="flex flex-wrap gap-1.5" role="list">
+        {weeksInMonth.map((weekStart) => {
+          const weekEnd = getWeekEnd(weekStart);
+          const isCurrent = isSameDay(weekStart, currentWeekStart);
+          const isSelected = isSameDay(weekStart, selectedWeekStart);
+          const chipLabel = formatWeekChip(weekStart, weekEnd);
 
-      <Button
-        variant="outline"
-        size="sm"
-        className="shrink-0 ml-1"
-        disabled={isSameDay(selectedWeekStart, currentWeekStart)}
-        onClick={() => onDateChange(new Date())}
-      >
-        Hoje
-      </Button>
-    </div>
+          return (
+            <button
+              key={weekStart.toISOString()}
+              role="listitem"
+              onClick={() => onDateChange(weekStart)}
+              aria-label={`Semana ${chipLabel}${isCurrent ? ' (semana atual)' : ''}`}
+              aria-current={isSelected ? 'true' : undefined}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap',
+                isCurrent && !isSelected && 'bg-primary text-primary-foreground',
+                isCurrent && isSelected && 'bg-primary text-primary-foreground ring-2 ring-primary/50 ring-offset-1',
+                !isCurrent && isSelected && 'border border-primary bg-primary/10 text-foreground',
+                !isCurrent && !isSelected && 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+              )}
+            >
+              {chipLabel}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

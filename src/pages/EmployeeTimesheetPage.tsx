@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { format, startOfMonth, endOfMonth, isBefore, startOfWeek, addDays, addWeeks } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isBefore, isSameMonth, startOfWeek, addDays, addWeeks, eachDayOfInterval, isWeekend } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
+import { WeeklySummaryBar } from '@/components/timesheets/WeeklySummaryBar';
 import { TimesheetByEmployee, AdminEditChange } from '@/components/timesheets/TimesheetByEmployee';
 import { TimesheetWeekStatus } from '@/components/timesheets/TimesheetWeekStatus';
 import { SubmitProjectDialog, SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
@@ -21,7 +22,7 @@ import {
   groupByEmployee,
   EmployeeWithProjects,
 } from '@/hooks/useTimesheetData';
-import { useHolidays } from '@/hooks/useHolidays';
+import { useHolidays, isHoliday } from '@/hooks/useHolidays';
 import { useMyAllocationData } from '@/hooks/useMyAllocationData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -81,7 +82,7 @@ export default function EmployeeTimesheetPage() {
       if (!employeeId) return null;
       const { data, error } = await supabase
         .from('employees')
-        .select('id, nome, cargo, data_admissao, jornada_mensal, status, employee_terminations!termination_id (termination_date)')
+        .select('id, nome, cargo, data_admissao, jornada_mensal, jornada_diaria, status, employee_terminations!termination_id (termination_date)')
         .eq('id', employeeId)
         .single();
       if (error) throw error;
@@ -133,6 +134,16 @@ export default function EmployeeTimesheetPage() {
       .filter(e => memberIds.has(e.projectMemberId))
       .reduce((sum, e) => sum + e.hours, 0);
   }, [timesheetEntries, employeeData]);
+
+  const weekLabel = isSameMonth(weekStart, weekEnd)
+    ? `${format(weekStart, 'd', { locale: ptBR })}–${format(weekEnd, 'd MMM', { locale: ptBR })}`
+    : `${format(weekStart, 'd MMM', { locale: ptBR })}–${format(weekEnd, 'd MMM', { locale: ptBR })}`;
+
+  const weeklyExpectedHours = useMemo(() => {
+    const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+    const workingDays = days.filter(d => !isWeekend(d) && !isHoliday(d, holidays)).length;
+    return ((employeeInfo as any)?.jornada_diaria ?? 8) * workingDays;
+  }, [weekStart, weekEnd, holidays, employeeInfo]);
 
   const pendingProjects = useMemo(() => {
     if (employeeData.length === 0 || !timesheetEntries) return [];
@@ -353,6 +364,15 @@ export default function EmployeeTimesheetPage() {
                     monthlyActual={monthlyAllocation?.totalActualHours}
                     monthlyPlanned={monthlyAllocation?.totalPlannedHours}
                     monthlyCapacity={monthlyAllocation?.monthlyCapacity}
+                  />
+                )}
+
+                {/* Weekly summary bar */}
+                {!isLoading && (
+                  <WeeklySummaryBar
+                    totalHours={totalHours}
+                    expectedHours={weeklyExpectedHours}
+                    weekLabel={weekLabel}
                   />
                 )}
 

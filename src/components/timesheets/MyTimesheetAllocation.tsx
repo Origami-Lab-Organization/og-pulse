@@ -1,224 +1,215 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3 } from 'lucide-react';
+import { AlertTriangle, Clock } from 'lucide-react';
 import { useMyAllocationData } from '@/hooks/useMyAllocationData';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 interface MyTimesheetAllocationProps {
   employeeId: string | undefined;
   monthKey: string; // yyyy-MM
 }
 
-const SegmentedBar = ({
-  actualPercent,
-  plannedRemainingPercent,
-  tooltipContent,
-  expectedPercent,
-}: {
-  actualPercent: number;
-  plannedRemainingPercent: number;
-  tooltipContent: string;
-  expectedPercent?: number;
-}) => (
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="relative w-full bg-muted rounded-full h-2 overflow-hidden">
-          <div className="flex h-full">
-            {actualPercent > 0 && (
-              <div
-                className="h-full bg-green-700 dark:bg-green-600 transition-all"
-                style={{ width: `${Math.min(actualPercent, 100)}%` }}
-              />
-            )}
-            {plannedRemainingPercent > 0 && (
-              <div
-                className="h-full bg-green-300 dark:bg-green-800 transition-all"
-                style={{ width: `${Math.min(plannedRemainingPercent, 100 - Math.min(actualPercent, 100))}%` }}
-              />
-            )}
-          </div>
-          {expectedPercent !== undefined && expectedPercent > 0 && (
-            <div
-              className="absolute top-[-3px] bottom-[-3px] w-0.5 bg-red-500 z-10 rounded-full"
-              style={expectedPercent >= 100 ? { right: 0 } : { left: `${expectedPercent}%` }}
-            />
-          )}
-        </div>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p className="text-xs">{tooltipContent}</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-);
+const RADIUS = 48;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+function getRingColorClass(percent: number) {
+  if (percent > 120) return 'stroke-destructive';
+  if (percent < 80 || percent > 100) return 'stroke-amber-500';
+  return 'stroke-primary';
+}
+
+function getTextColorClass(percent: number) {
+  if (percent > 120) return 'text-destructive';
+  if (percent < 80 || percent > 100) return 'text-amber-500';
+  return 'text-primary';
+}
+
+function DonutRing({ percent }: { percent: number }) {
+  const clamped = Math.min(percent, 100);
+  const dashOffset = CIRCUMFERENCE * (1 - clamped / 100);
+
+  return (
+    <div className="relative flex items-center justify-center w-36 h-36">
+      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" aria-hidden>
+        <circle
+          cx="60" cy="60" r={RADIUS}
+          fill="none"
+          strokeWidth="10"
+          className="stroke-muted"
+        />
+        <circle
+          cx="60" cy="60" r={RADIUS}
+          fill="none"
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={CIRCUMFERENCE}
+          strokeDashoffset={dashOffset}
+          className={cn('transition-all duration-700', getRingColorClass(percent))}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+        <span className={cn('text-3xl font-bold leading-none tabular-nums', getTextColorClass(percent))}>
+          {Math.round(percent)}%
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export const MyTimesheetAllocation = ({ employeeId, monthKey }: MyTimesheetAllocationProps) => {
   const { data, isLoading } = useMyAllocationData(employeeId, monthKey);
 
-  const monthLabel = format(parseISO(`${monthKey}-01`), "MMMM/yyyy", { locale: ptBR });
+  const monthLabel = format(parseISO(`${monthKey}-01`), "MMMM yyyy", { locale: ptBR });
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader className="pb-3">
-          <Skeleton className="h-5 w-64" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-4 w-full mb-3" />
-          <Skeleton className="h-20 w-full" />
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="pb-3"><Skeleton className="h-5 w-40" /></CardHeader>
+          <CardContent className="flex flex-col items-center gap-4 pt-0">
+            <Skeleton className="w-36 h-36 rounded-full" />
+            <div className="flex gap-4 w-full">
+              <Skeleton className="h-12 flex-1" />
+              <Skeleton className="h-12 flex-1" />
+              <Skeleton className="h-12 flex-1" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3"><Skeleton className="h-5 w-32" /></CardHeader>
+          <CardContent className="space-y-3 pt-0">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
-  if (!data || data.projects.length === 0) return null;
+  if (!data) return null;
 
-  const actualPercent = data.monthlyCapacity > 0
+  const utilizationPercent = data.monthlyCapacity > 0
     ? (data.totalActualHours / data.monthlyCapacity) * 100
     : 0;
-  const plannedRemainingHours = Math.max(data.totalPlannedHours - data.totalActualHours, 0);
-  const plannedRemainingPercent = data.monthlyCapacity > 0
-    ? (plannedRemainingHours / data.monthlyCapacity) * 100
-    : 0;
+
   const freeHours = Math.max(data.monthlyCapacity - data.totalPlannedHours, 0);
-  const expectedPercent = data.monthlyCapacity > 0
-    ? (data.expectedHours / data.monthlyCapacity) * 100
-    : 0;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-primary" />
-          <span className="capitalize">Minha Alocação — {monthLabel}</span>
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent className="pt-0 space-y-4">
-        {/* Overall segmented bar */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Capacidade mensal</span>
-            <span className="font-medium">
-              {data.totalActualHours.toFixed(0)}h realizado de {data.monthlyCapacity}h (esperado: {data.expectedHours.toFixed(0)}h)
-            </span>
-          </div>
-          <SegmentedBar
-            actualPercent={actualPercent}
-            plannedRemainingPercent={plannedRemainingPercent}
-            expectedPercent={expectedPercent}
-            tooltipContent={`Realizado: ${data.totalActualHours.toFixed(0)}h · Esperado: ${data.expectedHours.toFixed(0)}h · Planejado restante: ${plannedRemainingHours.toFixed(0)}h · Livre: ${freeHours.toFixed(0)}h`}
-          />
-          {/* Legend */}
-          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-700 dark:bg-green-600" /> Realizado</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-300 dark:bg-green-800" /> Plan. restante</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-muted border" /> Livre</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-[2px] h-3 rounded-full bg-red-500" /> Esperado</span>
-          </div>
-        </div>
-
-        {/* Per-project table */}
-        <div className="rounded-md border">
-          <div className="grid grid-cols-[1fr_90px_70px_1fr_50px] gap-2 px-3 py-2 border-b text-xs font-medium text-muted-foreground">
-            <div>Projeto</div>
-            <div className="text-right">Plan.</div>
-            <div className="text-right">Real.</div>
-            <div>Progresso</div>
-            <div className="text-right">%</div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Coluna esquerda — indicador de utilização */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Utilização do Mês</CardTitle>
+          <p className="text-sm text-muted-foreground capitalize">{monthLabel}</p>
+        </CardHeader>
+        <CardContent className="pt-0 flex flex-col items-center gap-5">
+          <div
+            className="flex flex-col items-center gap-1"
+            role="img"
+            aria-label={`Utilização mensal: ${Math.round(utilizationPercent)}%`}
+          >
+            <DonutRing percent={utilizationPercent} />
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {data.totalActualHours.toFixed(1)}h / {data.monthlyCapacity}h
+            </p>
           </div>
 
-          {data.projects.map((project) => {
-            const pActual = project.plannedHours > 0
-              ? (project.actualHours / project.plannedHours) * 100
-              : project.actualHours > 0 ? 100 : 0;
+          <div className="grid grid-cols-3 gap-3 w-full">
+            <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Planejado</span>
+              <span className="text-sm font-semibold tabular-nums">{data.totalPlannedHours.toFixed(0)}h</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Realizado</span>
+              <span className="text-sm font-semibold tabular-nums">{data.totalActualHours.toFixed(1)}h</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Capacidade</span>
+              <span className="text-sm font-semibold tabular-nums">{data.monthlyCapacity}h</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-            const pRemaining = project.plannedHours > 0
-              ? (Math.max(project.plannedHours - project.actualHours, 0) / project.plannedHours) * 100
-              : 0;
+      {/* Coluna direita — lista de projetos */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Projetos do Mês</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {data.projects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
+              <Clock className="h-8 w-8 opacity-40" />
+              <p className="text-sm">Sem alocação neste mês</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {data.projects.map((project) => {
+                const isOverPlan = project.plannedHours > 0 && project.actualHours > project.plannedHours;
+                const progressPercent = project.plannedHours > 0
+                  ? Math.min((project.actualHours / project.plannedHours) * 100, 100)
+                  : 0;
 
-            const isOverPlan = project.actualHours > project.plannedHours && project.plannedHours > 0;
-
-            return (
-              <div
-                key={project.projectId}
-                className="grid grid-cols-[1fr_90px_70px_1fr_50px] gap-2 px-3 py-2 border-b last:border-b-0 items-center text-sm"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="truncate">
-                        <span className="text-muted-foreground">{project.clientName}</span>
-                        <span className="text-muted-foreground mx-1">/</span>
-                        <span className="font-medium">{project.projectName}</span>
+                return (
+                  <div key={project.projectId} className="space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="text-sm font-medium truncate">{project.projectName}</p>
+                          {isOverPlan && (
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{project.clientName}</p>
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      <p>{project.clientName} / {project.projectName}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <div className="text-right tabular-nums">
-                  {project.plannedHours > 0
-                    ? `${project.plannedHours.toFixed(0)}h`
-                    : <span className="italic text-muted-foreground text-xs">Não definido</span>
-                  }
-                </div>
-                <div className={cn("text-right tabular-nums font-medium", isOverPlan && "text-destructive")}>
-                  {project.actualHours > 0 ? `${project.actualHours.toFixed(1)}h` : '—'}
-                </div>
-                <div className="flex items-center">
-                  {project.plannedHours > 0 ? (
-                    <SegmentedBar
-                      actualPercent={Math.min(pActual, 100)}
-                      plannedRemainingPercent={pRemaining}
-                      tooltipContent={`Realizado: ${project.actualHours.toFixed(1)}h · Planejado: ${project.plannedHours.toFixed(0)}h`}
-                    />
-                  ) : (
-                    <span className="italic text-muted-foreground text-xs">Sem meta definida</span>
-                  )}
-                </div>
-                <div className={cn("text-right text-xs tabular-nums", isOverPlan && "text-destructive font-medium")}>
-                  {project.plannedHours > 0 ? (
-                    `${Math.round(pActual)}%`
-                  ) : (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-help">—</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Este projeto não possui horas planejadas. Consulte seu gestor.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                      <div className={cn(
+                        'text-sm tabular-nums shrink-0 font-medium',
+                        isOverPlan ? 'text-destructive' : 'text-foreground',
+                      )}>
+                        {project.actualHours.toFixed(1)}h
+                        {project.plannedHours > 0 && (
+                          <span className="text-muted-foreground font-normal">
+                            {' / '}{project.plannedHours.toFixed(0)}h
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {project.plannedHours > 0 ? (
+                      <div
+                        className="h-1.5 w-full rounded-full bg-muted overflow-hidden"
+                        role="progressbar"
+                        aria-valuenow={Math.round(progressPercent)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${project.projectName}: ${project.actualHours.toFixed(1)}h de ${project.plannedHours.toFixed(0)}h planejadas`}
+                      >
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all duration-500',
+                            isOverPlan ? 'bg-destructive' : 'bg-primary',
+                          )}
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground italic">Sem horas planejadas</p>
+                    )}
+                  </div>
+                );
+              })}
 
-          {/* Free hours row */}
-          {freeHours > 0 && (
-            <div className="grid grid-cols-[1fr_90px_70px_1fr_50px] gap-2 px-3 py-2 items-center text-sm text-muted-foreground bg-muted/30">
-              <div className="italic">Sem alocação</div>
-              <div className="text-right tabular-nums">{freeHours.toFixed(0)}h</div>
-              <div className="text-right">—</div>
-              <div></div>
-              <div></div>
+              {freeHours > 0 && (
+                <div className="flex items-center gap-2 pt-1 border-t text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  <span className="text-sm flex-1">Horas livres</span>
+                  <span className="text-sm tabular-nums font-medium">{freeHours.toFixed(0)}h</span>
+                </div>
+              )}
             </div>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

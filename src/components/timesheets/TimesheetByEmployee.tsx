@@ -196,44 +196,65 @@ export function TimesheetByEmployee({
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
+              {/* Grid: role="grid" scoped to the card content */}
+              <div
+                role="grid"
+                aria-label={`Timesheet da semana de ${format(parseISO(weekDays[0].date), 'dd/MM', { locale: ptBR })} a ${format(parseISO(weekDays[weekDays.length - 1].date), 'dd/MM', { locale: ptBR })}`}
+              >
               {/* Header Row */}
-              <div className={cn(
-                "grid gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground",
-                hasActionSlot ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px_120px]" : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px]"
-              )}>
-                <div>Projeto</div>
-                <div>Cliente</div>
-                {weekDays.map((day) => {
-                  const holiday = getHolidayForDate(day.date);
-                  const isHolidayDay = !!holiday;
+              <div
+                role="row"
+                className={cn(
+                  "grid gap-2 items-center py-2 px-3 border-b text-xs font-medium text-muted-foreground",
+                  hasActionSlot ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px_120px]" : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(5,60px)_80px]"
+                )}
+              >
+                <div role="columnheader">Projeto</div>
+                <div role="columnheader">Cliente</div>
+                {(() => {
+                  const todayStr = format(new Date(), 'yyyy-MM-dd');
+                  return weekDays.map((day) => {
+                    const holiday = getHolidayForDate(day.date);
+                    const isHolidayDay = !!holiday;
+                    const isToday = day.date === todayStr;
+                    const fullDayLabel = format(new Date(day.date + 'T12:00:00'), 'EEEE, dd/MM', { locale: ptBR });
 
-                  return (
-                    <TooltipProvider key={day.date}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className={cn(
-                            "text-center rounded-md py-1",
-                            isHolidayDay && "bg-destructive/10 text-destructive"
-                          )}>
-                            {format(new Date(day.date + 'T12:00:00'), 'EEE', { locale: ptBR })}
-                            <br />
-                            <span className="text-[10px]">
-                              {format(new Date(day.date + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
-                            </span>
-                            {isHolidayDay && <span className="text-[8px] block">*</span>}
-                          </div>
-                        </TooltipTrigger>
-                        {isHolidayDay && (
-                          <TooltipContent>
-                            <p>{holiday.name}</p>
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </TooltipProvider>
-                  );
-                })}
-                <div className="text-right pr-2">Total</div>
-                {hasActionSlot && <div className="text-center col-span-1"></div>}
+                    return (
+                      <TooltipProvider key={day.date}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              role="columnheader"
+                              aria-label={isHolidayDay ? `Feriado: ${holiday.name} — ${fullDayLabel}` : fullDayLabel}
+                              className={cn(
+                                "text-center rounded-md py-1",
+                                isHolidayDay && "bg-destructive/10 text-destructive",
+                                isToday && !isHolidayDay && "bg-primary/10 text-primary font-medium rounded-t-md"
+                              )}
+                            >
+                              {format(new Date(day.date + 'T12:00:00'), 'EEE', { locale: ptBR })}
+                              <br />
+                              <span className="text-[10px]">
+                                {format(new Date(day.date + 'T12:00:00'), 'dd/MM', { locale: ptBR })}
+                              </span>
+                              {isHolidayDay && <span className="text-[8px] block">*</span>}
+                              {isToday && !isHolidayDay && (
+                                <span className="text-[10px] text-primary font-medium block">hoje</span>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          {isHolidayDay && (
+                            <TooltipContent>
+                              <p>{holiday.name}</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                    );
+                  });
+                })()}
+                <div role="columnheader" className="text-right pr-2">Total</div>
+                {hasActionSlot && <div role="columnheader" className="text-center col-span-1"></div>}
               </div>
               
               {/* Project Rows */}
@@ -243,7 +264,7 @@ export function TimesheetByEmployee({
                 const isEditing = editingProjectKey === editKey;
                 
                 return (
-                  <div key={project.memberId}>
+                  <div key={project.memberId} role="row">
                     {isEditing ? (
                       /* Inline edit mode */
                       <div className="border border-primary/30 rounded-lg my-1 bg-primary/5">
@@ -377,6 +398,7 @@ export function TimesheetByEmployee({
                   </div>
                 );
               })}
+              </div>{/* end role="grid" */}
             </CardContent>
           </Card>
         );

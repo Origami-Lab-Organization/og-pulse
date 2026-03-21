@@ -6,7 +6,8 @@ import { useUpsertTimesheet } from '@/hooks/useProjectTimesheets';
 import { cn } from '@/lib/utils';
 import { Holiday } from '@/types/holiday';
 import { isHoliday } from '@/hooks/useHolidays';
-import { parseISO, isAfter, startOfDay } from 'date-fns';
+import { parseISO, isAfter, startOfDay, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   Tooltip,
   TooltipContent,
@@ -228,6 +229,8 @@ export function TimesheetWeekRow({
     onLocalDayHoursChange?.(memberId, hours);
   }, [hours, memberId, onLocalDayHoursChange]);
 
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
   const initials = label
     .split(' ')
     .map((n) => n[0])
@@ -267,6 +270,8 @@ export function TimesheetWeekRow({
         const holiday = getHolidayForDate(day.date);
         const isHolidayDay = !!holiday;
         const isFutureDay = isAfter(startOfDay(parseISO(day.date)), startOfDay(new Date()));
+        const isToday = day.date === todayStr;
+        const dayName = format(parseISO(day.date), 'EEEE', { locale: ptBR });
 
         // Holiday cell - always disabled
         if (isHolidayDay) {
@@ -274,7 +279,11 @@ export function TimesheetWeekRow({
             <TooltipProvider key={day.date}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-destructive/10 rounded-md border border-destructive/20 cursor-not-allowed">
+                  <div
+                    className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-destructive/10 rounded-md border border-destructive/20 cursor-not-allowed"
+                    aria-label={`Feriado: ${holiday.name}`}
+                    tabIndex={-1}
+                  >
                     --
                   </div>
                 </TooltipTrigger>
@@ -292,7 +301,12 @@ export function TimesheetWeekRow({
             <TooltipProvider key={day.date}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-md border cursor-not-allowed">
+                  <div
+                    className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-md border cursor-not-allowed"
+                    aria-label={`${dayName}: dia futuro, lançamento não permitido`}
+                    aria-disabled="true"
+                    tabIndex={-1}
+                  >
                     —
                   </div>
                 </TooltipTrigger>
@@ -310,7 +324,12 @@ export function TimesheetWeekRow({
             <TooltipProvider key={day.date}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="h-8 flex items-center justify-center text-sm bg-muted/50 rounded-md border cursor-not-allowed gap-1">
+                  <div
+                    className="h-8 flex items-center justify-center text-sm bg-muted/50 rounded-md border cursor-not-allowed gap-1"
+                    aria-label={`Horas ${dayName}, projeto ${label}: ${hours[day.date] || 0}h — enviado, somente admin pode editar`}
+                    aria-readonly="true"
+                    tabIndex={-1}
+                  >
                     <span>{hours[day.date] || 0}</span>
                     <Lock className="h-3 w-3 text-muted-foreground" />
                   </div>
@@ -337,8 +356,10 @@ export function TimesheetWeekRow({
             value={hours[day.date] || ''}
             onChange={(e) => handleHoursChange(day.date, e.target.value)}
             onBlur={() => handleBlur(day.date)}
+            aria-label={`Horas ${dayName}, projeto ${label}`}
             className={cn(
               "h-8 text-center text-sm px-1",
+              isToday && "bg-primary/5 ring-1 ring-primary/20",
               pendingSaves.has(day.date) && "border-primary",
               isOverWorkday && "border-amber-500 focus-visible:ring-amber-500"
             )}
