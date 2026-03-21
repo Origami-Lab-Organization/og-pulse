@@ -32,6 +32,11 @@ export interface BudgetDB {
   final_total: number;
   monthly_value?: number | null;
   is_recurring: boolean;
+  billing_type?: string | null;
+  success_fee_percent?: number | null;
+  expected_revenue_12m?: number | null;
+  planned_costs?: number | null;
+  success_fee_type?: 'pontual' | 'continuo' | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -131,6 +136,9 @@ export interface CreateBudgetInput {
   billingType?: BillingType;
   successFeePercent?: number;
   estimatedBase?: number;
+  expectedRevenue12m?: number;
+  plannedCosts?: number;
+  successFeeType?: 'pontual' | 'continuo';
   monthlyValue?: number;
   isRecurring?: boolean;
 }
@@ -314,7 +322,8 @@ export function calculateSuccessFeeTotals(
   suppliers: BudgetSupplierInput[],
   durationMonths: number,
   successFeePercent: number,
-  estimatedBase: number
+  estimatedBase: number,
+  plannedCosts: number = 0
 ): SuccessFeeCalculation {
   const laborCost = roles.reduce((acc, role) => {
     const roleHours = role.months.reduce((h, m) => h + m.hours, 0);
@@ -323,7 +332,7 @@ export function calculateSuccessFeeTotals(
 
   const suppliersTotal = suppliers.reduce((acc, s) => acc + (s.monthlyValue || 0) * durationMonths, 0);
   const materialsTotal = materials.reduce((acc, m) => acc + (m.value || 0), 0);
-  const totalCost = laborCost + suppliersTotal + materialsTotal;
+  const totalCost = laborCost + suppliersTotal + materialsTotal + plannedCosts;
 
   const estimatedRevenue = estimatedBase * (successFeePercent / 100);
   const estimatedMargin = estimatedRevenue - totalCost;

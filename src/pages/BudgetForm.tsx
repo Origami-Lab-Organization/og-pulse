@@ -122,8 +122,11 @@ export default function BudgetForm() {
       const service = services.find(s => s.id === leadData.service_line);
       if (service?.billingType) return service.billingType;
     }
-    // When editing an existing budget, derive from is_recurring flag
-    if (isEditing && budget) return budget.is_recurring ? 'recurring' : 'fixed_scope';
+    // When editing an existing budget, derive from billing_type (preferred) or is_recurring flag
+    if (isEditing && budget) {
+      if (budget.billing_type) return budget.billing_type as BillingType;
+      return budget.is_recurring ? 'recurring' : 'fixed_scope';
+    }
     return 'fixed_scope';
   }, [overrideBillingType, isFromLead, leadData?.service_line, services, isEditing, budget]);
 
@@ -143,7 +146,9 @@ export default function BudgetForm() {
   const [snapshotMinNetMargin, setSnapshotMinNetMargin] = useState(0);
   const [marginOverrideConfirmed, setMarginOverrideConfirmed] = useState(false);
   const [successFeePercent, setSuccessFeePercent] = useState(0);
-  const [estimatedBase, setEstimatedBase] = useState(0);
+  const [expectedRevenue12m, setExpectedRevenue12m] = useState(0);
+  const [plannedCosts, setPlannedCosts] = useState(0);
+  const [successFeeType, setSuccessFeeType] = useState<'pontual' | 'continuo'>('pontual');
 
   // For new budgets, use financial settings. For editing, use budget snapshot.
   const adminExpensesPercent = isEditing && budget ? budget.admin_expenses_percent : (financialSettings?.admin_expenses_percent || 0);
@@ -204,7 +209,7 @@ export default function BudgetForm() {
 
   const calculation = useMemo<BudgetCalculation>(() => {
     if (billingType === 'success_fee') {
-      return calculateSuccessFeeTotals(roles, materials, suppliers, durationMonths, successFeePercent, estimatedBase);
+      return calculateSuccessFeeTotals(roles, materials, suppliers, durationMonths, successFeePercent, expectedRevenue12m, plannedCosts);
     }
     // For recurring/continuous modes, BudgetRolesEditor uses a single column (monthlyMode).
     // Expand roles to N months so calculateRecurringTotals receives the correct total hours.
@@ -222,7 +227,7 @@ export default function BudgetForm() {
     return isMonthlyMode
       ? calculateRecurringTotals(...args)
       : calculateBudgetTotals(...args);
-  }, [roles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue, billingType, isContinuous, isMonthlyMode, successFeePercent, estimatedBase]);
+  }, [roles, materials, suppliers, durationMonths, adminExpensesPercent, taxesPercent, commissionPercent, netMarginPercent, discountValue, billingType, isContinuous, isMonthlyMode, successFeePercent, expectedRevenue12m, plannedCosts]);
 
   const initializedRef = useRef(false);
 
@@ -250,6 +255,12 @@ export default function BudgetForm() {
         setOverrideBillingType('no_revenue');
         setIsContinuous(true);
       }
+
+      // Pre-load success_fee fields
+      if (budget.success_fee_percent != null) setSuccessFeePercent(budget.success_fee_percent);
+      if (budget.expected_revenue_12m != null) setExpectedRevenue12m(budget.expected_revenue_12m);
+      if (budget.planned_costs != null) setPlannedCosts(budget.planned_costs);
+      if (budget.success_fee_type) setSuccessFeeType(budget.success_fee_type);
       
       setRoles(budget.roles.map((r) => ({
         tempId: crypto.randomUUID(),
@@ -321,7 +332,9 @@ export default function BudgetForm() {
       marginOverrideApproved: isMarginBelowMinimum && canSaveWithLowMargin,
       billingType,
       successFeePercent: billingType === 'success_fee' ? successFeePercent : undefined,
-      estimatedBase: billingType === 'success_fee' ? estimatedBase : undefined,
+      expectedRevenue12m: billingType === 'success_fee' ? expectedRevenue12m : undefined,
+      plannedCosts: billingType === 'success_fee' ? plannedCosts : undefined,
+      successFeeType: billingType === 'success_fee' ? successFeeType : undefined,
       monthlyValue: isMonthlyMode ? (calculation as RecurringCalculation).monthlyFinalPrice : undefined,
       isRecurring: isMonthlyMode,
     };
@@ -451,6 +464,43 @@ export default function BudgetForm() {
                       <SelectItem value="no_revenue">Interno (sem receita)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+
+              {/* Segmented control Pontual/Contínuo — for success_fee */}
+              {billingType === 'success_fee' && (
+                <div className="space-y-2">
+                  <div className="flex rounded-lg bg-muted p-1">
+                    <button
+                      type="button"
+                      onClick={() => setSuccessFeeType('pontual')}
+                      className={cn(
+                        'flex-1 rounded-md py-1.5 text-sm font-medium transition-all',
+                        successFeeType === 'pontual'
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      Pontual (Projeto)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSuccessFeeType('continuo')}
+                      className={cn(
+                        'flex-1 rounded-md py-1.5 text-sm font-medium transition-all',
+                        successFeeType === 'continuo'
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      Contínuo
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {successFeeType === 'continuo'
+                      ? 'Acordo de longo prazo com taxa aplicada continuamente'
+                      : 'Projeto específico com entrega e taxa de sucesso definidas'}
+                  </p>
                 </div>
               )}
 
@@ -837,6 +887,7 @@ export default function BudgetForm() {
 
         if (billingType === 'success_fee') {
           const sf = calculation as SuccessFeeCalculation;
+          const teamCost = sf.laborCost + sf.suppliersTotal + sf.materialsTotal;
           return (
             <Card className="overflow-hidden">
               {stepHeader('Taxa de Sucesso')}
@@ -859,17 +910,32 @@ export default function BudgetForm() {
                     </div>
                   </div>
                   <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                    <span className="text-sm font-medium">Custo Total</span>
-                    <span className="text-lg font-bold">{formatCurrency(sf.totalCost)}</span>
+                    <span className="text-sm font-medium">Subtotal equipe</span>
+                    <span className="text-base font-semibold">{formatCurrency(teamCost)}</span>
                   </div>
                 </div>
 
                 <div className="border-t" />
 
-                {/* Block 2: Fee configuration */}
+                {/* Block 2: Planned project costs */}
+                <div className="space-y-1">
+                  <p className="text-sm font-medium mb-1">Custos planejados do projeto</p>
+                  <p className="text-xs text-muted-foreground mb-3">Outros custos diretos previstos para execução do projeto (não incluídos na equipe de apoio acima).</p>
+                  <div className="flex justify-between items-center py-2">
+                    <Label className="text-sm font-normal">Custos planejados (R$)</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">R$</span>
+                      <CurrencyInput className="w-40 text-right" value={plannedCosts} onValueChange={(v) => setPlannedCosts(v)} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t" />
+
+                {/* Block 3: Fee configuration */}
                 <div className="space-y-1">
                   <p className="text-sm font-medium mb-3">Configuração da taxa</p>
-                  <p className="text-xs text-muted-foreground mb-3">A receita será calculada como um percentual sobre o resultado obtido para o cliente.</p>
+                  <p className="text-xs text-muted-foreground mb-3">A receita será calculada como um percentual sobre o faturamento esperado do cliente.</p>
                   <div className="flex justify-between items-center py-2">
                     <Label className="text-sm font-normal">Percentual da taxa (%)</Label>
                     <div className="flex items-center gap-2">
@@ -883,22 +949,22 @@ export default function BudgetForm() {
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2">
-                    <Label className="text-sm font-normal">Base estimada (R$)</Label>
+                    <Label className="text-sm font-normal">Expectativa de faturamento — 12 meses (R$)</Label>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">R$</span>
-                      <CurrencyInput className="w-40 text-right" value={estimatedBase} onValueChange={(v) => setEstimatedBase(v)} />
+                      <CurrencyInput className="w-40 text-right" value={expectedRevenue12m} onValueChange={(v) => setExpectedRevenue12m(v)} />
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">Ex: valor do contrato do cliente, recursos captados, incentivos fiscais obtidos.</p>
+                  <p className="text-xs text-muted-foreground">Ex: receita anual do cliente, recursos captados, incentivos fiscais obtidos.</p>
                 </div>
 
                 <div className="border-t" />
 
-                {/* Block 3: Estimated result */}
+                {/* Block 4: Estimated result */}
                 <div className="space-y-1">
                   <p className="text-sm font-medium mb-3">Resultado estimado</p>
                   <div className="flex justify-between items-center py-2">
-                    <span className="text-sm text-muted-foreground">Base estimada</span>
+                    <span className="text-sm text-muted-foreground">Faturamento esperado (12m)</span>
                     <span className="text-sm font-medium">{formatCurrency(sf.estimatedBase)}</span>
                   </div>
                   <div className="flex justify-between items-center py-2">
@@ -906,7 +972,7 @@ export default function BudgetForm() {
                     <span className="text-sm font-semibold">{formatCurrency(sf.estimatedRevenue)}</span>
                   </div>
                   <div className="flex justify-between items-center py-2">
-                    <span className="text-sm text-muted-foreground">Custos de apoio</span>
+                    <span className="text-sm text-muted-foreground">Custos totais (equipe + planejados)</span>
                     <span className="text-sm text-destructive">- {formatCurrency(sf.totalCost)}</span>
                   </div>
                   <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4 mt-2">
@@ -922,7 +988,7 @@ export default function BudgetForm() {
                   </div>
                   {sf.estimatedRevenue === 0 && (
                     <p className="text-xs text-muted-foreground text-center mt-2">
-                      Preencha o percentual e a base estimada para ver o resultado projetado.
+                      Preencha o percentual e a expectativa de faturamento para ver o resultado projetado.
                     </p>
                   )}
                 </div>

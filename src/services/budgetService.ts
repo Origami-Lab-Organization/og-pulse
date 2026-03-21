@@ -33,6 +33,11 @@ type BudgetRow = {
   total_with_fees: number;
   final_total: number;
   notes: string | null;
+  billing_type?: string | null;
+  success_fee_percent?: number | null;
+  expected_revenue_12m?: number | null;
+  planned_costs?: number | null;
+  success_fee_type?: 'pontual' | 'continuo' | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -88,7 +93,8 @@ function computeTotals(input: CreateBudgetInput, durationMonths: number): Budget
       input.suppliers || [],
       durationMonths,
       input.successFeePercent ?? 0,
-      input.estimatedBase ?? 0
+      input.expectedRevenue12m ?? input.estimatedBase ?? 0,
+      input.plannedCosts ?? 0
     );
   }
   return calculateBudgetTotals(
@@ -326,6 +332,11 @@ export const budgetService = {
         final_total: input.billingType === 'no_revenue' ? 0 : totals.finalTotal,
         monthly_value: input.monthlyValue ?? null,
         is_recurring: input.isRecurring ?? false,
+        billing_type: input.billingType ?? null,
+        success_fee_percent: input.successFeePercent ?? null,
+        expected_revenue_12m: input.expectedRevenue12m ?? null,
+        planned_costs: input.plannedCosts ?? null,
+        success_fee_type: input.successFeeType ?? null,
         notes: input.notes || null,
         created_by: createdBy,
         margin_override_approved: input.marginOverrideApproved || false,
@@ -480,6 +491,11 @@ export const budgetService = {
     }
     if (input.monthlyValue !== undefined) updateData.monthly_value = input.monthlyValue ?? null;
     if (input.isRecurring !== undefined) updateData.is_recurring = input.isRecurring;
+    if (input.billingType !== undefined) updateData.billing_type = input.billingType ?? null;
+    if (input.successFeePercent !== undefined) updateData.success_fee_percent = input.successFeePercent ?? null;
+    if (input.expectedRevenue12m !== undefined) updateData.expected_revenue_12m = input.expectedRevenue12m ?? null;
+    if (input.plannedCosts !== undefined) updateData.planned_costs = input.plannedCosts ?? null;
+    if (input.successFeeType !== undefined) updateData.success_fee_type = input.successFeeType ?? null;
 
     const { data, error } = await fromTable('budgets')
       .update(updateData)
