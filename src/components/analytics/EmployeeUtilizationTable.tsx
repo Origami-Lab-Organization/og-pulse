@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatPercent } from '@/lib/formatters';
+import { formatCurrency, formatPercent } from '@/lib/formatters';
 import { EmployeeUtilization } from '@/hooks/useAnalyticsData';
 
 interface EmployeeUtilizationTableProps {
@@ -53,12 +53,16 @@ export function EmployeeUtilizationTable({ data }: EmployeeUtilizationTableProps
               <TableHead className="text-right">Capacidade (h)</TableHead>
               <TableHead className="text-right">Horas Alocadas</TableHead>
               <TableHead className="text-right">Utilização</TableHead>
+              <TableHead className="text-right">Horas Ociosas</TableHead>
+              <TableHead className="text-right">Custo Ociosidade</TableHead>
               <TableHead className="text-center">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.map((row) => {
               const cfg = statusConfig[row.status];
+              const idleHours = Math.max(0, row.capacity - row.allocatedHours);
+              const idleCost = idleHours * row.hourlyCost;
               return (
                 <TableRow key={row.employeeId}>
                   <TableCell className="font-medium">{row.employeeName}</TableCell>
@@ -67,6 +71,8 @@ export function EmployeeUtilizationTable({ data }: EmployeeUtilizationTableProps
                   <TableCell className="text-right">{row.capacity}h</TableCell>
                   <TableCell className="text-right">{row.allocatedHours.toFixed(1)}h</TableCell>
                   <TableCell className="text-right">{formatPercent(row.utilization)}</TableCell>
+                  <TableCell className="text-right">{idleHours.toFixed(1)}h</TableCell>
+                  <TableCell className="text-right">{formatCurrency(idleCost)}</TableCell>
                   <TableCell className="text-center">
                     <Badge className={cfg.className}>{cfg.label}</Badge>
                   </TableCell>

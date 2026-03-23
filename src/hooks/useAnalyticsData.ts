@@ -29,6 +29,7 @@ export interface AnalyticsFilters {
   endDate: Date;
   clientId?: string;
   managerId?: string;
+  projectId?: string;
 }
 
 export interface CostByProject {
@@ -49,6 +50,7 @@ export interface EmployeeUtilization {
   allocatedHours: number;
   utilization: number; // percentage
   status: 'overallocated' | 'adequate' | 'underallocated' | 'idle';
+  hourlyCost: number;
 }
 
 export interface AnalyticsData {
@@ -66,6 +68,9 @@ export interface AnalyticsData {
   grossMarginTarget: number | null;
   costsByProject: CostByProject[];
   employeeUtilization: EmployeeUtilization[];
+  idleHours: number;
+  idleCost: number;
+  totalCapacity: number;
 }
 
 function getUtilizationStatus(utilization: number, allocatedHours: number): EmployeeUtilization['status'] {
@@ -85,7 +90,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
   const endStr = format(filters.endDate, 'yyyy-MM-dd');
 
   return useQuery({
-    queryKey: ['analytics', tenantId, startStr, endStr, filters.clientId, filters.managerId, isAdmin, currentEmployeeId],
+    queryKey: ['analytics', tenantId, startStr, endStr, filters.clientId, filters.managerId, filters.projectId, isAdmin, currentEmployeeId],
     queryFn: async () => {
       if (!tenantId) throw new Error('No tenant');
 
@@ -104,6 +109,9 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       if (filters.managerId) {
         projectsQuery = projectsQuery.eq('manager_id', filters.managerId);
       }
+      if (filters.projectId) {
+        projectsQuery = projectsQuery.eq('id', filters.projectId);
+      }
 
       const { data: projects, error: projErr } = await projectsQuery;
       if (projErr) throw projErr;
@@ -113,6 +121,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
           taxesPercent: 0, taxesValue: 0, commissionValue: 0,
           grossMargin: 0, grossMarginTarget: null, costsByProject: [], employeeUtilization: [],
+          idleHours: 0, idleCost: 0, totalCapacity: 0,
         } as AnalyticsData;
       }
 
@@ -342,6 +351,9 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         const effectiveWorkingDays = countWorkingDays(effectiveStart, filters.endDate, holidays);
         const capacity = jornadaDiaria * effectiveWorkingDays;
         const utilization = capacity > 0 ? (hours / capacity) * 100 : 0;
+        const hourlyCost = Number(emp.jornada_mensal) > 0
+          ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
+          : 0;
         employeeUtilization.push({
           employeeId: emp.id,
           employeeName: emp.nome,
@@ -351,6 +363,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           allocatedHours: hours,
           utilization,
           status: getUtilizationStatus(utilization, hours),
+          hourlyCost,
         });
         processedEmployees.add(emp.id);
       });
@@ -366,6 +379,9 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           const effectiveStart = admDate && admDate > filters.startDate ? admDate : filters.startDate;
           const effectiveWorkingDays = countWorkingDays(effectiveStart, filters.endDate, holidays);
           const capacity = jornadaDiaria * effectiveWorkingDays;
+          const hourlyCost = Number(emp.jornada_mensal) > 0
+            ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
+            : 0;
           employeeUtilization.push({
             employeeId: emp.id,
             employeeName: emp.nome,
@@ -375,12 +391,23 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
             allocatedHours: 0,
             utilization: 0,
             status: 'idle',
+            hourlyCost,
           });
           processedEmployees.add(emp.id);
         }
       });
 
       employeeUtilization.sort((a, b) => b.utilization - a.utilization);
+
+      let totalIdleHours = 0;
+      let totalIdleCost = 0;
+      let totalCapacity = 0;
+      employeeUtilization.forEach(eu => {
+        totalCapacity += eu.capacity;
+        const idle = Math.max(0, eu.capacity - eu.allocatedHours);
+        totalIdleHours += idle;
+        totalIdleCost += idle * eu.hourlyCost;
+      });
 
       return {
         revenueActual,
@@ -397,6 +424,9 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         grossMarginTarget,
         costsByProject,
         employeeUtilization,
+        idleHours: totalIdleHours,
+        idleCost: totalIdleCost,
+        totalCapacity,
       } as AnalyticsData;
     },
     enabled: !!tenantId,
@@ -413,7 +443,7 @@ export function useAnalyticsFilterOptions() {
     queryFn: async () => {
       if (!tenantId) throw new Error('No tenant');
 
-      const [clientsRes, managersRes] = await Promise.all([
+      const [clientsRes, managersRes, projectsRes] = await Promise.all([
         supabase
           .from('clients')
           .select('id, company_name')
@@ -427,11 +457,18 @@ export function useAnalyticsFilterOptions() {
           .eq('is_gerente', true)
           .eq('status', 'ativo')
           .order('nome'),
+        supabase
+          .from('projects')
+          .select('id, name')
+          .eq('tenant_id', tenantId)
+          .eq('status', 'active')
+          .order('name'),
       ]);
 
       return {
         clients: clientsRes.data || [],
         managers: managersRes.data || [],
+        projects: projectsRes.data || [],
       };
     },
     enabled: !!tenantId,
