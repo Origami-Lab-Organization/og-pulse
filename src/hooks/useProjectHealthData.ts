@@ -85,7 +85,7 @@ function dominantConfidence(
   return valid.sort((a, b) => CONFIDENCE_TIER[a] - CONFIDENCE_TIER[b])[0];
 }
 
-export function useProjectHealthData(filters: AnalyticsFilters) {
+export function useProjectHealthData(filters: AnalyticsFilters, options?: { enabled?: boolean }) {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const isAdmin = employee?.isAdmin ?? false;
@@ -380,6 +380,6 @@ export function useProjectHealthData(filters: AnalyticsFilters) {
       // Ordenar por score ascendente (piores primeiro)
       return rows.sort((a, b) => a.health.overall.score - b.health.overall.score);
     },
-    enabled: !!tenantId,
+    enabled: !!tenantId && (options?.enabled ?? true),
   });
 }

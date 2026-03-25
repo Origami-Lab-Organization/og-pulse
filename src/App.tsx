@@ -41,7 +41,9 @@ import TerminatedEmployees from "./pages/TerminatedEmployees";
 import Services from "./pages/Services";
 import Inbox from "./pages/Inbox";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 2 * 60 * 1000 } },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

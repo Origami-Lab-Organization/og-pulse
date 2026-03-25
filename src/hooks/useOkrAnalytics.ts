@@ -73,6 +73,7 @@ function calcIsOnTrack(
 
 export function useOkrAnalytics(
   filters: Pick<AnalyticsFilters, 'clientId' | 'managerId' | 'projectId'>,
+  options?: { enabled?: boolean },
 ) {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
@@ -223,6 +224,6 @@ export function useOkrAnalytics(
         confidenceDistribution: confDist,
       };
     },
-    enabled: !!tenantId,
+    enabled: !!tenantId && (options?.enabled ?? true),
   });
 }

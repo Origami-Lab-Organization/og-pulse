@@ -4,14 +4,15 @@ import {
   startOfQuarter, endOfQuarter,
   startOfYear, endOfYear,
 } from 'date-fns';
-import { Loader2, Clock, BanknoteIcon, DollarSign, Percent, Users, AlertTriangle } from 'lucide-react';
+import { Loader2, Clock, BanknoteIcon, DollarSign, Percent, Users } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AnalyticsFilters, Granularity } from '@/components/analytics/AnalyticsFilters';
 import { AnalyticsKPIs } from '@/components/analytics/AnalyticsKPIs';
 import { EmployeeUtilizationTable } from '@/components/analytics/EmployeeUtilizationTable';
 import { CostCompositionChart } from '@/components/analytics/CostCompositionChart';
 import { CostByProjectTable } from '@/components/analytics/CostByProjectTable';
-import { ProjectHealthTable } from '@/components/analytics/ProjectHealthTable';
+import { YearlyRevenueChart } from '@/components/analytics/YearlyRevenueChart';
+import { YearlyAllocationChart } from '@/components/analytics/YearlyAllocationChart';
 import { StakeholderKPIs } from '@/components/analytics/StakeholderKPIs';
 import { StakeholderDistributionChart } from '@/components/analytics/StakeholderDistributionChart';
 import { DetractorAlertTable } from '@/components/analytics/DetractorAlertTable';
@@ -21,7 +22,7 @@ import { ConfidenceDistributionChart } from '@/components/analytics/ConfidenceDi
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAnalyticsData, useAnalyticsFilterOptions } from '@/hooks/useAnalyticsData';
-import { useProjectHealthData } from '@/hooks/useProjectHealthData';
+import { useYearlyEvolution } from '@/hooks/useYearlyEvolution';
 import { useStakeholderAnalytics } from '@/hooks/useStakeholderAnalytics';
 import { useOkrAnalytics } from '@/hooks/useOkrAnalytics';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,7 @@ export default function Analytics() {
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
   const [selectedManagerId, setSelectedManagerId] = useState<string | undefined>();
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
+  const [activeTab, setActiveTab] = useState('overview');
 
   const filters = useMemo(() => {
     let startDate: Date;
@@ -62,10 +64,14 @@ export default function Analytics() {
     return { startDate, endDate, clientId: selectedClientId, managerId: selectedManagerId, projectId: selectedProjectId };
   }, [granularity, currentPeriodDate, customStart, customEnd, selectedClientId, selectedManagerId, selectedProjectId]);
 
-  const { data: analyticsData, isLoading }                      = useAnalyticsData(filters);
-  const { data: healthRows = [], isLoading: isHealthLoading }   = useProjectHealthData(filters);
-  const { data: stakeholderData, isLoading: isStakeholderLoading } = useStakeholderAnalytics(filters);
-  const { data: okrData, isLoading: isOkrLoading }              = useOkrAnalytics(filters);
+  const { data: analyticsData, isLoading } = useAnalyticsData(filters);
+  const { data: yearlyData } = useYearlyEvolution(filters, { enabled: activeTab === 'overview' });
+  const { data: stakeholderData, isLoading: isStakeholderLoading } = useStakeholderAnalytics(filters, {
+    enabled: activeTab === 'satisfaction',
+  });
+  const { data: okrData, isLoading: isOkrLoading } = useOkrAnalytics(filters, {
+    enabled: activeTab === 'okrs',
+  });
   const { data: filterOptions }                                 = useAnalyticsFilterOptions();
 
   const clientOptions = useMemo(
@@ -87,12 +93,6 @@ export default function Analytics() {
       / analyticsData.employeeUtilization.length;
   }, [analyticsData]);
 
-  const criticalCount = useMemo(
-    () => healthRows.filter(r => r.health.overall.status === 'red').length,
-    [healthRows]
-  );
-
-  const anyLoading = isLoading || isHealthLoading || isStakeholderLoading || isOkrLoading;
 
   return (
     <AppLayout
@@ -122,12 +122,7 @@ export default function Analytics() {
           showManagerFilter={isAdmin}
         />
 
-        {anyLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : analyticsData ? (
-          <Tabs defaultValue="overview">
+        <Tabs defaultValue="overview" onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="financial">Financeiro</TabsTrigger>
@@ -138,24 +133,12 @@ export default function Analytics() {
 
             {/* ── Visão Geral ──────────────────────────────────────────────── */}
             <TabsContent value="overview" className="space-y-6 mt-6">
-              <div className="grid gap-4 grid-cols-5">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Projetos Críticos
-                    </CardTitle>
-                    <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                      {criticalCount}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      de {healthRows.length} projeto(s) analisado(s)
-                    </p>
-                  </CardContent>
-                </Card>
-
+              {isLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : analyticsData ? (<>
+              <div className="grid gap-4 grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -215,11 +198,23 @@ export default function Analytics() {
                 </Card>
               </div>
 
-              <ProjectHealthTable data={healthRows} />
+              {yearlyData && (
+                <div className="grid gap-4 grid-cols-2">
+                  <YearlyRevenueChart data={yearlyData.months} year={yearlyData.year} />
+                  <YearlyAllocationChart data={yearlyData.months} year={yearlyData.year} />
+                </div>
+              )}
+
+              </>) : null}
             </TabsContent>
 
             {/* ── Financeiro ───────────────────────────────────────────────── */}
             <TabsContent value="financial" className="space-y-6 mt-6">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : analyticsData ? (
               <AnalyticsKPIs
                 revenueActual={analyticsData.revenueActual}
                 revenueProjected={analyticsData.revenueProjected}
@@ -231,10 +226,16 @@ export default function Analytics() {
                 grossMargin={analyticsData.grossMargin}
                 grossMarginTarget={analyticsData.grossMarginTarget}
               />
+              ) : null}
             </TabsContent>
 
             {/* ── Utilização & Custos ──────────────────────────────────────── */}
             <TabsContent value="utilization" className="space-y-6 mt-6">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : analyticsData ? (<>
               <div className="grid gap-4 grid-cols-2">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -279,11 +280,16 @@ export default function Analytics() {
                 />
                 <CostByProjectTable data={analyticsData.costsByProject} />
               </div>
+              </>) : null}
             </TabsContent>
 
             {/* ── Satisfação ───────────────────────────────────────────────── */}
             <TabsContent value="satisfaction" className="space-y-6 mt-6">
-              {stakeholderData ? (
+              {isStakeholderLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : stakeholderData ? (
                 <>
                   <StakeholderKPIs
                     total={stakeholderData.totals.total}
@@ -294,16 +300,16 @@ export default function Analytics() {
                   <StakeholderDistributionChart data={stakeholderData.byProject} />
                   <DetractorAlertTable data={stakeholderData.highInfluenceDetractors} />
                 </>
-              ) : (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              )}
+              ) : null}
             </TabsContent>
 
             {/* ── OKRs & Impacto ───────────────────────────────────────────── */}
             <TabsContent value="okrs" className="space-y-6 mt-6">
-              {okrData ? (
+              {isOkrLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : okrData ? (
                 <>
                   <OkrKPIs
                     activeOkrs={okrData.totals.activeOkrs}
@@ -315,14 +321,9 @@ export default function Analytics() {
                   <OkrByProjectTable data={okrData.byProject} />
                   <ConfidenceDistributionChart data={okrData.byProject} />
                 </>
-              ) : (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              )}
+              ) : null}
             </TabsContent>
-          </Tabs>
-        ) : null}
+        </Tabs>
       </div>
     </AppLayout>
   );

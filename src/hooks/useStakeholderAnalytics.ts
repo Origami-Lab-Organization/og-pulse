@@ -28,7 +28,7 @@ export interface StakeholderAnalyticsData {
   }>;
 }
 
-export function useStakeholderAnalytics(filters: Pick<AnalyticsFilters, 'clientId' | 'managerId' | 'projectId'>) {
+export function useStakeholderAnalytics(filters: Pick<AnalyticsFilters, 'clientId' | 'managerId' | 'projectId'>, options?: { enabled?: boolean }) {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const isAdmin = employee?.isAdmin ?? false;
@@ -137,6 +137,6 @@ export function useStakeholderAnalytics(filters: Pick<AnalyticsFilters, 'clientI
         highInfluenceDetractors,
       };
     },
-    enabled: !!tenantId,
+    enabled: !!tenantId && (options?.enabled ?? true),
   });
 }

@@ -2,27 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
-
-function countWorkingDays(start: Date, end: Date, holidays: any[]): number {
-  let count = 0;
-  const current = new Date(start);
-  while (current <= end) {
-    const dow = current.getDay();
-    if (dow !== 0 && dow !== 6) {
-      const day = current.getDate();
-      const month = current.getMonth() + 1;
-      const dateStr = format(current, 'yyyy-MM-dd');
-      const isHoliday = holidays.some(h =>
-        h.holiday_type === 'fixed'
-          ? h.fixed_day === day && h.fixed_month === month
-          : h.specific_date === dateStr
-      );
-      if (!isHoliday) count++;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return count;
-}
+import { countWorkingDays } from '@/lib/workingDays';
 
 export interface AnalyticsFilters {
   startDate: Date;
@@ -157,7 +137,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         // Members with employee cost data
         supabase
           .from('project_members')
-          .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria, data_admissao)')
+          .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria, data_admissao, termination:employee_terminations(termination_date))')
           .in('project_id', projectIds),
 
         // Project suppliers (to map month_number)
@@ -346,9 +326,13 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         const admDate = emp.data_admissao ? parseISO(emp.data_admissao) : null;
         if (admDate && admDate > filters.endDate) return;
 
+        const termDate = emp.termination?.termination_date ? parseISO(emp.termination.termination_date) : null;
+        if (termDate && termDate < filters.startDate) return;
+
         const jornadaDiaria = Number(emp.jornada_diaria) || 8;
         const effectiveStart = admDate && admDate > filters.startDate ? admDate : filters.startDate;
-        const effectiveWorkingDays = countWorkingDays(effectiveStart, filters.endDate, holidays);
+        const effectiveEnd = termDate && termDate < filters.endDate ? termDate : filters.endDate;
+        const effectiveWorkingDays = countWorkingDays(effectiveStart, effectiveEnd, holidays);
         const capacity = jornadaDiaria * effectiveWorkingDays;
         const utilization = capacity > 0 ? (hours / capacity) * 100 : 0;
         const hourlyCost = Number(emp.jornada_mensal) > 0
@@ -375,9 +359,13 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           const admDate = emp.data_admissao ? parseISO(emp.data_admissao) : null;
           if (admDate && admDate > filters.endDate) return;
 
+          const termDate = emp.termination?.termination_date ? parseISO(emp.termination.termination_date) : null;
+          if (termDate && termDate < filters.startDate) return;
+
           const jornadaDiaria = Number(emp.jornada_diaria) || 8;
           const effectiveStart = admDate && admDate > filters.startDate ? admDate : filters.startDate;
-          const effectiveWorkingDays = countWorkingDays(effectiveStart, filters.endDate, holidays);
+          const effectiveEnd = termDate && termDate < filters.endDate ? termDate : filters.endDate;
+          const effectiveWorkingDays = countWorkingDays(effectiveStart, effectiveEnd, holidays);
           const capacity = jornadaDiaria * effectiveWorkingDays;
           const hourlyCost = Number(emp.jornada_mensal) > 0
             ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
