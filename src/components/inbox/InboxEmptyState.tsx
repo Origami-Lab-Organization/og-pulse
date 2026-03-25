@@ -1,4 +1,4 @@
-import { Inbox, Clock, DollarSign, MailOpen, Archive, Search } from 'lucide-react';
+import { Inbox, Clock, DollarSign, MailOpen, Archive, Search, UserSearch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { InboxFolder } from '@/hooks/useInboxNotifications';
 
@@ -60,6 +60,13 @@ export function InboxEmptyState({ folder, searchQuery }: Props) {
       description: 'Atualizações de reembolsos aparecerão aqui.',
       bgClassName: 'bg-muted',
       iconClassName: 'text-muted-foreground',
+    },
+    candidates: {
+      icon: UserSearch,
+      title: 'Nenhuma notificação de candidatura',
+      description: 'Notificações de novas candidaturas aparecerão aqui.',
+      bgClassName: 'bg-purple-100 dark:bg-purple-900/30',
+      iconClassName: 'text-purple-600 dark:text-purple-400',
     },
     archived: {
       icon: Archive,

@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Notification } from './useNotifications';
 
-export type InboxFolder = 'all' | 'unread' | 'timesheet' | 'reimbursement' | 'archived';
+export type InboxFolder = 'all' | 'unread' | 'timesheet' | 'reimbursement' | 'candidates' | 'archived';
 
 function invalidateAll(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
@@ -32,6 +32,7 @@ export function useInboxNotifications(folder: InboxFolder = 'all') {
         if (folder === 'unread') query = query.eq('is_read', false);
         if (folder === 'timesheet') query = query.eq('category', 'timesheet');
         if (folder === 'reimbursement') query = query.eq('category', 'reimbursement');
+        if (folder === 'candidates') query = query.eq('category', 'candidatos');
       }
 
       const { data, error } = await query
@@ -51,8 +52,8 @@ export function useInboxCounts() {
   return useQuery({
     queryKey: ['inbox-counts', employee?.id],
     queryFn: async () => {
-      if (!employee) return { all: 0, unread: 0, timesheet: 0, reimbursement: 0, archived: 0 };
-      const [totalRes, timesheetRes, reimbursementRes, archivedRes] = await Promise.all([
+      if (!employee) return { all: 0, unread: 0, timesheet: 0, reimbursement: 0, candidates: 0, archived: 0 } as const;
+      const [totalRes, timesheetRes, reimbursementRes, candidatesRes, archivedRes] = await Promise.all([
         (supabase as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
@@ -77,6 +78,13 @@ export function useInboxCounts() {
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('recipient_id', employee.id)
+          .eq('is_read', false)
+          .eq('category', 'candidatos')
+          .eq('is_archived', false),
+        (supabase as any)
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('recipient_id', employee.id)
           .eq('is_archived', true),
       ]);
       return {
@@ -84,6 +92,7 @@ export function useInboxCounts() {
         unread: totalRes.count || 0,
         timesheet: timesheetRes.count || 0,
         reimbursement: reimbursementRes.count || 0,
+        candidates: candidatesRes.count || 0,
         archived: archivedRes.count || 0,
       };
     },
@@ -133,6 +142,21 @@ export function useArchiveNotification() {
       const { error } = await (supabase as any)
         .from('notifications')
         .update({ is_archived: true })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+export function useUnarchiveNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .update({ is_archived: false })
         .eq('id', id);
       if (error) throw error;
     },

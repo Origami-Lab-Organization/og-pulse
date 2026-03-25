@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -17,20 +17,25 @@ import {
   Package,
   RefreshCw,
   Inbox,
-  FolderKanban,
-} from 'lucide-react';
+  UserSearch,
+  FolderKanban
+} from "lucide-react";
 import {
   NavigationMenu,
   NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuList,
-  NavigationMenuTrigger,
-} from '@/components/ui/navigation-menu';
-import { useAuth } from '@/contexts/AuthContext';
-import { UserMenu } from './UserMenu';
-import logo from '@/assets/logo.png';
-import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+  NavigationMenuTrigger
+} from "@/components/ui/navigation-menu";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserMenu } from "./UserMenu";
+import logo from "@/assets/logo.png";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 
 interface NavItem {
   title: string;
@@ -50,48 +55,134 @@ interface NavGroup {
 
 const navigationGroups: NavGroup[] = [
   {
-    label: 'Meu Espaço',
+    label: "Meu Espaço",
     items: [
-      { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
-      { title: 'Meus Projetos', url: '/my-projects', icon: FolderKanban },
-      { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
-      { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
-    ],
+      { title: "Caixa de Entrada", url: "/inbox", icon: Inbox },
+      { title: "Meus Projetos", url: "/my-projects", icon: FolderKanban },
+      { title: "Timesheet", url: "/my-timesheet", icon: Clock },
+      { title: "Reembolsos", url: "/reimbursements", icon: Receipt }
+    ]
   },
   {
-    label: 'Comercial',
+    label: "Comercial",
     requiresManager: true,
     items: [
-      { title: 'Dashboard', url: '/comercial', icon: LayoutDashboard, requiresManager: true },
-      { title: 'CRM', url: '/crm', icon: Kanban, requiresManager: true },
-      { title: 'Serviços', url: '/comercial/servicos', icon: Briefcase, requiresManager: true },
-      { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
-    ],
+      {
+        title: "Dashboard",
+        url: "/comercial",
+        icon: LayoutDashboard,
+        requiresManager: true
+      },
+      { title: "CRM", url: "/crm", icon: Kanban, requiresManager: true },
+      {
+        title: "Serviços",
+        url: "/comercial/servicos",
+        icon: Briefcase,
+        requiresManager: true
+      },
+      {
+        title: "Clientes",
+        url: "/clients",
+        icon: Building2,
+        requiresManager: true
+      }
+    ]
   },
   {
-    label: 'Projetos',
+    label: "Projetos",
     requiresManager: true,
     items: [
-      { title: 'Portfólio de Projetos', url: '/portfolio', icon: Kanban, requiresManager: true },
-      { title: 'Alocação da Equipe', url: '/alocacao', icon: Clock, requiresManager: true },
-      { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
-      { title: 'Materiais', url: '/materiais', icon: Package, requiresManager: true },
-      { title: 'Assinaturas', url: '/assinaturas', icon: RefreshCw, requiresManager: true },
-      { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
-    ],
+      {
+        title: "Portfólio de Projetos",
+        url: "/portfolio",
+        icon: Kanban,
+        requiresManager: true
+      },
+      {
+        title: "Alocação da Equipe",
+        url: "/alocacao",
+        icon: Clock,
+        requiresManager: true
+      },
+      {
+        title: "Fornecedores",
+        url: "/suppliers",
+        icon: Truck,
+        requiresManager: true
+      },
+      {
+        title: "Materiais",
+        url: "/materiais",
+        icon: Package,
+        requiresManager: true
+      },
+      {
+        title: "Assinaturas",
+        url: "/assinaturas",
+        icon: RefreshCw,
+        requiresManager: true
+      },
+      {
+        title: "Analytics",
+        url: "/analytics",
+        icon: BarChart3,
+        requiresManager: true
+      }
+    ]
   },
   {
-    label: 'RH',
+    label: "RH",
     requiresAdmin: true,
     items: [
-      { title: 'Funcionários', url: '/employees', icon: Users, requiresAdmin: true },
-      { title: 'Contratos', url: '/rh/contratos', icon: FileSignature, requiresAdmin: true, disabled: true },
-      { title: 'Folha de Pagamento', url: '/rh/folha', icon: DollarSign, requiresAdmin: true, disabled: true },
-      { title: 'Férias e Afastamentos', url: '/rh/ferias', icon: Palmtree, requiresAdmin: true, disabled: true },
-      { title: 'Desligamentos', url: '/rh/desligamentos', icon: LogOut, requiresAdmin: true },
-      { title: 'Relatórios', url: '/rh/relatorios', icon: BarChart3, requiresAdmin: true, disabled: true },
-    ],
-  },
+      {
+        title: "Funcionários",
+        url: "/employees",
+        icon: Users,
+        requiresAdmin: true
+      },
+      {
+        title: "Contratações",
+        url: "/rh/candidatos",
+        icon: UserSearch,
+        requiresManager: true
+      },
+
+      {
+        title: "Contratos",
+        url: "/rh/contratos",
+        icon: FileSignature,
+        requiresAdmin: true,
+        disabled: true
+      },
+      {
+        title: "Folha de Pagamento",
+        url: "/rh/folha",
+        icon: DollarSign,
+        requiresAdmin: true,
+        disabled: true
+      },
+      {
+        title: "Férias e Afastamentos",
+        url: "/rh/ferias",
+        icon: Palmtree,
+        requiresAdmin: true,
+        disabled: true
+      },
+      {
+        title: "Desligamentos",
+        url: "/rh/desligamentos",
+        icon: LogOut,
+        requiresAdmin: true
+      },
+      {
+        title: "Relatórios",
+        url: "/rh/relatorios",
+        icon: BarChart3,
+        requiresAdmin: true,
+        disabled: true
+      }
+    ]
+  }
 ];
 
 export function AppNavbar() {
@@ -121,7 +212,7 @@ export function AppNavbar() {
     <header className="sticky top-0 z-50 flex h-14 items-center border-b bg-background px-4 gap-4">
       {/* Logo */}
       <button
-        onClick={() => navigate('/inbox')}
+        onClick={() => navigate("/inbox")}
         className="flex items-center gap-2 shrink-0 mr-2 hover:opacity-80 transition-opacity"
       >
         <img src={logo} alt="Pulse" className="h-7 w-7" />
@@ -133,7 +224,8 @@ export function AppNavbar() {
         <NavigationMenuList className="gap-0">
           {navigationGroups.filter(isGroupVisible).map((group) => {
             const visibleItems = filterItems(group.items);
-            const isRegularUserPersonalGroup = group.label === 'Meu Espaço' && !isManager && !isAdmin;
+            const isRegularUserPersonalGroup =
+              group.label === "Meu Espaço" && !isManager && !isAdmin;
 
             if (isRegularUserPersonalGroup) {
               return visibleItems.map((item) => {
@@ -144,11 +236,11 @@ export function AppNavbar() {
                       disabled={item.disabled}
                       onClick={() => !item.disabled && navigate(item.url)}
                       className={cn(
-                        'relative flex items-center gap-2 h-9 px-3 text-sm font-medium transition-colors',
+                        "relative flex items-center gap-2 h-9 px-3 text-sm font-medium transition-colors",
                         isActive(item.url)
-                          ? 'text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary after:rounded-full'
-                          : 'text-muted-foreground hover:text-primary',
-                        item.disabled && 'opacity-50 cursor-not-allowed'
+                          ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary after:rounded-full"
+                          : "text-muted-foreground hover:text-primary",
+                        item.disabled && "opacity-50 cursor-not-allowed"
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
@@ -161,7 +253,9 @@ export function AppNavbar() {
                   return (
                     <Tooltip key={item.title}>
                       <TooltipTrigger asChild>{flatButton}</TooltipTrigger>
-                      <TooltipContent><p>Em breve</p></TooltipContent>
+                      <TooltipContent>
+                        <p>Em breve</p>
+                      </TooltipContent>
                     </Tooltip>
                   );
                 }
@@ -185,11 +279,11 @@ export function AppNavbar() {
                             disabled={item.disabled}
                             onClick={() => !item.disabled && navigate(item.url)}
                             className={cn(
-                              'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+                              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                               isActive(item.url)
-                                ? 'bg-accent text-accent-foreground font-medium'
-                                : 'hover:bg-accent/50 text-foreground',
-                              item.disabled && 'opacity-50 cursor-not-allowed'
+                                ? "bg-accent text-accent-foreground font-medium"
+                                : "hover:bg-accent/50 text-foreground",
+                              item.disabled && "opacity-50 cursor-not-allowed"
                             )}
                           >
                             <Icon className="h-4 w-4 shrink-0" />
@@ -201,8 +295,12 @@ export function AppNavbar() {
                       if (item.disabled) {
                         return (
                           <Tooltip key={item.title}>
-                            <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                            <TooltipContent side="right"><p>Em breve</p></TooltipContent>
+                            <TooltipTrigger asChild>
+                              {linkContent}
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              <p>Em breve</p>
+                            </TooltipContent>
                           </Tooltip>
                         );
                       }

@@ -1,52 +1,78 @@
-import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft } from 'lucide-react';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect, useMemo } from "react";
+import { ChevronLeft } from "lucide-react";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { useQueryClient } from '@tanstack/react-query';
-import { Notification, useMarkNotificationRead } from '@/hooks/useNotifications';
+  DialogTitle
+} from "@/components/ui/dialog";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Notification,
+  useMarkNotificationRead
+} from "@/hooks/useNotifications";
 import {
   useInboxNotifications,
   useInboxCounts,
   useArchiveNotification,
+  useUnarchiveNotification,
   useArchiveMultipleNotifications,
   useDeleteNotification,
   useDeleteMultipleNotifications,
   useMarkMultipleNotificationsRead,
   useMarkMultipleNotificationsUnread,
-  type InboxFolder,
-} from '@/hooks/useInboxNotifications';
-import { InboxSidebar } from '@/components/inbox/InboxSidebar';
-import { InboxListPanel, type BulkAction } from '@/components/inbox/InboxListPanel';
-import { InboxDetailPanel, InboxDetailEmpty } from '@/components/inbox/InboxDetailPanel';
-import { InboxNewActionMenu } from '@/components/inbox/InboxNewActionMenu';
-import { ReimbursementFormDialog, CorrectionData } from '@/components/reimbursements/ReimbursementFormDialog';
-import { useAuth } from '@/contexts/AuthContext';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { supabase } from '@/integrations/supabase/client';
+  type InboxFolder
+} from "@/hooks/useInboxNotifications";
+import { InboxSidebar } from "@/components/inbox/InboxSidebar";
+import {
+  InboxListPanel,
+  type BulkAction
+} from "@/components/inbox/InboxListPanel";
+import {
+  InboxDetailPanel,
+  InboxDetailEmpty
+} from "@/components/inbox/InboxDetailPanel";
+import { InboxNewActionMenu } from "@/components/inbox/InboxNewActionMenu";
+import {
+  ReimbursementFormDialog,
+  CorrectionData
+} from "@/components/reimbursements/ReimbursementFormDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function InboxPage() {
   const { employee } = useAuth();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
 
-  const [activeFolder, setActiveFolder] = useState<InboxFolder>('all');
+  const [activeFolder, setActiveFolder] = useState<InboxFolder>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [reimbursementFormOpen, setReimbursementFormOpen] = useState(false);
-  const [correctionData, setCorrectionData] = useState<CorrectionData | null>(null);
+  const [correctionData, setCorrectionData] = useState<CorrectionData | null>(
+    null
+  );
 
-  const { data: counts = { all: 0, unread: 0, timesheet: 0, reimbursement: 0, archived: 0 } } = useInboxCounts();
-  const { data: notifications = [], isLoading } = useInboxNotifications(activeFolder);
+  const {
+    data: counts = {
+      all: 0,
+      unread: 0,
+      timesheet: 0,
+      reimbursement: 0,
+      candidates: 0,
+      archived: 0
+    }
+  } = useInboxCounts();
+  const { data: notifications = [], isLoading } =
+    useInboxNotifications(activeFolder);
 
   const markRead = useMarkNotificationRead();
   const archiveNotification = useArchiveNotification();
+  const unarchiveNotification = useUnarchiveNotification();
   const archiveMultiple = useArchiveMultipleNotifications();
   const deleteNotification = useDeleteNotification();
   const deleteMultiple = useDeleteMultipleNotifications();
@@ -57,23 +83,27 @@ export default function InboxPage() {
   useEffect(() => {
     if (!employee?.id) return;
     const channel = supabase
-      .channel('inbox-page-' + employee.id)
+      .channel("inbox-page-" + employee.id)
       .on(
-        'postgres_changes' as any,
+        "postgres_changes" as any,
         {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `recipient_id=eq.${employee.id}`,
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_id=eq.${employee.id}`
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
-          queryClient.invalidateQueries({ queryKey: ['inbox-counts'] });
-          queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
-        },
+          queryClient.invalidateQueries({ queryKey: ["inbox-notifications"] });
+          queryClient.invalidateQueries({ queryKey: ["inbox-counts"] });
+          queryClient.invalidateQueries({
+            queryKey: ["unread-notifications-count"]
+          });
+        }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [employee?.id, queryClient]);
 
   // Client-side search filter
@@ -83,11 +113,12 @@ export default function InboxPage() {
     return notifications.filter(
       (n) =>
         n.title.toLowerCase().includes(q) ||
-        (n.message?.toLowerCase().includes(q) ?? false),
+        (n.message?.toLowerCase().includes(q) ?? false)
     );
   }, [notifications, searchQuery]);
 
-  const selected = filteredNotifications.find((n) => n.id === selectedId) ?? null;
+  const selected =
+    filteredNotifications.find((n) => n.id === selectedId) ?? null;
 
   // Handlers
   const handleSelect = (n: Notification) => {
@@ -99,7 +130,7 @@ export default function InboxPage() {
     setActiveFolder(folder);
     setSelectedId(null);
     setCheckedIds(new Set());
-    setSearchQuery('');
+    setSearchQuery("");
   };
 
   const toggleCheck = (id: string) => {
@@ -112,7 +143,10 @@ export default function InboxPage() {
   };
 
   const toggleSelectAll = () => {
-    if (checkedIds.size === filteredNotifications.length && filteredNotifications.length > 0) {
+    if (
+      checkedIds.size === filteredNotifications.length &&
+      filteredNotifications.length > 0
+    ) {
       setCheckedIds(new Set());
     } else {
       setCheckedIds(new Set(filteredNotifications.map((n) => n.id)));
@@ -123,24 +157,44 @@ export default function InboxPage() {
     const ids = Array.from(checkedIds);
     const clear = () => setCheckedIds(new Set());
 
-    if (action === 'cancel') { clear(); return; }
-    if (action === 'read') { markMultipleRead.mutate(ids, { onSuccess: clear }); return; }
-    if (action === 'unread') { markMultipleUnread.mutate(ids, { onSuccess: clear }); return; }
-    if (action === 'archive') {
+    if (action === "cancel") {
+      clear();
+      return;
+    }
+    if (action === "read") {
+      markMultipleRead.mutate(ids, { onSuccess: clear });
+      return;
+    }
+    if (action === "unread") {
+      markMultipleUnread.mutate(ids, { onSuccess: clear });
+      return;
+    }
+    if (action === "archive") {
       archiveMultiple.mutate(ids, {
-        onSuccess: () => { clear(); if (ids.includes(selectedId ?? '')) setSelectedId(null); },
+        onSuccess: () => {
+          clear();
+          if (ids.includes(selectedId ?? "")) setSelectedId(null);
+        }
       });
       return;
     }
-    if (action === 'delete') {
+    if (action === "delete") {
       deleteMultiple.mutate(ids, {
-        onSuccess: () => { clear(); if (ids.includes(selectedId ?? '')) setSelectedId(null); },
+        onSuccess: () => {
+          clear();
+          if (ids.includes(selectedId ?? "")) setSelectedId(null);
+        }
       });
     }
   };
 
   const handleArchive = (id: string) => {
     archiveNotification.mutate(id);
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const handleUnarchive = (id: string) => {
+    unarchiveNotification.mutate(id);
     if (selectedId === id) setSelectedId(null);
   };
 
@@ -161,7 +215,7 @@ export default function InboxPage() {
     <AppLayout title="Caixa de entrada" hideHeader>
       <div
         className="flex bg-card overflow-hidden border-t -mx-6 -mt-6"
-        style={{ height: 'calc(100vh - 56px)' }}
+        style={{ height: "calc(100vh - 56px)" }}
       >
         {/* Column 1: Sidebar — desktop only */}
         <div className="hidden md:flex">
@@ -169,7 +223,10 @@ export default function InboxPage() {
             activeFolder={activeFolder}
             onFolderChange={handleFolderChange}
             counts={counts}
-            onNewAction={() => { setCorrectionData(null); setReimbursementFormOpen(true); }}
+            onNewAction={() => {
+              setCorrectionData(null);
+              setReimbursementFormOpen(true);
+            }}
           />
         </div>
 
@@ -188,6 +245,7 @@ export default function InboxPage() {
           folder={activeFolder}
           onFolderChange={handleFolderChange}
           onArchive={handleArchive}
+          onUnarchive={handleUnarchive}
           onDelete={handleDelete}
         />
 
@@ -200,6 +258,7 @@ export default function InboxPage() {
               onActionComplete={handleActionComplete}
               onOpenCorrectForm={handleOpenCorrectForm}
               onArchive={() => handleArchive(selected.id)}
+              onUnarchive={() => handleUnarchive(selected.id)}
               onDelete={() => handleDelete(selected.id)}
             />
           ) : (
@@ -212,7 +271,9 @@ export default function InboxPage() {
       {isMobile && (
         <Dialog
           open={!!selected}
-          onOpenChange={(open) => { if (!open) setSelectedId(null); }}
+          onOpenChange={(open) => {
+            if (!open) setSelectedId(null);
+          }}
         >
           <DialogContent className="max-w-full h-[90dvh] flex flex-col p-0 gap-0">
             <DialogHeader className="px-4 py-3 border-b flex-row items-center gap-3 space-y-0">
@@ -225,7 +286,7 @@ export default function InboxPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <DialogTitle className="text-base font-medium truncate">
-                {selected?.title ?? ''}
+                {selected?.title ?? ""}
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto">
@@ -235,8 +296,18 @@ export default function InboxPage() {
                   notification={selected}
                   onActionComplete={handleActionComplete}
                   onOpenCorrectForm={handleOpenCorrectForm}
-                  onArchive={() => { handleArchive(selected.id); setSelectedId(null); }}
-                  onDelete={() => { handleDelete(selected.id); setSelectedId(null); }}
+                  onArchive={() => {
+                    handleArchive(selected.id);
+                    setSelectedId(null);
+                  }}
+                  onUnarchive={() => {
+                    handleUnarchive(selected.id);
+                    setSelectedId(null);
+                  }}
+                  onDelete={() => {
+                    handleDelete(selected.id);
+                    setSelectedId(null);
+                  }}
                 />
               )}
             </div>

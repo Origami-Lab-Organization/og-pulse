@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Inbox,
   FolderKanban,
+  UserSearch,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -83,8 +84,9 @@ const navigationGroups = [
   },
   {
     label: 'Recursos Humanos',
-    requiresAdmin: true,
+    requiresManager: true,
     items: [
+      { title: 'Candidatos', url: '/rh/candidatos', icon: UserSearch, requiresManager: true },
       { title: 'Funcionários', url: '/employees', icon: Users, requiresAdmin: true },
       { title: 'Contratos', url: '/rh/contratos', icon: FileSignature, requiresAdmin: true, disabled: true },
       { title: 'Folha de Pagamento', url: '/rh/folha', icon: DollarSign, requiresAdmin: true, disabled: true },

@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Check, X, Paperclip, Bell, CheckCheck, Clock, AlertTriangle,
-  CheckCircle2, Plus, Receipt, DollarSign, XCircle, Inbox,
+  CheckCircle2, Plus, Receipt, DollarSign, XCircle, Inbox, UserSearch,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -54,7 +54,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-type NotifFilter = 'all' | 'timesheet' | 'reimbursement' | 'action';
+type NotifFilter = 'all' | 'timesheet' | 'reimbursement' | 'candidates' | 'action';
 
 type NotificationConfig = {
   icon: React.ReactNode;
@@ -147,6 +147,14 @@ function useNotificationConfig(onOpenChange: (open: boolean) => void) {
         label: 'Reembolso Pago',
       };
     }
+    if (n.type === 'job_application_new') {
+      return {
+        icon: <UserSearch className="h-4 w-4 mt-0.5 shrink-0 text-purple-600" />,
+        badgeClass: 'bg-purple-100 text-purple-700',
+        label: 'Nova Candidatura',
+        onClick: () => { onOpenChange(false); navigate('/rh/candidatos'); },
+      };
+    }
     return {
       icon: <Bell className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />,
       badgeClass: '',
@@ -194,6 +202,8 @@ function applyFilter(notifications: Notification[], filter: NotifFilter) {
       return notifications.filter(n => n.type.startsWith('timesheet'));
     case 'reimbursement':
       return notifications.filter(n => n.type.startsWith('reimbursement'));
+    case 'candidates':
+      return notifications.filter(n => n.category === 'candidatos');
     case 'action':
       return notifications.filter(n => !n.is_resolved && !!n.action_type);
     default:
@@ -511,11 +521,12 @@ export function NotificationInbox({ open, onOpenChange }: Props) {
             <TabsContent value="notifications">
               {/* Sub-filter buttons */}
               <div className="flex gap-1 mt-2 mb-3 overflow-x-auto pb-1">
-                {(['all', 'timesheet', 'reimbursement', 'action'] as NotifFilter[]).map((f) => {
+                {(['all', 'timesheet', 'reimbursement', 'candidates', 'action'] as NotifFilter[]).map((f) => {
                   const labels: Record<NotifFilter, string> = {
                     all: 'Todas',
                     timesheet: 'Timesheet',
                     reimbursement: 'Reembolsos',
+                    candidates: 'Candidaturas',
                     action: 'Ações',
                   };
                   return (

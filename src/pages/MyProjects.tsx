@@ -1,24 +1,48 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FolderKanban, Building2, Users, Calendar, Clock, Search, User, AlertTriangle } from 'lucide-react';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useMyProjects } from '@/hooks/useMyProjects';
-import { useAuth } from '@/contexts/AuthContext';
-import { PORTFOLIO_COLUMNS, PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
-import { SERVICE_LINE_LABELS } from '@/types/lead';
-import { formatDate } from '@/lib/formatters';
-import { cn } from '@/lib/utils';
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  FolderKanban,
+  Building2,
+  Users,
+  Calendar,
+  Clock,
+  Search,
+  User,
+  AlertTriangle
+} from "lucide-react";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
+import { useMyProjects } from "@/hooks/useMyProjects";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  PORTFOLIO_COLUMNS,
+  PORTFOLIO_STAGE_LABELS,
+  PortfolioStage
+} from "@/types/portfolio";
+import { SERVICE_LINE_LABELS } from "@/types/lead";
+import { formatDate } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 
 function getStageBadgeClass(stage: string): string {
   const col = PORTFOLIO_COLUMNS.find((c) => c.id === stage);
-  return col?.color ?? 'bg-muted text-muted-foreground';
+  return col?.color ?? "bg-muted text-muted-foreground";
 }
 
 export default function MyProjects() {
@@ -37,8 +61,8 @@ export default function MyProjects() {
     }
   };
 
-  const [search, setSearch] = useState('');
-  const [stageFilter, setStageFilter] = useState<string>('all');
+  const [search, setSearch] = useState("");
+  const [stageFilter, setStageFilter] = useState<string>("all");
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -46,14 +70,17 @@ export default function MyProjects() {
       const matchesSearch =
         !q ||
         p.name.toLowerCase().includes(q) ||
-        (p.client.tradingName ?? p.client.companyName).toLowerCase().includes(q);
-      const matchesStage = stageFilter === 'all' || p.portfolioStage === stageFilter;
+        (p.client.tradingName ?? p.client.companyName)
+          .toLowerCase()
+          .includes(q);
+      const matchesStage =
+        stageFilter === "all" || p.portfolioStage === stageFilter;
       return matchesSearch && matchesStage;
     });
   }, [projects, search, stageFilter]);
 
   const activeCount = useMemo(
-    () => projects.filter((p) => p.status === 'active').length,
+    () => projects.filter((p) => p.status === "active").length,
     [projects]
   );
 
@@ -73,8 +100,8 @@ export default function MyProjects() {
   );
 
   const pageDescription = isEmployeeOnly
-    ? 'Acompanhe os projetos em que você está alocado'
-    : 'Visão pessoal dos projetos em que você participa como membro da equipe';
+    ? "Acompanhe os projetos em que você está alocado"
+    : "Visão pessoal dos projetos em que você participa como membro da equipe";
 
   if (isLoading) {
     return (
@@ -102,10 +129,14 @@ export default function MyProjects() {
       <div className="space-y-6">
         {/* Summary cards — 3a */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card aria-label={`${activeCount} projeto${activeCount !== 1 ? 's' : ''} ativo${activeCount !== 1 ? 's' : ''}`}>
+          <Card
+            aria-label={`${activeCount} projeto${activeCount !== 1 ? "s" : ""} ativo${activeCount !== 1 ? "s" : ""}`}
+          >
             <CardContent className="pt-4 pb-4">
               <p className="text-2xl font-bold text-primary">{activeCount}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Projetos ativos</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Projetos ativos
+              </p>
             </CardContent>
           </Card>
           <Card aria-label={`${totalHoursPerMonth} horas por mês alocadas`}>
@@ -113,25 +144,33 @@ export default function MyProjects() {
               <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 {totalHoursPerMonth}h
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">Horas/mês alocadas</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Horas/mês alocadas
+              </p>
             </CardContent>
           </Card>
           {isEmployeeOnly ? (
             <Card aria-label={`${totalHoursActual} horas lançadas no total`}>
               <CardContent className="pt-4 pb-4">
                 <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {totalHoursActual}h
+                  {totalHoursActual.toFixed(2)}h
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Horas lançadas (total)</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Horas lançadas (total)
+                </p>
               </CardContent>
             </Card>
           ) : (
-            <Card aria-label={`${managerProjectsCount} projeto${managerProjectsCount !== 1 ? 's' : ''} como gerente de projetos`}>
+            <Card
+              aria-label={`${managerProjectsCount} projeto${managerProjectsCount !== 1 ? "s" : ""} como gerente de projetos`}
+            >
               <CardContent className="pt-4 pb-4">
                 <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">
                   {managerProjectsCount}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Projetos como GP</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Projetos como GP
+                </p>
               </CardContent>
             </Card>
           )}
@@ -166,12 +205,14 @@ export default function MyProjects() {
         {/* Project grid / empty state — 3e */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
-            {search || stageFilter !== 'all' ? (
+            {search || stageFilter !== "all" ? (
               <>
                 <div className="rounded-full bg-muted p-4 mb-4">
                   <FolderKanban className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-medium">Nenhum projeto encontrado</h3>
+                <h3 className="text-lg font-medium">
+                  Nenhum projeto encontrado
+                </h3>
                 <p className="text-muted-foreground mt-1 max-w-sm text-sm">
                   Tente ajustar os filtros de busca.
                 </p>
@@ -181,9 +222,12 @@ export default function MyProjects() {
                 <div className="rounded-full bg-muted p-3 mb-4">
                   <FolderKanban className="h-12 w-12 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-medium">Você ainda não está alocado em projetos</h3>
+                <h3 className="text-lg font-medium">
+                  Você ainda não está alocado em projetos
+                </h3>
                 <p className="text-muted-foreground mt-1 max-w-sm text-sm">
-                  Quando um gerente de projetos alocar você, seus projetos aparecerão aqui.
+                  Quando um gerente de projetos alocar você, seus projetos
+                  aparecerão aqui.
                 </p>
               </>
             ) : (
@@ -191,14 +235,17 @@ export default function MyProjects() {
                 <div className="rounded-full bg-muted p-4 mb-4">
                   <FolderKanban className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-medium">Nenhum projeto com sua participação</h3>
+                <h3 className="text-lg font-medium">
+                  Nenhum projeto com sua participação
+                </h3>
                 <p className="text-muted-foreground mt-1 max-w-sm text-sm">
-                  Você não está alocado como membro em nenhum projeto ativo. Projetos que você gerencia estão disponíveis em "Projetos".
+                  Você não está alocado como membro em nenhum projeto ativo.
+                  Projetos que você gerencia estão disponíveis em "Projetos".
                 </p>
                 <Button
                   variant="outline"
                   className="mt-4 gap-2"
-                  onClick={() => navigate('/projects')}
+                  onClick={() => navigate("/projects")}
                 >
                   <FolderKanban className="h-4 w-4" />
                   Ir para Projetos
@@ -209,50 +256,56 @@ export default function MyProjects() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map((project) => {
-              const clientName = project.client.tradingName ?? project.client.companyName;
+              const clientName =
+                project.client.tradingName ?? project.client.companyName;
               const hoursPercent =
                 project.totalHoursPlanned > 0
                   ? Math.min(
                       100,
-                      Math.round((project.totalHoursActual / project.totalHoursPlanned) * 100)
+                      Math.round(
+                        (project.totalHoursActual / project.totalHoursPlanned) *
+                          100
+                      )
                     )
                   : 0;
-              const stageBadgeClass = getStageBadgeClass(project.portfolioStage);
+              const stageBadgeClass = getStageBadgeClass(
+                project.portfolioStage
+              );
               const serviceLabel = project.serviceLine
                 ? (SERVICE_LINE_LABELS[project.serviceLine] ?? null)
                 : null;
 
               const barColorClass =
                 hoursPercent > 90
-                  ? 'bg-destructive'
+                  ? "bg-destructive"
                   : hoursPercent > 70
-                  ? 'bg-amber-500'
-                  : 'bg-primary';
+                    ? "bg-amber-500"
+                    : "bg-primary";
 
               const statusDotClass =
-                project.status === 'active'
-                  ? 'bg-green-500 animate-pulse'
-                  : project.status === 'paused'
-                  ? 'bg-amber-500'
-                  : project.status === 'planning'
-                  ? 'bg-blue-500'
-                  : null;
+                project.status === "active"
+                  ? "bg-green-500 animate-pulse"
+                  : project.status === "paused"
+                    ? "bg-amber-500"
+                    : project.status === "planning"
+                      ? "bg-blue-500"
+                      : null;
 
               const statusLabel =
-                project.status === 'active'
-                  ? 'Ativo'
-                  : project.status === 'paused'
-                  ? 'Pausado'
-                  : project.status === 'planning'
-                  ? 'Em planejamento'
-                  : null;
+                project.status === "active"
+                  ? "Ativo"
+                  : project.status === "paused"
+                    ? "Pausado"
+                    : project.status === "planning"
+                      ? "Em planejamento"
+                      : null;
 
               const tooltipText =
                 hoursPercent > 90
                   ? `${hoursPercent}% executado — Atenção: próximo do limite`
                   : hoursPercent > 70
-                  ? `${hoursPercent}% executado — Consumo elevado`
-                  : `${hoursPercent}% executado — Dentro do planejado`;
+                    ? `${hoursPercent}% executado — Consumo elevado`
+                    : `${hoursPercent}% executado — Dentro do planejado`;
 
               return (
                 <Card
@@ -265,8 +318,12 @@ export default function MyProjects() {
                   <CardContent className="pt-4 pb-5 space-y-3">
                     {/* Stage badge + service line + status dot */}
                     <div className="flex items-center justify-between gap-2">
-                      <Badge className={cn('text-xs border-0', stageBadgeClass)}>
-                        {PORTFOLIO_STAGE_LABELS[project.portfolioStage as PortfolioStage] ?? project.portfolioStage}
+                      <Badge
+                        className={cn("text-xs border-0", stageBadgeClass)}
+                      >
+                        {PORTFOLIO_STAGE_LABELS[
+                          project.portfolioStage as PortfolioStage
+                        ] ?? project.portfolioStage}
                       </Badge>
                       <div className="flex items-center gap-2 shrink-0">
                         {serviceLabel && (
@@ -278,7 +335,12 @@ export default function MyProjects() {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className={cn('w-2 h-2 rounded-full cursor-default', statusDotClass)} />
+                                <div
+                                  className={cn(
+                                    "w-2 h-2 rounded-full cursor-default",
+                                    statusDotClass
+                                  )}
+                                />
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p className="text-xs">{statusLabel}</p>
@@ -290,7 +352,9 @@ export default function MyProjects() {
                     </div>
 
                     {/* Project name */}
-                    <p className="font-semibold text-base leading-snug line-clamp-2">{project.name}</p>
+                    <p className="font-semibold text-base leading-snug line-clamp-2">
+                      {project.name}
+                    </p>
 
                     {/* Client */}
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -312,11 +376,13 @@ export default function MyProjects() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="ml-auto text-[11px] text-muted-foreground/70 shrink-0 cursor-default">
-                                GP: {project.manager.nome.split(' ')[0]}
+                                GP: {project.manager.nome.split(" ")[0]}
                               </span>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="text-xs">Gerente: {project.manager.nome}</p>
+                              <p className="text-xs">
+                                Gerente: {project.manager.nome}
+                              </p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -348,7 +414,10 @@ export default function MyProjects() {
                                 aria-valuenow={hoursPercent}
                                 aria-valuemin={0}
                                 aria-valuemax={100}
-                                className={cn('h-full rounded-full transition-all', barColorClass)}
+                                className={cn(
+                                  "h-full rounded-full transition-all",
+                                  barColorClass
+                                )}
                                 style={{ width: `${hoursPercent}%` }}
                               />
                             </div>
@@ -356,9 +425,12 @@ export default function MyProjects() {
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="text-xs font-medium">
-                            {project.totalHoursActual}h / {project.totalHoursPlanned}h
+                            {project.totalHoursActual}h /{" "}
+                            {project.totalHoursPlanned}h
                           </p>
-                          <p className="text-xs text-muted-foreground">{tooltipText}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {tooltipText}
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -369,7 +441,9 @@ export default function MyProjects() {
                         <Calendar className="h-3.5 w-3.5 shrink-0" />
                         {formatDate(project.startDate)}
                         {project.endDate && ` → ${formatDate(project.endDate)}`}
-                        {project.isContinuous && !project.endDate && ' · Contínuo'}
+                        {project.isContinuous &&
+                          !project.endDate &&
+                          " · Contínuo"}
                       </span>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="flex items-center gap-1">
@@ -384,7 +458,7 @@ export default function MyProjects() {
                             className="h-7 px-2 text-xs text-muted-foreground hover:text-primary gap-1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate('/my-timesheet');
+                              navigate("/my-timesheet");
                             }}
                           >
                             <Clock className="h-3 w-3" />

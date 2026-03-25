@@ -15,6 +15,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
+import JobApplication from "./pages/JobApplication";
 import Materials from "@/pages/Materials";
 import Subscriptions from "@/pages/Subscriptions";
 import ProjectDetail from "./pages/ProjectDetail";
@@ -38,6 +39,7 @@ import Welcome from "./pages/Welcome";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import TerminatedEmployees from "./pages/TerminatedEmployees";
+import Candidates from "./pages/Candidates";
 import Services from "./pages/Services";
 import Inbox from "./pages/Inbox";
 
@@ -241,6 +243,8 @@ const App = () => (
               <Route path="/assinaturas" element={<RoleProtectedRoute requireManager><Subscriptions /></RoleProtectedRoute>} />
               <Route path="/my-projects" element={<ProtectedRoute><MyProjects /></ProtectedRoute>} />
               <Route path="/my-projects/:id" element={<ProtectedRoute><MyProjectDetail /></ProtectedRoute>} />
+              <Route path="/rh/candidatos" element={<RoleProtectedRoute requireManager><Candidates /></RoleProtectedRoute>} />
+              <Route path="/trabalhe-conosco/:tenantId" element={<JobApplication />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
