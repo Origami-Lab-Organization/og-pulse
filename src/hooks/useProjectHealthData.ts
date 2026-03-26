@@ -107,7 +107,7 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
       // ── 1. Projects ──────────────────────────────────────────────────────────
       let projectsQuery = supabase
         .from('projects')
-        .select('id, name, billing_type, start_date, client_id, manager_id')
+        .select('id, name, start_date, client_id, manager_id')
         .eq('tenant_id', tenantId);
 
       if (!isAdmin && currentEmployeeId) {
@@ -341,8 +341,6 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
         );
         const okrConfidence = dominantConfidence(allConfidences);
 
-        const isNonRevenue = project.billing_type === 'no_revenue';
-
         const health = calculateProjectHealth({
           projectId: pid,
           margin,
@@ -355,7 +353,7 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
           okrProgress,
           okrConfidence,
           hasOkrs,
-          isNonRevenue,
+          isNonRevenue: false,
         });
 
         rows.push({
@@ -363,7 +361,7 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
           projectName: project.name,
           clientName: clientMap.get(project.client_id) ?? '—',
           managerName: managerMap.get(project.manager_id) ?? '—',
-          billingType: project.billing_type,
+          billingType: '',
           revenueReceived,
           margin,
           marginTarget: marginTarget ? Number(marginTarget) : null,

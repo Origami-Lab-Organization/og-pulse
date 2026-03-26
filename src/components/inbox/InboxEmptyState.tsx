@@ -61,6 +61,13 @@ export function InboxEmptyState({ folder, searchQuery }: Props) {
       bgClassName: 'bg-muted',
       iconClassName: 'text-muted-foreground',
     },
+    budget: {
+      icon: Inbox,
+      title: 'Nenhuma notificação de orçamento',
+      description: 'Notificações de orçamentos aparecerão aqui.',
+      bgClassName: 'bg-blue-100 dark:bg-blue-900/30',
+      iconClassName: 'text-blue-600 dark:text-blue-400',
+    },
     candidates: {
       icon: UserSearch,
       title: 'Nenhuma notificação de candidatura',
