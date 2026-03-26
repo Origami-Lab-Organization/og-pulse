@@ -20,6 +20,8 @@ export interface JobApplicationDB {
   justificativa_movimentacao: string | null;
   responsavel_id: string | null;
   responsavel_nome: string | null;
+  vaga_id: string | null;
+  vaga_titulo: string | null;
   created_at: string;
 }
 
@@ -30,6 +32,9 @@ export interface CreateJobApplicationInput {
   linkedin?: string;
   motivacao: string;
   curriculo?: File;
+  vaga_id?: string;
+  vaga_titulo?: string;
+  responsavel_id?: string | null;
 }
 
 export const JOB_APPLICATION_STATUS_LABELS: Record<JobApplicationStatus, string> = {

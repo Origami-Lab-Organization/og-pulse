@@ -49,6 +49,9 @@ export const jobApplicationService = {
         motivacao: input.motivacao,
         curriculo_url,
         curriculo_nome,
+        vaga_id: input.vaga_id || null,
+        vaga_titulo: input.vaga_titulo || null,
+        responsavel_id: input.responsavel_id || null,
       })
       .select()
       .single();

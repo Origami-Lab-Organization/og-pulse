@@ -4,7 +4,6 @@ import {
   Users,
   Building2,
   Clock,
-  FileText,
   BarChart3,
   Truck,
   Kanban,
@@ -18,7 +17,8 @@ import {
   RefreshCw,
   Inbox,
   UserSearch,
-  FolderKanban
+  FolderKanban,
+  ClipboardList
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -132,7 +132,7 @@ const navigationGroups: NavGroup[] = [
   },
   {
     label: "RH",
-    requiresAdmin: true,
+    requiresManager: true,
     items: [
       {
         title: "Funcionários",
@@ -144,6 +144,12 @@ const navigationGroups: NavGroup[] = [
         title: "Contratações",
         url: "/rh/candidatos",
         icon: UserSearch,
+        requiresManager: true
+      },
+      {
+        title: "Vagas",
+        url: "/rh/vagas",
+        icon: ClipboardList,
         requiresManager: true
       },
 

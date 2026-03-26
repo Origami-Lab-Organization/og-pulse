@@ -188,6 +188,13 @@ export function CandidateDetailDialog({
             <SheetDescription>
               Candidatura recebida em {formatDate(candidate.created_at)}.
             </SheetDescription>
+            {candidate.vaga_titulo && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 text-xs font-medium">
+                  Vaga: {candidate.vaga_titulo}
+                </span>
+              </div>
+            )}
           </SheetHeader>
 
           {isActive && (
