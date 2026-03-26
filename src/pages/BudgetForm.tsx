@@ -667,9 +667,11 @@ export default function BudgetForm() {
                             </TooltipProvider>
                           )}
                         </FormLabel>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FormControl><Input type="number" min={1} max={60} className="min-w-0" {...field} /></FormControl>
-                          <span className="text-sm text-muted-foreground shrink-0">meses</span>
+                        <div className="flex items-center rounded-md border border-input bg-background overflow-hidden focus-within:ring-1 focus-within:ring-ring">
+                          <FormControl>
+                            <Input type="number" min={1} max={60} className="border-0 shadow-none focus-visible:ring-0 min-w-0" {...field} />
+                          </FormControl>
+                          <span className="pr-3 text-sm text-muted-foreground shrink-0">meses</span>
                         </div>
                         <FormMessage />
                       </FormItem>
