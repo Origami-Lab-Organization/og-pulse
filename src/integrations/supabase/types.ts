@@ -420,6 +420,7 @@ export type Database = {
           net_margin_percent: number
           notes: string | null
           planned_costs: number | null
+          project_start_date: string | null
           start_date: string
           status: Database["public"]["Enums"]["budget_status"]
           subtotal: number
@@ -455,6 +456,7 @@ export type Database = {
           net_margin_percent?: number
           notes?: string | null
           planned_costs?: number | null
+          project_start_date?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["budget_status"]
           subtotal?: number
@@ -490,6 +492,7 @@ export type Database = {
           net_margin_percent?: number
           notes?: string | null
           planned_costs?: number | null
+          project_start_date?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["budget_status"]
           subtotal?: number
