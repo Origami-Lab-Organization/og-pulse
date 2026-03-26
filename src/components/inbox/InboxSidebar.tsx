@@ -6,7 +6,8 @@ import {
   DollarSign,
   Archive,
   Plus,
-  UserSearch
+  UserSearch,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ const folders: FolderEntry[] = [
   "separator",
   { key: "timesheet", label: "Timesheet", icon: Clock },
   { key: "reimbursement", label: "Reembolsos", icon: DollarSign },
+  { key: "budget", label: "Orçamentos", icon: FileText },
   { key: "candidates", label: "Candidaturas", icon: UserSearch },
   "separator",
   { key: "archived", label: "Arquivadas", icon: Archive }
@@ -39,6 +41,7 @@ interface Props {
     unread: number;
     timesheet: number;
     reimbursement: number;
+    budget: number;
     candidates: number;
     archived: number;
   };
@@ -56,8 +59,9 @@ export function InboxSidebar({
     unread: counts.unread,
     timesheet: counts.timesheet,
     reimbursement: counts.reimbursement,
-    archived: counts.archived,
-    candidates: counts.candidates
+    budget: counts.budget,
+    candidates: counts.candidates,
+    archived: counts.archived
   };
 
   return (

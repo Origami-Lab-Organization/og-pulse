@@ -63,6 +63,7 @@ export default function InboxPage() {
       unread: 0,
       timesheet: 0,
       reimbursement: 0,
+      budget: 0,
       candidates: 0,
       archived: 0
     }

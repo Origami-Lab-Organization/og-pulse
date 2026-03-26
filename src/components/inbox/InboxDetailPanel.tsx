@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Notification } from "@/hooks/useNotifications";
 import { InboxTimesheetDetail } from "./InboxTimesheetDetail";
 import { InboxReimbursementDetail } from "./InboxReimbursementDetail";
+import { InboxBudgetDetail } from "./InboxBudgetDetail";
 import { CorrectionData } from "@/components/reimbursements/ReimbursementFormDialog";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -14,6 +15,7 @@ import {
   Clock,
   DollarSign,
   UserSearch,
+  FileText,
   ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,6 +59,20 @@ const statusBadge: Record<string, { label: string; className: string }> = {
     label: "Pago",
     className:
       "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+  },
+  budget_margin_pending: {
+    label: "Aprovar/Rejeitar",
+    className:
+      "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+  },
+  budget_margin_approved: {
+    label: "Aprovado",
+    className:
+      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+  },
+  budget_margin_rejected: {
+    label: "Não aprovado",
+    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
   }
 };
 
@@ -93,6 +109,14 @@ const categoryConfig: Record<
     badge: "Candidatura",
     badgeClass:
       "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+  },
+  budget: {
+    bg: "bg-orange-100 dark:bg-orange-900/30",
+    text: "text-orange-600 dark:text-orange-400",
+    icon: FileText,
+    badge: "Orçamento",
+    badgeClass:
+      "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
   }
 };
 
@@ -241,6 +265,13 @@ export function InboxDetailPanel({
             onActionComplete={onActionComplete}
             onOpenCorrectForm={onOpenCorrectForm}
             onLiveStatusLoaded={setLiveStatus}
+          />
+        )}
+
+        {notification.category === "budget" && (
+          <InboxBudgetDetail
+            notification={notification}
+            onActionComplete={onActionComplete}
           />
         )}
       </div>

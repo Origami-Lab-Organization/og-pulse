@@ -65,9 +65,11 @@ export function MarginGauge({ effectiveMarginPercent, minMarginPercent, netMargi
         <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${redPct}%` }}>
           Mín {minMarginPercent}%
         </span>
-        <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${redPct + yellowPct}%` }}>
-          Target {netMarginPercent}%
-        </span>
+        {yellowPct > 5 && (
+          <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${redPct + yellowPct}%` }}>
+            Target {netMarginPercent}%
+          </span>
+        )}
         <span className="absolute right-0">100%</span>
       </div>
     </div>

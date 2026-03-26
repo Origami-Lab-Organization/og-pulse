@@ -35,6 +35,7 @@ import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets'
 import { useToast } from '@/hooks/use-toast';
 import { useLead, useLinkBudgetToLead } from '@/hooks/useLeads';
 import { useServices } from '@/hooks/useServices';
+import { supabase } from '@/integrations/supabase/client';
 import { BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { cn } from '@/lib/utils';
 import ClientFormDialog from '@/components/clients/ClientFormDialog';
@@ -209,7 +210,7 @@ export default function BudgetForm() {
 
   const calculation = useMemo<BudgetCalculation>(() => {
     if (billingType === 'success_fee') {
-      return calculateSuccessFeeTotals(roles, materials, suppliers, durationMonths, successFeePercent, expectedRevenue12m, plannedCosts);
+      return calculateSuccessFeeTotals(roles, materials, suppliers, durationMonths, successFeePercent, expectedRevenue12m, plannedCosts, adminExpensesPercent, taxesPercent);
     }
     // For recurring/continuous modes, BudgetRolesEditor uses a single column (monthlyMode).
     // Expand roles to N months so calculateRecurringTotals receives the correct total hours.
@@ -292,7 +293,47 @@ export default function BudgetForm() {
   const isMarginBelowMinimum = billingType !== 'no_revenue' && billingType !== 'success_fee' && calculation.effectiveMarginPercent < minNetMarginPercent && discountValue > 0;
   const isAdmin = employee?.isAdmin ?? false;
   const canSaveWithLowMargin = isAdmin && marginOverrideConfirmed;
-  const isSaveBlocked = isMarginBelowMinimum && !canSaveWithLowMargin;
+  // Non-admins can save with pending flag (sends notification to admins); admins must confirm checkbox
+  const isSaveBlocked = isMarginBelowMinimum && isAdmin && !marginOverrideConfirmed;
+
+  const sendMarginApprovalNotifications = async (budgetId: string, budgetTitle: string) => {
+    try {
+      const { data: adminRoles } = await supabase
+        .from('user_roles' as any).select('user_id')
+        .eq('tenant_id', employee!.tenant_id).eq('role', 'admin');
+      if (!adminRoles || (adminRoles as any[]).length === 0) return;
+      const adminUserIds = (adminRoles as any[]).map((a: any) => a.user_id);
+      const { data: adminEmps } = await supabase
+        .from('employees').select('id').in('auth_id', adminUserIds);
+      if (!adminEmps || adminEmps.length === 0) return;
+      const fmtCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+      const effectiveMargin = calculation.effectiveMarginPercent.toFixed(1);
+      const discountDisplay = isMonthlyMode ? fmtCurrency(discountValue) + '/mês' : fmtCurrency(discountValue);
+      await supabase.from('notifications' as any).insert(
+        (adminEmps as any[]).map((emp: any) => ({
+          tenant_id: employee!.tenant_id,
+          recipient_id: emp.id,
+          type: 'budget_margin_pending',
+          category: 'budget',
+          priority: 'high',
+          action_type: 'approve_reject',
+          title: `Desconto aguarda aprovação — ${budgetTitle}`,
+          message: `${employee!.nome} aplicou um desconto de ${discountDisplay} que reduz a margem efetiva para ${effectiveMargin}% (mínimo: ${minNetMarginPercent}%). Aprovação necessária.`,
+          reference_id: budgetId,
+          metadata: {
+            budget_title: budgetTitle,
+            requester_id: employee!.id,
+            requester_name: employee!.nome,
+            effective_margin: calculation.effectiveMarginPercent,
+            min_margin: minNetMarginPercent,
+            discount_value: discountValue,
+          },
+        })) as any
+      );
+    } catch (e) {
+      console.error('Erro ao enviar notificações de aprovação de margem:', e);
+    }
+  };
   const handleSubmit = (values: FormValues) => {
     if (isSubmitting) {
       console.warn('Form submission blocked: already submitting');
@@ -306,8 +347,8 @@ export default function BudgetForm() {
 
     if (isSaveBlocked) {
       toast({
-        title: 'Margem abaixo do mínimo',
-        description: `A margem efetiva (${calculation.effectiveMarginPercent.toFixed(1)}%) está abaixo do mínimo (${minNetMarginPercent}%). Requer aprovação do administrador.`,
+        title: 'Confirmação necessária',
+        description: `Marque a caixa de aprovação para salvar com margem abaixo do mínimo (${minNetMarginPercent}%).`,
         variant: 'destructive',
       });
       return;
@@ -330,6 +371,7 @@ export default function BudgetForm() {
       materials,
       suppliers,
       marginOverrideApproved: isMarginBelowMinimum && canSaveWithLowMargin,
+      marginOverridePending: isMarginBelowMinimum && !isAdmin,
       billingType,
       successFeePercent: billingType === 'success_fee' ? successFeePercent : undefined,
       expectedRevenue12m: billingType === 'success_fee' ? expectedRevenue12m : undefined,
@@ -339,11 +381,18 @@ export default function BudgetForm() {
       isRecurring: isMonthlyMode,
     };
 
+    const needsApprovalNotif = isMarginBelowMinimum && !isAdmin;
     if (isEditing && id) {
-      updateMutation.mutate({ id, input }, { onSuccess: () => navigate('/budgets') });
+      updateMutation.mutate({ id, input }, {
+        onSuccess: async () => {
+          if (needsApprovalNotif) await sendMarginApprovalNotifications(id, input.title);
+          navigate('/budgets');
+        },
+      });
     } else {
       createMutation.mutate(input, {
-        onSuccess: (data: any) => {
+        onSuccess: async (data: any) => {
+          if (needsApprovalNotif && data?.id) await sendMarginApprovalNotifications(data.id, input.title);
           if (isFromLead && leadId && data?.id) {
             linkBudgetToLead.mutate(
               { leadId, budgetId: data.id },
@@ -734,6 +783,23 @@ export default function BudgetForm() {
               )}
             </CardContent>
 
+            {/* Planned costs — success_fee only, entered here so Step 3 is purely fee config */}
+            {billingType === 'success_fee' && (
+              <div className="border-t px-6 py-4 space-y-2">
+                <p className="text-sm font-medium">Outros custos do projeto</p>
+                <p className="text-xs text-muted-foreground">
+                  Custos diretos adicionais não cobertos pela equipe acima (viagens, eventos, licenças etc.)
+                </p>
+                <div className="flex justify-between items-center pt-1">
+                  <Label className="text-sm font-normal">Custos planejados (R$)</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">R$</span>
+                    <CurrencyInput className="w-40 text-right" value={plannedCosts} onValueChange={(v) => setPlannedCosts(v)} />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Cost summary footer — always visible */}
             <div className="border-t bg-muted/30 px-6 py-4 space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Resumo de custos</p>
@@ -782,6 +848,12 @@ export default function BudgetForm() {
                     <span className="text-muted-foreground">Materiais</span>
                     <span>{formatCurrency(calculation.materialsTotal)}</span>
                   </div>
+                  {billingType === 'success_fee' && plannedCosts > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Custos planejados</span>
+                      <span>{formatCurrency(plannedCosts)}</span>
+                    </div>
+                  )}
                   <Separator className="my-2" />
                   <div className="flex justify-between font-semibold">
                     <span>Custo total</span>
@@ -804,13 +876,16 @@ export default function BudgetForm() {
           <div className="rounded-lg border border-destructive bg-destructive/5 p-4 space-y-3">
             <p className="text-sm text-destructive font-medium">
               Margem efetiva ({calculation.effectiveMarginPercent.toFixed(1)}%) abaixo do mínimo ({minNetMarginPercent}%).
-              {isAdmin ? ' Como administrador, você pode aprovar esta exceção.' : ' Solicite aprovação ao administrador.'}
             </p>
-            {isAdmin && (
+            {isAdmin ? (
               <div className="flex items-center gap-2">
                 <Checkbox id="margin-override" checked={marginOverrideConfirmed} onCheckedChange={(c) => setMarginOverrideConfirmed(c === true)} />
                 <label htmlFor="margin-override" className="text-sm cursor-pointer">Aprovar margem abaixo do mínimo configurado</label>
               </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Ao salvar, uma solicitação de aprovação será enviada automaticamente aos administradores.
+              </p>
             )}
           </div>
         );
@@ -917,27 +992,12 @@ export default function BudgetForm() {
 
                 <div className="border-t" />
 
-                {/* Block 2: Planned project costs */}
-                <div className="space-y-1">
-                  <p className="text-sm font-medium mb-1">Custos planejados do projeto</p>
-                  <p className="text-xs text-muted-foreground mb-3">Outros custos diretos previstos para execução do projeto (não incluídos na equipe de apoio acima).</p>
-                  <div className="flex justify-between items-center py-2">
-                    <Label className="text-sm font-normal">Custos planejados (R$)</Label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">R$</span>
-                      <CurrencyInput className="w-40 text-right" value={plannedCosts} onValueChange={(v) => setPlannedCosts(v)} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t" />
-
-                {/* Block 3: Fee configuration */}
+                {/* Block 2: Fee configuration */}
                 <div className="space-y-1">
                   <p className="text-sm font-medium mb-3">Configuração da taxa</p>
                   <p className="text-xs text-muted-foreground mb-3">A receita será calculada como um percentual sobre o faturamento esperado do cliente.</p>
                   <div className="flex justify-between items-center py-2">
-                    <Label className="text-sm font-normal">Percentual da taxa (%)</Label>
+                    <Label className="text-sm font-normal">Taxa de Sucesso (%)</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="number" min={0} max={100} step={0.1}
@@ -949,35 +1009,48 @@ export default function BudgetForm() {
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2">
-                    <Label className="text-sm font-normal">Expectativa de faturamento — 12 meses (R$)</Label>
+                    <Label className="text-sm font-normal">Expectativa de faturamento — {durationMonths} {durationMonths === 1 ? 'mês' : 'meses'} (R$)</Label>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">R$</span>
                       <CurrencyInput className="w-40 text-right" value={expectedRevenue12m} onValueChange={(v) => setExpectedRevenue12m(v)} />
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">Ex: receita anual do cliente, recursos captados, incentivos fiscais obtidos.</p>
+                  <p className="text-xs text-muted-foreground">Ex: total de receita gerada, recursos captados ou incentivos fiscais durante os {durationMonths} {durationMonths === 1 ? 'mês' : 'meses'} do projeto.</p>
                 </div>
 
                 <div className="border-t" />
 
-                {/* Block 4: Estimated result */}
+                {/* Block 3: Estimated result */}
                 <div className="space-y-1">
                   <p className="text-sm font-medium mb-3">Resultado estimado</p>
                   <div className="flex justify-between items-center py-2">
-                    <span className="text-sm text-muted-foreground">Faturamento esperado (12m)</span>
+                    <span className="text-sm text-muted-foreground">Faturamento esperado ({durationMonths}m)</span>
                     <span className="text-sm font-medium">{formatCurrency(sf.estimatedBase)}</span>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-sm text-muted-foreground">Taxa de sucesso ({sf.successFeePercent}%)</span>
                     <span className="text-sm font-semibold">{formatCurrency(sf.estimatedRevenue)}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-sm text-muted-foreground">Custos totais (equipe + planejados)</span>
+                  <Separator className="my-1" />
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-sm text-muted-foreground">Custos diretos (equipe + planejados)</span>
                     <span className="text-sm text-destructive">- {formatCurrency(sf.totalCost)}</span>
                   </div>
+                  {sf.adminExpenses > 0 && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-sm text-muted-foreground">Desp. Administrativas ({adminExpensesPercent}%)</span>
+                      <span className="text-sm text-destructive">- {formatCurrency(sf.adminExpenses)}</span>
+                    </div>
+                  )}
+                  {sf.taxes > 0 && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-sm text-muted-foreground">Impostos ({taxesPercent}%)</span>
+                      <span className="text-sm text-destructive">- {formatCurrency(sf.taxes)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4 mt-2">
                     <div>
-                      <span className="text-base font-bold">Margem Estimada</span>
+                      <span className="text-base font-bold">Resultado Estimado</span>
                       {sf.estimatedRevenue > 0 && (
                         <p className="text-xs text-muted-foreground">{sf.estimatedMarginPercent.toFixed(1)}% da receita</p>
                       )}
@@ -1047,6 +1120,14 @@ export default function BudgetForm() {
                       <CurrencyInput className="w-32 text-right" value={discountValue} onValueChange={(v) => setDiscountValue(v)} />
                     </div>
                   </div>
+                  {discountValue > 0 && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Margem efetiva após desconto</span>
+                      <span className={cn('font-medium', calculation.effectiveMarginPercent < minNetMarginPercent ? 'text-destructive' : 'text-green-600 dark:text-green-400')}>
+                        {calculation.effectiveMarginPercent.toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
                   <Separator />
                   <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4">
                     <span className="text-xl font-semibold">Valor Mensal Final</span>
@@ -1105,6 +1186,12 @@ export default function BudgetForm() {
                   <span className="text-sm">Preço de Venda</span>
                   <span className="text-lg font-semibold">{formatCurrency(calculation.sellingPrice)}</span>
                 </div>
+                {durationMonths > 1 && (
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span className="text-sm">Valor mensal ({durationMonths} meses)</span>
+                    <span className="text-sm font-medium">{formatCurrency(calculation.sellingPrice / durationMonths)}/mês</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <Label className="text-sm font-normal">Desconto</Label>
                   <div className="flex items-center gap-2">
@@ -1112,6 +1199,14 @@ export default function BudgetForm() {
                     <CurrencyInput className="w-32 text-right" value={discountValue} onValueChange={(v) => setDiscountValue(v)} />
                   </div>
                 </div>
+                {discountValue > 0 && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Margem efetiva após desconto</span>
+                    <span className={cn('font-medium', calculation.effectiveMarginPercent < minNetMarginPercent ? 'text-destructive' : 'text-green-600 dark:text-green-400')}>
+                      {calculation.effectiveMarginPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                )}
                 <Separator />
                 <div className="flex justify-between items-center bg-primary/10 rounded-lg p-4">
                   <span className="text-xl font-semibold">Valor Final</span>

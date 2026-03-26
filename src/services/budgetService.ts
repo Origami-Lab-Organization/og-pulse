@@ -342,6 +342,7 @@ export const budgetService = {
         margin_override_approved: input.marginOverrideApproved || false,
         margin_override_approved_by: input.marginOverrideApproved ? createdBy : null,
         margin_override_approved_at: input.marginOverrideApproved ? new Date().toISOString() : null,
+        margin_override_pending: input.marginOverridePending || false,
       })
       .select()
       .single();
@@ -481,6 +482,9 @@ export const budgetService = {
       updateData.margin_override_approved = input.marginOverrideApproved;
       updateData.margin_override_approved_by = input.marginOverrideApproved ? (createdBy || null) : null;
       updateData.margin_override_approved_at = input.marginOverrideApproved ? new Date().toISOString() : null;
+    }
+    if (input.marginOverridePending !== undefined) {
+      updateData.margin_override_pending = input.marginOverridePending;
     }
 
     if (totals) {

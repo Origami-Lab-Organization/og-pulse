@@ -41,6 +41,7 @@ export interface BudgetDB {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  margin_override_pending?: boolean;
 }
 
 export interface BudgetRoleDB {
@@ -133,6 +134,7 @@ export interface CreateBudgetInput {
   materials: BudgetMaterialInput[];
   suppliers: BudgetSupplierInput[];
   marginOverrideApproved?: boolean;
+  marginOverridePending?: boolean;
   billingType?: BillingType;
   successFeePercent?: number;
   estimatedBase?: number;
@@ -176,6 +178,7 @@ export interface SuccessFeeCalculation extends BudgetCalculation {
   estimatedRevenue: number;
   estimatedMargin: number;
   estimatedMarginPercent: number;
+  plannedCosts: number;
 }
 
 /**
@@ -323,7 +326,9 @@ export function calculateSuccessFeeTotals(
   durationMonths: number,
   successFeePercent: number,
   estimatedBase: number,
-  plannedCosts: number = 0
+  plannedCosts: number = 0,
+  adminExpensesPercent: number = 0,
+  taxesPercent: number = 0
 ): SuccessFeeCalculation {
   const laborCost = roles.reduce((acc, role) => {
     const roleHours = role.months.reduce((h, m) => h + m.hours, 0);
@@ -332,10 +337,13 @@ export function calculateSuccessFeeTotals(
 
   const suppliersTotal = suppliers.reduce((acc, s) => acc + (s.monthlyValue || 0) * durationMonths, 0);
   const materialsTotal = materials.reduce((acc, m) => acc + (m.value || 0), 0);
-  const totalCost = laborCost + suppliersTotal + materialsTotal + plannedCosts;
+  const directCosts = laborCost + suppliersTotal + materialsTotal + plannedCosts;
 
   const estimatedRevenue = estimatedBase * (successFeePercent / 100);
-  const estimatedMargin = estimatedRevenue - totalCost;
+  const adminExpenses = estimatedRevenue * (adminExpensesPercent / 100);
+  const taxes = estimatedRevenue * (taxesPercent / 100);
+
+  const estimatedMargin = estimatedRevenue - directCosts - adminExpenses - taxes;
   const estimatedMarginPercent = estimatedRevenue > 0
     ? (estimatedMargin / estimatedRevenue) * 100
     : 0;
@@ -345,9 +353,9 @@ export function calculateSuccessFeeTotals(
     laborCost,
     suppliersTotal,
     materialsTotal,
-    totalCost,
-    taxes: 0,
-    adminExpenses: 0,
+    totalCost: directCosts,
+    taxes,
+    adminExpenses,
     commission: 0,
     netMargin: estimatedMargin,
     sellingPrice: estimatedRevenue,
@@ -360,6 +368,7 @@ export function calculateSuccessFeeTotals(
     estimatedRevenue,
     estimatedMargin,
     estimatedMarginPercent,
+    plannedCosts,
   };
 }
 
