@@ -343,6 +343,7 @@ export const budgetService = {
         margin_override_approved_by: input.marginOverrideApproved ? createdBy : null,
         margin_override_approved_at: input.marginOverrideApproved ? new Date().toISOString() : null,
         margin_override_pending: input.marginOverridePending || false,
+        project_start_date: input.projectStartDate || null,
       })
       .select()
       .single();
@@ -485,6 +486,9 @@ export const budgetService = {
     }
     if (input.marginOverridePending !== undefined) {
       updateData.margin_override_pending = input.marginOverridePending;
+    }
+    if (input.projectStartDate !== undefined) {
+      updateData.project_start_date = input.projectStartDate || null;
     }
 
     if (totals) {

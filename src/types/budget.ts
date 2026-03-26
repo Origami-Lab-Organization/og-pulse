@@ -37,6 +37,7 @@ export interface BudgetDB {
   expected_revenue_12m?: number | null;
   planned_costs?: number | null;
   success_fee_type?: 'pontual' | 'continuo' | null;
+  project_start_date: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -133,6 +134,7 @@ export interface CreateBudgetInput {
   roles: BudgetRoleInput[];
   materials: BudgetMaterialInput[];
   suppliers: BudgetSupplierInput[];
+  projectStartDate?: string;
   marginOverrideApproved?: boolean;
   marginOverridePending?: boolean;
   billingType?: BillingType;
