@@ -48,7 +48,7 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
     queryKey: ['my-allocation-data', employeeId, monthKey],
     queryFn: async (): Promise<MyAllocationData> => {
       if (!employeeId || !monthKey) {
-        return { projects: [], totalPlannedHours: 0, totalActualHours: 0, monthlyCapacity: 0, expectedHours: 0 };
+        return { projects: [], totalPlannedHours: 0, totalActualHours: 0, totalActivityHours: 0, monthlyCapacity: 0, expectedHours: 0 };
       }
 
       // 1. Get employee's monthly capacity and daily hours

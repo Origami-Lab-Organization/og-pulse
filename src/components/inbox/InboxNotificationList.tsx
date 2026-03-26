@@ -45,6 +45,7 @@ export function InboxNotificationList({
           isChecked={false}
           onToggleCheck={() => {}}
           onArchive={() => {}}
+          onUnarchive={() => {}}
           onDelete={() => {}}
           hasAnyChecked={false}
         />
