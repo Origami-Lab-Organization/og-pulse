@@ -1097,6 +1097,185 @@ export type Database = {
           },
         ]
       }
+      job_applications: {
+        Row: {
+          created_at: string
+          curriculo_nome: string | null
+          curriculo_url: string | null
+          email: string
+          id: string
+          justificativa_movimentacao: string | null
+          linkedin: string | null
+          motivacao: string
+          nome: string
+          responsavel_id: string | null
+          status: string
+          telefone: string
+          tenant_id: string
+          vaga_id: string | null
+          vaga_titulo: string | null
+        }
+        Insert: {
+          created_at?: string
+          curriculo_nome?: string | null
+          curriculo_url?: string | null
+          email: string
+          id?: string
+          justificativa_movimentacao?: string | null
+          linkedin?: string | null
+          motivacao: string
+          nome: string
+          responsavel_id?: string | null
+          status?: string
+          telefone: string
+          tenant_id: string
+          vaga_id?: string | null
+          vaga_titulo?: string | null
+        }
+        Update: {
+          created_at?: string
+          curriculo_nome?: string | null
+          curriculo_url?: string | null
+          email?: string
+          id?: string
+          justificativa_movimentacao?: string | null
+          linkedin?: string | null
+          motivacao?: string
+          nome?: string
+          responsavel_id?: string | null
+          status?: string
+          telefone?: string
+          tenant_id?: string
+          vaga_id?: string | null
+          vaga_titulo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_vaga_id_fkey"
+            columns: ["vaga_id"]
+            isOneToOne: false
+            referencedRelation: "job_openings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_openings: {
+        Row: {
+          area: string
+          beneficios: string | null
+          created_at: string
+          created_by: string | null
+          diferenciais: string | null
+          id: string
+          localizacao: string | null
+          modalidade: string
+          nao_divulgar_salario: boolean
+          prazo_candidaturas: string | null
+          public_url: string | null
+          regime_contratacao: string
+          requisitos_obrigatorios: string
+          responsabilidades: string
+          responsavel_id: string | null
+          salario_ate: number | null
+          salario_de: number | null
+          senioridade: string | null
+          sobre_a_vaga: string
+          sobre_empresa: string
+          status: string
+          tenant_id: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          area: string
+          beneficios?: string | null
+          created_at?: string
+          created_by?: string | null
+          diferenciais?: string | null
+          id?: string
+          localizacao?: string | null
+          modalidade: string
+          nao_divulgar_salario?: boolean
+          prazo_candidaturas?: string | null
+          public_url?: string | null
+          regime_contratacao: string
+          requisitos_obrigatorios: string
+          responsabilidades: string
+          responsavel_id?: string | null
+          salario_ate?: number | null
+          salario_de?: number | null
+          senioridade?: string | null
+          sobre_a_vaga: string
+          sobre_empresa: string
+          status?: string
+          tenant_id: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          area?: string
+          beneficios?: string | null
+          created_at?: string
+          created_by?: string | null
+          diferenciais?: string | null
+          id?: string
+          localizacao?: string | null
+          modalidade?: string
+          nao_divulgar_salario?: boolean
+          prazo_candidaturas?: string | null
+          public_url?: string | null
+          regime_contratacao?: string
+          requisitos_obrigatorios?: string
+          responsabilidades?: string
+          responsavel_id?: string | null
+          salario_ate?: number | null
+          salario_de?: number | null
+          senioridade?: string | null
+          sobre_a_vaga?: string
+          sobre_empresa?: string
+          status?: string
+          tenant_id?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_openings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_openings_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_openings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       key_result_history: {
         Row: {
           changed_at: string
