@@ -342,7 +342,7 @@ export const budgetService = {
         margin_override_approved: input.marginOverrideApproved || false,
         margin_override_approved_by: input.marginOverrideApproved ? createdBy : null,
         margin_override_approved_at: input.marginOverrideApproved ? new Date().toISOString() : null,
-        margin_override_pending: input.marginOverridePending || false,
+        // margin_override_pending omitted — relies on DB DEFAULT false until schema cache refreshed
       })
       .select()
       .single();
@@ -483,9 +483,7 @@ export const budgetService = {
       updateData.margin_override_approved_by = input.marginOverrideApproved ? (createdBy || null) : null;
       updateData.margin_override_approved_at = input.marginOverrideApproved ? new Date().toISOString() : null;
     }
-    if (input.marginOverridePending !== undefined) {
-      updateData.margin_override_pending = input.marginOverridePending;
-    }
+    // margin_override_pending omitted until schema cache refreshed in Supabase dashboard
 
     if (totals) {
       const isNoRevenue = input.billingType === 'no_revenue';
