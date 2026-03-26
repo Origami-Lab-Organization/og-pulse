@@ -40,11 +40,11 @@ export function useCreateBudget() {
         description: 'Orçamento criado com sucesso!',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       console.error('Error creating budget:', error);
       toast({
-        title: 'Erro',
-        description: 'Erro ao criar orçamento. Tente novamente.',
+        title: 'Erro ao criar orçamento',
+        description: error?.message || error?.details || JSON.stringify(error),
         variant: 'destructive',
       });
     },
