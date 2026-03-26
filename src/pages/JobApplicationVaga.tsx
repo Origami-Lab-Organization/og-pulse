@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useTheme } from "next-themes";
 import DOMPurify from "dompurify";
 import { useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -15,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import {
   Card,
   CardContent,
@@ -40,7 +41,9 @@ import {
   ListChecks,
   Star,
   BookOpen,
-  TrendingUp
+  TrendingUp,
+  Sun,
+  Moon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { jobApplicationService } from "@/services/jobApplicationService";
@@ -53,6 +56,15 @@ import {
   MODALIDADE_LABELS
 } from "@/types/jobOpening";
 import logo from "@/assets/logo.png";
+
+function maskPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 11);
+  if (d.length === 0) return "";
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`;
+}
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = [
@@ -302,6 +314,7 @@ const JobApplicationVaga = () => {
     tenantId: string;
     vagaId: string;
   }>();
+  const { theme, setTheme } = useTheme();
 
   const [vaga, setVaga] = useState<JobOpeningDB | null>(null);
   const [vagaLoading, setVagaLoading] = useState(true);
@@ -465,6 +478,15 @@ const JobApplicationVaga = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-background p-4 py-10">
+      <button
+        type="button"
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        className="fixed top-4 right-4 z-50 rounded-full p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="Alternar tema"
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
+
       {/* Logo header */}
       <div className="flex items-center gap-2 mb-8">
         <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -508,7 +530,7 @@ const JobApplicationVaga = () => {
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
                   name="email"
@@ -537,7 +559,13 @@ const JobApplicationVaga = () => {
                         Telefone <span className="text-destructive">*</span>
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="(XX) XXXXX-XXXX" {...field} />
+                        <Input
+                          placeholder="(37) 9 9999-9999"
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(maskPhone(e.target.value))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -625,13 +653,13 @@ const JobApplicationVaga = () => {
                     )}
                   >
                     <Upload className="h-5 w-5 text-muted-foreground mb-2" />
-                    <p className="text-sm">
+                    <p className="text-sm text-center">
                       <span className="font-medium">Clique para enviar</span>{" "}
                       <span className="text-muted-foreground">
                         ou arraste o arquivo
                       </span>
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1 text-center">
                       PDF, DOCX (Max. 5MB)
                     </p>
                   </div>

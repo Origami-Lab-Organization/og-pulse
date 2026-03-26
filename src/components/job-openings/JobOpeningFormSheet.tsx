@@ -1,4 +1,4 @@
-import { useEffect, useRef, startTransition } from "react";
+import { useEffect, useRef, useState, startTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -104,6 +104,59 @@ const DEFAULT_VALUES: FormValues = {
   prazo_candidaturas: "",
   responsavel_id: ""
 };
+
+function maskCurrency(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  const num = parseInt(digits, 10);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2
+  }).format(num / 100);
+}
+
+function parseCurrencyToNumber(masked: string): number | undefined {
+  const digits = masked.replace(/\D/g, "");
+  if (!digits) return undefined;
+  const num = parseInt(digits, 10);
+  return num === 0 ? undefined : num / 100;
+}
+
+function CurrencyInput({
+  value,
+  onChange,
+  placeholder = "R$ 0,00"
+}: {
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+  placeholder?: string;
+}) {
+  const toDisplay = (v: number | undefined) =>
+    v != null ? maskCurrency(String(Math.round(v * 100))) : "";
+
+  const [display, setDisplay] = useState(() => toDisplay(value));
+  const prevRef = useRef(value);
+
+  useEffect(() => {
+    if (prevRef.current !== value) {
+      prevRef.current = value;
+      setDisplay(toDisplay(value));
+    }
+  }, [value]);
+
+  return (
+    <Input
+      value={display}
+      onChange={(e) => {
+        const masked = maskCurrency(e.target.value);
+        setDisplay(masked);
+        onChange(parseCurrencyToNumber(masked));
+      }}
+      placeholder={placeholder}
+    />
+  );
+}
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -408,16 +461,13 @@ export function JobOpeningFormSheet({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs text-muted-foreground">
-                              De R$
+                              De
                             </FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="5.000"
-                                min={0}
-                                {...field}
-                                value={field.value != null ? String(field.value) : ""}
-                                onChange={(e) => field.onChange(e.target.value)}
+                              <CurrencyInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="R$ 5.000,00"
                               />
                             </FormControl>
                             <FormMessage />
@@ -430,16 +480,13 @@ export function JobOpeningFormSheet({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs text-muted-foreground">
-                              Até R$
+                              Até
                             </FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="10.000"
-                                min={0}
-                                {...field}
-                                value={field.value != null ? String(field.value) : ""}
-                                onChange={(e) => field.onChange(e.target.value)}
+                              <CurrencyInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="R$ 10.000,00"
                               />
                             </FormControl>
                             <FormMessage />

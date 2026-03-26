@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { useTheme } from "next-themes";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,10 +22,19 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { Loader2, Upload, FileText, X, CheckCircle2, Send } from "lucide-react";
+import { Loader2, Upload, FileText, X, CheckCircle2, Send, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { jobApplicationService } from "@/services/jobApplicationService";
 import logo from "@/assets/logo.png";
+
+function maskPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 11);
+  if (d.length === 0) return "";
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`;
+}
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = [
@@ -44,6 +54,7 @@ type FormValues = z.infer<typeof schema>;
 
 const JobApplication = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
+  const { theme, setTheme } = useTheme();
   const [curriculo, setCurriculo] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -167,6 +178,15 @@ const JobApplication = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 py-10">
+      <button
+        type="button"
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        className="fixed top-4 right-4 z-50 rounded-full p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="Alternar tema"
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
+
       <Card className="w-full max-w-[500px]">
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-3">
@@ -203,7 +223,7 @@ const JobApplication = () => {
               />
 
               {/* Email + Telefone */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
                   name="email"
@@ -228,7 +248,13 @@ const JobApplication = () => {
                     <FormItem>
                       <FormLabel>Telefone</FormLabel>
                       <FormControl>
-                        <Input placeholder="(XX) XXXXX-XXXX" {...field} />
+                        <Input
+                          placeholder="(37) 9 9999-9999"
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(maskPhone(e.target.value))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -320,13 +346,13 @@ const JobApplication = () => {
                     )}
                   >
                     <Upload className="h-5 w-5 text-muted-foreground mb-2" />
-                    <p className="text-sm text-foreground">
+                    <p className="text-sm text-foreground text-center">
                       <span className="font-medium">Clique para enviar</span>{" "}
                       <span className="text-muted-foreground">
                         ou arraste o arquivo
                       </span>
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1 text-center">
                       PDF, DOCX (Max. 5MB)
                     </p>
                   </div>
