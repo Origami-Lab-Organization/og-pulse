@@ -74,53 +74,56 @@
   }
 
   .dark {
-    --background: 160 45% 3%;
-    --foreground: 145 25% 95%;
+    /* Backgrounds neutros — sem tinte verde nos surfaces */
+    --background: 222 14% 7%;
+    --foreground: 210 17% 95%;
 
-    --card: 160 40% 8%;
-    --card-foreground: 145 25% 95%;
+    --card: 222 13% 10%;
+    --card-foreground: 210 17% 95%;
 
-    --popover: 160 40% 12%;
-    --popover-foreground: 145 25% 95%;
+    --popover: 222 13% 12%;
+    --popover-foreground: 210 17% 95%;
 
-    --primary: 152 45% 55%;
-    --primary-foreground: 160 45% 10%;
+    /* Verde da marca como cor de ação, não de fundo */
+    --primary: 152 48% 52%;
+    --primary-foreground: 222 14% 7%;
 
-    --secondary: 160 35% 25%;
-    --secondary-foreground: 145 25% 95%;
+    --secondary: 220 11% 18%;
+    --secondary-foreground: 210 14% 82%;
 
-    --muted: 160 30% 13%;
-    --muted-foreground: 145 20% 60%;
+    --muted: 220 11% 13%;
+    --muted-foreground: 215 12% 52%;
 
-    --accent: 152 40% 40%;
-    --accent-foreground: 145 25% 95%;
+    --accent: 152 42% 44%;
+    --accent-foreground: 210 17% 95%;
 
     /* Warning states */
     --warning: 38 92% 50%;
     --warning-foreground: 38 92% 90%;
 
-    --destructive: 0 62% 45%;
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 160 30% 20%;
-    --input: 160 30% 20%;
+    --border: 220 11% 17%;
+    --input: 220 11% 14%;
     --ring: 152 45% 50%;
 
-    --sidebar-background: 160 45% 6%;
-    --sidebar-foreground: 145 25% 95%;
-    --sidebar-primary: 152 45% 55%;
+    /* Sidebar — superfície mais escura que o fundo principal */
+    --sidebar-background: 222 18% 5%;
+    --sidebar-foreground: 210 14% 88%;
+    --sidebar-primary: 152 48% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 160 35% 15%;
-    --sidebar-accent-foreground: 145 25% 95%;
-    --sidebar-border: 160 35% 15%;
-    --sidebar-ring: 152 55% 55%;
+    --sidebar-accent: 222 14% 11%;
+    --sidebar-accent-foreground: 210 14% 88%;
+    --sidebar-border: 222 14% 10%;
+    --sidebar-ring: 152 48% 52%;
 
-    /* Chart colors - Paleta do sistema (dark mode) */
-    --chart-1: 160 47% 35%;   /* Pine Teal - mais claro */
-    --chart-2: 145 50% 65%;   /* Celadon */
-    --chart-3: 45 100% 55%;   /* Amber Gold - mais claro */
-    --chart-4: 343 78% 62%;   /* Magenta Bloom - mais claro */
-    --chart-5: 202 66% 50%;   /* Rich Cerulean - mais claro */
+    /* Chart colors */
+    --chart-1: 152 48% 52%;   /* Verde marca */
+    --chart-2: 202 66% 55%;   /* Cerulean */
+    --chart-3: 45 100% 55%;   /* Amber */
+    --chart-4: 343 78% 62%;   /* Magenta */
+    --chart-5: 271 58% 65%;   /* Violet */
   }
 }
 
