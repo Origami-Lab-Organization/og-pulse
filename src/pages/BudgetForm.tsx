@@ -150,7 +150,6 @@ export default function BudgetForm() {
   const [expectedRevenue12m, setExpectedRevenue12m] = useState(0);
   const [plannedCosts, setPlannedCosts] = useState(0);
   const [successFeeType, setSuccessFeeType] = useState<'pontual' | 'continuo'>('pontual');
-  const [projectStartDate, setProjectStartDate] = useState<string>('');
 
   // For new budgets, use financial settings. For editing, use budget snapshot.
   const adminExpensesPercent = isEditing && budget ? budget.admin_expenses_percent : (financialSettings?.admin_expenses_percent || 0);
@@ -263,7 +262,6 @@ export default function BudgetForm() {
       if (budget.expected_revenue_12m != null) setExpectedRevenue12m(budget.expected_revenue_12m);
       if (budget.planned_costs != null) setPlannedCosts(budget.planned_costs);
       if (budget.success_fee_type) setSuccessFeeType(budget.success_fee_type);
-      if (budget.project_start_date) setProjectStartDate(budget.project_start_date);
       
       setRoles(budget.roles.map((r) => ({
         tempId: crypto.randomUUID(),
@@ -381,7 +379,6 @@ export default function BudgetForm() {
       successFeeType: billingType === 'success_fee' ? successFeeType : undefined,
       monthlyValue: isMonthlyMode ? (calculation as RecurringCalculation).monthlyFinalPrice : undefined,
       isRecurring: isMonthlyMode,
-      projectStartDate: projectStartDate || undefined,
     };
 
     const needsApprovalNotif = isMarginBelowMinimum && !isAdmin;
@@ -670,26 +667,14 @@ export default function BudgetForm() {
                             </TooltipProvider>
                           )}
                         </FormLabel>
-                        <div className="flex items-center gap-2">
-                          <FormControl><Input type="number" min={1} max={60} {...field} /></FormControl>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FormControl><Input type="number" min={1} max={60} className="min-w-0" {...field} /></FormControl>
                           <span className="text-sm text-muted-foreground shrink-0">meses</span>
                         </div>
                         <FormMessage />
                       </FormItem>
                     )} />
                   </div>
-
-                  {/* Project start date — only when budget is active (Negócio Fechado) */}
-                  {isEditing && budget?.status === 'active' && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium leading-none">Data de Início</label>
-                      <Input
-                        type="date"
-                        value={projectStartDate}
-                        onChange={(e) => setProjectStartDate(e.target.value)}
-                      />
-                    </div>
-                  )}
                 </>
               )}
 
