@@ -968,7 +968,7 @@ export default function BudgetForm() {
               <CardContent className="pt-5 space-y-6">
                 {/* Block 1: Support team costs */}
                 <div>
-                  <p className="text-sm font-medium mb-3">Custos da equipe de apoio</p>
+                  <p className="text-sm font-medium mb-3">Custos do projeto</p>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <span className="text-xs text-muted-foreground">Mão de Obra</span>
@@ -984,7 +984,7 @@ export default function BudgetForm() {
                     </div>
                   </div>
                   <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                    <span className="text-sm font-medium">Subtotal equipe</span>
+                    <span className="text-sm font-medium">Subtotal custos</span>
                     <span className="text-base font-semibold">{formatCurrency(teamCost)}</span>
                   </div>
                 </div>
