@@ -654,18 +654,8 @@ export default function BudgetForm() {
                     )} />
                     <FormField control={form.control} name="durationMonths" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-1">
+                        <FormLabel>
                           {billingType === 'success_fee' ? 'Duração estimada' : 'Duração do Projeto'}
-                          {billingType === 'success_fee' && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger type="button" className="text-muted-foreground">
-                                  <Info className="h-3.5 w-3.5" />
-                                </TooltipTrigger>
-                                <TooltipContent>Estimativa para equipe de apoio</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
                         </FormLabel>
                         <div className="flex items-center rounded-md border border-input bg-background overflow-hidden focus-within:ring-1 focus-within:ring-ring">
                           <FormControl>
