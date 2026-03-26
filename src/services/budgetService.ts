@@ -359,7 +359,7 @@ export const budgetService = {
       const { data: role, error: roleError } = await fromTable('budget_roles')
         .insert({
           budget_id: createdBudget.id,
-          role_rate_id: roleInput.roleRateId,
+          role_rate_id: roleInput.roleRateId || null,
           role_name: roleInput.roleName,
           seniority: roleInput.seniority,
           hourly_rate: roleInput.hourlyRate,
@@ -531,7 +531,7 @@ export const budgetService = {
         const { data: role, error: roleError } = await fromTable('budget_roles')
           .insert({
             budget_id: id,
-            role_rate_id: roleInput.roleRateId,
+            role_rate_id: roleInput.roleRateId || null,
             role_name: roleInput.roleName,
             seniority: roleInput.seniority,
             hourly_rate: roleInput.hourlyRate,
