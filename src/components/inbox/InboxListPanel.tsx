@@ -28,7 +28,8 @@ import {
   Clock,
   DollarSign,
   ChevronDown,
-  UserSearch
+  UserSearch,
+  FolderKanban
 } from "lucide-react";
 import { InboxNotificationRow } from "./InboxNotificationRow";
 import { InboxEmptyState } from "./InboxEmptyState";
@@ -53,6 +54,7 @@ const folderItems: {
   { key: "timesheet", label: "Timesheet", icon: Clock },
   { key: "reimbursement", label: "Reembolsos", icon: DollarSign },
   { key: "candidates", label: "Candidaturas", icon: UserSearch },
+  { key: "projeto", label: "Projetos", icon: FolderKanban },
   { key: "archived", label: "Arquivadas", icon: Archive }
 ];
 

@@ -7,7 +7,8 @@ import {
   Archive,
   Plus,
   UserSearch,
-  FileText
+  FileText,
+  FolderKanban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ const folders: FolderEntry[] = [
   { key: "reimbursement", label: "Reembolsos", icon: DollarSign },
   { key: "budget", label: "Orçamentos", icon: FileText },
   { key: "candidates", label: "Candidaturas", icon: UserSearch },
+  { key: "projeto", label: "Projetos", icon: FolderKanban },
   "separator",
   { key: "archived", label: "Arquivadas", icon: Archive }
 ];
@@ -43,6 +45,7 @@ interface Props {
     reimbursement: number;
     budget: number;
     candidates: number;
+    projeto: number;
     archived: number;
   };
   onNewAction: () => void;
@@ -61,6 +64,7 @@ export function InboxSidebar({
     reimbursement: counts.reimbursement,
     budget: counts.budget,
     candidates: counts.candidates,
+    projeto: counts.projeto,
     archived: counts.archived
   };
 

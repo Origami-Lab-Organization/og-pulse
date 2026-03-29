@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.notify-timesheet-pending]
 verify_jwt = false
+
+[functions.notify-installment-alerts]
+verify_jwt = false

@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Notification } from './useNotifications';
 
-export type InboxFolder = 'all' | 'unread' | 'timesheet' | 'reimbursement' | 'budget' | 'candidates' | 'archived';
+export type InboxFolder = 'all' | 'unread' | 'timesheet' | 'reimbursement' | 'budget' | 'candidates' | 'projeto' | 'archived';
 
 function invalidateAll(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
@@ -34,6 +34,7 @@ export function useInboxNotifications(folder: InboxFolder = 'all') {
         if (folder === 'reimbursement') query = query.eq('category', 'reimbursement');
         if (folder === 'candidates') query = query.eq('category', 'candidatos');
         if (folder === 'budget') query = query.eq('category', 'budget');
+        if (folder === 'projeto') query = query.eq('category', 'projeto');
       }
 
       const { data, error } = await query
@@ -53,8 +54,8 @@ export function useInboxCounts() {
   return useQuery({
     queryKey: ['inbox-counts', employee?.id],
     queryFn: async () => {
-      if (!employee) return { all: 0, unread: 0, timesheet: 0, reimbursement: 0, budget: 0, candidates: 0, archived: 0 };
-      const [totalRes, timesheetRes, reimbursementRes, budgetRes, candidatesRes, archivedRes] = await Promise.all([
+      if (!employee) return { all: 0, unread: 0, timesheet: 0, reimbursement: 0, budget: 0, candidates: 0, projeto: 0, archived: 0 };
+      const [totalRes, timesheetRes, reimbursementRes, budgetRes, candidatesRes, projetoRes, archivedRes] = await Promise.all([
         (supabase as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
@@ -93,6 +94,13 @@ export function useInboxCounts() {
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('recipient_id', employee.id)
+          .eq('is_read', false)
+          .eq('category', 'projeto')
+          .eq('is_archived', false),
+        (supabase as any)
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('recipient_id', employee.id)
           .eq('is_archived', true),
       ]);
       return {
@@ -102,6 +110,7 @@ export function useInboxCounts() {
         reimbursement: reimbursementRes.count || 0,
         budget: budgetRes.count || 0,
         candidates: candidatesRes.count || 0,
+        projeto: projetoRes.count || 0,
         archived: archivedRes.count || 0,
       };
     },

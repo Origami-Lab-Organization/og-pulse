@@ -65,6 +65,7 @@ export default function InboxPage() {
       reimbursement: 0,
       budget: 0,
       candidates: 0,
+      projeto: 0,
       archived: 0
     }
   } = useInboxCounts();
