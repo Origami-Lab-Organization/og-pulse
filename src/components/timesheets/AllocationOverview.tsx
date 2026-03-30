@@ -361,7 +361,7 @@ export function AllocationOverview({
   const { toast } = useToast();
   const upsertMemberMonth = useUpsertMemberMonth();
 
-  const actualEditsMutation = useAllocationActualEdits(holidays);
+  
 
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
   const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
