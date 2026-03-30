@@ -998,13 +998,6 @@ export function AllocationOverview({
 
                             <TableCell className="text-center font-medium">{row.totalPlanned > 0 ? fmt(row.totalPlanned) : '—'}</TableCell>
                             <TableCell className="text-center font-medium">{row.totalActual > 0 ? fmt(row.totalActual) : '—'}</TableCell>
-                            {/* P0.3 — Sticky */}
-                            <TableCell className="sticky right-0 z-10 bg-background shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]">
-                              <div className="flex flex-wrap gap-2">
-                                <Badge className={STATUS_STYLES[row.statusPlanned]}>Plan: {row.statusPlanned}</Badge>
-                                <Badge className={STATUS_STYLES[row.statusActual]}>Real: {row.statusActual}</Badge>
-                              </div>
-                            </TableCell>
                           </TableRow>
 
                           {/* ─── Expanded Panel ─── */}
