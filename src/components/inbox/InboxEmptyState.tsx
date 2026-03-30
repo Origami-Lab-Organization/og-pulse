@@ -75,6 +75,13 @@ export function InboxEmptyState({ folder, searchQuery }: Props) {
       bgClassName: 'bg-purple-100 dark:bg-purple-900/30',
       iconClassName: 'text-purple-600 dark:text-purple-400',
     },
+    projeto: {
+      icon: Inbox,
+      title: 'Nenhuma notificação de projeto',
+      description: 'Notificações de projetos aparecerão aqui.',
+      bgClassName: 'bg-amber-100 dark:bg-amber-900/30',
+      iconClassName: 'text-amber-600 dark:text-amber-400',
+    },
     archived: {
       icon: Archive,
       title: 'Nenhuma notificação arquivada',
