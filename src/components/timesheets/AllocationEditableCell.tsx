@@ -96,8 +96,7 @@ export function AllocationEditableCell({
         onKeyDown={handleKeyDown}
         className={cn(
           'mx-auto h-7 w-[92px] text-center text-xs',
-          changed && mode === 'actual' && 'border-blue-400',
-          changed && mode === 'planned' && 'border-amber-400',
+          changed && 'border-amber-400',
         )}
         disabled={isSaving}
         data-row-index={rowIndex}
