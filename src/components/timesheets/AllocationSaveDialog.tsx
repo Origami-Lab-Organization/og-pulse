@@ -32,8 +32,6 @@ const REASON_OPTIONS = [
   { value: 'other', label: 'Outro' },
 ] as const;
 
-export type SaveDialogMode = 'planned' | 'actual';
-
 interface AllocationSaveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,7 +39,6 @@ interface AllocationSaveDialogProps {
   employeeName: string;
   isSaving: boolean;
   onConfirm: (reasonCode: string, justification: string) => void;
-  mode?: SaveDialogMode;
 }
 
 function fmt(h: number): string {
