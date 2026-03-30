@@ -759,15 +759,13 @@ export function AllocationOverview({
   const pendingChanges = useMemo<ChangeEntry[]>(() => {
     if (!expandedRow) return [];
     const changes: ChangeEntry[] = [];
-    const draftMap = editMode === 'actual' ? draftActual : draftPlanned;
-    const origMap = editMode === 'actual' ? originalActual : originalPlanned;
 
     expandedProjects.forEach((p) => {
       MONTH_COLUMNS.forEach(({ month, label }) => {
-        if (editMode === 'planned' && !isProjectMonthEditable(p, selectedYear, month)) return;
+        if (!isProjectMonthEditable(p, selectedYear, month)) return;
         const key = draftProjectKey(p.id, month);
-        const current = draftMap[key] ?? 0;
-        const original = origMap[key] ?? 0;
+        const current = draftPlanned[key] ?? 0;
+        const original = originalPlanned[key] ?? 0;
         if (Math.round(current * 10) !== Math.round(original * 10)) {
           changes.push({ itemTitle: p.name, monthLabel: label, from: original, to: current });
         }
@@ -777,8 +775,8 @@ export function AllocationOverview({
     expandedInternalActivities.forEach((a) => {
       MONTH_COLUMNS.forEach(({ month, label }) => {
         const key = draftActivityKey(a.activityTypeId, month);
-        const current = draftMap[key] ?? 0;
-        const original = origMap[key] ?? 0;
+        const current = draftPlanned[key] ?? 0;
+        const original = originalPlanned[key] ?? 0;
         if (Math.round(current * 10) !== Math.round(original * 10)) {
           changes.push({ itemTitle: a.activityName, monthLabel: label, from: original, to: current });
         }
@@ -786,16 +784,12 @@ export function AllocationOverview({
     });
 
     return changes;
-  }, [expandedRow, expandedProjects, expandedInternalActivities, selectedYear, editMode, draftPlanned, originalPlanned, draftActual, originalActual]);
+  }, [expandedRow, expandedProjects, expandedInternalActivities, selectedYear, draftPlanned, originalPlanned]);
 
   const pendingChangesCount = pendingChanges.length;
 
   const handleCancelEdits = () => {
-    if (editMode === 'actual') {
-      setDraftActual(originalActual);
-    } else {
-      setDraftPlanned(originalPlanned);
-    }
+    setDraftPlanned(originalPlanned);
     setEditingCellKey(null);
   };
 
