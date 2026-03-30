@@ -1,15 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Search, TrendingUp, TrendingDown, MinusCircle, CheckCircle2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { YearNavigator } from '@/components/timesheets/YearNavigator';
 import {
+  AllocationTopKpis,
   AllocationOverview,
   PlannerFilterOptions,
   PlannerFilters,
-  StatusDualCounts,
-  StatusLabel,
 } from '@/components/timesheets/AllocationOverview';
 import {
   Select,
@@ -18,57 +17,58 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 
-type KPIConfig = {
-  label: StatusLabel;
-  icon: React.ElementType;
-  iconClass: string;
-};
+const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-const KPI_CONFIG: KPIConfig[] = [
-  { label: 'Sobrealocado', icon: TrendingUp, iconClass: 'bg-red-100 text-red-700' },
-  { label: 'Subalocado', icon: TrendingDown, iconClass: 'bg-yellow-100 text-yellow-700' },
-  { label: 'Ocioso', icon: MinusCircle, iconClass: 'bg-muted text-muted-foreground' },
-  { label: 'Adequado', icon: CheckCircle2, iconClass: 'bg-green-100 text-green-700' },
-];
-
-const EMPTY_COUNTS: StatusDualCounts = {
-  planned: { Sobrealocado: 0, Subalocado: 0, Ocioso: 0, Adequado: 0 },
-  actual: { Sobrealocado: 0, Subalocado: 0, Ocioso: 0, Adequado: 0 },
+const EMPTY_TOP_KPIS: AllocationTopKpis = {
+  referenceMonth: new Date().getMonth() + 1,
+  capacityMonthHours: 0,
+  plannedProjectHours: 0,
+  actualProjectHours: 0,
+  plannedInternalHours: 0,
+  actualInternalHours: 0,
+  plannedTotalHours: 0,
+  actualTotalHours: 0,
+  unallocatedHours: 0,
+  planUtilPct: null,
+  realUtilPct: null,
+  planProductivePct: null,
+  planAdminPct: null,
+  realProductivePct: null,
+  realAdminPct: null,
+  gapHours: 0,
 };
 
 const EMPTY_OPTIONS: PlannerFilterOptions = {
-  teams: [],
   managers: [],
   projects: [],
 };
 
+const formatHours = (value: number) => `${Math.round(value * 10) / 10}h`;
+const formatPct = (value: number | null) => (value == null ? '—' : `${Math.round(value * 1000) / 10}%`);
+
 export default function Timesheets() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusCounts, setStatusCounts] = useState<StatusDualCounts>(EMPTY_COUNTS);
+  const [topKpis, setTopKpis] = useState<AllocationTopKpis>(EMPTY_TOP_KPIS);
   const [options, setOptions] = useState<PlannerFilterOptions>(EMPTY_OPTIONS);
 
   const [filters, setFilters] = useState<PlannerFilters>({
-    teamId: 'all',
     managerId: 'all',
     projectId: 'all',
-    onlyConflicts: false,
   });
-
-  const normalizedOptions = useMemo(() => {
-    return {
-      teams: options.teams,
-      managers: options.managers,
-      projects: options.projects,
-    };
-  }, [options]);
 
   const updateFilter = <K extends keyof PlannerFilters>(key: K, value: PlannerFilters[K]) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
+
+  const referenceMonthLabel = MONTH_LABELS[topKpis.referenceMonth - 1] || `M${topKpis.referenceMonth}`;
+  const gapLabel = topKpis.gapHours > 0
+    ? 'Horas ainda não realizadas'
+    : topKpis.gapHours < 0
+      ? 'Realizado acima do planejado'
+      : 'Planejado e realizado alinhados';
+  const gapValueLabel = `${topKpis.gapHours > 0 ? '+' : ''}${Math.round(topKpis.gapHours * 10) / 10}h`;
 
   return (
     <AppLayout
@@ -78,27 +78,72 @@ export default function Timesheets() {
     >
       <div className="space-y-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {KPI_CONFIG.map(({ label, icon: Icon, iconClass }) => (
-            <Card key={label} className="animate-scale-in">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className={`rounded-lg p-3 ${iconClass}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">{label}s</p>
-                  <div className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">Plan:</span> {statusCounts.planned[label]}
-                    <span className="mx-2">|</span>
-                    <span className="font-medium text-foreground">Real:</span> {statusCounts.actual[label]}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <Card className="animate-scale-in">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="bg-primary/10 rounded-lg p-2 shrink-0">
+                <MinusCircle className="h-4 w-4 text-primary" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-2xl font-bold text-foreground">{formatHours(topKpis.unallocatedHours)}</p>
+                <p className="text-xs text-muted-foreground">Horas desalocadas ({referenceMonthLabel})</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Cap: {formatHours(topKpis.capacityMonthHours)} | Plan: {formatHours(topKpis.plannedTotalHours)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="animate-scale-in">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="bg-primary/10 rounded-lg p-2 shrink-0">
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-2xl font-bold text-foreground">{formatPct(topKpis.planUtilPct)}</p>
+                <p className="text-xs text-muted-foreground">Utilização ({referenceMonthLabel})</p>
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground">Plan:</span> {formatPct(topKpis.planUtilPct)}
+                  <span className="mx-2">|</span>
+                  <span className="font-medium text-foreground">Real:</span> {formatPct(topKpis.realUtilPct)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="animate-scale-in">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="bg-primary/10 rounded-lg p-2 shrink-0">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-2xl font-bold text-foreground">{formatPct(topKpis.planProductivePct)}</p>
+                <p className="text-xs text-muted-foreground">Produtivo vs ADM ({referenceMonthLabel})</p>
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground">Plan:</span> Prod {formatPct(topKpis.planProductivePct)} | ADM {formatPct(topKpis.planAdminPct)}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground">Real:</span> Prod {formatPct(topKpis.realProductivePct)} | ADM {formatPct(topKpis.realAdminPct)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="animate-scale-in">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="bg-primary/10 rounded-lg p-2 shrink-0">
+                <TrendingDown className="h-4 w-4 text-primary" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-2xl font-bold text-foreground">{gapValueLabel}</p>
+                <p className="text-xs text-muted-foreground">Gap Plan-Real ({referenceMonthLabel})</p>
+                <p className="text-[11px] text-muted-foreground">{gapLabel}</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+          <div className="flex flex-col xl:flex-row xl:items-center gap-3">
             <YearNavigator selectedYear={selectedYear} onYearChange={setSelectedYear} />
 
             <div className="relative">
@@ -111,36 +156,13 @@ export default function Timesheets() {
               />
             </div>
 
-            <div className="flex items-center gap-2 rounded-md border px-3 py-2">
-              <Switch
-                id="only-conflicts"
-                checked={filters.onlyConflicts}
-                onCheckedChange={(checked) => updateFilter('onlyConflicts', checked)}
-              />
-              <Label htmlFor="only-conflicts" className="text-sm cursor-pointer">Somente conflitos</Label>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Select value={filters.teamId} onValueChange={(value) => updateFilter('teamId', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Time" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os times</SelectItem>
-                {normalizedOptions.teams.map((team) => (
-                  <SelectItem key={team.value} value={team.value}>{team.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             <Select value={filters.managerId} onValueChange={(value) => updateFilter('managerId', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Gerente" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os gerentes</SelectItem>
-                {normalizedOptions.managers.map((manager) => (
+                {options.managers.map((manager) => (
                   <SelectItem key={manager.value} value={manager.value}>{manager.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -152,7 +174,7 @@ export default function Timesheets() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os projetos</SelectItem>
-                {normalizedOptions.projects.map((project) => (
+                {options.projects.map((project) => (
                   <SelectItem key={project.value} value={project.value}>{project.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -164,7 +186,7 @@ export default function Timesheets() {
           searchQuery={searchQuery}
           selectedYear={selectedYear}
           filters={filters}
-          onStatusCountsChange={setStatusCounts}
+          onTopKpisChange={setTopKpis}
           onFilterOptionsChange={setOptions}
         />
       </div>
