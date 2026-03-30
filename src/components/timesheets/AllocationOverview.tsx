@@ -353,6 +353,8 @@ export function AllocationOverview({
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const isAdmin = employee?.isAdmin ?? false;
+  const isManager = employee?.is_gerente ?? false;
+  const canEditActual = isAdmin || isManager;
   const currentEmployeeId = employee?.id;
   const { data: holidaysData } = useHolidays();
   const holidays = useMemo(() => holidaysData ?? [], [holidaysData]);
