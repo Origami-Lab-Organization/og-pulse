@@ -32,8 +32,6 @@ const REASON_OPTIONS = [
   { value: 'other', label: 'Outro' },
 ] as const;
 
-export type SaveDialogMode = 'planned' | 'actual';
-
 interface AllocationSaveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,7 +39,6 @@ interface AllocationSaveDialogProps {
   employeeName: string;
   isSaving: boolean;
   onConfirm: (reasonCode: string, justification: string) => void;
-  mode?: SaveDialogMode;
 }
 
 function fmt(h: number): string {
@@ -55,7 +52,6 @@ export function AllocationSaveDialog({
   employeeName,
   isSaving,
   onConfirm,
-  mode = 'planned',
 }: AllocationSaveDialogProps) {
   const [reasonCode, setReasonCode] = useState('');
   const [justification, setJustification] = useState('');
@@ -81,9 +77,7 @@ export function AllocationSaveDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>
-            {mode === 'actual' ? 'Confirmar correções de horas reais' : 'Confirmar alterações de alocação'}
-          </DialogTitle>
+          <DialogTitle>Confirmar alterações de alocação</DialogTitle>
           <DialogDescription>
             {changes.length} alteração(ões) para {employeeName}.
             Delta total: {totalDelta >= 0 ? '+' : ''}{fmt(totalDelta)}.

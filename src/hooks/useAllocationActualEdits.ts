@@ -19,6 +19,8 @@ export interface ActualChangeEntry {
   toHours: number;
   itemTitle: string;
   monthLabel: string;
+  /** Specific work date for the correction (yyyy-MM-dd) */
+  workDate?: string;
 }
 
 function getLastWorkingDay(year: number, month: number, holidays: Holiday[]): string {
@@ -52,7 +54,7 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
         const delta = change.toHours - change.fromHours;
         if (Math.round(delta * 10) === 0) continue;
 
-        const workDate = getLastWorkingDay(change.year, change.month, holidays);
+        const workDate = change.workDate || getLastWorkingDay(change.year, change.month, holidays);
 
         if (change.type === 'project') {
           // Upsert project_timesheets adjustment record on last working day
