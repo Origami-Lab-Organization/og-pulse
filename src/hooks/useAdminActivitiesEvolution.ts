@@ -38,7 +38,7 @@ export function useAdminActivitiesEvolution(
         .eq('is_active', true);
       if (atErr) throw atErr;
 
-      const types = (activityTypes || []) as Array<{ id: string; name: string; color: string | null }>;
+      const types = (activityTypes || []) as unknown as Array<{ id: string; name: string; color: string | null }>;
 
       const buildEmpty = (): AdminActivityMonthlyPoint[] =>
         Array.from({ length: 12 }, (_, i) => ({
