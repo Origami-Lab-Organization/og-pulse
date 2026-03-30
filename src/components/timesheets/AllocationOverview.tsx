@@ -641,6 +641,7 @@ export function AllocationOverview({
   }, [rowsWithStatus]);
 
   useEffect(() => { onStatusCountsChange?.(counts); }, [counts, onStatusCountsChange]);
+  useEffect(() => { onKPIDataChange?.({ counts, total: rowsWithStatus.length }); }, [counts, rowsWithStatus.length, onKPIDataChange]);
 
   /* ─── Expanded row state ─── */
 
