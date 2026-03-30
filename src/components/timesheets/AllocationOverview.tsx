@@ -899,7 +899,7 @@ export function AllocationOverview({
           if (item.editableByMonth[nextCol]) {
             const key = item.type === 'project' ? draftProjectKey(item.id, nextCol + 1) : draftActivityKey(item.id, nextCol + 1);
             const val = draftPlanned[key] ?? item.plannedByMonth[nextCol] ?? 0;
-            const val = draftMap[key] ?? fallback ?? 0;
+            beginInlineEdit(key, val);
             beginInlineEdit(key, val);
             return;
           }
