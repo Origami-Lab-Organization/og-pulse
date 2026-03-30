@@ -252,7 +252,7 @@ function getMonthlyHeatmapMeta(
   if (pct >= 80) {
     return { className: 'bg-yellow-100 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-200', referenceType, referenceHours, pct };
   }
-  return { className: 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200', referenceType, referenceHours, pct };
+  return { className: 'bg-orange-100 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200', referenceType, referenceHours, pct };
 }
 
 function emptyStatusCounts(): Record<StatusLabel, number> {
