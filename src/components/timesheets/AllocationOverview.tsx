@@ -800,75 +800,117 @@ export function AllocationOverview({
     setSaveDialogOpen(true);
   };
 
-  const handleConfirmSave = async (_reasonCode: string, _justification: string) => {
+  const handleConfirmSave = async (reasonCode: string, justification: string) => {
     if (!expandedRow) return;
 
     setIsSaving(true);
     try {
-      let persisted = 0;
+      if (editMode === 'actual') {
+        // Build actual change entries
+        const actualChanges: ActualChangeEntry[] = [];
 
-      for (const project of expandedProjects) {
-        const rowProject = expandedRow.projectsById[project.id];
-        let projectMemberId = rowProject?.projectMemberId || null;
+        expandedProjects.forEach((project) => {
+          const rowProject = expandedRow.projectsById[project.id];
+          MONTH_COLUMNS.forEach(({ month, label }) => {
+            const key = draftProjectKey(project.id, month);
+            const original = originalActual[key] ?? 0;
+            const draft = draftActual[key] ?? original;
+            if (Math.round(draft * 10) === Math.round(original * 10)) return;
+            if (!rowProject?.projectMemberId) return;
+            actualChanges.push({
+              type: 'project', referenceId: rowProject.projectMemberId,
+              projectId: project.id, employeeId: expandedRow.employeeId,
+              month, year: selectedYear, fromHours: original, toHours: draft,
+              itemTitle: project.name, monthLabel: label,
+            });
+          });
+        });
 
-        for (const { month } of MONTH_COLUMNS) {
-          if (!isProjectMonthEditable(project, selectedYear, month)) continue;
-          const key = draftProjectKey(project.id, month);
-          const original = rowProject?.plannedByMonth[month - 1] || 0;
-          const draft = draftPlanned[key] ?? original;
-          if (Math.round(draft * 10) === Math.round(original * 10)) continue;
+        expandedInternalActivities.forEach((activity) => {
+          MONTH_COLUMNS.forEach(({ month, label }) => {
+            const key = draftActivityKey(activity.activityTypeId, month);
+            const original = originalActual[key] ?? 0;
+            const draft = draftActual[key] ?? original;
+            if (Math.round(draft * 10) === Math.round(original * 10)) return;
+            actualChanges.push({
+              type: 'internal_activity', referenceId: activity.activityTypeId,
+              employeeId: expandedRow.employeeId,
+              month, year: selectedYear, fromHours: original, toHours: draft,
+              itemTitle: activity.activityName, monthLabel: label,
+            });
+          });
+        });
 
-          const monthNumber = monthNumberForProject(selectedYear, month, project.startDate);
-          if (monthNumber < 1) continue;
-          const plannedHours = Math.max(0, draft);
-
-          if (!projectMemberId) {
-            if (plannedHours <= 0) continue;
-            const { data: createdMember, error: createError } = await supabase
-              .from('project_members')
-              .insert({ project_id: project.id, employee_id: expandedRow.employeeId, role: expandedRow.cargo || 'Colaborador', seniority: 'pleno', hours_per_month: plannedHours, hourly_rate: 0 })
-              .select('id').single();
-            if (createError) throw createError;
-            projectMemberId = createdMember.id;
-          }
-
-          await upsertMemberMonth.mutateAsync({ projectMemberId, monthNumber, hours: plannedHours });
-          persisted++;
-        }
-      }
-
-      for (const activity of expandedInternalActivities) {
-        for (const { month } of MONTH_COLUMNS) {
-          const key = draftActivityKey(activity.activityTypeId, month);
-          const original = activity.plannedByMonth[month - 1] || 0;
-          const draft = draftPlanned[key] ?? original;
-          if (Math.round(draft * 10) === Math.round(original * 10)) continue;
-
-          const { error } = await supabase
-            .from('activity_employee_months')
-            .upsert([{
-              tenant_id: tenantId,
-              employee_id: expandedRow.employeeId,
-              activity_type_id: activity.activityTypeId,
-              year: selectedYear, month, hours: Math.max(0, draft),
-              updated_at: new Date().toISOString(),
-            }], { onConflict: 'employee_id,activity_type_id,year,month' });
-          if (error) throw error;
-          persisted++;
-        }
-      }
-
-      if (persisted > 0) {
-        await queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
-        toast({ title: 'Alocação atualizada', description: `${persisted} célula(s) salva(s) para ${expandedRow.employeeName}.` });
+        await actualEditsMutation.mutateAsync({ changes: actualChanges, reasonCode, justification });
+        setSaveDialogOpen(false);
+        closeExpanded();
       } else {
-        toast({ title: 'Sem alterações', description: 'Não houve mudanças para salvar.' });
-      }
+        // Planned mode — existing logic
+        let persisted = 0;
 
-      setSaveDialogOpen(false);
-      closeExpanded();
+        for (const project of expandedProjects) {
+          const rowProject = expandedRow.projectsById[project.id];
+          let projectMemberId = rowProject?.projectMemberId || null;
+
+          for (const { month } of MONTH_COLUMNS) {
+            if (!isProjectMonthEditable(project, selectedYear, month)) continue;
+            const key = draftProjectKey(project.id, month);
+            const original = rowProject?.plannedByMonth[month - 1] || 0;
+            const draft = draftPlanned[key] ?? original;
+            if (Math.round(draft * 10) === Math.round(original * 10)) continue;
+
+            const monthNumber = monthNumberForProject(selectedYear, month, project.startDate);
+            if (monthNumber < 1) continue;
+            const plannedHours = Math.max(0, draft);
+
+            if (!projectMemberId) {
+              if (plannedHours <= 0) continue;
+              const { data: createdMember, error: createError } = await supabase
+                .from('project_members')
+                .insert({ project_id: project.id, employee_id: expandedRow.employeeId, role: expandedRow.cargo || 'Colaborador', seniority: 'pleno', hours_per_month: plannedHours, hourly_rate: 0 })
+                .select('id').single();
+              if (createError) throw createError;
+              projectMemberId = createdMember.id;
+            }
+
+            await upsertMemberMonth.mutateAsync({ projectMemberId, monthNumber, hours: plannedHours });
+            persisted++;
+          }
+        }
+
+        for (const activity of expandedInternalActivities) {
+          for (const { month } of MONTH_COLUMNS) {
+            const key = draftActivityKey(activity.activityTypeId, month);
+            const original = activity.plannedByMonth[month - 1] || 0;
+            const draft = draftPlanned[key] ?? original;
+            if (Math.round(draft * 10) === Math.round(original * 10)) continue;
+
+            const { error } = await supabase
+              .from('activity_employee_months')
+              .upsert([{
+                tenant_id: tenantId,
+                employee_id: expandedRow.employeeId,
+                activity_type_id: activity.activityTypeId,
+                year: selectedYear, month, hours: Math.max(0, draft),
+                updated_at: new Date().toISOString(),
+              }], { onConflict: 'employee_id,activity_type_id,year,month' });
+            if (error) throw error;
+            persisted++;
+          }
+        }
+
+        if (persisted > 0) {
+          await queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
+          toast({ title: 'Alocação atualizada', description: `${persisted} célula(s) salva(s) para ${expandedRow.employeeName}.` });
+        } else {
+          toast({ title: 'Sem alterações', description: 'Não houve mudanças para salvar.' });
+        }
+
+        setSaveDialogOpen(false);
+        closeExpanded();
+      }
     } catch (error: unknown) {
-      toast({ title: 'Erro ao salvar alocação', description: error instanceof Error ? error.message : 'Não foi possível salvar as alterações.', variant: 'destructive' });
+      toast({ title: 'Erro ao salvar', description: error instanceof Error ? error.message : 'Não foi possível salvar as alterações.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
