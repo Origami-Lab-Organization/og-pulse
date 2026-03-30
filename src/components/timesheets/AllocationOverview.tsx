@@ -1086,7 +1086,25 @@ export function AllocationOverview({
                                     </div>
                                   ) : (
                                     <div className="space-y-2">
-                                      <p className="text-sm font-medium text-foreground">Itens de alocação</p>
+                                      <div className="flex items-center justify-between">
+                                        <p className="text-sm font-medium text-foreground">Itens de alocação</p>
+                                        {canEditActual && (
+                                          <ToggleGroup
+                                            type="single"
+                                            value={editMode}
+                                            onValueChange={(v) => { if (v) { setEditMode(v as 'planned' | 'actual'); setEditingCellKey(null); } }}
+                                            size="sm"
+                                            className="bg-muted rounded-md p-0.5"
+                                          >
+                                            <ToggleGroupItem value="planned" className="text-xs px-3 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded">
+                                              Planejado
+                                            </ToggleGroupItem>
+                                            <ToggleGroupItem value="actual" className="text-xs px-3 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded">
+                                              Real
+                                            </ToggleGroupItem>
+                                          </ToggleGroup>
+                                        )}
+                                      </div>
                                       <div className="overflow-auto border rounded-md bg-background">
                                         <Table>
                                           <TableHeader>
