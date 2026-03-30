@@ -1194,7 +1194,7 @@ export function AllocationOverview({
                                             {pendingChangesCount} alteração(ões) pendente(s) ·{' '}
                                             {(() => {
                                               const delta = pendingChanges.reduce((s, c) => s + (c.to - c.from), 0);
-                                              return `${delta >= 0 ? '+' : ''}${fmt(delta)} planejadas`;
+                                              return `${delta >= 0 ? '+' : ''}${fmt(delta)} ${editMode === 'actual' ? 'reais' : 'planejadas'}`;
                                             })()}
                                           </span>
                                         ) : (
