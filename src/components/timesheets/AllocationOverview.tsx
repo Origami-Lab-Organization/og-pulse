@@ -673,7 +673,8 @@ export function AllocationOverview({
   useEffect(() => { closeExpanded(); }, [selectedYear, filters.teamId, filters.managerId, filters.projectId, closeExpanded]);
 
   const initializeDraftForRow = (row: AllocationPlannerRow) => {
-    const next: Record<string, number> = {};
+    const nextPlanned: Record<string, number> = {};
+    const nextActual: Record<string, number> = {};
     const projectsForExpanded = visibleProjects.filter((p) => {
       const ph = row.projectsById[p.id];
       if (!ph) return false;
@@ -682,15 +683,23 @@ export function AllocationOverview({
 
     projectsForExpanded.forEach((p) => {
       const ph = row.projectsById[p.id] || createEmptyProjectRow(p, null);
-      MONTH_COLUMNS.forEach(({ month }) => { next[draftProjectKey(p.id, month)] = ph.plannedByMonth[month - 1] || 0; });
+      MONTH_COLUMNS.forEach(({ month }) => {
+        nextPlanned[draftProjectKey(p.id, month)] = ph.plannedByMonth[month - 1] || 0;
+        nextActual[draftProjectKey(p.id, month)] = ph.actualByMonth[month - 1] || 0;
+      });
     });
 
     Object.values(row.internalActivitiesById).sort((a, b) => a.activityName.localeCompare(b.activityName)).forEach((a) => {
-      MONTH_COLUMNS.forEach(({ month }) => { next[draftActivityKey(a.activityTypeId, month)] = a.plannedByMonth[month - 1] || 0; });
+      MONTH_COLUMNS.forEach(({ month }) => {
+        nextPlanned[draftActivityKey(a.activityTypeId, month)] = a.plannedByMonth[month - 1] || 0;
+        nextActual[draftActivityKey(a.activityTypeId, month)] = a.actualByMonth[month - 1] || 0;
+      });
     });
 
-    setDraftPlanned(next);
-    setOriginalPlanned(next);
+    setDraftPlanned(nextPlanned);
+    setOriginalPlanned(nextPlanned);
+    setDraftActual(nextActual);
+    setOriginalActual(nextActual);
   };
 
   const toggleExpand = (row: AllocationPlannerRow) => {
