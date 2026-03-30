@@ -4,7 +4,7 @@ const LEGEND_ITEMS = [
   { label: '> 100%', description: 'Sobrealocado', className: 'bg-red-100 dark:bg-red-900/30' },
   { label: '91–100%', description: 'Adequado', className: 'bg-green-100 dark:bg-green-900/30' },
   { label: '80–90%', description: 'Atenção', className: 'bg-yellow-100 dark:bg-yellow-900/30' },
-  { label: '1–79%', description: 'Subalocado', className: 'bg-amber-100 dark:bg-amber-900/30' },
+  { label: '1–79%', description: 'Subalocado', className: 'bg-orange-100 dark:bg-orange-900/30' },
   { label: '0%', description: 'Ocioso', className: 'bg-muted/40' },
 ] as const;
 
