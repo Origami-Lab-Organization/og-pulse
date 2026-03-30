@@ -803,48 +803,8 @@ export function AllocationOverview({
 
     setIsSaving(true);
     try {
-      if (editMode === 'actual') {
-        // Build actual change entries
-        const actualChanges: ActualChangeEntry[] = [];
-
-        expandedProjects.forEach((project) => {
-          const rowProject = expandedRow.projectsById[project.id];
-          MONTH_COLUMNS.forEach(({ month, label }) => {
-            const key = draftProjectKey(project.id, month);
-            const original = originalActual[key] ?? 0;
-            const draft = draftActual[key] ?? original;
-            if (Math.round(draft * 10) === Math.round(original * 10)) return;
-            if (!rowProject?.projectMemberId) return;
-            actualChanges.push({
-              type: 'project', referenceId: rowProject.projectMemberId,
-              projectId: project.id, employeeId: expandedRow.employeeId,
-              month, year: selectedYear, fromHours: original, toHours: draft,
-              itemTitle: project.name, monthLabel: label,
-            });
-          });
-        });
-
-        expandedInternalActivities.forEach((activity) => {
-          MONTH_COLUMNS.forEach(({ month, label }) => {
-            const key = draftActivityKey(activity.activityTypeId, month);
-            const original = originalActual[key] ?? 0;
-            const draft = draftActual[key] ?? original;
-            if (Math.round(draft * 10) === Math.round(original * 10)) return;
-            actualChanges.push({
-              type: 'internal_activity', referenceId: activity.activityTypeId,
-              employeeId: expandedRow.employeeId,
-              month, year: selectedYear, fromHours: original, toHours: draft,
-              itemTitle: activity.activityName, monthLabel: label,
-            });
-          });
-        });
-
-        await actualEditsMutation.mutateAsync({ changes: actualChanges, reasonCode, justification });
-        setSaveDialogOpen(false);
-        closeExpanded();
-      } else {
-        // Planned mode — existing logic
-        let persisted = 0;
+      // Planned mode only
+      let persisted = 0;
 
         for (const project of expandedProjects) {
           const rowProject = expandedRow.projectsById[project.id];
