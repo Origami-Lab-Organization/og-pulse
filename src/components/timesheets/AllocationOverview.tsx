@@ -362,9 +362,14 @@ export function AllocationOverview({
   const { toast } = useToast();
   const upsertMemberMonth = useUpsertMemberMonth();
 
+  const actualEditsMutation = useAllocationActualEdits(holidays);
+
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState<'planned' | 'actual'>('planned');
   const [draftPlanned, setDraftPlanned] = useState<Record<string, number>>({});
   const [originalPlanned, setOriginalPlanned] = useState<Record<string, number>>({});
+  const [draftActual, setDraftActual] = useState<Record<string, number>>({});
+  const [originalActual, setOriginalActual] = useState<Record<string, number>>({});
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [editingCellInitialValue, setEditingCellInitialValue] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
