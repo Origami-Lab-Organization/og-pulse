@@ -7,8 +7,6 @@ function fmt(h: number): string {
   return `${Math.round(h * 10) / 10}h`;
 }
 
-export type CellMode = 'planned' | 'actual';
-
 interface AllocationEditableCellProps {
   cellKey: string;
   draft: number;
@@ -28,8 +26,6 @@ interface AllocationEditableCellProps {
   /** data-row-index for Tab navigation */
   rowIndex: number;
   onTabNavigate?: (rowIndex: number, colIndex: number, direction: 1 | -1) => void;
-  /** Visual mode: planned (amber borders) or actual (blue borders) */
-  mode?: CellMode;
 }
 
 export function AllocationEditableCell({
