@@ -7,6 +7,8 @@ function fmt(h: number): string {
   return `${Math.round(h * 10) / 10}h`;
 }
 
+export type CellMode = 'planned' | 'actual';
+
 interface AllocationEditableCellProps {
   cellKey: string;
   draft: number;
@@ -26,6 +28,8 @@ interface AllocationEditableCellProps {
   /** data-row-index for Tab navigation */
   rowIndex: number;
   onTabNavigate?: (rowIndex: number, colIndex: number, direction: 1 | -1) => void;
+  /** Visual mode: planned (amber borders) or actual (blue borders) */
+  mode?: CellMode;
 }
 
 export function AllocationEditableCell({
@@ -45,6 +49,7 @@ export function AllocationEditableCell({
   colIndex,
   rowIndex,
   onTabNavigate,
+  mode = 'planned',
 }: AllocationEditableCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const changed = Math.round(draft * 10) !== Math.round(original * 10);
@@ -96,7 +101,8 @@ export function AllocationEditableCell({
         onKeyDown={handleKeyDown}
         className={cn(
           'mx-auto h-7 w-[92px] text-center text-xs',
-          changed && 'border-amber-400'
+          changed && mode === 'actual' && 'border-blue-400',
+          changed && mode === 'planned' && 'border-amber-400',
         )}
         disabled={isSaving}
         data-row-index={rowIndex}
@@ -112,13 +118,14 @@ export function AllocationEditableCell({
         e.stopPropagation();
         onBeginEdit(cellKey, draft);
       }}
-      className={cn(
-        'group/cell mx-auto inline-flex h-7 min-w-[92px] items-center justify-center gap-1 rounded border px-2 text-xs relative',
-        'hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
-        changed && 'border-amber-400 bg-amber-50/70 dark:bg-amber-900/20',
-        !changed && 'border-border bg-background',
-        isCurrentMonth && !changed && 'bg-primary/5'
-      )}
+        className={cn(
+          'group/cell mx-auto inline-flex h-7 min-w-[92px] items-center justify-center gap-1 rounded border px-2 text-xs relative',
+          'hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
+          changed && mode === 'actual' && 'border-blue-400 bg-blue-50/70 dark:bg-blue-900/20',
+          changed && mode === 'planned' && 'border-amber-400 bg-amber-50/70 dark:bg-amber-900/20',
+          !changed && 'border-border bg-background',
+          isCurrentMonth && !changed && 'bg-primary/5'
+        )}
       disabled={isSaving}
       data-row-index={rowIndex}
       data-col-index={colIndex}

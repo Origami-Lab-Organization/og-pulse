@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useHolidays, isHoliday } from '@/hooks/useHolidays';
@@ -27,8 +28,8 @@ import { SERVICE_LINE_LABELS } from '@/types/lead';
 import { cn } from '@/lib/utils';
 import { AllocationHeatmapLegend } from './AllocationHeatmapLegend';
 import { AllocationEditableCell } from './AllocationEditableCell';
-
 import { AllocationSaveDialog, ChangeEntry } from './AllocationSaveDialog';
+import { useAllocationActualEdits, ActualChangeEntry } from '@/hooks/useAllocationActualEdits';
 
 /* ─── Constants ─── */
 
@@ -352,6 +353,8 @@ export function AllocationOverview({
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const isAdmin = employee?.isAdmin ?? false;
+  const isManager = employee?.is_gerente ?? false;
+  const canEditActual = isAdmin || isManager;
   const currentEmployeeId = employee?.id;
   const { data: holidaysData } = useHolidays();
   const holidays = useMemo(() => holidaysData ?? [], [holidaysData]);
@@ -359,9 +362,14 @@ export function AllocationOverview({
   const { toast } = useToast();
   const upsertMemberMonth = useUpsertMemberMonth();
 
+  const actualEditsMutation = useAllocationActualEdits(holidays);
+
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState<'planned' | 'actual'>('planned');
   const [draftPlanned, setDraftPlanned] = useState<Record<string, number>>({});
   const [originalPlanned, setOriginalPlanned] = useState<Record<string, number>>({});
+  const [draftActual, setDraftActual] = useState<Record<string, number>>({});
+  const [originalActual, setOriginalActual] = useState<Record<string, number>>({});
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [editingCellInitialValue, setEditingCellInitialValue] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -652,8 +660,11 @@ export function AllocationOverview({
 
   const closeExpanded = useCallback(() => {
     setExpandedEmployeeId(null);
+    setEditMode('planned');
     setDraftPlanned({});
     setOriginalPlanned({});
+    setDraftActual({});
+    setOriginalActual({});
     setEditingCellKey(null);
     setEditingCellInitialValue(0);
   }, []);
@@ -662,7 +673,8 @@ export function AllocationOverview({
   useEffect(() => { closeExpanded(); }, [selectedYear, filters.teamId, filters.managerId, filters.projectId, closeExpanded]);
 
   const initializeDraftForRow = (row: AllocationPlannerRow) => {
-    const next: Record<string, number> = {};
+    const nextPlanned: Record<string, number> = {};
+    const nextActual: Record<string, number> = {};
     const projectsForExpanded = visibleProjects.filter((p) => {
       const ph = row.projectsById[p.id];
       if (!ph) return false;
@@ -671,15 +683,23 @@ export function AllocationOverview({
 
     projectsForExpanded.forEach((p) => {
       const ph = row.projectsById[p.id] || createEmptyProjectRow(p, null);
-      MONTH_COLUMNS.forEach(({ month }) => { next[draftProjectKey(p.id, month)] = ph.plannedByMonth[month - 1] || 0; });
+      MONTH_COLUMNS.forEach(({ month }) => {
+        nextPlanned[draftProjectKey(p.id, month)] = ph.plannedByMonth[month - 1] || 0;
+        nextActual[draftProjectKey(p.id, month)] = ph.actualByMonth[month - 1] || 0;
+      });
     });
 
     Object.values(row.internalActivitiesById).sort((a, b) => a.activityName.localeCompare(b.activityName)).forEach((a) => {
-      MONTH_COLUMNS.forEach(({ month }) => { next[draftActivityKey(a.activityTypeId, month)] = a.plannedByMonth[month - 1] || 0; });
+      MONTH_COLUMNS.forEach(({ month }) => {
+        nextPlanned[draftActivityKey(a.activityTypeId, month)] = a.plannedByMonth[month - 1] || 0;
+        nextActual[draftActivityKey(a.activityTypeId, month)] = a.actualByMonth[month - 1] || 0;
+      });
     });
 
-    setDraftPlanned(next);
-    setOriginalPlanned(next);
+    setDraftPlanned(nextPlanned);
+    setOriginalPlanned(nextPlanned);
+    setDraftActual(nextActual);
+    setOriginalActual(nextActual);
   };
 
   const toggleExpand = (row: AllocationPlannerRow) => {
@@ -690,7 +710,11 @@ export function AllocationOverview({
 
   const updateDraftCell = (key: string, nextValue: number) => {
     const safeValue = Math.max(0, Number.isFinite(nextValue) ? nextValue : 0);
-    setDraftPlanned((prev) => ({ ...prev, [key]: safeValue }));
+    if (editMode === 'actual') {
+      setDraftActual((prev) => ({ ...prev, [key]: safeValue }));
+    } else {
+      setDraftPlanned((prev) => ({ ...prev, [key]: safeValue }));
+    }
   };
 
   const expandedProjects = useMemo(() => {
@@ -731,13 +755,15 @@ export function AllocationOverview({
   const pendingChanges = useMemo<ChangeEntry[]>(() => {
     if (!expandedRow) return [];
     const changes: ChangeEntry[] = [];
+    const draftMap = editMode === 'actual' ? draftActual : draftPlanned;
+    const origMap = editMode === 'actual' ? originalActual : originalPlanned;
 
     expandedProjects.forEach((p) => {
       MONTH_COLUMNS.forEach(({ month, label }) => {
-        if (!isProjectMonthEditable(p, selectedYear, month)) return;
+        if (editMode === 'planned' && !isProjectMonthEditable(p, selectedYear, month)) return;
         const key = draftProjectKey(p.id, month);
-        const current = draftPlanned[key] ?? 0;
-        const original = originalPlanned[key] ?? 0;
+        const current = draftMap[key] ?? 0;
+        const original = origMap[key] ?? 0;
         if (Math.round(current * 10) !== Math.round(original * 10)) {
           changes.push({ itemTitle: p.name, monthLabel: label, from: original, to: current });
         }
@@ -747,8 +773,8 @@ export function AllocationOverview({
     expandedInternalActivities.forEach((a) => {
       MONTH_COLUMNS.forEach(({ month, label }) => {
         const key = draftActivityKey(a.activityTypeId, month);
-        const current = draftPlanned[key] ?? 0;
-        const original = originalPlanned[key] ?? 0;
+        const current = draftMap[key] ?? 0;
+        const original = origMap[key] ?? 0;
         if (Math.round(current * 10) !== Math.round(original * 10)) {
           changes.push({ itemTitle: a.activityName, monthLabel: label, from: original, to: current });
         }
@@ -756,86 +782,135 @@ export function AllocationOverview({
     });
 
     return changes;
-  }, [expandedRow, expandedProjects, expandedInternalActivities, selectedYear, draftPlanned, originalPlanned]);
+  }, [expandedRow, expandedProjects, expandedInternalActivities, selectedYear, editMode, draftPlanned, originalPlanned, draftActual, originalActual]);
 
   const pendingChangesCount = pendingChanges.length;
 
-  const handleCancelEdits = () => { setDraftPlanned(originalPlanned); setEditingCellKey(null); };
+  const handleCancelEdits = () => {
+    if (editMode === 'actual') {
+      setDraftActual(originalActual);
+    } else {
+      setDraftPlanned(originalPlanned);
+    }
+    setEditingCellKey(null);
+  };
 
   const handleRequestSave = () => {
     if (pendingChangesCount === 0) return;
     setSaveDialogOpen(true);
   };
 
-  const handleConfirmSave = async (_reasonCode: string, _justification: string) => {
+  const handleConfirmSave = async (reasonCode: string, justification: string) => {
     if (!expandedRow) return;
 
     setIsSaving(true);
     try {
-      let persisted = 0;
+      if (editMode === 'actual') {
+        // Build actual change entries
+        const actualChanges: ActualChangeEntry[] = [];
 
-      for (const project of expandedProjects) {
-        const rowProject = expandedRow.projectsById[project.id];
-        let projectMemberId = rowProject?.projectMemberId || null;
+        expandedProjects.forEach((project) => {
+          const rowProject = expandedRow.projectsById[project.id];
+          MONTH_COLUMNS.forEach(({ month, label }) => {
+            const key = draftProjectKey(project.id, month);
+            const original = originalActual[key] ?? 0;
+            const draft = draftActual[key] ?? original;
+            if (Math.round(draft * 10) === Math.round(original * 10)) return;
+            if (!rowProject?.projectMemberId) return;
+            actualChanges.push({
+              type: 'project', referenceId: rowProject.projectMemberId,
+              projectId: project.id, employeeId: expandedRow.employeeId,
+              month, year: selectedYear, fromHours: original, toHours: draft,
+              itemTitle: project.name, monthLabel: label,
+            });
+          });
+        });
 
-        for (const { month } of MONTH_COLUMNS) {
-          if (!isProjectMonthEditable(project, selectedYear, month)) continue;
-          const key = draftProjectKey(project.id, month);
-          const original = rowProject?.plannedByMonth[month - 1] || 0;
-          const draft = draftPlanned[key] ?? original;
-          if (Math.round(draft * 10) === Math.round(original * 10)) continue;
+        expandedInternalActivities.forEach((activity) => {
+          MONTH_COLUMNS.forEach(({ month, label }) => {
+            const key = draftActivityKey(activity.activityTypeId, month);
+            const original = originalActual[key] ?? 0;
+            const draft = draftActual[key] ?? original;
+            if (Math.round(draft * 10) === Math.round(original * 10)) return;
+            actualChanges.push({
+              type: 'internal_activity', referenceId: activity.activityTypeId,
+              employeeId: expandedRow.employeeId,
+              month, year: selectedYear, fromHours: original, toHours: draft,
+              itemTitle: activity.activityName, monthLabel: label,
+            });
+          });
+        });
 
-          const monthNumber = monthNumberForProject(selectedYear, month, project.startDate);
-          if (monthNumber < 1) continue;
-          const plannedHours = Math.max(0, draft);
-
-          if (!projectMemberId) {
-            if (plannedHours <= 0) continue;
-            const { data: createdMember, error: createError } = await supabase
-              .from('project_members')
-              .insert({ project_id: project.id, employee_id: expandedRow.employeeId, role: expandedRow.cargo || 'Colaborador', seniority: 'pleno', hours_per_month: plannedHours, hourly_rate: 0 })
-              .select('id').single();
-            if (createError) throw createError;
-            projectMemberId = createdMember.id;
-          }
-
-          await upsertMemberMonth.mutateAsync({ projectMemberId, monthNumber, hours: plannedHours });
-          persisted++;
-        }
-      }
-
-      for (const activity of expandedInternalActivities) {
-        for (const { month } of MONTH_COLUMNS) {
-          const key = draftActivityKey(activity.activityTypeId, month);
-          const original = activity.plannedByMonth[month - 1] || 0;
-          const draft = draftPlanned[key] ?? original;
-          if (Math.round(draft * 10) === Math.round(original * 10)) continue;
-
-          const { error } = await supabase
-            .from('activity_employee_months')
-            .upsert([{
-              tenant_id: tenantId,
-              employee_id: expandedRow.employeeId,
-              activity_type_id: activity.activityTypeId,
-              year: selectedYear, month, hours: Math.max(0, draft),
-              updated_at: new Date().toISOString(),
-            }], { onConflict: 'employee_id,activity_type_id,year,month' });
-          if (error) throw error;
-          persisted++;
-        }
-      }
-
-      if (persisted > 0) {
-        await queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
-        toast({ title: 'Alocação atualizada', description: `${persisted} célula(s) salva(s) para ${expandedRow.employeeName}.` });
+        await actualEditsMutation.mutateAsync({ changes: actualChanges, reasonCode, justification });
+        setSaveDialogOpen(false);
+        closeExpanded();
       } else {
-        toast({ title: 'Sem alterações', description: 'Não houve mudanças para salvar.' });
-      }
+        // Planned mode — existing logic
+        let persisted = 0;
 
-      setSaveDialogOpen(false);
-      closeExpanded();
+        for (const project of expandedProjects) {
+          const rowProject = expandedRow.projectsById[project.id];
+          let projectMemberId = rowProject?.projectMemberId || null;
+
+          for (const { month } of MONTH_COLUMNS) {
+            if (!isProjectMonthEditable(project, selectedYear, month)) continue;
+            const key = draftProjectKey(project.id, month);
+            const original = rowProject?.plannedByMonth[month - 1] || 0;
+            const draft = draftPlanned[key] ?? original;
+            if (Math.round(draft * 10) === Math.round(original * 10)) continue;
+
+            const monthNumber = monthNumberForProject(selectedYear, month, project.startDate);
+            if (monthNumber < 1) continue;
+            const plannedHours = Math.max(0, draft);
+
+            if (!projectMemberId) {
+              if (plannedHours <= 0) continue;
+              const { data: createdMember, error: createError } = await supabase
+                .from('project_members')
+                .insert({ project_id: project.id, employee_id: expandedRow.employeeId, role: expandedRow.cargo || 'Colaborador', seniority: 'pleno', hours_per_month: plannedHours, hourly_rate: 0 })
+                .select('id').single();
+              if (createError) throw createError;
+              projectMemberId = createdMember.id;
+            }
+
+            await upsertMemberMonth.mutateAsync({ projectMemberId, monthNumber, hours: plannedHours });
+            persisted++;
+          }
+        }
+
+        for (const activity of expandedInternalActivities) {
+          for (const { month } of MONTH_COLUMNS) {
+            const key = draftActivityKey(activity.activityTypeId, month);
+            const original = activity.plannedByMonth[month - 1] || 0;
+            const draft = draftPlanned[key] ?? original;
+            if (Math.round(draft * 10) === Math.round(original * 10)) continue;
+
+            const { error } = await supabase
+              .from('activity_employee_months')
+              .upsert([{
+                tenant_id: tenantId,
+                employee_id: expandedRow.employeeId,
+                activity_type_id: activity.activityTypeId,
+                year: selectedYear, month, hours: Math.max(0, draft),
+                updated_at: new Date().toISOString(),
+              }], { onConflict: 'employee_id,activity_type_id,year,month' });
+            if (error) throw error;
+            persisted++;
+          }
+        }
+
+        if (persisted > 0) {
+          await queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
+          toast({ title: 'Alocação atualizada', description: `${persisted} célula(s) salva(s) para ${expandedRow.employeeName}.` });
+        } else {
+          toast({ title: 'Sem alterações', description: 'Não houve mudanças para salvar.' });
+        }
+
+        setSaveDialogOpen(false);
+        closeExpanded();
+      }
     } catch (error: unknown) {
-      toast({ title: 'Erro ao salvar alocação', description: error instanceof Error ? error.message : 'Não foi possível salvar as alterações.', variant: 'destructive' });
+      toast({ title: 'Erro ao salvar', description: error instanceof Error ? error.message : 'Não foi possível salvar as alterações.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
@@ -866,7 +941,9 @@ export function AllocationOverview({
           const item = expandedItems[nextRow];
           if (item.editableByMonth[nextCol]) {
             const key = item.type === 'project' ? draftProjectKey(item.id, nextCol + 1) : draftActivityKey(item.id, nextCol + 1);
-            const val = draftPlanned[key] ?? item.plannedByMonth[nextCol] ?? 0;
+            const draftMap = editMode === 'actual' ? draftActual : draftPlanned;
+            const fallback = editMode === 'actual' ? item.actualByMonth[nextCol] : item.plannedByMonth[nextCol];
+            const val = draftMap[key] ?? fallback ?? 0;
             beginInlineEdit(key, val);
             return;
           }
@@ -1011,7 +1088,25 @@ export function AllocationOverview({
                                     </div>
                                   ) : (
                                     <div className="space-y-2">
-                                      <p className="text-sm font-medium text-foreground">Itens de alocação</p>
+                                      <div className="flex items-center justify-between">
+                                        <p className="text-sm font-medium text-foreground">Itens de alocação</p>
+                                        {canEditActual && (
+                                          <ToggleGroup
+                                            type="single"
+                                            value={editMode}
+                                            onValueChange={(v) => { if (v) { setEditMode(v as 'planned' | 'actual'); setEditingCellKey(null); } }}
+                                            size="sm"
+                                            className="bg-muted rounded-md p-0.5"
+                                          >
+                                            <ToggleGroupItem value="planned" className="text-xs px-3 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded">
+                                              Planejado
+                                            </ToggleGroupItem>
+                                            <ToggleGroupItem value="actual" className="text-xs px-3 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded">
+                                              Real
+                                            </ToggleGroupItem>
+                                          </ToggleGroup>
+                                        )}
+                                      </div>
                                       <div className="overflow-auto border rounded-md bg-background">
                                         <Table>
                                           <TableHeader>
@@ -1048,19 +1143,26 @@ export function AllocationOverview({
 
                                                 {MONTH_COLUMNS.map(({ month }, monthIndex) => {
                                                   const key = item.type === 'project' ? draftProjectKey(item.id, month) : draftActivityKey(item.id, month);
-                                                  const original = item.plannedByMonth[monthIndex] || 0;
-                                                  const draft = draftPlanned[key] ?? original;
-                                                  const actual = item.actualByMonth[monthIndex] || 0;
-                                                  const origVal = originalPlanned[key] ?? original;
+                                                  const isActualMode = editMode === 'actual';
+                                                  const plannedVal = item.plannedByMonth[monthIndex] || 0;
+                                                  const actualVal = item.actualByMonth[monthIndex] || 0;
+
+                                                  const draft = isActualMode
+                                                    ? (draftActual[key] ?? actualVal)
+                                                    : (draftPlanned[key] ?? plannedVal);
+                                                  const origVal = isActualMode
+                                                    ? (originalActual[key] ?? actualVal)
+                                                    : (originalPlanned[key] ?? plannedVal);
+                                                  const displayActual = isActualMode ? plannedVal : actualVal;
 
                                                   return (
                                                     <TableCell key={`${item.type}-${item.id}-${month}`} className={cn('py-2 align-middle text-center', monthIndex === currentMonthIndex && 'bg-primary/5')}>
                                                       <AllocationEditableCell
                                                         cellKey={key}
                                                         draft={draft}
-                                                        actual={actual}
+                                                        actual={displayActual}
                                                         original={origVal}
-                                                        editable={item.editableByMonth[monthIndex]}
+                                                        editable={isActualMode ? canEditActual : item.editableByMonth[monthIndex]}
                                                         isEditing={editingCellKey === key}
                                                         isSaving={isSaving}
                                                         isCurrentMonth={monthIndex === currentMonthIndex}
@@ -1072,6 +1174,7 @@ export function AllocationOverview({
                                                         colIndex={monthIndex}
                                                         rowIndex={rowIdx}
                                                         onTabNavigate={handleTabNavigate}
+                                                        mode={editMode}
                                                       />
                                                     </TableCell>
                                                   );
@@ -1093,7 +1196,7 @@ export function AllocationOverview({
                                             {pendingChangesCount} alteração(ões) pendente(s) ·{' '}
                                             {(() => {
                                               const delta = pendingChanges.reduce((s, c) => s + (c.to - c.from), 0);
-                                              return `${delta >= 0 ? '+' : ''}${fmt(delta)} planejadas`;
+                                              return `${delta >= 0 ? '+' : ''}${fmt(delta)} ${editMode === 'actual' ? 'reais' : 'planejadas'}`;
                                             })()}
                                           </span>
                                         ) : (
@@ -1133,6 +1236,7 @@ export function AllocationOverview({
             employeeName={expandedRow.employeeName}
             isSaving={isSaving}
             onConfirm={handleConfirmSave}
+            mode={editMode}
           />
         )}
       </div>
