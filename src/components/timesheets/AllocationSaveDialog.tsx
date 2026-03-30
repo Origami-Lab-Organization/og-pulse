@@ -52,7 +52,6 @@ export function AllocationSaveDialog({
   employeeName,
   isSaving,
   onConfirm,
-  mode = 'planned',
 }: AllocationSaveDialogProps) {
   const [reasonCode, setReasonCode] = useState('');
   const [justification, setJustification] = useState('');
