@@ -7,7 +7,9 @@ import {
   AllocationOverview,
   PlannerFilterOptions,
   PlannerFilters,
+  StatusDualCounts,
 } from '@/components/timesheets/AllocationOverview';
+import { AllocationKPIBar } from '@/components/timesheets/AllocationKPIBar';
 import {
   Select,
   SelectContent,
@@ -22,10 +24,16 @@ const EMPTY_OPTIONS: PlannerFilterOptions = {
   projects: [],
 };
 
+const EMPTY_COUNTS: StatusDualCounts = {
+  planned: { Sobrealocado: 0, Subalocado: 0, Ocioso: 0, Adequado: 0 },
+  actual: { Sobrealocado: 0, Subalocado: 0, Ocioso: 0, Adequado: 0 },
+};
+
 export default function Timesheets() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchQuery, setSearchQuery] = useState('');
   const [options, setOptions] = useState<PlannerFilterOptions>(EMPTY_OPTIONS);
+  const [kpiData, setKpiData] = useState<{ counts: StatusDualCounts; total: number }>({ counts: EMPTY_COUNTS, total: 0 });
 
   const [filters, setFilters] = useState<PlannerFilters>({
     teamId: 'all',
@@ -45,6 +53,9 @@ export default function Timesheets() {
       breadcrumbs={[{ label: 'Alocação' }]}
     >
       <div className="space-y-6">
+        {/* KPI cards acima dos filtros */}
+        <AllocationKPIBar counts={kpiData.counts} total={kpiData.total} />
+
         <div className="flex flex-col gap-4">
           <div className="flex flex-col xl:flex-row xl:items-center gap-3">
             <YearNavigator selectedYear={selectedYear} onYearChange={setSelectedYear} />
@@ -60,7 +71,7 @@ export default function Timesheets() {
             </div>
 
             <Select value={filters.managerId} onValueChange={(value) => updateFilter('managerId', value)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[160px] lg:w-[180px]">
                 <SelectValue placeholder="Gerente" />
               </SelectTrigger>
               <SelectContent>
@@ -72,7 +83,7 @@ export default function Timesheets() {
             </Select>
 
             <Select value={filters.projectId} onValueChange={(value) => updateFilter('projectId', value)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[160px] lg:w-[180px]">
                 <SelectValue placeholder="Projeto" />
               </SelectTrigger>
               <SelectContent>
@@ -90,6 +101,7 @@ export default function Timesheets() {
           selectedYear={selectedYear}
           filters={filters}
           onFilterOptionsChange={setOptions}
+          onKPIDataChange={setKpiData}
         />
       </div>
     </AppLayout>
