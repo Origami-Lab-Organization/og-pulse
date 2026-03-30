@@ -944,8 +944,6 @@ export function AllocationOverview({
                       ))}
                       <TableHead className="text-center min-w-[110px]">Total Plan</TableHead>
                       <TableHead className="text-center min-w-[110px]">Total Real</TableHead>
-                      {/* P0.3 — Sticky right column */}
-                      <TableHead className="min-w-[200px] sticky right-0 z-20 bg-background shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
