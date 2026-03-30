@@ -72,6 +72,47 @@ export type Database = {
           },
         ]
       }
+      activity_timesheet_edit_logs: {
+        Row: {
+          activity_timesheet_id: string
+          edited_at: string
+          edited_by: string
+          id: string
+          justification: string
+          new_hours: number
+          previous_hours: number
+          reason_code: string
+        }
+        Insert: {
+          activity_timesheet_id: string
+          edited_at?: string
+          edited_by: string
+          id?: string
+          justification: string
+          new_hours: number
+          previous_hours: number
+          reason_code: string
+        }
+        Update: {
+          activity_timesheet_id?: string
+          edited_at?: string
+          edited_by?: string
+          id?: string
+          justification?: string
+          new_hours?: number
+          previous_hours?: number
+          reason_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_timesheet_edit_logs_activity_timesheet_id_fkey"
+            columns: ["activity_timesheet_id"]
+            isOneToOne: false
+            referencedRelation: "activity_timesheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_timesheets: {
         Row: {
           activity_type_id: string
@@ -80,6 +121,7 @@ export type Database = {
           employee_id: string
           hours: number
           id: string
+          is_locked: boolean
           tenant_id: string
           updated_at: string
           work_date: string
@@ -91,6 +133,7 @@ export type Database = {
           employee_id: string
           hours?: number
           id?: string
+          is_locked?: boolean
           tenant_id: string
           updated_at?: string
           work_date: string
@@ -102,6 +145,7 @@ export type Database = {
           employee_id?: string
           hours?: number
           id?: string
+          is_locked?: boolean
           tenant_id?: string
           updated_at?: string
           work_date?: string
@@ -3411,6 +3455,7 @@ export type Database = {
           justification: string
           new_hours: number
           previous_hours: number
+          reason_code: string
           timesheet_id: string
         }
         Insert: {
@@ -3420,6 +3465,7 @@ export type Database = {
           justification: string
           new_hours: number
           previous_hours: number
+          reason_code?: string
           timesheet_id: string
         }
         Update: {
@@ -3429,6 +3475,7 @@ export type Database = {
           justification?: string
           new_hours?: number
           previous_hours?: number
+          reason_code?: string
           timesheet_id?: string
         }
         Relationships: [
