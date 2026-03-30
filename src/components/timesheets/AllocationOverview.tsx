@@ -894,9 +894,6 @@ export function AllocationOverview({
   return (
     <TooltipProvider>
       <div className="space-y-4">
-        {/* P2.1 — KPI cards */}
-        <AllocationKPIBar counts={counts} total={rowsWithStatus.length} />
-
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
