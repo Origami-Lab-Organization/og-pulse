@@ -411,11 +411,13 @@ export function AllocationOverview({
         return { projects: [] as ProjectScope[], rows: [] as RawRow[], options: { teams: [], managers: [], projects: [] } as PlannerFilterOptions };
       }
 
-      // Resolve service_line UUIDs to names
-      const serviceLineIds = Array.from(new Set(projectRows.map((p) => p.service_line).filter(Boolean))) as string[];
+      // Resolve service_line UUIDs to names (filter out old-style string keys that aren't valid UUIDs)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const allServiceLines = Array.from(new Set(projectRows.map((p) => p.service_line).filter(Boolean))) as string[];
+      const serviceLineUuids = allServiceLines.filter((id) => uuidRegex.test(id));
       let serviceNameMap = new Map<string, string>();
-      if (serviceLineIds.length > 0) {
-        const { data: services } = await supabase.from('services').select('id, name').in('id', serviceLineIds);
+      if (serviceLineUuids.length > 0) {
+        const { data: services } = await supabase.from('services').select('id, name').in('id', serviceLineUuids);
         if (services) serviceNameMap = new Map(services.map((s: { id: string; name: string }) => [s.id, s.name]));
       }
 
