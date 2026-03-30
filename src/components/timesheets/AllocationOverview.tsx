@@ -710,7 +710,11 @@ export function AllocationOverview({
 
   const updateDraftCell = (key: string, nextValue: number) => {
     const safeValue = Math.max(0, Number.isFinite(nextValue) ? nextValue : 0);
-    setDraftPlanned((prev) => ({ ...prev, [key]: safeValue }));
+    if (editMode === 'actual') {
+      setDraftActual((prev) => ({ ...prev, [key]: safeValue }));
+    } else {
+      setDraftPlanned((prev) => ({ ...prev, [key]: safeValue }));
+    }
   };
 
   const expandedProjects = useMemo(() => {
