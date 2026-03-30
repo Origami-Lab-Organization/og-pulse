@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useHolidays, isHoliday } from '@/hooks/useHolidays';
@@ -27,8 +28,8 @@ import { SERVICE_LINE_LABELS } from '@/types/lead';
 import { cn } from '@/lib/utils';
 import { AllocationHeatmapLegend } from './AllocationHeatmapLegend';
 import { AllocationEditableCell } from './AllocationEditableCell';
-
 import { AllocationSaveDialog, ChangeEntry } from './AllocationSaveDialog';
+import { useAllocationActualEdits, ActualChangeEntry } from '@/hooks/useAllocationActualEdits';
 
 /* ─── Constants ─── */
 
