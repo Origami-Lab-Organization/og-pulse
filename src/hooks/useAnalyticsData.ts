@@ -107,8 +107,11 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const projectIds = projects.map(p => p.id);
 
-      // 2. Fetch all data in parallel
-      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, supplierActualsRes, materialsRes, settingsRes, holidaysRes, commissionsRes] = await Promise.all([
+      // 2. Fetch all data in parallel (phase 1 — needs project IDs only)
+      const [
+        installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes,
+        suppliersRes, materialsRes, settingsRes, holidaysRes, commissionsRes,
+      ] = await Promise.all([
         // Revenue actual: installments with status received and payment_date in period
         supabase
           .from('project_installments')
@@ -126,7 +129,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .gte('due_date', startStr)
           .lte('due_date', endStr),
 
-        // Timesheets in period
+        // Timesheets in period (for utilization metrics only)
         supabase
           .from('project_timesheets')
           .select('project_id, project_member_id, hours, work_date')
@@ -145,11 +148,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .from('project_suppliers')
           .select('id, project_id')
           .in('project_id', projectIds),
-
-        // Supplier actuals (all, we filter by month mapping)
-        supabase
-          .from('project_supplier_actuals')
-          .select('project_supplier_id, month_number, value'),
 
         // Materials (realized)
         supabase
@@ -187,12 +185,33 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const timesheets = timesheetsRes.data || [];
       const members = (membersRes.data || []) as any[];
       const projectSuppliers = suppliersRes.data || [];
-      const supplierActuals = supplierActualsRes.data || [];
       const materials = materialsRes.data || [];
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
       const taxesPercent = settingsRes.data?.taxes_percent ?? 0;
       const holidays = holidaysRes.data || [];
       const commissions = commissionsRes.data || [];
+
+      // Phase 2 — filter by member IDs and supplier IDs to avoid hitting the 1000-row default limit
+      const memberIds = members.map(m => m.id);
+      const supplierIds = projectSuppliers.map(ps => ps.id);
+
+      const [memberMonthsRes, supplierActualsRes] = await Promise.all([
+        memberIds.length > 0
+          ? supabase
+              .from('project_member_months')
+              .select('project_member_id, month_number, hours')
+              .in('project_member_id', memberIds)
+          : Promise.resolve({ data: [] as any[], error: null }),
+        supplierIds.length > 0
+          ? supabase
+              .from('project_supplier_actuals')
+              .select('project_supplier_id, month_number, value')
+              .in('project_supplier_id', supplierIds)
+          : Promise.resolve({ data: [] as any[], error: null }),
+      ]);
+
+      const memberMonths = memberMonthsRes.data || [];
+      const supplierActuals = supplierActualsRes.data || [];
       const workingDays = countWorkingDays(filters.startDate, filters.endDate, holidays);
 
       // Build lookup maps
@@ -200,16 +219,11 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const memberMap = new Map(members.map(m => [m.id, m]));
       const supplierToProject = new Map(projectSuppliers.map(ps => [ps.id, ps.project_id]));
 
-      // Filter start/end month for month_number mapping
-      const filterStartMonth = filters.startDate.getMonth();
-      const filterStartYear = filters.startDate.getFullYear();
-
+      // Check if a project-relative month_number falls within the filter period
       function isMonthInPeriod(projectStartDate: string, monthNumber: number): boolean {
         const projStart = parseISO(projectStartDate);
         const actualDate = addMonths(startOfMonth(projStart), monthNumber - 1);
-        const actualMonth = actualDate.getMonth();
-        const actualYear = actualDate.getFullYear();
-        return actualMonth === filterStartMonth && actualYear === filterStartYear;
+        return actualDate >= startOfMonth(filters.startDate) && actualDate <= endOfMonth(filters.endDate);
       }
 
       // 3. Calculate revenue
@@ -217,9 +231,9 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const revenueProjected = projectedInstallments.reduce((sum, i) => sum + Number(i.value), 0);
       const revenueDiff = revenueActual - revenueProjected;
 
-      // 4. Calculate labor cost per project + employee utilization
+      // 4. Calculate labor cost per project from PLANNED hours (project_member_months)
+      // This reflects what was "entered in the projects" — planned allocation × hourly rate
       const costsByProjectMap = new Map<string, CostByProject>();
-      const employeeHoursMap = new Map<string, { employee: any; hours: number }>();
 
       // Initialize projects in cost map
       projects.forEach(p => {
@@ -233,29 +247,26 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         });
       });
 
-      // Process timesheets
-      for (const ts of timesheets) {
-        const member = memberMap.get(ts.project_member_id);
+      // Process planned hours from project_member_months
+      for (const mm of memberMonths) {
+        const member = memberMap.get(mm.project_member_id);
         if (!member?.employee) continue;
 
+        const project = projectMap.get(member.project_id);
+        if (!project) continue;
+
+        if (!isMonthInPeriod(project.start_date, mm.month_number)) continue;
+
         const emp = member.employee;
-        const hourlyCost = emp.jornada_mensal > 0
+        const hourlyCost = Number(emp.jornada_mensal) > 0
           ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
           : 0;
-        const cost = Number(ts.hours) * hourlyCost;
+        const cost = Number(mm.hours) * hourlyCost;
 
-        // Add to project costs
-        const projCost = costsByProjectMap.get(ts.project_id);
+        const projCost = costsByProjectMap.get(member.project_id);
         if (projCost) {
           projCost.laborCost += cost;
         }
-
-        // Accumulate employee hours
-        const empId = emp.id;
-        if (!employeeHoursMap.has(empId)) {
-          employeeHoursMap.set(empId, { employee: emp, hours: 0 });
-        }
-        employeeHoursMap.get(empId)!.hours += Number(ts.hours);
       }
 
       // 5. Calculate supplier costs
@@ -311,12 +322,17 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         .reduce((sum, c) => sum + (Number(c.planned_value) || 0), 0);
       const grossMargin = revenueActual > 0 ? ((revenueActual - taxesValue - totalCommissions - totalCosts) / revenueActual) * 100 : 0;
 
-      // 7. Employee utilization
-      // Also include employees allocated to projects but with 0 hours
-      const allocatedEmployees = new Set<string>();
-      members.forEach(m => {
-        if (m.employee) allocatedEmployees.add(m.employee.id);
-      });
+      // 7. Employee utilization (from actual timesheets — for utilization metrics)
+      const employeeHoursMap = new Map<string, { employee: any; hours: number }>();
+      for (const ts of timesheets) {
+        const member = memberMap.get(ts.project_member_id);
+        if (!member?.employee) continue;
+        const empId = member.employee.id;
+        if (!employeeHoursMap.has(empId)) {
+          employeeHoursMap.set(empId, { employee: member.employee, hours: 0 });
+        }
+        employeeHoursMap.get(empId)!.hours += Number(ts.hours);
+      }
 
       const employeeUtilization: EmployeeUtilization[] = [];
       const processedEmployees = new Set<string>();
@@ -352,7 +368,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         processedEmployees.add(emp.id);
       });
 
-      // Allocated but no hours (idle)
+      // Allocated but no timesheets in period (idle)
       members.forEach(m => {
         if (m.employee && !processedEmployees.has(m.employee.id)) {
           const emp = m.employee;

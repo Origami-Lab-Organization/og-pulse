@@ -4,29 +4,27 @@ import {
   startOfQuarter, endOfQuarter,
   startOfYear, endOfYear,
 } from 'date-fns';
-import { Loader2, Clock, BanknoteIcon, DollarSign, Percent, Users } from 'lucide-react';
+import { Loader2, Wallet, Truck, Package } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AnalyticsFilters, Granularity } from '@/components/analytics/AnalyticsFilters';
 import { AnalyticsKPIs } from '@/components/analytics/AnalyticsKPIs';
-import { EmployeeUtilizationTable } from '@/components/analytics/EmployeeUtilizationTable';
-import { CostCompositionChart } from '@/components/analytics/CostCompositionChart';
-import { CostByProjectTable } from '@/components/analytics/CostByProjectTable';
 import { YearlyRevenueChart } from '@/components/analytics/YearlyRevenueChart';
-import { YearlyAllocationChart } from '@/components/analytics/YearlyAllocationChart';
+import { YearlyCostsChart } from '@/components/analytics/YearlyCostsChart';
+import { AllocationKPIs } from '@/components/analytics/AllocationKPIs';
+import { AllocationByEmployeeTable } from '@/components/analytics/AllocationByEmployeeTable';
+import { AllocationComparisonChart } from '@/components/analytics/AllocationComparisonChart';
+import { AllocationMonthlyChart } from '@/components/analytics/AllocationMonthlyChart';
 import { StakeholderKPIs } from '@/components/analytics/StakeholderKPIs';
 import { StakeholderDistributionChart } from '@/components/analytics/StakeholderDistributionChart';
 import { DetractorAlertTable } from '@/components/analytics/DetractorAlertTable';
-import { OkrKPIs } from '@/components/analytics/OkrKPIs';
-import { OkrByProjectTable } from '@/components/analytics/OkrByProjectTable';
-import { ConfidenceDistributionChart } from '@/components/analytics/ConfidenceDistributionChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAnalyticsData, useAnalyticsFilterOptions } from '@/hooks/useAnalyticsData';
 import { useYearlyEvolution } from '@/hooks/useYearlyEvolution';
+import { useAllocationAnalytics } from '@/hooks/useAllocationAnalytics';
 import { useStakeholderAnalytics } from '@/hooks/useStakeholderAnalytics';
-import { useOkrAnalytics } from '@/hooks/useOkrAnalytics';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatCurrency, formatPercent } from '@/lib/formatters';
+import { formatCurrency } from '@/lib/formatters';
 
 export default function Analytics() {
   const { employee } = useAuth();
@@ -39,7 +37,7 @@ export default function Analytics() {
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
   const [selectedManagerId, setSelectedManagerId] = useState<string | undefined>();
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('financial');
 
   const filters = useMemo(() => {
     let startDate: Date;
@@ -65,14 +63,16 @@ export default function Analytics() {
   }, [granularity, currentPeriodDate, customStart, customEnd, selectedClientId, selectedManagerId, selectedProjectId]);
 
   const { data: analyticsData, isLoading } = useAnalyticsData(filters);
-  const { data: yearlyData } = useYearlyEvolution(filters, { enabled: activeTab === 'overview' });
+  const { data: yearlyData } = useYearlyEvolution(filters, {
+    enabled: activeTab === 'financial' || activeTab === 'allocation',
+  });
+  const { data: allocationData, isLoading: isAllocationLoading } = useAllocationAnalytics(filters, {
+    enabled: activeTab === 'allocation',
+  });
   const { data: stakeholderData, isLoading: isStakeholderLoading } = useStakeholderAnalytics(filters, {
     enabled: activeTab === 'satisfaction',
   });
-  const { data: okrData, isLoading: isOkrLoading } = useOkrAnalytics(filters, {
-    enabled: activeTab === 'okrs',
-  });
-  const { data: filterOptions }                                 = useAnalyticsFilterOptions();
+  const { data: filterOptions } = useAnalyticsFilterOptions();
 
   const clientOptions = useMemo(
     () => (filterOptions?.clients || []).map(c => ({ id: c.id, label: c.company_name })),
@@ -87,17 +87,10 @@ export default function Analytics() {
     [filterOptions]
   );
 
-  const avgUtilization = useMemo(() => {
-    if (!analyticsData?.employeeUtilization.length) return 0;
-    return analyticsData.employeeUtilization.reduce((s, e) => s + e.utilization, 0)
-      / analyticsData.employeeUtilization.length;
-  }, [analyticsData]);
-
-
   return (
     <AppLayout
       title="Analytics de Projetos"
-      description="Performance, saúde e impacto dos projetos"
+      description="Performance financeira e alocação de equipe"
       breadcrumbs={[{ label: 'Analytics de Projetos' }]}
     >
       <div className="space-y-6">
@@ -122,207 +115,139 @@ export default function Analytics() {
           showManagerFilter={isAdmin}
         />
 
-        <Tabs defaultValue="overview" onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              <TabsTrigger value="financial">Financeiro</TabsTrigger>
-              <TabsTrigger value="utilization">Utilização &amp; Custos</TabsTrigger>
-              <TabsTrigger value="satisfaction">Satisfação</TabsTrigger>
-              <TabsTrigger value="okrs">OKRs &amp; Impacto</TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="financial" onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="financial">Financeiro</TabsTrigger>
+            <TabsTrigger value="allocation">Alocação de Equipe</TabsTrigger>
+            <TabsTrigger value="satisfaction">Satisfação</TabsTrigger>
+          </TabsList>
 
-            {/* ── Visão Geral ──────────────────────────────────────────────── */}
-            <TabsContent value="overview" className="space-y-6 mt-6">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : analyticsData ? (<>
-              <div className="grid gap-4 grid-cols-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Receita Recebida
-                    </CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(analyticsData.revenueActual)}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">no período</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Margem Bruta
-                    </CardTitle>
-                    <Percent className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatPercent(analyticsData.grossMargin)}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {analyticsData.grossMarginTarget != null
-                        ? `meta: ${formatPercent(analyticsData.grossMarginTarget)}`
-                        : 'sem meta definida'}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Utilização Média
-                    </CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatPercent(avgUtilization)}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {analyticsData.employeeUtilization.length} funcionário(s)
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Custo Ociosidade
-                    </CardTitle>
-                    <BanknoteIcon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(analyticsData.idleCost)}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">horas não alocadas</p>
-                  </CardContent>
-                </Card>
+          {/* ── Financeiro ───────────────────────────────────────────────── */}
+          <TabsContent value="financial" className="space-y-6 mt-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-
-              {yearlyData && (
-                <div className="grid gap-4 grid-cols-2">
-                  <YearlyRevenueChart data={yearlyData.months} year={yearlyData.year} />
-                  <YearlyAllocationChart data={yearlyData.months} year={yearlyData.year} />
-                </div>
-              )}
-
-              </>) : null}
-            </TabsContent>
-
-            {/* ── Financeiro ───────────────────────────────────────────────── */}
-            <TabsContent value="financial" className="space-y-6 mt-6">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : analyticsData ? (
-              <AnalyticsKPIs
-                revenueActual={analyticsData.revenueActual}
-                revenueProjected={analyticsData.revenueProjected}
-                revenueDiff={analyticsData.revenueDiff}
-                totalCosts={analyticsData.totalCosts}
-                taxesPercent={analyticsData.taxesPercent}
-                taxesValue={analyticsData.taxesValue}
-                commissionValue={analyticsData.commissionValue}
-                grossMargin={analyticsData.grossMargin}
-                grossMarginTarget={analyticsData.grossMarginTarget}
-              />
-              ) : null}
-            </TabsContent>
-
-            {/* ── Utilização & Custos ──────────────────────────────────────── */}
-            <TabsContent value="utilization" className="space-y-6 mt-6">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : analyticsData ? (<>
-              <div className="grid gap-4 grid-cols-2">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Horas Ociosas
-                    </CardTitle>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analyticsData.idleHours.toFixed(1)}h</div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {analyticsData.totalCapacity > 0
-                        ? `${formatPercent((analyticsData.idleHours / analyticsData.totalCapacity) * 100)} da capacidade total`
-                        : 'Sem capacidade no período'}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Custo da Ociosidade
-                    </CardTitle>
-                    <BanknoteIcon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(analyticsData.idleCost)}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Custo estimado das horas não alocadas
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <EmployeeUtilizationTable data={analyticsData.employeeUtilization} />
-
-              <div className="grid gap-4 grid-cols-2">
-                <CostCompositionChart
-                  laborCost={analyticsData.laborCost}
-                  supplierCost={analyticsData.supplierCost}
-                  materialCost={analyticsData.materialCost}
+            ) : analyticsData ? (
+              <>
+                <AnalyticsKPIs
+                  revenueActual={analyticsData.revenueActual}
+                  revenueProjected={analyticsData.revenueProjected}
+                  revenueDiff={analyticsData.revenueDiff}
+                  totalCosts={analyticsData.totalCosts}
+                  taxesPercent={analyticsData.taxesPercent}
+                  taxesValue={analyticsData.taxesValue}
+                  commissionValue={analyticsData.commissionValue}
+                  grossMargin={analyticsData.grossMargin}
+                  grossMarginTarget={analyticsData.grossMarginTarget}
                 />
-                <CostByProjectTable data={analyticsData.costsByProject} />
+
+                {/* Cost breakdown by type */}
+                <div className="grid gap-4 grid-cols-3">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Mão de Obra
+                      </CardTitle>
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{formatCurrency(analyticsData.laborCost)}</div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {analyticsData.totalCosts > 0
+                          ? `${((analyticsData.laborCost / analyticsData.totalCosts) * 100).toFixed(0)}% dos custos`
+                          : 'no período'}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Fornecedores
+                      </CardTitle>
+                      <Truck className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{formatCurrency(analyticsData.supplierCost)}</div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {analyticsData.totalCosts > 0
+                          ? `${((analyticsData.supplierCost / analyticsData.totalCosts) * 100).toFixed(0)}% dos custos`
+                          : 'no período'}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Materiais
+                      </CardTitle>
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{formatCurrency(analyticsData.materialCost)}</div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {analyticsData.totalCosts > 0
+                          ? `${((analyticsData.materialCost / analyticsData.totalCosts) * 100).toFixed(0)}% dos custos`
+                          : 'no período'}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Yearly evolution charts */}
+                {yearlyData && (
+                  <div className="grid gap-4 grid-cols-2">
+                    <YearlyRevenueChart data={yearlyData.months} year={yearlyData.year} />
+                    <YearlyCostsChart data={yearlyData.months} year={yearlyData.year} />
+                  </div>
+                )}
+              </>
+            ) : null}
+          </TabsContent>
+
+          {/* ── Alocação de Equipe ────────────────────────────────────────── */}
+          <TabsContent value="allocation" className="space-y-6 mt-6">
+            {isAllocationLoading ? (
+              <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-              </>) : null}
-            </TabsContent>
+            ) : allocationData ? (
+              <>
+                <AllocationKPIs summary={allocationData.summary} />
 
-            {/* ── Satisfação ───────────────────────────────────────────────── */}
-            <TabsContent value="satisfaction" className="space-y-6 mt-6">
-              {isStakeholderLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : stakeholderData ? (
-                <>
-                  <StakeholderKPIs
-                    total={stakeholderData.totals.total}
-                    promoters={stakeholderData.totals.promoters}
-                    neutrals={stakeholderData.totals.neutrals}
-                    detractors={stakeholderData.totals.detractors}
-                  />
-                  <StakeholderDistributionChart data={stakeholderData.byProject} />
-                  <DetractorAlertTable data={stakeholderData.highInfluenceDetractors} />
-                </>
-              ) : null}
-            </TabsContent>
+                {yearlyData && (
+                  <AllocationMonthlyChart data={yearlyData.months} year={yearlyData.year} />
+                )}
 
-            {/* ── OKRs & Impacto ───────────────────────────────────────────── */}
-            <TabsContent value="okrs" className="space-y-6 mt-6">
-              {isOkrLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="grid gap-4 grid-cols-1 xl:grid-cols-2">
+                  <AllocationByEmployeeTable employees={allocationData.employees} />
+                  <AllocationComparisonChart employees={allocationData.employees} />
                 </div>
-              ) : okrData ? (
-                <>
-                  <OkrKPIs
-                    activeOkrs={okrData.totals.activeOkrs}
-                    avgProgress={okrData.totals.avgProgress}
-                    onTrack={okrData.totals.onTrack}
-                    atRisk={okrData.totals.atRisk}
-                    completed={okrData.totals.completed}
-                  />
-                  <OkrByProjectTable data={okrData.byProject} />
-                  <ConfidenceDistributionChart data={okrData.byProject} />
-                </>
-              ) : null}
-            </TabsContent>
+              </>
+            ) : null}
+          </TabsContent>
+
+          {/* ── Satisfação ───────────────────────────────────────────────── */}
+          <TabsContent value="satisfaction" className="space-y-6 mt-6">
+            {isStakeholderLoading ? (
+              <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : stakeholderData ? (
+              <>
+                <StakeholderKPIs
+                  total={stakeholderData.totals.total}
+                  promoters={stakeholderData.totals.promoters}
+                  neutrals={stakeholderData.totals.neutrals}
+                  detractors={stakeholderData.totals.detractors}
+                />
+                <StakeholderDistributionChart data={stakeholderData.byProject} />
+                <DetractorAlertTable data={stakeholderData.highInfluenceDetractors} />
+              </>
+            ) : null}
+          </TabsContent>
         </Tabs>
       </div>
     </AppLayout>

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { addMonths, format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +14,14 @@ export interface MonthlyPoint {
   revenueReal: number;
   revenuePlanned: number;
   hoursReal: number;
+  hoursPlanned: number;
   hoursCapacity: number;
+  laborCost: number;
+  supplierCost: number;
+  materialCost: number;
+  totalCost: number;
+  taxesValue: number;
+  commissionValue: number;
   grossMargin: number | null;
   utilization: number | null;
 }
@@ -54,7 +61,7 @@ export function useYearlyEvolution(
       // 1. Fetch projects (same visibility rules as useAnalyticsData)
       let projectsQuery = supabase
         .from('projects')
-        .select('id')
+        .select('id, start_date')
         .eq('tenant_id', tenantId);
 
       if (!isAdmin && currentEmployeeId) {
@@ -67,7 +74,7 @@ export function useYearlyEvolution(
       const { data: projects, error: projErr } = await projectsQuery;
       if (projErr) throw projErr;
 
-      const emptyMonths = Array.from({ length: 12 }, (_, i) => ({
+      const emptyMonth = (i: number): MonthlyPoint => ({
         monthIndex: i,
         label: format(new Date(year, i, 1), 'MMM', { locale: ptBR }),
         isHighlighted: false,
@@ -75,17 +82,30 @@ export function useYearlyEvolution(
         revenueReal: 0,
         revenuePlanned: 0,
         hoursReal: 0,
+        hoursPlanned: 0,
         hoursCapacity: 0,
+        laborCost: 0,
+        supplierCost: 0,
+        materialCost: 0,
+        totalCost: 0,
+        taxesValue: 0,
+        commissionValue: 0,
         grossMargin: null,
         utilization: null,
-      }));
+      });
 
-      if (!projects || projects.length === 0) return { year, months: emptyMonths };
+      if (!projects || projects.length === 0) {
+        return { year, months: Array.from({ length: 12 }, (_, i) => emptyMonth(i)) };
+      }
 
       const projectIds = projects.map(p => p.id);
+      const projectMap = new Map(projects.map(p => [p.id, p]));
 
-      // 2. Fetch all data for the full year in parallel
-      const [receivedRes, plannedRes, timesheetsRes, membersRes, holidaysRes] = await Promise.all([
+      // 2. Fetch all data for the full year in parallel (phase 1 — needs project IDs only)
+      const [
+        receivedRes, plannedRes, timesheetsRes, membersRes, holidaysRes,
+        suppliersRes, materialsRes, settingsRes, commissionsRes,
+      ] = await Promise.all([
         supabase
           .from('project_installments')
           .select('payment_date, value')
@@ -103,14 +123,14 @@ export function useYearlyEvolution(
 
         supabase
           .from('project_timesheets')
-          .select('project_member_id, work_date, hours')
+          .select('project_id, project_member_id, work_date, hours')
           .in('project_id', projectIds)
           .gte('work_date', yearStart)
           .lte('work_date', yearEnd),
 
         supabase
           .from('project_members')
-          .select('id, employee_id, employee:employees(jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao, termination:employee_terminations(termination_date))')
+          .select('id, project_id, employee_id, employee:employees(jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao, termination:employee_terminations(termination_date))')
           .in('project_id', projectIds),
 
         supabase
@@ -118,6 +138,35 @@ export function useYearlyEvolution(
           .select('holiday_type, fixed_day, fixed_month, specific_date')
           .eq('tenant_id', tenantId)
           .eq('is_active', true),
+
+        // Suppliers
+        supabase
+          .from('project_suppliers')
+          .select('id, project_id')
+          .in('project_id', projectIds),
+
+        // Materials (realized only)
+        supabase
+          .from('project_materials')
+          .select('project_id, month_number, value, is_realized')
+          .in('project_id', projectIds)
+          .eq('is_realized', true),
+
+        // Financial settings
+        supabase
+          .from('financial_settings')
+          .select('taxes_percent')
+          .eq('tenant_id', tenantId)
+          .maybeSingle(),
+
+        // Commissions paid in year
+        supabase
+          .from('project_commissions')
+          .select('project_id, planned_value, paid_date')
+          .in('project_id', projectIds)
+          .eq('is_paid', true)
+          .gte('paid_date', yearStart)
+          .lte('paid_date', yearEnd),
       ]);
 
       const received = receivedRes.data || [];
@@ -125,18 +174,46 @@ export function useYearlyEvolution(
       const timesheets = timesheetsRes.data || [];
       const members = (membersRes.data || []) as any[];
       const holidays = holidaysRes.data || [];
+      const projectSuppliers = suppliersRes.data || [];
+      const materials = materialsRes.data || [];
+      const taxesPercent = Number(settingsRes.data?.taxes_percent ?? 0);
+      const commissions = commissionsRes.data || [];
 
-      // Build member → employee info map (keyed by project_members.id)
-      const memberMap = new Map<string, { employeeId: string; hourlyCost: number }>();
+      // Phase 2 — filter by member IDs and supplier IDs to avoid hitting the 1000-row default limit
+      const memberIds = members.map(m => m.id);
+      const supplierIds = projectSuppliers.map(ps => ps.id);
+
+      const [memberMonthsRes, supplierActualsRes] = await Promise.all([
+        memberIds.length > 0
+          ? supabase
+              .from('project_member_months')
+              .select('project_member_id, month_number, hours')
+              .in('project_member_id', memberIds)
+          : Promise.resolve({ data: [] as any[], error: null }),
+        supplierIds.length > 0
+          ? supabase
+              .from('project_supplier_actuals')
+              .select('project_supplier_id, month_number, value')
+              .in('project_supplier_id', supplierIds)
+          : Promise.resolve({ data: [] as any[], error: null }),
+      ]);
+
+      const supplierActuals = supplierActualsRes.data || [];
+      const memberMonths = memberMonthsRes.data || [];
+
+      // Build lookup maps
+      const memberMap = new Map<string, { employeeId: string; hourlyCost: number; projectId: string }>();
       for (const m of members) {
         if (!m.employee) continue;
         const hourlyCost = Number(m.employee.jornada_mensal) > 0
           ? Number(m.employee.total_monthly_cost_estimated) / Number(m.employee.jornada_mensal)
           : 0;
-        memberMap.set(m.id, { employeeId: m.employee_id, hourlyCost });
+        memberMap.set(m.id, { employeeId: m.employee_id, hourlyCost, projectId: m.project_id });
       }
 
-      // Build unique employees for capacity calculation (deduplicated by employee_id)
+      const supplierToProject = new Map(projectSuppliers.map(ps => [ps.id, ps.project_id]));
+
+      // Build unique employees for capacity calculation
       const uniqueEmployees = new Map<string, {
         jornada_diaria: number;
         data_admissao: string | null;
@@ -152,15 +229,69 @@ export function useYearlyEvolution(
         }
       }
 
-      // Pre-compute labor cost per month (index 0–11) from timesheets
+      // Pre-compute labor cost per month from planned hours (project_member_months)
+      // Consistent with useAnalyticsData which uses planned allocation as cost source of truth
       const laborCostByMonth = new Array(12).fill(0);
-      for (const ts of timesheets) {
-        const d = parseISO(ts.work_date);
-        if (d.getFullYear() !== year) continue;
-        const monthIdx = d.getMonth();
-        const info = memberMap.get(ts.project_member_id);
-        if (info) {
-          laborCostByMonth[monthIdx] += Number(ts.hours) * info.hourlyCost;
+      for (const mm of memberMonths) {
+        const info = memberMap.get(mm.project_member_id);
+        if (!info) continue;
+        const project = projectMap.get(info.projectId);
+        if (!project) continue;
+        const projStart = parseISO(project.start_date);
+        const calendarDate = addMonths(startOfMonth(projStart), mm.month_number - 1);
+        if (calendarDate.getFullYear() === year) {
+          laborCostByMonth[calendarDate.getMonth()] += Number(mm.hours) * info.hourlyCost;
+        }
+      }
+
+      // Pre-compute supplier cost per month
+      const supplierCostByMonth = new Array(12).fill(0);
+      for (const actual of supplierActuals) {
+        const projectId = supplierToProject.get(actual.project_supplier_id);
+        if (!projectId) continue;
+        const project = projectMap.get(projectId);
+        if (!project) continue;
+        const projStart = parseISO(project.start_date);
+        const calendarDate = addMonths(startOfMonth(projStart), actual.month_number - 1);
+        if (calendarDate.getFullYear() === year) {
+          supplierCostByMonth[calendarDate.getMonth()] += Number(actual.value);
+        }
+      }
+
+      // Pre-compute material cost per month
+      const materialCostByMonth = new Array(12).fill(0);
+      for (const mat of materials) {
+        if (!mat.month_number) continue;
+        const project = projectMap.get(mat.project_id);
+        if (!project) continue;
+        const projStart = parseISO(project.start_date);
+        const calendarDate = addMonths(startOfMonth(projStart), mat.month_number - 1);
+        if (calendarDate.getFullYear() === year) {
+          materialCostByMonth[calendarDate.getMonth()] += Number(mat.value);
+        }
+      }
+
+      // Pre-compute commissions per month
+      const commissionByMonth = new Array(12).fill(0);
+      for (const c of commissions) {
+        if (!c.paid_date) continue;
+        const d = parseISO(c.paid_date);
+        if (d.getFullYear() === year) {
+          commissionByMonth[d.getMonth()] += Number(c.planned_value || 0);
+        }
+      }
+
+      // Pre-compute planned hours per month from project_member_months
+      const hoursPlannedByMonth = new Array(12).fill(0);
+      for (const mm of memberMonths) {
+        const info = memberMap.get(mm.project_member_id);
+        if (!info) continue;
+        const project = projectMap.get(info.projectId);
+        if (!project) continue;
+        const projStart = parseISO(project.start_date);
+        const calendarDate = addMonths(startOfMonth(projStart), mm.month_number - 1);
+        if (calendarDate.getFullYear() === year) {
+          hoursPlannedByMonth[calendarDate.getMonth()] += Number(mm.hours);
         }
       }
 
@@ -196,7 +327,6 @@ export function useYearlyEvolution(
           const admDate = data_admissao ? parseISO(data_admissao) : null;
           const termDate = terminationDate ? parseISO(terminationDate) : null;
 
-          // Not yet admitted or already terminated before this month started
           if (admDate && admDate > monthEnd) return;
           if (termDate && termDate < monthStart) return;
 
@@ -207,7 +337,17 @@ export function useYearlyEvolution(
         });
 
         const laborCost = laborCostByMonth[i];
-        const grossMargin = isPast && revenueReal > 0 ? ((revenueReal - laborCost) / revenueReal) * 100 : null;
+        const supplierCost = supplierCostByMonth[i];
+        const materialCost = materialCostByMonth[i];
+        const totalCost = laborCost + supplierCost + materialCost;
+        const taxesValue = revenueReal * taxesPercent / 100;
+        const commissionValue = commissionByMonth[i];
+        const hoursPlanned = hoursPlannedByMonth[i];
+
+        // Gross margin includes all costs, taxes, and commissions
+        const grossMargin = isPast && revenueReal > 0
+          ? ((revenueReal - taxesValue - commissionValue - totalCost) / revenueReal) * 100
+          : null;
         const utilization = isPast && hoursCapacity > 0 ? (hoursReal / hoursCapacity) * 100 : null;
 
         return {
@@ -218,7 +358,14 @@ export function useYearlyEvolution(
           revenueReal: isPast ? revenueReal : 0,
           revenuePlanned,
           hoursReal: isPast ? hoursReal : 0,
+          hoursPlanned,
           hoursCapacity: isPast ? hoursCapacity : 0,
+          laborCost: isPast ? laborCost : 0,
+          supplierCost: isPast ? supplierCost : 0,
+          materialCost: isPast ? materialCost : 0,
+          totalCost: isPast ? totalCost : 0,
+          taxesValue: isPast ? taxesValue : 0,
+          commissionValue: isPast ? commissionValue : 0,
           grossMargin,
           utilization,
         };
