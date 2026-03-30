@@ -19,6 +19,8 @@ export interface ActualChangeEntry {
   toHours: number;
   itemTitle: string;
   monthLabel: string;
+  /** Specific work date for the correction (yyyy-MM-dd) */
+  workDate?: string;
 }
 
 function getLastWorkingDay(year: number, month: number, holidays: Holiday[]): string {
