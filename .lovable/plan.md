@@ -1,55 +1,67 @@
 
 
-## Plano: Correção de Lançamentos Reais na Alocação
+## Plano: Correção de Lançamentos Reais via Dialog Estilo Timesheet
 
-### Contexto
-Hoje o painel expandido do funcionário na página `/alocacao` só permite editar horas **planejadas**. Gerentes e Admins precisam também corrigir horas **reais** (lançadas pelos funcionários) com motivo e justificativa obrigatórios. A infraestrutura de auditoria (`timesheet_edit_logs` e `activity_timesheet_edit_logs` com `reason_code`) já existe no banco.
+### Mudança de abordagem
+
+O fluxo atual (toggle Planejado/Real inline no painel expandido) será substituído por um fluxo mais limpo:
+
+1. PM/Admin expande o funcionário na alocação (painel continua apenas com edição de **planejado**)
+2. Um botão "Corrigir lançamentos" aparece no cabeçalho do painel expandido (apenas para PM/Admin)
+3. Clica → abre um **Dialog grande** com visualização estilo timesheet semanal do funcionário
+4. Realiza ajustes dia-a-dia, preenche motivo e justificativa
+5. Salva → fecha o dialog, volta à tela de alocação com dados atualizados
 
 ### O que será construído
 
-**1. Toggle Plan/Real no painel expandido**
-- Adicionar um `Tabs` ou `ToggleGroup` no topo do painel expandido com duas opções: **Planejado** (atual) e **Real** (novo)
-- Em modo "Planejado": comportamento atual (editar `project_member_months` / `activity_employee_months`)
-- Em modo "Real": as células editáveis mostram os totais reais mensais e permitem ajustar
+**1. Novo componente: `AllocationCorrectionDialog.tsx`**
 
-**2. Cálculo do real mensal editável**
-- O real vem de `project_timesheets` e `activity_timesheets` (por dia). Para correção mensal, o sistema buscará os totais agrupados por mês
-- A edição será por **delta mensal**: o PM/Admin informa o novo total do mês e o sistema calcula a diferença
-- A persistência será feita via um upsert em um registro de ajuste no último dia útil do mês (ou via distribuição proporcional — ver abaixo)
+Dialog fullscreen/large (`max-w-5xl`) contendo:
+- Header: nome do funcionário + seletor de semana (reusa `TimesheetWeekSelector`)
+- Tabela estilo timesheet: linhas = projetos + atividades internas do funcionário, colunas = dias da semana
+- Cada célula mostra horas lançadas, editável inline
+- Abaixo da tabela: campos de motivo (Select com reason_codes existentes) e justificativa (Textarea, mín. 10 chars)
+- Footer: botões Cancelar e Salvar
 
-**3. Estratégia de persistência dos ajustes de real**
-- Para **projetos**: criar/atualizar um registro em `project_timesheets` com `work_date` = último dia do mês, marcado como ajuste. Usar `useAdminEditTimesheet` existente para gravar + log de auditoria
-- Para **atividades internas**: criar/atualizar registro em `activity_timesheets` no último dia do mês. Gravar log em `activity_timesheet_edit_logs`
+A tabela busca dados diários reais de `project_timesheets` e `activity_timesheets` para a semana selecionada. Edições são rastreadas localmente e salvas em lote.
 
-**4. Restrição de acesso**
-- O toggle "Real" só aparece para usuários com `employee.is_gerente || employee.isAdmin`
-- Funcionários comuns continuam vendo o painel apenas em modo planejado (sem toggle)
+**2. Remover toggle Planejado/Real do painel expandido**
 
-**5. Dialog de confirmação com auditoria**
-- Reutilizar `AllocationSaveDialog` existente, que já exige `reason_code` e justificativa
-- Ao salvar no modo "Real", o dialog mostrará as alterações como "De X → Para Y" por item/mês
-- Gravar em `timesheet_edit_logs` (projetos) e `activity_timesheet_edit_logs` (atividades)
+O `ToggleGroup` atual e toda lógica de `editMode === 'actual'` / `draftActual` / `originalActual` serão removidos do `AllocationOverview.tsx`. O painel expandido volta a ser exclusivamente para planejamento.
 
-### Arquivos a criar/editar
+**3. Persistência e auditoria**
+
+Reutilizar `useAllocationActualEdits` adaptado para aceitar `workDate` específico (dia real da correção, não último dia útil). Cada alteração grava:
+- Upsert no `project_timesheets` ou `activity_timesheets` com a data específica
+- Log em `timesheet_edit_logs` / `activity_timesheet_edit_logs` com reason_code + justificativa
+
+### Arquivos
 
 | Arquivo | Ação |
 |---|---|
-| `src/components/timesheets/AllocationOverview.tsx` | Adicionar toggle Plan/Real, estado `draftActual`, lógica de save para real, busca de IDs de timesheets para logs |
-| `src/components/timesheets/AllocationEditableCell.tsx` | Aceitar prop `mode: 'planned' \| 'actual'` para ajustar visual (bordas azuis para real vs âmbar para plan) |
-| `src/components/timesheets/AllocationSaveDialog.tsx` | Adicionar prop `mode` para label contextual ("alocação planejada" vs "horas reais") |
-| `src/hooks/useAllocationActualEdits.ts` | **Criar** — hook com mutation para persistir correções de real (projetos + atividades) com logs de auditoria |
+| `src/components/timesheets/AllocationCorrectionDialog.tsx` | **Criar** — Dialog com tabela estilo timesheet semanal, campos de auditoria |
+| `src/components/timesheets/AllocationOverview.tsx` | **Editar** — remover toggle Plan/Real, remover draftActual/originalActual, adicionar botão "Corrigir lançamentos" que abre o dialog |
+| `src/hooks/useAllocationActualEdits.ts` | **Editar** — aceitar `workDate: string` no entry ao invés de calcular último dia útil |
+| `src/components/timesheets/AllocationEditableCell.tsx` | **Editar** — remover prop `mode` (volta a ser apenas planned) |
+| `src/components/timesheets/AllocationSaveDialog.tsx` | **Editar** — remover prop `mode` (volta a ser apenas planned) |
 
 ### Fluxo do usuário
-1. PM/Admin expande funcionário → vê toggle [Planejado | Real]
-2. Seleciona "Real" → células mudam para mostrar valores reais editáveis
-3. Ajusta valores nos meses desejados
-4. Clica "Salvar alterações" → abre dialog com lista de mudanças + motivo + justificativa
-5. Confirma → sistema grava ajustes + logs de auditoria → fecha painel
+
+```text
+Alocação → Expande funcionário → [Corrigir lançamentos] 
+  → Dialog abre com semana atual
+  → Navega entre semanas
+  → Edita horas nos dias desejados
+  → Preenche motivo + justificativa
+  → [Salvar] → Persiste + log auditoria → Fecha dialog
+  → Dados de "Real" atualizados na alocação
+```
 
 ### Detalhes técnicos
 
-- A query principal já busca `actualByMonth` para cada item — basta usar esses dados como `originalActual`
-- Para gravar o log, precisamos do `id` do timesheet individual. Faremos uma query adicional lazy (ao expandir em modo Real) buscando os IDs dos registros por `project_member_id` + `work_date` no mês
-- Para atividades internas, usaremos o `id` do `activity_timesheets` para o log
-- O ajuste de real será feito como um único registro no último dia útil do mês (ajuste líquido), evitando alterar lançamentos individuais dos funcionários
+- O dialog busca projetos e atividades do funcionário via queries existentes (project_members + activity_types)
+- Dados diários: query `project_timesheets` filtrada por employee via project_member_id + range de datas da semana; `activity_timesheets` filtrada por employee_id + range
+- Edição inline: campos numéricos por dia/item, delta calculado ao salvar
+- Reason_code e justificativa são preenchidos uma vez e aplicados a todas as alterações do lote
+- Dias não-úteis (feriados/fins de semana) ficam desabilitados/cinza, alinhado com o estilo existente do `TimesheetWeekRow`
 
