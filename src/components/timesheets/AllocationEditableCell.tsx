@@ -118,13 +118,14 @@ export function AllocationEditableCell({
         e.stopPropagation();
         onBeginEdit(cellKey, draft);
       }}
-      className={cn(
-        'group/cell mx-auto inline-flex h-7 min-w-[92px] items-center justify-center gap-1 rounded border px-2 text-xs relative',
-        'hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
-        changed && 'border-amber-400 bg-amber-50/70 dark:bg-amber-900/20',
-        !changed && 'border-border bg-background',
-        isCurrentMonth && !changed && 'bg-primary/5'
-      )}
+        className={cn(
+          'group/cell mx-auto inline-flex h-7 min-w-[92px] items-center justify-center gap-1 rounded border px-2 text-xs relative',
+          'hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
+          changed && mode === 'actual' && 'border-blue-400 bg-blue-50/70 dark:bg-blue-900/20',
+          changed && mode === 'planned' && 'border-amber-400 bg-amber-50/70 dark:bg-amber-900/20',
+          !changed && 'border-border bg-background',
+          isCurrentMonth && !changed && 'bg-primary/5'
+        )}
       disabled={isSaving}
       data-row-index={rowIndex}
       data-col-index={colIndex}

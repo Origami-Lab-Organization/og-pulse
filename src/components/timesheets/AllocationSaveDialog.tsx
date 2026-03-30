@@ -81,7 +81,9 @@ export function AllocationSaveDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>Confirmar alterações de alocação</DialogTitle>
+          <DialogTitle>
+            {mode === 'actual' ? 'Confirmar correções de horas reais' : 'Confirmar alterações de alocação'}
+          </DialogTitle>
           <DialogDescription>
             {changes.length} alteração(ões) para {employeeName}.
             Delta total: {totalDelta >= 0 ? '+' : ''}{fmt(totalDelta)}.
