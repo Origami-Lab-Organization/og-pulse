@@ -1036,8 +1036,6 @@ export function AllocationOverview({
                           <div className="text-[10px] font-normal text-muted-foreground">Plan | Real</div>
                         </TableHead>
                       ))}
-                      <TableHead className="text-center min-w-[110px]">Total Plan</TableHead>
-                      <TableHead className="text-center min-w-[110px]">Total Real</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
