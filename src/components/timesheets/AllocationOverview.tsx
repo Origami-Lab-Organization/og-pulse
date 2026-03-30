@@ -336,6 +336,7 @@ interface AllocationOverviewProps {
   filters: PlannerFilters;
   onStatusCountsChange?: (counts: StatusDualCounts) => void;
   onFilterOptionsChange?: (options: PlannerFilterOptions) => void;
+  onKPIDataChange?: (data: { counts: StatusDualCounts; total: number }) => void;
 }
 
 /* ─── Component ─── */
