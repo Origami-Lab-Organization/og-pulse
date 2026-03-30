@@ -660,8 +660,11 @@ export function AllocationOverview({
 
   const closeExpanded = useCallback(() => {
     setExpandedEmployeeId(null);
+    setEditMode('planned');
     setDraftPlanned({});
     setOriginalPlanned({});
+    setDraftActual({});
+    setOriginalActual({});
     setEditingCellKey(null);
     setEditingCellInitialValue(0);
   }, []);
