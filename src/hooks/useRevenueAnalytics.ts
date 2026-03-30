@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInDays, startOfQuarter, endOfQuarter } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
@@ -44,6 +44,9 @@ export function useRevenueAnalytics(
   const startStr = format(filters.startDate, 'yyyy-MM-dd');
   const endStr = format(filters.endDate, 'yyyy-MM-dd');
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+  // Rankings always span the full quarter containing the selected period end date
+  const quarterStartStr = format(startOfQuarter(filters.endDate), 'yyyy-MM-dd');
+  const quarterEndStr = format(endOfQuarter(filters.endDate), 'yyyy-MM-dd');
 
   return useQuery({
     queryKey: [
@@ -51,6 +54,8 @@ export function useRevenueAnalytics(
       tenantId,
       startStr,
       endStr,
+      quarterStartStr,
+      quarterEndStr,
       filters.clientId,
       filters.managerId,
       filters.projectId,
@@ -59,6 +64,19 @@ export function useRevenueAnalytics(
     ],
     queryFn: async (): Promise<RevenueAnalyticsData> => {
       if (!tenantId) throw new Error('No tenant');
+
+      // Fetch services for UUID→name resolution
+      const { data: servicesData } = await supabase
+        .from('services' as any)
+        .select('id, name')
+        .eq('tenant_id', tenantId);
+      const serviceNameMap = new Map<string, string>(
+        ((servicesData || []) as any[]).map((s: any) => [s.id, s.name])
+      );
+      const resolveServiceLine = (raw: string | null): string => {
+        if (!raw) return 'Outros';
+        return serviceNameMap.get(raw) || SERVICE_LINE_LABELS[raw] || raw;
+      };
 
       let projectsQuery = supabase
         .from('projects')
@@ -90,7 +108,7 @@ export function useRevenueAnalytics(
           .in('project_id', projectIds)
           .lt('due_date', todayStr),
 
-        // All installments (for period-scoped rankings)
+        // All installments (rankings are filtered in JS to quarter range)
         supabase
           .from('project_installments')
           .select('project_id, value, due_date, status, invoice_date, payment_date')
@@ -161,13 +179,14 @@ export function useRevenueAnalytics(
         if (!proj) continue;
 
         const value = Number(inst.value);
-        const inPeriodByDue = inst.due_date >= startStr && inst.due_date <= endStr;
-        const inPeriodByPayment = inst.payment_date && inst.payment_date >= startStr && inst.payment_date <= endStr;
-        const inPeriodByInvoice = inst.invoice_date && inst.invoice_date >= startStr && inst.invoice_date <= endStr;
+        // Rankings use the full quarter containing the selected period
+        const inQuarterByDue = inst.due_date >= quarterStartStr && inst.due_date <= quarterEndStr;
+        const inQuarterByPayment = inst.payment_date && inst.payment_date >= quarterStartStr && inst.payment_date <= quarterEndStr;
+        const inQuarterByInvoice = inst.invoice_date && inst.invoice_date >= quarterStartStr && inst.invoice_date <= quarterEndStr;
 
-        const received = inst.status === 'received' && inPeriodByPayment ? value : 0;
-        const planned = inPeriodByDue ? value : 0;
-        const faturado = ['invoiced', 'received'].includes(inst.status) && inst.invoice_date && inPeriodByInvoice ? value : 0;
+        const received = inst.status === 'received' && inQuarterByPayment ? value : 0;
+        const planned = inQuarterByDue ? value : 0;
+        const faturado = ['invoiced', 'received'].includes(inst.status) && inst.invoice_date && inQuarterByInvoice ? value : 0;
 
         if (received === 0 && planned === 0 && faturado === 0) continue;
 
@@ -176,7 +195,7 @@ export function useRevenueAnalytics(
         const managerId = proj.manager?.id || 'sem-gerente';
         const managerName = proj.manager?.nome || 'Sem gerente';
         const serviceLine = proj.service_line || 'other';
-        const serviceLineLabel = SERVICE_LINE_LABELS[serviceLine] || serviceLine;
+        const serviceLineLabel = resolveServiceLine(proj.service_line);
 
         addTo(clientMap, clientId, clientName, received, planned, faturado);
         addTo(managerMap, managerId, managerName, received, planned, faturado);

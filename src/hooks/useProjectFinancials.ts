@@ -80,6 +80,18 @@ export function useProjectFinancials(
       const taxesPercent = Number(settingsRes.data?.taxes_percent ?? 0);
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
 
+      const { data: servicesData } = await supabase
+        .from('services' as any)
+        .select('id, name')
+        .eq('tenant_id', tenantId);
+      const serviceNameMap = new Map<string, string>(
+        ((servicesData || []) as any[]).map((s: any) => [s.id, s.name])
+      );
+      const resolveServiceLine = (raw: string | null): string => {
+        if (!raw) return 'Outros';
+        return serviceNameMap.get(raw) || SERVICE_LINE_LABELS[raw] || raw;
+      };
+
       let projectsQuery = supabase
         .from('projects')
         .select('id, name, start_date, service_line, client:clients(id, company_name), manager:employees(id, nome)')
@@ -226,7 +238,7 @@ export function useProjectFinancials(
         const managerId = proj.manager?.id || 'sem-gerente';
         const managerName = proj.manager?.nome || 'Sem gerente';
         const serviceLine = proj.service_line || 'other';
-        const serviceLineLabel = SERVICE_LINE_LABELS[serviceLine] || serviceLine;
+        const serviceLineLabel = resolveServiceLine(proj.service_line);
 
         byProject.push({
           projectId: proj.id, projectName: proj.name,
