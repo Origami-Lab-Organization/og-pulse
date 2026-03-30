@@ -78,6 +78,7 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
             const { data: created, error } = await supabase
               .from('project_timesheets')
               .insert([{
+                project_id: change.projectId!,
                 project_member_id: change.referenceId,
                 work_date: workDate,
                 hours: Math.max(0, delta),
