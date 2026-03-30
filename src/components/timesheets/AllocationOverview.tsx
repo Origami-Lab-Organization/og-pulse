@@ -1141,19 +1141,26 @@ export function AllocationOverview({
 
                                                 {MONTH_COLUMNS.map(({ month }, monthIndex) => {
                                                   const key = item.type === 'project' ? draftProjectKey(item.id, month) : draftActivityKey(item.id, month);
-                                                  const original = item.plannedByMonth[monthIndex] || 0;
-                                                  const draft = draftPlanned[key] ?? original;
-                                                  const actual = item.actualByMonth[monthIndex] || 0;
-                                                  const origVal = originalPlanned[key] ?? original;
+                                                  const isActualMode = editMode === 'actual';
+                                                  const plannedVal = item.plannedByMonth[monthIndex] || 0;
+                                                  const actualVal = item.actualByMonth[monthIndex] || 0;
+
+                                                  const draft = isActualMode
+                                                    ? (draftActual[key] ?? actualVal)
+                                                    : (draftPlanned[key] ?? plannedVal);
+                                                  const origVal = isActualMode
+                                                    ? (originalActual[key] ?? actualVal)
+                                                    : (originalPlanned[key] ?? plannedVal);
+                                                  const displayActual = isActualMode ? plannedVal : actualVal;
 
                                                   return (
                                                     <TableCell key={`${item.type}-${item.id}-${month}`} className={cn('py-2 align-middle text-center', monthIndex === currentMonthIndex && 'bg-primary/5')}>
                                                       <AllocationEditableCell
                                                         cellKey={key}
                                                         draft={draft}
-                                                        actual={actual}
+                                                        actual={displayActual}
                                                         original={origVal}
-                                                        editable={item.editableByMonth[monthIndex]}
+                                                        editable={isActualMode ? canEditActual : item.editableByMonth[monthIndex]}
                                                         isEditing={editingCellKey === key}
                                                         isSaving={isSaving}
                                                         isCurrentMonth={monthIndex === currentMonthIndex}
@@ -1165,6 +1172,7 @@ export function AllocationOverview({
                                                         colIndex={monthIndex}
                                                         rowIndex={rowIdx}
                                                         onTabNavigate={handleTabNavigate}
+                                                        mode={editMode}
                                                       />
                                                     </TableCell>
                                                   );
