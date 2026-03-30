@@ -24,7 +24,7 @@ export const jobApplicationService = {
   async create(
     input: CreateJobApplicationInput,
     tenantId: string
-  ): Promise<JobApplicationDB> {
+  ): Promise<void> {
     let curriculo_url: string | null = null;
     let curriculo_nome: string | null = null;
 
@@ -38,7 +38,7 @@ export const jobApplicationService = {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const { error } = await (supabase as any)
       .from('job_applications')
       .insert({
         tenant_id: tenantId,
@@ -52,12 +52,9 @@ export const jobApplicationService = {
         vaga_id: input.vaga_id || null,
         vaga_titulo: input.vaga_titulo || null,
         responsavel_id: input.responsavel_id || null,
-      })
-      .select()
-      .single();
+      });
 
     if (error) throw error;
-    return data as JobApplicationDB;
   },
 
   async getAll(tenantId: string): Promise<JobApplicationDB[]> {
