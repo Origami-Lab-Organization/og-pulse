@@ -1088,8 +1088,6 @@ export function AllocationOverview({
                               );
                             })}
 
-                            <TableCell className="text-center font-medium">{row.totalPlanned > 0 ? fmt(row.totalPlanned) : '—'}</TableCell>
-                            <TableCell className="text-center font-medium">{row.totalActual > 0 ? fmt(row.totalActual) : '—'}</TableCell>
                           </TableRow>
 
                           {/* ─── Expanded Panel ─── */}
