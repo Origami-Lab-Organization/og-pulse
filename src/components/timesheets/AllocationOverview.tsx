@@ -1,21 +1,22 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, Building2, User } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addMonths,
   differenceInCalendarMonths,
   eachDayOfInterval,
   endOfMonth,
+  format,
   parseISO,
   startOfMonth,
   isWeekend,
 } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useHolidays, isHoliday } from '@/hooks/useHolidays';
@@ -24,6 +25,12 @@ import { useUpsertMemberMonth } from '@/hooks/useProjectMemberMonths';
 import { useToast } from '@/hooks/use-toast';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
 import { cn } from '@/lib/utils';
+import { AllocationHeatmapLegend } from './AllocationHeatmapLegend';
+import { AllocationEditableCell } from './AllocationEditableCell';
+import { AllocationKPIBar } from './AllocationKPIBar';
+import { AllocationSaveDialog, ChangeEntry } from './AllocationSaveDialog';
+
+/* ─── Constants ─── */
 
 const MONTH_COLUMNS = [
   { month: 1, label: 'Jan' },
@@ -39,6 +46,8 @@ const MONTH_COLUMNS = [
   { month: 11, label: 'Nov' },
   { month: 12, label: 'Dez' },
 ] as const;
+
+/* ─── Types ─── */
 
 interface EmployeeAllocation {
   employeeId: string;
@@ -145,92 +154,41 @@ interface RawRow {
   internalActivitiesById: Record<string, ExpandedInternalActivityRow>;
 }
 
-interface QueryManager {
-  id: string;
-  nome: string;
-}
-
-interface QueryTermination {
-  termination_date: string | null;
-}
-
+interface QueryManager { id: string; nome: string; }
+interface QueryTermination { termination_date: string | null; }
 interface QueryEmployee {
-  id: string;
-  nome: string;
-  cargo: string;
-  jornada_diaria: number | null;
-  status: string | null;
+  id: string; nome: string; cargo: string;
+  jornada_diaria: number | null; status: string | null;
   employee_terminations: QueryTermination | null;
 }
-
 interface QueryProjectMember {
-  id: string;
-  employee_id: string | null;
-  role: string;
-  seniority: string;
+  id: string; employee_id: string | null; role: string; seniority: string;
   employees: QueryEmployee | null;
 }
-
 interface QueryProject {
-  id: string;
-  name: string;
-  start_date: string;
-  duration_months: number | null;
-  is_continuous: boolean | null;
-  manager_id: string;
-  service_line: string | null;
-  manager: QueryManager | null;
-  project_members: QueryProjectMember[] | null;
+  id: string; name: string; start_date: string; duration_months: number | null;
+  is_continuous: boolean | null; manager_id: string; service_line: string | null;
+  manager: QueryManager | null; project_members: QueryProjectMember[] | null;
 }
-
-interface MemberMonthRow {
-  project_member_id: string;
-  month_number: number;
-  hours: number;
-}
-
-interface TimesheetRow {
-  project_member_id: string;
-  work_date: string;
-  hours: number;
-}
-
-interface QueryActivityTypeEmployee {
-  employee_id: string;
-}
-
+interface MemberMonthRow { project_member_id: string; month_number: number; hours: number; }
+interface TimesheetRow { project_member_id: string; work_date: string; hours: number; }
+interface QueryActivityTypeEmployee { employee_id: string; }
 interface QueryActivityType {
-  id: string;
-  name: string;
-  applies_to_all: boolean;
+  id: string; name: string; applies_to_all: boolean;
   activity_type_employees: QueryActivityTypeEmployee[] | null;
 }
+interface ActivityEmployeeMonthRow { employee_id: string; activity_type_id: string; year: number; month: number; hours: number; }
+interface ActivityTimesheetYearRow { employee_id: string; activity_type_id: string; work_date: string; hours: number; }
 
-interface ActivityEmployeeMonthRow {
-  employee_id: string;
-  activity_type_id: string;
-  year: number;
-  month: number;
-  hours: number;
-}
-
-interface ActivityTimesheetYearRow {
-  employee_id: string;
-  activity_type_id: string;
-  work_date: string;
-  hours: number;
-}
+/* ─── Helpers ─── */
 
 const STATUS_ORDER: Record<StatusLabel, number> = {
-  Sobrealocado: 0,
-  Subalocado: 1,
-  Ocioso: 2,
-  Adequado: 3,
+  Sobrealocado: 0, Subalocado: 1, Ocioso: 2, Adequado: 3,
 };
 
 const STATUS_STYLES: Record<StatusLabel, string> = {
   Sobrealocado: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  Subalocado: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  Subalocado: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
   Ocioso: 'bg-muted text-muted-foreground',
   Adequado: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
 };
@@ -256,70 +214,44 @@ function fmt(h: number): string {
   return `${Math.round(h * 10) / 10}h`;
 }
 
-type HeatmapReference = 'planned' | 'actual';
-
 function isClosedMonth(selectedYear: number, month: number, now = new Date()): boolean {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
-
   if (selectedYear < currentYear) return true;
   if (selectedYear > currentYear) return false;
   return month < currentMonth;
 }
 
+/** P0.1 — Fixed heatmap bands */
 function getMonthlyHeatmapMeta(
   plannedHours: number,
   actualHours: number,
   capacityHours: number,
   month: number,
-  selectedYear: number
+  selectedYear: number,
 ) {
-  const referenceType: HeatmapReference = isClosedMonth(selectedYear, month) ? 'actual' : 'planned';
+  const referenceType = isClosedMonth(selectedYear, month) ? 'actual' as const : 'planned' as const;
   const referenceHours = referenceType === 'actual' ? actualHours : plannedHours;
 
   if (capacityHours <= 0) {
-    return {
-      className: 'bg-muted/25 text-foreground',
-      referenceType,
-      referenceHours,
-      pct: 0,
-    };
+    return { className: 'bg-muted/25 text-foreground', referenceType, referenceHours, pct: 0 };
   }
 
   const pct = (referenceHours / capacityHours) * 100;
+
+  if (pct === 0) {
+    return { className: 'bg-muted/40 text-muted-foreground', referenceType, referenceHours, pct };
+  }
   if (pct > 100) {
-    return {
-      className: 'bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200',
-      referenceType,
-      referenceHours,
-      pct,
-    };
+    return { className: 'bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200', referenceType, referenceHours, pct };
   }
-
-  if (pct >= 91 && pct <= 100) {
-    return {
-      className: 'bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-200',
-      referenceType,
-      referenceHours,
-      pct,
-    };
+  if (pct >= 91) {
+    return { className: 'bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-200', referenceType, referenceHours, pct };
   }
-
-  if (pct >= 90 && pct < 91) {
-    return {
-      className: 'bg-yellow-100 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-200',
-      referenceType,
-      referenceHours,
-      pct,
-    };
+  if (pct >= 80) {
+    return { className: 'bg-yellow-100 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-200', referenceType, referenceHours, pct };
   }
-
-  return {
-    className: 'bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200',
-    referenceType,
-    referenceHours,
-    pct,
-  };
+  return { className: 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200', referenceType, referenceHours, pct };
 }
 
 function emptyStatusCounts(): Record<StatusLabel, number> {
@@ -352,15 +284,11 @@ function calculateMonthlyCapacity(monthKey: string, jornadaDiaria: number, holid
 
 function isExcludedForYear(emp: EmployeeAllocation, selectedYear: number): boolean {
   const currentYear = new Date().getFullYear();
-  if (emp.status === 'bloqueado' || emp.status === 'arquivado') {
-    return selectedYear >= currentYear;
-  }
-
+  if (emp.status === 'bloqueado' || emp.status === 'arquivado') return selectedYear >= currentYear;
   if (emp.status === 'em_desligamento' || emp.status === 'desligado') {
     const exitYear = emp.terminationDate ? Number(emp.terminationDate.substring(0, 4)) : currentYear;
     return selectedYear > exitYear;
   }
-
   return false;
 }
 
@@ -379,26 +307,28 @@ function isProjectMonthEditable(project: ProjectScope, year: number, month: numb
 
 function createEmptyProjectRow(project: ProjectScope, projectMemberId: string | null): ExpandedProjectRow {
   return {
-    projectId: project.id,
-    projectName: project.name,
-    projectMemberId,
-    plannedByMonth: Array(12).fill(0),
-    actualByMonth: Array(12).fill(0),
-    projectStartDate: project.startDate,
-    durationMonths: project.durationMonths,
-    isContinuous: project.isContinuous,
+    projectId: project.id, projectName: project.name, projectMemberId,
+    plannedByMonth: Array(12).fill(0), actualByMonth: Array(12).fill(0),
+    projectStartDate: project.startDate, durationMonths: project.durationMonths, isContinuous: project.isContinuous,
   };
 }
 
 function createEmptyInternalActivityRow(activityTypeId: string, activityName: string): ExpandedInternalActivityRow {
   return {
-    activityTypeId,
-    activityName,
-    plannedByMonth: Array(12).fill(0),
-    actualByMonth: Array(12).fill(0),
+    activityTypeId, activityName,
+    plannedByMonth: Array(12).fill(0), actualByMonth: Array(12).fill(0),
     editable: true,
   };
 }
+
+/** P0.2 — Current month helper */
+function getCurrentMonthIndex(selectedYear: number): number {
+  const now = new Date();
+  if (now.getFullYear() !== selectedYear) return -1;
+  return now.getMonth(); // 0-based
+}
+
+/* ─── Component Props ─── */
 
 interface AllocationOverviewProps {
   searchQuery?: string;
@@ -407,6 +337,8 @@ interface AllocationOverviewProps {
   onStatusCountsChange?: (counts: StatusDualCounts) => void;
   onFilterOptionsChange?: (options: PlannerFilterOptions) => void;
 }
+
+/* ─── Component ─── */
 
 export function AllocationOverview({
   searchQuery = '',
@@ -431,7 +363,11 @@ export function AllocationOverview({
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [editingCellInitialValue, setEditingCellInitialValue] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
+  const currentMonthIndex = useMemo(() => getCurrentMonthIndex(selectedYear), [selectedYear]);
+
+  /* ─── Data Query (unchanged logic) ─── */
   const { data, isLoading } = useQuery({
     queryKey: ['allocation-overview-planner', tenantId, isAdmin, currentEmployeeId, selectedYear],
     queryFn: async () => {
@@ -440,25 +376,12 @@ export function AllocationOverview({
       let projectsQuery = supabase
         .from('projects')
         .select(`
-          id,
-          name,
-          start_date,
-          duration_months,
-          is_continuous,
-          manager_id,
-          service_line,
+          id, name, start_date, duration_months, is_continuous, manager_id, service_line,
           manager:employees!projects_manager_id_fkey(id, nome),
           project_members (
-            id,
-            employee_id,
-            role,
-            seniority,
+            id, employee_id, role, seniority,
             employees (
-              id,
-              nome,
-              cargo,
-              jornada_diaria,
-              status,
+              id, nome, cargo, jornada_diaria, status,
               employee_terminations!termination_id (termination_date)
             )
           )
@@ -476,105 +399,46 @@ export function AllocationOverview({
 
       const projectRows = (projects ?? []) as QueryProject[];
       if (projectRows.length === 0) {
-        return {
-          projects: [] as ProjectScope[],
-          rows: [] as RawRow[],
-          options: { teams: [], managers: [], projects: [] } as PlannerFilterOptions,
-        };
+        return { projects: [] as ProjectScope[], rows: [] as RawRow[], options: { teams: [], managers: [], projects: [] } as PlannerFilterOptions };
       }
 
-      const scopedProjects: ProjectScope[] = projectRows.map((project) => {
-        const teamKey = project.service_line || '__sem_time__';
-        const teamLabel = project.service_line
-          ? (SERVICE_LINE_LABELS[project.service_line] || project.service_line)
-          : 'Sem linha de serviço';
+      const scopedProjects: ProjectScope[] = projectRows.map((p) => ({
+        id: p.id, name: p.name, startDate: p.start_date,
+        durationMonths: Number(p.duration_months) || 1,
+        isContinuous: Boolean(p.is_continuous),
+        managerId: p.manager_id,
+        managerName: p.manager?.nome || 'Sem gerente',
+        teamKey: p.service_line || '__sem_time__',
+        teamLabel: p.service_line ? (SERVICE_LINE_LABELS[p.service_line] || p.service_line) : 'Sem linha de serviço',
+      }));
 
-        return {
-          id: project.id,
-          name: project.name,
-          startDate: project.start_date,
-          durationMonths: Number(project.duration_months) || 1,
-          isContinuous: Boolean(project.is_continuous),
-          managerId: project.manager_id,
-          managerName: project.manager?.nome || 'Sem gerente',
-          teamKey,
-          teamLabel,
-        };
-      });
+      const projectById = new Map<string, ProjectScope>(scopedProjects.map((p) => [p.id, p]));
 
-      const projectById = new Map<string, ProjectScope>(scopedProjects.map((project) => [project.id, project]));
-
-      const allMembers = projectRows.flatMap((project) =>
-        (project.project_members || []).map((member) => ({
-          projectId: project.id,
-          projectStartDate: project.start_date,
-          memberId: member.id,
-          employeeId: member.employee_id,
-          employee: member.employees,
+      const allMembers = projectRows.flatMap((p) =>
+        (p.project_members || []).map((m) => ({
+          projectId: p.id, projectStartDate: p.start_date,
+          memberId: m.id, employeeId: m.employee_id, employee: m.employees,
         }))
       );
 
       const memberMetaById = new Map<string, { projectId: string; projectStartDate: string; employeeId: string }>();
-      allMembers.forEach((member) => {
-        if (!member.employeeId) return;
-        memberMetaById.set(member.memberId, {
-          projectId: member.projectId,
-          projectStartDate: member.projectStartDate,
-          employeeId: member.employeeId,
-        });
-      });
+      allMembers.forEach((m) => { if (m.employeeId) memberMetaById.set(m.memberId, { projectId: m.projectId, projectStartDate: m.projectStartDate, employeeId: m.employeeId }); });
 
       const memberIds = Array.from(memberMetaById.keys());
-      const employeeIds = Array.from(new Set(
-        allMembers
-          .map((member) => member.employeeId)
-          .filter((id): id is string => Boolean(id))
-      ));
-      if (memberIds.length === 0) {
-        const options = {
-          teams: Array.from(new Map(scopedProjects.map((project) => [project.teamKey, project.teamLabel])).entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => a.label.localeCompare(b.label)),
-          managers: Array.from(new Map(scopedProjects.map((project) => [project.managerId, project.managerName])).entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => a.label.localeCompare(b.label)),
-          projects: scopedProjects
-            .map((project) => ({ value: project.id, label: project.name }))
-            .sort((a, b) => a.label.localeCompare(b.label)),
-        };
+      const employeeIds = Array.from(new Set(allMembers.map((m) => m.employeeId).filter((id): id is string => Boolean(id))));
 
-        return {
-          projects: scopedProjects,
-          rows: [] as RawRow[],
-          options,
-        };
+      if (memberIds.length === 0) {
+        const options = buildFilterOptions(scopedProjects);
+        return { projects: scopedProjects, rows: [] as RawRow[], options };
       }
 
       const startDate = `${selectedYear}-01-01`;
       const endDate = `${selectedYear}-12-31`;
 
       const [memberMonthsRes, timesheetsRes, activityTypesRes] = await Promise.all([
-        supabase
-          .from('project_member_months')
-          .select('project_member_id, month_number, hours')
-          .in('project_member_id', memberIds),
-        supabase
-          .from('project_timesheets')
-          .select('project_member_id, work_date, hours')
-          .in('project_member_id', memberIds)
-          .gte('work_date', startDate)
-          .lte('work_date', endDate),
-        supabase
-          .from('activity_types')
-          .select(`
-            id,
-            name,
-            applies_to_all,
-            activity_type_employees(employee_id)
-          `)
-          .eq('tenant_id', tenantId)
-          .eq('is_active', true)
-          .order('name'),
+        supabase.from('project_member_months').select('project_member_id, month_number, hours').in('project_member_id', memberIds),
+        supabase.from('project_timesheets').select('project_member_id, work_date, hours').in('project_member_id', memberIds).gte('work_date', startDate).lte('work_date', endDate),
+        supabase.from('activity_types').select('id, name, applies_to_all, activity_type_employees(employee_id)').eq('tenant_id', tenantId).eq('is_active', true).order('name'),
       ]);
 
       if (memberMonthsRes.error) throw memberMonthsRes.error;
@@ -582,27 +446,15 @@ export function AllocationOverview({
       if (activityTypesRes.error) throw activityTypesRes.error;
 
       const activityTypes = (activityTypesRes.data ?? []) as QueryActivityType[];
-      const activityTypeIds = activityTypes.map((activityType) => activityType.id);
+      const activityTypeIds = activityTypes.map((a) => a.id);
 
       const [activityEmployeeMonthsRes, activityTimesheetsRes] = await Promise.all([
         activityTypeIds.length === 0 || employeeIds.length === 0
           ? Promise.resolve({ data: [] as ActivityEmployeeMonthRow[], error: null })
-          : supabase
-            .from('activity_employee_months')
-            .select('employee_id, activity_type_id, year, month, hours')
-            .eq('tenant_id', tenantId)
-            .in('employee_id', employeeIds)
-            .in('activity_type_id', activityTypeIds)
-            .eq('year', selectedYear),
+          : supabase.from('activity_employee_months').select('employee_id, activity_type_id, year, month, hours').eq('tenant_id', tenantId).in('employee_id', employeeIds).in('activity_type_id', activityTypeIds).eq('year', selectedYear),
         activityTypeIds.length === 0 || employeeIds.length === 0
           ? Promise.resolve({ data: [] as ActivityTimesheetYearRow[], error: null })
-          : supabase
-            .from('activity_timesheets')
-            .select('employee_id, activity_type_id, work_date, hours')
-            .in('employee_id', employeeIds)
-            .in('activity_type_id', activityTypeIds)
-            .gte('work_date', startDate)
-            .lte('work_date', endDate),
+          : supabase.from('activity_timesheets').select('employee_id, activity_type_id, work_date, hours').in('employee_id', employeeIds).in('activity_type_id', activityTypeIds).gte('work_date', startDate).lte('work_date', endDate),
       ]);
 
       if (activityEmployeeMonthsRes.error) throw activityEmployeeMonthsRes.error;
@@ -618,125 +470,86 @@ export function AllocationOverview({
         if (!rowMap.has(emp.id)) {
           rowMap.set(emp.id, {
             employee: {
-              employeeId: emp.id,
-              employeeName: emp.nome,
-              cargo: emp.cargo,
-              jornadaDiaria: Number(emp.jornada_diaria) || 8,
-              status: emp.status ?? 'ativo',
+              employeeId: emp.id, employeeName: emp.nome, cargo: emp.cargo,
+              jornadaDiaria: Number(emp.jornada_diaria) || 8, status: emp.status ?? 'ativo',
               terminationDate: emp.employee_terminations?.termination_date || undefined,
             },
-            projectsById: {},
-            internalActivitiesById: {},
+            projectsById: {}, internalActivitiesById: {},
           });
         }
         return rowMap.get(emp.id)!;
       };
 
       const ensureProjectHours = (row: RawRow, project: ProjectScope, projectMemberId: string | null) => {
-        if (!row.projectsById[project.id]) {
-          row.projectsById[project.id] = createEmptyProjectRow(project, projectMemberId);
-        }
-        if (!row.projectsById[project.id].projectMemberId && projectMemberId) {
-          row.projectsById[project.id].projectMemberId = projectMemberId;
-        }
+        if (!row.projectsById[project.id]) row.projectsById[project.id] = createEmptyProjectRow(project, projectMemberId);
+        if (!row.projectsById[project.id].projectMemberId && projectMemberId) row.projectsById[project.id].projectMemberId = projectMemberId;
         return row.projectsById[project.id];
       };
 
-      allMembers.forEach((member) => {
-        if (!member.employeeId || !member.employee) return;
-        const project = projectById.get(member.projectId);
+      allMembers.forEach((m) => {
+        if (!m.employeeId || !m.employee) return;
+        const project = projectById.get(m.projectId);
         if (!project) return;
-        const row = ensureRow(member.employee);
-        ensureProjectHours(row, project, member.memberId);
+        ensureProjectHours(ensureRow(m.employee), project, m.memberId);
       });
 
       const activityTypeAllowedByEmployee = new Map<string, QueryActivityType[]>();
-      employeeIds.forEach((employeeId) => {
-        const allowed = activityTypes.filter((activityType) => {
-          if (activityType.applies_to_all) return true;
-          return (activityType.activity_type_employees || []).some((entry) => entry.employee_id === employeeId);
-        });
-        activityTypeAllowedByEmployee.set(employeeId, allowed);
+      employeeIds.forEach((eid) => {
+        activityTypeAllowedByEmployee.set(eid, activityTypes.filter((a) => a.applies_to_all || (a.activity_type_employees || []).some((e) => e.employee_id === eid)));
       });
 
-      rowMap.forEach((row, employeeId) => {
-        const allowed = activityTypeAllowedByEmployee.get(employeeId) || [];
-        allowed.forEach((activityType) => {
-          if (!row.internalActivitiesById[activityType.id]) {
-            row.internalActivitiesById[activityType.id] = createEmptyInternalActivityRow(activityType.id, activityType.name);
-          }
+      rowMap.forEach((row, eid) => {
+        (activityTypeAllowedByEmployee.get(eid) || []).forEach((a) => {
+          if (!row.internalActivitiesById[a.id]) row.internalActivitiesById[a.id] = createEmptyInternalActivityRow(a.id, a.name);
         });
       });
 
       memberMonths.forEach((entry) => {
         const meta = memberMetaById.get(entry.project_member_id);
         if (!meta) return;
-
         const project = projectById.get(meta.projectId);
         if (!project) return;
-
         const row = rowMap.get(meta.employeeId);
         if (!row) return;
-
         const projectMonth = addMonths(parseLocalDate(meta.projectStartDate), Number(entry.month_number) - 1);
-        const year = projectMonth.getFullYear();
-        if (year !== selectedYear) return;
-
-        const monthIndex = projectMonth.getMonth();
-        const projectHours = ensureProjectHours(row, project, entry.project_member_id);
-        projectHours.plannedByMonth[monthIndex] += Number(entry.hours) || 0;
+        if (projectMonth.getFullYear() !== selectedYear) return;
+        ensureProjectHours(row, project, entry.project_member_id).plannedByMonth[projectMonth.getMonth()] += Number(entry.hours) || 0;
       });
 
       timesheets.forEach((entry) => {
         const meta = memberMetaById.get(entry.project_member_id);
         if (!meta) return;
-
         const project = projectById.get(meta.projectId);
         if (!project) return;
-
         const row = rowMap.get(meta.employeeId);
         if (!row) return;
-
         const month = Number(entry.work_date.substring(5, 7));
-        if (!Number.isFinite(month) || month < 1 || month > 12) return;
-
-        const projectHours = ensureProjectHours(row, project, entry.project_member_id);
-        projectHours.actualByMonth[month - 1] += Number(entry.hours) || 0;
+        if (month < 1 || month > 12) return;
+        ensureProjectHours(row, project, entry.project_member_id).actualByMonth[month - 1] += Number(entry.hours) || 0;
       });
 
       activityEmployeeMonths.forEach((entry) => {
         if (Number(entry.year) !== selectedYear) return;
         const row = rowMap.get(entry.employee_id);
         if (!row) return;
-        const activityRow = row.internalActivitiesById[entry.activity_type_id];
-        if (!activityRow) return;
-        const month = Number(entry.month);
-        if (!Number.isFinite(month) || month < 1 || month > 12) return;
-        activityRow.plannedByMonth[month - 1] += Number(entry.hours) || 0;
+        const a = row.internalActivitiesById[entry.activity_type_id];
+        if (!a) return;
+        const m = Number(entry.month);
+        if (m < 1 || m > 12) return;
+        a.plannedByMonth[m - 1] += Number(entry.hours) || 0;
       });
 
       activityTimesheets.forEach((entry) => {
         const row = rowMap.get(entry.employee_id);
         if (!row) return;
-        const activityRow = row.internalActivitiesById[entry.activity_type_id];
-        if (!activityRow) return;
-        const month = Number(entry.work_date.substring(5, 7));
-        if (!Number.isFinite(month) || month < 1 || month > 12) return;
-        activityRow.actualByMonth[month - 1] += Number(entry.hours) || 0;
+        const a = row.internalActivitiesById[entry.activity_type_id];
+        if (!a) return;
+        const m = Number(entry.work_date.substring(5, 7));
+        if (m < 1 || m > 12) return;
+        a.actualByMonth[m - 1] += Number(entry.hours) || 0;
       });
 
-      const options: PlannerFilterOptions = {
-        teams: Array.from(new Map(scopedProjects.map((project) => [project.teamKey, project.teamLabel])).entries())
-          .map(([value, label]) => ({ value, label }))
-          .sort((a, b) => a.label.localeCompare(b.label)),
-        managers: Array.from(new Map(scopedProjects.map((project) => [project.managerId, project.managerName])).entries())
-          .map(([value, label]) => ({ value, label }))
-          .sort((a, b) => a.label.localeCompare(b.label)),
-        projects: scopedProjects
-          .map((project) => ({ value: project.id, label: project.name }))
-          .sort((a, b) => a.label.localeCompare(b.label)),
-      };
-
+      const options = buildFilterOptions(scopedProjects);
       return {
         projects: scopedProjects.sort((a, b) => a.name.localeCompare(b.name)),
         rows: Array.from(rowMap.values()).sort((a, b) => a.employee.employeeName.localeCompare(b.employee.employeeName)),
@@ -746,172 +559,120 @@ export function AllocationOverview({
     enabled: !!tenantId,
   });
 
-  useEffect(() => {
-    if (!data?.options) return;
-    onFilterOptionsChange?.(data.options);
-  }, [data?.options, onFilterOptionsChange]);
+  function buildFilterOptions(scopedProjects: ProjectScope[]): PlannerFilterOptions {
+    return {
+      teams: Array.from(new Map(scopedProjects.map((p) => [p.teamKey, p.teamLabel])).entries())
+        .map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label)),
+      managers: Array.from(new Map(scopedProjects.map((p) => [p.managerId, p.managerName])).entries())
+        .map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label)),
+      projects: scopedProjects.map((p) => ({ value: p.id, label: p.name })).sort((a, b) => a.label.localeCompare(b.label)),
+    };
+  }
+
+  useEffect(() => { if (data?.options) onFilterOptionsChange?.(data.options); }, [data?.options, onFilterOptionsChange]);
 
   const scopedProjects = useMemo(() => {
-    return (data?.projects || []).filter((project) => {
-      if (filters.teamId !== 'all' && project.teamKey !== filters.teamId) return false;
-      if (filters.managerId !== 'all' && project.managerId !== filters.managerId) return false;
+    return (data?.projects || []).filter((p) => {
+      if (filters.teamId !== 'all' && p.teamKey !== filters.teamId) return false;
+      if (filters.managerId !== 'all' && p.managerId !== filters.managerId) return false;
       return true;
     });
   }, [data?.projects, filters.teamId, filters.managerId]);
 
   const visibleProjects = useMemo(() => {
     if (filters.projectId === 'all') return scopedProjects;
-    return scopedProjects.filter((project) => project.id === filters.projectId);
+    return scopedProjects.filter((p) => p.id === filters.projectId);
   }, [scopedProjects, filters.projectId]);
 
   const rowsWithStatus = useMemo(() => {
-    const projectIds = visibleProjects.map((project) => project.id);
+    const projectIds = visibleProjects.map((p) => p.id);
     let sourceRows = (data?.rows || []).filter((row) => !isExcludedForYear(row.employee, selectedYear));
 
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase();
       sourceRows = sourceRows.filter((row) =>
-        row.employee.employeeName.toLowerCase().includes(query) ||
-        row.employee.cargo.toLowerCase().includes(query)
+        row.employee.employeeName.toLowerCase().includes(q) || row.employee.cargo.toLowerCase().includes(q)
       );
     }
 
     const builtRows = sourceRows.map((raw): AllocationPlannerRow => {
       const monthTotals: MonthTotal[] = MONTH_COLUMNS.map(({ month }) => {
-        const monthCapacity = calculateMonthlyCapacity(
-          toMonthKey(selectedYear, month),
-          raw.employee.jornadaDiaria,
-          holidays
-        );
-
-        const monthPlanned = projectIds.reduce((sum, projectId) => {
-          const projectHours = raw.projectsById[projectId];
-          return sum + (projectHours?.plannedByMonth[month - 1] || 0);
-        }, 0);
-        const internalPlanned = Object.values(raw.internalActivitiesById).reduce(
-          (sum, activity) => sum + (activity.plannedByMonth[month - 1] || 0),
-          0
-        );
-
-        const monthActual = projectIds.reduce((sum, projectId) => {
-          const projectHours = raw.projectsById[projectId];
-          return sum + (projectHours?.actualByMonth[month - 1] || 0);
-        }, 0);
-        const internalActual = Object.values(raw.internalActivitiesById).reduce(
-          (sum, activity) => sum + (activity.actualByMonth[month - 1] || 0),
-          0
-        );
-
-        return {
-          monthKey: toMonthKey(selectedYear, month),
-          month,
-          planned: monthPlanned + internalPlanned,
-          actual: monthActual + internalActual,
-          capacityHours: monthCapacity,
-        };
+        const cap = calculateMonthlyCapacity(toMonthKey(selectedYear, month), raw.employee.jornadaDiaria, holidays);
+        const planned = projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.plannedByMonth[month - 1] || 0), 0)
+          + Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.plannedByMonth[month - 1] || 0), 0);
+        const actual = projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.actualByMonth[month - 1] || 0), 0)
+          + Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.actualByMonth[month - 1] || 0), 0);
+        return { monthKey: toMonthKey(selectedYear, month), month, planned, actual, capacityHours: cap };
       });
 
-      const totalPlanned = monthTotals.reduce((sum, month) => sum + month.planned, 0);
-      const totalActual = monthTotals.reduce((sum, month) => sum + month.actual, 0);
-      const capacityAnnual = monthTotals.reduce((sum, month) => sum + month.capacityHours, 0);
-      const plannedUtilizationByMonth = monthTotals.map((month) => (
-        month.capacityHours > 0 ? month.planned / month.capacityHours : 0
-      ));
+      const totalPlanned = monthTotals.reduce((s, m) => s + m.planned, 0);
+      const totalActual = monthTotals.reduce((s, m) => s + m.actual, 0);
+      const capacityAnnual = monthTotals.reduce((s, m) => s + m.capacityHours, 0);
 
       return {
-        employeeId: raw.employee.employeeId,
-        employeeName: raw.employee.employeeName,
-        cargo: raw.employee.cargo,
-        capacityHours: capacityAnnual,
-        totalPlanned,
-        totalActual,
+        employeeId: raw.employee.employeeId, employeeName: raw.employee.employeeName, cargo: raw.employee.cargo,
+        capacityHours: capacityAnnual, totalPlanned, totalActual,
         statusPlanned: getAllocationStatus(totalPlanned, capacityAnnual),
         statusActual: getAllocationStatus(totalActual, capacityAnnual),
         monthTotals,
-        plannedUtilizationByMonth,
-        projectsById: raw.projectsById,
-        internalActivitiesById: raw.internalActivitiesById,
-        employee: raw.employee,
+        plannedUtilizationByMonth: monthTotals.map((m) => (m.capacityHours > 0 ? m.planned / m.capacityHours : 0)),
+        projectsById: raw.projectsById, internalActivitiesById: raw.internalActivitiesById, employee: raw.employee,
       };
     });
 
     const visibleRows = filters.onlyConflicts
-      ? builtRows.filter((row) => row.statusPlanned !== 'Adequado' || row.statusActual !== 'Adequado')
+      ? builtRows.filter((r) => r.statusPlanned !== 'Adequado' || r.statusActual !== 'Adequado')
       : builtRows;
 
     return visibleRows.sort((a, b) => {
-      const severityA = Math.min(STATUS_ORDER[a.statusPlanned], STATUS_ORDER[a.statusActual]);
-      const severityB = Math.min(STATUS_ORDER[b.statusPlanned], STATUS_ORDER[b.statusActual]);
-      if (severityA !== severityB) return severityA - severityB;
+      const sa = Math.min(STATUS_ORDER[a.statusPlanned], STATUS_ORDER[a.statusActual]);
+      const sb = Math.min(STATUS_ORDER[b.statusPlanned], STATUS_ORDER[b.statusActual]);
+      if (sa !== sb) return sa - sb;
       return a.employeeName.localeCompare(b.employeeName);
     });
   }, [data?.rows, visibleProjects, selectedYear, holidays, searchQuery, filters.onlyConflicts]);
 
   const counts = useMemo<StatusDualCounts>(() => {
-    const result: StatusDualCounts = {
-      planned: emptyStatusCounts(),
-      actual: emptyStatusCounts(),
-    };
-
-    rowsWithStatus.forEach((row) => {
-      result.planned[row.statusPlanned] += 1;
-      result.actual[row.statusActual] += 1;
-    });
-
+    const result: StatusDualCounts = { planned: emptyStatusCounts(), actual: emptyStatusCounts() };
+    rowsWithStatus.forEach((r) => { result.planned[r.statusPlanned]++; result.actual[r.statusActual]++; });
     return result;
   }, [rowsWithStatus]);
 
-  useEffect(() => {
-    onStatusCountsChange?.(counts);
-  }, [counts, onStatusCountsChange]);
+  useEffect(() => { onStatusCountsChange?.(counts); }, [counts, onStatusCountsChange]);
+
+  /* ─── Expanded row state ─── */
 
   const expandedRow = useMemo(() => {
     if (!expandedEmployeeId) return null;
-    return rowsWithStatus.find((row) => row.employeeId === expandedEmployeeId) || null;
+    return rowsWithStatus.find((r) => r.employeeId === expandedEmployeeId) || null;
   }, [rowsWithStatus, expandedEmployeeId]);
 
-  const closeExpanded = () => {
+  const closeExpanded = useCallback(() => {
     setExpandedEmployeeId(null);
     setDraftPlanned({});
     setOriginalPlanned({});
     setEditingCellKey(null);
     setEditingCellInitialValue(0);
-  };
+  }, []);
 
-  useEffect(() => {
-    if (expandedEmployeeId && !expandedRow) {
-      closeExpanded();
-    }
-  }, [expandedEmployeeId, expandedRow]);
-
-  useEffect(() => {
-    closeExpanded();
-  }, [selectedYear, filters.teamId, filters.managerId, filters.projectId]);
+  useEffect(() => { if (expandedEmployeeId && !expandedRow) closeExpanded(); }, [expandedEmployeeId, expandedRow, closeExpanded]);
+  useEffect(() => { closeExpanded(); }, [selectedYear, filters.teamId, filters.managerId, filters.projectId, closeExpanded]);
 
   const initializeDraftForRow = (row: AllocationPlannerRow) => {
     const next: Record<string, number> = {};
-    const projectsForExpanded = visibleProjects.filter((project) => {
-      const projectHours = row.projectsById[project.id];
-      if (!projectHours) return false;
-      const hasAnyHours = projectHours.plannedByMonth.some((value) => value > 0)
-        || projectHours.actualByMonth.some((value) => value > 0);
-      return Boolean(projectHours.projectMemberId) || hasAnyHours;
+    const projectsForExpanded = visibleProjects.filter((p) => {
+      const ph = row.projectsById[p.id];
+      if (!ph) return false;
+      return Boolean(ph.projectMemberId) || ph.plannedByMonth.some((v) => v > 0) || ph.actualByMonth.some((v) => v > 0);
     });
 
-    projectsForExpanded.forEach((project) => {
-      const projectHours = row.projectsById[project.id] || createEmptyProjectRow(project, null);
-      MONTH_COLUMNS.forEach(({ month }) => {
-        next[draftProjectKey(project.id, month)] = projectHours.plannedByMonth[month - 1] || 0;
-      });
+    projectsForExpanded.forEach((p) => {
+      const ph = row.projectsById[p.id] || createEmptyProjectRow(p, null);
+      MONTH_COLUMNS.forEach(({ month }) => { next[draftProjectKey(p.id, month)] = ph.plannedByMonth[month - 1] || 0; });
     });
 
-    const internalActivitiesForExpanded = Object.values(row.internalActivitiesById)
-      .sort((a, b) => a.activityName.localeCompare(b.activityName));
-
-    internalActivitiesForExpanded.forEach((activity) => {
-      MONTH_COLUMNS.forEach(({ month }) => {
-        next[draftActivityKey(activity.activityTypeId, month)] = activity.plannedByMonth[month - 1] || 0;
-      });
+    Object.values(row.internalActivitiesById).sort((a, b) => a.activityName.localeCompare(b.activityName)).forEach((a) => {
+      MONTH_COLUMNS.forEach(({ month }) => { next[draftActivityKey(a.activityTypeId, month)] = a.plannedByMonth[month - 1] || 0; });
     });
 
     setDraftPlanned(next);
@@ -919,11 +680,7 @@ export function AllocationOverview({
   };
 
   const toggleExpand = (row: AllocationPlannerRow) => {
-    if (expandedEmployeeId === row.employeeId) {
-      closeExpanded();
-      return;
-    }
-
+    if (expandedEmployeeId === row.employeeId) { closeExpanded(); return; }
     setExpandedEmployeeId(row.employeeId);
     initializeDraftForRow(row);
   };
@@ -935,13 +692,10 @@ export function AllocationOverview({
 
   const expandedProjects = useMemo(() => {
     if (!expandedRow) return [];
-
-    return visibleProjects.filter((project) => {
-      const projectHours = expandedRow.projectsById[project.id];
-      if (!projectHours) return false;
-      const hasAnyHours = projectHours.plannedByMonth.some((value) => value > 0)
-        || projectHours.actualByMonth.some((value) => value > 0);
-      return Boolean(projectHours.projectMemberId) || hasAnyHours;
+    return visibleProjects.filter((p) => {
+      const ph = expandedRow.projectsById[p.id];
+      if (!ph) return false;
+      return Boolean(ph.projectMemberId) || ph.plannedByMonth.some((v) => v > 0) || ph.actualByMonth.some((v) => v > 0);
     });
   }, [expandedRow, visibleProjects]);
 
@@ -950,38 +704,67 @@ export function AllocationOverview({
     return Object.values(expandedRow.internalActivitiesById).sort((a, b) => a.activityName.localeCompare(b.activityName));
   }, [expandedRow]);
 
-  const pendingChangesCount = useMemo(() => {
-    if (!expandedRow) return 0;
+  const expandedItems = useMemo<ExpandedAllocationItemRow[]>(() => {
+    if (!expandedRow) return [];
+    const projectItems: ExpandedAllocationItemRow[] = expandedProjects.map((p) => {
+      const ph = expandedRow.projectsById[p.id] || createEmptyProjectRow(p, null);
+      return {
+        id: p.id, type: 'project', title: p.name,
+        subtitle: `${p.managerName} · ${p.teamLabel}`,
+        plannedByMonth: ph.plannedByMonth, actualByMonth: ph.actualByMonth,
+        editableByMonth: MONTH_COLUMNS.map(({ month }) => isProjectMonthEditable(p, selectedYear, month)),
+      };
+    });
+    const internalItems: ExpandedAllocationItemRow[] = expandedInternalActivities.map((a) => ({
+      id: a.activityTypeId, type: 'internal_activity', title: a.activityName,
+      subtitle: 'Atividade interna',
+      plannedByMonth: a.plannedByMonth, actualByMonth: a.actualByMonth,
+      editableByMonth: MONTH_COLUMNS.map(() => true),
+    }));
+    return [...projectItems, ...internalItems];
+  }, [expandedInternalActivities, expandedProjects, expandedRow, selectedYear]);
 
-    let changes = 0;
-    expandedProjects.forEach((project) => {
-      MONTH_COLUMNS.forEach(({ month }) => {
-        if (!isProjectMonthEditable(project, selectedYear, month)) return;
-        const key = draftProjectKey(project.id, month);
+  /* ─── Pending changes ─── */
+  const pendingChanges = useMemo<ChangeEntry[]>(() => {
+    if (!expandedRow) return [];
+    const changes: ChangeEntry[] = [];
+
+    expandedProjects.forEach((p) => {
+      MONTH_COLUMNS.forEach(({ month, label }) => {
+        if (!isProjectMonthEditable(p, selectedYear, month)) return;
+        const key = draftProjectKey(p.id, month);
         const current = draftPlanned[key] ?? 0;
         const original = originalPlanned[key] ?? 0;
-        if (Math.round(current * 10) !== Math.round(original * 10)) changes++;
+        if (Math.round(current * 10) !== Math.round(original * 10)) {
+          changes.push({ itemTitle: p.name, monthLabel: label, from: original, to: current });
+        }
       });
     });
 
-    expandedInternalActivities.forEach((activity) => {
-      MONTH_COLUMNS.forEach(({ month }) => {
-        const key = draftActivityKey(activity.activityTypeId, month);
+    expandedInternalActivities.forEach((a) => {
+      MONTH_COLUMNS.forEach(({ month, label }) => {
+        const key = draftActivityKey(a.activityTypeId, month);
         const current = draftPlanned[key] ?? 0;
         const original = originalPlanned[key] ?? 0;
-        if (Math.round(current * 10) !== Math.round(original * 10)) changes++;
+        if (Math.round(current * 10) !== Math.round(original * 10)) {
+          changes.push({ itemTitle: a.activityName, monthLabel: label, from: original, to: current });
+        }
       });
     });
 
     return changes;
-  }, [expandedInternalActivities, expandedProjects, expandedRow, selectedYear, draftPlanned, originalPlanned]);
+  }, [expandedRow, expandedProjects, expandedInternalActivities, selectedYear, draftPlanned, originalPlanned]);
 
-  const handleCancelEdits = () => {
-    setDraftPlanned(originalPlanned);
-    setEditingCellKey(null);
+  const pendingChangesCount = pendingChanges.length;
+
+  const handleCancelEdits = () => { setDraftPlanned(originalPlanned); setEditingCellKey(null); };
+
+  const handleRequestSave = () => {
+    if (pendingChangesCount === 0) return;
+    setSaveDialogOpen(true);
   };
 
-  const handleSaveExpanded = async () => {
+  const handleConfirmSave = async (_reasonCode: string, _justification: string) => {
     if (!expandedRow) return;
 
     setIsSaving(true);
@@ -994,44 +777,26 @@ export function AllocationOverview({
 
         for (const { month } of MONTH_COLUMNS) {
           if (!isProjectMonthEditable(project, selectedYear, month)) continue;
-
           const key = draftProjectKey(project.id, month);
           const original = rowProject?.plannedByMonth[month - 1] || 0;
           const draft = draftPlanned[key] ?? original;
-
           if (Math.round(draft * 10) === Math.round(original * 10)) continue;
 
           const monthNumber = monthNumberForProject(selectedYear, month, project.startDate);
           if (monthNumber < 1) continue;
-
           const plannedHours = Math.max(0, draft);
 
           if (!projectMemberId) {
             if (plannedHours <= 0) continue;
-
             const { data: createdMember, error: createError } = await supabase
               .from('project_members')
-              .insert({
-                project_id: project.id,
-                employee_id: expandedRow.employeeId,
-                role: expandedRow.cargo || 'Colaborador',
-                seniority: 'pleno',
-                hours_per_month: plannedHours,
-                hourly_rate: 0,
-              })
-              .select('id')
-              .single();
-
+              .insert({ project_id: project.id, employee_id: expandedRow.employeeId, role: expandedRow.cargo || 'Colaborador', seniority: 'pleno', hours_per_month: plannedHours, hourly_rate: 0 })
+              .select('id').single();
             if (createError) throw createError;
             projectMemberId = createdMember.id;
           }
 
-          await upsertMemberMonth.mutateAsync({
-            projectMemberId,
-            monthNumber,
-            hours: plannedHours,
-          });
-
+          await upsertMemberMonth.mutateAsync({ projectMemberId, monthNumber, hours: plannedHours });
           persisted++;
         }
       }
@@ -1041,51 +806,33 @@ export function AllocationOverview({
           const key = draftActivityKey(activity.activityTypeId, month);
           const original = activity.plannedByMonth[month - 1] || 0;
           const draft = draftPlanned[key] ?? original;
-
           if (Math.round(draft * 10) === Math.round(original * 10)) continue;
 
-          const plannedHours = Math.max(0, draft);
-          const upsertPayload = {
-            tenant_id: tenantId,
-            employee_id: expandedRow.employeeId,
-            activity_type_id: activity.activityTypeId,
-            year: selectedYear,
-            month,
-            hours: plannedHours,
-            updated_at: new Date().toISOString(),
-          };
-
-          const { error: activityUpsertError } = await supabase
+          const { error } = await supabase
             .from('activity_employee_months')
-            .upsert([upsertPayload], {
-              onConflict: 'employee_id,activity_type_id,year,month',
-            });
-
-          if (activityUpsertError) throw activityUpsertError;
+            .upsert([{
+              tenant_id: tenantId,
+              employee_id: expandedRow.employeeId,
+              activity_type_id: activity.activityTypeId,
+              year: selectedYear, month, hours: Math.max(0, draft),
+              updated_at: new Date().toISOString(),
+            }], { onConflict: 'employee_id,activity_type_id,year,month' });
+          if (error) throw error;
           persisted++;
         }
       }
 
       if (persisted > 0) {
         await queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
-        toast({
-          title: 'Alocação atualizada',
-          description: `${persisted} célula(s) salva(s) para ${expandedRow.employeeName}.`,
-        });
+        toast({ title: 'Alocação atualizada', description: `${persisted} célula(s) salva(s) para ${expandedRow.employeeName}.` });
       } else {
-        toast({
-          title: 'Sem alterações',
-          description: 'Não houve mudanças para salvar.',
-        });
+        toast({ title: 'Sem alterações', description: 'Não houve mudanças para salvar.' });
       }
 
+      setSaveDialogOpen(false);
       closeExpanded();
     } catch (error: unknown) {
-      toast({
-        title: 'Erro ao salvar alocação',
-        description: error instanceof Error ? error.message : 'Não foi possível salvar as alterações.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao salvar alocação', description: error instanceof Error ? error.message : 'Não foi possível salvar as alterações.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
@@ -1097,286 +844,307 @@ export function AllocationOverview({
     setEditingCellInitialValue(currentValue);
   };
 
-  const endInlineEdit = () => {
+  const endInlineEdit = () => { setEditingCellKey(null); };
+
+  const cancelInlineEdit = (key: string, initialValue: number) => {
+    updateDraftCell(key, initialValue);
     setEditingCellKey(null);
   };
 
-  const cancelInlineEdit = (key: string) => {
-    updateDraftCell(key, editingCellInitialValue);
-    setEditingCellKey(null);
-  };
+  /** P1.3 — Tab navigation between editable cells */
+  const handleTabNavigate = useCallback(
+    (rowIndex: number, colIndex: number, direction: 1 | -1) => {
+      if (!expandedItems.length) return;
+      let nextCol = colIndex + direction;
+      let nextRow = rowIndex;
+
+      while (nextRow >= 0 && nextRow < expandedItems.length) {
+        while (nextCol >= 0 && nextCol < 12) {
+          const item = expandedItems[nextRow];
+          if (item.editableByMonth[nextCol]) {
+            const key = item.type === 'project' ? draftProjectKey(item.id, nextCol + 1) : draftActivityKey(item.id, nextCol + 1);
+            const val = draftPlanned[key] ?? item.plannedByMonth[nextCol] ?? 0;
+            beginInlineEdit(key, val);
+            return;
+          }
+          nextCol += direction;
+        }
+        nextRow += direction;
+        nextCol = direction === 1 ? 0 : 11;
+      }
+    },
+    [expandedItems, draftPlanned]
+  );
 
   const totalColumns = 2 + MONTH_COLUMNS.length + 3;
 
-  const expandedItems = useMemo<ExpandedAllocationItemRow[]>(() => {
-    if (!expandedRow) return [];
-
-    const projectItems: ExpandedAllocationItemRow[] = expandedProjects.map((project) => {
-      const projectHours = expandedRow.projectsById[project.id] || createEmptyProjectRow(project, null);
-      return {
-        id: project.id,
-        type: 'project',
-        title: project.name,
-        subtitle: `${project.managerName} · ${project.teamLabel}`,
-        plannedByMonth: projectHours.plannedByMonth,
-        actualByMonth: projectHours.actualByMonth,
-        editableByMonth: MONTH_COLUMNS.map(({ month }) => isProjectMonthEditable(project, selectedYear, month)),
-      };
-    });
-
-    const internalItems: ExpandedAllocationItemRow[] = expandedInternalActivities.map((activity) => ({
-      id: activity.activityTypeId,
-      type: 'internal_activity',
-      title: activity.activityName,
-      subtitle: 'Configuração de atividade interna',
-      plannedByMonth: activity.plannedByMonth,
-      actualByMonth: activity.actualByMonth,
-      editableByMonth: MONTH_COLUMNS.map(() => true),
-    }));
-
-    return [...projectItems, ...internalItems];
-  }, [expandedInternalActivities, expandedProjects, expandedRow, selectedYear]);
+  /* ─── Render ─── */
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-16 w-full" />
-        ))}
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
       </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div>
-          <CardTitle className="text-base">Planejador Anual de Alocação</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Expanda um funcionário para editar itens de alocação por mês no ano selecionado.
-          </p>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {visibleProjects.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            Nenhum projeto encontrado para os filtros selecionados.
-          </p>
-        ) : rowsWithStatus.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            Nenhum colaborador corresponde aos filtros selecionados.
-          </p>
-        ) : (
-          <div className="overflow-auto border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[240px]">Pessoa</TableHead>
-                  <TableHead className="min-w-[170px]">Cargo</TableHead>
-                  {MONTH_COLUMNS.map((month) => (
-                    <TableHead key={month.month} className="text-center min-w-[120px]">
-                      <div>{month.label}</div>
-                      <div className="text-[10px] font-normal text-muted-foreground">Plan | Real</div>
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-center min-w-[110px]">Total Plan</TableHead>
-                  <TableHead className="text-center min-w-[110px]">Total Real</TableHead>
-                  <TableHead className="min-w-[200px]">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rowsWithStatus.map((row) => {
-                  const isExpanded = expandedEmployeeId === row.employeeId;
+    <TooltipProvider>
+      <div className="space-y-4">
+        {/* P2.1 — KPI cards */}
+        <AllocationKPIBar counts={counts} total={rowsWithStatus.length} />
 
-                  return (
-                    <Fragment key={row.employeeId}>
-                      <TableRow
-                        className="cursor-pointer hover:bg-muted/40"
-                        onClick={() => toggleExpand(row)}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            <span className="font-medium">{row.employeeName}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{row.cargo}</TableCell>
-                        {row.monthTotals.map((monthTotal, monthIndex) => {
-                          const month = MONTH_COLUMNS[monthIndex].month;
-                          const heatmap = getMonthlyHeatmapMeta(
-                            monthTotal.planned,
-                            monthTotal.actual,
-                            monthTotal.capacityHours,
-                            month,
-                            selectedYear
-                          );
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Planejador Anual de Alocação</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Expanda um funcionário para editar itens de alocação por mês no ano selecionado.
+                </p>
+              </div>
+              {/* P2.4 — Scope badge */}
+              <Badge variant="outline" className="flex items-center gap-1.5 shrink-0">
+                {isAdmin ? <Building2 className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+                {isAdmin ? 'Visão da empresa' : 'Meus projetos'}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* P0.1 — Heatmap legend */}
+            <AllocationHeatmapLegend />
 
-                          return (
-                            <TableCell key={`${row.employeeId}-${monthTotal.monthKey}`} className="py-2 text-center">
-                            <div className="flex justify-center">
-                              <span
-                                className={cn(
-                                  'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium',
-                                  heatmap.className
-                                )}
-                                title={`Base da cor: ${heatmap.referenceType === 'planned' ? 'Planejado' : 'Realizado'} (${fmt(heatmap.referenceHours)}) vs Capacidade (${fmt(monthTotal.capacityHours)}) = ${Math.round(heatmap.pct * 10) / 10}%`}
-                              >
-                                <span>{monthTotal.planned > 0 ? fmt(monthTotal.planned) : '—'}</span>
-                                <span className="opacity-70">|</span>
-                                <span className="opacity-80">{monthTotal.actual > 0 ? fmt(monthTotal.actual) : '—'}</span>
-                              </span>
-                            </div>
-                            <div className="mt-1 text-center text-[10px] text-muted-foreground">
-                              Cap: {fmt(monthTotal.capacityHours)}
-                            </div>
-                          </TableCell>
-                          );
-                        })}
-                        <TableCell className="text-center font-medium">{row.totalPlanned > 0 ? fmt(row.totalPlanned) : '—'}</TableCell>
-                        <TableCell className="text-center font-medium">{row.totalActual > 0 ? fmt(row.totalActual) : '—'}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge className={STATUS_STYLES[row.statusPlanned]}>Plan: {row.statusPlanned}</Badge>
-                            <Badge className={STATUS_STYLES[row.statusActual]}>Real: {row.statusActual}</Badge>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+            {visibleProjects.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Nenhum projeto encontrado para os filtros selecionados.
+              </p>
+            ) : rowsWithStatus.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Nenhum colaborador corresponde aos filtros selecionados.
+              </p>
+            ) : (
+              <div className="overflow-auto border rounded-lg relative">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {/* P0.3 — Sticky left columns */}
+                      <TableHead className="min-w-[240px] sticky left-0 z-20 bg-background shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">Pessoa</TableHead>
+                      <TableHead className="min-w-[170px] sticky left-[240px] z-20 bg-background shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">Cargo</TableHead>
+                      {MONTH_COLUMNS.map((mc, idx) => (
+                        <TableHead
+                          key={mc.month}
+                          className={cn(
+                            'text-center min-w-[120px]',
+                            idx === currentMonthIndex && 'border-b-2 border-primary bg-primary/5'
+                          )}
+                        >
+                          <div>{mc.label}</div>
+                          <div className="text-[10px] font-normal text-muted-foreground">Plan | Real</div>
+                        </TableHead>
+                      ))}
+                      <TableHead className="text-center min-w-[110px]">Total Plan</TableHead>
+                      <TableHead className="text-center min-w-[110px]">Total Real</TableHead>
+                      {/* P0.3 — Sticky right column */}
+                      <TableHead className="min-w-[200px] sticky right-0 z-20 bg-background shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rowsWithStatus.map((row) => {
+                      const isExpanded = expandedEmployeeId === row.employeeId;
 
-                      {isExpanded && expandedRow && (
-                        <TableRow className="bg-muted/20 hover:bg-muted/20">
-                          <TableCell colSpan={totalColumns} className="p-4">
-                            <div className="space-y-4">
-                              {expandedItems.length === 0 ? (
-                                <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                                  Nenhum item de alocação disponível para este funcionário com os filtros atuais.
-                                </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  <p className="text-sm font-medium text-foreground">Itens de alocação</p>
-                                  <div className="overflow-auto border rounded-md bg-background">
-                                    <Table>
-                                      <TableHeader>
-                                        <TableRow>
-                                          <TableHead className="min-w-[300px]">Item</TableHead>
-                                          {MONTH_COLUMNS.map((month, monthIndex) => (
-                                            <TableHead key={`expanded-item-${month.month}`} className="min-w-[120px] text-center">
-                                              <div>{month.label}</div>
-                                              <div className="text-[10px] font-normal text-muted-foreground">
-                                                Cap: {expandedRow.monthTotals[monthIndex] ? fmt(expandedRow.monthTotals[monthIndex].capacityHours) : '—'}
-                                              </div>
-                                            </TableHead>
-                                          ))}
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {expandedItems.map((item) => (
-                                          <TableRow key={`${expandedRow.employeeId}-${item.type}-${item.id}`} className="h-12">
-                                            <TableCell>
-                                              <div className="flex items-center gap-2">
-                                                <div className="font-medium">{item.title}</div>
-                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
-                                                  {item.type === 'project' ? 'Projeto' : 'Atividade interna'}
-                                                </Badge>
-                                              </div>
-                                              <div className="text-xs text-muted-foreground">{item.subtitle}</div>
-                                            </TableCell>
+                      return (
+                        <Fragment key={row.employeeId}>
+                          <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggleExpand(row)}>
+                            {/* P0.3 — Sticky */}
+                            <TableCell className="sticky left-0 z-10 bg-background shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]">
+                              <div className="flex items-center gap-2">
+                                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                <span className="font-medium">{row.employeeName}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground sticky left-[240px] z-10 bg-background shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]">
+                              {row.cargo}
+                            </TableCell>
 
-                                            {MONTH_COLUMNS.map(({ month }, monthIndex) => {
-                                              const key = item.type === 'project'
-                                                ? draftProjectKey(item.id, month)
-                                                : draftActivityKey(item.id, month);
-                                              const original = item.plannedByMonth[monthIndex] || 0;
-                                              const draft = draftPlanned[key] ?? original;
-                                              const actual = item.actualByMonth[monthIndex] || 0;
-                                              const changed = Math.round(draft * 10) !== Math.round((originalPlanned[key] ?? original) * 10);
-                                              const isEditing = editingCellKey === key;
-                                              const editable = item.editableByMonth[monthIndex];
+                            {row.monthTotals.map((mt, monthIndex) => {
+                              const heatmap = getMonthlyHeatmapMeta(mt.planned, mt.actual, mt.capacityHours, mt.month, selectedYear);
+                              const isCurrentMo = monthIndex === currentMonthIndex;
 
-                                              return (
-                                                <TableCell key={`${item.type}-${item.id}-${month}`} className="py-2 align-middle text-center">
-                                                  {editable ? (
-                                                    isEditing ? (
-                                                      <Input
-                                                        type="number"
-                                                        min={0}
-                                                        step={1}
-                                                        value={draft}
-                                                        autoFocus
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        onChange={(e) => updateDraftCell(key, Number(e.target.value || 0))}
-                                                        onBlur={endInlineEdit}
-                                                        onKeyDown={(e) => {
-                                                          if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            e.currentTarget.blur();
-                                                          }
-                                                          if (e.key === 'Escape') {
-                                                            e.preventDefault();
-                                                            cancelInlineEdit(key);
-                                                          }
-                                                        }}
-                                                        className={cn(
-                                                          'mx-auto h-7 w-[92px] text-center text-xs',
-                                                          changed && 'border-amber-400'
-                                                        )}
-                                                        disabled={isSaving}
-                                                      />
-                                                    ) : (
-                                                      <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          beginInlineEdit(key, draft);
-                                                        }}
-                                                        className={cn(
-                                                          'mx-auto inline-flex h-7 min-w-[92px] items-center justify-center gap-1 rounded border px-2 text-xs',
-                                                          'hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                                          changed && 'border-amber-400 bg-amber-50/70 dark:bg-amber-900/20',
-                                                          !changed && 'border-border bg-background'
-                                                        )}
-                                                        disabled={isSaving}
-                                                      >
-                                                        <span className="font-medium">{draft > 0 ? fmt(draft) : '—'}</span>
-                                                        <span className="text-muted-foreground">|</span>
-                                                        <span className="text-muted-foreground">{actual > 0 ? fmt(actual) : '—'}</span>
-                                                      </button>
-                                                    )
-                                                  ) : (
-                                                    <div className="mx-auto inline-flex h-7 min-w-[92px] items-center justify-center rounded border border-dashed px-2 text-xs text-muted-foreground">—</div>
+                              return (
+                                <TableCell key={mt.monthKey} className={cn('py-2 text-center', isCurrentMo && 'bg-primary/5')}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex justify-center">
+                                        <span className={cn('inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium', heatmap.className)}>
+                                          <span>{mt.planned > 0 ? fmt(mt.planned) : '—'}</span>
+                                          <span className="opacity-70">|</span>
+                                          <span className="opacity-80">{mt.actual > 0 ? fmt(mt.actual) : '—'}</span>
+                                        </span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    {/* P2.2 — Rich tooltip */}
+                                    <TooltipContent side="top" className="text-xs space-y-0.5">
+                                      <p className="font-semibold">{MONTH_COLUMNS[monthIndex].label} {selectedYear}</p>
+                                      <p>Planejado: {fmt(mt.planned)}</p>
+                                      <p>Realizado: {fmt(mt.actual)}</p>
+                                      <p>Capacidade: {fmt(mt.capacityHours)}</p>
+                                      <p>Utilização: {mt.capacityHours > 0 ? `${Math.round((heatmap.referenceHours / mt.capacityHours) * 100)}%` : '—'} ({heatmap.referenceType === 'planned' ? 'Plan' : 'Real'})</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <div className="mt-1 text-center text-[10px] text-muted-foreground">
+                                    Cap: {fmt(mt.capacityHours)}
+                                  </div>
+                                </TableCell>
+                              );
+                            })}
+
+                            <TableCell className="text-center font-medium">{row.totalPlanned > 0 ? fmt(row.totalPlanned) : '—'}</TableCell>
+                            <TableCell className="text-center font-medium">{row.totalActual > 0 ? fmt(row.totalActual) : '—'}</TableCell>
+                            {/* P0.3 — Sticky */}
+                            <TableCell className="sticky right-0 z-10 bg-background shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]">
+                              <div className="flex flex-wrap gap-2">
+                                <Badge className={STATUS_STYLES[row.statusPlanned]}>Plan: {row.statusPlanned}</Badge>
+                                <Badge className={STATUS_STYLES[row.statusActual]}>Real: {row.statusActual}</Badge>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+
+                          {/* ─── Expanded Panel ─── */}
+                          {isExpanded && expandedRow && (
+                            <TableRow className="bg-muted/20 hover:bg-muted/20">
+                              <TableCell colSpan={totalColumns} className="p-4">
+                                <div className="space-y-4">
+                                  {expandedItems.length === 0 ? (
+                                    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                                      Nenhum item de alocação disponível para este funcionário com os filtros atuais.
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      <p className="text-sm font-medium text-foreground">Itens de alocação</p>
+                                      <div className="overflow-auto border rounded-md bg-background">
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead className="min-w-[300px]">Item</TableHead>
+                                              {MONTH_COLUMNS.map((mc, monthIndex) => (
+                                                <TableHead
+                                                  key={`exp-${mc.month}`}
+                                                  className={cn(
+                                                    'min-w-[120px] text-center',
+                                                    monthIndex === currentMonthIndex && 'bg-primary/5'
                                                   )}
+                                                >
+                                                  <div>{mc.label}</div>
+                                                  <div className="text-[10px] font-normal text-muted-foreground">
+                                                    Cap: {expandedRow.monthTotals[monthIndex] ? fmt(expandedRow.monthTotals[monthIndex].capacityHours) : '—'}
+                                                  </div>
+                                                </TableHead>
+                                              ))}
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {expandedItems.map((item, rowIdx) => (
+                                              <TableRow key={`${expandedRow.employeeId}-${item.type}-${item.id}`} className="h-12">
+                                                <TableCell>
+                                                  <div className="flex items-center gap-2">
+                                                    <div className="font-medium">{item.title}</div>
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
+                                                      {item.type === 'project' ? 'Projeto' : 'Atividade interna'}
+                                                    </Badge>
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground">{item.subtitle}</div>
                                                 </TableCell>
-                                              );
-                                            })}
-                                          </TableRow>
-                                        ))}
-                                      </TableBody>
-                                    </Table>
+
+                                                {MONTH_COLUMNS.map(({ month }, monthIndex) => {
+                                                  const key = item.type === 'project' ? draftProjectKey(item.id, month) : draftActivityKey(item.id, month);
+                                                  const original = item.plannedByMonth[monthIndex] || 0;
+                                                  const draft = draftPlanned[key] ?? original;
+                                                  const actual = item.actualByMonth[monthIndex] || 0;
+                                                  const origVal = originalPlanned[key] ?? original;
+
+                                                  return (
+                                                    <TableCell key={`${item.type}-${item.id}-${month}`} className={cn('py-2 align-middle text-center', monthIndex === currentMonthIndex && 'bg-primary/5')}>
+                                                      <AllocationEditableCell
+                                                        cellKey={key}
+                                                        draft={draft}
+                                                        actual={actual}
+                                                        original={origVal}
+                                                        editable={item.editableByMonth[monthIndex]}
+                                                        isEditing={editingCellKey === key}
+                                                        isSaving={isSaving}
+                                                        isCurrentMonth={monthIndex === currentMonthIndex}
+                                                        onBeginEdit={beginInlineEdit}
+                                                        onEndEdit={endInlineEdit}
+                                                        onCancelEdit={cancelInlineEdit}
+                                                        onUpdateDraft={updateDraftCell}
+                                                        initialValue={editingCellInitialValue}
+                                                        colIndex={monthIndex}
+                                                        rowIndex={rowIdx}
+                                                        onTabNavigate={handleTabNavigate}
+                                                      />
+                                                    </TableCell>
+                                                  );
+                                                })}
+                                              </TableRow>
+                                            ))}
+                                          </TableBody>
+                                        </Table>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* P1.4 — Sticky footer with change summary */}
+                                  <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t pt-3 -mx-4 px-4 -mb-4 pb-4">
+                                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                                      <div className="text-sm text-muted-foreground">
+                                        {pendingChangesCount > 0 ? (
+                                          <span className="font-medium text-foreground">
+                                            {pendingChangesCount} alteração(ões) pendente(s) ·{' '}
+                                            {(() => {
+                                              const delta = pendingChanges.reduce((s, c) => s + (c.to - c.from), 0);
+                                              return `${delta >= 0 ? '+' : ''}${fmt(delta)} planejadas`;
+                                            })()}
+                                          </span>
+                                        ) : (
+                                          'Nenhuma alteração pendente'
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Button variant="ghost" onClick={handleCancelEdits} disabled={isSaving || pendingChangesCount === 0}>
+                                          Cancelar alterações
+                                        </Button>
+                                        <Button onClick={handleRequestSave} disabled={isSaving || pendingChangesCount === 0 || upsertMemberMonth.isPending}>
+                                          {isSaving || upsertMemberMonth.isPending ? 'Salvando...' : `Salvar alterações (${pendingChangesCount})`}
+                                        </Button>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
-                              )}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-                              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                                <div className="flex items-center gap-2">
-                                  <Button variant="ghost" onClick={handleCancelEdits} disabled={isSaving || pendingChangesCount === 0}>
-                                    Cancelar alterações
-                                  </Button>
-                                  <Button onClick={handleSaveExpanded} disabled={isSaving || pendingChangesCount === 0 || upsertMemberMonth.isPending}>
-                                    {isSaving || upsertMemberMonth.isPending ? 'Salvando...' : `Salvar alterações (${pendingChangesCount})`}
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+        {/* P2.3 — Save confirmation dialog with audit */}
+        {expandedRow && (
+          <AllocationSaveDialog
+            open={saveDialogOpen}
+            onOpenChange={setSaveDialogOpen}
+            changes={pendingChanges}
+            employeeName={expandedRow.employeeName}
+            isSaving={isSaving}
+            onConfirm={handleConfirmSave}
+          />
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </TooltipProvider>
   );
 }
