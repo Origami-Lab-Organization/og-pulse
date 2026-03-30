@@ -347,6 +347,7 @@ export function AllocationOverview({
   filters,
   onStatusCountsChange,
   onFilterOptionsChange,
+  onKPIDataChange,
 }: AllocationOverviewProps) {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
