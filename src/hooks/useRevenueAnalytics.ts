@@ -103,7 +103,7 @@ export function useRevenueAnalytics(
       const todayDate = new Date();
 
       const overdueNFs: OverdueItem[] = (overdueRes.data || [])
-        .filter((i: any) => !['invoiced', 'received'].includes(i.status) && !i.invoice_date)
+        .filter((i: any) => !['invoiced', 'received'].includes(i.status) && !i.invoice_date && Number(i.value) > 0)
         .map((i: any) => {
           const proj = projectMap.get(i.project_id) as any;
           return {
@@ -120,7 +120,7 @@ export function useRevenueAnalytics(
         .sort((a: OverdueItem, b: OverdueItem) => b.daysOverdue - a.daysOverdue);
 
       const overdueReceipts: OverdueItem[] = (overdueRes.data || [])
-        .filter((i: any) => i.status !== 'received')
+        .filter((i: any) => i.status !== 'received' && Number(i.value) > 0)
         .map((i: any) => {
           const proj = projectMap.get(i.project_id) as any;
           return {
