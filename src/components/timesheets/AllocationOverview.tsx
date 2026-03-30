@@ -687,7 +687,6 @@ export function AllocationOverview({
 
   const initializeDraftForRow = (row: AllocationPlannerRow) => {
     const nextPlanned: Record<string, number> = {};
-    const nextActual: Record<string, number> = {};
     const projectsForExpanded = visibleProjects.filter((p) => {
       const ph = row.projectsById[p.id];
       if (!ph) return false;
@@ -698,21 +697,17 @@ export function AllocationOverview({
       const ph = row.projectsById[p.id] || createEmptyProjectRow(p, null);
       MONTH_COLUMNS.forEach(({ month }) => {
         nextPlanned[draftProjectKey(p.id, month)] = ph.plannedByMonth[month - 1] || 0;
-        nextActual[draftProjectKey(p.id, month)] = ph.actualByMonth[month - 1] || 0;
       });
     });
 
     Object.values(row.internalActivitiesById).sort((a, b) => a.activityName.localeCompare(b.activityName)).forEach((a) => {
       MONTH_COLUMNS.forEach(({ month }) => {
         nextPlanned[draftActivityKey(a.activityTypeId, month)] = a.plannedByMonth[month - 1] || 0;
-        nextActual[draftActivityKey(a.activityTypeId, month)] = a.actualByMonth[month - 1] || 0;
       });
     });
 
     setDraftPlanned(nextPlanned);
     setOriginalPlanned(nextPlanned);
-    setDraftActual(nextActual);
-    setOriginalActual(nextActual);
   };
 
   const toggleExpand = (row: AllocationPlannerRow) => {
@@ -723,11 +718,7 @@ export function AllocationOverview({
 
   const updateDraftCell = (key: string, nextValue: number) => {
     const safeValue = Math.max(0, Number.isFinite(nextValue) ? nextValue : 0);
-    if (editMode === 'actual') {
-      setDraftActual((prev) => ({ ...prev, [key]: safeValue }));
-    } else {
-      setDraftPlanned((prev) => ({ ...prev, [key]: safeValue }));
-    }
+    setDraftPlanned((prev) => ({ ...prev, [key]: safeValue }));
   };
 
   const expandedProjects = useMemo(() => {
