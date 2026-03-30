@@ -41,6 +41,7 @@ export interface AnalyticsData {
   laborCost: number;
   supplierCost: number;
   materialCost: number;
+  reimbursementCost: number;
   taxesPercent: number;
   taxesValue: number;
   commissionValue: number;
@@ -99,7 +100,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         return {
           revenueActual: 0, revenueProjected: 0, revenueDiff: 0,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
-          taxesPercent: 0, taxesValue: 0, commissionValue: 0,
+          reimbursementCost: 0, taxesPercent: 0, taxesValue: 0, commissionValue: 0,
           grossMargin: 0, grossMarginTarget: null, costsByProject: [], employeeUtilization: [],
           idleHours: 0, idleCost: 0, totalCapacity: 0,
         } as AnalyticsData;
@@ -107,8 +108,13 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const projectIds = projects.map(p => p.id);
 
+      // Compute the day after endDate for timestamp range comparisons
+      const dayAfterEnd = new Date(filters.endDate);
+      dayAfterEnd.setDate(dayAfterEnd.getDate() + 1);
+      const dayAfterEndStr = format(dayAfterEnd, 'yyyy-MM-dd');
+
       // 2. Fetch all data in parallel
-      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, supplierActualsRes, materialsRes, settingsRes, holidaysRes, commissionsRes] = await Promise.all([
+      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, materialsRes, settingsRes, holidaysRes, commissionsRes, reimbursementsRes] = await Promise.all([
         // Revenue actual: installments with status received and payment_date in period
         supabase
           .from('project_installments')
@@ -140,16 +146,11 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria, data_admissao, termination:employee_terminations(termination_date))')
           .in('project_id', projectIds),
 
-        // Project suppliers (to map month_number)
+        // Project suppliers with their actuals (scoped to these projects only)
         supabase
           .from('project_suppliers')
-          .select('id, project_id')
+          .select('id, project_id, actuals:project_supplier_actuals(month_number, value)')
           .in('project_id', projectIds),
-
-        // Supplier actuals (all, we filter by month mapping)
-        supabase
-          .from('project_supplier_actuals')
-          .select('project_supplier_id, month_number, value'),
 
         // Materials (realized)
         supabase
@@ -180,25 +181,33 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .eq('is_paid', true)
           .gte('paid_date', startStr)
           .lte('paid_date', endStr),
+
+        // Reimbursements approved/paid linked to projects in this period
+        supabase
+          .from('reimbursement_requests' as any)
+          .select('project_id, total_amount')
+          .in('project_id', projectIds)
+          .in('status', ['approved', 'paid'])
+          .gte('updated_at', startStr)
+          .lt('updated_at', dayAfterEndStr),
       ]);
 
       const installments = installmentsRes.data || [];
       const projectedInstallments = projectedInstallmentsRes.data || [];
       const timesheets = timesheetsRes.data || [];
       const members = (membersRes.data || []) as any[];
-      const projectSuppliers = suppliersRes.data || [];
-      const supplierActuals = supplierActualsRes.data || [];
+      const projectSuppliersWithActuals = (suppliersRes.data || []) as any[];
       const materials = materialsRes.data || [];
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
       const taxesPercent = settingsRes.data?.taxes_percent ?? 0;
       const holidays = holidaysRes.data || [];
       const commissions = commissionsRes.data || [];
+      const reimbursements = (reimbursementsRes.data || []) as any[];
       const workingDays = countWorkingDays(filters.startDate, filters.endDate, holidays);
 
       // Build lookup maps
       const projectMap = new Map(projects.map(p => [p.id, p]));
       const memberMap = new Map(members.map(m => [m.id, m]));
-      const supplierToProject = new Map(projectSuppliers.map(ps => [ps.id, ps.project_id]));
 
       // Filter start/end month for month_number mapping
       const filterStartMonth = filters.startDate.getMonth();
@@ -259,16 +268,15 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       }
 
       // 5. Calculate supplier costs
-      for (const actual of supplierActuals) {
-        const projectId = supplierToProject.get(actual.project_supplier_id);
-        if (!projectId) continue;
-        const project = projectMap.get(projectId);
+      for (const ps of projectSuppliersWithActuals) {
+        const project = projectMap.get(ps.project_id);
         if (!project) continue;
-
-        if (isMonthInPeriod(project.start_date, actual.month_number)) {
-          const projCost = costsByProjectMap.get(projectId);
-          if (projCost) {
-            projCost.supplierCost += Number(actual.value);
+        for (const actual of (ps.actuals || [])) {
+          if (isMonthInPeriod(project.start_date, actual.month_number)) {
+            const projCost = costsByProjectMap.get(ps.project_id);
+            if (projCost) {
+              projCost.supplierCost += Number(actual.value);
+            }
           }
         }
       }
@@ -304,7 +312,8 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       costsByProject.sort((a, b) => b.totalCost - a.totalCost);
 
-      const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost;
+      const totalReimbursementCost = reimbursements.reduce((sum: number, r: any) => sum + (Number(r.total_amount) || 0), 0);
+      const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost + totalReimbursementCost;
       const taxesValue = revenueActual * (Number(taxesPercent) / 100);
       const totalCommissions = commissions
         .filter((c: any) => !c.approval_status || c.approval_status === 'approved')
@@ -405,6 +414,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         laborCost: totalLaborCost,
         supplierCost: totalSupplierCost,
         materialCost: totalMaterialCost,
+        reimbursementCost: totalReimbursementCost,
         taxesPercent: Number(taxesPercent),
         taxesValue,
         commissionValue: totalCommissions,

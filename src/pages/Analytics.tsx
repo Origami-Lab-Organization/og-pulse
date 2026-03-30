@@ -4,29 +4,33 @@ import {
   startOfQuarter, endOfQuarter,
   startOfYear, endOfYear,
 } from 'date-fns';
-import { Loader2, Clock, BanknoteIcon, DollarSign, Percent, Users } from 'lucide-react';
+import { Loader2, FileText, DollarSign, Target } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AnalyticsFilters, Granularity } from '@/components/analytics/AnalyticsFilters';
 import { AnalyticsKPIs } from '@/components/analytics/AnalyticsKPIs';
-import { EmployeeUtilizationTable } from '@/components/analytics/EmployeeUtilizationTable';
-import { CostCompositionChart } from '@/components/analytics/CostCompositionChart';
-import { CostByProjectTable } from '@/components/analytics/CostByProjectTable';
-import { YearlyRevenueChart } from '@/components/analytics/YearlyRevenueChart';
-import { YearlyAllocationChart } from '@/components/analytics/YearlyAllocationChart';
+import { RevenueComparisonChart } from '@/components/analytics/RevenueComparisonChart';
+import { FinancialEvolutionChart } from '@/components/analytics/FinancialEvolutionChart';
+import { CostBreakdownChart } from '@/components/analytics/CostBreakdownChart';
+import { AdminActivitiesChart } from '@/components/analytics/AdminActivitiesChart';
+import { OverdueTable } from '@/components/analytics/OverdueTable';
+import { RankingBarChart } from '@/components/analytics/RankingBarChart';
+import { ProjectMarginTable } from '@/components/analytics/ProjectMarginTable';
+import { TaxesOverview } from '@/components/analytics/TaxesOverview';
 import { StakeholderKPIs } from '@/components/analytics/StakeholderKPIs';
 import { StakeholderDistributionChart } from '@/components/analytics/StakeholderDistributionChart';
 import { DetractorAlertTable } from '@/components/analytics/DetractorAlertTable';
-import { OkrKPIs } from '@/components/analytics/OkrKPIs';
-import { OkrByProjectTable } from '@/components/analytics/OkrByProjectTable';
-import { ConfidenceDistributionChart } from '@/components/analytics/ConfidenceDistributionChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAnalyticsData, useAnalyticsFilterOptions } from '@/hooks/useAnalyticsData';
-import { useYearlyEvolution } from '@/hooks/useYearlyEvolution';
+import { useAnalyticsFilterOptions } from '@/hooks/useAnalyticsData';
+import { useFinancialEvolution } from '@/hooks/useFinancialEvolution';
+import { useRevenueAnalytics } from '@/hooks/useRevenueAnalytics';
+import { useProjectFinancials } from '@/hooks/useProjectFinancials';
 import { useStakeholderAnalytics } from '@/hooks/useStakeholderAnalytics';
-import { useOkrAnalytics } from '@/hooks/useOkrAnalytics';
+import { useAdminActivitiesEvolution } from '@/hooks/useAdminActivitiesEvolution';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
+
+const FINANCIAL_TABS = ['overview', 'revenue', 'taxes', 'costs', 'margin', 'admin-costs'];
 
 export default function Analytics() {
   const { employee } = useAuth();
@@ -64,35 +68,67 @@ export default function Analytics() {
     return { startDate, endDate, clientId: selectedClientId, managerId: selectedManagerId, projectId: selectedProjectId };
   }, [granularity, currentPeriodDate, customStart, customEnd, selectedClientId, selectedManagerId, selectedProjectId]);
 
-  const { data: analyticsData, isLoading } = useAnalyticsData(filters);
-  const { data: yearlyData } = useYearlyEvolution(filters, { enabled: activeTab === 'overview' });
-  const { data: stakeholderData, isLoading: isStakeholderLoading } = useStakeholderAnalytics(filters, {
-    enabled: activeTab === 'satisfaction',
+  const isFinancialTab = FINANCIAL_TABS.includes(activeTab);
+
+  const { data: financialEvolution, isLoading: isFinancialLoading } = useFinancialEvolution(filters, { enabled: isFinancialTab });
+  const { data: revenueData, isLoading: isRevenueLoading } = useRevenueAnalytics(filters, { enabled: activeTab === 'revenue' });
+  const { data: projectFinancials, isLoading: isProjectFinancialsLoading } = useProjectFinancials(filters, {
+    enabled: activeTab === 'costs' || activeTab === 'margin',
   });
-  const { data: okrData, isLoading: isOkrLoading } = useOkrAnalytics(filters, {
-    enabled: activeTab === 'okrs',
-  });
-  const { data: filterOptions }                                 = useAnalyticsFilterOptions();
+  const { data: stakeholderData, isLoading: isStakeholderLoading } = useStakeholderAnalytics(filters, { enabled: activeTab === 'satisfaction' });
+  const { data: adminActivities, isLoading: isAdminLoading } = useAdminActivitiesEvolution(
+    filters.startDate.getFullYear(),
+    { enabled: activeTab === 'admin-costs' || activeTab === 'overview' },
+  );
+  const { data: filterOptions } = useAnalyticsFilterOptions();
+
+  // Recompute isHighlighted from current filters (fixes stale cache on period change within same year)
+  const financialMonths = useMemo(() => {
+    if (!financialEvolution) return [];
+    return financialEvolution.months.map(m => {
+      const monthStart = startOfMonth(new Date(financialEvolution.year, m.monthIndex, 1));
+      const monthEnd = endOfMonth(monthStart);
+      return { ...m, isHighlighted: monthStart <= filters.endDate && monthEnd >= filters.startDate };
+    });
+  }, [financialEvolution, filters]);
+
+  const financialKPIs = useMemo(() => {
+    if (!financialMonths.length || !financialEvolution) return null;
+    const highlighted = financialMonths.filter(m => m.isHighlighted);
+    const faturado = highlighted.reduce((s, m) => s + m.faturado, 0);
+    const revenueActual = highlighted.reduce((s, m) => s + m.revenueReal, 0);
+    const revenueProjected = highlighted.reduce((s, m) => s + m.revenuePlanned, 0);
+    const taxesValue = highlighted.reduce((s, m) => s + m.taxesValue, 0);
+    const totalCosts = highlighted.reduce((s, m) => s + m.totalCosts, 0);
+    const grossMargin = revenueActual > 0
+      ? ((revenueActual - taxesValue - totalCosts) / revenueActual) * 100
+      : 0;
+    return {
+      faturado, revenueActual, revenueProjected,
+      revenueDiff: revenueActual - revenueProjected,
+      taxesValue, taxesPercent: financialEvolution.taxesPercent,
+      totalCosts, grossMargin, grossMarginTarget: financialEvolution.grossMarginTarget,
+    };
+  }, [financialMonths, financialEvolution]);
 
   const clientOptions = useMemo(
     () => (filterOptions?.clients || []).map(c => ({ id: c.id, label: c.company_name })),
-    [filterOptions]
+    [filterOptions],
   );
   const managerOptions = useMemo(
     () => (filterOptions?.managers || []).map(m => ({ id: m.id, label: m.nome })),
-    [filterOptions]
+    [filterOptions],
   );
   const projectOptions = useMemo(
     () => (filterOptions?.projects || []).map(p => ({ id: p.id, label: p.name })),
-    [filterOptions]
+    [filterOptions],
   );
 
-  const avgUtilization = useMemo(() => {
-    if (!analyticsData?.employeeUtilization.length) return 0;
-    return analyticsData.employeeUtilization.reduce((s, e) => s + e.utilization, 0)
-      / analyticsData.employeeUtilization.length;
-  }, [analyticsData]);
-
+  const financialLoader = (
+    <div className="flex items-center justify-center h-40">
+      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    </div>
+  );
 
   return (
     <AppLayout
@@ -123,206 +159,264 @@ export default function Analytics() {
         />
 
         <Tabs defaultValue="overview" onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              <TabsTrigger value="financial">Financeiro</TabsTrigger>
-              <TabsTrigger value="utilization">Utilização &amp; Custos</TabsTrigger>
-              <TabsTrigger value="satisfaction">Satisfação</TabsTrigger>
-              <TabsTrigger value="okrs">OKRs &amp; Impacto</TabsTrigger>
-            </TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="revenue">Receita</TabsTrigger>
+            <TabsTrigger value="taxes">Impostos</TabsTrigger>
+            <TabsTrigger value="costs">Custos</TabsTrigger>
+            <TabsTrigger value="margin">Margem Bruta</TabsTrigger>
+            <TabsTrigger value="admin-costs">Despesas Adm</TabsTrigger>
+            <TabsTrigger value="satisfaction">Satisfação</TabsTrigger>
+          </TabsList>
 
-            {/* ── Visão Geral ──────────────────────────────────────────────── */}
-            <TabsContent value="overview" className="space-y-6 mt-6">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : analyticsData ? (<>
-              <div className="grid gap-4 grid-cols-4">
+          {/* ── Visão Geral ──────────────────────────────────────────────── */}
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            {isFinancialLoading ? financialLoader : financialKPIs && financialEvolution ? (<>
+              <AnalyticsKPIs
+                faturado={financialKPIs.faturado}
+                revenueActual={financialKPIs.revenueActual}
+                revenueProjected={financialKPIs.revenueProjected}
+                revenueDiff={financialKPIs.revenueDiff}
+                totalCosts={financialKPIs.totalCosts}
+                taxesPercent={financialKPIs.taxesPercent}
+                taxesValue={financialKPIs.taxesValue}
+                grossMargin={financialKPIs.grossMargin}
+                grossMarginTarget={financialKPIs.grossMarginTarget}
+              />
+              <FinancialEvolutionChart data={financialMonths} year={financialEvolution.year} />
+            </>) : null}
+          </TabsContent>
+
+          {/* ── Receita ──────────────────────────────────────────────────── */}
+          <TabsContent value="revenue" className="space-y-6 mt-6">
+            {(isFinancialLoading || isRevenueLoading) ? financialLoader : (financialKPIs && financialEvolution && revenueData) ? (<>
+              <div className="grid gap-4 grid-cols-2">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Receita Recebida
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Faturamento</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(financialKPIs.faturado)}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">NFs emitidas no período</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Receita Recebida</CardTitle>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(analyticsData.revenueActual)}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">no período</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Margem Bruta
-                    </CardTitle>
-                    <Percent className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatPercent(analyticsData.grossMargin)}</div>
+                    <div className="text-2xl font-bold">{formatCurrency(financialKPIs.revenueActual)}</div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {analyticsData.grossMarginTarget != null
-                        ? `meta: ${formatPercent(analyticsData.grossMarginTarget)}`
-                        : 'sem meta definida'}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Utilização Média
-                    </CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatPercent(avgUtilization)}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {analyticsData.employeeUtilization.length} funcionário(s)
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Custo Ociosidade
-                    </CardTitle>
-                    <BanknoteIcon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(analyticsData.idleCost)}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">horas não alocadas</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {yearlyData && (
-                <div className="grid gap-4 grid-cols-2">
-                  <YearlyRevenueChart data={yearlyData.months} year={yearlyData.year} />
-                  <YearlyAllocationChart data={yearlyData.months} year={yearlyData.year} />
-                </div>
-              )}
-
-              </>) : null}
-            </TabsContent>
-
-            {/* ── Financeiro ───────────────────────────────────────────────── */}
-            <TabsContent value="financial" className="space-y-6 mt-6">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : analyticsData ? (
-              <AnalyticsKPIs
-                revenueActual={analyticsData.revenueActual}
-                revenueProjected={analyticsData.revenueProjected}
-                revenueDiff={analyticsData.revenueDiff}
-                totalCosts={analyticsData.totalCosts}
-                taxesPercent={analyticsData.taxesPercent}
-                taxesValue={analyticsData.taxesValue}
-                commissionValue={analyticsData.commissionValue}
-                grossMargin={analyticsData.grossMargin}
-                grossMarginTarget={analyticsData.grossMarginTarget}
-              />
-              ) : null}
-            </TabsContent>
-
-            {/* ── Utilização & Custos ──────────────────────────────────────── */}
-            <TabsContent value="utilization" className="space-y-6 mt-6">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : analyticsData ? (<>
-              <div className="grid gap-4 grid-cols-2">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Horas Ociosas
-                    </CardTitle>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analyticsData.idleHours.toFixed(1)}h</div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {analyticsData.totalCapacity > 0
-                        ? `${formatPercent((analyticsData.idleHours / analyticsData.totalCapacity) * 100)} da capacidade total`
-                        : 'Sem capacidade no período'}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Custo da Ociosidade
-                    </CardTitle>
-                    <BanknoteIcon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(analyticsData.idleCost)}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Custo estimado das horas não alocadas
+                      Projetada: {formatCurrency(financialKPIs.revenueProjected)}
                     </p>
                   </CardContent>
                 </Card>
               </div>
 
-              <EmployeeUtilizationTable data={analyticsData.employeeUtilization} />
+              <RevenueComparisonChart data={financialMonths} year={financialEvolution.year} />
 
               <div className="grid gap-4 grid-cols-2">
-                <CostCompositionChart
-                  laborCost={analyticsData.laborCost}
-                  supplierCost={analyticsData.supplierCost}
-                  materialCost={analyticsData.materialCost}
+                <OverdueTable data={revenueData.overdueNFs} title="NFs Atrasadas para Emitir" emptyLabel="Nenhuma NF em atraso." />
+                <OverdueTable data={revenueData.overdueReceipts} title="Receitas Atrasadas para Receber" emptyLabel="Nenhuma receita em atraso." />
+              </div>
+
+              <div className="grid gap-4 grid-cols-3">
+                <RankingBarChart
+                  data={revenueData.byClient.map(d => ({ label: d.label, value: d.received }))}
+                  title="Receita por Cliente"
+                  color="hsl(220, 70%, 50%)"
                 />
-                <CostByProjectTable data={analyticsData.costsByProject} />
+                <RankingBarChart
+                  data={revenueData.byManager.map(d => ({ label: d.label, value: d.received }))}
+                  title="Receita por Gerente"
+                  color="hsl(152, 55%, 35%)"
+                />
+                <RankingBarChart
+                  data={revenueData.byServiceLine.map(d => ({ label: d.label, value: d.received }))}
+                  title="Receita por Linha de Serviço"
+                  color="hsl(38, 85%, 50%)"
+                />
               </div>
-              </>) : null}
-            </TabsContent>
+            </>) : null}
+          </TabsContent>
 
-            {/* ── Satisfação ───────────────────────────────────────────────── */}
-            <TabsContent value="satisfaction" className="space-y-6 mt-6">
-              {isStakeholderLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : stakeholderData ? (
-                <>
-                  <StakeholderKPIs
-                    total={stakeholderData.totals.total}
-                    promoters={stakeholderData.totals.promoters}
-                    neutrals={stakeholderData.totals.neutrals}
-                    detractors={stakeholderData.totals.detractors}
-                  />
-                  <StakeholderDistributionChart data={stakeholderData.byProject} />
-                  <DetractorAlertTable data={stakeholderData.highInfluenceDetractors} />
-                </>
-              ) : null}
-            </TabsContent>
+          {/* ── Impostos ─────────────────────────────────────────────────── */}
+          <TabsContent value="taxes" className="space-y-6 mt-6">
+            {isFinancialLoading ? financialLoader : financialKPIs && financialEvolution ? (<>
+              <TaxesOverview
+                taxesPercent={financialKPIs.taxesPercent}
+                taxesValue={financialKPIs.taxesValue}
+                faturado={financialKPIs.faturado}
+              />
+              <FinancialEvolutionChart data={financialMonths} year={financialEvolution.year} />
+            </>) : null}
+          </TabsContent>
 
-            {/* ── OKRs & Impacto ───────────────────────────────────────────── */}
-            <TabsContent value="okrs" className="space-y-6 mt-6">
-              {isOkrLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : okrData ? (
-                <>
-                  <OkrKPIs
-                    activeOkrs={okrData.totals.activeOkrs}
-                    avgProgress={okrData.totals.avgProgress}
-                    onTrack={okrData.totals.onTrack}
-                    atRisk={okrData.totals.atRisk}
-                    completed={okrData.totals.completed}
-                  />
-                  <OkrByProjectTable data={okrData.byProject} />
-                  <ConfidenceDistributionChart data={okrData.byProject} />
-                </>
-              ) : null}
-            </TabsContent>
+          {/* ── Custos ───────────────────────────────────────────────────── */}
+          <TabsContent value="costs" className="space-y-6 mt-6">
+            {(isFinancialLoading || isProjectFinancialsLoading) ? financialLoader : (financialKPIs && financialEvolution && projectFinancials) ? (<>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Custos Realizados</CardTitle>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(financialKPIs.totalCosts)}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Mão de obra, fornecedores, materiais, comissões e reembolsos
+                  </p>
+                </CardContent>
+              </Card>
+
+              <CostBreakdownChart data={financialMonths} year={financialEvolution.year} />
+
+              <div className="grid gap-4 grid-cols-2">
+                <RankingBarChart
+                  data={projectFinancials.byProject.slice(0, 8).map(d => ({ label: d.projectName, value: d.costs }))}
+                  title="Projetos com Maior Custo"
+                  color="hsl(0, 70%, 60%)"
+                />
+                <RankingBarChart
+                  data={projectFinancials.byClient.map(d => ({ label: d.label, value: d.costs }))}
+                  title="Custos por Cliente"
+                  color="hsl(0, 60%, 70%)"
+                />
+              </div>
+
+              <div className="grid gap-4 grid-cols-2">
+                <RankingBarChart
+                  data={projectFinancials.byManager.map(d => ({ label: d.label, value: d.costs }))}
+                  title="Custos por Gerente"
+                  color="hsl(25, 75%, 55%)"
+                />
+                <RankingBarChart
+                  data={projectFinancials.byServiceLine.map(d => ({ label: d.label, value: d.costs }))}
+                  title="Custos por Linha de Serviço"
+                  color="hsl(280, 55%, 55%)"
+                />
+              </div>
+            </>) : null}
+          </TabsContent>
+
+          {/* ── Margem Bruta ─────────────────────────────────────────────── */}
+          <TabsContent value="margin" className="space-y-6 mt-6">
+            {(isFinancialLoading || isProjectFinancialsLoading) ? financialLoader : (financialKPIs && financialEvolution && projectFinancials) ? (<>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Margem Bruta</CardTitle>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${
+                    financialKPIs.grossMarginTarget
+                      ? financialKPIs.grossMargin >= financialKPIs.grossMarginTarget
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : financialKPIs.grossMargin >= financialKPIs.grossMarginTarget * 0.5
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-red-600 dark:text-red-400'
+                      : ''
+                  }`}>
+                    {formatPercent(financialKPIs.grossMargin)}
+                  </div>
+                  {financialKPIs.grossMarginTarget !== null && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Meta: {formatPercent(financialKPIs.grossMarginTarget)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <FinancialEvolutionChart data={financialMonths} year={financialEvolution.year} />
+
+              <ProjectMarginTable
+                data={projectFinancials.byProject.map(p => ({
+                  id: p.projectId, label: p.projectName,
+                  revenue: p.revenue, costs: p.costs, taxes: p.taxes, grossMargin: p.grossMargin,
+                }))}
+                title="Margem por Projeto"
+                grossMarginTarget={projectFinancials.grossMarginTarget ?? undefined}
+              />
+
+              <div className="grid gap-4 grid-cols-3">
+                <ProjectMarginTable
+                  data={projectFinancials.byClient}
+                  title="Margem por Cliente"
+                  grossMarginTarget={projectFinancials.grossMarginTarget ?? undefined}
+                />
+                <ProjectMarginTable
+                  data={projectFinancials.byManager}
+                  title="Margem por Gerente"
+                  grossMarginTarget={projectFinancials.grossMarginTarget ?? undefined}
+                />
+                <ProjectMarginTable
+                  data={projectFinancials.byServiceLine}
+                  title="Margem por Linha de Serviço"
+                  grossMarginTarget={projectFinancials.grossMarginTarget ?? undefined}
+                />
+              </div>
+            </>) : null}
+          </TabsContent>
+
+          {/* ── Despesas Adm ─────────────────────────────────────────────── */}
+          <TabsContent value="admin-costs" className="space-y-6 mt-6">
+            {isAdminLoading ? financialLoader : adminActivities ? (<>
+              <AdminActivitiesChart data={adminActivities} />
+
+              {adminActivities.activityTypes.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Horas e Custos por Categoria</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-muted-foreground border-b">
+                          <th className="pb-2 pr-4 font-medium">Categoria</th>
+                          <th className="pb-2 pr-4 font-medium text-right">Custo Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adminActivities.activityTypes.map((type, idx) => {
+                          const totalCost = adminActivities.months.reduce(
+                            (s, m) => s + ((m[type.id] as number) || 0),
+                            0,
+                          );
+                          if (totalCost === 0) return null;
+                          return (
+                            <tr key={type.id} className="border-b last:border-0">
+                              <td className="py-2 pr-4 font-medium">{type.name}</td>
+                              <td className="py-2 text-right">{formatCurrency(totalCost)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+              )}
+            </>) : null}
+          </TabsContent>
+
+          {/* ── Satisfação ───────────────────────────────────────────────── */}
+          <TabsContent value="satisfaction" className="space-y-6 mt-6">
+            {isStakeholderLoading ? (
+              <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : stakeholderData ? (<>
+              <StakeholderKPIs
+                total={stakeholderData.totals.total}
+                promoters={stakeholderData.totals.promoters}
+                neutrals={stakeholderData.totals.neutrals}
+                detractors={stakeholderData.totals.detractors}
+              />
+              <StakeholderDistributionChart data={stakeholderData.byProject} />
+              <DetractorAlertTable data={stakeholderData.highInfluenceDetractors} />
+            </>) : null}
+          </TabsContent>
+
         </Tabs>
       </div>
     </AppLayout>

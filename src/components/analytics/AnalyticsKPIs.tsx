@@ -1,27 +1,27 @@
-import { DollarSign, TrendingDown, Target, Receipt, Handshake } from 'lucide-react';
+import { DollarSign, TrendingDown, Target, Receipt, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
 
 interface AnalyticsKPIsProps {
+  faturado: number;
   revenueActual: number;
   revenueProjected: number;
   revenueDiff: number;
   totalCosts: number;
   taxesPercent: number;
   taxesValue: number;
-  commissionValue: number;
   grossMargin: number;
   grossMarginTarget: number | null;
 }
 
 export function AnalyticsKPIs({
+  faturado,
   revenueActual,
   revenueProjected,
   revenueDiff,
   totalCosts,
   taxesPercent,
   taxesValue,
-  commissionValue,
   grossMargin,
   grossMarginTarget,
 }: AnalyticsKPIsProps) {
@@ -41,6 +41,22 @@ export function AnalyticsKPIs({
 
   return (
     <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+      {/* Faturamento */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Faturamento
+          </CardTitle>
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{formatCurrency(faturado)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            NFs emitidas no período
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Revenue */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -78,23 +94,7 @@ export function AnalyticsKPIs({
         </CardContent>
       </Card>
 
-      {/* Commission */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Comissão
-          </CardTitle>
-          <Handshake className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(commissionValue)}</div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Pago no período
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Costs */}
+      {/* Total Costs */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -104,6 +104,9 @@ export function AnalyticsKPIs({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCurrency(totalCosts)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Mão de obra, fornecedores, materiais, comissões e reembolsos
+          </p>
         </CardContent>
       </Card>
 
