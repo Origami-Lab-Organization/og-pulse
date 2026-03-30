@@ -866,7 +866,6 @@ export function AllocationOverview({
 
         setSaveDialogOpen(false);
         closeExpanded();
-      }
     } catch (error: unknown) {
       toast({ title: 'Erro ao salvar', description: error instanceof Error ? error.message : 'Não foi possível salvar as alterações.', variant: 'destructive' });
     } finally {
