@@ -1234,6 +1234,7 @@ export function AllocationOverview({
             employeeName={expandedRow.employeeName}
             isSaving={isSaving}
             onConfirm={handleConfirmSave}
+            mode={editMode}
           />
         )}
       </div>
