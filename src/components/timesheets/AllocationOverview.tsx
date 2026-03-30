@@ -1181,7 +1181,17 @@ export function AllocationOverview({
             employeeName={expandedRow.employeeName}
             isSaving={isSaving}
             onConfirm={handleConfirmSave}
-            mode={editMode}
+          />
+        )}
+
+        {/* Correction dialog */}
+        {correctionEmployeeId && tenantId && (
+          <AllocationCorrectionDialog
+            open={correctionDialogOpen}
+            onOpenChange={setCorrectionDialogOpen}
+            employeeId={correctionEmployeeId}
+            employeeName={correctionEmployeeName}
+            tenantId={tenantId}
           />
         )}
       </div>
