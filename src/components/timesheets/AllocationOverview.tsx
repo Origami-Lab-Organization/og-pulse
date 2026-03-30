@@ -364,11 +364,11 @@ export function AllocationOverview({
   const actualEditsMutation = useAllocationActualEdits(holidays);
 
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState<'planned' | 'actual'>('planned');
+  const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
+  const [correctionEmployeeId, setCorrectionEmployeeId] = useState<string | null>(null);
+  const [correctionEmployeeName, setCorrectionEmployeeName] = useState('');
   const [draftPlanned, setDraftPlanned] = useState<Record<string, number>>({});
   const [originalPlanned, setOriginalPlanned] = useState<Record<string, number>>({});
-  const [draftActual, setDraftActual] = useState<Record<string, number>>({});
-  const [originalActual, setOriginalActual] = useState<Record<string, number>>({});
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [editingCellInitialValue, setEditingCellInitialValue] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
