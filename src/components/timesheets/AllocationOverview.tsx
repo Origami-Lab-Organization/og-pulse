@@ -973,7 +973,7 @@ export function AllocationOverview({
     [expandedItems, draftPlanned]
   );
 
-  const totalColumns = 2 + MONTH_COLUMNS.length + 2;
+  const totalColumns = 2 + MONTH_COLUMNS.length;
 
   /* ─── Render ─── */
 
