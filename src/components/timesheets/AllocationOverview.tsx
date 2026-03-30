@@ -27,7 +27,7 @@ import { SERVICE_LINE_LABELS } from '@/types/lead';
 import { cn } from '@/lib/utils';
 import { AllocationHeatmapLegend } from './AllocationHeatmapLegend';
 import { AllocationEditableCell } from './AllocationEditableCell';
-import { AllocationKPIBar } from './AllocationKPIBar';
+
 import { AllocationSaveDialog, ChangeEntry } from './AllocationSaveDialog';
 
 /* ─── Constants ─── */
