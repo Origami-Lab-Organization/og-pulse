@@ -27,7 +27,7 @@ import { SERVICE_LINE_LABELS } from '@/types/lead';
 import { cn } from '@/lib/utils';
 import { AllocationHeatmapLegend } from './AllocationHeatmapLegend';
 import { AllocationEditableCell } from './AllocationEditableCell';
-import { AllocationKPIBar } from './AllocationKPIBar';
+
 import { AllocationSaveDialog, ChangeEntry } from './AllocationSaveDialog';
 
 /* ─── Constants ─── */
@@ -336,6 +336,7 @@ interface AllocationOverviewProps {
   filters: PlannerFilters;
   onStatusCountsChange?: (counts: StatusDualCounts) => void;
   onFilterOptionsChange?: (options: PlannerFilterOptions) => void;
+  onKPIDataChange?: (data: { counts: StatusDualCounts; total: number }) => void;
 }
 
 /* ─── Component ─── */
@@ -346,6 +347,7 @@ export function AllocationOverview({
   filters,
   onStatusCountsChange,
   onFilterOptionsChange,
+  onKPIDataChange,
 }: AllocationOverviewProps) {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
@@ -639,6 +641,7 @@ export function AllocationOverview({
   }, [rowsWithStatus]);
 
   useEffect(() => { onStatusCountsChange?.(counts); }, [counts, onStatusCountsChange]);
+  useEffect(() => { onKPIDataChange?.({ counts, total: rowsWithStatus.length }); }, [counts, rowsWithStatus.length, onKPIDataChange]);
 
   /* ─── Expanded row state ─── */
 
@@ -876,7 +879,7 @@ export function AllocationOverview({
     [expandedItems, draftPlanned]
   );
 
-  const totalColumns = 2 + MONTH_COLUMNS.length + 3;
+  const totalColumns = 2 + MONTH_COLUMNS.length + 2;
 
   /* ─── Render ─── */
 
@@ -891,9 +894,6 @@ export function AllocationOverview({
   return (
     <TooltipProvider>
       <div className="space-y-4">
-        {/* P2.1 — KPI cards */}
-        <AllocationKPIBar counts={counts} total={rowsWithStatus.length} />
-
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -944,8 +944,6 @@ export function AllocationOverview({
                       ))}
                       <TableHead className="text-center min-w-[110px]">Total Plan</TableHead>
                       <TableHead className="text-center min-w-[110px]">Total Real</TableHead>
-                      {/* P0.3 — Sticky right column */}
-                      <TableHead className="min-w-[200px] sticky right-0 z-20 bg-background shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1000,13 +998,6 @@ export function AllocationOverview({
 
                             <TableCell className="text-center font-medium">{row.totalPlanned > 0 ? fmt(row.totalPlanned) : '—'}</TableCell>
                             <TableCell className="text-center font-medium">{row.totalActual > 0 ? fmt(row.totalActual) : '—'}</TableCell>
-                            {/* P0.3 — Sticky */}
-                            <TableCell className="sticky right-0 z-10 bg-background shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]">
-                              <div className="flex flex-wrap gap-2">
-                                <Badge className={STATUS_STYLES[row.statusPlanned]}>Plan: {row.statusPlanned}</Badge>
-                                <Badge className={STATUS_STYLES[row.statusActual]}>Real: {row.statusActual}</Badge>
-                              </div>
-                            </TableCell>
                           </TableRow>
 
                           {/* ─── Expanded Panel ─── */}
