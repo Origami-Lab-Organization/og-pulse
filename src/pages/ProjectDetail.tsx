@@ -29,6 +29,7 @@ export default function ProjectDetail() {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
+  const isManager = employee?.is_gerente ?? false;
   const { data: project, isLoading } = useProject(id);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -94,6 +95,7 @@ export default function ProjectDetail() {
   const isCompleted = project.portfolio_stage === 'completed';
   const canEdit = isAdmin || !isCompleted;
   const isReadOnly = isCompleted && !isAdmin;
+  const canManageInstallments = (isAdmin || isManager) && !isReadOnly;
   const showValueBook = !isPlanning;
 
   return (
@@ -172,7 +174,7 @@ export default function ProjectDetail() {
             {isPlanning ? (
               <ProjectExpectedResultTab project={project} />
             ) : (
-              <ProjectFinancialTab project={project} isReadOnly={isReadOnly} />
+              <ProjectFinancialTab project={project} isReadOnly={isReadOnly} canManageInstallments={canManageInstallments} />
             )}
           </TabsContent>
 

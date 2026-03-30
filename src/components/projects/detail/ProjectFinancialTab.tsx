@@ -18,9 +18,10 @@ import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 interface ProjectFinancialTabProps {
   project: ProjectWithRelations;
   isReadOnly?: boolean;
+  canManageInstallments?: boolean;
 }
 
-export function ProjectFinancialTab({ project, isReadOnly = false }: ProjectFinancialTabProps) {
+export function ProjectFinancialTab({ project, isReadOnly = false, canManageInstallments = false }: ProjectFinancialTabProps) {
   const memberIds = useMemo(
     () => (project.members || []).map((m) => m.id),
     [project.members]
@@ -381,7 +382,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false }: ProjectFina
             installments={project.installments || []}
             projectId={project.id}
             isManualInstallments={project.service_line === 'financiamento_inovacao'}
-            isReadOnly={isReadOnly}
+            canManageInstallments={canManageInstallments}
           />
         </CardContent>
       </Card>

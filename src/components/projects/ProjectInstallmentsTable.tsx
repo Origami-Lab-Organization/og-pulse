@@ -41,7 +41,7 @@ interface ProjectInstallmentsTableProps {
   installments: ProjectInstallmentDB[];
   projectId: string;
   isManualInstallments?: boolean;
-  isReadOnly?: boolean;
+  canManageInstallments?: boolean;
 }
 
 const statusColors: Record<InstallmentStatus, string> = {
@@ -55,7 +55,7 @@ export function ProjectInstallmentsTable({
   installments,
   projectId,
   isManualInstallments = false,
-  isReadOnly = false,
+  canManageInstallments = false,
 }: ProjectInstallmentsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<{
@@ -127,8 +127,7 @@ export function ProjectInstallmentsTable({
       value: editData.value,
     };
 
-    // Include dueDate for manual installments
-    if (isManualInstallments && editData.dueDate) {
+    if (editData.dueDate) {
       updates.dueDate = editData.dueDate;
     }
 
@@ -173,7 +172,7 @@ export function ProjectInstallmentsTable({
     );
   };
 
-  if (installments.length === 0 && !isManualInstallments) {
+  if (installments.length === 0 && !isManualInstallments && !canManageInstallments) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         Nenhuma parcela cadastrada para este projeto.
@@ -183,7 +182,7 @@ export function ProjectInstallmentsTable({
 
   return (
     <div className="space-y-3">
-      {isManualInstallments && !isReadOnly && (
+      {canManageInstallments && (
         <div className="flex justify-end">
           <Button
             size="sm"
@@ -213,7 +212,7 @@ export function ProjectInstallmentsTable({
                 <TableHead>Data Emissão</TableHead>
                 <TableHead>Data Pagamento</TableHead>
                 {isManualInstallments && <TableHead>Descrição</TableHead>}
-                {!isReadOnly && <TableHead className="w-[100px]">Ações</TableHead>}
+                {canManageInstallments && <TableHead className="w-[100px]">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -310,7 +309,7 @@ export function ProjectInstallmentsTable({
                     )}
                   </TableCell>
                   <TableCell>
-                    {editingId === installment.id && isManualInstallments ? (
+                    {editingId === installment.id ? (
                       <Input
                         type="date"
                         value={editData.dueDate}
@@ -398,7 +397,7 @@ export function ProjectInstallmentsTable({
                       {installment.notes || '-'}
                     </TableCell>
                   )}
-                  {!isReadOnly && <TableCell>
+                  {canManageInstallments && <TableCell>
                     {editingId === installment.id ? (
                       <div className="flex gap-1">
                         <Button
@@ -427,15 +426,13 @@ export function ProjectInstallmentsTable({
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        {isManualInstallments && installment.status === 'pending' && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => setDeleteId(installment.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setDeleteId(installment.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     )}
                   </TableCell>}
