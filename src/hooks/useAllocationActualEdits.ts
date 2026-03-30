@@ -10,6 +10,8 @@ export interface ActualChangeEntry {
   type: 'project' | 'internal_activity';
   /** project_member_id for projects, activity_type_id for activities */
   referenceId: string;
+  /** project_id — required for project type */
+  projectId?: string;
   employeeId: string;
   month: number;
   year: number;
