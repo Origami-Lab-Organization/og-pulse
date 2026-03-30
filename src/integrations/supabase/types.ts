@@ -130,64 +130,6 @@ export type Database = {
           },
         ]
       }
-      activity_employee_months: {
-        Row: {
-          activity_type_id: string
-          created_at: string
-          employee_id: string
-          hours: number
-          id: string
-          month: number
-          tenant_id: string
-          updated_at: string
-          year: number
-        }
-        Insert: {
-          activity_type_id: string
-          created_at?: string
-          employee_id: string
-          hours?: number
-          id?: string
-          month: number
-          tenant_id: string
-          updated_at?: string
-          year: number
-        }
-        Update: {
-          activity_type_id?: string
-          created_at?: string
-          employee_id?: string
-          hours?: number
-          id?: string
-          month?: number
-          tenant_id?: string
-          updated_at?: string
-          year?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "activity_employee_months_activity_type_id_fkey"
-            columns: ["activity_type_id"]
-            isOneToOne: false
-            referencedRelation: "activity_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activity_employee_months_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activity_employee_months_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       activity_type_employees: {
         Row: {
           activity_type_id: string
