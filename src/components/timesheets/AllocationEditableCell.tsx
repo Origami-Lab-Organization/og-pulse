@@ -49,6 +49,7 @@ export function AllocationEditableCell({
   colIndex,
   rowIndex,
   onTabNavigate,
+  mode = 'planned',
 }: AllocationEditableCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const changed = Math.round(draft * 10) !== Math.round(original * 10);
