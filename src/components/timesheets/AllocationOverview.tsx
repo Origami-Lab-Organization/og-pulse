@@ -412,15 +412,32 @@ export function AllocationOverview({
         return { projects: [] as ProjectScope[], rows: [] as RawRow[], options: { teams: [], managers: [], projects: [] } as PlannerFilterOptions };
       }
 
-      const scopedProjects: ProjectScope[] = projectRows.map((p) => ({
-        id: p.id, name: p.name, startDate: p.start_date,
-        durationMonths: Number(p.duration_months) || 1,
-        isContinuous: Boolean(p.is_continuous),
-        managerId: p.manager_id,
-        managerName: p.manager?.nome || 'Sem gerente',
-        teamKey: p.service_line || '__sem_time__',
-        teamLabel: p.service_line ? (SERVICE_LINE_LABELS[p.service_line] || p.service_line) : 'Sem linha de serviço',
-      }));
+      // Resolve service_line UUIDs to names
+      const serviceLineIds = Array.from(new Set(projectRows.map((p) => p.service_line).filter(Boolean))) as string[];
+      let serviceNameMap = new Map<string, string>();
+      if (serviceLineIds.length > 0) {
+        const { data: services } = await supabase.from('services').select('id, name').in('id', serviceLineIds);
+        if (services) serviceNameMap = new Map(services.map((s: { id: string; name: string }) => [s.id, s.name]));
+      }
+
+      const resolveServiceLine = (raw: string | null): { key: string; label: string } => {
+        if (!raw) return { key: '__sem_time__', label: 'Sem linha de serviço' };
+        const name = serviceNameMap.get(raw) || SERVICE_LINE_LABELS[raw] || raw;
+        return { key: raw, label: name };
+      };
+
+      const scopedProjects: ProjectScope[] = projectRows.map((p) => {
+        const sl = resolveServiceLine(p.service_line);
+        return {
+          id: p.id, name: p.name, startDate: p.start_date,
+          durationMonths: Number(p.duration_months) || 1,
+          isContinuous: Boolean(p.is_continuous),
+          managerId: p.manager_id,
+          managerName: p.manager?.nome || 'Sem gerente',
+          teamKey: sl.key,
+          teamLabel: sl.label,
+        };
+      });
 
       const projectById = new Map<string, ProjectScope>(scopedProjects.map((p) => [p.id, p]));
 
@@ -956,7 +973,7 @@ export function AllocationOverview({
     [expandedItems, draftPlanned]
   );
 
-  const totalColumns = 2 + MONTH_COLUMNS.length + 2;
+  const totalColumns = 2 + MONTH_COLUMNS.length;
 
   /* ─── Render ─── */
 
@@ -1019,8 +1036,6 @@ export function AllocationOverview({
                           <div className="text-[10px] font-normal text-muted-foreground">Plan | Real</div>
                         </TableHead>
                       ))}
-                      <TableHead className="text-center min-w-[110px]">Total Plan</TableHead>
-                      <TableHead className="text-center min-w-[110px]">Total Real</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1073,8 +1088,6 @@ export function AllocationOverview({
                               );
                             })}
 
-                            <TableCell className="text-center font-medium">{row.totalPlanned > 0 ? fmt(row.totalPlanned) : '—'}</TableCell>
-                            <TableCell className="text-center font-medium">{row.totalActual > 0 ? fmt(row.totalActual) : '—'}</TableCell>
                           </TableRow>
 
                           {/* ─── Expanded Panel ─── */}
