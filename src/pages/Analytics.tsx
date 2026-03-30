@@ -14,6 +14,7 @@ import { CostBreakdownChart } from '@/components/analytics/CostBreakdownChart';
 import { AdminActivitiesChart } from '@/components/analytics/AdminActivitiesChart';
 import { OverdueTable } from '@/components/analytics/OverdueTable';
 import { RankingBarChart } from '@/components/analytics/RankingBarChart';
+import { DonutChart } from '@/components/analytics/DonutChart';
 import { ProjectMarginTable } from '@/components/analytics/ProjectMarginTable';
 import { TaxesOverview } from '@/components/analytics/TaxesOverview';
 import { StakeholderKPIs } from '@/components/analytics/StakeholderKPIs';
@@ -223,20 +224,17 @@ export default function Analytics() {
               </div>
 
               <div className="grid gap-4 grid-cols-3">
-                <RankingBarChart
+                <DonutChart
                   data={revenueData.byClient.map(d => ({ label: d.label, value: d.received }))}
                   title="Receita por Cliente"
-                  color="hsl(220, 70%, 50%)"
                 />
-                <RankingBarChart
+                <DonutChart
                   data={revenueData.byManager.map(d => ({ label: d.label, value: d.received }))}
                   title="Receita por Gerente"
-                  color="hsl(152, 55%, 35%)"
                 />
-                <RankingBarChart
+                <DonutChart
                   data={revenueData.byServiceLine.map(d => ({ label: d.label, value: d.received }))}
                   title="Receita por Linha de Serviço"
-                  color="hsl(38, 85%, 50%)"
                 />
               </div>
             </>) : null}

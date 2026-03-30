@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { format, parseISO, differenceInDays, startOfQuarter, endOfQuarter } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
@@ -44,9 +44,6 @@ export function useRevenueAnalytics(
   const startStr = format(filters.startDate, 'yyyy-MM-dd');
   const endStr = format(filters.endDate, 'yyyy-MM-dd');
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  // Rankings always span the full quarter containing the selected period end date
-  const quarterStartStr = format(startOfQuarter(filters.endDate), 'yyyy-MM-dd');
-  const quarterEndStr = format(endOfQuarter(filters.endDate), 'yyyy-MM-dd');
 
   return useQuery({
     queryKey: [
@@ -54,8 +51,6 @@ export function useRevenueAnalytics(
       tenantId,
       startStr,
       endStr,
-      quarterStartStr,
-      quarterEndStr,
       filters.clientId,
       filters.managerId,
       filters.projectId,
@@ -179,14 +174,13 @@ export function useRevenueAnalytics(
         if (!proj) continue;
 
         const value = Number(inst.value);
-        // Rankings use the full quarter containing the selected period
-        const inQuarterByDue = inst.due_date >= quarterStartStr && inst.due_date <= quarterEndStr;
-        const inQuarterByPayment = inst.payment_date && inst.payment_date >= quarterStartStr && inst.payment_date <= quarterEndStr;
-        const inQuarterByInvoice = inst.invoice_date && inst.invoice_date >= quarterStartStr && inst.invoice_date <= quarterEndStr;
+        const inPeriodByDue = inst.due_date >= startStr && inst.due_date <= endStr;
+        const inPeriodByPayment = inst.payment_date && inst.payment_date >= startStr && inst.payment_date <= endStr;
+        const inPeriodByInvoice = inst.invoice_date && inst.invoice_date >= startStr && inst.invoice_date <= endStr;
 
-        const received = inst.status === 'received' && inQuarterByPayment ? value : 0;
-        const planned = inQuarterByDue ? value : 0;
-        const faturado = ['invoiced', 'received'].includes(inst.status) && inst.invoice_date && inQuarterByInvoice ? value : 0;
+        const received = inst.status === 'received' && inPeriodByPayment ? value : 0;
+        const planned = inPeriodByDue ? value : 0;
+        const faturado = ['invoiced', 'received'].includes(inst.status) && inst.invoice_date && inPeriodByInvoice ? value : 0;
 
         if (received === 0 && planned === 0 && faturado === 0) continue;
 
