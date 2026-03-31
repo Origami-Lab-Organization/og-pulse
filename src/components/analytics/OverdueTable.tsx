@@ -1,6 +1,7 @@
-import { differenceInDays, parseISO, format } from 'date-fns';
+import { parseISO, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/formatters';
@@ -12,13 +13,9 @@ interface Props {
   emptyLabel?: string;
 }
 
-function urgencyBadge(daysOverdue: number) {
-  if (daysOverdue >= 30) return <Badge variant="destructive">{daysOverdue}d</Badge>;
-  if (daysOverdue >= 15) return <Badge className="bg-amber-500 text-white">{daysOverdue}d</Badge>;
-  return <Badge variant="secondary">{daysOverdue}d</Badge>;
-}
-
 export function OverdueTable({ data, title, emptyLabel = 'Nenhum item em atraso.' }: Props) {
+  const navigate = useNavigate();
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -48,7 +45,11 @@ export function OverdueTable({ data, title, emptyLabel = 'Nenhum item em atraso.
               </thead>
               <tbody>
                 {data.map((item, idx) => (
-                  <tr key={idx} className="border-b last:border-0">
+                  <tr
+                    key={idx}
+                    className="border-b last:border-0 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => navigate(`/projects/${item.projectId}?tab=financial`)}
+                  >
                     <td className="py-2 pr-3 font-medium truncate max-w-[140px]">{item.projectName}</td>
                     <td className="py-2 pr-3 text-muted-foreground truncate max-w-[120px]">{item.clientName}</td>
                     <td className="py-2 pr-3 text-muted-foreground truncate max-w-[120px]">{item.managerName}</td>
@@ -56,7 +57,9 @@ export function OverdueTable({ data, title, emptyLabel = 'Nenhum item em atraso.
                     <td className="py-2 pr-3 text-muted-foreground whitespace-nowrap">
                       {format(parseISO(item.dueDate), 'dd/MM/yyyy', { locale: ptBR })}
                     </td>
-                    <td className="py-2 text-right">{urgencyBadge(item.daysOverdue)}</td>
+                    <td className="py-2 text-right">
+                      <Badge variant="destructive">{item.daysOverdue}d</Badge>
+                    </td>
                   </tr>
                 ))}
               </tbody>
