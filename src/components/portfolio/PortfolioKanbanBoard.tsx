@@ -249,6 +249,7 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
                 label={column.label}
                 color={column.color}
                 projects={projectsByStage[column.id]}
+                onRemoveProject={onRemoveProject}
               />
             ))}
           </div>
