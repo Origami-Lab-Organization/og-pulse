@@ -16,7 +16,7 @@ interface PortfolioCardProps {
   onRemove?: (project: PortfolioProject) => void;
 }
 
-export function PortfolioCard({ project }: PortfolioCardProps) {
+export function PortfolioCard({ project, onRemove }: PortfolioCardProps) {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
