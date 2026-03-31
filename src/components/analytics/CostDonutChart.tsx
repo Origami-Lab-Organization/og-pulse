@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatCurrency, formatPercent } from '@/lib/formatters';
+import { formatCurrency } from '@/lib/formatters';
 
 const COLORS = [
   'hsl(220, 70%, 50%)',
@@ -36,27 +36,13 @@ const FILTERS: { value: FilterType; label: string }[] = [
   { value: 'serviceLine', label: 'Linha de Serviço' },
 ];
 
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
-  const entry = payload[0];
   return (
     <div className="rounded-lg border bg-popover px-3 py-2 text-sm shadow-md">
-      <p className="mb-1 font-medium">{entry.name}</p>
-      <p style={{ color: entry.payload.fill }}>{formatCurrency(entry.value)}</p>
+      <p className="mb-1 font-medium">{label}</p>
+      <p style={{ color: payload[0].fill }}>{formatCurrency(payload[0].value)}</p>
     </div>
-  );
-}
-
-function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
-  if (percent < 0.05) return null;
-  const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
-      {formatPercent(percent * 100)}
-    </text>
   );
 }
 
@@ -70,12 +56,14 @@ export function CostDonutChart({ byProject, byClient, byManager, byServiceLine }
     serviceLine: byServiceLine,
   };
 
-  const rawData = dataMap[filter];
-  const items = rawData
+  const items = dataMap[filter]
     .filter(d => d.value > 0)
     .sort((a, b) => b.value - a.value)
-    .slice(0, 8)
-    .map((d, i) => ({ name: d.label, value: d.value, fill: COLORS[i % COLORS.length] }));
+    .slice(0, 10)
+    .map((d, i) => ({ label: d.label, value: d.value, fill: COLORS[i % COLORS.length] }));
+
+  const maxLabelLen = Math.max(...items.map(d => d.label.length), 1);
+  const labelWidth = Math.min(Math.max(maxLabelLen * 7, 80), 180);
 
   return (
     <Card>
@@ -97,33 +85,33 @@ export function CostDonutChart({ byProject, byClient, byManager, byServiceLine }
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center">Sem dados no período.</p>
         ) : (
-          <div className="h-[300px]">
+          <div style={{ height: Math.max(items.length * 36 + 20, 120) }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={items}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius="40%"
-                  outerRadius="65%"
-                  paddingAngle={2}
-                  dataKey="value"
-                  labelLine={false}
-                  label={CustomLabel}
-                >
+              <BarChart data={items} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis
+                  type="number"
+                  tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                  tick={{ fontSize: 10 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={labelWidth}
+                  tickFormatter={(v: string) => v.length > 22 ? v.slice(0, 21) + '…' : v}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={22}>
                   {items.map((entry, idx) => (
                     <Cell key={idx} fill={entry.fill} />
                   ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  formatter={(value: string) => (
-                    <span className="text-xs text-foreground">{value}</span>
-                  )}
-                  iconSize={10}
-                  wrapperStyle={{ fontSize: 11 }}
-                />
-              </PieChart>
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}
