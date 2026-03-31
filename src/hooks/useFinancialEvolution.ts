@@ -92,7 +92,7 @@ export function useFinancialEvolution(
           isHighlighted: false,
           isPast: startOfMonth(new Date(year, i, 1)) <= new Date(),
           revenueReal: 0, revenuePlanned: 0, faturado: 0,
-          taxesValue: 0,
+          taxesValue: 0, taxesRealValue: null,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
           commissionCost: 0, reimbursementCost: 0,
           plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
