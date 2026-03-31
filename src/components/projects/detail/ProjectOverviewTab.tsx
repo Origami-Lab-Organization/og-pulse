@@ -245,7 +245,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
       </div>
 
       {/* Row 2: KPI Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {/* Receita */}
         <Card>
           <CardContent className="pt-4 pb-4 px-4">
