@@ -229,34 +229,6 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
           </CardContent>
         </Card>
 
-        {/* Impostos */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <Receipt className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Impostos</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.taxActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.taxPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.taxExecuted.toFixed(1)}%
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Comissão */}
         <Card>
           <CardContent className="pt-4 pb-4 px-4">
