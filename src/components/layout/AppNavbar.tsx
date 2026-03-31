@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -18,7 +19,9 @@ import {
   Inbox,
   UserSearch,
   FolderKanban,
-  ClipboardList
+  ClipboardList,
+  Menu,
+  ChevronDown
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -27,6 +30,17 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger
 } from "@/components/ui/navigation-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger
+} from "@/components/ui/sheet";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "./UserMenu";
 import logo from "@/assets/logo.png";
@@ -195,6 +209,7 @@ export function AppNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { employee } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
@@ -214,6 +229,13 @@ export function AppNavbar() {
     return filterItems(group.items).length > 0;
   };
 
+  const handleMobileNavigate = (url: string) => {
+    navigate(url);
+    setMobileMenuOpen(false);
+  };
+
+  const visibleGroups = navigationGroups.filter(isGroupVisible);
+
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center border-b bg-background px-4 gap-4">
       {/* Logo */}
@@ -225,10 +247,10 @@ export function AppNavbar() {
         <span className="font-semibold text-foreground text-lg">Pulse</span>
       </button>
 
-      {/* Navigation */}
-      <NavigationMenu className="flex-1 max-w-none">
+      {/* Desktop Navigation */}
+      <NavigationMenu className="hidden md:flex flex-1 max-w-none">
         <NavigationMenuList className="gap-0">
-          {navigationGroups.filter(isGroupVisible).map((group) => {
+          {visibleGroups.map((group) => {
             const visibleItems = filterItems(group.items);
             const isRegularUserPersonalGroup =
               group.label === "Meu Espaço" && !isManager && !isAdmin;
@@ -321,9 +343,101 @@ export function AppNavbar() {
         </NavigationMenuList>
       </NavigationMenu>
 
+      {/* Spacer on mobile */}
+      <div className="flex-1 md:hidden" />
+
       {/* Right side */}
       <div className="flex items-center gap-1 shrink-0">
         <UserMenu />
+
+        {/* Mobile hamburger */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="md:hidden">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Abrir menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 p-0">
+            <div className="flex items-center gap-2 px-4 py-4 border-b">
+              <img src={logo} alt="Pulse" className="h-7 w-7" />
+              <span className="font-semibold text-foreground text-lg">Pulse</span>
+            </div>
+            <nav className="overflow-y-auto h-[calc(100%-57px)]">
+              {visibleGroups.map((group) => {
+                const visibleItems = filterItems(group.items);
+                const isRegularUserPersonalGroup =
+                  group.label === "Meu Espaço" && !isManager && !isAdmin;
+
+                if (isRegularUserPersonalGroup) {
+                  return (
+                    <div key={group.label} className="px-2 py-2">
+                      <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        {group.label}
+                      </p>
+                      {visibleItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.title}
+                            disabled={item.disabled}
+                            onClick={() => !item.disabled && handleMobileNavigate(item.url)}
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
+                              isActive(item.url)
+                                ? "bg-accent text-accent-foreground font-medium"
+                                : "hover:bg-accent/50 text-foreground",
+                              item.disabled && "opacity-50 cursor-not-allowed"
+                            )}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span>{item.title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={group.label} className="px-2 py-2">
+                    <Collapsible defaultOpen>
+                      <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
+                        {group.label}
+                        <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 [&[data-state=open]>svg]:rotate-180" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        {visibleItems.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <button
+                              key={item.title}
+                              disabled={item.disabled}
+                              onClick={() => !item.disabled && handleMobileNavigate(item.url)}
+                              className={cn(
+                                "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
+                                isActive(item.url)
+                                  ? "bg-accent text-accent-foreground font-medium"
+                                  : "hover:bg-accent/50 text-foreground",
+                                item.disabled && "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              <Icon className="h-4 w-4 shrink-0" />
+                              <span>{item.title}</span>
+                              {item.disabled && (
+                                <span className="ml-auto text-[10px] text-muted-foreground">Em breve</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                );
+              })}
+            </nav>
+          </SheetContent>
+        </Sheet>
       </div>
     </header>
   );

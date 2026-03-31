@@ -125,7 +125,8 @@ export default function ProjectDetail() {
         )}
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className={`grid w-full ${showValueBook ? 'grid-cols-8' : 'grid-cols-7'} lg:w-auto lg:inline-flex`}>
+          <div className="overflow-x-auto">
+          <TabsList className="inline-flex w-max">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="okrs">OKR</TabsTrigger>
             <TabsTrigger value="costs">Custos</TabsTrigger>
@@ -137,6 +138,7 @@ export default function ProjectDetail() {
               <TabsTrigger value="valuebook">Value Book</TabsTrigger>
             )}
           </TabsList>
+          </div>
 
           <TabsContent value="overview" className="mt-6">
             {isPlanning ? (

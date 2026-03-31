@@ -88,7 +88,7 @@ export const TerminationEditDialog = ({ open, onOpenChange, termination }: Termi
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Data de Desligamento</Label>
               <Input type="date" value={terminationDate} onChange={(e) => setTerminationDate(e.target.value)} />
@@ -116,7 +116,7 @@ export const TerminationEditDialog = ({ open, onOpenChange, termination }: Termi
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Descreva o motivo..." />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Dias de Aviso Prévio</Label>
               <Input type="number" min={0} value={noticePeriodDays} onChange={(e) => setNoticePeriodDays(Number(e.target.value))} />

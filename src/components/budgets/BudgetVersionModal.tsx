@@ -49,7 +49,7 @@ export function BudgetVersionModal({ version, open, onClose }: BudgetVersionModa
         <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
           <div className="space-y-6">
             {/* Header info */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Título</p>
                 <p className="font-medium">{snapshot.title}</p>

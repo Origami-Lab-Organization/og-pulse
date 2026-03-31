@@ -142,15 +142,17 @@ export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid grid-cols-3 gap-4 h-[calc(100vh-220px)]">
-        {CRM_COLUMNS.map((column) => (
-          <KanbanColumn
-            key={column.id}
-            column={column}
-            budgets={budgetsByStatus[column.id] || []}
-            activeId={activeId}
-          />
-        ))}
+      <div className="overflow-x-auto pb-2">
+        <div className="grid grid-cols-[repeat(3,minmax(240px,1fr))] gap-4 h-[calc(100vh-220px)]">
+          {CRM_COLUMNS.map((column) => (
+            <KanbanColumn
+              key={column.id}
+              column={column}
+              budgets={budgetsByStatus[column.id] || []}
+              activeId={activeId}
+            />
+          ))}
+        </div>
       </div>
 
       <DragOverlay>

@@ -475,7 +475,7 @@ export function CloseBusinessDialog({
             />
 
             {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="startDate"
@@ -602,7 +602,7 @@ export function CloseBusinessDialog({
             {/* Invoice/payment fields — only for fixed_scope with budget */}
             {showInstallmentFields && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="paymentMethod"
@@ -643,7 +643,7 @@ export function CloseBusinessDialog({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="firstInvoiceDate"
@@ -693,7 +693,7 @@ export function CloseBusinessDialog({
 
             {/* Continuous with budget: invoice config */}
             {isContinuous && hasBudget && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="firstInvoiceDate"
@@ -725,7 +725,7 @@ export function CloseBusinessDialog({
 
             <Separator />
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
               <Button
                 type="button"
                 variant="outline"

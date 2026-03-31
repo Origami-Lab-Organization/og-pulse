@@ -18,8 +18,8 @@ export function DataTablePagination<TData>({
   table,
 }: DataTablePaginationProps<TData>) {
   return (
-    <div className="flex items-center justify-between px-2">
-      <div className="flex-1 text-sm text-muted-foreground">
+    <div className="flex flex-wrap items-center justify-between gap-2 px-2">
+      <div className="text-sm text-muted-foreground">
         Mostrando {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} a{' '}
         {Math.min(
           (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
@@ -27,7 +27,7 @@ export function DataTablePagination<TData>({
         )}{' '}
         de {table.getFilteredRowModel().rows.length} registro(s)
       </div>
-      <div className="flex items-center space-x-6 lg:space-x-8">
+      <div className="flex flex-wrap items-center gap-4 lg:gap-8">
         <div className="flex items-center space-x-2">
           <p className="text-sm font-medium">Por página</p>
           <Select

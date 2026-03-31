@@ -222,7 +222,7 @@ export function PayrollProfileSettingsForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="inssPatronalProlaboreRate">INSS Patronal (%)</Label>
               <div className="relative">

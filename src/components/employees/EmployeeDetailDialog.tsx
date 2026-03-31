@@ -98,7 +98,7 @@ export function EmployeeDetailDialog({
           </TabsList>
 
           <TabsContent value="info" className="mt-4 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card>
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-3">
@@ -166,7 +166,7 @@ export function EmployeeDetailDialog({
           </TabsContent>
 
           <TabsContent value="financial" className="mt-4 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card>
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-3">
@@ -224,7 +224,7 @@ export function EmployeeDetailDialog({
               </Card>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-3">

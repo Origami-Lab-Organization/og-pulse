@@ -130,7 +130,7 @@ export function CandidateFormSheet({ open, onOpenChange }: CandidateFormSheetPro
     <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent
         side="right"
-        className="flex flex-col p-0 sm:max-w-none w-[30vw] min-w-[380px]"
+        className="flex flex-col p-0 w-full sm:max-w-none sm:w-[40vw] sm:min-w-[420px]"
       >
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
           <SheetTitle className="text-lg pr-6">Adicionar Candidato</SheetTitle>
@@ -160,7 +160,7 @@ export function CandidateFormSheet({ open, onOpenChange }: CandidateFormSheetPro
                 />
 
                 {/* Email + Telefone */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="email"
@@ -291,7 +291,7 @@ export function CandidateFormSheet({ open, onOpenChange }: CandidateFormSheetPro
               </div>
             </ScrollArea>
 
-            <SheetFooter className="px-6 py-4 border-t border-border shrink-0 flex flex-row items-center justify-between sm:justify-between gap-2">
+            <SheetFooter className="px-6 py-4 border-t border-border shrink-0 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2">
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancelar
               </Button>

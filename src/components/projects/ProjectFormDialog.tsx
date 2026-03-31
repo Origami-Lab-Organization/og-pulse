@@ -273,7 +273,7 @@ export function ProjectFormDialog({
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="clientId"
@@ -359,7 +359,7 @@ export function ProjectFormDialog({
                 />
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="startDate"
@@ -497,7 +497,7 @@ export function ProjectFormDialog({
                   />
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="firstInvoiceDate"
@@ -546,7 +546,7 @@ export function ProjectFormDialog({
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">
               <Button
                 type="button"
                 variant="outline"

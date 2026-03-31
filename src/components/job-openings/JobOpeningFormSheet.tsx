@@ -285,7 +285,7 @@ export function JobOpeningFormSheet({
     <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent
         side="right"
-        className="flex flex-col p-0 sm:max-w-none w-[55vw] min-w-[540px]"
+        className="flex flex-col p-0 w-full sm:max-w-none sm:w-[55vw] sm:min-w-[540px]"
       >
         <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <SheetTitle className="text-lg pr-6">
@@ -324,7 +324,7 @@ export function JobOpeningFormSheet({
                 />
 
                 {/* Área + Regime */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="area"
@@ -381,7 +381,7 @@ export function JobOpeningFormSheet({
                 </div>
 
                 {/* Modalidade + Localização */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="modalidade"
@@ -454,7 +454,7 @@ export function JobOpeningFormSheet({
                     />
                   </div>
                   {!naoSalario && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <FormField
                         control={form.control}
                         name="salario_de"
@@ -778,16 +778,17 @@ export function JobOpeningFormSheet({
             </div>
 
             {/* Footer */}
-            <SheetFooter className="px-6 py-4 border-t shrink-0 flex flex-row items-center justify-between sm:justify-between gap-2">
+            <SheetFooter className="px-6 py-4 border-t shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={handleClose}
                 disabled={isPending}
+                className="w-full sm:w-auto"
               >
                 Cancelar
               </Button>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"

@@ -157,7 +157,7 @@ const MaterialFormDialog = ({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="category"
@@ -209,7 +209,7 @@ const MaterialFormDialog = ({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="unitCost"
@@ -284,7 +284,7 @@ const MaterialFormDialog = ({
               )}
             />
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
               <Button
                 type="button"
                 variant="outline"

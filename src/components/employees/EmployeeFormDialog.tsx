@@ -695,7 +695,7 @@ const EmployeeFormDialog = ({
         />
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="nome"
@@ -855,7 +855,7 @@ const EmployeeFormDialog = ({
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Tipo e Jornada */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="tipoContratacao"
@@ -912,7 +912,7 @@ const EmployeeFormDialog = ({
           {/* Valores - Dinâmico por tipo */}
           <div>
             <h4 className="text-sm font-medium mb-3">Valores</h4>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* CLT / Menor Aprendiz: Salário Bruto */}
               {(tipoContratacao === 'CLT' || tipoContratacao === 'MENOR_APRENDIZ') && (
                 <FormField
@@ -1037,7 +1037,7 @@ const EmployeeFormDialog = ({
                 {showCharges && (
                   <div className="mb-4">
                     <p className="text-xs font-medium text-muted-foreground mb-2">Encargos sobre Salário</p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormItem>
                         <FormLabel>FGTS ({tipoContratacao === 'MENOR_APRENDIZ' ? '2%' : '8%'})</FormLabel>
                         <Input disabled value={formatCurrency(costBreakdown?.details.fgts || 0)} className="bg-muted" />
@@ -1056,7 +1056,7 @@ const EmployeeFormDialog = ({
                 {showProvisions && tipoContratacao !== 'SOCIO' && (
                   <div className="mb-4">
                     <p className="text-xs font-medium text-muted-foreground mb-2">Provisões Mensais</p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {tipoContratacao === 'ESTAGIO' ? (
                         <FormItem>
                           <FormLabel>Provisão Recesso 1/12</FormLabel>
@@ -1086,7 +1086,7 @@ const EmployeeFormDialog = ({
                 {showCharges && showProvisions && tipoContratacao !== 'ESTAGIO' && tipoContratacao !== 'SOCIO' && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Encargos sobre Provisões</p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormItem>
                         <FormLabel>FGTS 13º (prov)</FormLabel>
                         <Input disabled value={formatCurrency(costBreakdown?.details.fgts13 || 0)} className="bg-muted" />

@@ -405,7 +405,7 @@ export default function CRM() {
         ) : activeTab === 'active' && displayMode === 'kanban' ? (
           <LeadKanbanBoard leads={activeLeads} searchTerm={searchTerm} />
         ) : activeTab === 'active' ? (
-          <div className="rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -501,7 +501,7 @@ export default function CRM() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-md border">
+            <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>

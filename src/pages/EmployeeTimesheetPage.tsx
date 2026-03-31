@@ -384,6 +384,7 @@ export default function EmployeeTimesheetPage() {
                     ))}
                   </div>
                 ) : (
+                  <div className="overflow-x-auto">
                   <TimesheetByEmployee
                     employees={employeeData}
                     weekDays={weekDays}
@@ -395,6 +396,7 @@ export default function EmployeeTimesheetPage() {
                     onAdminSaveEdit={handleAdminInlineSave}
                     isSavingEdit={adminBatchEdit.isPending}
                   />
+                  </div>
                 )}
               </>
             )}

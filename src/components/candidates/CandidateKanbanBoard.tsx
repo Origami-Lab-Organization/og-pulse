@@ -77,7 +77,8 @@ export function CandidateKanbanBoard({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-4 gap-4 h-full">
+        <div className="overflow-x-auto pb-2">
+        <div className="grid grid-cols-[repeat(4,minmax(220px,1fr))] gap-4 h-[calc(100vh-220px)]">
           {COLUMNS.map(({ id, color }) => (
             <CandidateKanbanColumn
               key={id}
@@ -88,6 +89,7 @@ export function CandidateKanbanBoard({
               onCardClick={handleCardClick}
             />
           ))}
+        </div>
         </div>
 
         <DragOverlay>

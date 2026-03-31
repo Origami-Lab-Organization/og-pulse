@@ -168,7 +168,7 @@ export function HolidayFormDialog({ open, onOpenChange, holiday }: HolidayFormDi
             />
 
             {holidayType === 'fixed' && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="fixed_day"
@@ -234,7 +234,7 @@ export function HolidayFormDialog({ open, onOpenChange, holiday }: HolidayFormDi
               />
             )}
 
-            <div className="flex justify-end gap-2 pt-4">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
