@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity, Bell } from 'lucide-react';
+import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity, Bell, Landmark } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { PayrollProfileSettingsForm } from '@/components/settings/PayrollProfile
 import { HolidaysSettingsForm } from '@/components/settings/HolidaysSettingsForm';
 import { ActivityTypesSettings } from '@/components/settings/ActivityTypesSettings';
 import { TimesheetReminderSettings } from '@/components/admin/TimesheetReminderSettings';
+import { TaxEntriesManager } from '@/components/settings/TaxEntriesManager';
 import { RoleRatesTable } from '@/components/pricing/RoleRatesTable';
 import { RoleRateFormDialog } from '@/components/pricing/RoleRateFormDialog';
 import { DeleteRoleRateDialog } from '@/components/pricing/DeleteRoleRateDialog';
