@@ -1,9 +1,10 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Edit, Trash2, Lock } from 'lucide-react';
+import { Edit, Lock, Trash2, MoreVertical, Archive } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ProjectHeader } from '@/components/projects/detail/ProjectHeader';
@@ -127,20 +128,32 @@ export default function ProjectDetail() {
         { label: project.name },
       ]}
       actions={
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Button variant="outline" size="sm" onClick={() => setRemoveDialogOpen(true)} className="text-destructive hover:text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Remover
-            </Button>
-          )}
-          {canEdit && (
-            <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-              <Edit className="mr-2 h-4 w-4" />
-              Editar
-            </Button>
-          )}
-        </div>
+        (canEdit || isAdmin) ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canEdit && (
+                <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Editar
+                </DropdownMenuItem>
+              )}
+              {isAdmin && (
+                <DropdownMenuItem
+                  onClick={() => setRemoveDialogOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir / Arquivar
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : undefined
       }
     >
       <div className="space-y-6">
