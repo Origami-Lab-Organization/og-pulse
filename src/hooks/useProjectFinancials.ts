@@ -263,12 +263,32 @@ export function useProjectFinancials(
         taxEntries = await taxEntryService.getByPaymentDateRange(tenantId, startStr, endStr);
       } catch { /* ignore */ }
 
-      // Build per-month faturado using ALL tenant projects for accurate denominator
-      const monthlyRevenueByProject = new Map<string, Map<string, number>>(); // month -> (projectId -> faturado)
-      const monthlyRevenueTotal = new Map<string, number>(); // month -> total faturado (ALL projects)
+      // Build per-month faturado using ALL tenant projects for accurate proration
+      // For each tax entry, we need faturado from its reference_month (not the payment period)
+      const allRefMonths = new Set(taxEntries.map(te => te.reference_month));
       
-      // Use ALL tenant projects' faturamento for the denominator
-      for (const r of (faturadoAllRes.data || []) as any[]) {
+      // Fetch faturado for reference months if different from filter period
+      let refMonthFaturadoData: any[] = [];
+      if (allRefMonths.size > 0) {
+        const refMonthsArr = [...allRefMonths];
+        const minRef = refMonthsArr.sort()[0];
+        const maxRef = refMonthsArr.sort().reverse()[0];
+        const maxRefEnd = format(endOfMonth(parseISO(maxRef)), 'yyyy-MM-dd');
+        const { data } = await supabase
+          .from('project_installments')
+          .select('project_id, value, invoice_date')
+          .in('project_id', allTenantProjectIds)
+          .in('status', ['invoiced', 'received'])
+          .not('invoice_date', 'is', null)
+          .gte('invoice_date', minRef)
+          .lte('invoice_date', maxRefEnd);
+        refMonthFaturadoData = (data || []) as any[];
+      }
+
+      const monthlyRevenueByProject = new Map<string, Map<string, number>>();
+      const monthlyRevenueTotal = new Map<string, number>();
+      
+      for (const r of refMonthFaturadoData) {
         if (!r.invoice_date) continue;
         const invoiceDate = parseISO(r.invoice_date);
         const monthKey = format(startOfMonth(invoiceDate), 'yyyy-MM-dd');
