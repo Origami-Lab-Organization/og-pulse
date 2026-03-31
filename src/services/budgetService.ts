@@ -202,14 +202,15 @@ export const budgetService = {
     });
   },
 
-  async getById(id: string): Promise<BudgetWithDetails | null> {
-    const { data, error } = await fromTable('budgets')
+  async getById(id: string, tenantId?: string): Promise<BudgetWithDetails | null> {
+    let query = fromTable('budgets')
       .select(`
         *,
         client:clients(id, company_name, trading_name)
       `)
-      .eq('id', id)
-      .maybeSingle();
+      .eq('id', id);
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    const { data, error } = await query.maybeSingle();
 
     if (error) {
       console.error('Error fetching budget:', error);

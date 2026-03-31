@@ -17,12 +17,10 @@ export const materialService = {
     return data || [];
   },
 
-  async getById(id: string): Promise<MaterialDB | null> {
-    const { data, error } = await supabase
-      .from('materials')
-      .select('*')
-      .eq('id', id)
-      .single();
+  async getById(id: string, tenantId?: string): Promise<MaterialDB | null> {
+    let query = supabase.from('materials').select('*').eq('id', id);
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    const { data, error } = await query.single();
 
     if (error) {
       console.error('Error fetching material:', error);

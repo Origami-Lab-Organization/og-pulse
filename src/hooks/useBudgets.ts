@@ -16,10 +16,12 @@ export function useBudgets() {
 }
 
 export function useBudget(id: string | null) {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
   return useQuery({
     queryKey: ['budget', id],
-    queryFn: () => budgetService.getById(id!),
-    enabled: !!id,
+    queryFn: () => budgetService.getById(id!, tenantId),
+    enabled: !!id && !!tenantId,
   });
 }
 

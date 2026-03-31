@@ -100,12 +100,10 @@ export const employeeService = {
     return (data || []) as (EmployeeDB & { employee_tools: { monthly_cost: number }[], employee_benefits: { monthly_value: number }[] })[];
   },
 
-  async getById(id: string): Promise<EmployeeDB | null> {
-    const { data, error } = await supabase
-      .from('employees')
-      .select('*')
-      .eq('id', id)
-      .single();
+  async getById(id: string, tenantId?: string): Promise<EmployeeDB | null> {
+    let query = supabase.from('employees').select('*').eq('id', id);
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    const { data, error } = await query.single();
 
     if (error) {
       console.error('Error fetching employee:', error);

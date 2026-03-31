@@ -27,12 +27,10 @@ export const roleRateService = {
     return (data || []) as RoleRateDB[];
   },
 
-  async getById(id: string): Promise<RoleRateDB | null> {
-    const { data, error } = await supabase
-      .from('role_rates')
-      .select('*')
-      .eq('id', id)
-      .single();
+  async getById(id: string, tenantId?: string): Promise<RoleRateDB | null> {
+    let query = supabase.from('role_rates').select('*').eq('id', id);
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    const { data, error } = await query.single();
 
     if (error) {
       if (error.code === 'PGRST116') return null;

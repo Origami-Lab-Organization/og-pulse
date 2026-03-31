@@ -17,12 +17,10 @@ export const clientService = {
     return data || [];
   },
 
-  async getById(id: string): Promise<ClientDB | null> {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', id)
-      .single();
+  async getById(id: string, tenantId?: string): Promise<ClientDB | null> {
+    let query = supabase.from('clients').select('*').eq('id', id);
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    const { data, error } = await query.single();
 
     if (error) {
       console.error('Error fetching client:', error);

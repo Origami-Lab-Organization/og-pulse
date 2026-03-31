@@ -27,10 +27,12 @@ export function useActiveRoleRates() {
 }
 
 export function useRoleRate(id: string | null) {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
   return useQuery({
     queryKey: ['role-rate', id],
-    queryFn: () => roleRateService.getById(id!),
-    enabled: !!id,
+    queryFn: () => roleRateService.getById(id!, tenantId),
+    enabled: !!id && !!tenantId,
   });
 }
 

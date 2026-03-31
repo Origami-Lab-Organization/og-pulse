@@ -27,10 +27,12 @@ export const useProjects = () => {
 };
 
 export const useProject = (id: string | undefined) => {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
   return useQuery({
     queryKey: ['project', id],
-    queryFn: () => projectService.getById(id!),
-    enabled: !!id,
+    queryFn: () => projectService.getById(id!, tenantId),
+    enabled: !!id && !!tenantId,
   });
 };
 

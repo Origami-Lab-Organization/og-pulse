@@ -33,12 +33,10 @@ export const subscriptionService = {
     return data || [];
   },
 
-  async getById(id: string): Promise<SubscriptionDB | null> {
-    const { data, error } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
+  async getById(id: string, tenantId?: string): Promise<SubscriptionDB | null> {
+    let query = supabase.from('subscriptions').select('*').eq('id', id);
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    const { data, error } = await query.maybeSingle();
 
     if (error) {
       console.error('Error fetching subscription:', error);

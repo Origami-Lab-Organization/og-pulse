@@ -94,16 +94,17 @@ export const projectService = {
     return (data || []) as unknown as ProjectWithRelations[];
   },
 
-  async getById(id: string): Promise<ProjectWithRelations | null> {
-    const { data, error } = await supabase
+  async getById(id: string, tenantId?: string): Promise<ProjectWithRelations | null> {
+    let query = supabase
       .from('projects')
       .select(`
         *,
         client:clients(id, company_name, trading_name),
         manager:employees!projects_manager_id_fkey(id, nome, cargo)
       `)
-      .eq('id', id)
-      .single();
+      .eq('id', id);
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    const { data, error } = await query.single();
 
     if (error) {
       console.error('Error fetching project:', error);
