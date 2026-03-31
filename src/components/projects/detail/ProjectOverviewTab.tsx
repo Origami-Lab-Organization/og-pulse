@@ -121,8 +121,8 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     const costActual = costData.totalActual;
     const costExecuted = costPlanned > 0 ? (costActual / costPlanned) * 100 : 0;
 
-    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - taxPlanned - commissionPlanned - costPlanned) / revenuePlanned) * 100 : 0;
-    const marginActual = revenueActual > 0 ? ((revenueActual - taxActual - commissionActual - costActual) / revenueActual) * 100 : 0;
+    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - commissionPlanned - costPlanned) / revenuePlanned) * 100 : 0;
+    const marginActual = revenueActual > 0 ? ((revenueActual - commissionActual - costActual) / revenueActual) * 100 : 0;
     const marginVar = marginActual - marginPlanned;
 
     return {
