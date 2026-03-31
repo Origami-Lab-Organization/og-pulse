@@ -389,9 +389,13 @@ export function TaxEntriesManager() {
                 name="total_value"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor Total da DAE (R$)</FormLabel>
+                    <FormLabel>Valor Total da DAE</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" min="0" {...field} />
+                      <CurrencyInput
+                        showPrefix
+                        value={field.value || 0}
+                        onValueChange={(val) => field.onChange(val)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
