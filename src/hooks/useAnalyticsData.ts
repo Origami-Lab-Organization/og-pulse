@@ -207,6 +207,8 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const installments = installmentsRes.data || [];
       const projectedInstallments = projectedInstallmentsRes.data || [];
+      const faturadoInstallments = (faturadoRes.data || []) as any[];
+      const faturado = faturadoInstallments.reduce((sum: number, i: any) => sum + Number(i.value), 0);
       const timesheets = timesheetsRes.data || [];
       const members = (membersRes.data || []) as any[];
       const projectSuppliersWithActuals = (suppliersRes.data || []) as any[];
