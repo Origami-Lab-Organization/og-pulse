@@ -110,15 +110,6 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     const revenueActual = metrics.receivedValue;
     const revenueExecuted = revenuePlanned > 0 ? (revenueActual / revenuePlanned) * 100 : 0;
 
-    // Taxes
-    const taxRate = financialSettings?.taxes_percent ?? 0;
-    const invoicedTotal = (project.installments || [])
-      .filter((i) => i.status === 'invoiced' || i.status === 'received')
-      .reduce((sum, i) => sum + Number(i.value), 0);
-    const taxPlanned = revenuePlanned * taxRate / 100;
-    const taxActual = invoicedTotal * taxRate / 100;
-    const taxExecuted = taxPlanned > 0 ? (taxActual / taxPlanned) * 100 : 0;
-
     // Commission
     const commissionPlanned = budget
       ? (budget.commission_percent / 100) * budget.total_with_fees
