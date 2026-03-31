@@ -83,11 +83,6 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
               Receita Total
             </div>
             <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
-            {taxesPercent > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Impostos ({taxesPercent}%): {formatCurrency(taxes)}
-              </p>
-            )}
           </CardContent>
         </Card>
 
