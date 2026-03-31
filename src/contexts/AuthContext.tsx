@@ -117,8 +117,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const employeeData = await fetchEmployeeData(session.user.id);
+        const employeeData = await fetchEmployeeData(session.user.id, { signOutIfInactive: true });
         setEmployee(employeeData);
+        if (!employeeData) {
+          setUser(null);
+          setSession(null);
+        }
       }
 
       setLoading(false);
