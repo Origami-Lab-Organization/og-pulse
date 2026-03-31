@@ -416,8 +416,8 @@ export const projectService = {
     if ((commissionCount ?? 0) > 0) return true;
 
     // Check key results
-    const { count: krCount } = await supabase
-      .from('project_key_results')
+    const { count: krCount } = await (supabase
+      .from('project_key_results') as any)
       .select('*', { count: 'exact', head: true })
       .eq('project_id', projectId);
     if ((krCount ?? 0) > 0) return true;
