@@ -46,6 +46,7 @@ export interface AnalyticsData {
   reimbursementCost: number;
   taxesPercent: number;
   taxesValue: number;
+  taxesRealValue: number | null; // sum of DAE entries in period, null if none
   commissionValue: number;
   grossMargin: number; // percentage
   grossMarginTarget: number | null;
