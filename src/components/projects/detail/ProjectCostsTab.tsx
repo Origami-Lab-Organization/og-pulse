@@ -77,7 +77,6 @@ interface FinancialSummaryCardProps {
   totalPlannedCost: number;
   totalBudgetedCost: number;
   contractValue: number;
-  taxesPercent: number;
   grossMarginTarget: number;
   isPlanningMode: boolean;
   totalActualCost: number;
@@ -87,7 +86,6 @@ function FinancialSummaryCard({
   totalPlannedCost, 
   totalBudgetedCost, 
   contractValue, 
-  taxesPercent, 
   grossMarginTarget,
   isPlanningMode,
   totalActualCost,
@@ -96,9 +94,8 @@ function FinancialSummaryCard({
   const displayCost = isPlanningMode ? totalPlannedCost : totalActualCost;
   const baseDisplayCost = isPlanningMode ? totalBudgetedCost : totalPlannedCost;
   
-  // Calculate gross margin: Revenue - Taxes - Costs
-  const taxes = contractValue * (taxesPercent / 100);
-  const grossMargin = contractValue - taxes - displayCost;
+  // Calculate gross margin: Revenue - Costs
+  const grossMargin = contractValue - displayCost;
   const marginPercent = contractValue > 0 
     ? (grossMargin / contractValue) * 100 
     : 0;
@@ -318,7 +315,6 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
           totalBudgetedCost={budgetedCosts.total}
           totalActualCost={totalActual}
           contractValue={project.total_value}
-          taxesPercent={budget?.taxes_percent || 0}
           grossMarginTarget={financialSettings?.gross_margin_target_percent || 0}
           isPlanningMode={isEditable}
         />

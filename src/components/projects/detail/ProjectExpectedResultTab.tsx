@@ -5,7 +5,6 @@ import { useMemo } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
-import { useBudget } from '@/hooks/useBudgets';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { PlanningInstallmentsTable } from './PlanningInstallmentsTable';
 
@@ -19,7 +18,6 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
-  const { data: budget } = useBudget(project.budget_id);
   const { data: financialSettings } = useFinancialSettings();
 
   const costs = useMemo(() => {
@@ -56,10 +54,7 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
   const materialsCost = costs.materialsCost;
   const totalCost = laborCost + suppliersCost + materialsCost;
 
-  // Tax deduction from linked budget
-  const taxesPercent = budget?.taxes_percent || 0;
-  const taxes = totalValue * (taxesPercent / 100);
-  const grossMargin = totalValue - taxes - totalCost;
+  const grossMargin = totalValue - totalCost;
   const marginPercent = totalValue > 0 ? (grossMargin / totalValue) * 100 : 0;
   const isPositiveMargin = grossMargin >= 0;
 
@@ -88,11 +83,6 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
               Receita Total
             </div>
             <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
-            {taxesPercent > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Impostos ({taxesPercent}%): {formatCurrency(taxes)}
-              </p>
-            )}
           </CardContent>
         </Card>
 
@@ -115,11 +105,6 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
             <p className={`text-2xl font-bold ${isPositiveMargin ? 'text-green-600' : 'text-destructive'}`}>
               {formatCurrency(grossMargin)}
             </p>
-            {taxesPercent > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Receita − Impostos − Custos
-              </p>
-            )}
           </CardContent>
         </Card>
 
