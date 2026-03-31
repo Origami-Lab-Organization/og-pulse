@@ -329,7 +329,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const totalReimbursementCost = reimbursements.reduce((sum: number, r: any) => sum + (Number(r.total_amount) || 0), 0);
       const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost + totalReimbursementCost;
-      const taxesValueEstimated = revenueActual * (Number(taxesPercent) / 100);
+      const taxesValueEstimated = faturado * (Number(taxesPercent) / 100);
 
       // Fetch real tax entries (DAE) for the period
       let taxesRealValue: number | null = null;
