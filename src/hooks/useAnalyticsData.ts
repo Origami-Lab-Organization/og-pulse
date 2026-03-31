@@ -434,6 +434,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         reimbursementCost: totalReimbursementCost,
         taxesPercent: Number(taxesPercent),
         taxesValue,
+        taxesRealValue,
         commissionValue: totalCommissions,
         grossMargin,
         grossMarginTarget,
