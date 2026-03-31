@@ -264,10 +264,12 @@ export function useProjectFinancials(
         taxEntries = await taxEntryService.getByDateRange(tenantId, refStart, refEnd);
       } catch { /* ignore */ }
 
-      // Build per-month faturado by project (for DAE rateio — based on invoiced, not received)
+      // Build per-month faturado using ALL tenant projects for accurate denominator
       const monthlyRevenueByProject = new Map<string, Map<string, number>>(); // month -> (projectId -> faturado)
-      const monthlyRevenueTotal = new Map<string, number>(); // month -> total faturado
-      for (const r of (faturadoRes.data || []) as any[]) {
+      const monthlyRevenueTotal = new Map<string, number>(); // month -> total faturado (ALL projects)
+      
+      // Use ALL tenant projects' faturamento for the denominator
+      for (const r of (faturadoAllRes.data || []) as any[]) {
         if (!r.invoice_date) continue;
         const invoiceDate = parseISO(r.invoice_date);
         const monthKey = format(startOfMonth(invoiceDate), 'yyyy-MM-dd');
@@ -277,7 +279,7 @@ export function useProjectFinancials(
         monthlyRevenueTotal.set(monthKey, (monthlyRevenueTotal.get(monthKey) ?? 0) + Number(r.value));
       }
 
-      // Calculate real tax per project (prorated by revenue share)
+      // Calculate real tax per project (prorated by revenue share using total company faturamento)
       const realTaxByProject = new Map<string, number>();
       for (const te of taxEntries) {
         const monthKey = te.reference_month;
