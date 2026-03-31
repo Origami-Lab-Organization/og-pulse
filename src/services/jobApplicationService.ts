@@ -51,6 +51,7 @@ export const jobApplicationService = {
         curriculo_nome,
         vaga_id: input.vaga_id || null,
         vaga_titulo: input.vaga_titulo || null,
+        vaga_pretendida: input.vaga_pretendida || null,
         responsavel_id: input.responsavel_id || null,
       });
 

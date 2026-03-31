@@ -25,7 +25,6 @@ import { PortfolioColumn } from './PortfolioColumn';
 import { PortfolioCard } from './PortfolioCard';
 import { PortfolioProject, useUpdatePortfolioStage } from '@/hooks/usePortfolioProjects';
 import { PORTFOLIO_COLUMNS, PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useProjectPlanningReadiness } from '@/hooks/useProjectPlanningReadiness';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -240,8 +239,8 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <ScrollArea className="w-full h-full">
-          <div className="grid grid-cols-5 gap-4 p-4 pb-6 min-h-full">
+        <div className="overflow-x-auto pb-2">
+          <div className="grid grid-cols-[repeat(5,minmax(240px,1fr))] gap-4">
             {PORTFOLIO_COLUMNS.map((column) => (
               <PortfolioColumn
                 key={column.id}
@@ -253,8 +252,7 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
               />
             ))}
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        </div>
 
         <DragOverlay>
           {activeProject ? (

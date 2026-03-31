@@ -1,6 +1,5 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { PortfolioCard } from './PortfolioCard';
 import { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import { PortfolioStage } from '@/types/portfolio';
@@ -27,7 +26,7 @@ export function PortfolioColumn({ id, label, color, projects, onRemoveProject }:
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col h-full rounded-lg border border-border bg-card transition-colors',
+        'flex flex-col rounded-lg border border-border bg-card transition-colors',
         isOver && 'border-primary/50 bg-primary/5'
       )}
     >
@@ -42,7 +41,7 @@ export function PortfolioColumn({ id, label, color, projects, onRemoveProject }:
       </div>
 
       {/* Column Content */}
-      <ScrollArea className="flex-1 p-2">
+      <div className="p-2">
         <SortableContext items={projects.map(p => p.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
             {projects.length === 0 ? (
@@ -56,7 +55,7 @@ export function PortfolioColumn({ id, label, color, projects, onRemoveProject }:
             )}
           </div>
         </SortableContext>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

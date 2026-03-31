@@ -1,3 +1,22 @@
+export type VagaPretendida =
+  | "tecnologia_e_desenvolvimento"
+  | "design_e_marketing"
+  | "comercial"
+  | "financeiro"
+  | "gestao_e_rh"
+  | "produto"
+  | "outros";
+
+export const VAGA_PRETENDIDA_LABELS: Record<VagaPretendida, string> = {
+  tecnologia_e_desenvolvimento: "Tecnologia e Desenvolvimento",
+  design_e_marketing: "Design e Marketing",
+  comercial: "Comercial",
+  financeiro: "Financeiro",
+  gestao_e_rh: "Gestão e RH",
+  produto: "Produto",
+  outros: "Outros",
+};
+
 export type JobApplicationStatus =
   | "triagem"
   | "entrevista"
@@ -22,6 +41,7 @@ export interface JobApplicationDB {
   responsavel_nome: string | null;
   vaga_id: string | null;
   vaga_titulo: string | null;
+  vaga_pretendida: VagaPretendida | null;
   created_at: string;
 }
 
@@ -34,6 +54,7 @@ export interface CreateJobApplicationInput {
   curriculo?: File;
   vaga_id?: string;
   vaga_titulo?: string;
+  vaga_pretendida?: VagaPretendida | null;
   responsavel_id?: string | null;
 }
 
