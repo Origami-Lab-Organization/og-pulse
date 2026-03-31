@@ -26,6 +26,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Upload, FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCreateJobApplication } from '@/hooks/useJobApplications';
+import { VagaPretendida, VAGA_PRETENDIDA_LABELS } from '@/types/jobApplication';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = [
@@ -33,11 +41,16 @@ const ACCEPTED_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
+const VAGAS_PRETENDIDAS = Object.entries(VAGA_PRETENDIDA_LABELS) as [VagaPretendida, string][];
+
 const schema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
   email: z.string().email('E-mail inválido'),
   telefone: z.string().min(10, 'Telefone é obrigatório'),
   linkedin: z.string().optional(),
+  vaga_pretendida: z.enum(
+    Object.keys(VAGA_PRETENDIDA_LABELS) as [VagaPretendida, ...VagaPretendida[]]
+  ).optional(),
   motivacao: z.string().min(1, 'Campo obrigatório'),
 });
 
@@ -63,6 +76,7 @@ export function CandidateFormSheet({ open, onOpenChange }: CandidateFormSheetPro
       email: '',
       telefone: '',
       linkedin: '',
+      vaga_pretendida: undefined,
       motivacao: '',
     },
   });
@@ -117,6 +131,7 @@ export function CandidateFormSheet({ open, onOpenChange }: CandidateFormSheetPro
         email: values.email,
         telefone: values.telefone,
         linkedin: values.linkedin || undefined,
+        vaga_pretendida: values.vaga_pretendida || undefined,
         motivacao: values.motivacao,
         ...(curriculo && { curriculo }),
       },
@@ -202,6 +217,35 @@ export function CandidateFormSheet({ open, onOpenChange }: CandidateFormSheetPro
                       <FormControl>
                         <Input placeholder="https://linkedin.com/in/perfil" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Vaga pretendida */}
+                <FormField
+                  control={form.control}
+                  name="vaga_pretendida"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Vaga pretendida{' '}
+                        <span className="text-muted-foreground font-normal">(opcional)</span>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a área de interesse" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {VAGAS_PRETENDIDAS.map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

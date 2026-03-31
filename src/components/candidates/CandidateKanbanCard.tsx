@@ -1,6 +1,6 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { JobApplicationDB } from '@/types/jobApplication';
+import { JobApplicationDB, VAGA_PRETENDIDA_LABELS } from '@/types/jobApplication';
 import { formatDate } from '@/lib/formatters';
 import { Mail, Phone, FileText, User, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -37,12 +37,19 @@ export function CandidateKanbanCard({ candidate, onClick }: CandidateKanbanCardP
         isDragging && 'opacity-50 shadow-lg'
       )}
     >
-      {candidate.vaga_titulo && (
-        <div className="flex items-center gap-1 mb-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-[10px] font-medium truncate max-w-full">
-            <Briefcase className="h-2.5 w-2.5 shrink-0" />
-            <span className="truncate">{candidate.vaga_titulo}</span>
-          </span>
+      {(candidate.vaga_titulo || candidate.vaga_pretendida) && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {candidate.vaga_titulo && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-[10px] font-medium truncate max-w-full">
+              <Briefcase className="h-2.5 w-2.5 shrink-0" />
+              <span className="truncate">{candidate.vaga_titulo}</span>
+            </span>
+          )}
+          {candidate.vaga_pretendida && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground border border-border px-2 py-0.5 text-[10px] font-medium truncate max-w-full">
+              <span className="truncate">{VAGA_PRETENDIDA_LABELS[candidate.vaga_pretendida]}</span>
+            </span>
+          )}
         </div>
       )}
       <p className="text-sm font-medium text-foreground truncate mb-2">

@@ -16,7 +16,8 @@ import {
   JobApplicationDB,
   JOB_APPLICATION_STATUS_LABELS,
   JobApplicationStatus,
-  ACTIVE_STATUSES
+  ACTIVE_STATUSES,
+  VAGA_PRETENDIDA_LABELS
 } from "@/types/jobApplication";
 import { formatDate } from "@/lib/formatters";
 
@@ -118,6 +119,9 @@ const Candidates = () => {
               Telefone
             </th>
             <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+              Vaga pretendida
+            </th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground">
               Status
             </th>
             {showJustificativa && (
@@ -134,7 +138,7 @@ const Candidates = () => {
           {rows.length === 0 ? (
             <tr>
               <td
-                colSpan={showJustificativa ? 6 : 5}
+                colSpan={showJustificativa ? 7 : 6}
                 className="text-center py-10 text-muted-foreground"
               >
                 Nenhum candidato encontrado.
@@ -155,6 +159,11 @@ const Candidates = () => {
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {candidate.telefone}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {candidate.vaga_pretendida
+                    ? VAGA_PRETENDIDA_LABELS[candidate.vaga_pretendida]
+                    : "—"}
                 </td>
                 <td className="px-4 py-3">
                   <span

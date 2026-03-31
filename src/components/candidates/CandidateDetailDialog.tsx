@@ -38,7 +38,8 @@ import {
   JobApplicationDB,
   JOB_APPLICATION_STATUS_LABELS,
   JobApplicationStatus,
-  ACTIVE_STATUSES
+  ACTIVE_STATUSES,
+  VAGA_PRETENDIDA_LABELS
 } from "@/types/jobApplication";
 import { formatDate } from "@/lib/formatters";
 import {
@@ -188,11 +189,18 @@ export function CandidateDetailDialog({
             <SheetDescription>
               Candidatura recebida em {formatDate(candidate.created_at)}.
             </SheetDescription>
-            {candidate.vaga_titulo && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 text-xs font-medium">
-                  Vaga: {candidate.vaga_titulo}
-                </span>
+            {(candidate.vaga_titulo || candidate.vaga_pretendida) && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                {candidate.vaga_titulo && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 text-xs font-medium">
+                    Vaga: {candidate.vaga_titulo}
+                  </span>
+                )}
+                {candidate.vaga_pretendida && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground border border-border px-2.5 py-0.5 text-xs font-medium">
+                    Área: {VAGA_PRETENDIDA_LABELS[candidate.vaga_pretendida]}
+                  </span>
+                )}
               </div>
             )}
           </SheetHeader>
