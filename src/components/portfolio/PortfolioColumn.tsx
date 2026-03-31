@@ -11,6 +11,7 @@ interface PortfolioColumnProps {
   label: string;
   color: string;
   projects: PortfolioProject[];
+  onRemoveProject?: (project: PortfolioProject) => void;
 }
 
 export function PortfolioColumn({ id, label, color, projects }: PortfolioColumnProps) {
