@@ -1233,6 +1233,7 @@ export type Database = {
           telefone: string
           tenant_id: string
           vaga_id: string | null
+          vaga_pretendida: string | null
           vaga_titulo: string | null
         }
         Insert: {
@@ -1250,6 +1251,7 @@ export type Database = {
           telefone: string
           tenant_id: string
           vaga_id?: string | null
+          vaga_pretendida?: string | null
           vaga_titulo?: string | null
         }
         Update: {
@@ -1267,6 +1269,7 @@ export type Database = {
           telefone?: string
           tenant_id?: string
           vaga_id?: string | null
+          vaga_pretendida?: string | null
           vaga_titulo?: string | null
         }
         Relationships: [
