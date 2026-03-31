@@ -3,6 +3,7 @@ import { format, parseISO, addMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
+import { taxEntryService } from '@/services/taxEntryService';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface ProjectFinancialRow {
