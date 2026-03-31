@@ -14,7 +14,7 @@ interface PortfolioColumnProps {
   onRemoveProject?: (project: PortfolioProject) => void;
 }
 
-export function PortfolioColumn({ id, label, color, projects }: PortfolioColumnProps) {
+export function PortfolioColumn({ id, label, color, projects, onRemoveProject }: PortfolioColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id,
     data: {
