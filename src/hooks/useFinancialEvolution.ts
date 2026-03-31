@@ -306,14 +306,20 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].reimbursementCost += Number(r.total_amount) || 0;
       }
 
-      // Fetch real tax entries (DAE) for the year
-      let taxEntryMap = new Map<number, number>(); // monthIndex -> value
+      // Fetch real tax entries (Extrato) for the year — map by payment_date
+      let taxEntryMap = new Map<number, number>(); // monthIndex of payment_date -> value
+      let latestAliquota: number | null = null;
       try {
-        const taxEntries = await taxEntryService.getByDateRange(tenantId, yearStart, yearEnd);
+        const taxEntries = await taxEntryService.getByPaymentDateRange(tenantId, yearStart, yearEnd);
         for (const te of taxEntries) {
-          const refDate = parseISO(te.reference_month);
-          if (refDate.getFullYear() === year) {
-            taxEntryMap.set(refDate.getMonth(), Number(te.total_value));
+          const payDate = parseISO(te.payment_date);
+          if (payDate.getFullYear() === year) {
+            const idx = payDate.getMonth();
+            taxEntryMap.set(idx, (taxEntryMap.get(idx) ?? 0) + Number(te.total_value));
+          }
+          // Track latest aliquota for estimation
+          if (Number(te.aliquota_simples) > 0) {
+            latestAliquota = Number(te.aliquota_simples);
           }
         }
       } catch { /* ignore */ }
