@@ -13,18 +13,15 @@ interface Props {
 
 const FATURADO_COLOR = 'hsl(152, 55%, 28%)';
 const REVENUE_COLOR = 'hsl(150, 60%, 55%)';
-const TAXES_COLOR   = 'hsl(45, 85%, 52%)';
 const COSTS_COLOR   = 'hsl(0, 70%, 65%)';
 const MARGIN_COLOR  = 'hsl(220, 70%, 50%)';
 
 const PATTERN_SIZE = 6;
 
-/** Hidden SVG block that registers stripe fill patterns for future-month bars. */
 function StripedDefs() {
   const stripes: Array<{ id: string; color: string }> = [
     { id: 'stripe-faturado', color: FATURADO_COLOR },
     { id: 'stripe-revenue',  color: REVENUE_COLOR  },
-    { id: 'stripe-taxes',    color: TAXES_COLOR    },
     { id: 'stripe-costs',    color: COSTS_COLOR    },
   ];
   return (
@@ -66,19 +63,17 @@ export function FinancialEvolutionChart({ data, year }: Props) {
   const refStart = highlighted.length > 0 ? highlighted[0].label : undefined;
   const refEnd   = highlighted.length > 0 ? highlighted[highlighted.length - 1].label : undefined;
 
-  // For each month: show realized if past, planned if future
   const chartData = data.map(m => ({
     ...m,
     effectiveFaturado: m.isPast ? m.faturado      : 0,
     effectiveRevenue:  m.isPast ? m.revenueReal    : m.revenuePlanned,
-    effectiveTaxes:    m.isPast ? m.taxesValue     : m.plannedTaxesValue,
     effectiveCosts:    m.isPast ? m.totalCosts     : m.plannedTotalCosts,
     effectiveMargin:   m.isPast ? m.grossMarginPct : m.plannedGrossMarginPct,
     isFuture: !m.isPast,
   }));
 
   const maxVal = Math.max(
-    ...chartData.map(d => Math.max(d.effectiveFaturado, d.effectiveRevenue, d.effectiveTaxes, d.effectiveCosts)),
+    ...chartData.map(d => Math.max(d.effectiveFaturado, d.effectiveRevenue, d.effectiveCosts)),
     1,
   );
 
@@ -126,7 +121,7 @@ export function FinancialEvolutionChart({ data, year }: Props) {
                 />
               )}
 
-              <Bar yAxisId="val" dataKey="effectiveFaturado" name="Faturado" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
+              <Bar yAxisId="val" dataKey="effectiveFaturado" name="Faturado" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={14}>
                 {chartData.map((d) => (
                   <Cell
                     key={d.monthIndex}
@@ -136,7 +131,7 @@ export function FinancialEvolutionChart({ data, year }: Props) {
                 ))}
               </Bar>
 
-              <Bar yAxisId="val" dataKey="effectiveRevenue" name="Receita" fill={REVENUE_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
+              <Bar yAxisId="val" dataKey="effectiveRevenue" name="Receita" fill={REVENUE_COLOR} radius={[3, 3, 0, 0]} barSize={14}>
                 {chartData.map((d) => (
                   <Cell
                     key={d.monthIndex}
@@ -146,17 +141,7 @@ export function FinancialEvolutionChart({ data, year }: Props) {
                 ))}
               </Bar>
 
-              <Bar yAxisId="val" dataKey="effectiveTaxes" name="Impostos" fill={TAXES_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
-                {chartData.map((d) => (
-                  <Cell
-                    key={d.monthIndex}
-                    fill={d.isFuture ? `url(#stripe-taxes)` : TAXES_COLOR}
-                    fillOpacity={d.isHighlighted ? 1 : 0.35}
-                  />
-                ))}
-              </Bar>
-
-              <Bar yAxisId="val" dataKey="effectiveCosts" name="Custos Totais" fill={COSTS_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
+              <Bar yAxisId="val" dataKey="effectiveCosts" name="Custos Totais" fill={COSTS_COLOR} radius={[3, 3, 0, 0]} barSize={14}>
                 {chartData.map((d) => (
                   <Cell
                     key={d.monthIndex}

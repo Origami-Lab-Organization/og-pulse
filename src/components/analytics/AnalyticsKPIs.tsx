@@ -1,4 +1,4 @@
-import { DollarSign, TrendingDown, Target, Receipt, FileText } from 'lucide-react';
+import { DollarSign, TrendingDown, Target, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
 
@@ -8,8 +8,6 @@ interface AnalyticsKPIsProps {
   revenueProjected: number;
   revenueDiff: number;
   totalCosts: number;
-  taxesPercent: number;
-  taxesValue: number;
   grossMargin: number;
   grossMarginTarget: number | null;
 }
@@ -20,8 +18,6 @@ export function AnalyticsKPIs({
   revenueProjected,
   revenueDiff,
   totalCosts,
-  taxesPercent,
-  taxesValue,
   grossMargin,
   grossMarginTarget,
 }: AnalyticsKPIsProps) {
@@ -40,7 +36,7 @@ export function AnalyticsKPIs({
   const diffSign = revenueDiff >= 0 ? '+' : '';
 
   return (
-    <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
       {/* Faturamento */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -75,24 +71,6 @@ export function AnalyticsKPIs({
               {diffSign}{formatCurrency(Math.abs(revenueDiff))}
             </p>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Taxes */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Impostos
-          </CardTitle>
-          <Receipt className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {formatCurrency(taxesValue)}
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Alíquota: {formatPercent(faturado > 0 ? (taxesValue / faturado) * 100 : taxesPercent)}
-          </p>
         </CardContent>
       </Card>
 

@@ -46,7 +46,6 @@ export function ProjectMarginTable({ data, title, grossMarginTarget, emptyLabel 
                   <th className="pb-2 pr-3 font-medium">Nome</th>
                   <th className="pb-2 pr-3 font-medium text-right">Receita</th>
                   <th className="pb-2 pr-3 font-medium text-right">Custos</th>
-                  <th className="pb-2 pr-3 font-medium text-right">Impostos</th>
                   <th className="pb-2 font-medium text-right">Margem</th>
                 </tr>
               </thead>
@@ -56,7 +55,6 @@ export function ProjectMarginTable({ data, title, grossMarginTarget, emptyLabel 
                     <td className="py-2 pr-3 font-medium truncate max-w-[160px]">{row.label}</td>
                     <td className="py-2 pr-3 text-right">{formatCurrency(row.revenue)}</td>
                     <td className="py-2 pr-3 text-right">{formatCurrency(row.costs)}</td>
-                    <td className="py-2 pr-3 text-right">{formatCurrency(row.taxes)}</td>
                     <td className={cn('py-2 text-right font-semibold', marginColor(row.grossMargin))}>
                       {row.grossMargin !== null ? formatPercent(row.grossMargin) : '—'}
                     </td>
