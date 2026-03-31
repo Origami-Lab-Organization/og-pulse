@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 
 interface PortfolioCardProps {
   project: PortfolioProject;
+  onRemove?: (project: PortfolioProject) => void;
 }
 
 export function PortfolioCard({ project }: PortfolioCardProps) {
