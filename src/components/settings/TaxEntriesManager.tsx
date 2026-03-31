@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
-import { format, subMonths, startOfMonth, parse } from 'date-fns';
+import { format, subMonths, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Plus, Trash2, Pencil, FileUp, ExternalLink, Receipt } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
