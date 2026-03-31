@@ -62,7 +62,7 @@ export default function ProjectDetail() {
     if (!project) return;
     deleteProject.mutate(
       { id: project.id, name: project.name, withCascade: true },
-      { onSuccess: () => navigate('/projects') }
+      { onSuccess: () => navigate('/portfolio') }
     );
   };
 
@@ -70,7 +70,7 @@ export default function ProjectDetail() {
     if (!project) return;
     archiveProject.mutate(
       { id: project.id, reason, notes },
-      { onSuccess: () => { setRemoveDialogOpen(false); navigate('/projects'); } }
+      { onSuccess: () => { setRemoveDialogOpen(false); navigate('/portfolio'); } }
     );
   };
 
