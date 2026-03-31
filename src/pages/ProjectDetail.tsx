@@ -126,7 +126,7 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue={initialTab} className="w-full">
           <div className="overflow-x-auto">
           <TabsList className="inline-flex w-max">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
