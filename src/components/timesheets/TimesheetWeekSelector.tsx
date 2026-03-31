@@ -63,7 +63,7 @@ export function TimesheetWeekSelector({
   const weeksInMonth = useMemo(() => {
     const monthEnd = endOfMonth(viewMonth);
     const weeks: Date[] = [];
-    let current = getWeekStart(viewMonth);
+    let current = getWeekStart(startOfMonth(viewMonth));
     while (current <= monthEnd) {
       weeks.push(current);
       current = addWeeks(current, 1);

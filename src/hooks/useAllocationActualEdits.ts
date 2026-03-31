@@ -66,13 +66,11 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
             .maybeSingle();
 
           let timesheetId: string;
-          const previousHours = existing?.hours ?? 0;
-          const newHours = previousHours + delta;
 
           if (existing) {
             const { error } = await supabase
               .from('project_timesheets')
-              .update({ hours: Math.max(0, newHours), updated_at: new Date().toISOString() })
+              .update({ hours: Math.max(0, change.toHours), updated_at: new Date().toISOString() })
               .eq('id', existing.id);
             if (error) throw error;
             timesheetId = existing.id;
@@ -83,7 +81,7 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
                 project_id: change.projectId!,
                 project_member_id: change.referenceId,
                 work_date: workDate,
-                hours: Math.max(0, delta),
+                hours: Math.max(0, change.toHours),
               }])
               .select('id')
               .single();
@@ -112,13 +110,11 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
             .maybeSingle();
 
           let actTimesheetId: string;
-          const previousHours = existing?.hours ?? 0;
-          const newHours = previousHours + delta;
 
           if (existing) {
             const { error } = await supabase
               .from('activity_timesheets')
-              .update({ hours: Math.max(0, newHours), updated_at: new Date().toISOString() })
+              .update({ hours: Math.max(0, change.toHours), updated_at: new Date().toISOString() })
               .eq('id', existing.id);
             if (error) throw error;
             actTimesheetId = existing.id;
@@ -130,7 +126,7 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
                 employee_id: change.employeeId,
                 activity_type_id: change.referenceId,
                 work_date: workDate,
-                hours: Math.max(0, delta),
+                hours: Math.max(0, change.toHours),
               }])
               .select('id')
               .single();
@@ -157,6 +153,7 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
       queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
       queryClient.invalidateQueries({ queryKey: ['activity-timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['correction-week-data'] });
       toast({ title: 'Horas reais atualizadas', description: `${persisted} correção(ões) aplicada(s) com sucesso.` });
     },
     onError: (error: Error) => {
