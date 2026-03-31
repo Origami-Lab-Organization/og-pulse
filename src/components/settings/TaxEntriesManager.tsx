@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -388,9 +389,13 @@ export function TaxEntriesManager() {
                 name="total_value"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor Total da DAE (R$)</FormLabel>
+                    <FormLabel>Valor Total da DAE</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" min="0" {...field} />
+                      <CurrencyInput
+                        showPrefix
+                        value={field.value || 0}
+                        onValueChange={(val) => field.onChange(val)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
