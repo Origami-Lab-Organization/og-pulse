@@ -45,7 +45,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   const fetchEmployeeData = async (userId: string, opts?: { signOutIfInactive?: boolean }) => {
-    // Check employee status via security definer function first
+    // Check if user is in blocked_users table (set by trigger on status change)
+    const { data: blocked } = await supabase
+      .from('blocked_users')
+      .select('auth_id')
+      .eq('auth_id', userId)
+      .maybeSingle();
+
+    if (blocked) {
+      if (opts?.signOutIfInactive) {
+        await supabase.auth.signOut();
+      }
+      return null;
+    }
+
+    // Also check employee status via security definer function
     const { data: status } = await supabase.rpc('get_employee_status', { p_auth_id: userId });
 
     if (!status) {
@@ -53,7 +67,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return null;
     }
 
-    // Block inactive users on session restore (not just login)
     if (opts?.signOutIfInactive && (status === 'bloqueado' || status === 'arquivado')) {
       await supabase.auth.signOut();
       return null;
