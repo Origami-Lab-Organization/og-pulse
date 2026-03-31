@@ -105,11 +105,6 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
             <p className={`text-2xl font-bold ${isPositiveMargin ? 'text-green-600' : 'text-destructive'}`}>
               {formatCurrency(grossMargin)}
             </p>
-            {taxesPercent > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Receita − Impostos − Custos
-              </p>
-            )}
           </CardContent>
         </Card>
 

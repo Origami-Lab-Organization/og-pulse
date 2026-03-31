@@ -315,7 +315,6 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
           totalBudgetedCost={budgetedCosts.total}
           totalActualCost={totalActual}
           contractValue={project.total_value}
-          taxesPercent={budget?.taxes_percent || 0}
           grossMarginTarget={financialSettings?.gross_margin_target_percent || 0}
           isPlanningMode={isEditable}
         />
