@@ -3,7 +3,7 @@ import { format, subMonths, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Trash2, Pencil, FileUp, ExternalLink, Receipt } from 'lucide-react';
+import { Plus, Trash2, Pencil, FileUp, ExternalLink, Receipt, ChevronDown } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,6 +54,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
 import { useTaxEntries, useCreateTaxEntry, useUpdateTaxEntry, useDeleteTaxEntry } from '@/hooks/useTaxEntries';
 import { taxEntryService } from '@/services/taxEntryService';
@@ -70,6 +75,15 @@ const formSchema = z.object({
   payment_date: z.string().min(1, 'Informe a data de pagamento'),
   total_value: z.coerce.number().min(0.01, 'Valor deve ser maior que zero'),
   description: z.string().optional(),
+  rbt12: z.coerce.number().min(0).optional(),
+  rpa: z.coerce.number().min(0).optional(),
+  aliquota_simples: z.coerce.number().min(0).max(100).optional(),
+  irpj: z.coerce.number().min(0).optional(),
+  csll: z.coerce.number().min(0).optional(),
+  cofins: z.coerce.number().min(0).optional(),
+  pis_pasep: z.coerce.number().min(0).optional(),
+  inss_cpp: z.coerce.number().min(0).optional(),
+  iss: z.coerce.number().min(0).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -82,6 +96,7 @@ export function TaxEntriesManager() {
   const [selectedEntry, setSelectedEntry] = useState<TaxEntryDB | null>(null);
   const [uploading, setUploading] = useState(false);
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   const { employee } = useAuth();
   const { data: entries = [], isLoading } = useTaxEntries(selectedYear);
@@ -105,7 +120,7 @@ export function TaxEntriesManager() {
 
       const map = new Map<string, number>();
       for (const row of (data || []) as any[]) {
-        const monthKey = row.invoice_date?.substring(0, 7) + '-01'; // e.g. "2026-02-01"
+        const monthKey = row.invoice_date?.substring(0, 7) + '-01';
         map.set(monthKey, (map.get(monthKey) ?? 0) + Number(row.value));
       }
       return map;
@@ -122,6 +137,15 @@ export function TaxEntriesManager() {
       payment_date: '',
       total_value: 0,
       description: '',
+      rbt12: 0,
+      rpa: 0,
+      aliquota_simples: 0,
+      irpj: 0,
+      csll: 0,
+      cofins: 0,
+      pis_pasep: 0,
+      inss_cpp: 0,
+      iss: 0,
     },
   });
 
@@ -132,9 +156,12 @@ export function TaxEntriesManager() {
       const monthDate = `${selectedYear}-${String(idx + 1).padStart(2, '0')}-01`;
       const entry = entryMap.get(monthDate) || null;
       const revenue = monthlyRevenue.get(monthDate) ?? 0;
-      const effectiveRate = entry && revenue > 0
-        ? (Number(entry.total_value) / revenue) * 100
-        : null;
+      // Prefer aliquota from extrato, fallback to computed
+      const effectiveRate = entry && Number(entry.aliquota_simples) > 0
+        ? Number(entry.aliquota_simples)
+        : entry && revenue > 0
+          ? (Number(entry.total_value) / revenue) * 100
+          : null;
       return {
         month: idx + 1,
         label,
@@ -149,11 +176,14 @@ export function TaxEntriesManager() {
   const handleOpenCreate = (monthDate?: string) => {
     setSelectedEntry(null);
     setFileToUpload(null);
+    setBreakdownOpen(false);
     form.reset({
       reference_month: monthDate || defaultRefMonth,
       payment_date: '',
       total_value: 0,
       description: '',
+      rbt12: 0, rpa: 0, aliquota_simples: 0,
+      irpj: 0, csll: 0, cofins: 0, pis_pasep: 0, inss_cpp: 0, iss: 0,
     });
     setFormOpen(true);
   };
@@ -161,11 +191,22 @@ export function TaxEntriesManager() {
   const handleEdit = (entry: TaxEntryDB) => {
     setSelectedEntry(entry);
     setFileToUpload(null);
+    const hasBreakdown = Number(entry.irpj) > 0 || Number(entry.csll) > 0 || Number(entry.cofins) > 0;
+    setBreakdownOpen(hasBreakdown);
     form.reset({
       reference_month: entry.reference_month,
       payment_date: entry.payment_date,
       total_value: entry.total_value,
       description: entry.description || '',
+      rbt12: Number(entry.rbt12) || 0,
+      rpa: Number(entry.rpa) || 0,
+      aliquota_simples: Number(entry.aliquota_simples) || 0,
+      irpj: Number(entry.irpj) || 0,
+      csll: Number(entry.csll) || 0,
+      cofins: Number(entry.cofins) || 0,
+      pis_pasep: Number(entry.pis_pasep) || 0,
+      inss_cpp: Number(entry.inss_cpp) || 0,
+      iss: Number(entry.iss) || 0,
     });
     setFormOpen(true);
   };
@@ -206,6 +247,15 @@ export function TaxEntriesManager() {
       total_value: values.total_value,
       description: values.description || undefined,
       file_url: fileUrl,
+      rbt12: values.rbt12 || 0,
+      rpa: values.rpa || 0,
+      aliquota_simples: values.aliquota_simples || 0,
+      irpj: values.irpj || 0,
+      csll: values.csll || 0,
+      cofins: values.cofins || 0,
+      pis_pasep: values.pis_pasep || 0,
+      inss_cpp: values.inss_cpp || 0,
+      iss: values.iss || 0,
     };
 
     if (selectedEntry) {
@@ -231,9 +281,9 @@ export function TaxEntriesManager() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Lançamentos de DAE — Simples Nacional</h3>
+          <h3 className="text-lg font-semibold">Extrato do Simples Nacional</h3>
           <p className="text-sm text-muted-foreground">
-            Registre o valor real dos impostos pagos por mês. A DAE paga no mês atual refere-se ao mês anterior.
+            Registre os valores do extrato do Simples Nacional. O imposto pago no mês é rateado pelo faturamento do mês anterior.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -249,7 +299,7 @@ export function TaxEntriesManager() {
           </Select>
           <Button onClick={() => handleOpenCreate()}>
             <Plus className="mr-2 h-4 w-4" />
-            Nova DAE
+            Novo Extrato
           </Button>
         </div>
       </div>
@@ -294,9 +344,8 @@ export function TaxEntriesManager() {
                 <TableHead>Mês de Referência</TableHead>
                 <TableHead>Data Pagamento</TableHead>
                 <TableHead className="text-right">Faturamento</TableHead>
-                <TableHead className="text-right">Valor DAE</TableHead>
+                <TableHead className="text-right">Valor DAS</TableHead>
                 <TableHead className="text-right">Alíquota Efetiva</TableHead>
-                <TableHead>Descrição</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -304,7 +353,7 @@ export function TaxEntriesManager() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
@@ -327,9 +376,6 @@ export function TaxEntriesManager() {
                           {formatPercent(effectiveRate)}
                         </span>
                       ) : '—'}
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                      {entry?.description || '—'}
                     </TableCell>
                     <TableCell>
                       {entry ? (
@@ -378,10 +424,10 @@ export function TaxEntriesManager() {
 
       {/* Form Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {selectedEntry ? 'Editar DAE' : 'Registrar DAE'}
+              {selectedEntry ? 'Editar Extrato' : 'Registrar Extrato do Simples'}
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
@@ -403,9 +449,9 @@ export function TaxEntriesManager() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {monthsGrid.map(({ label, date }) => (
+                        {monthsGrid.map(({ label: mLabel, date }) => (
                           <SelectItem key={date} value={date}>
-                            {label}/{selectedYear}
+                            {mLabel}/{selectedYear}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -434,7 +480,7 @@ export function TaxEntriesManager() {
                 name="total_value"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor Total da DAE</FormLabel>
+                    <FormLabel>Valor Total do DAS</FormLabel>
                     <FormControl>
                       <CurrencyInput
                         showPrefix
@@ -447,6 +493,176 @@ export function TaxEntriesManager() {
                 )}
               />
 
+              {/* Dados do Extrato */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="rbt12"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>RBT12</FormLabel>
+                      <FormControl>
+                        <CurrencyInput
+                          showPrefix
+                          value={field.value || 0}
+                          onValueChange={(val) => field.onChange(val)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="rpa"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>RPA (Receita do Período)</FormLabel>
+                      <FormControl>
+                        <CurrencyInput
+                          showPrefix
+                          value={field.value || 0}
+                          onValueChange={(val) => field.onChange(val)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="aliquota_simples"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alíquota Efetiva do Simples (%)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Ex: 10.50"
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Breakdown por tributo - colapsável */}
+              <Collapsible open={breakdownOpen} onOpenChange={setBreakdownOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="ghost" className="w-full justify-between text-sm text-muted-foreground">
+                    Detalhamento por tributo
+                    <ChevronDown className={`h-4 w-4 transition-transform ${breakdownOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="irpj"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">IRPJ</FormLabel>
+                          <FormControl>
+                            <CurrencyInput
+                              showPrefix
+                              value={field.value || 0}
+                              onValueChange={(val) => field.onChange(val)}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="csll"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">CSLL</FormLabel>
+                          <FormControl>
+                            <CurrencyInput
+                              showPrefix
+                              value={field.value || 0}
+                              onValueChange={(val) => field.onChange(val)}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="cofins"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">COFINS</FormLabel>
+                          <FormControl>
+                            <CurrencyInput
+                              showPrefix
+                              value={field.value || 0}
+                              onValueChange={(val) => field.onChange(val)}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="pis_pasep"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">PIS/Pasep</FormLabel>
+                          <FormControl>
+                            <CurrencyInput
+                              showPrefix
+                              value={field.value || 0}
+                              onValueChange={(val) => field.onChange(val)}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="inss_cpp"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">INSS/CPP</FormLabel>
+                          <FormControl>
+                            <CurrencyInput
+                              showPrefix
+                              value={field.value || 0}
+                              onValueChange={(val) => field.onChange(val)}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="iss"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">ISS</FormLabel>
+                          <FormControl>
+                            <CurrencyInput
+                              showPrefix
+                              value={field.value || 0}
+                              onValueChange={(val) => field.onChange(val)}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
               <FormField
                 control={form.control}
                 name="description"
@@ -454,7 +670,7 @@ export function TaxEntriesManager() {
                   <FormItem>
                     <FormLabel>Descrição / Observações</FormLabel>
                     <FormControl>
-                      <Textarea rows={3} placeholder="Ex: DAS competência fevereiro/2026" {...field} />
+                      <Textarea rows={2} placeholder="Ex: Extrato competência fevereiro/2026" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -462,7 +678,7 @@ export function TaxEntriesManager() {
               />
 
               <div>
-                <FormLabel>Arquivo da DAE (PDF)</FormLabel>
+                <FormLabel>Arquivo do Extrato (PDF)</FormLabel>
                 <div className="mt-1">
                   <Input
                     type="file"
@@ -497,9 +713,9 @@ export function TaxEntriesManager() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir lançamento de DAE?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
             <AlertDialogDescription>
-              O lançamento de imposto para este mês será removido. Os cálculos voltarão a usar a alíquota planejada.
+              O lançamento de imposto para este mês será removido. Os cálculos voltarão a usar a alíquota estimada.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
