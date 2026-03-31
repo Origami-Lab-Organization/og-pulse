@@ -44,7 +44,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchEmployeeData = async (userId: string) => {
+  const fetchEmployeeData = async (userId: string, opts?: { signOutIfInactive?: boolean }) => {
+    // Check employee status via security definer function first
+    const { data: status } = await supabase.rpc('get_employee_status', { p_auth_id: userId });
+
+    if (!status) {
+      console.error('Employee not found for auth_id:', userId);
+      return null;
+    }
+
+    // Block inactive users on session restore (not just login)
+    if (opts?.signOutIfInactive && (status === 'bloqueado' || status === 'arquivado')) {
+      await supabase.auth.signOut();
+      return null;
+    }
+
     // Fetch employee data
     const { data: empData, error: empError } = await supabase
       .from('employees')
@@ -82,8 +96,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (session?.user) {
           // Use setTimeout to avoid potential race conditions
           setTimeout(async () => {
-            const employeeData = await fetchEmployeeData(session.user.id);
+            const employeeData = await fetchEmployeeData(session.user.id, { signOutIfInactive: true });
             setEmployee(employeeData);
+            if (!employeeData) {
+              setUser(null);
+              setSession(null);
+            }
             setLoading(false);
           }, 0);
         } else {
@@ -99,8 +117,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const employeeData = await fetchEmployeeData(session.user.id);
+        const employeeData = await fetchEmployeeData(session.user.id, { signOutIfInactive: true });
         setEmployee(employeeData);
+        if (!employeeData) {
+          setUser(null);
+          setSession(null);
+        }
       }
 
       setLoading(false);
