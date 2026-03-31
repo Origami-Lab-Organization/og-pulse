@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Fetch employee data
     const { data: empData, error: empError } = await supabase
       .from('employees')
-      .select('id, nome, email, cargo, tenant_id, is_gerente, must_change_password, jornada_diaria')
+      .select('id, nome, email, cargo, tenant_id, must_change_password, jornada_diaria')
       .eq('auth_id', userId)
       .single();
 
@@ -71,18 +71,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return null;
     }
 
-    // Check if user has admin role
-    const { data: roleData } = await supabase
+    // Check user roles (admin and/or manager) from user_roles table
+    const { data: roles } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
-      .eq('tenant_id', empData.tenant_id)
-      .eq('role', 'admin')
-      .maybeSingle();
+      .eq('tenant_id', empData.tenant_id);
+
+    const roleSet = new Set((roles || []).map(r => r.role));
+    const isAdmin = roleSet.has('admin');
+    const isManager = roleSet.has('manager') || isAdmin;
 
     return {
       ...empData,
-      isAdmin: !!roleData,
+      is_gerente: isManager, // backward compat — will be removed once all refs migrated
+      isAdmin,
     } as EmployeeData;
   };
 
