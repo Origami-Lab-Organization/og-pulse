@@ -38,6 +38,7 @@ export interface AnalyticsData {
   revenueActual: number;
   revenueProjected: number;
   revenueDiff: number;
+  faturado: number;
   totalCosts: number;
   laborCost: number;
   supplierCost: number;
