@@ -77,7 +77,6 @@ interface FinancialSummaryCardProps {
   totalPlannedCost: number;
   totalBudgetedCost: number;
   contractValue: number;
-  taxesPercent: number;
   grossMarginTarget: number;
   isPlanningMode: boolean;
   totalActualCost: number;
