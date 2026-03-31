@@ -329,7 +329,7 @@ export function useFinancialEvolution(
           m.taxesValue = realTax;
           m.taxesRealValue = realTax;
         } else {
-          m.taxesValue = m.revenueReal * (taxesPercent / 100);
+          m.taxesValue = m.faturado * (taxesPercent / 100);
           m.taxesRealValue = null;
         }
 

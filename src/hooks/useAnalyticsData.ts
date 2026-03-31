@@ -38,6 +38,7 @@ export interface AnalyticsData {
   revenueActual: number;
   revenueProjected: number;
   revenueDiff: number;
+  faturado: number;
   totalCosts: number;
   laborCost: number;
   supplierCost: number;
@@ -117,7 +118,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const dayAfterEndStr = format(dayAfterEnd, 'yyyy-MM-dd');
 
       // 2. Fetch all data in parallel
-      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, materialsRes, settingsRes, holidaysRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [installmentsRes, projectedInstallmentsRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, settingsRes, holidaysRes, commissionsRes, reimbursementsRes] = await Promise.all([
         // Revenue actual: installments with status received and payment_date in period
         supabase
           .from('project_installments')
@@ -134,6 +135,16 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .in('project_id', projectIds)
           .gte('due_date', startStr)
           .lte('due_date', endStr),
+
+        // Faturado: invoiced or received installments with invoice_date in period
+        supabase
+          .from('project_installments')
+          .select('project_id, value, invoice_date')
+          .in('project_id', projectIds)
+          .in('status', ['invoiced', 'received'])
+          .not('invoice_date', 'is', null)
+          .gte('invoice_date', startStr)
+          .lte('invoice_date', endStr),
 
         // Timesheets in period
         supabase
@@ -197,6 +208,8 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const installments = installmentsRes.data || [];
       const projectedInstallments = projectedInstallmentsRes.data || [];
+      const faturadoInstallments = (faturadoRes.data || []) as any[];
+      const faturado = faturadoInstallments.reduce((sum: number, i: any) => sum + Number(i.value), 0);
       const timesheets = timesheetsRes.data || [];
       const members = (membersRes.data || []) as any[];
       const projectSuppliersWithActuals = (suppliersRes.data || []) as any[];
@@ -317,7 +330,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const totalReimbursementCost = reimbursements.reduce((sum: number, r: any) => sum + (Number(r.total_amount) || 0), 0);
       const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost + totalReimbursementCost;
-      const taxesValueEstimated = revenueActual * (Number(taxesPercent) / 100);
+      const taxesValueEstimated = faturado * (Number(taxesPercent) / 100);
 
       // Fetch real tax entries (DAE) for the period
       let taxesRealValue: number | null = null;
@@ -427,6 +440,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         revenueActual,
         revenueProjected,
         revenueDiff,
+        faturado,
         totalCosts,
         laborCost: totalLaborCost,
         supplierCost: totalSupplierCost,

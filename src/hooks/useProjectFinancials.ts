@@ -115,7 +115,7 @@ export function useProjectFinancials(
       const projectIds = projects.map((p: any) => p.id);
       const projectMap = new Map(projects.map((p: any) => [p.id, p]));
 
-      const [receivedRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [receivedRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('project_id, value')
@@ -123,6 +123,16 @@ export function useProjectFinancials(
           .eq('status', 'received')
           .gte('payment_date', startStr)
           .lte('payment_date', endStr),
+
+        // Faturado: invoiced or received with invoice_date in period (for tax proration)
+        supabase
+          .from('project_installments')
+          .select('project_id, value, invoice_date')
+          .in('project_id', projectIds)
+          .in('status', ['invoiced', 'received'])
+          .not('invoice_date', 'is', null)
+          .gte('invoice_date', startStr)
+          .lte('invoice_date', endStr),
 
         supabase
           .from('project_timesheets')
@@ -236,12 +246,13 @@ export function useProjectFinancials(
         taxEntries = await taxEntryService.getByDateRange(tenantId, refStart, refEnd);
       } catch { /* ignore */ }
 
-      // Build per-month revenue by project (for DAE rateio)
-      const monthlyRevenueByProject = new Map<string, Map<string, number>>(); // month -> (projectId -> revenue)
-      const monthlyRevenueTotal = new Map<string, number>(); // month -> total revenue
-      for (const r of (receivedRes.data || []) as any[]) {
-        const payDate = parseISO(r.payment_date);
-        const monthKey = format(startOfMonth(payDate), 'yyyy-MM-dd');
+      // Build per-month faturado by project (for DAE rateio — based on invoiced, not received)
+      const monthlyRevenueByProject = new Map<string, Map<string, number>>(); // month -> (projectId -> faturado)
+      const monthlyRevenueTotal = new Map<string, number>(); // month -> total faturado
+      for (const r of (faturadoRes.data || []) as any[]) {
+        if (!r.invoice_date) continue;
+        const invoiceDate = parseISO(r.invoice_date);
+        const monthKey = format(startOfMonth(invoiceDate), 'yyyy-MM-dd');
         if (!monthlyRevenueByProject.has(monthKey)) monthlyRevenueByProject.set(monthKey, new Map());
         const projMap = monthlyRevenueByProject.get(monthKey)!;
         projMap.set(r.project_id, (projMap.get(r.project_id) ?? 0) + Number(r.value));
