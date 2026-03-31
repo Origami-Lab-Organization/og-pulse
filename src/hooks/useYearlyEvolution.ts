@@ -16,6 +16,7 @@ export interface MonthlyPoint {
   hoursReal: number;
   hoursPlanned: number;
   hoursCapacity: number;
+  capacityCost: number;
   grossMargin: number | null;
   utilization: number | null;
 }
@@ -78,6 +79,7 @@ export function useYearlyEvolution(
         hoursReal: 0,
         hoursPlanned: 0,
         hoursCapacity: 0,
+        capacityCost: 0,
         grossMargin: null,
         utilization: null,
       }));
@@ -88,7 +90,7 @@ export function useYearlyEvolution(
       const projectMap = new Map(projects.map(p => [p.id, p as any]));
 
       // 2. Fetch all data for the full year in parallel
-      const [receivedRes, plannedRes, timesheetsRes, membersRes, holidaysRes] = await Promise.all([
+      const [receivedRes, plannedRes, timesheetsRes, membersRes, allEmployeesRes, holidaysRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('payment_date, value')
@@ -116,6 +118,13 @@ export function useYearlyEvolution(
           .select('id, project_id, employee_id, employee:employees(jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao, termination:employee_terminations(termination_date)), plannedMonths:project_member_months(month_number, hours)')
           .in('project_id', projectIds),
 
+        // All active tenant employees for capacity calculation
+        supabase
+          .from('employees')
+          .select('id, jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao, termination:employee_terminations(termination_date)')
+          .eq('tenant_id', tenantId)
+          .eq('status', 'ativo'),
+
         supabase
           .from('company_holidays')
           .select('holiday_type, fixed_day, fixed_month, specific_date')
@@ -127,6 +136,7 @@ export function useYearlyEvolution(
       const planned = plannedRes.data || [];
       const timesheets = timesheetsRes.data || [];
       const members = (membersRes.data || []) as any[];
+      const allEmployees = (allEmployeesRes.data || []) as any[];
       const holidays = holidaysRes.data || [];
 
       // Build member → employee info map (keyed by project_members.id)
@@ -139,21 +149,13 @@ export function useYearlyEvolution(
         memberMap.set(m.id, { employeeId: m.employee_id, hourlyCost });
       }
 
-      // Build unique employees for capacity calculation (deduplicated by employee_id)
-      const uniqueEmployees = new Map<string, {
-        jornada_diaria: number;
-        data_admissao: string | null;
-        terminationDate: string | null;
-      }>();
-      for (const m of members) {
-        if (m.employee && !uniqueEmployees.has(m.employee_id)) {
-          uniqueEmployees.set(m.employee_id, {
-            jornada_diaria: Number(m.employee.jornada_diaria) || 8,
-            data_admissao: m.employee.data_admissao ?? null,
-            terminationDate: m.employee.termination?.termination_date ?? null,
-          });
-        }
-      }
+      // Build capacity map from ALL active tenant employees (not just project members)
+      const capacityEmployees = allEmployees.map((e: any) => ({
+        jornada_diaria: Number(e.jornada_diaria) || 8,
+        monthlyCost: Number(e.total_monthly_cost_estimated) || 0,
+        data_admissao: e.data_admissao ?? null,
+        terminationDate: (e.termination as any)?.termination_date ?? null,
+      }));
 
       // Pre-compute labor cost per month (index 0–11) from timesheets
       const laborCostByMonth = new Array(12).fill(0);
@@ -206,21 +208,27 @@ export function useYearlyEvolution(
           .filter(ts => { const d = parseISO(ts.work_date); return d.getFullYear() === year && d.getMonth() === i; })
           .reduce((s, ts) => s + Number(ts.hours), 0);
 
-        // Hours capacity: jornada × working days, respecting admission and termination
+        // Hours/cost capacity: from ALL active tenant employees
         let hoursCapacity = 0;
-        uniqueEmployees.forEach(({ jornada_diaria, data_admissao, terminationDate }) => {
-          const admDate = data_admissao ? parseISO(data_admissao) : null;
-          const termDate = terminationDate ? parseISO(terminationDate) : null;
+        let capacityCost = 0;
+        for (const emp of capacityEmployees) {
+          const admDate = emp.data_admissao ? parseISO(emp.data_admissao) : null;
+          const termDate = emp.terminationDate ? parseISO(emp.terminationDate) : null;
 
-          // Not yet admitted or already terminated before this month started
-          if (admDate && admDate > monthEnd) return;
-          if (termDate && termDate < monthStart) return;
+          if (admDate && admDate > monthEnd) continue;
+          if (termDate && termDate < monthStart) continue;
 
           const effectiveStart = admDate && admDate > monthStart ? admDate : monthStart;
           const effectiveEnd = termDate && termDate < monthEnd ? termDate : monthEnd;
 
-          hoursCapacity += jornada_diaria * countWorkingDays(effectiveStart, effectiveEnd, holidays);
-        });
+          const workDays = countWorkingDays(effectiveStart, effectiveEnd, holidays);
+          hoursCapacity += emp.jornada_diaria * workDays;
+          // Capacity cost: pro-rate monthly cost by working days fraction in month
+          const totalWorkDaysInMonth = countWorkingDays(monthStart, monthEnd, holidays);
+          if (totalWorkDaysInMonth > 0) {
+            capacityCost += emp.monthlyCost * (workDays / totalWorkDaysInMonth);
+          }
+        }
 
         const laborCost = laborCostByMonth[i];
         const grossMargin = isPast && revenueReal > 0 ? ((revenueReal - laborCost) / revenueReal) * 100 : null;
@@ -236,6 +244,7 @@ export function useYearlyEvolution(
           hoursReal: isPast ? hoursReal : 0,
           hoursPlanned: hoursPlannedByMonth[i],
           hoursCapacity: isPast ? hoursCapacity : 0,
+          capacityCost: isPast ? capacityCost : 0,
           grossMargin,
           utilization,
         };

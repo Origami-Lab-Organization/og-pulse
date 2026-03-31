@@ -329,10 +329,14 @@ export default function Analytics() {
               <CostBreakdownChart data={financialMonths} year={financialEvolution.year} />
 
               {!isYearlyEvolutionLoading && yearlyEvolution && (
-                <AllocationChart data={yearlyEvolution.months} year={yearlyEvolution.year} />
+                <AllocationChart
+                  yearlyMonths={yearlyEvolution.months}
+                  financialMonths={financialMonths}
+                  year={yearlyEvolution.year}
+                />
               )}
 
-              <div className="grid gap-4 grid-cols-4">
+              <div className="grid gap-4 grid-cols-2">
                 <DonutChart
                   data={projectFinancials.byProject.slice(0, 8).map(d => ({ label: d.projectName, value: d.costs }))}
                   title="Custos por Projeto"
