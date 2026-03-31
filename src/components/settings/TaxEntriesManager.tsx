@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
-import { format, subMonths, startOfMonth, parse } from 'date-fns';
+import { format, subMonths, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Plus, Trash2, Pencil, FileUp, ExternalLink, Receipt } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -87,6 +89,29 @@ export function TaxEntriesManager() {
   const updateMutation = useUpdateTaxEntry();
   const deleteMutation = useDeleteTaxEntry();
 
+  // Fetch monthly received revenue for the selected year to compute effective rate
+  const { data: monthlyRevenue = new Map<string, number>() } = useQuery({
+    queryKey: ['monthly-revenue', employee?.tenant_id, selectedYear],
+    queryFn: async () => {
+      const startStr = `${selectedYear}-01-01`;
+      const endStr = `${selectedYear}-12-31`;
+      const { data } = await supabase
+        .from('project_installments')
+        .select('payment_date, value')
+        .eq('status', 'received')
+        .gte('payment_date', startStr)
+        .lte('payment_date', endStr);
+
+      const map = new Map<string, number>();
+      for (const row of (data || []) as any[]) {
+        const monthKey = row.payment_date?.substring(0, 7) + '-01'; // e.g. "2026-02-01"
+        map.set(monthKey, (map.get(monthKey) ?? 0) + Number(row.value));
+      }
+      return map;
+    },
+    enabled: !!employee?.tenant_id,
+  });
+
   const defaultRefMonth = format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd');
 
   const form = useForm<FormValues>({
@@ -104,14 +129,21 @@ export function TaxEntriesManager() {
     const entryMap = new Map(entries.map(e => [e.reference_month, e]));
     return MONTHS.map((label, idx) => {
       const monthDate = `${selectedYear}-${String(idx + 1).padStart(2, '0')}-01`;
+      const entry = entryMap.get(monthDate) || null;
+      const revenue = monthlyRevenue.get(monthDate) ?? 0;
+      const effectiveRate = entry && revenue > 0
+        ? (Number(entry.total_value) / revenue) * 100
+        : null;
       return {
         month: idx + 1,
         label,
         date: monthDate,
-        entry: entryMap.get(monthDate) || null,
+        entry,
+        revenue,
+        effectiveRate,
       };
     });
-  }, [entries, selectedYear]);
+  }, [entries, selectedYear, monthlyRevenue]);
 
   const handleOpenCreate = (monthDate?: string) => {
     setSelectedEntry(null);
@@ -260,7 +292,9 @@ export function TaxEntriesManager() {
               <TableRow>
                 <TableHead>Mês de Referência</TableHead>
                 <TableHead>Data Pagamento</TableHead>
+                <TableHead className="text-right">Faturamento</TableHead>
                 <TableHead className="text-right">Valor DAE</TableHead>
+                <TableHead className="text-right">Alíquota Efetiva</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -269,19 +303,29 @@ export function TaxEntriesManager() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : (
-                monthsGrid.map(({ label, date, entry }) => (
+                monthsGrid.map(({ label, date, entry, revenue, effectiveRate }) => (
                   <TableRow key={date}>
                     <TableCell className="font-medium">{label}/{selectedYear}</TableCell>
                     <TableCell>
                       {entry ? format(new Date(entry.payment_date + 'T12:00:00'), 'dd/MM/yyyy') : '—'}
                     </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {revenue > 0 ? formatCurrency(revenue) : '—'}
+                    </TableCell>
                     <TableCell className="text-right font-medium">
                       {entry ? formatCurrency(entry.total_value) : '—'}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {effectiveRate !== null ? (
+                        <span className={effectiveRate > 13 ? 'text-destructive' : 'text-primary'}>
+                          {formatPercent(effectiveRate)}
+                        </span>
+                      ) : '—'}
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
                       {entry?.description || '—'}
