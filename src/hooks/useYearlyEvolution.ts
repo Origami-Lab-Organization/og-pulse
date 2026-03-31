@@ -115,7 +115,7 @@ export function useYearlyEvolution(
 
         supabase
           .from('project_members')
-          .select('id, project_id, employee_id, employee:employees(jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao, termination:employee_terminations(termination_date)), plannedMonths:project_member_months(month_number, hours)')
+          .select('id, project_id, employee_id, employee:employees(jornada_mensal, total_monthly_cost_estimated), plannedMonths:project_member_months(month_number, hours)')
           .in('project_id', projectIds),
 
         // All active tenant employees for capacity calculation
