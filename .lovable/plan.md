@@ -1,101 +1,131 @@
 
 
-# Plano: Arquivar ou Excluir Projeto com Regras de Negócio
+# Plano: Lançamento de DAE e Cálculo Real de Impostos
 
 ## Resumo
 
-Implementar lógica de exclusão vs. arquivamento de projetos com validações:
-- **Excluir**: apenas se o projeto não possui lançamentos (parcelas recebidas/faturadas, OKRs, milestones, stakeholders, commissions pagas, etc.). Ao excluir, limpar também lead e orçamento associados.
-- **Arquivar (cancelar)**: se o projeto já tem lançamentos, o admin deve informar motivo e texto explicativo. O projeto recebe status `cancelled` e `portfolio_stage = 'completed'`.
-
-Apenas admins podem executar essas ações.
+Criar um sistema para registrar os valores reais de impostos (DAE do Simples Nacional) por mês, calcular a alíquota efetiva e ratear o imposto real entre os projetos proporcionalmente à receita que cada um gerou no mês de referência.
 
 ---
 
-## Etapas
+## Modelo de Dados
 
-### 1. Migration: adicionar campos de cancelamento na tabela `projects`
+Nova tabela `tax_entries`:
 
-Adicionar colunas:
-- `cancellation_reason TEXT` — motivo do cancelamento (ex: enum de opções)
-- `cancellation_notes TEXT` — texto explicativo
-- `cancelled_at TIMESTAMPTZ` — data do cancelamento
-- `cancelled_by UUID REFERENCES auth.users(id)` — quem cancelou
+```text
+tax_entries
+├── id (uuid, PK)
+├── tenant_id (uuid, FK tenants)
+├── reference_month (date)       -- 1º dia do mês de competência (ex: 2026-02-01)
+├── payment_date (date)          -- data do pagamento da DAE
+├── total_value (numeric)        -- valor total da DAE
+├── description (text)           -- descrição/observações
+├── file_url (text, nullable)    -- URL do arquivo DAE no storage
+├── created_by (uuid, FK auth.users)
+├── created_at, updated_at
+```
 
-### 2. Service: verificar se projeto possui lançamentos
+Regra: a DAE paga em março tem `reference_month = 2026-02-01` (competência fevereiro).
 
-Criar método `projectService.hasActivity(projectId)` que consulta se existem registros em:
-- `project_installments` com status `invoiced` ou `received`
-- `project_okrs` (qualquer registro)
-- `project_milestones` com `completed_date IS NOT NULL`
-- `project_stakeholders` (qualquer registro)
-- `project_commissions` com `paid_date IS NOT NULL`
-- `project_key_results` (qualquer registro)
+---
 
-Retorna `boolean` — `true` se qualquer dessas tabelas tem dados.
+## Lógica de Rateio por Projeto
 
-### 3. Service: exclusão completa com cascata comercial
+Para cada `tax_entry` de um `reference_month`:
+1. Buscar todas as parcelas (`project_installments`) com `status = 'received'` e `payment_date` dentro do mês de referência
+2. Calcular a receita total recebida no mês
+3. Cada projeto recebe a proporção: `(receita_projeto / receita_total) * valor_DAE`
 
-Atualizar `projectService.delete(id)` para, antes de excluir o projeto:
-1. Buscar `budget_id` e `lead_id` do projeto
-2. Excluir o projeto (FK CASCADE já limpa members, installments, suppliers, materials, commissions, OKRs, key_results, milestones, stakeholders, edit_logs)
-3. Excluir o orçamento (`budgets`) associado se existir
-4. Excluir o lead (`leads`) associado se existir
+Isso será calculado em tempo de consulta (sem tabela de rateio), permitindo que a alteração de parcelas recalcule automaticamente.
 
-### 4. Service: arquivar/cancelar projeto
+---
 
-Criar método `projectService.archive(id, { reason, notes, cancelledBy })` que:
-- Atualiza `status = 'cancelled'`, `portfolio_stage = 'completed'`
-- Preenche `cancellation_reason`, `cancellation_notes`, `cancelled_at = now()`, `cancelled_by`
+## Etapas de Implementação
 
-### 5. Hook: `useArchiveProject`
+### 1. Migration — criar tabela `tax_entries`
+- Tabela com RLS por tenant
+- Bucket `tax-documents` (privado) para upload dos PDFs da DAE
+- Policies de storage com verificação de tenant
 
-Novo mutation hook em `useProjects.ts`:
-- Chama `projectService.archive()`
-- Invalida queries de projetos e portfolio
-- Toast de sucesso/erro
+### 2. Service + Hook — CRUD de `tax_entries`
+- `taxEntryService.ts`: getAll(tenantId, year), create, update, delete
+- `useTaxEntries.ts`: hooks React Query para listar/criar/atualizar/excluir
+- Apenas admin pode criar/editar/excluir
 
-### 6. Hook: `useCanDeleteProject`
+### 3. UI no Portal Admin — aba "Impostos" ou seção dentro de "Financeiro"
+- Tabela com os 12 meses do ano, mostrando:
+  - Mês de referência
+  - Valor da DAE
+  - Alíquota efetiva (valor_DAE / receita_recebida_no_mês)
+  - Status (lançado / pendente)
+- Botão para adicionar lançamento com:
+  - Mês de referência (date picker mês/ano, default = mês anterior)
+  - Data de pagamento
+  - Valor total
+  - Descrição
+  - Upload do PDF da DAE
+- Edição e exclusão de lançamentos existentes
 
-Hook que chama `projectService.hasActivity(projectId)` e retorna se pode excluir ou deve arquivar.
+### 4. Atualizar Analytics — usar imposto real quando disponível
+- No `useAnalyticsData.ts`, para cada mês do período:
+  - Se existe `tax_entry` para aquele mês → usar valor real
+  - Se não existe → usar alíquota planejada (financial_settings.taxes_percent)
+- Exibir no `TaxesOverview.tsx`:
+  - Card 1: Alíquota planejada (meta) — já existe
+  - Card 2: Imposto real (soma das DAEs no período) vs estimado
+  - Card 3: Alíquota efetiva real (soma DAEs / receita recebida)
 
-### 7. Componente: `ProjectRemoveDialog`
+### 5. Rateio nos projetos — imposto real por projeto
+- Na aba financeira do projeto, quando há DAE lançada:
+  - Calcular a participação do projeto na receita do mês
+  - Mostrar o imposto real rateado ao invés do estimado
+- Isso afeta o cálculo de margem bruta real do projeto
 
-Substituir o `DeleteProjectDialog` atual por um componente inteligente:
-- Ao abrir, verifica se o projeto tem atividade (`hasActivity`)
-- **Se não tem atividade**: mostra confirmação de exclusão definitiva (remove projeto + lead + orçamento)
-- **Se tem atividade**: mostra formulário de arquivamento com:
-  - Select de motivo (ex: "Cancelamento pelo cliente", "Mudança de escopo", "Restrição orçamentária", "Outro")
-  - Textarea para texto explicativo (obrigatório)
-  - Botão "Arquivar Projeto"
-
-### 8. Integrar nas páginas
-
-- **ProjectDetail.tsx**: trocar `DeleteProjectDialog` por `ProjectRemoveDialog`, visível apenas para admin
-- **Projects.tsx**: trocar `DeleteProjectDialog` por `ProjectRemoveDialog`, ação de delete apenas para admin
-- **PortfolioCard.tsx**: adicionar menu de contexto (right-click ou botão) com opção "Excluir/Arquivar" para admin
-
-### 9. Exibição do status cancelado
-
-Projetos arquivados/cancelados devem exibir badge visual indicando cancelamento com o motivo.
+### 6. Visão consolidada — comparativo planejado vs real
+- Na seção de impostos do Analytics, tabela mensal:
+  - Mês | Receita | Imposto Planejado (%) | DAE Real | Alíquota Efetiva | Diferença
 
 ---
 
 ## Detalhes Técnicos
 
-**Tabelas filho do projeto (cascade delete via FK):**
-`project_members`, `project_installments`, `project_suppliers`, `project_materials`, `project_commissions`, `project_okrs`, `project_key_results`, `project_milestones`, `project_stakeholders`, `project_edit_logs`
-
-**Limpeza comercial na exclusão:**
-- `leads` onde `id = project.lead_id`
-- `budgets` onde `id = project.budget_id`
-- Budget roles, suppliers, materials (cascade do budget)
-
-**Campos do formulário de arquivamento:**
+**Cálculo da alíquota efetiva:**
 ```typescript
-interface ArchiveProjectInput {
-  reason: string;     // motivo padronizado
-  notes: string;      // texto livre obrigatório
-}
+const aliquotaEfetiva = receitaMes > 0 
+  ? (valorDAE / receitaMes) * 100 
+  : 0;
 ```
+
+**Rateio por projeto:**
+```typescript
+const receitaProjeto = installmentsProjeto
+  .filter(i => i.status === 'received' && isInMonth(i.payment_date, refMonth))
+  .reduce((sum, i) => sum + i.value, 0);
+
+const impostoRateado = receitaTotal > 0
+  ? (receitaProjeto / receitaTotal) * valorDAE
+  : 0;
+```
+
+**Fallback no Analytics:**
+```typescript
+// Para meses sem DAE lançada, usar estimativa
+const taxesValue = taxEntry 
+  ? taxEntry.total_value 
+  : revenueActual * (taxesPercent / 100);
+```
+
+**Arquivos a criar:**
+- `supabase/migrations/xxx_create_tax_entries.sql`
+- `src/services/taxEntryService.ts`
+- `src/hooks/useTaxEntries.ts`
+- `src/types/taxEntry.ts`
+- `src/components/settings/TaxEntriesManager.tsx` (UI admin)
+
+**Arquivos a editar:**
+- `src/hooks/useAnalyticsData.ts` — fallback real vs planejado
+- `src/components/analytics/TaxesOverview.tsx` — 3 cards atualizados
+- `src/pages/AdminPortal.tsx` — nova seção/aba de impostos
+- `src/components/projects/detail/ProjectOverviewTab.tsx` — rateio real
+- `src/components/projects/detail/ProjectExpectedResultTab.tsx` — rateio real
 
