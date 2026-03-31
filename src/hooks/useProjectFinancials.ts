@@ -256,12 +256,11 @@ export function useProjectFinancials(
         e.grossMargin = computeMargin(e.revenue, e.taxes, e.costs);
       };
 
-      // Fetch tax entries (DAE) for rateio
+      // Fetch tax entries by payment_date in the period (cost appears when paid)
+      // Rateio uses faturamento from the reference_month (month before payment)
       let taxEntries: { reference_month: string; total_value: number }[] = [];
       try {
-        const refStart = format(startOfMonth(filters.startDate), 'yyyy-MM-dd');
-        const refEnd = format(startOfMonth(filters.endDate), 'yyyy-MM-dd');
-        taxEntries = await taxEntryService.getByDateRange(tenantId, refStart, refEnd);
+        taxEntries = await taxEntryService.getByPaymentDateRange(tenantId, startStr, endStr);
       } catch { /* ignore */ }
 
       // Build per-month faturado using ALL tenant projects for accurate denominator
