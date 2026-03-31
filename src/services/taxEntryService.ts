@@ -33,6 +33,31 @@ export const taxEntryService = {
     return (data || []) as unknown as TaxEntryDB[];
   },
 
+  async getByPaymentDateRange(tenantId: string, startDate: string, endDate: string): Promise<TaxEntryDB[]> {
+    const { data, error } = await supabase
+      .from('tax_entries' as any)
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .gte('payment_date', startDate)
+      .lte('payment_date', endDate)
+      .order('payment_date');
+
+    if (error) throw error;
+    return (data || []) as unknown as TaxEntryDB[];
+  },
+
+  async getLatest(tenantId: string): Promise<TaxEntryDB | null> {
+    const { data, error } = await supabase
+      .from('tax_entries' as any)
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('reference_month', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    return (data && data.length > 0) ? (data[0] as unknown as TaxEntryDB) : null;
+  },
+
   async create(input: CreateTaxEntryInput, tenantId: string): Promise<TaxEntryDB> {
     const { data, error } = await supabase
       .from('tax_entries' as any)

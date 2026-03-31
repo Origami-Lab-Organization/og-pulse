@@ -332,12 +332,10 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost + totalReimbursementCost;
       const taxesValueEstimated = faturado * (Number(taxesPercent) / 100);
 
-      // Fetch real tax entries (DAE) for the period
+      // Fetch real tax entries by payment_date in the period (cost appears when paid)
       let taxesRealValue: number | null = null;
       try {
-        const refStart = format(startOfMonth(filters.startDate), 'yyyy-MM-dd');
-        const refEnd = format(startOfMonth(filters.endDate), 'yyyy-MM-dd');
-        const taxEntries = await taxEntryService.getByDateRange(tenantId, refStart, refEnd);
+        const taxEntries = await taxEntryService.getByPaymentDateRange(tenantId, startStr, endStr);
         if (taxEntries.length > 0) {
           taxesRealValue = taxEntries.reduce((sum, e) => sum + Number(e.total_value), 0);
         }

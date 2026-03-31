@@ -9,6 +9,16 @@ export interface TaxEntryDB {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // Extrato do Simples Nacional fields
+  rbt12: number;
+  rpa: number;
+  aliquota_simples: number;
+  irpj: number;
+  csll: number;
+  cofins: number;
+  pis_pasep: number;
+  inss_cpp: number;
+  iss: number;
 }
 
 export interface CreateTaxEntryInput {
@@ -17,6 +27,15 @@ export interface CreateTaxEntryInput {
   total_value: number;
   description?: string;
   file_url?: string;
+  rbt12?: number;
+  rpa?: number;
+  aliquota_simples?: number;
+  irpj?: number;
+  csll?: number;
+  cofins?: number;
+  pis_pasep?: number;
+  inss_cpp?: number;
+  iss?: number;
 }
 
 export interface UpdateTaxEntryInput {
@@ -24,4 +43,13 @@ export interface UpdateTaxEntryInput {
   total_value?: number;
   description?: string;
   file_url?: string;
+  rbt12?: number;
+  rpa?: number;
+  aliquota_simples?: number;
+  irpj?: number;
+  csll?: number;
+  cofins?: number;
+  pis_pasep?: number;
+  inss_cpp?: number;
+  iss?: number;
 }
