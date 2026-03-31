@@ -86,7 +86,6 @@ function FinancialSummaryCard({
   totalPlannedCost, 
   totalBudgetedCost, 
   contractValue, 
-  taxesPercent, 
   grossMarginTarget,
   isPlanningMode,
   totalActualCost,
