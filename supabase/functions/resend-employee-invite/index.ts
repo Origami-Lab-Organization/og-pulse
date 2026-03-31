@@ -123,11 +123,10 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Failed to update password");
     }
 
-    // Update employee record with new temp password
+    // Update employee record
     const { error: updateEmpError } = await supabaseAdmin
       .from("employees")
       .update({
-        temp_password: newTempPassword,
         must_change_password: true,
       })
       .eq("id", employeeId);

@@ -1016,7 +1016,6 @@ export type Database = {
           status: string
           system_role: string
           telefone: string
-          temp_password: string | null
           tenant_id: string
           termination_id: string | null
           tipo_contratacao: string
@@ -1058,7 +1057,6 @@ export type Database = {
           status?: string
           system_role?: string
           telefone: string
-          temp_password?: string | null
           tenant_id: string
           termination_id?: string | null
           tipo_contratacao?: string
@@ -1100,7 +1098,6 @@ export type Database = {
           status?: string
           system_role?: string
           telefone?: string
-          temp_password?: string | null
           tenant_id?: string
           termination_id?: string | null
           tipo_contratacao?: string

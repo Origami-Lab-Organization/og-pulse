@@ -191,12 +191,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     });
 
     if (!error && employee) {
-      // Update must_change_password to false, clear temp_password, and set status to 'ativo'
+      // Update must_change_password to false and set status to 'ativo'
       await supabase
         .from('employees')
         .update({ 
           must_change_password: false,
-          temp_password: null,
           status: 'ativo'
         })
         .eq('id', employee.id);

@@ -43,7 +43,7 @@ export interface EmployeeDB {
   tenant_id: string;
   auth_id: string | null;
   must_change_password: boolean;
-  temp_password: string | null;
+  
   created_at: string;
   updated_at: string;
 }
