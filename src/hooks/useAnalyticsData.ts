@@ -135,6 +135,16 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .gte('due_date', startStr)
           .lte('due_date', endStr),
 
+        // Faturado: invoiced or received installments with invoice_date in period
+        supabase
+          .from('project_installments')
+          .select('project_id, value, invoice_date')
+          .in('project_id', projectIds)
+          .in('status', ['invoiced', 'received'])
+          .not('invoice_date', 'is', null)
+          .gte('invoice_date', startStr)
+          .lte('invoice_date', endStr),
+
         // Timesheets in period
         supabase
           .from('project_timesheets')
