@@ -74,10 +74,29 @@ export default function CRM() {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
 
   // Active leads
-  const { data: activeLeads = [], isLoading: loadingActive } = useLeads();
+  const { data: rawActiveLeads = [], isLoading: loadingActive } = useLeads();
 
   // Archived leads
-  const { data: archivedLeads = [], isLoading: loadingArchived } = useArchivedLeads();
+  const { data: rawArchivedLeads = [], isLoading: loadingArchived } = useArchivedLeads();
+
+  // Fetch lead IDs linked to cancelled projects
+  const { data: cancelledLeadIds = [] } = useQuery({
+    queryKey: ['cancelled-project-lead-ids', employee?.tenant_id],
+    queryFn: async () => {
+      if (!employee?.tenant_id) return [];
+      const { data } = await (await import('@/integrations/supabase/client')).supabase
+        .from('projects')
+        .select('lead_id')
+        .eq('tenant_id', employee.tenant_id)
+        .eq('status', 'cancelled');
+      return (data || []).filter((p: any) => p.lead_id).map((p: any) => p.lead_id);
+    },
+    enabled: !!employee?.tenant_id,
+  });
+
+  const cancelledSet = useMemo(() => new Set(cancelledLeadIds), [cancelledLeadIds]);
+  const activeLeads = useMemo(() => rawActiveLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawActiveLeads, cancelledSet]);
+  const archivedLeads = useMemo(() => rawArchivedLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawArchivedLeads, cancelledSet]);
   const unarchiveMutation = useUnarchiveLead();
   const deleteMutation = useDeleteLead();
 
