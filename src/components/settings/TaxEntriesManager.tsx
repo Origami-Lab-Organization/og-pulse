@@ -292,7 +292,9 @@ export function TaxEntriesManager() {
               <TableRow>
                 <TableHead>Mês de Referência</TableHead>
                 <TableHead>Data Pagamento</TableHead>
+                <TableHead className="text-right">Faturamento</TableHead>
                 <TableHead className="text-right">Valor DAE</TableHead>
+                <TableHead className="text-right">Alíquota Efetiva</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -301,19 +303,29 @@ export function TaxEntriesManager() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : (
-                monthsGrid.map(({ label, date, entry }) => (
+                monthsGrid.map(({ label, date, entry, revenue, effectiveRate }) => (
                   <TableRow key={date}>
                     <TableCell className="font-medium">{label}/{selectedYear}</TableCell>
                     <TableCell>
                       {entry ? format(new Date(entry.payment_date + 'T12:00:00'), 'dd/MM/yyyy') : '—'}
                     </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {revenue > 0 ? formatCurrency(revenue) : '—'}
+                    </TableCell>
                     <TableCell className="text-right font-medium">
                       {entry ? formatCurrency(entry.total_value) : '—'}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {effectiveRate !== null ? (
+                        <span className={effectiveRate > 13 ? 'text-destructive' : 'text-primary'}>
+                          {formatPercent(effectiveRate)}
+                        </span>
+                      ) : '—'}
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
                       {entry?.description || '—'}
