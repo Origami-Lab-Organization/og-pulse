@@ -14,6 +14,7 @@ export interface MonthlyPoint {
   revenueReal: number;
   revenuePlanned: number;
   hoursReal: number;
+  hoursPlanned: number;
   hoursCapacity: number;
   grossMargin: number | null;
   utilization: number | null;
@@ -54,7 +55,7 @@ export function useYearlyEvolution(
       // 1. Fetch projects (same visibility rules as useAnalyticsData)
       let projectsQuery = supabase
         .from('projects')
-        .select('id')
+        .select('id, start_date')
         .eq('tenant_id', tenantId);
 
       if (!isAdmin && currentEmployeeId) {
@@ -75,6 +76,7 @@ export function useYearlyEvolution(
         revenueReal: 0,
         revenuePlanned: 0,
         hoursReal: 0,
+        hoursPlanned: 0,
         hoursCapacity: 0,
         grossMargin: null,
         utilization: null,
@@ -83,6 +85,7 @@ export function useYearlyEvolution(
       if (!projects || projects.length === 0) return { year, months: emptyMonths };
 
       const projectIds = projects.map(p => p.id);
+      const projectMap = new Map(projects.map(p => [p.id, p as any]));
 
       // 2. Fetch all data for the full year in parallel
       const [receivedRes, plannedRes, timesheetsRes, membersRes, holidaysRes] = await Promise.all([
@@ -110,7 +113,7 @@ export function useYearlyEvolution(
 
         supabase
           .from('project_members')
-          .select('id, employee_id, employee:employees(jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao, termination:employee_terminations(termination_date))')
+          .select('id, project_id, employee_id, employee:employees(jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao, termination:employee_terminations(termination_date)), plannedMonths:project_member_months(month_number, hours)')
           .in('project_id', projectIds),
 
         supabase
@@ -161,6 +164,19 @@ export function useYearlyEvolution(
         const info = memberMap.get(ts.project_member_id);
         if (info) {
           laborCostByMonth[monthIdx] += Number(ts.hours) * info.hourlyCost;
+        }
+      }
+
+      // Pre-compute planned hours per month (index 0–11) from project_member_months
+      const hoursPlannedByMonth = new Array(12).fill(0);
+      for (const m of members) {
+        const project = projectMap.get(m.project_id);
+        if (!project?.start_date) continue;
+        const projStart = parseISO(project.start_date);
+        for (const pm of (m.plannedMonths || [])) {
+          const actualDate = addMonths(startOfMonth(projStart), pm.month_number - 1);
+          if (actualDate.getFullYear() !== year) continue;
+          hoursPlannedByMonth[actualDate.getMonth()] += Number(pm.hours);
         }
       }
 
@@ -218,6 +234,7 @@ export function useYearlyEvolution(
           revenueReal: isPast ? revenueReal : 0,
           revenuePlanned,
           hoursReal: isPast ? hoursReal : 0,
+          hoursPlanned: hoursPlannedByMonth[i],
           hoursCapacity: isPast ? hoursCapacity : 0,
           grossMargin,
           utilization,

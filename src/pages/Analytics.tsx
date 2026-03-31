@@ -4,7 +4,7 @@ import {
   startOfQuarter, endOfQuarter,
   startOfYear, endOfYear,
 } from 'date-fns';
-import { Loader2, FileText, DollarSign, Target } from 'lucide-react';
+import { Loader2, FileText, DollarSign, Target, Users, Building2, Package, Percent, Receipt } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AnalyticsFilters, Granularity } from '@/components/analytics/AnalyticsFilters';
 import { AnalyticsKPIs } from '@/components/analytics/AnalyticsKPIs';
@@ -13,8 +13,8 @@ import { FinancialEvolutionChart } from '@/components/analytics/FinancialEvoluti
 import { CostBreakdownChart } from '@/components/analytics/CostBreakdownChart';
 import { AdminActivitiesChart } from '@/components/analytics/AdminActivitiesChart';
 import { OverdueTable } from '@/components/analytics/OverdueTable';
-import { RankingBarChart } from '@/components/analytics/RankingBarChart';
 import { DonutChart } from '@/components/analytics/DonutChart';
+import { AllocationChart } from '@/components/analytics/AllocationChart';
 import { ProjectMarginTable } from '@/components/analytics/ProjectMarginTable';
 import { TaxesOverview } from '@/components/analytics/TaxesOverview';
 import { StakeholderKPIs } from '@/components/analytics/StakeholderKPIs';
@@ -28,6 +28,7 @@ import { useRevenueAnalytics } from '@/hooks/useRevenueAnalytics';
 import { useProjectFinancials } from '@/hooks/useProjectFinancials';
 import { useStakeholderAnalytics } from '@/hooks/useStakeholderAnalytics';
 import { useAdminActivitiesEvolution } from '@/hooks/useAdminActivitiesEvolution';
+import { useYearlyEvolution } from '@/hooks/useYearlyEvolution';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
 
@@ -81,6 +82,7 @@ export default function Analytics() {
     filters.startDate.getFullYear(),
     { enabled: activeTab === 'admin-costs' || activeTab === 'overview' },
   );
+  const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } = useYearlyEvolution(filters, { enabled: activeTab === 'costs' });
   const { data: filterOptions } = useAnalyticsFilterOptions();
 
   // Recompute isHighlighted from current filters (fixes stale cache on period change within same year)
@@ -101,6 +103,11 @@ export default function Analytics() {
     const revenueProjected = highlighted.reduce((s, m) => s + m.revenuePlanned, 0);
     const taxesValue = highlighted.reduce((s, m) => s + m.taxesValue, 0);
     const totalCosts = highlighted.reduce((s, m) => s + m.totalCosts, 0);
+    const laborCost = highlighted.reduce((s, m) => s + m.laborCost, 0);
+    const supplierCost = highlighted.reduce((s, m) => s + m.supplierCost, 0);
+    const materialCost = highlighted.reduce((s, m) => s + m.materialCost, 0);
+    const commissionCost = highlighted.reduce((s, m) => s + m.commissionCost, 0);
+    const reimbursementCost = highlighted.reduce((s, m) => s + m.reimbursementCost, 0);
     const grossMargin = revenueActual > 0
       ? ((revenueActual - taxesValue - totalCosts) / revenueActual) * 100
       : 0;
@@ -108,7 +115,8 @@ export default function Analytics() {
       faturado, revenueActual, revenueProjected,
       revenueDiff: revenueActual - revenueProjected,
       taxesValue, taxesPercent: financialEvolution.taxesPercent,
-      totalCosts, grossMargin, grossMarginTarget: financialEvolution.grossMarginTarget,
+      totalCosts, laborCost, supplierCost, materialCost, commissionCost, reimbursementCost,
+      grossMargin, grossMarginTarget: financialEvolution.grossMarginTarget,
     };
   }, [financialMonths, financialEvolution]);
 
@@ -255,44 +263,91 @@ export default function Analytics() {
           {/* ── Custos ───────────────────────────────────────────────────── */}
           <TabsContent value="costs" className="space-y-6 mt-6">
             {(isFinancialLoading || isProjectFinancialsLoading) ? financialLoader : (financialKPIs && financialEvolution && projectFinancials) ? (<>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Custos Realizados</CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(financialKPIs.totalCosts)}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Mão de obra, fornecedores, materiais, comissões e reembolsos
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="grid gap-4 grid-cols-3">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total de Custos</CardTitle>
+                    <Target className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(financialKPIs.totalCosts)}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Custos realizados no período</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Mão de Obra</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(financialKPIs.laborCost)}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Custo de horas registradas</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Fornecedores</CardTitle>
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(financialKPIs.supplierCost)}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Custos de fornecedores externos</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Materiais</CardTitle>
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(financialKPIs.materialCost)}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Materiais realizados</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Comissões</CardTitle>
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(financialKPIs.commissionCost)}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Comissões pagas no período</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Reembolsos</CardTitle>
+                    <Receipt className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(financialKPIs.reimbursementCost)}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Reembolsos aprovados/pagos</p>
+                  </CardContent>
+                </Card>
+              </div>
 
               <CostBreakdownChart data={financialMonths} year={financialEvolution.year} />
 
-              <div className="grid gap-4 grid-cols-2">
-                <RankingBarChart
+              {!isYearlyEvolutionLoading && yearlyEvolution && (
+                <AllocationChart data={yearlyEvolution.months} year={yearlyEvolution.year} />
+              )}
+
+              <div className="grid gap-4 grid-cols-4">
+                <DonutChart
                   data={projectFinancials.byProject.slice(0, 8).map(d => ({ label: d.projectName, value: d.costs }))}
-                  title="Projetos com Maior Custo"
-                  color="hsl(0, 70%, 60%)"
+                  title="Custos por Projeto"
                 />
-                <RankingBarChart
+                <DonutChart
                   data={projectFinancials.byClient.map(d => ({ label: d.label, value: d.costs }))}
                   title="Custos por Cliente"
-                  color="hsl(0, 60%, 70%)"
                 />
-              </div>
-
-              <div className="grid gap-4 grid-cols-2">
-                <RankingBarChart
+                <DonutChart
                   data={projectFinancials.byManager.map(d => ({ label: d.label, value: d.costs }))}
                   title="Custos por Gerente"
-                  color="hsl(25, 75%, 55%)"
                 />
-                <RankingBarChart
+                <DonutChart
                   data={projectFinancials.byServiceLine.map(d => ({ label: d.label, value: d.costs }))}
                   title="Custos por Linha de Serviço"
-                  color="hsl(280, 55%, 55%)"
                 />
               </div>
             </>) : null}
