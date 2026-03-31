@@ -8,7 +8,8 @@ interface ProjectStatsProps {
   installments?: ProjectInstallmentDB[];
 }
 
-export function ProjectStats({ projects, installments = [] }: ProjectStatsProps) {
+export function ProjectStats({ projects: allProjects, installments = [] }: ProjectStatsProps) {
+  const projects = allProjects.filter((p) => p.status !== 'cancelled');
   const currentYear = new Date().getFullYear();
   const totalProjects = projects.length;
   const activeProjects = projects.filter(

@@ -79,7 +79,8 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       let projectsQuery = supabase
         .from('projects')
         .select('id, name, start_date, client_id, manager_id')
-        .eq('tenant_id', tenantId);
+        .eq('tenant_id', tenantId)
+        .neq('status', 'cancelled');
 
       if (!isAdmin && currentEmployeeId) {
         projectsQuery = projectsQuery.eq('manager_id', currentEmployeeId);
