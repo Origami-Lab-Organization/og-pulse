@@ -122,7 +122,6 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
 
     return {
       revenuePlanned, revenueActual, revenueExecuted,
-      taxPlanned, taxActual, taxExecuted,
       commissionPlanned, commissionActual, commissionExecuted,
       costPlanned, costActual, costExecuted,
       marginPlanned, marginActual, marginVar,
