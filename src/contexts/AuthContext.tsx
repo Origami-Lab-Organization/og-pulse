@@ -96,8 +96,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (session?.user) {
           // Use setTimeout to avoid potential race conditions
           setTimeout(async () => {
-            const employeeData = await fetchEmployeeData(session.user.id);
+            const employeeData = await fetchEmployeeData(session.user.id, { signOutIfInactive: true });
             setEmployee(employeeData);
+            if (!employeeData) {
+              setUser(null);
+              setSession(null);
+            }
             setLoading(false);
           }, 0);
         } else {
