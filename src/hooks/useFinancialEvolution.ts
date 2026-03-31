@@ -335,7 +335,9 @@ export function useFinancialEvolution(
           m.taxesValue = realTax;
           m.taxesRealValue = realTax;
         } else {
-          m.taxesValue = m.faturado * (taxesPercent / 100);
+          // Use latest extrato aliquota if available, otherwise financial_settings
+          const estimateRate = latestAliquota ?? taxesPercent;
+          m.taxesValue = m.faturado * (estimateRate / 100);
           m.taxesRealValue = null;
         }
 
