@@ -3,6 +3,7 @@ import { format, parseISO, addMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
+import { taxEntryService } from '@/services/taxEntryService';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface ProjectFinancialRow {
@@ -227,10 +228,49 @@ export function useProjectFinancials(
         e.grossMargin = computeMargin(e.revenue, e.taxes, e.costs);
       };
 
+      // Fetch tax entries (DAE) for rateio
+      let taxEntries: { reference_month: string; total_value: number }[] = [];
+      try {
+        const refStart = format(startOfMonth(filters.startDate), 'yyyy-MM-dd');
+        const refEnd = format(startOfMonth(filters.endDate), 'yyyy-MM-dd');
+        taxEntries = await taxEntryService.getByDateRange(tenantId, refStart, refEnd);
+      } catch { /* ignore */ }
+
+      // Build per-month revenue by project (for DAE rateio)
+      const monthlyRevenueByProject = new Map<string, Map<string, number>>(); // month -> (projectId -> revenue)
+      const monthlyRevenueTotal = new Map<string, number>(); // month -> total revenue
+      for (const r of (receivedRes.data || []) as any[]) {
+        const payDate = parseISO(r.payment_date);
+        const monthKey = format(startOfMonth(payDate), 'yyyy-MM-dd');
+        if (!monthlyRevenueByProject.has(monthKey)) monthlyRevenueByProject.set(monthKey, new Map());
+        const projMap = monthlyRevenueByProject.get(monthKey)!;
+        projMap.set(r.project_id, (projMap.get(r.project_id) ?? 0) + Number(r.value));
+        monthlyRevenueTotal.set(monthKey, (monthlyRevenueTotal.get(monthKey) ?? 0) + Number(r.value));
+      }
+
+      // Calculate real tax per project (prorated by revenue share)
+      const realTaxByProject = new Map<string, number>();
+      for (const te of taxEntries) {
+        const monthKey = te.reference_month;
+        const totalRevInMonth = monthlyRevenueTotal.get(monthKey) ?? 0;
+        if (totalRevInMonth <= 0) continue;
+        const projRevMap = monthlyRevenueByProject.get(monthKey);
+        if (!projRevMap) continue;
+        for (const [projId, projRev] of projRevMap) {
+          const share = (projRev / totalRevInMonth) * Number(te.total_value);
+          realTaxByProject.set(projId, (realTaxByProject.get(projId) ?? 0) + share);
+        }
+      }
+
+      const hasRealTaxData = taxEntries.length > 0;
+
       for (const proj of projects as any[]) {
         const rev = revenue.get(proj.id) ?? 0;
         const cost = costs.get(proj.id) ?? 0;
-        const tax = rev * (taxesPercent / 100);
+        // Use real prorated tax if available, otherwise estimate
+        const tax = hasRealTaxData && realTaxByProject.has(proj.id)
+          ? realTaxByProject.get(proj.id)!
+          : rev * (taxesPercent / 100);
         const margin = computeMargin(rev, tax, cost);
 
         const clientId = proj.client?.id || 'sem-cliente';

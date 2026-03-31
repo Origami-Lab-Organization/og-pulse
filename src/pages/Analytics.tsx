@@ -173,12 +173,20 @@ export default function Analytics() {
       revenueActual > 0
         ? ((revenueActual - taxesValue - totalCosts) / revenueActual) * 100
         : 0
+
+    // Check if any highlighted month has real DAE data
+    const hasAnyRealTax = highlighted.some((m) => m.taxesRealValue !== null)
+    const taxesRealValue = hasAnyRealTax
+      ? highlighted.reduce((s, m) => s + (m.taxesRealValue ?? 0), 0)
+      : null
+
     return {
       faturado,
       revenueActual,
       revenueProjected,
       revenueDiff: revenueActual - revenueProjected,
       taxesValue,
+      taxesRealValue,
       taxesPercent: financialEvolution.taxesPercent,
       totalCosts,
       laborCost,
@@ -376,6 +384,7 @@ export default function Analytics() {
                 <TaxesOverview
                   taxesPercent={financialKPIs.taxesPercent}
                   taxesValue={financialKPIs.taxesValue}
+                  taxesRealValue={financialKPIs.taxesRealValue}
                   faturado={financialKPIs.faturado}
                 />
                 <FinancialEvolutionChart

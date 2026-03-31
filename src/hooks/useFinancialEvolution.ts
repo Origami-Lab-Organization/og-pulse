@@ -3,6 +3,7 @@ import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { taxEntryService } from '@/services/taxEntryService';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface FinancialMonthlyPoint {
@@ -16,6 +17,7 @@ export interface FinancialMonthlyPoint {
   faturado: number;
   // Taxes
   taxesValue: number;
+  taxesRealValue: number | null; // from DAE, null if not available
   // Realized costs
   totalCosts: number;
   laborCost: number;
@@ -90,7 +92,7 @@ export function useFinancialEvolution(
           isHighlighted: false,
           isPast: startOfMonth(new Date(year, i, 1)) <= new Date(),
           revenueReal: 0, revenuePlanned: 0, faturado: 0,
-          taxesValue: 0,
+          taxesValue: 0, taxesRealValue: null,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
           commissionCost: 0, reimbursementCost: 0,
           plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
@@ -304,11 +306,33 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].reimbursementCost += Number(r.total_amount) || 0;
       }
 
+      // Fetch real tax entries (DAE) for the year
+      let taxEntryMap = new Map<number, number>(); // monthIndex -> value
+      try {
+        const taxEntries = await taxEntryService.getByDateRange(tenantId, yearStart, yearEnd);
+        for (const te of taxEntries) {
+          const refDate = parseISO(te.reference_month);
+          if (refDate.getFullYear() === year) {
+            taxEntryMap.set(refDate.getMonth(), Number(te.total_value));
+          }
+        }
+      } catch { /* ignore */ }
+
       // Compute derived values (isHighlighted computed externally from filters)
       const today = new Date();
       for (const m of monthData) {
         m.isPast = startOfMonth(new Date(year, m.monthIndex, 1)) <= today;
-        m.taxesValue = m.revenueReal * (taxesPercent / 100);
+
+        // Use real DAE value if available, otherwise estimate
+        const realTax = taxEntryMap.get(m.monthIndex);
+        if (realTax !== undefined) {
+          m.taxesValue = realTax;
+          m.taxesRealValue = realTax;
+        } else {
+          m.taxesValue = m.revenueReal * (taxesPercent / 100);
+          m.taxesRealValue = null;
+        }
+
         m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost + m.reimbursementCost;
         m.plannedTotalCosts = m.plannedLaborCost + m.plannedSupplierCost + m.plannedMaterialCost;
         m.plannedTaxesValue = m.revenuePlanned * (taxesPercent / 100);

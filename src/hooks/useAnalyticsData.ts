@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import { countWorkingDays } from '@/lib/workingDays';
+import { taxEntryService } from '@/services/taxEntryService';
 
 export interface AnalyticsFilters {
   startDate: Date;
@@ -44,6 +45,7 @@ export interface AnalyticsData {
   reimbursementCost: number;
   taxesPercent: number;
   taxesValue: number;
+  taxesRealValue: number | null; // sum of DAE entries in period, null if none
   commissionValue: number;
   grossMargin: number; // percentage
   grossMarginTarget: number | null;
@@ -315,7 +317,21 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const totalReimbursementCost = reimbursements.reduce((sum: number, r: any) => sum + (Number(r.total_amount) || 0), 0);
       const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost + totalReimbursementCost;
-      const taxesValue = revenueActual * (Number(taxesPercent) / 100);
+      const taxesValueEstimated = revenueActual * (Number(taxesPercent) / 100);
+
+      // Fetch real tax entries (DAE) for the period
+      let taxesRealValue: number | null = null;
+      try {
+        const refStart = format(startOfMonth(filters.startDate), 'yyyy-MM-dd');
+        const refEnd = format(startOfMonth(filters.endDate), 'yyyy-MM-dd');
+        const taxEntries = await taxEntryService.getByDateRange(tenantId, refStart, refEnd);
+        if (taxEntries.length > 0) {
+          taxesRealValue = taxEntries.reduce((sum, e) => sum + Number(e.total_value), 0);
+        }
+      } catch { /* ignore - use estimated */ }
+
+      const taxesValue = taxesRealValue !== null ? taxesRealValue : taxesValueEstimated;
+
       const totalCommissions = commissions
         .filter((c: any) => !c.approval_status || c.approval_status === 'approved')
         .reduce((sum, c) => sum + (Number(c.planned_value) || 0), 0);
@@ -418,6 +434,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         reimbursementCost: totalReimbursementCost,
         taxesPercent: Number(taxesPercent),
         taxesValue,
+        taxesRealValue,
         commissionValue: totalCommissions,
         grossMargin,
         grossMarginTarget,
