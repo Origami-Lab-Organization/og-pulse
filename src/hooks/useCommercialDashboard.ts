@@ -294,7 +294,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       recentLeads,
       responsibleOptions,
     };
-  }, [leads, archivedLeads, budgets, clients, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
+  }, [leads, archivedLeads, budgets, clients, cancelledBudgetIds, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
 
   return { data, isLoading };
 }
