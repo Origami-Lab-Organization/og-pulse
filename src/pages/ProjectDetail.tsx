@@ -1,10 +1,11 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Edit, Lock } from 'lucide-react';
+import { Edit, Trash2, Lock } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { ProjectHeader } from '@/components/projects/detail/ProjectHeader';
 import { ProjectOverviewTab } from '@/components/projects/detail/ProjectOverviewTab';
 import { ProjectPlanningOverviewTab } from '@/components/projects/detail/ProjectPlanningOverviewTab';
@@ -17,11 +18,19 @@ import { ProjectExpectedResultTab } from '@/components/projects/detail/ProjectEx
 import { ProjectCommissionsTab } from '@/components/projects/detail/ProjectCommissionsTab';
 import { ProjectValueBookUpload } from '@/components/projects/detail/ProjectValueBookUpload';
 import { ProjectFormDialog } from '@/components/projects/ProjectFormDialog';
-import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
-import { useProject, useUpdateProject, useDeleteProject } from '@/hooks/useProjects';
+import { ProjectRemoveDialog } from '@/components/projects/ProjectRemoveDialog';
+import { useProject, useUpdateProject, useDeleteProject, useArchiveProject } from '@/hooks/useProjects';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreateProjectInput } from '@/types/project';
 import { useState } from 'react';
+
+const CANCELLATION_REASON_LABELS: Record<string, string> = {
+  client_cancellation: 'Cancelamento pelo cliente',
+  scope_change: 'Mudança de escopo',
+  budget_constraint: 'Restrição orçamentária',
+  strategic_decision: 'Decisão estratégica',
+  other: 'Outro',
+};
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -35,9 +44,10 @@ export default function ProjectDetail() {
   const { data: project, isLoading } = useProject(id);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const archiveProject = useArchiveProject();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
 
   const handleUpdate = (data: CreateProjectInput, justification?: string) => {
     if (!project) return;
@@ -50,8 +60,16 @@ export default function ProjectDetail() {
   const handleDelete = () => {
     if (!project) return;
     deleteProject.mutate(
-      { id: project.id, name: project.name },
+      { id: project.id, name: project.name, withCascade: true },
       { onSuccess: () => navigate('/projects') }
+    );
+  };
+
+  const handleArchive = (reason: string, notes: string) => {
+    if (!project) return;
+    archiveProject.mutate(
+      { id: project.id, reason, notes },
+      { onSuccess: () => { setRemoveDialogOpen(false); navigate('/projects'); } }
     );
   };
 
@@ -95,6 +113,7 @@ export default function ProjectDetail() {
   // Determine if project is in planning phase
   const isPlanning = project.portfolio_stage === 'planning';
   const isCompleted = project.portfolio_stage === 'completed';
+  const isCancelled = project.status === 'cancelled';
   const canEdit = isAdmin || !isCompleted;
   const isReadOnly = isCompleted && !isAdmin;
   const canManageInstallments = (isAdmin || isManager) && !isReadOnly;
@@ -108,18 +127,40 @@ export default function ProjectDetail() {
         { label: project.name },
       ]}
       actions={
-        canEdit ? (
-          <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </Button>
-        ) : undefined
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setRemoveDialogOpen(true)} className="text-destructive hover:text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Remover
+            </Button>
+          )}
+          {canEdit && (
+            <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </Button>
+          )}
+        </div>
       }
     >
       <div className="space-y-6">
         <ProjectHeader project={project} />
 
-        {isReadOnly && (
+        {isCancelled && (project as any).cancellation_reason && (
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
+            <Badge variant="destructive">Cancelado</Badge>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">
+                Motivo: {CANCELLATION_REASON_LABELS[(project as any).cancellation_reason] || (project as any).cancellation_reason}
+              </p>
+              {(project as any).cancellation_notes && (
+                <p className="text-muted-foreground">{(project as any).cancellation_notes}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isReadOnly && !isCancelled && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm">
             <Lock className="h-4 w-4 shrink-0" />
             <span>Este projeto está concluído. Apenas administradores podem realizar alterações.</span>
@@ -204,13 +245,17 @@ export default function ProjectDetail() {
         requireJustification={isCompleted && isAdmin}
       />
 
-      <DeleteProjectDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        projectName={project.name}
-        onConfirm={handleDelete}
-        isDeleting={deleteProject.isPending}
-      />
+      {project && (
+        <ProjectRemoveDialog
+          open={removeDialogOpen}
+          onOpenChange={setRemoveDialogOpen}
+          projectId={project.id}
+          projectName={project.name}
+          onDelete={handleDelete}
+          onArchive={handleArchive}
+          isProcessing={deleteProject.isPending || archiveProject.isPending}
+        />
+      )}
     </AppLayout>
   );
 }

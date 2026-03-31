@@ -2,19 +2,21 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Building2, User, Calendar, Layers, History, Lock } from 'lucide-react';
+import { Building2, User, Calendar, Layers, History, Lock, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface PortfolioCardProps {
   project: PortfolioProject;
+  onRemove?: (project: PortfolioProject) => void;
 }
 
-export function PortfolioCard({ project }: PortfolioCardProps) {
+export function PortfolioCard({ project, onRemove }: PortfolioCardProps) {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
@@ -77,16 +79,35 @@ export function PortfolioCard({ project }: PortfolioCardProps) {
         <h4 className="font-medium text-sm text-foreground line-clamp-2 flex-1">
           {project.name}
         </h4>
-        {isLocked && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              Apenas administradores podem alterar projetos concluídos
-            </TooltipContent>
-          </Tooltip>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {isAdmin && onRemove && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); onRemove(project); }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                Remover projeto
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {isLocked && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Lock className="h-3 w-3 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                Apenas administradores podem alterar projetos concluídos
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       <div className="space-y-1.5 text-xs text-muted-foreground">

@@ -8,26 +8,31 @@ import { DataTable } from '@/components/data-table/DataTable';
 import { ProjectStats } from '@/components/projects/ProjectStats';
 import { createProjectColumns } from '@/components/projects/ProjectsTable';
 import { ProjectFormDialog } from '@/components/projects/ProjectFormDialog';
-import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
+import { ProjectRemoveDialog } from '@/components/projects/ProjectRemoveDialog';
 import {
   useProjects,
   useCreateProject,
   useUpdateProject,
   useDeleteProject,
+  useArchiveProject,
 } from '@/hooks/useProjects';
+import { useAuth } from '@/contexts/AuthContext';
 import { ProjectWithRelations, CreateProjectInput } from '@/types/project';
 
 export default function Projects() {
   const navigate = useNavigate();
+  const { employee } = useAuth();
+  const isAdmin = employee?.isAdmin ?? false;
   const [searchQuery, setSearchQuery] = useState('');
   const [formDialogOpen, setFormDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ProjectWithRelations | null>(null);
 
   const { data: projects = [], isLoading } = useProjects();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const archiveProject = useArchiveProject();
 
   // Filter projects based on search
   const filteredProjects = useMemo(() => {
@@ -56,8 +61,9 @@ export default function Projects() {
   };
 
   const handleDelete = (project: ProjectWithRelations) => {
+    if (!isAdmin) return;
     setSelectedProject(project);
-    setDeleteDialogOpen(true);
+    setRemoveDialogOpen(true);
   };
 
   const handleFormSubmit = (data: CreateProjectInput) => {
@@ -83,10 +89,24 @@ export default function Projects() {
   const handleConfirmDelete = () => {
     if (selectedProject) {
       deleteProject.mutate(
-        { id: selectedProject.id, name: selectedProject.name },
+        { id: selectedProject.id, name: selectedProject.name, withCascade: true },
         {
           onSuccess: () => {
-            setDeleteDialogOpen(false);
+            setRemoveDialogOpen(false);
+            setSelectedProject(null);
+          },
+        }
+      );
+    }
+  };
+
+  const handleConfirmArchive = (reason: string, notes: string) => {
+    if (selectedProject) {
+      archiveProject.mutate(
+        { id: selectedProject.id, reason, notes },
+        {
+          onSuccess: () => {
+            setRemoveDialogOpen(false);
             setSelectedProject(null);
           },
         }
@@ -97,7 +117,7 @@ export default function Projects() {
   const columns = createProjectColumns({
     onView: handleView,
     onEdit: handleEdit,
-    onDelete: handleDelete,
+    onDelete: isAdmin ? handleDelete : undefined,
   });
 
   return (
@@ -153,13 +173,17 @@ export default function Projects() {
         isSubmitting={createProject.isPending || updateProject.isPending}
       />
 
-      <DeleteProjectDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        projectName={selectedProject?.name || ''}
-        onConfirm={handleConfirmDelete}
-        isDeleting={deleteProject.isPending}
-      />
+      {selectedProject && (
+        <ProjectRemoveDialog
+          open={removeDialogOpen}
+          onOpenChange={setRemoveDialogOpen}
+          projectId={selectedProject.id}
+          projectName={selectedProject.name}
+          onDelete={handleConfirmDelete}
+          onArchive={handleConfirmArchive}
+          isProcessing={deleteProject.isPending || archiveProject.isPending}
+        />
+      )}
     </AppLayout>
   );
 }
