@@ -1,0 +1,10 @@
+ALTER TABLE public.tax_entries
+  ADD COLUMN IF NOT EXISTS rbt12 numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS rpa numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS aliquota_simples numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS irpj numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS csll numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cofins numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS pis_pasep numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS inss_cpp numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS iss numeric DEFAULT 0;

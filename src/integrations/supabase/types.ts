@@ -3402,37 +3402,64 @@ export type Database = {
       }
       tax_entries: {
         Row: {
+          aliquota_simples: number | null
+          cofins: number | null
           created_at: string
           created_by: string | null
+          csll: number | null
           description: string | null
           file_url: string | null
           id: string
+          inss_cpp: number | null
+          irpj: number | null
+          iss: number | null
           payment_date: string
+          pis_pasep: number | null
+          rbt12: number | null
           reference_month: string
+          rpa: number | null
           tenant_id: string
           total_value: number
           updated_at: string
         }
         Insert: {
+          aliquota_simples?: number | null
+          cofins?: number | null
           created_at?: string
           created_by?: string | null
+          csll?: number | null
           description?: string | null
           file_url?: string | null
           id?: string
+          inss_cpp?: number | null
+          irpj?: number | null
+          iss?: number | null
           payment_date: string
+          pis_pasep?: number | null
+          rbt12?: number | null
           reference_month: string
+          rpa?: number | null
           tenant_id: string
           total_value?: number
           updated_at?: string
         }
         Update: {
+          aliquota_simples?: number | null
+          cofins?: number | null
           created_at?: string
           created_by?: string | null
+          csll?: number | null
           description?: string | null
           file_url?: string | null
           id?: string
+          inss_cpp?: number | null
+          irpj?: number | null
+          iss?: number | null
           payment_date?: string
+          pis_pasep?: number | null
+          rbt12?: number | null
           reference_month?: string
+          rpa?: number | null
           tenant_id?: string
           total_value?: number
           updated_at?: string
