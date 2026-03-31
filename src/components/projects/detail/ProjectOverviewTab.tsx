@@ -127,7 +127,6 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
 
     return {
       revenuePlanned, revenueActual, revenueExecuted,
-      taxPlanned, taxActual, taxExecuted,
       commissionPlanned, commissionActual, commissionExecuted,
       costPlanned, costActual, costExecuted,
       marginPlanned, marginActual, marginVar,
