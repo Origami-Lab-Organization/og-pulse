@@ -26,6 +26,17 @@ export function useTaxEntriesByRange(startDate: string, endDate: string, options
   });
 }
 
+export function useTaxEntriesByPaymentRange(startDate: string, endDate: string, options?: { enabled?: boolean }) {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['tax-entries-payment', tenantId, startDate, endDate],
+    queryFn: () => taxEntryService.getByPaymentDateRange(tenantId!, startDate, endDate),
+    enabled: !!tenantId && (options?.enabled ?? true),
+  });
+}
+
 export function useCreateTaxEntry() {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
