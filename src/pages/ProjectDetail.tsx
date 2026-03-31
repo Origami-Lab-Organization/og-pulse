@@ -25,7 +25,9 @@ import { useState } from 'react';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const initialTab = searchParams.get('tab') || 'overview';
   const queryClient = useQueryClient();
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
