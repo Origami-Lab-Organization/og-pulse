@@ -105,14 +105,6 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     const revenueActual = receivedValue;
     const revenueExecuted = revenuePlanned > 0 ? (revenueActual / revenuePlanned) * 100 : 0;
 
-    const taxRate = financialSettings?.taxes_percent ?? 0;
-    const invoicedTotal = (project.installments || [])
-      .filter((i) => i.status === 'invoiced' || i.status === 'received')
-      .reduce((sum, i) => sum + Number(i.value), 0);
-    const taxPlanned = revenuePlanned * taxRate / 100;
-    const taxActual = invoicedTotal * taxRate / 100;
-    const taxExecuted = taxPlanned > 0 ? (taxActual / taxPlanned) * 100 : 0;
-
     const costPlanned = costData.totalPlanned;
     const costActual = costData.totalActual;
     const costExecuted = costPlanned > 0 ? (costActual / costPlanned) * 100 : 0;
