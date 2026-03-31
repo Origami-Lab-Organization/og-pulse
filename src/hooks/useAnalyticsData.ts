@@ -117,7 +117,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const dayAfterEndStr = format(dayAfterEnd, 'yyyy-MM-dd');
 
       // 2. Fetch all data in parallel
-      const [installmentsRes, projectedInstallmentsRes, timesheetsRes, membersRes, suppliersRes, materialsRes, settingsRes, holidaysRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [installmentsRes, projectedInstallmentsRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, settingsRes, holidaysRes, commissionsRes, reimbursementsRes] = await Promise.all([
         // Revenue actual: installments with status received and payment_date in period
         supabase
           .from('project_installments')
