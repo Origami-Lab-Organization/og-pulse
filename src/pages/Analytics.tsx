@@ -14,6 +14,7 @@ import { CostBreakdownChart } from '@/components/analytics/CostBreakdownChart';
 import { AdminActivitiesChart } from '@/components/analytics/AdminActivitiesChart';
 import { OverdueTable } from '@/components/analytics/OverdueTable';
 import { DonutChart } from '@/components/analytics/DonutChart';
+import { CostDonutChart } from '@/components/analytics/CostDonutChart';
 import { AllocationChart } from '@/components/analytics/AllocationChart';
 import { ProjectMarginTable } from '@/components/analytics/ProjectMarginTable';
 import { TaxesOverview } from '@/components/analytics/TaxesOverview';
@@ -336,24 +337,12 @@ export default function Analytics() {
                 />
               )}
 
-              <div className="grid gap-4 grid-cols-2">
-                <DonutChart
-                  data={projectFinancials.byProject.slice(0, 8).map(d => ({ label: d.projectName, value: d.costs }))}
-                  title="Custos por Projeto"
-                />
-                <DonutChart
-                  data={projectFinancials.byClient.map(d => ({ label: d.label, value: d.costs }))}
-                  title="Custos por Cliente"
-                />
-                <DonutChart
-                  data={projectFinancials.byManager.map(d => ({ label: d.label, value: d.costs }))}
-                  title="Custos por Gerente"
-                />
-                <DonutChart
-                  data={projectFinancials.byServiceLine.map(d => ({ label: d.label, value: d.costs }))}
-                  title="Custos por Linha de Serviço"
-                />
-              </div>
+              <CostDonutChart
+                byProject={projectFinancials.byProject.slice(0, 8).map(d => ({ label: d.projectName, value: d.costs }))}
+                byClient={projectFinancials.byClient.map(d => ({ label: d.label, value: d.costs }))}
+                byManager={projectFinancials.byManager.map(d => ({ label: d.label, value: d.costs }))}
+                byServiceLine={projectFinancials.byServiceLine.map(d => ({ label: d.label, value: d.costs }))}
+              />
             </>) : null}
           </TabsContent>
 
