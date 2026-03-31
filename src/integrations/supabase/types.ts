@@ -2865,6 +2865,10 @@ export type Database = {
       projects: {
         Row: {
           budget_id: string | null
+          cancellation_notes: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           client_id: string
           contract_url: string | null
           created_at: string
@@ -2893,6 +2897,10 @@ export type Database = {
         }
         Insert: {
           budget_id?: string | null
+          cancellation_notes?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           client_id: string
           contract_url?: string | null
           created_at?: string
@@ -2921,6 +2929,10 @@ export type Database = {
         }
         Update: {
           budget_id?: string | null
+          cancellation_notes?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           client_id?: string
           contract_url?: string | null
           created_at?: string
