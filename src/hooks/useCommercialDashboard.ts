@@ -118,17 +118,41 @@ function computeKPIs(leads: LeadWithBudget[]) {
 }
 
 export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedServiceLine: string, selectedResponsible: string) {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
   const { data: leads = [], isLoading: leadsLoading } = useLeads();
   const { data: archivedLeads = [], isLoading: archivedLoading } = useArchivedLeads();
   const { data: budgets = [], isLoading: budgetsLoading } = useBudgets();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
 
-  const isLoading = leadsLoading || archivedLoading || budgetsLoading || clientsLoading;
+  // Fetch budget_ids of cancelled projects to exclude their leads
+  const { data: cancelledBudgetIds = [], isLoading: cancelledLoading } = useQuery({
+    queryKey: ['cancelled-project-budget-ids', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data } = await supabase
+        .from('projects')
+        .select('budget_id, lead_id')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'cancelled');
+      return (data || []).map((p: any) => ({
+        budgetId: p.budget_id,
+        leadId: p.lead_id,
+      }));
+    },
+    enabled: !!tenantId,
+  });
+
+  const isLoading = leadsLoading || archivedLoading || budgetsLoading || clientsLoading || cancelledLoading;
 
   const data = useMemo<CommercialDashboardData | null>(() => {
     if (isLoading) return null;
 
-    const allLeads = [...leads, ...archivedLeads] as LeadWithBudget[];
+    // Exclude leads linked to cancelled projects
+    const cancelledLeadIds = new Set(cancelledBudgetIds.filter((c: any) => c.leadId).map((c: any) => c.leadId));
+    const filterCancelled = (leadsList: any[]) => leadsList.filter((l: any) => !cancelledLeadIds.has(l.id));
+    
+    const allLeads = [...filterCancelled(leads), ...filterCancelled(archivedLeads)] as LeadWithBudget[];
 
     // Extract responsible options from ALL leads (before filtering)
     const responsibleMap = new Map<string, string>();
