@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Edit, Lock } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -25,7 +25,9 @@ import { useState } from 'react';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const initialTab = searchParams.get('tab') || 'overview';
   const queryClient = useQueryClient();
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
@@ -124,7 +126,7 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue={initialTab} className="w-full">
           <div className="overflow-x-auto">
           <TabsList className="inline-flex w-max">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
