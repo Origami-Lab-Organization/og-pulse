@@ -116,8 +116,8 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     const commissionActual = commissions.filter((c) => c.is_paid).reduce((s, c) => s + Number(c.planned_value), 0);
     const commissionExecuted = commissionPlanned > 0 ? (commissionActual / commissionPlanned) * 100 : 0;
 
-    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - taxPlanned - commissionPlanned - costPlanned) / revenuePlanned) * 100 : 0;
-    const marginActual = revenueActual > 0 ? ((revenueActual - taxActual - commissionActual - costActual) / revenueActual) * 100 : 0;
+    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - commissionPlanned - costPlanned) / revenuePlanned) * 100 : 0;
+    const marginActual = revenueActual > 0 ? ((revenueActual - commissionActual - costActual) / revenueActual) * 100 : 0;
     const marginVar = marginActual - marginPlanned;
 
     return {
