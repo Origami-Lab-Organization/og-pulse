@@ -439,6 +439,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         revenueActual,
         revenueProjected,
         revenueDiff,
+        faturado,
         totalCosts,
         laborCost: totalLaborCost,
         supplierCost: totalSupplierCost,
