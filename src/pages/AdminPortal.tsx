@@ -141,6 +141,10 @@ export default function AdminPortal() {
             <Activity className="h-4 w-4" />
             Atividades
           </TabsTrigger>
+          <TabsTrigger value="taxes" className="flex items-center gap-2">
+            <Landmark className="h-4 w-4" />
+            Impostos
+          </TabsTrigger>
           <TabsTrigger value="reminders" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
             Lembretes
