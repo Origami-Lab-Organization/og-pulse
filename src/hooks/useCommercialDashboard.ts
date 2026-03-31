@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLeads, useArchivedLeads } from '@/hooks/useLeads';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useClients } from '@/hooks/useClients';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { LeadWithBudget, CRM_LEAD_COLUMNS, ARCHIVE_REASONS } from '@/types/lead';
 import { differenceInDays, parseISO, getMonth, getYear, format, eachMonthOfInterval, startOfMonth, endOfMonth, differenceInMilliseconds } from 'date-fns';
 
