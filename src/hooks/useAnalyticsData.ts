@@ -317,7 +317,21 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const totalReimbursementCost = reimbursements.reduce((sum: number, r: any) => sum + (Number(r.total_amount) || 0), 0);
       const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost + totalReimbursementCost;
-      const taxesValue = revenueActual * (Number(taxesPercent) / 100);
+      const taxesValueEstimated = revenueActual * (Number(taxesPercent) / 100);
+
+      // Fetch real tax entries (DAE) for the period
+      let taxesRealValue: number | null = null;
+      try {
+        const refStart = format(startOfMonth(filters.startDate), 'yyyy-MM-dd');
+        const refEnd = format(startOfMonth(filters.endDate), 'yyyy-MM-dd');
+        const taxEntries = await taxEntryService.getByDateRange(tenantId, refStart, refEnd);
+        if (taxEntries.length > 0) {
+          taxesRealValue = taxEntries.reduce((sum, e) => sum + Number(e.total_value), 0);
+        }
+      } catch { /* ignore - use estimated */ }
+
+      const taxesValue = taxesRealValue !== null ? taxesRealValue : taxesValueEstimated;
+
       const totalCommissions = commissions
         .filter((c: any) => !c.approval_status || c.approval_status === 'approved')
         .reduce((sum, c) => sum + (Number(c.planned_value) || 0), 0);
