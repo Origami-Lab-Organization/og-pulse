@@ -18,7 +18,6 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
-  const { data: budget } = useBudget(project.budget_id);
   const { data: financialSettings } = useFinancialSettings();
 
   const costs = useMemo(() => {
