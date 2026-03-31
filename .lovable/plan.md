@@ -1,67 +1,101 @@
 
 
-## Plano: Correção de Lançamentos Reais via Dialog Estilo Timesheet
+# Plano: Arquivar ou Excluir Projeto com Regras de Negócio
 
-### Mudança de abordagem
+## Resumo
 
-O fluxo atual (toggle Planejado/Real inline no painel expandido) será substituído por um fluxo mais limpo:
+Implementar lógica de exclusão vs. arquivamento de projetos com validações:
+- **Excluir**: apenas se o projeto não possui lançamentos (parcelas recebidas/faturadas, OKRs, milestones, stakeholders, commissions pagas, etc.). Ao excluir, limpar também lead e orçamento associados.
+- **Arquivar (cancelar)**: se o projeto já tem lançamentos, o admin deve informar motivo e texto explicativo. O projeto recebe status `cancelled` e `portfolio_stage = 'completed'`.
 
-1. PM/Admin expande o funcionário na alocação (painel continua apenas com edição de **planejado**)
-2. Um botão "Corrigir lançamentos" aparece no cabeçalho do painel expandido (apenas para PM/Admin)
-3. Clica → abre um **Dialog grande** com visualização estilo timesheet semanal do funcionário
-4. Realiza ajustes dia-a-dia, preenche motivo e justificativa
-5. Salva → fecha o dialog, volta à tela de alocação com dados atualizados
+Apenas admins podem executar essas ações.
 
-### O que será construído
+---
 
-**1. Novo componente: `AllocationCorrectionDialog.tsx`**
+## Etapas
 
-Dialog fullscreen/large (`max-w-5xl`) contendo:
-- Header: nome do funcionário + seletor de semana (reusa `TimesheetWeekSelector`)
-- Tabela estilo timesheet: linhas = projetos + atividades internas do funcionário, colunas = dias da semana
-- Cada célula mostra horas lançadas, editável inline
-- Abaixo da tabela: campos de motivo (Select com reason_codes existentes) e justificativa (Textarea, mín. 10 chars)
-- Footer: botões Cancelar e Salvar
+### 1. Migration: adicionar campos de cancelamento na tabela `projects`
 
-A tabela busca dados diários reais de `project_timesheets` e `activity_timesheets` para a semana selecionada. Edições são rastreadas localmente e salvas em lote.
+Adicionar colunas:
+- `cancellation_reason TEXT` — motivo do cancelamento (ex: enum de opções)
+- `cancellation_notes TEXT` — texto explicativo
+- `cancelled_at TIMESTAMPTZ` — data do cancelamento
+- `cancelled_by UUID REFERENCES auth.users(id)` — quem cancelou
 
-**2. Remover toggle Planejado/Real do painel expandido**
+### 2. Service: verificar se projeto possui lançamentos
 
-O `ToggleGroup` atual e toda lógica de `editMode === 'actual'` / `draftActual` / `originalActual` serão removidos do `AllocationOverview.tsx`. O painel expandido volta a ser exclusivamente para planejamento.
+Criar método `projectService.hasActivity(projectId)` que consulta se existem registros em:
+- `project_installments` com status `invoiced` ou `received`
+- `project_okrs` (qualquer registro)
+- `project_milestones` com `completed_date IS NOT NULL`
+- `project_stakeholders` (qualquer registro)
+- `project_commissions` com `paid_date IS NOT NULL`
+- `project_key_results` (qualquer registro)
 
-**3. Persistência e auditoria**
+Retorna `boolean` — `true` se qualquer dessas tabelas tem dados.
 
-Reutilizar `useAllocationActualEdits` adaptado para aceitar `workDate` específico (dia real da correção, não último dia útil). Cada alteração grava:
-- Upsert no `project_timesheets` ou `activity_timesheets` com a data específica
-- Log em `timesheet_edit_logs` / `activity_timesheet_edit_logs` com reason_code + justificativa
+### 3. Service: exclusão completa com cascata comercial
 
-### Arquivos
+Atualizar `projectService.delete(id)` para, antes de excluir o projeto:
+1. Buscar `budget_id` e `lead_id` do projeto
+2. Excluir o projeto (FK CASCADE já limpa members, installments, suppliers, materials, commissions, OKRs, key_results, milestones, stakeholders, edit_logs)
+3. Excluir o orçamento (`budgets`) associado se existir
+4. Excluir o lead (`leads`) associado se existir
 
-| Arquivo | Ação |
-|---|---|
-| `src/components/timesheets/AllocationCorrectionDialog.tsx` | **Criar** — Dialog com tabela estilo timesheet semanal, campos de auditoria |
-| `src/components/timesheets/AllocationOverview.tsx` | **Editar** — remover toggle Plan/Real, remover draftActual/originalActual, adicionar botão "Corrigir lançamentos" que abre o dialog |
-| `src/hooks/useAllocationActualEdits.ts` | **Editar** — aceitar `workDate: string` no entry ao invés de calcular último dia útil |
-| `src/components/timesheets/AllocationEditableCell.tsx` | **Editar** — remover prop `mode` (volta a ser apenas planned) |
-| `src/components/timesheets/AllocationSaveDialog.tsx` | **Editar** — remover prop `mode` (volta a ser apenas planned) |
+### 4. Service: arquivar/cancelar projeto
 
-### Fluxo do usuário
+Criar método `projectService.archive(id, { reason, notes, cancelledBy })` que:
+- Atualiza `status = 'cancelled'`, `portfolio_stage = 'completed'`
+- Preenche `cancellation_reason`, `cancellation_notes`, `cancelled_at = now()`, `cancelled_by`
 
-```text
-Alocação → Expande funcionário → [Corrigir lançamentos] 
-  → Dialog abre com semana atual
-  → Navega entre semanas
-  → Edita horas nos dias desejados
-  → Preenche motivo + justificativa
-  → [Salvar] → Persiste + log auditoria → Fecha dialog
-  → Dados de "Real" atualizados na alocação
+### 5. Hook: `useArchiveProject`
+
+Novo mutation hook em `useProjects.ts`:
+- Chama `projectService.archive()`
+- Invalida queries de projetos e portfolio
+- Toast de sucesso/erro
+
+### 6. Hook: `useCanDeleteProject`
+
+Hook que chama `projectService.hasActivity(projectId)` e retorna se pode excluir ou deve arquivar.
+
+### 7. Componente: `ProjectRemoveDialog`
+
+Substituir o `DeleteProjectDialog` atual por um componente inteligente:
+- Ao abrir, verifica se o projeto tem atividade (`hasActivity`)
+- **Se não tem atividade**: mostra confirmação de exclusão definitiva (remove projeto + lead + orçamento)
+- **Se tem atividade**: mostra formulário de arquivamento com:
+  - Select de motivo (ex: "Cancelamento pelo cliente", "Mudança de escopo", "Restrição orçamentária", "Outro")
+  - Textarea para texto explicativo (obrigatório)
+  - Botão "Arquivar Projeto"
+
+### 8. Integrar nas páginas
+
+- **ProjectDetail.tsx**: trocar `DeleteProjectDialog` por `ProjectRemoveDialog`, visível apenas para admin
+- **Projects.tsx**: trocar `DeleteProjectDialog` por `ProjectRemoveDialog`, ação de delete apenas para admin
+- **PortfolioCard.tsx**: adicionar menu de contexto (right-click ou botão) com opção "Excluir/Arquivar" para admin
+
+### 9. Exibição do status cancelado
+
+Projetos arquivados/cancelados devem exibir badge visual indicando cancelamento com o motivo.
+
+---
+
+## Detalhes Técnicos
+
+**Tabelas filho do projeto (cascade delete via FK):**
+`project_members`, `project_installments`, `project_suppliers`, `project_materials`, `project_commissions`, `project_okrs`, `project_key_results`, `project_milestones`, `project_stakeholders`, `project_edit_logs`
+
+**Limpeza comercial na exclusão:**
+- `leads` onde `id = project.lead_id`
+- `budgets` onde `id = project.budget_id`
+- Budget roles, suppliers, materials (cascade do budget)
+
+**Campos do formulário de arquivamento:**
+```typescript
+interface ArchiveProjectInput {
+  reason: string;     // motivo padronizado
+  notes: string;      // texto livre obrigatório
+}
 ```
-
-### Detalhes técnicos
-
-- O dialog busca projetos e atividades do funcionário via queries existentes (project_members + activity_types)
-- Dados diários: query `project_timesheets` filtrada por employee via project_member_id + range de datas da semana; `activity_timesheets` filtrada por employee_id + range
-- Edição inline: campos numéricos por dia/item, delta calculado ao salvar
-- Reason_code e justificativa são preenchidos uma vez e aplicados a todas as alterações do lote
-- Dias não-úteis (feriados/fins de semana) ficam desabilitados/cinza, alinhado com o estilo existente do `TimesheetWeekRow`
 
