@@ -128,12 +128,19 @@ export const useDeleteProject = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      await projectService.delete(id);
+    mutationFn: async ({ id, name, withCascade }: { id: string; name: string; withCascade?: boolean }) => {
+      if (withCascade) {
+        await projectService.deleteWithCascade(id);
+      } else {
+        await projectService.delete(id);
+      }
       return { name };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
       toast({
         title: 'Projeto excluído',
         description: `O projeto "${data.name}" foi excluído com sucesso.`,
@@ -142,6 +149,35 @@ export const useDeleteProject = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao excluir projeto',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useArchiveProject = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, reason, notes }: { id: string; reason: string; notes: string }) => {
+      if (!user?.id) throw new Error('Usuário não autenticado');
+      await projectService.archive(id, { reason, notes, cancelledBy: user.id });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      toast({
+        title: 'Projeto arquivado',
+        description: 'O projeto foi cancelado e arquivado com sucesso.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao arquivar projeto',
         description: error.message,
         variant: 'destructive',
       });
