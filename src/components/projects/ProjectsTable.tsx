@@ -17,7 +17,7 @@ import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHe
 interface ProjectColumnsProps {
   onView: (project: ProjectWithRelations) => void;
   onEdit: (project: ProjectWithRelations) => void;
-  onDelete: (project: ProjectWithRelations) => void;
+  onDelete?: (project: ProjectWithRelations) => void;
 }
 
 const stageColors: Record<PortfolioStage, string> = {
