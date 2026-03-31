@@ -115,7 +115,7 @@ export function useProjectFinancials(
       const projectIds = projects.map((p: any) => p.id);
       const projectMap = new Map(projects.map((p: any) => [p.id, p]));
 
-      const [receivedRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [receivedRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('project_id, value')
@@ -123,6 +123,16 @@ export function useProjectFinancials(
           .eq('status', 'received')
           .gte('payment_date', startStr)
           .lte('payment_date', endStr),
+
+        // Faturado: invoiced or received with invoice_date in period (for tax proration)
+        supabase
+          .from('project_installments')
+          .select('project_id, value, invoice_date')
+          .in('project_id', projectIds)
+          .in('status', ['invoiced', 'received'])
+          .not('invoice_date', 'is', null)
+          .gte('invoice_date', startStr)
+          .lte('invoice_date', endStr),
 
         supabase
           .from('project_timesheets')
