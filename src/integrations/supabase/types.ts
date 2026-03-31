@@ -251,6 +251,21 @@ export type Database = {
           },
         ]
       }
+      blocked_users: {
+        Row: {
+          auth_id: string
+          blocked_at: string
+        }
+        Insert: {
+          auth_id: string
+          blocked_at?: string
+        }
+        Update: {
+          auth_id?: string
+          blocked_at?: string
+        }
+        Relationships: []
+      }
       budget_materials: {
         Row: {
           budget_id: string
