@@ -5,7 +5,6 @@ import { useMemo } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
-import { useBudget } from '@/hooks/useBudgets';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { PlanningInstallmentsTable } from './PlanningInstallmentsTable';
 
