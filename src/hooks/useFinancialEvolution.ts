@@ -3,7 +3,6 @@ import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { taxEntryService } from '@/services/taxEntryService';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface FinancialMonthlyPoint {
@@ -15,9 +14,6 @@ export interface FinancialMonthlyPoint {
   revenueReal: number;
   revenuePlanned: number;
   faturado: number;
-  // Taxes
-  taxesValue: number;
-  taxesRealValue: number | null; // from DAE, null if not available
   // Realized costs
   totalCosts: number;
   laborCost: number;
@@ -30,7 +26,6 @@ export interface FinancialMonthlyPoint {
   plannedLaborCost: number;
   plannedSupplierCost: number;
   plannedMaterialCost: number;
-  plannedTaxesValue: number;
   // Margin
   grossMarginPct: number | null;
   plannedGrossMarginPct: number | null;
@@ -39,7 +34,6 @@ export interface FinancialMonthlyPoint {
 export interface FinancialEvolutionData {
   year: number;
   months: FinancialMonthlyPoint[];
-  taxesPercent: number;
   grossMarginTarget: number | null;
 }
 
@@ -92,32 +86,28 @@ export function useFinancialEvolution(
           isHighlighted: false,
           isPast: startOfMonth(new Date(year, i, 1)) <= new Date(),
           revenueReal: 0, revenuePlanned: 0, faturado: 0,
-          taxesValue: 0, taxesRealValue: null,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
           commissionCost: 0, reimbursementCost: 0,
           plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
-          plannedTaxesValue: 0,
           grossMarginPct: null, plannedGrossMarginPct: null,
         }));
 
       const settingsRes = await supabase
         .from('financial_settings')
-        .select('taxes_percent, gross_margin_target_percent')
+        .select('gross_margin_target_percent')
         .eq('tenant_id', tenantId)
         .maybeSingle();
 
-      const taxesPercent = Number(settingsRes.data?.taxes_percent ?? 0);
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
 
       if (!projects || projects.length === 0) {
-        return { year, months: buildEmpty(), taxesPercent, grossMarginTarget };
+        return { year, months: buildEmpty(), grossMarginTarget };
       }
 
       const projectIds = projects.map(p => p.id);
       const projectMap = new Map(projects.map(p => [p.id, p]));
 
       const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
-        // Received revenue
         supabase
           .from('project_installments')
           .select('payment_date, value')
@@ -125,16 +115,12 @@ export function useFinancialEvolution(
           .eq('status', 'received')
           .gte('payment_date', yearStart)
           .lte('payment_date', yearEnd),
-
-        // Planned revenue (by due_date)
         supabase
           .from('project_installments')
           .select('due_date, value')
           .in('project_id', projectIds)
           .gte('due_date', yearStart)
           .lte('due_date', yearEnd),
-
-        // Faturado: invoiced or received installments with invoice_date
         supabase
           .from('project_installments')
           .select('invoice_date, value')
@@ -143,34 +129,24 @@ export function useFinancialEvolution(
           .not('invoice_date', 'is', null)
           .gte('invoice_date', yearStart)
           .lte('invoice_date', yearEnd),
-
-        // Timesheets
         supabase
           .from('project_timesheets')
           .select('project_member_id, work_date, hours')
           .in('project_id', projectIds)
           .gte('work_date', yearStart)
           .lte('work_date', yearEnd),
-
-        // Members with hourly cost + planned hours per month
         supabase
           .from('project_members')
           .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_mensal), plannedMonths:project_member_months(month_number, hours)')
           .in('project_id', projectIds),
-
-        // Suppliers with realized actuals + planned months
         supabase
           .from('project_suppliers')
           .select('id, project_id, actuals:project_supplier_actuals(month_number, value), plannedMonths:project_supplier_months(month_number, value)')
           .in('project_id', projectIds),
-
-        // All materials (realized and planned)
         supabase
           .from('project_materials')
           .select('project_id, month_number, value, is_realized')
           .in('project_id', projectIds),
-
-        // Commissions paid in year
         supabase
           .from('project_commissions')
           .select('planned_value, paid_date')
@@ -178,8 +154,6 @@ export function useFinancialEvolution(
           .eq('is_paid', true)
           .gte('paid_date', yearStart)
           .lte('paid_date', yearEnd),
-
-        // Reimbursements
         supabase
           .from('reimbursement_requests' as any)
           .select('project_id, total_amount, updated_at')
@@ -199,7 +173,6 @@ export function useFinancialEvolution(
       const commissions = commissionsRes.data || [];
       const reimbursements = (reimbursementsRes.data || []) as any[];
 
-      // Build member cost map (id -> hourlyCost)
       const memberCostMap = new Map<string, number>();
       for (const m of members) {
         if (!m.employee) continue;
@@ -211,21 +184,18 @@ export function useFinancialEvolution(
 
       const monthData = buildEmpty();
 
-      // Revenue received
       for (const r of received) {
         const d = parseISO(r.payment_date);
         if (d.getFullYear() !== year) continue;
         monthData[d.getMonth()].revenueReal += Number(r.value);
       }
 
-      // Revenue planned
       for (const p of planned) {
         const d = parseISO(p.due_date);
         if (d.getFullYear() !== year) continue;
         monthData[d.getMonth()].revenuePlanned += Number(p.value);
       }
 
-      // Faturado
       for (const f of faturado) {
         if (!f.invoice_date) continue;
         const d = parseISO(f.invoice_date);
@@ -233,7 +203,6 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].faturado += Number(f.value);
       }
 
-      // Realized labor (timesheets)
       for (const ts of timesheets) {
         const d = parseISO(ts.work_date);
         if (d.getFullYear() !== year) continue;
@@ -241,7 +210,6 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].laborCost += Number(ts.hours) * hourlyCost;
       }
 
-      // Planned labor (project_member_months)
       for (const m of members) {
         const project = projectMap.get(m.project_id);
         if (!project?.start_date || !m.employee) continue;
@@ -254,7 +222,6 @@ export function useFinancialEvolution(
         }
       }
 
-      // Realized + planned supplier costs
       for (const ps of projectSuppliersWithActuals) {
         const project = projectMap.get(ps.project_id);
         if (!project?.start_date) continue;
@@ -273,7 +240,6 @@ export function useFinancialEvolution(
         }
       }
 
-      // Realized + planned material costs
       for (const mat of materials) {
         const project = projectMap.get(mat.project_id);
         if (!project?.start_date || !mat.month_number) continue;
@@ -282,15 +248,12 @@ export function useFinancialEvolution(
         if (actualDate.getFullYear() !== year) continue;
         const idx = actualDate.getMonth();
         const val = Number(mat.value);
-        // All materials count as planned
         monthData[idx].plannedMaterialCost += val;
-        // Only realized count as actual
         if (mat.is_realized) {
           monthData[idx].materialCost += val;
         }
       }
 
-      // Realized commissions
       for (const c of commissions) {
         if (!c.paid_date) continue;
         const d = parseISO(c.paid_date);
@@ -298,7 +261,6 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].commissionCost += Number(c.planned_value) || 0;
       }
 
-      // Reimbursements
       for (const r of reimbursements) {
         if (!r.updated_at) continue;
         const d = parseISO(r.updated_at);
@@ -306,53 +268,21 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].reimbursementCost += Number(r.total_amount) || 0;
       }
 
-      // Fetch real tax entries (Extrato) for the year — map by payment_date
-      let taxEntryMap = new Map<number, number>(); // monthIndex of payment_date -> value
-      let latestAliquota: number | null = null;
-      try {
-        const taxEntries = await taxEntryService.getByPaymentDateRange(tenantId, yearStart, yearEnd);
-        for (const te of taxEntries) {
-          const payDate = parseISO(te.payment_date);
-          if (payDate.getFullYear() === year) {
-            const idx = payDate.getMonth();
-            taxEntryMap.set(idx, (taxEntryMap.get(idx) ?? 0) + Number(te.total_value));
-          }
-          // Track latest aliquota for estimation
-          if (Number(te.aliquota_simples) > 0) {
-            latestAliquota = Number(te.aliquota_simples);
-          }
-        }
-      } catch { /* ignore */ }
-
-      // Compute derived values (isHighlighted computed externally from filters)
       const today = new Date();
       for (const m of monthData) {
         m.isPast = startOfMonth(new Date(year, m.monthIndex, 1)) <= today;
 
-        // Use real DAE value if available, otherwise estimate
-        const realTax = taxEntryMap.get(m.monthIndex);
-        if (realTax !== undefined) {
-          m.taxesValue = realTax;
-          m.taxesRealValue = realTax;
-        } else {
-          // Use latest extrato aliquota if available, otherwise financial_settings
-          const estimateRate = latestAliquota ?? taxesPercent;
-          m.taxesValue = m.faturado * (estimateRate / 100);
-          m.taxesRealValue = null;
-        }
-
         m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost + m.reimbursementCost;
         m.plannedTotalCosts = m.plannedLaborCost + m.plannedSupplierCost + m.plannedMaterialCost;
-        m.plannedTaxesValue = m.revenuePlanned * (taxesPercent / 100);
         m.grossMarginPct = m.isPast && m.revenueReal > 0
-          ? ((m.revenueReal - m.taxesValue - m.totalCosts) / m.revenueReal) * 100
+          ? ((m.revenueReal - m.totalCosts) / m.revenueReal) * 100
           : null;
         m.plannedGrossMarginPct = m.revenuePlanned > 0
-          ? ((m.revenuePlanned - m.plannedTaxesValue - m.plannedTotalCosts) / m.revenuePlanned) * 100
+          ? ((m.revenuePlanned - m.plannedTotalCosts) / m.revenuePlanned) * 100
           : null;
       }
 
-      return { year, months: monthData, taxesPercent, grossMarginTarget };
+      return { year, months: monthData, grossMarginTarget };
     },
     enabled: !!tenantId && (options?.enabled ?? true),
   });

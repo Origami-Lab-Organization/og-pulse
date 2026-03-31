@@ -3,7 +3,6 @@ import { format, parseISO, addMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
-import { taxEntryService } from '@/services/taxEntryService';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface ProjectFinancialRow {
@@ -17,8 +16,7 @@ export interface ProjectFinancialRow {
   serviceLineLabel: string;
   revenue: number;
   costs: number;
-  taxes: number;
-  grossMargin: number | null; // null if no revenue
+  grossMargin: number | null;
 }
 
 export interface DimensionFinancialRow {
@@ -26,7 +24,6 @@ export interface DimensionFinancialRow {
   label: string;
   revenue: number;
   costs: number;
-  taxes: number;
   grossMargin: number | null;
 }
 
@@ -35,13 +32,12 @@ export interface ProjectFinancialsData {
   byClient: DimensionFinancialRow[];
   byManager: DimensionFinancialRow[];
   byServiceLine: DimensionFinancialRow[];
-  taxesPercent: number;
   grossMarginTarget: number | null;
 }
 
-function computeMargin(revenue: number, taxes: number, costs: number): number | null {
+function computeMargin(revenue: number, costs: number): number | null {
   if (revenue <= 0) return null;
-  return ((revenue - taxes - costs) / revenue) * 100;
+  return ((revenue - costs) / revenue) * 100;
 }
 
 export function useProjectFinancials(
@@ -74,11 +70,10 @@ export function useProjectFinancials(
 
       const settingsRes = await supabase
         .from('financial_settings')
-        .select('taxes_percent, gross_margin_target_percent')
+        .select('gross_margin_target_percent')
         .eq('tenant_id', tenantId)
         .maybeSingle();
 
-      const taxesPercent = Number(settingsRes.data?.taxes_percent ?? 0);
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
 
       const { data: servicesData } = await supabase
@@ -108,22 +103,14 @@ export function useProjectFinancials(
 
       const empty: ProjectFinancialsData = {
         byProject: [], byClient: [], byManager: [], byServiceLine: [],
-        taxesPercent, grossMarginTarget,
+        grossMarginTarget,
       };
       if (!projects || projects.length === 0) return empty;
 
       const projectIds = projects.map((p: any) => p.id);
       const projectMap = new Map(projects.map((p: any) => [p.id, p]));
 
-      // Fetch ALL tenant project IDs for accurate DAE proration denominator
-      const { data: allTenantProjects } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('tenant_id', tenantId)
-        .not('status', 'in', '("cancelled","archived")');
-      const allTenantProjectIds = (allTenantProjects || []).map((p: any) => p.id);
-
-      const [receivedRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [receivedRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('project_id, value')
@@ -131,16 +118,6 @@ export function useProjectFinancials(
           .eq('status', 'received')
           .gte('payment_date', startStr)
           .lte('payment_date', endStr),
-
-        // Faturado for filtered projects (for per-project revenue)
-        supabase
-          .from('project_installments')
-          .select('project_id, value, invoice_date')
-          .in('project_id', projectIds)
-          .in('status', ['invoiced', 'received'])
-          .not('invoice_date', 'is', null)
-          .gte('invoice_date', startStr)
-          .lte('invoice_date', endStr),
 
         supabase
           .from('project_timesheets')
@@ -182,7 +159,6 @@ export function useProjectFinancials(
           .lt('updated_at', dayAfterEnd),
       ]);
 
-      // Per-project accumulators
       const revenue = new Map<string, number>();
       const costs = new Map<string, number>();
       const add = (map: Map<string, number>, key: string, val: number) =>
@@ -190,7 +166,6 @@ export function useProjectFinancials(
 
       for (const r of (receivedRes.data || []) as any[]) add(revenue, r.project_id, Number(r.value));
 
-      // Member hourly cost map
       const memberCostMap = new Map<string, number>();
       for (const m of (membersRes.data || []) as any[]) {
         if (!m.employee) continue;
@@ -203,7 +178,6 @@ export function useProjectFinancials(
         add(costs, ts.project_id, Number(ts.hours) * (memberCostMap.get(ts.project_member_id) ?? 0));
       }
 
-      // Supplier actuals — map month_number to date and check period
       for (const ps of (suppliersRes.data || []) as any[]) {
         const proj = projectMap.get(ps.project_id) as any;
         if (!proj?.start_date) continue;
@@ -216,7 +190,6 @@ export function useProjectFinancials(
         }
       }
 
-      // Materials
       for (const mat of (materialsRes.data || []) as any[]) {
         if (!mat.month_number) continue;
         const proj = projectMap.get(mat.project_id) as any;
@@ -231,87 +204,23 @@ export function useProjectFinancials(
       for (const c of (commissionsRes.data || []) as any[]) add(costs, c.project_id, Number(c.planned_value) || 0);
       for (const r of (reimbursementsRes.data || []) as any[]) add(costs, r.project_id, Number(r.total_amount) || 0);
 
-      // Build per-project rows
       const byProject: ProjectFinancialRow[] = [];
       const clientMap = new Map<string, DimensionFinancialRow>();
       const managerMap = new Map<string, DimensionFinancialRow>();
       const serviceLineMap = new Map<string, DimensionFinancialRow>();
 
-      const addDim = (map: Map<string, DimensionFinancialRow>, key: string, label: string, rev: number, cost: number, tax: number) => {
-        if (!map.has(key)) map.set(key, { id: key, label, revenue: 0, costs: 0, taxes: 0, grossMargin: null });
+      const addDim = (map: Map<string, DimensionFinancialRow>, key: string, label: string, rev: number, cost: number) => {
+        if (!map.has(key)) map.set(key, { id: key, label, revenue: 0, costs: 0, grossMargin: null });
         const e = map.get(key)!;
         e.revenue += rev;
         e.costs += cost;
-        e.taxes += tax;
-        e.grossMargin = computeMargin(e.revenue, e.taxes, e.costs);
+        e.grossMargin = computeMargin(e.revenue, e.costs);
       };
-
-      // Fetch tax entries by payment_date in the period (cost appears when paid)
-      // Rateio uses faturamento from the reference_month (month before payment)
-      let taxEntries: { reference_month: string; total_value: number }[] = [];
-      try {
-        taxEntries = await taxEntryService.getByPaymentDateRange(tenantId, startStr, endStr);
-      } catch { /* ignore */ }
-
-      // Build per-month faturado using ALL tenant projects for accurate proration
-      // For each tax entry, we need faturado from its reference_month (not the payment period)
-      const allRefMonths = new Set(taxEntries.map(te => te.reference_month));
-      
-      // Fetch faturado for reference months if different from filter period
-      let refMonthFaturadoData: any[] = [];
-      if (allRefMonths.size > 0) {
-        const refMonthsArr = [...allRefMonths];
-        const minRef = refMonthsArr.sort()[0];
-        const maxRef = refMonthsArr.sort().reverse()[0];
-        const maxRefEnd = format(endOfMonth(parseISO(maxRef)), 'yyyy-MM-dd');
-        const { data } = await supabase
-          .from('project_installments')
-          .select('project_id, value, invoice_date')
-          .in('project_id', allTenantProjectIds)
-          .in('status', ['invoiced', 'received'])
-          .not('invoice_date', 'is', null)
-          .gte('invoice_date', minRef)
-          .lte('invoice_date', maxRefEnd);
-        refMonthFaturadoData = (data || []) as any[];
-      }
-
-      const monthlyRevenueByProject = new Map<string, Map<string, number>>();
-      const monthlyRevenueTotal = new Map<string, number>();
-      
-      for (const r of refMonthFaturadoData) {
-        if (!r.invoice_date) continue;
-        const invoiceDate = parseISO(r.invoice_date);
-        const monthKey = format(startOfMonth(invoiceDate), 'yyyy-MM-dd');
-        if (!monthlyRevenueByProject.has(monthKey)) monthlyRevenueByProject.set(monthKey, new Map());
-        const projMap = monthlyRevenueByProject.get(monthKey)!;
-        projMap.set(r.project_id, (projMap.get(r.project_id) ?? 0) + Number(r.value));
-        monthlyRevenueTotal.set(monthKey, (monthlyRevenueTotal.get(monthKey) ?? 0) + Number(r.value));
-      }
-
-      // Calculate real tax per project (prorated by revenue share using total company faturamento)
-      const realTaxByProject = new Map<string, number>();
-      for (const te of taxEntries) {
-        const monthKey = te.reference_month;
-        const totalRevInMonth = monthlyRevenueTotal.get(monthKey) ?? 0;
-        if (totalRevInMonth <= 0) continue;
-        const projRevMap = monthlyRevenueByProject.get(monthKey);
-        if (!projRevMap) continue;
-        for (const [projId, projRev] of projRevMap) {
-          const share = (projRev / totalRevInMonth) * Number(te.total_value);
-          realTaxByProject.set(projId, (realTaxByProject.get(projId) ?? 0) + share);
-        }
-      }
-
-      const hasRealTaxData = taxEntries.length > 0;
 
       for (const proj of projects as any[]) {
         const rev = revenue.get(proj.id) ?? 0;
         const cost = costs.get(proj.id) ?? 0;
-        // Use real prorated tax if available, otherwise estimate
-        const tax = hasRealTaxData && realTaxByProject.has(proj.id)
-          ? realTaxByProject.get(proj.id)!
-          : rev * (taxesPercent / 100);
-        const margin = computeMargin(rev, tax, cost);
+        const margin = computeMargin(rev, cost);
 
         const clientId = proj.client?.id || 'sem-cliente';
         const clientName = proj.client?.company_name || 'Sem cliente';
@@ -324,12 +233,12 @@ export function useProjectFinancials(
           projectId: proj.id, projectName: proj.name,
           clientId, clientName, managerId, managerName,
           serviceLine, serviceLineLabel,
-          revenue: rev, costs: cost, taxes: tax, grossMargin: margin,
+          revenue: rev, costs: cost, grossMargin: margin,
         });
 
-        addDim(clientMap, clientId, clientName, rev, cost, tax);
-        addDim(managerMap, managerId, managerName, rev, cost, tax);
-        addDim(serviceLineMap, serviceLine, serviceLineLabel, rev, cost, tax);
+        addDim(clientMap, clientId, clientName, rev, cost);
+        addDim(managerMap, managerId, managerName, rev, cost);
+        addDim(serviceLineMap, serviceLine, serviceLineLabel, rev, cost);
       }
 
       return {
@@ -337,7 +246,6 @@ export function useProjectFinancials(
         byClient: [...clientMap.values()].sort((a, b) => b.revenue - a.revenue),
         byManager: [...managerMap.values()].sort((a, b) => b.revenue - a.revenue),
         byServiceLine: [...serviceLineMap.values()].sort((a, b) => b.revenue - a.revenue),
-        taxesPercent,
         grossMarginTarget,
       };
     },

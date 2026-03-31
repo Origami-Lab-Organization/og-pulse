@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import { countWorkingDays } from '@/lib/workingDays';
-import { taxEntryService } from '@/services/taxEntryService';
 
 export interface AnalyticsFilters {
   startDate: Date;
@@ -27,9 +26,9 @@ export interface EmployeeUtilization {
   employeeName: string;
   cargo: string;
   jornadaDiaria: number;
-  capacity: number; // jornada_diaria * dias_uteis
+  capacity: number;
   allocatedHours: number;
-  utilization: number; // percentage
+  utilization: number;
   status: 'overallocated' | 'adequate' | 'underallocated' | 'idle';
   hourlyCost: number;
 }
@@ -44,11 +43,8 @@ export interface AnalyticsData {
   supplierCost: number;
   materialCost: number;
   reimbursementCost: number;
-  taxesPercent: number;
-  taxesValue: number;
-  taxesRealValue: number | null; // sum of DAE entries in period, null if none
   commissionValue: number;
-  grossMargin: number; // percentage
+  grossMargin: number;
   grossMarginTarget: number | null;
   costsByProject: CostByProject[];
   employeeUtilization: EmployeeUtilization[];
@@ -78,7 +74,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
     queryFn: async () => {
       if (!tenantId) throw new Error('No tenant');
 
-      // 1. Fetch projects with visibility rules
       let projectsQuery = supabase
         .from('projects')
         .select('id, name, start_date, client_id, manager_id')
@@ -104,7 +99,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         return {
           revenueActual: 0, revenueProjected: 0, revenueDiff: 0,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
-          reimbursementCost: 0, taxesPercent: 0, taxesValue: 0, commissionValue: 0,
+          reimbursementCost: 0, commissionValue: 0,
           grossMargin: 0, grossMarginTarget: null, costsByProject: [], employeeUtilization: [],
           idleHours: 0, idleCost: 0, totalCapacity: 0,
         } as AnalyticsData;
@@ -112,14 +107,11 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const projectIds = projects.map(p => p.id);
 
-      // Compute the day after endDate for timestamp range comparisons
       const dayAfterEnd = new Date(filters.endDate);
       dayAfterEnd.setDate(dayAfterEnd.getDate() + 1);
       const dayAfterEndStr = format(dayAfterEnd, 'yyyy-MM-dd');
 
-      // 2. Fetch all data in parallel
       const [installmentsRes, projectedInstallmentsRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, settingsRes, holidaysRes, commissionsRes, reimbursementsRes] = await Promise.all([
-        // Revenue actual: installments with status received and payment_date in period
         supabase
           .from('project_installments')
           .select('project_id, value, payment_date')
@@ -127,16 +119,12 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .eq('status', 'received')
           .gte('payment_date', startStr)
           .lte('payment_date', endStr),
-
-        // Revenue projected: all installments with due_date in period
         supabase
           .from('project_installments')
           .select('project_id, value, due_date')
           .in('project_id', projectIds)
           .gte('due_date', startStr)
           .lte('due_date', endStr),
-
-        // Faturado: invoiced or received installments with invoice_date in period
         supabase
           .from('project_installments')
           .select('project_id, value, invoice_date')
@@ -145,49 +133,35 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .not('invoice_date', 'is', null)
           .gte('invoice_date', startStr)
           .lte('invoice_date', endStr),
-
-        // Timesheets in period
         supabase
           .from('project_timesheets')
           .select('project_id, project_member_id, hours, work_date')
           .in('project_id', projectIds)
           .gte('work_date', startStr)
           .lte('work_date', endStr),
-
-        // Members with employee cost data
         supabase
           .from('project_members')
           .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria, data_admissao, termination:employee_terminations(termination_date))')
           .in('project_id', projectIds),
-
-        // Project suppliers with their actuals (scoped to these projects only)
         supabase
           .from('project_suppliers')
           .select('id, project_id, actuals:project_supplier_actuals(month_number, value)')
           .in('project_id', projectIds),
-
-        // Materials (realized)
         supabase
           .from('project_materials')
           .select('project_id, month_number, value, is_realized')
           .in('project_id', projectIds)
           .eq('is_realized', true),
-
-        // Financial settings for margin target and taxes
         supabase
           .from('financial_settings')
-          .select('gross_margin_target_percent, taxes_percent')
+          .select('gross_margin_target_percent')
           .eq('tenant_id', tenantId)
           .maybeSingle(),
-
-        // Holidays for working days calculation
         supabase
           .from('company_holidays')
           .select('holiday_type, fixed_day, fixed_month, specific_date')
           .eq('tenant_id', tenantId)
           .eq('is_active', true),
-
-        // Commissions paid in period
         supabase
           .from('project_commissions')
           .select('project_id, planned_value, paid_date')
@@ -195,8 +169,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .eq('is_paid', true)
           .gte('paid_date', startStr)
           .lte('paid_date', endStr),
-
-        // Reimbursements approved/paid linked to projects in this period
         supabase
           .from('reimbursement_requests' as any)
           .select('project_id, total_amount')
@@ -215,17 +187,14 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const projectSuppliersWithActuals = (suppliersRes.data || []) as any[];
       const materials = materialsRes.data || [];
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
-      const taxesPercent = settingsRes.data?.taxes_percent ?? 0;
       const holidays = holidaysRes.data || [];
       const commissions = commissionsRes.data || [];
       const reimbursements = (reimbursementsRes.data || []) as any[];
       const workingDays = countWorkingDays(filters.startDate, filters.endDate, holidays);
 
-      // Build lookup maps
       const projectMap = new Map(projects.map(p => [p.id, p]));
       const memberMap = new Map(members.map(m => [m.id, m]));
 
-      // Filter start/end month for month_number mapping
       const filterStartMonth = filters.startDate.getMonth();
       const filterStartYear = filters.startDate.getFullYear();
 
@@ -237,16 +206,13 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         return actualMonth === filterStartMonth && actualYear === filterStartYear;
       }
 
-      // 3. Calculate revenue
       const revenueActual = installments.reduce((sum, i) => sum + Number(i.value), 0);
       const revenueProjected = projectedInstallments.reduce((sum, i) => sum + Number(i.value), 0);
       const revenueDiff = revenueActual - revenueProjected;
 
-      // 4. Calculate labor cost per project + employee utilization
       const costsByProjectMap = new Map<string, CostByProject>();
       const employeeHoursMap = new Map<string, { employee: any; hours: number }>();
 
-      // Initialize projects in cost map
       projects.forEach(p => {
         costsByProjectMap.set(p.id, {
           projectId: p.id,
@@ -258,7 +224,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         });
       });
 
-      // Process timesheets
       for (const ts of timesheets) {
         const member = memberMap.get(ts.project_member_id);
         if (!member?.employee) continue;
@@ -269,13 +234,11 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           : 0;
         const cost = Number(ts.hours) * hourlyCost;
 
-        // Add to project costs
         const projCost = costsByProjectMap.get(ts.project_id);
         if (projCost) {
           projCost.laborCost += cost;
         }
 
-        // Accumulate employee hours
         const empId = emp.id;
         if (!employeeHoursMap.has(empId)) {
           employeeHoursMap.set(empId, { employee: emp, hours: 0 });
@@ -283,7 +246,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         employeeHoursMap.get(empId)!.hours += Number(ts.hours);
       }
 
-      // 5. Calculate supplier costs
       for (const ps of projectSuppliersWithActuals) {
         const project = projectMap.get(ps.project_id);
         if (!project) continue;
@@ -297,7 +259,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         }
       }
 
-      // 6. Calculate material costs
       for (const mat of materials) {
         const project = projectMap.get(mat.project_id);
         if (!project || !mat.month_number) continue;
@@ -310,7 +271,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         }
       }
 
-      // Finalize costs
       let totalLaborCost = 0;
       let totalSupplierCost = 0;
       let totalMaterialCost = 0;
@@ -330,35 +290,15 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const totalReimbursementCost = reimbursements.reduce((sum: number, r: any) => sum + (Number(r.total_amount) || 0), 0);
       const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost + totalReimbursementCost;
-      const taxesValueEstimated = faturado * (Number(taxesPercent) / 100);
-
-      // Fetch real tax entries by payment_date in the period (cost appears when paid)
-      let taxesRealValue: number | null = null;
-      try {
-        const taxEntries = await taxEntryService.getByPaymentDateRange(tenantId, startStr, endStr);
-        if (taxEntries.length > 0) {
-          taxesRealValue = taxEntries.reduce((sum, e) => sum + Number(e.total_value), 0);
-        }
-      } catch { /* ignore - use estimated */ }
-
-      const taxesValue = taxesRealValue !== null ? taxesRealValue : taxesValueEstimated;
 
       const totalCommissions = commissions
         .filter((c: any) => !c.approval_status || c.approval_status === 'approved')
         .reduce((sum, c) => sum + (Number(c.planned_value) || 0), 0);
-      const grossMargin = revenueActual > 0 ? ((revenueActual - taxesValue - totalCommissions - totalCosts) / revenueActual) * 100 : 0;
-
-      // 7. Employee utilization
-      // Also include employees allocated to projects but with 0 hours
-      const allocatedEmployees = new Set<string>();
-      members.forEach(m => {
-        if (m.employee) allocatedEmployees.add(m.employee.id);
-      });
+      const grossMargin = revenueActual > 0 ? ((revenueActual - totalCommissions - totalCosts) / revenueActual) * 100 : 0;
 
       const employeeUtilization: EmployeeUtilization[] = [];
       const processedEmployees = new Set<string>();
 
-      // From timesheets
       employeeHoursMap.forEach(({ employee: emp, hours }) => {
         const admDate = emp.data_admissao ? parseISO(emp.data_admissao) : null;
         if (admDate && admDate > filters.endDate) return;
@@ -389,7 +329,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         processedEmployees.add(emp.id);
       });
 
-      // Allocated but no hours (idle)
       members.forEach(m => {
         if (m.employee && !processedEmployees.has(m.employee.id)) {
           const emp = m.employee;
@@ -444,9 +383,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         supplierCost: totalSupplierCost,
         materialCost: totalMaterialCost,
         reimbursementCost: totalReimbursementCost,
-        taxesPercent: Number(taxesPercent),
-        taxesValue,
-        taxesRealValue,
         commissionValue: totalCommissions,
         grossMargin,
         grossMarginTarget,
@@ -455,13 +391,12 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         idleHours: totalIdleHours,
         idleCost: totalIdleCost,
         totalCapacity,
-      } as AnalyticsData;
+      } satisfies AnalyticsData;
     },
     enabled: !!tenantId,
   });
 }
 
-// Hook to fetch filter options
 export function useAnalyticsFilterOptions() {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
@@ -469,7 +404,7 @@ export function useAnalyticsFilterOptions() {
   return useQuery({
     queryKey: ['analytics-filter-options', tenantId],
     queryFn: async () => {
-      if (!tenantId) throw new Error('No tenant');
+      if (!tenantId) return { clients: [], managers: [], projects: [] };
 
       const [clientsRes, managersRes, projectsRes] = await Promise.all([
         supabase
@@ -489,7 +424,7 @@ export function useAnalyticsFilterOptions() {
           .from('projects')
           .select('id, name')
           .eq('tenant_id', tenantId)
-          .eq('status', 'active')
+          .not('status', 'in', '("cancelled","archived")')
           .order('name'),
       ]);
 
