@@ -119,9 +119,10 @@ export function useYearlyEvolution(
           .in('project_id', projectIds),
 
         // All active tenant employees for capacity calculation
+        // No need for employee_terminations join — status='ativo' guarantees they are active
         supabase
           .from('employees')
-          .select('id, jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao, termination:employee_terminations(termination_date)')
+          .select('id, jornada_diaria, total_monthly_cost_estimated, data_admissao')
           .eq('tenant_id', tenantId)
           .eq('status', 'ativo'),
 
@@ -149,12 +150,11 @@ export function useYearlyEvolution(
         memberMap.set(m.id, { employeeId: m.employee_id, hourlyCost });
       }
 
-      // Build capacity map from ALL active tenant employees (not just project members)
+      // Build capacity list from ALL active tenant employees (no termination needed — already filtered)
       const capacityEmployees = allEmployees.map((e: any) => ({
         jornada_diaria: Number(e.jornada_diaria) || 8,
         monthlyCost: Number(e.total_monthly_cost_estimated) || 0,
-        data_admissao: e.data_admissao ?? null,
-        terminationDate: (e.termination as any)?.termination_date ?? null,
+        admDate: e.data_admissao ? parseISO(e.data_admissao) : null,
       }));
 
       // Pre-compute labor cost per month (index 0–11) from timesheets
@@ -211,20 +211,14 @@ export function useYearlyEvolution(
         // Hours/cost capacity: from ALL active tenant employees
         let hoursCapacity = 0;
         let capacityCost = 0;
+        const totalWorkDaysInMonth = countWorkingDays(monthStart, monthEnd, holidays);
         for (const emp of capacityEmployees) {
-          const admDate = emp.data_admissao ? parseISO(emp.data_admissao) : null;
-          const termDate = emp.terminationDate ? parseISO(emp.terminationDate) : null;
+          if (emp.admDate && emp.admDate > monthEnd) continue;
 
-          if (admDate && admDate > monthEnd) continue;
-          if (termDate && termDate < monthStart) continue;
+          const effectiveStart = emp.admDate && emp.admDate > monthStart ? emp.admDate : monthStart;
 
-          const effectiveStart = admDate && admDate > monthStart ? admDate : monthStart;
-          const effectiveEnd = termDate && termDate < monthEnd ? termDate : monthEnd;
-
-          const workDays = countWorkingDays(effectiveStart, effectiveEnd, holidays);
+          const workDays = countWorkingDays(effectiveStart, monthEnd, holidays);
           hoursCapacity += emp.jornada_diaria * workDays;
-          // Capacity cost: pro-rate monthly cost by working days fraction in month
-          const totalWorkDaysInMonth = countWorkingDays(monthStart, monthEnd, holidays);
           if (totalWorkDaysInMonth > 0) {
             capacityCost += emp.monthlyCost * (workDays / totalWorkDaysInMonth);
           }
