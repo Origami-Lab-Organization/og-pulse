@@ -33,7 +33,6 @@ import { DonutChart } from '@/components/analytics/DonutChart'
 import { CostDonutChart } from '@/components/analytics/CostDonutChart'
 import { AllocationChart } from '@/components/analytics/AllocationChart'
 import { ProjectMarginTable } from '@/components/analytics/ProjectMarginTable'
-import { TaxesOverview } from '@/components/analytics/TaxesOverview'
 import { StakeholderKPIs } from '@/components/analytics/StakeholderKPIs'
 import { StakeholderDistributionChart } from '@/components/analytics/StakeholderDistributionChart'
 import { DetractorAlertTable } from '@/components/analytics/DetractorAlertTable'
@@ -52,7 +51,6 @@ import { formatCurrency, formatPercent } from '@/lib/formatters'
 const FINANCIAL_TABS = [
   'overview',
   'revenue',
-  'taxes',
   'costs',
   'margin',
   'admin-costs',
@@ -69,12 +67,8 @@ export default function Analytics() {
   const [customStart, setCustomStart] = useState<Date | undefined>()
   const [customEnd, setCustomEnd] = useState<Date | undefined>()
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>()
-  const [selectedManagerId, setSelectedManagerId] = useState<
-    string | undefined
-  >()
-  const [selectedProjectId, setSelectedProjectId] = useState<
-    string | undefined
-  >()
+  const [selectedManagerId, setSelectedManagerId] = useState<string | undefined>()
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>()
   const [activeTab, setActiveTab] = useState('overview')
 
   const filters = useMemo(() => {
@@ -134,7 +128,6 @@ export default function Analytics() {
     useYearlyEvolution(filters, { enabled: activeTab === 'costs' })
   const { data: filterOptions } = useAnalyticsFilterOptions()
 
-  // Recompute isHighlighted from current filters (fixes stale cache on period change within same year)
   const financialMonths = useMemo(() => {
     if (!financialEvolution) return []
     return financialEvolution.months.map((m) => {
@@ -155,39 +148,23 @@ export default function Analytics() {
     const highlighted = financialMonths.filter((m) => m.isHighlighted)
     const faturado = highlighted.reduce((s, m) => s + m.faturado, 0)
     const revenueActual = highlighted.reduce((s, m) => s + m.revenueReal, 0)
-    const revenueProjected = highlighted.reduce(
-      (s, m) => s + m.revenuePlanned,
-      0,
-    )
-    const taxesValue = highlighted.reduce((s, m) => s + m.taxesValue, 0)
+    const revenueProjected = highlighted.reduce((s, m) => s + m.revenuePlanned, 0)
     const totalCosts = highlighted.reduce((s, m) => s + m.totalCosts, 0)
     const laborCost = highlighted.reduce((s, m) => s + m.laborCost, 0)
     const supplierCost = highlighted.reduce((s, m) => s + m.supplierCost, 0)
     const materialCost = highlighted.reduce((s, m) => s + m.materialCost, 0)
     const commissionCost = highlighted.reduce((s, m) => s + m.commissionCost, 0)
-    const reimbursementCost = highlighted.reduce(
-      (s, m) => s + m.reimbursementCost,
-      0,
-    )
+    const reimbursementCost = highlighted.reduce((s, m) => s + m.reimbursementCost, 0)
     const grossMargin =
       revenueActual > 0
-        ? ((revenueActual - taxesValue - totalCosts) / revenueActual) * 100
+        ? ((revenueActual - totalCosts) / revenueActual) * 100
         : 0
-
-    // Check if any highlighted month has real DAE data
-    const hasAnyRealTax = highlighted.some((m) => m.taxesRealValue !== null)
-    const taxesRealValue = hasAnyRealTax
-      ? highlighted.reduce((s, m) => s + (m.taxesRealValue ?? 0), 0)
-      : null
 
     return {
       faturado,
       revenueActual,
       revenueProjected,
       revenueDiff: revenueActual - revenueProjected,
-      taxesValue,
-      taxesRealValue,
-      taxesPercent: financialEvolution.taxesPercent,
       totalCosts,
       laborCost,
       supplierCost,
@@ -200,21 +177,15 @@ export default function Analytics() {
   }, [financialMonths, financialEvolution])
 
   const clientOptions = useMemo(
-    () =>
-      (filterOptions?.clients || []).map((c) => ({
-        id: c.id,
-        label: c.company_name,
-      })),
+    () => (filterOptions?.clients || []).map((c) => ({ id: c.id, label: c.company_name })),
     [filterOptions],
   )
   const managerOptions = useMemo(
-    () =>
-      (filterOptions?.managers || []).map((m) => ({ id: m.id, label: m.nome })),
+    () => (filterOptions?.managers || []).map((m) => ({ id: m.id, label: m.nome })),
     [filterOptions],
   )
   const projectOptions = useMemo(
-    () =>
-      (filterOptions?.projects || []).map((p) => ({ id: p.id, label: p.name })),
+    () => (filterOptions?.projects || []).map((p) => ({ id: p.id, label: p.name })),
     [filterOptions],
   )
 
@@ -256,7 +227,6 @@ export default function Analytics() {
           <TabsList className='flex-wrap h-auto gap-1'>
             <TabsTrigger value='overview'>Visão Geral</TabsTrigger>
             <TabsTrigger value='revenue'>Receita</TabsTrigger>
-            <TabsTrigger value='taxes'>Impostos</TabsTrigger>
             <TabsTrigger value='costs'>Custos</TabsTrigger>
             <TabsTrigger value='margin'>Margem Bruta</TabsTrigger>
             <TabsTrigger value='admin-costs'>Despesas Adm</TabsTrigger>
@@ -275,8 +245,6 @@ export default function Analytics() {
                   revenueProjected={financialKPIs.revenueProjected}
                   revenueDiff={financialKPIs.revenueDiff}
                   totalCosts={financialKPIs.totalCosts}
-                  taxesPercent={financialKPIs.taxesPercent}
-                  taxesValue={financialKPIs.taxesValue}
                   grossMargin={financialKPIs.grossMargin}
                   grossMarginTarget={financialKPIs.grossMarginTarget}
                 />
@@ -371,26 +339,6 @@ export default function Analytics() {
                     title='Receita por Linha de Serviço'
                   />
                 </div>
-              </>
-            ) : null}
-          </TabsContent>
-
-          {/* ── Impostos ─────────────────────────────────────────────────── */}
-          <TabsContent value='taxes' className='space-y-6 mt-6'>
-            {isFinancialLoading ? (
-              financialLoader
-            ) : financialKPIs && financialEvolution ? (
-              <>
-                <TaxesOverview
-                  taxesPercent={financialKPIs.taxesPercent}
-                  taxesValue={financialKPIs.taxesValue}
-                  taxesRealValue={financialKPIs.taxesRealValue}
-                  faturado={financialKPIs.faturado}
-                />
-                <FinancialEvolutionChart
-                  data={financialMonths}
-                  year={financialEvolution.year}
-                />
               </>
             ) : null}
           </TabsContent>
@@ -574,7 +522,6 @@ export default function Analytics() {
                     label: p.projectName,
                     revenue: p.revenue,
                     costs: p.costs,
-                    taxes: p.taxes,
                     grossMargin: p.grossMargin,
                   }))}
                   title='Margem por Projeto'
