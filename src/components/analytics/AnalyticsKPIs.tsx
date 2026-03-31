@@ -88,10 +88,10 @@ export function AnalyticsKPIs({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {formatPercent(faturado > 0 ? (taxesValue / faturado) * 100 : taxesPercent)}
+            {formatCurrency(taxesValue)}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {formatCurrency(taxesValue)}
+            Alíquota: {formatPercent(faturado > 0 ? (taxesValue / faturado) * 100 : taxesPercent)}
           </p>
         </CardContent>
       </Card>
