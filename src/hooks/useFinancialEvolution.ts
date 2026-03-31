@@ -17,6 +17,7 @@ export interface FinancialMonthlyPoint {
   faturado: number;
   // Taxes
   taxesValue: number;
+  taxesRealValue: number | null; // from DAE, null if not available
   // Realized costs
   totalCosts: number;
   laborCost: number;
