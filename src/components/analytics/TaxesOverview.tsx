@@ -37,9 +37,9 @@ export function TaxesOverview({ taxesPercent, taxesValue, faturado }: Props) {
           <Receipt className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(taxesValue)}</div>
+          <div className="text-2xl font-bold">{formatPercent(effectiveRate)}</div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Alíquota efetiva: {formatPercent(effectiveRate)}
+            {formatCurrency(taxesValue)}
           </p>
         </CardContent>
       </Card>
