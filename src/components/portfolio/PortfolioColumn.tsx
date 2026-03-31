@@ -51,7 +51,7 @@ export function PortfolioColumn({ id, label, color, projects, onRemoveProject }:
               </div>
             ) : (
               projects.map((project) => (
-                <PortfolioCard key={project.id} project={project} />
+                <PortfolioCard key={project.id} project={project} onRemove={onRemoveProject} />
               ))
             )}
           </div>
