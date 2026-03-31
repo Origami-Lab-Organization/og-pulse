@@ -123,7 +123,7 @@ export function useProjectFinancials(
         .not('status', 'in', '("cancelled","archived")');
       const allTenantProjectIds = (allTenantProjects || []).map((p: any) => p.id);
 
-      const [receivedRes, faturadoRes, faturadoAllRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [receivedRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('project_id, value')
@@ -137,16 +137,6 @@ export function useProjectFinancials(
           .from('project_installments')
           .select('project_id, value, invoice_date')
           .in('project_id', projectIds)
-          .in('status', ['invoiced', 'received'])
-          .not('invoice_date', 'is', null)
-          .gte('invoice_date', startStr)
-          .lte('invoice_date', endStr),
-
-        // Faturado for ALL tenant projects (for DAE proration denominator)
-        supabase
-          .from('project_installments')
-          .select('project_id, value, invoice_date')
-          .in('project_id', allTenantProjectIds)
           .in('status', ['invoiced', 'received'])
           .not('invoice_date', 'is', null)
           .gte('invoice_date', startStr)
