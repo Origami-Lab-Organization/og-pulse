@@ -115,7 +115,15 @@ export function useProjectFinancials(
       const projectIds = projects.map((p: any) => p.id);
       const projectMap = new Map(projects.map((p: any) => [p.id, p]));
 
-      const [receivedRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      // Fetch ALL tenant project IDs for accurate DAE proration denominator
+      const { data: allTenantProjects } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .not('status', 'in', '("cancelled","archived")');
+      const allTenantProjectIds = (allTenantProjects || []).map((p: any) => p.id);
+
+      const [receivedRes, faturadoRes, faturadoAllRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('project_id, value')
@@ -124,11 +132,21 @@ export function useProjectFinancials(
           .gte('payment_date', startStr)
           .lte('payment_date', endStr),
 
-        // Faturado: invoiced or received with invoice_date in period (for tax proration)
+        // Faturado for filtered projects (for per-project revenue)
         supabase
           .from('project_installments')
           .select('project_id, value, invoice_date')
           .in('project_id', projectIds)
+          .in('status', ['invoiced', 'received'])
+          .not('invoice_date', 'is', null)
+          .gte('invoice_date', startStr)
+          .lte('invoice_date', endStr),
+
+        // Faturado for ALL tenant projects (for DAE proration denominator)
+        supabase
+          .from('project_installments')
+          .select('project_id, value, invoice_date')
+          .in('project_id', allTenantProjectIds)
           .in('status', ['invoiced', 'received'])
           .not('invoice_date', 'is', null)
           .gte('invoice_date', startStr)
