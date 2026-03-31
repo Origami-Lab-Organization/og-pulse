@@ -54,10 +54,7 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
   const materialsCost = costs.materialsCost;
   const totalCost = laborCost + suppliersCost + materialsCost;
 
-  // Tax deduction from linked budget
-  const taxesPercent = budget?.taxes_percent || 0;
-  const taxes = totalValue * (taxesPercent / 100);
-  const grossMargin = totalValue - taxes - totalCost;
+  const grossMargin = totalValue - totalCost;
   const marginPercent = totalValue > 0 ? (grossMargin / totalValue) * 100 : 0;
   const isPositiveMargin = grossMargin >= 0;
 
