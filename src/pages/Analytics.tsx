@@ -384,6 +384,7 @@ export default function Analytics() {
                 <TaxesOverview
                   taxesPercent={financialKPIs.taxesPercent}
                   taxesValue={financialKPIs.taxesValue}
+                  taxesRealValue={financialKPIs.taxesRealValue}
                   faturado={financialKPIs.faturado}
                 />
                 <FinancialEvolutionChart

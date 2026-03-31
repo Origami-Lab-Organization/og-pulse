@@ -306,11 +306,33 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].reimbursementCost += Number(r.total_amount) || 0;
       }
 
+      // Fetch real tax entries (DAE) for the year
+      let taxEntryMap = new Map<number, number>(); // monthIndex -> value
+      try {
+        const taxEntries = await taxEntryService.getByDateRange(tenantId, yearStart, yearEnd);
+        for (const te of taxEntries) {
+          const refDate = parseISO(te.reference_month);
+          if (refDate.getFullYear() === year) {
+            taxEntryMap.set(refDate.getMonth(), Number(te.total_value));
+          }
+        }
+      } catch { /* ignore */ }
+
       // Compute derived values (isHighlighted computed externally from filters)
       const today = new Date();
       for (const m of monthData) {
         m.isPast = startOfMonth(new Date(year, m.monthIndex, 1)) <= today;
-        m.taxesValue = m.revenueReal * (taxesPercent / 100);
+
+        // Use real DAE value if available, otherwise estimate
+        const realTax = taxEntryMap.get(m.monthIndex);
+        if (realTax !== undefined) {
+          m.taxesValue = realTax;
+          m.taxesRealValue = realTax;
+        } else {
+          m.taxesValue = m.revenueReal * (taxesPercent / 100);
+          m.taxesRealValue = null;
+        }
+
         m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost + m.reimbursementCost;
         m.plannedTotalCosts = m.plannedLaborCost + m.plannedSupplierCost + m.plannedMaterialCost;
         m.plannedTaxesValue = m.revenuePlanned * (taxesPercent / 100);
