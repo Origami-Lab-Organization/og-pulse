@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import { countWorkingDays } from '@/lib/workingDays';
 import { taxEntryService } from '@/services/taxEntryService';
-import { countWorkingDays } from '@/lib/workingDays';
 
 export interface AnalyticsFilters {
   startDate: Date;
