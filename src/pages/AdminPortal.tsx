@@ -248,6 +248,11 @@ export default function AdminPortal() {
           <ActivityTypesSettings />
         </TabsContent>
 
+        {/* Impostos (DAE) */}
+        <TabsContent value="taxes" className="space-y-4">
+          <TaxEntriesManager />
+        </TabsContent>
+
         {/* Lembretes */}
         <TabsContent value="reminders" className="space-y-4">
           <TimesheetReminderSettings />
