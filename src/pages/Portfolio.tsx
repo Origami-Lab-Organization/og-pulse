@@ -7,7 +7,9 @@ import { PortfolioKanbanBoard } from '@/components/portfolio/PortfolioKanbanBoar
 import { PortfolioTable } from '@/components/portfolio/PortfolioTable';
 import { PortfolioKPIBar } from '@/components/portfolio/PortfolioKPIBar';
 import { PortfolioFilters } from '@/components/portfolio/PortfolioFilters';
-import { usePortfolioProjects } from '@/hooks/usePortfolioProjects';
+import { ProjectRemoveDialog } from '@/components/projects/ProjectRemoveDialog';
+import { usePortfolioProjects, PortfolioProject } from '@/hooks/usePortfolioProjects';
+import { useDeleteProject, useArchiveProject } from '@/hooks/useProjects';
 import { Search, Building2, User, Kanban, List } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +21,7 @@ export default function Portfolio() {
   const [managerId, setManagerId] = useState('');
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+  const [removeProject, setRemoveProject] = useState<PortfolioProject | null>(null);
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
   const { data: projects, isLoading } = usePortfolioProjects(searchQuery, {
@@ -27,6 +30,13 @@ export default function Portfolio() {
     managerId,
     year: year ? Number(year) : undefined,
   });
+  const deleteProject = useDeleteProject();
+  const archiveProject = useArchiveProject();
+
+  const handleRemoveProject = (project: PortfolioProject) => {
+    if (!isAdmin) return;
+    setRemoveProject(project);
+  };
 
   const scopeBadge = isAdmin ? (
     <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800 gap-1">
@@ -101,7 +111,10 @@ export default function Portfolio() {
 
             {viewMode === 'kanban' ? (
               <div className="flex-1 overflow-auto bg-muted/30 rounded-lg">
-                <PortfolioKanbanBoard projects={projects || []} />
+                <PortfolioKanbanBoard
+                  projects={projects || []}
+                  onRemoveProject={isAdmin ? handleRemoveProject : undefined}
+                />
               </div>
             ) : (
               <div className="overflow-auto">
@@ -111,6 +124,28 @@ export default function Portfolio() {
           </>
         )}
       </div>
+
+      {removeProject && (
+        <ProjectRemoveDialog
+          open={!!removeProject}
+          onOpenChange={(open) => { if (!open) setRemoveProject(null); }}
+          projectId={removeProject.id}
+          projectName={removeProject.name}
+          onDelete={() => {
+            deleteProject.mutate(
+              { id: removeProject.id, name: removeProject.name, withCascade: true },
+              { onSuccess: () => setRemoveProject(null) }
+            );
+          }}
+          onArchive={(reason, notes) => {
+            archiveProject.mutate(
+              { id: removeProject.id, reason, notes },
+              { onSuccess: () => setRemoveProject(null) }
+            );
+          }}
+          isProcessing={deleteProject.isPending || archiveProject.isPending}
+        />
+      )}
     </AppLayout>
   );
 }
