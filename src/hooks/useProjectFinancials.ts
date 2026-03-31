@@ -115,7 +115,15 @@ export function useProjectFinancials(
       const projectIds = projects.map((p: any) => p.id);
       const projectMap = new Map(projects.map((p: any) => [p.id, p]));
 
-      const [receivedRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      // Fetch ALL tenant project IDs for accurate DAE proration denominator
+      const { data: allTenantProjects } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .not('status', 'in', '("cancelled","archived")');
+      const allTenantProjectIds = (allTenantProjects || []).map((p: any) => p.id);
+
+      const [receivedRes, faturadoRes, faturadoAllRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('project_id, value')
@@ -124,11 +132,21 @@ export function useProjectFinancials(
           .gte('payment_date', startStr)
           .lte('payment_date', endStr),
 
-        // Faturado: invoiced or received with invoice_date in period (for tax proration)
+        // Faturado for filtered projects (for per-project revenue)
         supabase
           .from('project_installments')
           .select('project_id, value, invoice_date')
           .in('project_id', projectIds)
+          .in('status', ['invoiced', 'received'])
+          .not('invoice_date', 'is', null)
+          .gte('invoice_date', startStr)
+          .lte('invoice_date', endStr),
+
+        // Faturado for ALL tenant projects (for DAE proration denominator)
+        supabase
+          .from('project_installments')
+          .select('project_id, value, invoice_date')
+          .in('project_id', allTenantProjectIds)
           .in('status', ['invoiced', 'received'])
           .not('invoice_date', 'is', null)
           .gte('invoice_date', startStr)
@@ -246,10 +264,12 @@ export function useProjectFinancials(
         taxEntries = await taxEntryService.getByDateRange(tenantId, refStart, refEnd);
       } catch { /* ignore */ }
 
-      // Build per-month faturado by project (for DAE rateio — based on invoiced, not received)
+      // Build per-month faturado using ALL tenant projects for accurate denominator
       const monthlyRevenueByProject = new Map<string, Map<string, number>>(); // month -> (projectId -> faturado)
-      const monthlyRevenueTotal = new Map<string, number>(); // month -> total faturado
-      for (const r of (faturadoRes.data || []) as any[]) {
+      const monthlyRevenueTotal = new Map<string, number>(); // month -> total faturado (ALL projects)
+      
+      // Use ALL tenant projects' faturamento for the denominator
+      for (const r of (faturadoAllRes.data || []) as any[]) {
         if (!r.invoice_date) continue;
         const invoiceDate = parseISO(r.invoice_date);
         const monthKey = format(startOfMonth(invoiceDate), 'yyyy-MM-dd');
@@ -259,7 +279,7 @@ export function useProjectFinancials(
         monthlyRevenueTotal.set(monthKey, (monthlyRevenueTotal.get(monthKey) ?? 0) + Number(r.value));
       }
 
-      // Calculate real tax per project (prorated by revenue share)
+      // Calculate real tax per project (prorated by revenue share using total company faturamento)
       const realTaxByProject = new Map<string, number>();
       for (const te of taxEntries) {
         const monthKey = te.reference_month;
