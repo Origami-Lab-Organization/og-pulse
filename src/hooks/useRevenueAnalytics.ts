@@ -76,7 +76,8 @@ export function useRevenueAnalytics(
       let projectsQuery = supabase
         .from('projects')
         .select('id, name, service_line, client:clients(id, company_name), manager:employees(id, nome)')
-        .eq('tenant_id', tenantId);
+        .eq('tenant_id', tenantId)
+        .neq('status', 'cancelled');
 
       if (!isAdmin && currentEmployeeId) projectsQuery = projectsQuery.eq('manager_id', currentEmployeeId);
       if (filters.clientId) projectsQuery = projectsQuery.eq('client_id', filters.clientId);
