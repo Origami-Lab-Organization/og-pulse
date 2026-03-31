@@ -269,7 +269,6 @@ const handler = async (req: Request): Promise<Response> => {
         tenant_id: tenantId,
         auth_id: authUserId,
         must_change_password: !isExistingUser, // Only require change for new users
-        temp_password: tempPassword, // null for existing users
       })
       .select()
       .single();
