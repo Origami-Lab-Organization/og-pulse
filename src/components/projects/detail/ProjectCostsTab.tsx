@@ -94,9 +94,8 @@ function FinancialSummaryCard({
   const displayCost = isPlanningMode ? totalPlannedCost : totalActualCost;
   const baseDisplayCost = isPlanningMode ? totalBudgetedCost : totalPlannedCost;
   
-  // Calculate gross margin: Revenue - Taxes - Costs
-  const taxes = contractValue * (taxesPercent / 100);
-  const grossMargin = contractValue - taxes - displayCost;
+  // Calculate gross margin: Revenue - Costs
+  const grossMargin = contractValue - displayCost;
   const marginPercent = contractValue > 0 
     ? (grossMargin / contractValue) * 100 
     : 0;
