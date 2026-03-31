@@ -3,6 +3,7 @@ import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { taxEntryService } from '@/services/taxEntryService';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface FinancialMonthlyPoint {
