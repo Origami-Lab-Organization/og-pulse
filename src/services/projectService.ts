@@ -376,11 +376,105 @@ export const projectService = {
     return data as unknown as ProjectDB;
   },
 
+  async hasActivity(projectId: string): Promise<boolean> {
+    // Check invoiced/received installments
+    const { count: installCount } = await supabase
+      .from('project_installments')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+      .in('status', ['invoiced', 'received']);
+    if ((installCount ?? 0) > 0) return true;
+
+    // Check OKRs
+    const { count: okrCount } = await supabase
+      .from('project_okrs')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId);
+    if ((okrCount ?? 0) > 0) return true;
+
+    // Check completed milestones
+    const { count: milestoneCount } = await supabase
+      .from('project_milestones')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+      .not('completed_date', 'is', null);
+    if ((milestoneCount ?? 0) > 0) return true;
+
+    // Check stakeholders
+    const { count: stakeholderCount } = await supabase
+      .from('project_stakeholders')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId);
+    if ((stakeholderCount ?? 0) > 0) return true;
+
+    // Check paid commissions
+    const { count: commissionCount } = await supabase
+      .from('project_commissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+      .not('paid_date', 'is', null);
+    if ((commissionCount ?? 0) > 0) return true;
+
+    // Check key results
+    const { count: krCount } = await supabase
+      .from('project_key_results')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId);
+    if ((krCount ?? 0) > 0) return true;
+
+    return false;
+  },
+
+  async deleteWithCascade(id: string): Promise<void> {
+    // Get project info for commercial cleanup
+    const { data: project } = await supabase
+      .from('projects')
+      .select('budget_id, lead_id')
+      .eq('id', id)
+      .single();
+
+    // Delete project (FK CASCADE handles child tables)
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting project:', error);
+      throw error;
+    }
+
+    // Clean up budget if exists
+    if (project?.budget_id) {
+      await supabase.from('budgets').delete().eq('id', project.budget_id);
+    }
+
+    // Clean up lead if exists
+    if (project?.lead_id) {
+      await supabase.from('leads').delete().eq('id', project.lead_id);
+    }
+  },
+
   async delete(id: string): Promise<void> {
     const { error } = await supabase.from('projects').delete().eq('id', id);
 
     if (error) {
       console.error('Error deleting project:', error);
+      throw error;
+    }
+  },
+
+  async archive(id: string, input: { reason: string; notes: string; cancelledBy: string }): Promise<void> {
+    const { error } = await supabase
+      .from('projects')
+      .update({
+        status: 'cancelled',
+        portfolio_stage: 'completed',
+        cancellation_reason: input.reason,
+        cancellation_notes: input.notes,
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: input.cancelledBy,
+      } as any)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error archiving project:', error);
       throw error;
     }
   },
