@@ -141,7 +141,7 @@ export default function Analytics() {
     useRevenueAnalytics(filters, { enabled: activeTab === 'revenue' })
   const { data: projectFinancials, isLoading: isProjectFinancialsLoading } =
     useProjectFinancials(filters, {
-      enabled: activeTab === 'costs' || activeTab === 'margin',
+      enabled: activeTab === 'costs' || activeTab === 'margin' || activeTab === 'overview',
     })
   const { data: stakeholderData, isLoading: isStakeholderLoading } =
     useStakeholderAnalytics(filters, { enabled: activeTab === 'satisfaction' })
