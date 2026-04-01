@@ -497,16 +497,15 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
                       hideFaturado
                     />
                   </div>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                  <Card className='flex flex-col items-center justify-center text-center'>
+                    <CardHeader className='pb-1'>
                       <CardTitle className='text-sm font-medium text-muted-foreground'>
                         Margem Bruta
                       </CardTitle>
-                      <Target className='h-4 w-4 text-muted-foreground' />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className='flex flex-col items-center justify-center flex-1'>
                       <div
-                        className={`text-2xl font-bold ${
+                        className={`text-5xl lg:text-6xl font-extrabold tracking-tight ${
                           financialKPIs.grossMarginTarget
                             ? financialKPIs.grossMargin >=
                               financialKPIs.grossMarginTarget
@@ -521,7 +520,7 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
                         {formatPercent(financialKPIs.grossMargin)}
                       </div>
                       {financialKPIs.grossMarginTarget !== null && (
-                        <p className='mt-1 text-xs text-muted-foreground'>
+                        <p className='mt-2 text-sm text-muted-foreground'>
                           Meta: {formatPercent(financialKPIs.grossMarginTarget)}
                         </p>
                       )}
