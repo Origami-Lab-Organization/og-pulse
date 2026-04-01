@@ -492,77 +492,79 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
             {isFinancialLoading || isProjectFinancialsLoading ? (
               financialLoader
             ) : financialKPIs && financialEvolution && projectFinancials ? (
-              <>
-                <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
-                  <div className='lg:col-span-3'>
-                    <FinancialEvolutionChart
-                      data={financialMonths}
-                      year={financialEvolution.year}
-                      title='Evolução Financeira'
-                      hideFaturado
-                    />
-                  </div>
-                  <Card className='flex flex-col items-center justify-center text-center'>
-                    <CardHeader className='pb-1'>
-                      <CardTitle className='text-sm font-medium text-muted-foreground'>
-                        Margem Bruta
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className='flex flex-col items-center justify-center flex-1 gap-3'>
-                      <div
-                        className={`text-5xl lg:text-6xl font-extrabold tracking-tight ${
-                          financialKPIs.grossMarginTarget
-                            ? financialKPIs.grossMargin >=
-                              financialKPIs.grossMarginTarget
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : financialKPIs.grossMargin >=
-                                  financialKPIs.grossMarginTarget * 0.5
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-red-600 dark:text-red-400'
-                            : ''
-                        }`}
-                      >
-                        {formatPercent(financialKPIs.grossMargin)}
-                      </div>
-                      {financialKPIs.grossMarginTarget !== null && (() => {
-                        const diff = financialKPIs.grossMargin - financialKPIs.grossMarginTarget;
-                        const isAbove = diff >= 0;
-                        return (
-                          <div className='flex flex-col items-center gap-1'>
-                            <p className='text-sm text-muted-foreground'>
-                              Meta: {formatPercent(financialKPIs.grossMarginTarget)}
-                            </p>
-                            <p className={cn(
-                              'text-lg font-semibold',
-                              isAbove
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-red-600 dark:text-red-400'
-                            )}>
-                              {isAbove ? '+' : ''}{formatPercent(diff)} {isAbove ? 'acima' : 'abaixo'} da meta
-                            </p>
-                          </div>
-                        );
-                      })()}
-                    </CardContent>
-                  </Card>
-                </div>
+              (() => {
+                const projectRows = projectFinancials.byProject.map((p) => ({
+                  id: p.projectId,
+                  label: p.projectName,
+                  revenue: p.revenue,
+                  costs: p.costs,
+                  grossMargin: p.grossMargin,
+                }));
+                const projectsAboveTarget = projectRows.filter(
+                  (p) => p.grossMargin !== null && p.grossMargin >= (projectFinancials.grossMarginTarget ?? 30),
+                ).length;
+                const monthlyMargins = financialMonths
+                  .filter((m) => m.isPast)
+                  .map((m) => ({ label: m.label, margin: m.grossMarginPct ?? 0 }));
 
-                <ProjectMarginTable
-                  byProject={projectFinancials.byProject.map((p) => ({
-                    id: p.projectId,
-                    label: p.projectName,
-                    revenue: p.revenue,
-                    costs: p.costs,
-                    grossMargin: p.grossMargin,
-                  }))}
-                  byClient={projectFinancials.byClient}
-                  byManager={projectFinancials.byManager}
-                  byServiceLine={projectFinancials.byServiceLine}
-                  grossMarginTarget={
-                    projectFinancials.grossMarginTarget ?? undefined
-                  }
-                />
-              </>
+                return (
+                  <>
+                    {/* KPIs */}
+                    <GrossMarginKPIs
+                      grossMargin={financialKPIs.grossMargin}
+                      grossMarginTarget={financialKPIs.grossMarginTarget}
+                      revenueActual={financialKPIs.revenueActual}
+                      totalCosts={financialKPIs.totalCosts}
+                      projectsAboveTarget={projectsAboveTarget}
+                      totalProjects={projectRows.length}
+                    />
+
+                    {/* Chart + Insight Card */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
+                      <div className='lg:col-span-3'>
+                        <FinancialEvolutionChart
+                          data={financialMonths}
+                          year={financialEvolution.year}
+                          title='Evolução Financeira + Margem'
+                          hideFaturado
+                        />
+                      </div>
+                      <div className='lg:col-span-1'>
+                        <GrossMarginInsightCard
+                          grossMargin={financialKPIs.grossMargin}
+                          grossMarginTarget={financialKPIs.grossMarginTarget}
+                          monthlyMargins={monthlyMargins}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Ranking + Donut */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
+                      <MarginRankingChart
+                        byProject={projectRows}
+                        byClient={projectFinancials.byClient}
+                        byManager={projectFinancials.byManager}
+                        byServiceLine={projectFinancials.byServiceLine}
+                        grossMarginTarget={projectFinancials.grossMarginTarget}
+                      />
+                      <RevenueCompositionDonut
+                        byClient={projectFinancials.byClient}
+                        byManager={projectFinancials.byManager}
+                        byServiceLine={projectFinancials.byServiceLine}
+                      />
+                    </div>
+
+                    {/* Detail table */}
+                    <MarginDetailTable
+                      byProject={projectRows}
+                      byClient={projectFinancials.byClient}
+                      byManager={projectFinancials.byManager}
+                      byServiceLine={projectFinancials.byServiceLine}
+                      grossMarginTarget={projectFinancials.grossMarginTarget}
+                    />
+                  </>
+                );
+              })()
             ) : null}
           </TabsContent>
 
