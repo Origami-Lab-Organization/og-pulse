@@ -77,7 +77,7 @@ export function MarginRankingChart({ byProject, byClient, byManager, byServiceLi
   const barHeight = Math.max(chartData.length * 36, 120);
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div>
@@ -103,11 +103,11 @@ export function MarginRankingChart({ byProject, byClient, byManager, byServiceLi
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 min-h-0">
         {chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Sem dados no período.</p>
         ) : (
-          <div style={{ height: barHeight }}>
+          <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
                 <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} />
