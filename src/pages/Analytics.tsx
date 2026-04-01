@@ -35,6 +35,13 @@ import { RevenueRankingChart } from '@/components/analytics/RevenueRankingChart'
 import { RevenueMixDonut } from '@/components/analytics/RevenueMixDonut'
 import { ReceivablesStatusCard } from '@/components/analytics/ReceivablesStatusCard'
 import { RevenueExecutiveInsights } from '@/components/analytics/RevenueExecutiveInsights'
+import { CostKPIs } from '@/components/analytics/CostKPIs'
+import { BudgetAdherenceInsightCard } from '@/components/analytics/BudgetAdherenceInsightCard'
+import { CostRankingChart } from '@/components/analytics/CostRankingChart'
+import { CostMixDonut } from '@/components/analytics/CostMixDonut'
+import { CostPressureCard } from '@/components/analytics/CostPressureCard'
+import { CostExecutiveInsights } from '@/components/analytics/CostExecutiveInsights'
+import { CostDetailTable } from '@/components/analytics/CostDetailTable'
 import { CostDonutChart } from '@/components/analytics/CostDonutChart'
 import { AllocationChart } from '@/components/analytics/AllocationChart'
 import { ProjectMarginTable } from '@/components/analytics/ProjectMarginTable'
@@ -351,129 +358,91 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
             {isFinancialLoading || isProjectFinancialsLoading ? (
               financialLoader
             ) : financialKPIs && financialEvolution && projectFinancials ? (
-              <>
-                <div className='grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium text-muted-foreground'>
-                        Total de Custos
-                      </CardTitle>
-                      <Target className='h-4 w-4 text-muted-foreground' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        {formatCurrency(financialKPIs.totalCosts)}
-                      </div>
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        Custos realizados no período
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium text-muted-foreground'>
-                        Mão de Obra
-                      </CardTitle>
-                      <Users className='h-4 w-4 text-muted-foreground' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        {formatCurrency(financialKPIs.laborCost)}
-                      </div>
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        Custo de horas registradas
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium text-muted-foreground'>
-                        Fornecedores
-                      </CardTitle>
-                      <Building2 className='h-4 w-4 text-muted-foreground' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        {formatCurrency(financialKPIs.supplierCost)}
-                      </div>
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        Custos de fornecedores externos
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium text-muted-foreground'>
-                        Materiais
-                      </CardTitle>
-                      <Package className='h-4 w-4 text-muted-foreground' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        {formatCurrency(financialKPIs.materialCost)}
-                      </div>
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        Materiais realizados
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium text-muted-foreground'>
-                        Comissões
-                      </CardTitle>
-                      <Percent className='h-4 w-4 text-muted-foreground' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        {formatCurrency(financialKPIs.commissionCost)}
-                      </div>
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        Comissões pagas no período
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium text-muted-foreground'>
-                        Reembolsos
-                      </CardTitle>
-                      <Receipt className='h-4 w-4 text-muted-foreground' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        {formatCurrency(financialKPIs.reimbursementCost)}
-                      </div>
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        Reembolsos aprovados/pagos
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
+              (() => {
+                const plannedCosts = financialMonths
+                  .filter(m => m.isHighlighted)
+                  .reduce((s, m) => s + m.plannedTotalCosts, 0);
+                const monthlyCosts = financialMonths
+                  .filter(m => m.isPast)
+                  .map(m => ({ label: m.label, cost: m.totalCosts }));
 
-                <CostBreakdownChart
-                  data={financialMonths}
-                  year={financialEvolution.year}
-                />
+                return (
+                  <>
+                    {/* KPIs */}
+                    <CostKPIs
+                      totalCosts={financialKPIs.totalCosts}
+                      plannedCosts={plannedCosts}
+                      laborCost={financialKPIs.laborCost}
+                      supplierCost={financialKPIs.supplierCost}
+                      materialCost={financialKPIs.materialCost}
+                      commissionCost={financialKPIs.commissionCost}
+                      reimbursementCost={financialKPIs.reimbursementCost}
+                    />
 
-                <CostDonutChart
-                  byProject={projectFinancials.byProject
-                    .slice(0, 8)
-                    .map((d) => ({ label: d.projectName, value: d.costs }))}
-                  byClient={projectFinancials.byClient.map((d) => ({
-                    label: d.label,
-                    value: d.costs,
-                  }))}
-                  byManager={projectFinancials.byManager.map((d) => ({
-                    label: d.label,
-                    value: d.costs,
-                  }))}
-                  byServiceLine={projectFinancials.byServiceLine.map((d) => ({
-                    label: d.label,
-                    value: d.costs,
-                  }))}
-                />
-              </>
+                    {/* Chart + Adherence Insight */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
+                      <div className='lg:col-span-3'>
+                        <CostBreakdownChart
+                          data={financialMonths}
+                          year={financialEvolution.year}
+                        />
+                      </div>
+                      <div className='lg:col-span-1'>
+                        <BudgetAdherenceInsightCard
+                          totalCosts={financialKPIs.totalCosts}
+                          plannedCosts={plannedCosts}
+                          laborCost={financialKPIs.laborCost}
+                          supplierCost={financialKPIs.supplierCost}
+                          monthlyCosts={monthlyCosts}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Ranking + Mix */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
+                      <CostRankingChart
+                        byProject={projectFinancials.byProject}
+                        byClient={projectFinancials.byClient}
+                        byManager={projectFinancials.byManager}
+                        byServiceLine={projectFinancials.byServiceLine}
+                      />
+                      <CostMixDonut
+                        laborCost={financialKPIs.laborCost}
+                        supplierCost={financialKPIs.supplierCost}
+                        materialCost={financialKPIs.materialCost}
+                        commissionCost={financialKPIs.commissionCost}
+                        reimbursementCost={financialKPIs.reimbursementCost}
+                      />
+                    </div>
+
+                    {/* Pressure + Executive Insights */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
+                      <CostPressureCard
+                        laborCost={financialKPIs.laborCost}
+                        supplierCost={financialKPIs.supplierCost}
+                        materialCost={financialKPIs.materialCost}
+                        commissionCost={financialKPIs.commissionCost}
+                        reimbursementCost={financialKPIs.reimbursementCost}
+                      />
+                      <CostExecutiveInsights
+                        totalCosts={financialKPIs.totalCosts}
+                        plannedCosts={plannedCosts}
+                        laborCost={financialKPIs.laborCost}
+                        monthlyCosts={monthlyCosts}
+                      />
+                    </div>
+
+                    {/* Detail table */}
+                    <CostDetailTable
+                      byProject={projectFinancials.byProject}
+                      byClient={projectFinancials.byClient}
+                      byManager={projectFinancials.byManager}
+                      byServiceLine={projectFinancials.byServiceLine}
+                      plannedCosts={plannedCosts}
+                    />
+                  </>
+                );
+              })()
             ) : null}
           </TabsContent>
 
