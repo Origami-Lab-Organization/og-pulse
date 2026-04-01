@@ -34,7 +34,7 @@ function getLastWorkingDay(year: number, month: number, holidays: Holiday[]): st
 export const useAllocationActualEdits = (holidays: Holiday[]) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { employee } = useAuth();
+  const { employee, user } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -46,7 +46,8 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
       reasonCode: string;
       justification: string;
     }) => {
-      if (!employee?.id || !employee.tenant_id) throw new Error('Sessão não encontrada');
+      if (!employee?.id || !employee.tenant_id || !user?.id) throw new Error('Sessão não encontrada');
+      const authUserId = user.id;
 
       let persisted = 0;
 
@@ -68,11 +69,13 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
           let timesheetId: string;
 
           if (existing) {
-            const { error } = await supabase
+            const { data: updated, error } = await supabase
               .from('project_timesheets')
               .update({ hours: Math.max(0, change.toHours), updated_at: new Date().toISOString() })
-              .eq('id', existing.id);
+              .eq('id', existing.id)
+              .select('id');
             if (error) throw error;
+            if (!updated || updated.length === 0) throw new Error('Sem permissão para corrigir este lançamento.');
             timesheetId = existing.id;
           } else {
             const { data: created, error } = await supabase
@@ -90,14 +93,15 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
           }
 
           // Log audit
-          await supabase.from('timesheet_edit_logs').insert([{
+          const { error: logError } = await supabase.from('timesheet_edit_logs').insert([{
             timesheet_id: timesheetId,
-            edited_by: employee.id,
+            edited_by: authUserId,
             previous_hours: change.fromHours,
             new_hours: change.toHours,
             reason_code: reasonCode,
             justification,
           }]);
+          if (logError) throw logError;
           persisted++;
         } else {
           // internal_activity — upsert activity_timesheets adjustment on last working day
@@ -112,11 +116,13 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
           let actTimesheetId: string;
 
           if (existing) {
-            const { error } = await supabase
+            const { data: updated, error } = await supabase
               .from('activity_timesheets')
               .update({ hours: Math.max(0, change.toHours), updated_at: new Date().toISOString() })
-              .eq('id', existing.id);
+              .eq('id', existing.id)
+              .select('id');
             if (error) throw error;
+            if (!updated || updated.length === 0) throw new Error('Sem permissão para corrigir este lançamento.');
             actTimesheetId = existing.id;
           } else {
             const { data: created, error } = await supabase
@@ -135,14 +141,15 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
           }
 
           // Log audit
-          await supabase.from('activity_timesheet_edit_logs').insert([{
+          const { error: logError } = await supabase.from('activity_timesheet_edit_logs').insert([{
             activity_timesheet_id: actTimesheetId,
-            edited_by: employee.id,
+            edited_by: authUserId,
             previous_hours: change.fromHours,
             new_hours: change.toHours,
             reason_code: reasonCode,
             justification,
           }]);
+          if (logError) throw logError;
           persisted++;
         }
       }
