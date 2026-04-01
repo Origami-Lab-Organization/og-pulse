@@ -525,42 +525,20 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
                 />
 
                 <ProjectMarginTable
-                  data={projectFinancials.byProject.map((p) => ({
+                  byProject={projectFinancials.byProject.map((p) => ({
                     id: p.projectId,
                     label: p.projectName,
                     revenue: p.revenue,
                     costs: p.costs,
                     grossMargin: p.grossMargin,
                   }))}
-                  title='Margem por Projeto'
+                  byClient={projectFinancials.byClient}
+                  byManager={projectFinancials.byManager}
+                  byServiceLine={projectFinancials.byServiceLine}
                   grossMarginTarget={
                     projectFinancials.grossMarginTarget ?? undefined
                   }
                 />
-
-                <div className='grid gap-4 grid-cols-1 sm:grid-cols-3'>
-                  <ProjectMarginTable
-                    data={projectFinancials.byClient}
-                    title='Margem por Cliente'
-                    grossMarginTarget={
-                      projectFinancials.grossMarginTarget ?? undefined
-                    }
-                  />
-                  <ProjectMarginTable
-                    data={projectFinancials.byManager}
-                    title='Margem por Gerente'
-                    grossMarginTarget={
-                      projectFinancials.grossMarginTarget ?? undefined
-                    }
-                  />
-                  <ProjectMarginTable
-                    data={projectFinancials.byServiceLine}
-                    title='Margem por Linha de Serviço'
-                    grossMarginTarget={
-                      projectFinancials.grossMarginTarget ?? undefined
-                    }
-                  />
-                </div>
               </>
             ) : null}
           </TabsContent>
