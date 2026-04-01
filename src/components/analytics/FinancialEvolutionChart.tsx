@@ -9,6 +9,8 @@ import type { FinancialMonthlyPoint } from '@/hooks/useFinancialEvolution';
 interface Props {
   data: FinancialMonthlyPoint[];
   year: number;
+  title?: string;
+  hideFaturado?: boolean;
 }
 
 const FATURADO_COLOR = 'hsl(152, 55%, 28%)';
@@ -58,7 +60,7 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-export function FinancialEvolutionChart({ data, year }: Props) {
+export function FinancialEvolutionChart({ data, year, title, hideFaturado }: Props) {
   const highlighted = data.filter(d => d.isHighlighted);
   const refStart = highlighted.length > 0 ? highlighted[0].label : undefined;
   const refEnd   = highlighted.length > 0 ? highlighted[highlighted.length - 1].label : undefined;
@@ -80,7 +82,7 @@ export function FinancialEvolutionChart({ data, year }: Props) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Evolução Financeira — {year}</CardTitle>
+        <CardTitle className="text-base">{title ?? `Evolução Financeira — ${year}`}</CardTitle>
       </CardHeader>
       <CardContent>
         <StripedDefs />
@@ -121,15 +123,17 @@ export function FinancialEvolutionChart({ data, year }: Props) {
                 />
               )}
 
-              <Bar yAxisId="val" dataKey="effectiveFaturado" name="Faturado" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={14}>
-                {chartData.map((d) => (
-                  <Cell
-                    key={d.monthIndex}
-                    fill={d.isFuture ? `url(#stripe-faturado)` : FATURADO_COLOR}
-                    fillOpacity={d.isHighlighted ? 1 : 0.35}
-                  />
-                ))}
-              </Bar>
+              {!hideFaturado && (
+                <Bar yAxisId="val" dataKey="effectiveFaturado" name="Faturado" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={14}>
+                  {chartData.map((d) => (
+                    <Cell
+                      key={d.monthIndex}
+                      fill={d.isFuture ? `url(#stripe-faturado)` : FATURADO_COLOR}
+                      fillOpacity={d.isHighlighted ? 1 : 0.35}
+                    />
+                  ))}
+                </Bar>
+              )}
 
               <Bar yAxisId="val" dataKey="effectiveRevenue" name="Receita" fill={REVENUE_COLOR} radius={[3, 3, 0, 0]} barSize={14}>
                 {chartData.map((d) => (

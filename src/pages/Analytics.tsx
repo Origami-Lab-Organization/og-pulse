@@ -488,41 +488,46 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
               financialLoader
             ) : financialKPIs && financialEvolution && projectFinancials ? (
               <>
-                <Card>
-                  <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                    <CardTitle className='text-sm font-medium text-muted-foreground'>
-                      Margem Bruta
-                    </CardTitle>
-                    <Target className='h-4 w-4 text-muted-foreground' />
-                  </CardHeader>
-                  <CardContent>
-                    <div
-                      className={`text-2xl font-bold ${
-                        financialKPIs.grossMarginTarget
-                          ? financialKPIs.grossMargin >=
-                            financialKPIs.grossMarginTarget
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : financialKPIs.grossMargin >=
-                                financialKPIs.grossMarginTarget * 0.5
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-red-600 dark:text-red-400'
-                          : ''
-                      }`}
-                    >
-                      {formatPercent(financialKPIs.grossMargin)}
-                    </div>
-                    {financialKPIs.grossMarginTarget !== null && (
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        Meta: {formatPercent(financialKPIs.grossMarginTarget)}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <FinancialEvolutionChart
-                  data={financialMonths}
-                  year={financialEvolution.year}
-                />
+                <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
+                  <div className='lg:col-span-3'>
+                    <FinancialEvolutionChart
+                      data={financialMonths}
+                      year={financialEvolution.year}
+                      title='Evolução Financeira'
+                      hideFaturado
+                    />
+                  </div>
+                  <Card>
+                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                      <CardTitle className='text-sm font-medium text-muted-foreground'>
+                        Margem Bruta
+                      </CardTitle>
+                      <Target className='h-4 w-4 text-muted-foreground' />
+                    </CardHeader>
+                    <CardContent>
+                      <div
+                        className={`text-2xl font-bold ${
+                          financialKPIs.grossMarginTarget
+                            ? financialKPIs.grossMargin >=
+                              financialKPIs.grossMarginTarget
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : financialKPIs.grossMargin >=
+                                  financialKPIs.grossMarginTarget * 0.5
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-red-600 dark:text-red-400'
+                            : ''
+                        }`}
+                      >
+                        {formatPercent(financialKPIs.grossMargin)}
+                      </div>
+                      {financialKPIs.grossMarginTarget !== null && (
+                        <p className='mt-1 text-xs text-muted-foreground'>
+                          Meta: {formatPercent(financialKPIs.grossMarginTarget)}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
 
                 <ProjectMarginTable
                   byProject={projectFinancials.byProject.map((p) => ({
