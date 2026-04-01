@@ -123,15 +123,17 @@ export function FinancialEvolutionChart({ data, year, title, hideFaturado }: Pro
                 />
               )}
 
-              <Bar yAxisId="val" dataKey="effectiveFaturado" name="Faturado" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={14}>
-                {chartData.map((d) => (
-                  <Cell
-                    key={d.monthIndex}
-                    fill={d.isFuture ? `url(#stripe-faturado)` : FATURADO_COLOR}
-                    fillOpacity={d.isHighlighted ? 1 : 0.35}
-                  />
-                ))}
-              </Bar>
+              {!hideFaturado && (
+                <Bar yAxisId="val" dataKey="effectiveFaturado" name="Faturado" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={14}>
+                  {chartData.map((d) => (
+                    <Cell
+                      key={d.monthIndex}
+                      fill={d.isFuture ? `url(#stripe-faturado)` : FATURADO_COLOR}
+                      fillOpacity={d.isHighlighted ? 1 : 0.35}
+                    />
+                  ))}
+                </Bar>
+              )}
 
               <Bar yAxisId="val" dataKey="effectiveRevenue" name="Receita" fill={REVENUE_COLOR} radius={[3, 3, 0, 0]} barSize={14}>
                 {chartData.map((d) => (
