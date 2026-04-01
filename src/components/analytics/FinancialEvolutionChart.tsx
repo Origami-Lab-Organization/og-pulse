@@ -9,6 +9,8 @@ import type { FinancialMonthlyPoint } from '@/hooks/useFinancialEvolution';
 interface Props {
   data: FinancialMonthlyPoint[];
   year: number;
+  title?: string;
+  hideFaturado?: boolean;
 }
 
 const FATURADO_COLOR = 'hsl(152, 55%, 28%)';
