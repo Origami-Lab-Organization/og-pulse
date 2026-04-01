@@ -39,11 +39,11 @@ export function CostBreakdownChart({ data, year }: Props) {
   const maxVal = Math.max(...data.map(d => Math.max(d.totalCosts, d.plannedTotalCosts)), 1);
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Composição de Custos — {year}</CardTitle>
+        <CardTitle className="text-base">Composição de Custos vs Custo Previsto</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data} margin={{ top: 5, right: 16, left: 0, bottom: 0 }}>
