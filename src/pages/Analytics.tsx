@@ -29,6 +29,12 @@ import { FinancialEvolutionChart } from '@/components/analytics/FinancialEvoluti
 import { CostBreakdownChart } from '@/components/analytics/CostBreakdownChart'
 import { RevenueInstallmentsTable } from '@/components/analytics/RevenueInstallmentsTable'
 import { DonutChart } from '@/components/analytics/DonutChart'
+import { RevenueKPIs } from '@/components/analytics/RevenueKPIs'
+import { RevenueConversionInsightCard } from '@/components/analytics/RevenueConversionInsightCard'
+import { RevenueRankingChart } from '@/components/analytics/RevenueRankingChart'
+import { RevenueMixDonut } from '@/components/analytics/RevenueMixDonut'
+import { ReceivablesStatusCard } from '@/components/analytics/ReceivablesStatusCard'
+import { RevenueExecutiveInsights } from '@/components/analytics/RevenueExecutiveInsights'
 import { CostDonutChart } from '@/components/analytics/CostDonutChart'
 import { AllocationChart } from '@/components/analytics/AllocationChart'
 import { ProjectMarginTable } from '@/components/analytics/ProjectMarginTable'
@@ -260,99 +266,83 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
             {isFinancialLoading || isRevenueLoading ? (
               financialLoader
             ) : financialKPIs && financialEvolution && revenueData ? (
-              <>
-                <div className='grid gap-4 grid-cols-1 sm:grid-cols-2'>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium text-muted-foreground'>
-                        Faturamento
-                      </CardTitle>
-                      <FileText className='h-4 w-4 text-muted-foreground' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        {formatCurrency(financialKPIs.faturado)}
-                      </div>
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        NFs emitidas no período
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium text-muted-foreground'>
-                        Receita Recebida
-                      </CardTitle>
-                      <DollarSign className='h-4 w-4 text-muted-foreground' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        {formatCurrency(financialKPIs.revenueActual)}
-                      </div>
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        Projetada:{' '}
-                        {formatCurrency(financialKPIs.revenueProjected)}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
+              (() => {
+                const nfCount = revenueData.periodNFs.length;
+                const overdueAmount = revenueData.overdueReceipts.reduce((s, o) => s + o.value, 0);
+                const pendingOnTime = revenueData.periodReceivables.reduce((s, r) => s + r.value, 0);
+                const monthlyRevenues = financialMonths
+                  .filter((m) => m.isPast)
+                  .map((m) => ({ label: m.label, revenue: m.revenueReal }));
 
-                <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
-                  <RevenueComparisonChart
-                    data={financialMonths}
-                    year={financialEvolution.year}
-                  />
-                  <Card>
-                    <CardHeader className='pb-2'>
-                      <div className='flex items-center justify-between gap-2'>
-                        <CardTitle className='text-base'>Receita por</CardTitle>
-                        <div className='flex rounded-md border text-xs overflow-hidden'>
-                          {(
-                            [
-                              { key: 'client', label: 'Cliente' },
-                              { key: 'manager', label: 'Gerente' },
-                              { key: 'serviceLine', label: 'Serviço' },
-                            ] as const
-                          ).map(({ key, label }) => (
-                            <button
-                              key={key}
-                              className={cn(
-                                'px-2.5 py-1 transition-colors',
-                                key !== 'client' && 'border-l',
-                                donutDimension === key
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'hover:bg-muted',
-                              )}
-                              onClick={() => setDonutDimension(key)}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
+                return (
+                  <>
+                    {/* KPIs */}
+                    <RevenueKPIs
+                      faturado={financialKPIs.faturado}
+                      revenueActual={financialKPIs.revenueActual}
+                      revenueProjected={financialKPIs.revenueProjected}
+                      nfCount={nfCount}
+                    />
+
+                    {/* Chart + Conversion Insight */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
+                      <div className='lg:col-span-3'>
+                        <RevenueComparisonChart
+                          data={financialMonths}
+                          year={financialEvolution.year}
+                        />
                       </div>
-                    </CardHeader>
-                    <CardContent className='pt-0'>
-                      <DonutChart
-                        naked
-                        title=''
-                        data={(donutDimension === 'client'
-                          ? revenueData.byClient
-                          : donutDimension === 'manager'
-                            ? revenueData.byManager
-                            : revenueData.byServiceLine
-                        ).map((d) => ({ label: d.label, value: d.received }))}
+                      <div className='lg:col-span-1'>
+                        <RevenueConversionInsightCard
+                          revenueActual={financialKPIs.revenueActual}
+                          faturado={financialKPIs.faturado}
+                          revenueProjected={financialKPIs.revenueProjected}
+                          nfCount={nfCount}
+                          overdueAmount={overdueAmount}
+                          monthlyRevenues={monthlyRevenues}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Ranking + Mix */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
+                      <RevenueRankingChart
+                        byClient={revenueData.byClient}
+                        byManager={revenueData.byManager}
+                        byServiceLine={revenueData.byServiceLine}
                       />
-                    </CardContent>
-                  </Card>
-                </div>
+                      <RevenueMixDonut
+                        byClient={revenueData.byClient}
+                        byManager={revenueData.byManager}
+                        byServiceLine={revenueData.byServiceLine}
+                      />
+                    </div>
 
-                <RevenueInstallmentsTable
-                  periodNFs={revenueData.periodNFs}
-                  periodReceivables={revenueData.periodReceivables}
-                  overdueNFs={revenueData.overdueNFs}
-                  overdueReceipts={revenueData.overdueReceipts}
-                />
-              </>
+                    {/* Status + Executive Insights */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
+                      <ReceivablesStatusCard
+                        received={financialKPIs.revenueActual}
+                        pendingOnTime={pendingOnTime}
+                        overdue={overdueAmount}
+                      />
+                      <RevenueExecutiveInsights
+                        revenueActual={financialKPIs.revenueActual}
+                        faturado={financialKPIs.faturado}
+                        overdueAmount={overdueAmount}
+                        byClient={revenueData.byClient}
+                      />
+                    </div>
+
+                    {/* Pipeline table */}
+                    <RevenueInstallmentsTable
+                      periodNFs={revenueData.periodNFs}
+                      periodReceivables={revenueData.periodReceivables}
+                      overdueNFs={revenueData.overdueNFs}
+                      overdueReceipts={revenueData.overdueReceipts}
+                    />
+                  </>
+                );
+              })()
             ) : null}
           </TabsContent>
 
