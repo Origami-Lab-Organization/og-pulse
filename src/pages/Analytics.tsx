@@ -255,24 +255,90 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
 
           {/* ── Visão Geral ──────────────────────────────────────────────── */}
           <TabsContent value='overview' className='space-y-6 mt-6'>
-            {isFinancialLoading ? (
+            {isFinancialLoading || isProjectFinancialsLoading ? (
               financialLoader
             ) : financialKPIs && financialEvolution ? (
-              <>
-                <AnalyticsKPIs
-                  faturado={financialKPIs.faturado}
-                  revenueActual={financialKPIs.revenueActual}
-                  revenueProjected={financialKPIs.revenueProjected}
-                  revenueDiff={financialKPIs.revenueDiff}
-                  totalCosts={financialKPIs.totalCosts}
-                  grossMargin={financialKPIs.grossMargin}
-                  grossMarginTarget={financialKPIs.grossMarginTarget}
-                />
-                <FinancialEvolutionChart
-                  data={financialMonths}
-                  year={financialEvolution.year}
-                />
-              </>
+              (() => {
+                const monthlyMargins = financialMonths
+                  .filter((m) => m.isPast)
+                  .map((m) => ({ label: m.label, margin: m.grossMarginPct ?? 0 }));
+
+                const projectRows = projectFinancials?.byProject ?? [];
+
+                return (
+                  <>
+                    {/* KPIs */}
+                    <OverviewKPIs
+                      faturado={financialKPIs.faturado}
+                      revenueActual={financialKPIs.revenueActual}
+                      totalCosts={financialKPIs.totalCosts}
+                      grossMargin={financialKPIs.grossMargin}
+                      grossMarginTarget={financialKPIs.grossMarginTarget}
+                    />
+
+                    {/* Chart + Executive Summary */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
+                      <div className='lg:col-span-3'>
+                        <OverviewEvolutionChart
+                          data={financialMonths}
+                          year={financialEvolution.year}
+                        />
+                      </div>
+                      <div className='lg:col-span-1'>
+                        <ExecutiveSummaryCard
+                          grossMargin={financialKPIs.grossMargin}
+                          grossMarginTarget={financialKPIs.grossMarginTarget}
+                          revenueActual={financialKPIs.revenueActual}
+                          faturado={financialKPIs.faturado}
+                          totalCosts={financialKPIs.totalCosts}
+                          monthlyMargins={monthlyMargins}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Contribution + Mix */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
+                      <ProjectContributionChart
+                        byProject={projectRows}
+                        grossMarginTarget={financialKPIs.grossMarginTarget}
+                      />
+                      <ConsolidatedMixChart
+                        faturado={financialKPIs.faturado}
+                        revenueActual={financialKPIs.revenueActual}
+                        totalCosts={financialKPIs.totalCosts}
+                        grossMargin={financialKPIs.grossMargin}
+                      />
+                    </div>
+
+                    {/* Alerts + Executive Insights */}
+                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
+                      <OverviewAlertsCard
+                        faturado={financialKPIs.faturado}
+                        revenueActual={financialKPIs.revenueActual}
+                        grossMargin={financialKPIs.grossMargin}
+                        grossMarginTarget={financialKPIs.grossMarginTarget}
+                      />
+                      <OverviewExecutiveInsights
+                        faturado={financialKPIs.faturado}
+                        revenueActual={financialKPIs.revenueActual}
+                        totalCosts={financialKPIs.totalCosts}
+                        grossMargin={financialKPIs.grossMargin}
+                        grossMarginTarget={financialKPIs.grossMarginTarget}
+                      />
+                    </div>
+
+                    {/* Performance Table */}
+                    {projectFinancials && (
+                      <OverviewPerformanceTable
+                        byProject={projectRows}
+                        byClient={projectFinancials.byClient}
+                        byManager={projectFinancials.byManager}
+                        byServiceLine={projectFinancials.byServiceLine}
+                      />
+                    )}
+                  </>
+                );
+              })()
             ) : null}
           </TabsContent>
 
