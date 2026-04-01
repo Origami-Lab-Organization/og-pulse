@@ -503,7 +503,7 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
                         Margem Bruta
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className='flex flex-col items-center justify-center flex-1'>
+                    <CardContent className='flex flex-col items-center justify-center flex-1 gap-3'>
                       <div
                         className={`text-5xl lg:text-6xl font-extrabold tracking-tight ${
                           financialKPIs.grossMarginTarget
@@ -519,11 +519,25 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
                       >
                         {formatPercent(financialKPIs.grossMargin)}
                       </div>
-                      {financialKPIs.grossMarginTarget !== null && (
-                        <p className='mt-2 text-sm text-muted-foreground'>
-                          Meta: {formatPercent(financialKPIs.grossMarginTarget)}
-                        </p>
-                      )}
+                      {financialKPIs.grossMarginTarget !== null && (() => {
+                        const diff = financialKPIs.grossMargin - financialKPIs.grossMarginTarget;
+                        const isAbove = diff >= 0;
+                        return (
+                          <div className='flex flex-col items-center gap-1'>
+                            <p className='text-sm text-muted-foreground'>
+                              Meta: {formatPercent(financialKPIs.grossMarginTarget)}
+                            </p>
+                            <p className={cn(
+                              'text-lg font-semibold',
+                              isAbove
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-red-600 dark:text-red-400'
+                            )}>
+                              {isAbove ? '+' : ''}{formatPercent(diff)} {isAbove ? 'acima' : 'abaixo'} da meta
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </CardContent>
                   </Card>
                 </div>
