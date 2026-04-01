@@ -86,7 +86,7 @@ export function RevenueCompositionDonut({ byClient, byManager, byServiceLine }: 
   );
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div>
