@@ -26,9 +26,9 @@ interface FilterOption {
 }
 
 const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
-  { value: 'month', label: 'Mês' },
-  { value: 'quarter', label: 'Trimestre' },
   { value: 'year', label: 'Ano' },
+  { value: 'quarter', label: 'Trimestre' },
+  { value: 'month', label: 'Mês' },
   { value: 'custom', label: 'Personalizado' },
 ];
 
