@@ -51,7 +51,7 @@ function RevenueTooltip({ active, payload, label }: any) {
 
 export function RevenueComparisonChart({ data, year }: Props) {
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           NF &amp; Receita: Previsto vs Realizado — {year}
