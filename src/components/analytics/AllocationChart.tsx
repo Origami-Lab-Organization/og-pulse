@@ -74,7 +74,7 @@ export function AllocationChart({ yearlyMonths, financialMonths, year }: Props) 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Alocação da Equipe — {year}</CardTitle>
+        <CardTitle className="text-base">Alocação da Equipe</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">

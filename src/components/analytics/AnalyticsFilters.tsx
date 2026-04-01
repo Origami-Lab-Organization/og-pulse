@@ -55,8 +55,10 @@ interface AnalyticsFiltersProps {
 
 function getPeriodLabel(granularity: Granularity, date: Date): string {
   switch (granularity) {
-    case 'month':
-      return format(date, "MMMM 'de' yyyy", { locale: ptBR });
+    case 'month': {
+      const label = format(date, "MMMM 'de' yyyy", { locale: ptBR });
+      return label.charAt(0).toUpperCase() + label.slice(1);
+    }
     case 'quarter': {
       const q = getQuarter(startOfQuarter(date));
       return `T${q} · ${format(date, 'yyyy')}`;
@@ -132,7 +134,7 @@ export function AnalyticsFilters({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="min-w-[140px] text-center text-sm font-medium capitalize">
+          <span className="min-w-[140px] text-center text-sm font-medium">
             {getPeriodLabel(granularity, currentPeriodDate)}
           </span>
           <Button

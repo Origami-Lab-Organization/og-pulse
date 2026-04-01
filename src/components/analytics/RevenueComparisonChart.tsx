@@ -54,7 +54,7 @@ export function RevenueComparisonChart({ data, year }: Props) {
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
-          NF &amp; Receita: Previsto vs Realizado — {year}
+          NF &amp; Receita: Previsto vs Realizado
         </CardTitle>
       </CardHeader>
       <CardContent>

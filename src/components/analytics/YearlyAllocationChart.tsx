@@ -44,7 +44,7 @@ export function YearlyAllocationChart({ data, year }: Props) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Alocação: Realizado vs. Capacidade — {year}</CardTitle>
+        <CardTitle className="text-base">Alocação: Realizado vs. Capacidade</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-[280px]">

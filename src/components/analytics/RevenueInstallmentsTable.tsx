@@ -37,31 +37,35 @@ export function RevenueInstallmentsTable({ periodNFs, periodReceivables, overdue
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex rounded-md border text-sm overflow-hidden">
+          <div className="inline-flex rounded-lg border bg-card p-0.5 gap-0.5 text-sm">
             <button
-              className={cn('px-3 py-1.5 transition-colors', !isNF && 'hover:bg-muted', isNF && 'bg-primary text-primary-foreground')}
+              className={cn('px-3 py-1.5 font-medium rounded-md transition-colors',
+                isNF ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
               onClick={() => setType('nf')}
             >
               NFs Emitidas
             </button>
             <button
-              className={cn('px-3 py-1.5 border-l transition-colors', isNF && 'hover:bg-muted', !isNF && 'bg-primary text-primary-foreground')}
+              className={cn('px-3 py-1.5 font-medium rounded-md transition-colors',
+                !isNF ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
               onClick={() => setType('receivable')}
             >
               Receitas
             </button>
           </div>
 
-          <div className="flex rounded-md border text-sm overflow-hidden">
+          <div className="inline-flex rounded-lg border bg-card p-0.5 gap-0.5 text-sm">
             <button
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 transition-colors', isOverdue && 'hover:bg-muted', !isOverdue && 'bg-primary text-primary-foreground')}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 font-medium rounded-md transition-colors',
+                !isOverdue ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
               onClick={() => setView('period')}
             >
               No período
               <Badge variant="outline" className="font-normal text-xs px-1.5">{periodData.length}</Badge>
             </button>
             <button
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 border-l transition-colors', !isOverdue && 'hover:bg-muted', isOverdue && 'bg-primary text-primary-foreground')}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 font-medium rounded-md transition-colors',
+                isOverdue ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
               onClick={() => setView('overdue')}
             >
               {overdueData.length > 0 && <AlertTriangle className="h-3 w-3 text-amber-500" />}
