@@ -82,7 +82,7 @@ export function FinancialEvolutionChart({ data, year, title, hideFaturado }: Pro
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Evolução Financeira — {year}</CardTitle>
+        <CardTitle className="text-base">{title ?? `Evolução Financeira — ${year}`}</CardTitle>
       </CardHeader>
       <CardContent>
         <StripedDefs />
