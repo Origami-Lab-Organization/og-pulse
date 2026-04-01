@@ -27,8 +27,7 @@ import { AnalyticsKPIs } from '@/components/analytics/AnalyticsKPIs'
 import { RevenueComparisonChart } from '@/components/analytics/RevenueComparisonChart'
 import { FinancialEvolutionChart } from '@/components/analytics/FinancialEvolutionChart'
 import { CostBreakdownChart } from '@/components/analytics/CostBreakdownChart'
-import { AdminActivitiesChart } from '@/components/analytics/AdminActivitiesChart'
-import { OverdueTable } from '@/components/analytics/OverdueTable'
+import { RevenueInstallmentsTable } from '@/components/analytics/RevenueInstallmentsTable'
 import { DonutChart } from '@/components/analytics/DonutChart'
 import { CostDonutChart } from '@/components/analytics/CostDonutChart'
 import { AllocationChart } from '@/components/analytics/AllocationChart'
@@ -43,17 +42,16 @@ import { useFinancialEvolution } from '@/hooks/useFinancialEvolution'
 import { useRevenueAnalytics } from '@/hooks/useRevenueAnalytics'
 import { useProjectFinancials } from '@/hooks/useProjectFinancials'
 import { useStakeholderAnalytics } from '@/hooks/useStakeholderAnalytics'
-import { useAdminActivitiesEvolution } from '@/hooks/useAdminActivitiesEvolution'
 import { useYearlyEvolution } from '@/hooks/useYearlyEvolution'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { cn } from '@/lib/utils'
 
 const FINANCIAL_TABS = [
   'overview',
   'revenue',
   'costs',
   'margin',
-  'admin-costs',
 ]
 
 export default function Analytics() {
@@ -70,6 +68,7 @@ export default function Analytics() {
   const [selectedManagerId, setSelectedManagerId] = useState<string | undefined>()
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>()
   const [activeTab, setActiveTab] = useState('overview')
+  const [donutDimension, setDonutDimension] = useState<'client' | 'manager' | 'serviceLine'>('client')
 
   const filters = useMemo(() => {
     let startDate: Date
@@ -120,11 +119,7 @@ export default function Analytics() {
     })
   const { data: stakeholderData, isLoading: isStakeholderLoading } =
     useStakeholderAnalytics(filters, { enabled: activeTab === 'satisfaction' })
-  const { data: adminActivities, isLoading: isAdminLoading } =
-    useAdminActivitiesEvolution(filters.startDate.getFullYear(), {
-      enabled: activeTab === 'admin-costs' || activeTab === 'overview',
-    })
-  const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
+const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
     useYearlyEvolution(filters, { enabled: activeTab === 'costs' })
   const { data: filterOptions } = useAnalyticsFilterOptions()
 
@@ -229,7 +224,6 @@ export default function Analytics() {
             <TabsTrigger value='revenue'>Receita</TabsTrigger>
             <TabsTrigger value='costs'>Custos</TabsTrigger>
             <TabsTrigger value='margin'>Margem Bruta</TabsTrigger>
-            <TabsTrigger value='admin-costs'>Despesas Adm</TabsTrigger>
             <TabsTrigger value='satisfaction'>Satisfação</TabsTrigger>
           </TabsList>
 
@@ -298,47 +292,61 @@ export default function Analytics() {
                   </Card>
                 </div>
 
-                <RevenueComparisonChart
-                  data={financialMonths}
-                  year={financialEvolution.year}
+                <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
+                  <RevenueComparisonChart
+                    data={financialMonths}
+                    year={financialEvolution.year}
+                  />
+                  <Card>
+                    <CardHeader className='pb-2'>
+                      <div className='flex items-center justify-between gap-2'>
+                        <CardTitle className='text-base'>Receita por</CardTitle>
+                        <div className='flex rounded-md border text-xs overflow-hidden'>
+                          {(
+                            [
+                              { key: 'client', label: 'Cliente' },
+                              { key: 'manager', label: 'Gerente' },
+                              { key: 'serviceLine', label: 'Serviço' },
+                            ] as const
+                          ).map(({ key, label }) => (
+                            <button
+                              key={key}
+                              className={cn(
+                                'px-2.5 py-1 transition-colors',
+                                key !== 'client' && 'border-l',
+                                donutDimension === key
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'hover:bg-muted',
+                              )}
+                              onClick={() => setDonutDimension(key)}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className='pt-0'>
+                      <DonutChart
+                        naked
+                        title=''
+                        data={(donutDimension === 'client'
+                          ? revenueData.byClient
+                          : donutDimension === 'manager'
+                            ? revenueData.byManager
+                            : revenueData.byServiceLine
+                        ).map((d) => ({ label: d.label, value: d.received }))}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <RevenueInstallmentsTable
+                  periodNFs={revenueData.periodNFs}
+                  periodReceivables={revenueData.periodReceivables}
+                  overdueNFs={revenueData.overdueNFs}
+                  overdueReceipts={revenueData.overdueReceipts}
                 />
-
-                <div className='grid gap-4 grid-cols-1 sm:grid-cols-2'>
-                  <OverdueTable
-                    data={revenueData.overdueNFs}
-                    title='NFs Atrasadas para Emitir'
-                    emptyLabel='Nenhuma NF em atraso.'
-                  />
-                  <OverdueTable
-                    data={revenueData.overdueReceipts}
-                    title='Receitas Atrasadas para Receber'
-                    emptyLabel='Nenhuma receita em atraso.'
-                  />
-                </div>
-
-                <div className='grid gap-4 grid-cols-3'>
-                  <DonutChart
-                    data={revenueData.byClient.map((d) => ({
-                      label: d.label,
-                      value: d.received,
-                    }))}
-                    title='Receita por Cliente'
-                  />
-                  <DonutChart
-                    data={revenueData.byManager.map((d) => ({
-                      label: d.label,
-                      value: d.received,
-                    }))}
-                    title='Receita por Gerente'
-                  />
-                  <DonutChart
-                    data={revenueData.byServiceLine.map((d) => ({
-                      label: d.label,
-                      value: d.received,
-                    }))}
-                    title='Receita por Linha de Serviço'
-                  />
-                </div>
               </>
             ) : null}
           </TabsContent>
@@ -553,61 +561,6 @@ export default function Analytics() {
                     }
                   />
                 </div>
-              </>
-            ) : null}
-          </TabsContent>
-
-          {/* ── Despesas Adm ─────────────────────────────────────────────── */}
-          <TabsContent value='admin-costs' className='space-y-6 mt-6'>
-            {isAdminLoading ? (
-              financialLoader
-            ) : adminActivities ? (
-              <>
-                <AdminActivitiesChart data={adminActivities} />
-
-                {adminActivities.activityTypes.length > 0 && (
-                  <Card>
-                    <CardHeader className='pb-2'>
-                      <CardTitle className='text-base'>
-                        Horas e Custos por Categoria
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <table className='w-full text-sm'>
-                        <thead>
-                          <tr className='text-left text-muted-foreground border-b'>
-                            <th className='pb-2 pr-4 font-medium'>Categoria</th>
-                            <th className='pb-2 pr-4 font-medium text-right'>
-                              Custo Total
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {adminActivities.activityTypes.map((type, idx) => {
-                            const totalCost = adminActivities.months.reduce(
-                              (s, m) => s + ((m[type.id] as number) || 0),
-                              0,
-                            )
-                            if (totalCost === 0) return null
-                            return (
-                              <tr
-                                key={type.id}
-                                className='border-b last:border-0'
-                              >
-                                <td className='py-2 pr-4 font-medium'>
-                                  {type.name}
-                                </td>
-                                <td className='py-2 text-right'>
-                                  {formatCurrency(totalCost)}
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </CardContent>
-                  </Card>
-                )}
               </>
             ) : null}
           </TabsContent>

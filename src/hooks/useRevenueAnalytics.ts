@@ -24,9 +24,23 @@ export interface RevenueByDimension {
   faturado: number;
 }
 
+export interface PeriodInstallmentItem {
+  projectId: string;
+  projectName: string;
+  clientName: string;
+  managerName: string;
+  installmentNumber: number;
+  value: number;
+  dueDate: string;
+  invoiceDate: string | null;
+  status: string;
+}
+
 export interface RevenueAnalyticsData {
   overdueNFs: OverdueItem[];
   overdueReceipts: OverdueItem[];
+  periodNFs: PeriodInstallmentItem[];
+  periodReceivables: PeriodInstallmentItem[];
   byClient: RevenueByDimension[];
   byManager: RevenueByDimension[];
   byServiceLine: RevenueByDimension[];
@@ -89,6 +103,7 @@ export function useRevenueAnalytics(
 
       const empty: RevenueAnalyticsData = {
         overdueNFs: [], overdueReceipts: [],
+        periodNFs: [], periodReceivables: [],
         byClient: [], byManager: [], byServiceLine: [],
       };
       if (!projects || projects.length === 0) return empty;
@@ -107,7 +122,7 @@ export function useRevenueAnalytics(
         // All installments (rankings are filtered in JS to quarter range)
         supabase
           .from('project_installments')
-          .select('project_id, value, due_date, status, invoice_date, payment_date')
+          .select('project_id, installment_number, value, due_date, status, invoice_date, payment_date')
           .in('project_id', projectIds),
       ]);
 
@@ -197,9 +212,51 @@ export function useRevenueAnalytics(
         addTo(serviceLineMap, serviceLine, serviceLineLabel, received, planned, faturado);
       }
 
+      const toPeriodItem = (i: any): PeriodInstallmentItem => {
+        const proj = projectMap.get(i.project_id) as any;
+        return {
+          projectId: i.project_id,
+          projectName: proj?.name || '',
+          clientName: proj?.client?.company_name || '',
+          managerName: proj?.manager?.nome || '',
+          installmentNumber: i.installment_number,
+          value: Number(i.value),
+          dueDate: i.due_date,
+          invoiceDate: i.invoice_date ?? null,
+          status: i.status,
+        };
+      };
+
+      const periodNFs: PeriodInstallmentItem[] = (allRes.data || [])
+        .filter((i: any) =>
+          ['invoiced', 'received'].includes(i.status) &&
+          i.invoice_date &&
+          i.invoice_date >= startStr &&
+          i.invoice_date <= endStr &&
+          Number(i.value) > 0,
+        )
+        .map(toPeriodItem)
+        .sort((a: PeriodInstallmentItem, b: PeriodInstallmentItem) =>
+          (a.invoiceDate || '').localeCompare(b.invoiceDate || ''),
+        );
+
+      const periodReceivables: PeriodInstallmentItem[] = (allRes.data || [])
+        .filter((i: any) =>
+          i.status !== 'received' &&
+          i.due_date >= startStr &&
+          i.due_date <= endStr &&
+          Number(i.value) > 0,
+        )
+        .map(toPeriodItem)
+        .sort((a: PeriodInstallmentItem, b: PeriodInstallmentItem) =>
+          a.dueDate.localeCompare(b.dueDate),
+        );
+
       return {
         overdueNFs,
         overdueReceipts,
+        periodNFs,
+        periodReceivables,
         byClient: [...clientMap.values()].sort((a, b) => b.received - a.received),
         byManager: [...managerMap.values()].sort((a, b) => b.received - a.received),
         byServiceLine: [...serviceLineMap.values()].sort((a, b) => b.received - a.received),
