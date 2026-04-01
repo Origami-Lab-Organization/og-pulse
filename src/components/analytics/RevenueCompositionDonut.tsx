@@ -110,7 +110,7 @@ export function RevenueCompositionDonut({ byClient, byManager, byServiceLine }: 
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 min-h-0">
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Sem dados no período.</p>
         ) : (
