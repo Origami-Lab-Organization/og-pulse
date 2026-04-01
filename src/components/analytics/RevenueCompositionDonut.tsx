@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { PieChart, Pie, Cell } from 'recharts';
+import { PieChart, Pie, Cell, Sector } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
@@ -38,23 +38,13 @@ function DonutTooltip({ active, payload }: any) {
     <div className="rounded-lg border bg-popover px-3 py-2 text-sm shadow-md">
       <div className="flex items-center gap-2">
         <div className="h-2.5 w-2.5 rounded-[2px]" style={{ backgroundColor: entry.payload.fill }} />
-        <span className="text-muted-foreground">{entry.name}</span>
-        <span className="font-mono font-medium tabular-nums">{formatCurrency(entry.value)}</span>
+        <span className="font-medium">{entry.name}</span>
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-4">
+        <span className="text-muted-foreground">{formatPercent((entry.payload.percent ?? 0) * 100)}</span>
+        <span className="font-mono font-semibold tabular-nums">{formatCurrency(entry.value)}</span>
       </div>
     </div>
-  );
-}
-
-function SliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
-  if (percent < 0.05) return null;
-  const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
-      {formatPercent(percent * 100)}
-    </text>
   );
 }
 
@@ -114,52 +104,62 @@ export function RevenueCompositionDonut({ byClient, byManager, byServiceLine }: 
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Sem dados no período.</p>
         ) : (
-          <>
-            <ChartContainer config={chartConfig} className="h-[220px] w-full">
-              <PieChart>
-                <Pie
-                  data={items}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius="42%"
-                  outerRadius="72%"
-                  paddingAngle={2}
-                  dataKey="value"
-                  labelLine={false}
-                  label={SliceLabel}
-                >
-                  {items.map((entry, idx) => (
-                    <Cell key={idx} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<DonutTooltip />} />
-                {/* Center total */}
-                <text x="50%" y="48%" textAnchor="middle" dominantBaseline="central" className="fill-foreground text-sm font-semibold">
-                  {formatCurrency(total)}
-                </text>
-                <text x="50%" y="55%" textAnchor="middle" dominantBaseline="central" className="fill-muted-foreground text-[10px]">
-                  Total
-                </text>
-              </PieChart>
-            </ChartContainer>
-            <div className="mt-3 grid grid-cols-1 gap-1.5">
+          <div className="flex flex-col lg:flex-row items-center gap-4">
+            {/* Donut - takes most space */}
+            <div className="w-full lg:w-3/5 flex-shrink-0">
+              <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <PieChart>
+                  <Pie
+                    data={items}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="38%"
+                    outerRadius="80%"
+                    paddingAngle={2}
+                    dataKey="value"
+                    labelLine={false}
+                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                      if (percent < 0.05) return null;
+                      const RADIAN = Math.PI / 180;
+                      const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                      return (
+                        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>
+                          {formatPercent(percent * 100)}
+                        </text>
+                      );
+                    }}
+                  >
+                    {items.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<DonutTooltip />} />
+                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="central" className="fill-foreground text-base font-bold">
+                    {formatCurrency(total)}
+                  </text>
+                  <text x="50%" y="54%" textAnchor="middle" dominantBaseline="central" className="fill-muted-foreground text-[11px]">
+                    Total
+                  </text>
+                </PieChart>
+              </ChartContainer>
+            </div>
+
+            {/* Legend - side on desktop, bottom on mobile */}
+            <div className="w-full lg:w-2/5 flex flex-col gap-2">
               {items.map((item, i) => {
                 const pct = total > 0 ? (item.value / total) * 100 : 0;
                 return (
-                  <div key={i} className="flex items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <div className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.fill }} />
-                      <span className="truncate text-muted-foreground">{item.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 tabular-nums">
-                      <span className="text-muted-foreground">{formatPercent(pct)}</span>
-                      <span className="font-medium">{formatCurrency(item.value)}</span>
-                    </div>
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <div className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: item.fill }} />
+                    <span className="truncate flex-1">{item.name}</span>
+                    <span className="text-muted-foreground tabular-nums text-xs font-medium">{formatPercent(pct)}</span>
                   </div>
                 );
               })}
             </div>
-          </>
+          </div>
         )}
       </CardContent>
     </Card>
