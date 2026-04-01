@@ -63,9 +63,9 @@ export default function Analytics() {
   const { employee } = useAuth()
   const isAdmin = employee?.isAdmin ?? false
 
-  const [granularity, setGranularity] = useState<Granularity>('month')
+  const [granularity, setGranularity] = useState<Granularity>('year')
   const [currentPeriodDate, setCurrentPeriodDate] = useState(() =>
-    startOfMonth(new Date()),
+    startOfYear(new Date()),
   )
   const [customStart, setCustomStart] = useState<Date | undefined>()
   const [customEnd, setCustomEnd] = useState<Date | undefined>()
