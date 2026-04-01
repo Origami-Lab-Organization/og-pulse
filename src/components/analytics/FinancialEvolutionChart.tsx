@@ -60,7 +60,7 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-export function FinancialEvolutionChart({ data, year }: Props) {
+export function FinancialEvolutionChart({ data, year, title, hideFaturado }: Props) {
   const highlighted = data.filter(d => d.isHighlighted);
   const refStart = highlighted.length > 0 ? highlighted[0].label : undefined;
   const refEnd   = highlighted.length > 0 ? highlighted[highlighted.length - 1].label : undefined;
