@@ -20,6 +20,7 @@ import {
   Inbox,
   FolderKanban,
   UserSearch,
+  Target,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -80,6 +81,7 @@ const navigationGroups = [
       { title: 'Materiais', url: '/materiais', icon: Package, requiresManager: true },
       { title: 'Assinaturas', url: '/assinaturas', icon: RefreshCw, requiresManager: true },
       { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
+      { title: 'Estratégia', url: '/estrategia', icon: Target, requiresAdmin: true },
     ] as NavItem[],
   },
   {

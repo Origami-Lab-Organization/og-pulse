@@ -21,7 +21,8 @@ import {
   FolderKanban,
   ClipboardList,
   Menu,
-  ChevronDown
+  ChevronDown,
+  Target
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -75,6 +76,13 @@ const navigationGroups: NavGroup[] = [
       { title: "Meus Projetos", url: "/my-projects", icon: FolderKanban },
       { title: "Timesheet", url: "/my-timesheet", icon: Clock },
       { title: "Reembolsos", url: "/reimbursements", icon: Receipt }
+    ]
+  },
+  {
+    label: "Estratégia",
+    requiresAdmin: true,
+    items: [
+      { title: "Estratégia", url: "/estrategia", icon: Target, requiresAdmin: true }
     ]
   },
   {

@@ -44,6 +44,7 @@ import Services from "./pages/Services";
 import Inbox from "./pages/Inbox";
 import JobOpenings from "./pages/JobOpenings";
 import JobApplicationVaga from "./pages/JobApplicationVaga";
+import Strategy from "./pages/Strategy";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 2 * 60 * 1000 } },
@@ -249,6 +250,7 @@ const App = () => (
               <Route path="/rh/vagas" element={<RoleProtectedRoute requireManager><JobOpenings /></RoleProtectedRoute>} />
               <Route path="/trabalhe-conosco/:tenantId" element={<JobApplication />} />
               <Route path="/trabalhe-conosco/:tenantId/:vagaId" element={<JobApplicationVaga />} />
+              <Route path="/estrategia" element={<RoleProtectedRoute requireAdmin><Strategy /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
