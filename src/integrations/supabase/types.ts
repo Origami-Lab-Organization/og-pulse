@@ -3261,6 +3261,291 @@ export type Database = {
           },
         ]
       }
+      strategy_checkins: {
+        Row: {
+          checked_at: string
+          comment: string
+          confidence: number
+          created_at: string
+          employee_id: string
+          id: string
+          key_result_id: string
+          tenant_id: string
+          value: number
+        }
+        Insert: {
+          checked_at?: string
+          comment: string
+          confidence: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          key_result_id: string
+          tenant_id: string
+          value: number
+        }
+        Update: {
+          checked_at?: string
+          comment?: string
+          confidence?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          key_result_id?: string
+          tenant_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_checkins_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_checkins_key_result_id_fkey"
+            columns: ["key_result_id"]
+            isOneToOne: false
+            referencedRelation: "strategy_key_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_checkins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategy_cycles: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          name: string
+          review_outcome: string | null
+          start_date: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          name: string
+          review_outcome?: string | null
+          start_date: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          name?: string
+          review_outcome?: string | null
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_cycles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategy_initiatives: {
+        Row: {
+          created_at: string
+          effort: number
+          id: string
+          objective_id: string
+          owner_id: string
+          position: number
+          priority: string
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          effort?: number
+          id?: string
+          objective_id: string
+          owner_id: string
+          position?: number
+          priority?: string
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          effort?: number
+          id?: string
+          objective_id?: string
+          owner_id?: string
+          position?: number
+          priority?: string
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_initiatives_objective_id_fkey"
+            columns: ["objective_id"]
+            isOneToOne: false
+            referencedRelation: "strategy_objectives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_initiatives_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_initiatives_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategy_key_results: {
+        Row: {
+          confidence: number
+          created_at: string
+          current_value: number
+          id: string
+          name: string
+          objective_id: string
+          owner_id: string
+          target_value: number
+          tenant_id: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          current_value?: number
+          id?: string
+          name: string
+          objective_id: string
+          owner_id: string
+          target_value: number
+          tenant_id: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          current_value?: number
+          id?: string
+          name?: string
+          objective_id?: string
+          owner_id?: string
+          target_value?: number
+          tenant_id?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_key_results_objective_id_fkey"
+            columns: ["objective_id"]
+            isOneToOne: false
+            referencedRelation: "strategy_objectives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_key_results_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_key_results_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategy_objectives: {
+        Row: {
+          created_at: string
+          cycle_id: string
+          id: string
+          owner_id: string
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_id: string
+          id?: string
+          owner_id: string
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cycle_id?: string
+          id?: string
+          owner_id?: string
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_objectives_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "strategy_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_objectives_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_objectives_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           annual_cost: number
