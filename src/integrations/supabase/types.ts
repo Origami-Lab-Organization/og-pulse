@@ -3263,42 +3263,39 @@ export type Database = {
       }
       strategy_checkins: {
         Row: {
-          checked_at: string
-          comment: string
           confidence: number
           created_at: string
-          employee_id: string
+          created_by: string | null
+          current_value: number
           id: string
           key_result_id: string
+          notes: string | null
           tenant_id: string
-          value: number
         }
         Insert: {
-          checked_at?: string
-          comment: string
           confidence: number
           created_at?: string
-          employee_id: string
+          created_by?: string | null
+          current_value: number
           id?: string
           key_result_id: string
+          notes?: string | null
           tenant_id: string
-          value: number
         }
         Update: {
-          checked_at?: string
-          comment?: string
           confidence?: number
           created_at?: string
-          employee_id?: string
+          created_by?: string | null
+          current_value?: number
           id?: string
           key_result_id?: string
+          notes?: string | null
           tenant_id?: string
-          value?: number
         }
         Relationships: [
           {
-            foreignKeyName: "strategy_checkins_employee_id_fkey"
-            columns: ["employee_id"]
+            foreignKeyName: "strategy_checkins_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
@@ -3324,33 +3321,30 @@ export type Database = {
           created_at: string
           end_date: string
           id: string
-          name: string
-          review_outcome: string | null
+          is_active: boolean
           start_date: string
-          status: string
           tenant_id: string
+          title: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           end_date: string
           id?: string
-          name: string
-          review_outcome?: string | null
+          is_active?: boolean
           start_date: string
-          status?: string
           tenant_id: string
+          title: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           end_date?: string
           id?: string
-          name?: string
-          review_outcome?: string | null
+          is_active?: boolean
           start_date?: string
-          status?: string
           tenant_id?: string
+          title?: string
           updated_at?: string
         }
         Relationships: [
@@ -3366,12 +3360,14 @@ export type Database = {
       strategy_initiatives: {
         Row: {
           created_at: string
-          effort: number
+          description: string | null
+          due_date: string | null
+          effort: number | null
           id: string
           objective_id: string
-          owner_id: string
+          owner_id: string | null
           position: number
-          priority: string
+          priority: string | null
           status: string
           tenant_id: string
           title: string
@@ -3379,12 +3375,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          effort?: number
+          description?: string | null
+          due_date?: string | null
+          effort?: number | null
           id?: string
           objective_id: string
-          owner_id: string
+          owner_id?: string | null
           position?: number
-          priority?: string
+          priority?: string | null
           status?: string
           tenant_id: string
           title: string
@@ -3392,12 +3390,14 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          effort?: number
+          description?: string | null
+          due_date?: string | null
+          effort?: number | null
           id?: string
           objective_id?: string
-          owner_id?: string
+          owner_id?: string | null
           position?: number
-          priority?: string
+          priority?: string | null
           status?: string
           tenant_id?: string
           title?: string
@@ -3432,39 +3432,42 @@ export type Database = {
           confidence: number
           created_at: string
           current_value: number
+          description: string | null
           id: string
-          name: string
+          initial_value: number
           objective_id: string
-          owner_id: string
+          owner_id: string | null
           target_value: number
           tenant_id: string
-          unit: string | null
+          title: string
           updated_at: string
         }
         Insert: {
           confidence?: number
           created_at?: string
           current_value?: number
+          description?: string | null
           id?: string
-          name: string
+          initial_value?: number
           objective_id: string
-          owner_id: string
+          owner_id?: string | null
           target_value: number
           tenant_id: string
-          unit?: string | null
+          title: string
           updated_at?: string
         }
         Update: {
           confidence?: number
           created_at?: string
           current_value?: number
+          description?: string | null
           id?: string
-          name?: string
+          initial_value?: number
           objective_id?: string
-          owner_id?: string
+          owner_id?: string | null
           target_value?: number
           tenant_id?: string
-          unit?: string | null
+          title?: string
           updated_at?: string
         }
         Relationships: [
@@ -3495,9 +3498,9 @@ export type Database = {
         Row: {
           created_at: string
           cycle_id: string
+          description: string | null
           id: string
-          owner_id: string
-          status: string
+          owner_id: string | null
           tenant_id: string
           title: string
           updated_at: string
@@ -3505,9 +3508,9 @@ export type Database = {
         Insert: {
           created_at?: string
           cycle_id: string
+          description?: string | null
           id?: string
-          owner_id: string
-          status?: string
+          owner_id?: string | null
           tenant_id: string
           title: string
           updated_at?: string
@@ -3515,9 +3518,9 @@ export type Database = {
         Update: {
           created_at?: string
           cycle_id?: string
+          description?: string | null
           id?: string
-          owner_id?: string
-          status?: string
+          owner_id?: string | null
           tenant_id?: string
           title?: string
           updated_at?: string
