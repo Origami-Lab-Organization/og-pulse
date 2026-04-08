@@ -274,7 +274,6 @@ export const strategyInitiativeService = {
       .eq('tenant_id', tenantId)
       .in('objective_id', ids)
       .order('position', { ascending: true });
-      .order('position', { ascending: true });
 
     if (error) throw error;
     return (data || []) as unknown as StrategyInitiativeDB[];
