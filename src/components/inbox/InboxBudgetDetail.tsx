@@ -128,16 +128,16 @@ export function InboxBudgetDetail({ notification, onActionComplete }: Props) {
             <span className="font-medium">{meta.requester_name}</span>
           </div>
         )}
-        {meta.discount_value != null && (
+        {meta.effective_margin != null && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Margem líquida efetiva</span>
+            <span className="font-medium text-destructive">{Number(meta.effective_margin).toFixed(1)}%</span>
+          </div>
+        )}
+        {meta.discount_value != null && Number(meta.discount_value) > 0 && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">Desconto aplicado</span>
             <span className="font-medium">{fmtCurrency(meta.discount_value)}</span>
-          </div>
-        )}
-        {meta.effective_margin != null && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Margem efetiva</span>
-            <span className="font-medium text-destructive">{Number(meta.effective_margin).toFixed(1)}%</span>
           </div>
         )}
         {meta.min_margin != null && (
