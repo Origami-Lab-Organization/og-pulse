@@ -317,8 +317,8 @@ export default function BudgetForm() {
           category: 'budget',
           priority: 'high',
           action_type: 'approve_reject',
-          title: `Desconto aguarda aprovação — ${budgetTitle}`,
-          message: `${employee!.nome} aplicou um desconto de ${discountDisplay} que reduz a margem efetiva para ${effectiveMargin}% (mínimo: ${minNetMarginPercent}%). Aprovação necessária.`,
+          title: `Margem abaixo do mínimo — ${budgetTitle}`,
+          message: `${employee!.nome} configurou o orçamento "${budgetTitle}" com margem líquida efetiva de ${effectiveMargin}% (mínimo: ${minNetMarginPercent}%).${discountValue > 0 ? ` Desconto aplicado: ${discountDisplay}.` : ''} Aprovação necessária.`,
           reference_id: budgetId,
           metadata: {
             budget_title: budgetTitle,
