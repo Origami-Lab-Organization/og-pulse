@@ -362,9 +362,18 @@ export function LeadDetailDialog({
           {/* ── Header ── */}
           <DialogHeader className='px-5 pt-5 pb-4 space-y-1 pr-20'>
             <div className='flex items-center gap-2 min-w-0'>
-              <DialogTitle className='text-lg line-clamp-1'>
-                {lead.name}
-              </DialogTitle>
+              {isEditing ? (
+                <Input
+                  value={form.watch('name')}
+                  onChange={(e) => form.setValue('name', e.target.value, { shouldDirty: true })}
+                  className='text-lg font-semibold h-auto py-1 px-2 flex-1 min-w-0'
+                  placeholder='Nome do lead'
+                />
+              ) : (
+                <DialogTitle className='text-lg line-clamp-1'>
+                  {lead.name}
+                </DialogTitle>
+              )}
               {isArchived && (
                 <Badge
                   variant='secondary'
