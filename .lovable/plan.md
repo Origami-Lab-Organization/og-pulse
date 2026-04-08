@@ -1,98 +1,60 @@
 
 
-# Plano: Remover Impostos do Sistema (exceto Orçamento)
+## Problema
 
-## Resumo
+Atualmente, o sistema impede que qualquer usuário (incluindo admins) defina a margem líquida abaixo do mínimo configurado nas configurações financeiras. O campo `onBlur` força `Math.max(minNetMarginPercent, ...)` e a verificação de margem baixa (`isMarginBelowMinimum`) só dispara quando `discountValue > 0`.
 
-Remover toda a lógica de acompanhamento, rateio e exibição de impostos do sistema — projetos, analytics, dashboard. Manter impostos **apenas** no orçamento (markup) e a meta de impostos no admin (FinancialSettings), pois alimenta a fórmula de markup.
+O comportamento desejado:
+1. **Admin** pode definir a margem líquida abaixo do mínimo diretamente (com confirmação via checkbox)
+2. **Não-admin** pode salvar com margem abaixo do mínimo, mas envia para aprovação do admin
+3. A verificação deve considerar a margem efetiva (que já inclui desconto) independentemente de haver desconto explícito
 
----
+## Mudanças
 
-## O que MANTER
+### 1. Remover trava do campo de margem líquida (BudgetForm.tsx)
 
-- `financial_settings.taxes_percent` — campo no admin (FinancialSettingsForm) para meta de impostos usada no markup do orçamento
-- `budgets.taxes_percent` — campo do orçamento que alimenta a fórmula de markup
-- Toda lógica em `src/types/budget.ts` (`calculateBudgetTotals`, `calculateRecurringTotals`) que usa `taxesPercent` para calcular preço de venda
-- `src/pages/BudgetForm.tsx` — formulário de orçamento que usa `taxesPercent`
-
-## O que REMOVER
-
-### 1. Tabela e infraestrutura de tax_entries
-- **Deletar** `src/types/taxEntry.ts`
-- **Deletar** `src/services/taxEntryService.ts`
-- **Deletar** `src/hooks/useTaxEntries.ts`
-- **Deletar** `src/components/settings/TaxEntriesManager.tsx`
-- **Deletar** `src/components/analytics/TaxesOverview.tsx`
-
-### 2. Admin Portal — aba "Impostos"
-- Remover a aba `taxes` e o `TabsContent` correspondente do `AdminPortal.tsx`
-- Remover import de `TaxEntriesManager` e ícone `Landmark`
-
-### 3. Analytics — aba "Impostos" e card de impostos
-- **Remover** a aba `taxes` (TabsTrigger + TabsContent) do `Analytics.tsx`
-- **Remover** o card "Impostos" do `AnalyticsKPIs.tsx` (passar de 5 para 4 cards: Faturamento, Receita, Custos, Margem)
-- **Remover** props `taxesPercent`, `taxesValue` do `AnalyticsKPIs`
-- **Atualizar** fórmula de margem bruta no Analytics para: `Margem = (Receita - Custos) / Receita * 100` (sem desconto de impostos)
-
-### 4. Gráfico de Evolução Financeira
-- **Remover** barra "Impostos" do `FinancialEvolutionChart.tsx`
-- **Remover** campos `taxesValue`, `taxesRealValue`, `plannedTaxesValue` do `FinancialMonthlyPoint` (interface em `useFinancialEvolution.ts`)
-- **Remover** toda lógica de fetch/cálculo de tax entries do `useFinancialEvolution.ts`
-- **Atualizar** fórmula de margem no hook: `Margem = (Receita - Custos) / Receita * 100`
-
-### 5. Analytics Data Hook
-- **Remover** `taxesPercent`, `taxesValue`, `taxesRealValue` do `AnalyticsData` (interface em `useAnalyticsData.ts`)
-- **Remover** fetch de `taxEntryService` e todo cálculo de impostos
-- **Atualizar** fórmula de `grossMargin`: sem desconto de impostos
-
-### 6. Project Financials Hook
-- **Remover** `taxesPercent` do `ProjectFinancialsData`
-- **Remover** `taxes` do `ProjectFinancialRow` e `DimensionFinancialRow`
-- **Remover** todo rateio de impostos (`realTaxByProject`, `taxEntries`, `monthlyRevenueByProject`, etc.)
-- **Simplificar** `computeMargin`: `(revenue - costs) / revenue * 100`
-- **Remover** import de `taxEntryService`
-
-### 7. Project Detail Tabs — remover card "Impostos"
-- **ProjectOverviewTab.tsx**: remover cálculo de `taxPlanned/taxActual/taxExecuted`, remover card "Impostos" dos KPIs, atualizar margem para `Receita - Comissão - Custos`
-- **ProjectFinancialTab.tsx**: idem — remover card "Impostos", atualizar margem
-- **ProjectCostsTab.tsx**: remover prop `taxesPercent` do `FinancialSummaryCard`, atualizar margem para `Receita - Custos`
-- **ProjectExpectedResultTab.tsx**: remover desconto de `taxes` na margem, remover menções a impostos nos cards
-
-### 8. ProjectMarginTable no Analytics (aba Margem)
-- Remover coluna `taxes` dos dados passados (já vem do `useProjectFinancials`)
-- A tabela já renderiza `grossMargin` que será recalculada sem impostos
-
----
-
-## Fórmula de Margem (novo)
-
-```text
-ANTES:  Margem = (Receita - Impostos - Comissão - Custos) / Receita
-DEPOIS: Margem = (Receita - Comissão - Custos) / Receita
+**Linha ~949** — O `onBlur` atualmente força o valor mínimo:
+```tsx
+onBlur={(e) => setNetMarginPercent(Math.max(minNetMarginPercent, ...))}
+```
+Mudar para permitir valores abaixo do mínimo:
+```tsx
+onBlur={(e) => setNetMarginPercent(Math.max(0, Math.min(parseFloat(e.target.value) || 0, 100)))}
 ```
 
-Impostos continuam no **markup do orçamento** para definir preço de venda, mas não são rastreados no acompanhamento de projetos.
+Também remover `min={minNetMarginPercent}` do input e usar `min={0}`.
 
----
+### 2. Corrigir condição `isMarginBelowMinimum` (BudgetForm.tsx)
 
-## Arquivos a editar
+**Linha ~293** — Remover `&& discountValue > 0`:
+```tsx
+// De:
+const isMarginBelowMinimum = billingType !== 'no_revenue' && billingType !== 'success_fee' 
+  && calculation.effectiveMarginPercent < minNetMarginPercent && discountValue > 0;
 
-| Arquivo | Ação |
-|---------|------|
-| `src/types/taxEntry.ts` | Deletar |
-| `src/services/taxEntryService.ts` | Deletar |
-| `src/hooks/useTaxEntries.ts` | Deletar |
-| `src/components/settings/TaxEntriesManager.tsx` | Deletar |
-| `src/components/analytics/TaxesOverview.tsx` | Deletar |
-| `src/pages/AdminPortal.tsx` | Remover aba Impostos |
-| `src/pages/Analytics.tsx` | Remover aba Impostos, limpar props |
-| `src/components/analytics/AnalyticsKPIs.tsx` | Remover card Impostos (4 cards) |
-| `src/components/analytics/FinancialEvolutionChart.tsx` | Remover barra Impostos |
-| `src/hooks/useFinancialEvolution.ts` | Remover lógica de tax entries |
-| `src/hooks/useAnalyticsData.ts` | Remover impostos do cálculo |
-| `src/hooks/useProjectFinancials.ts` | Remover rateio de impostos |
-| `src/components/projects/detail/ProjectOverviewTab.tsx` | Remover card Impostos, ajustar margem |
-| `src/components/projects/detail/ProjectFinancialTab.tsx` | Remover card Impostos, ajustar margem |
-| `src/components/projects/detail/ProjectCostsTab.tsx` | Remover taxesPercent, ajustar margem |
-| `src/components/projects/detail/ProjectExpectedResultTab.tsx` | Remover desconto de impostos |
+// Para:
+const isMarginBelowMinimum = billingType !== 'no_revenue' && billingType !== 'success_fee' 
+  && calculation.effectiveMarginPercent < minNetMarginPercent;
+```
+
+Isso garante que a verificação funcione tanto quando a margem cai por desconto quanto quando o usuário define manualmente um `netMarginPercent` abaixo do mínimo.
+
+### 3. Ajustar mensagem da notificação (BudgetForm.tsx)
+
+**Linha ~321** — A mensagem atual menciona "desconto" explicitamente. Ajustar para ser mais genérica quando não houver desconto:
+```
+"A margem líquida efetiva do orçamento ficou em X% (mínimo: Y%). Aprovação necessária."
+```
+
+### 4. Ajustar InboxBudgetDetail (InboxBudgetDetail.tsx)
+
+Exibir a margem líquida configurada pelo usuário nos metadados da notificação, além do desconto (que pode ser zero).
+
+## Fluxo resultante
+
+- **Admin editando orçamento**: pode digitar margem líquida < mínimo → aparece alerta com checkbox → confirma → salva diretamente
+- **Não-admin editando orçamento**: pode digitar margem líquida < mínimo → aparece alerta informando que será enviado para aprovação → salva com `margin_override_pending = true` → notificação enviada aos admins
+- **Admin na Inbox**: recebe notificação → pode aprovar ou rejeitar
+
+Nenhuma migration é necessária — os campos `margin_override_approved` e `margin_override_pending` já existem na tabela `budgets`.
 
