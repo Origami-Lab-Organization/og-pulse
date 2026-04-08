@@ -259,18 +259,21 @@ const INITIATIVE_SELECT = `
 
 export const strategyInitiativeService = {
   async getAll(cycleId: string, tenantId: string): Promise<StrategyInitiativeDB[]> {
+    const { data: objIds } = await supabase
+      .from('strategy_objectives')
+      .select('id')
+      .eq('cycle_id', cycleId)
+      .eq('tenant_id', tenantId);
+
+    const ids = (objIds || []).map((o: any) => o.id);
+    if (ids.length === 0) return [];
+
     const { data, error } = await supabase
       .from('strategy_initiatives')
       .select(INITIATIVE_SELECT)
       .eq('tenant_id', tenantId)
-      .in(
-        'objective_id',
-        supabase
-          .from('strategy_objectives')
-          .select('id')
-          .eq('cycle_id', cycleId)
-          .eq('tenant_id', tenantId),
-      )
+      .in('objective_id', ids)
+      .order('position', { ascending: true });
       .order('position', { ascending: true });
 
     if (error) throw error;
