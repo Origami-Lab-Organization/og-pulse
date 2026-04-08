@@ -290,7 +290,7 @@ export default function BudgetForm() {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  const isMarginBelowMinimum = billingType !== 'no_revenue' && billingType !== 'success_fee' && calculation.effectiveMarginPercent < minNetMarginPercent && discountValue > 0;
+  const isMarginBelowMinimum = billingType !== 'no_revenue' && billingType !== 'success_fee' && calculation.effectiveMarginPercent < minNetMarginPercent;
   const isAdmin = employee?.isAdmin ?? false;
   const canSaveWithLowMargin = isAdmin && marginOverrideConfirmed;
   // Non-admins can save with pending flag (sends notification to admins); admins must confirm checkbox
@@ -942,11 +942,11 @@ export default function BudgetForm() {
                 <Label className="text-sm font-normal">Margem líquida (mín. {minNetMarginPercent}%)</Label>
                 <div className="flex items-center gap-2">
                   <Input
-                    type="number" min={minNetMarginPercent} max={100} step={0.1}
+                    type="number" min={0} max={100} step={0.1}
                     className="w-20 h-8 text-right" value={netMarginPercent}
                     onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                     onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) setNetMarginPercent(v); }}
-                    onBlur={(e) => setNetMarginPercent(Math.max(minNetMarginPercent, Math.min(parseFloat(e.target.value) || minNetMarginPercent, 100)))}
+                    onBlur={(e) => setNetMarginPercent(Math.max(0, Math.min(parseFloat(e.target.value) || 0, 100)))}
                   />
                   <span className="text-sm text-muted-foreground">%</span>
                   <span className="text-sm font-medium w-28 text-right">
