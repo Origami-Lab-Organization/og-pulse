@@ -363,21 +363,11 @@ export function LeadDetailDialog({
           <DialogHeader className='px-5 pt-5 pb-4 space-y-1 pr-20'>
             <div className='flex items-center gap-2 min-w-0'>
               {isEditing ? (
-                <FormField
-                  control={form.control}
-                  name='name'
-                  render={({ field }) => (
-                    <FormItem className='flex-1 min-w-0'>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          className='text-lg font-semibold h-auto py-1 px-2'
-                          placeholder='Nome do lead'
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                <Input
+                  value={form.watch('name')}
+                  onChange={(e) => form.setValue('name', e.target.value, { shouldDirty: true })}
+                  className='text-lg font-semibold h-auto py-1 px-2 flex-1 min-w-0'
+                  placeholder='Nome do lead'
                 />
               ) : (
                 <DialogTitle className='text-lg line-clamp-1'>
