@@ -2062,6 +2062,95 @@ export type Database = {
           },
         ]
       }
+      project_cards: {
+        Row: {
+          acceptance_criteria: string | null
+          assignee_id: string | null
+          blocked_reason: string | null
+          card_type: string
+          column_name: string
+          created_at: string
+          created_by: string
+          id: string
+          is_blocked: boolean
+          points: number | null
+          position: number
+          project_id: string
+          sprint_id: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+          user_story: string | null
+        }
+        Insert: {
+          acceptance_criteria?: string | null
+          assignee_id?: string | null
+          blocked_reason?: string | null
+          card_type?: string
+          column_name?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_blocked?: boolean
+          points?: number | null
+          position?: number
+          project_id: string
+          sprint_id?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+          user_story?: string | null
+        }
+        Update: {
+          acceptance_criteria?: string | null
+          assignee_id?: string | null
+          blocked_reason?: string | null
+          card_type?: string
+          column_name?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_blocked?: boolean
+          points?: number | null
+          position?: number
+          project_id?: string
+          sprint_id?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          user_story?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_cards_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_cards_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_cards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_commissions: {
         Row: {
           approval_status: string
