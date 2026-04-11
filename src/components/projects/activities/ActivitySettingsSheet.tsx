@@ -515,10 +515,14 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
                     </Button>
                   </div>
                 ))}
-                <Button variant="outline" size="sm" onClick={() => dorCtrl.add()}>
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                <button
+                  type="button"
+                  onClick={() => dorCtrl.add()}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
                   Adicionar critério
-                </Button>
+                </button>
               </div>
 
               <Separator className="my-1" />
