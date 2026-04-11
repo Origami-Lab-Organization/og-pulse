@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { ProjectActivityCardWithRelations, ActivityCardType, CARD_TYPE_LABELS } from '@/types/projectActivity';
+import { TagBadge } from '@/components/projects/activities/TagBadge';
 
 interface ActivityCardProps {
   card: ProjectActivityCardWithRelations;
@@ -38,6 +39,20 @@ export function ActivityCard({ card, onClick }: ActivityCardProps) {
           <AlertOctagon className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
         )}
       </div>
+
+      {/* Tags row */}
+      {card.card_tags && card.card_tags.length > 0 && (
+        <div className="flex items-center gap-1 flex-wrap">
+          {card.card_tags.slice(0, 2).map((ct) => (
+            <TagBadge key={ct.tag_id} tag={ct.tag} />
+          ))}
+          {card.card_tags.length > 2 && (
+            <span className="text-xs text-muted-foreground">
+              +{card.card_tags.length - 2}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 flex-wrap">

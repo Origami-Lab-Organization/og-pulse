@@ -38,6 +38,7 @@ import { CardBlockSection } from './CardBlockSection';
 import { CardChecklist } from './CardChecklist';
 import { CardTaskList } from './CardTaskList';
 import { CardHistory } from './CardHistory';
+import { TagInput } from './TagInput';
 import { cn } from '@/lib/utils';
 
 // ── Fibonacci points ────────────────────────────────────────────────────────
@@ -345,14 +346,12 @@ export function ActivityCardDetailDrawer({
                 </div>
               )}
 
-              {/* ACT-05 — Tags (placeholder) */}
+              {/* Tags */}
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1">
                   <Tag className="h-3 w-3" /> Tags
                 </Label>
-                <div className="flex items-center h-8 px-3 rounded-md border border-input bg-background text-xs text-muted-foreground">
-                  Tags — em breve
-                </div>
+                <TagInput projectId={project.id} cardId={card.id} disabled={disabled} />
               </div>
             </Section>
 

@@ -33,6 +33,7 @@ export interface ProjectActivityCardWithRelations extends ProjectActivityCardDB 
     nome: string;
     foto_url: string | null;
   } | null;
+  card_tags?: ProjectActivityCardTagWithTag[];
 }
 
 export interface CreateActivityInput {
@@ -92,3 +93,25 @@ export const ACTIVITY_COLUMNS: ActivityColumnName[] = [
   'in_deploy',
   'done',
 ];
+
+// ── Tags ────────────────────────────────────────────────────────────────────
+
+export interface ProjectActivityTagDB {
+  id: string;
+  project_id: string;
+  tenant_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+export interface ProjectActivityCardTagDB {
+  id: string;
+  card_id: string;
+  tag_id: string;
+  created_at: string;
+}
+
+export interface ProjectActivityCardTagWithTag extends ProjectActivityCardTagDB {
+  tag: ProjectActivityTagDB;
+}
