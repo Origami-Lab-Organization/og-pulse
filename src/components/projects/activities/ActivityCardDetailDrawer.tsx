@@ -289,15 +289,15 @@ export function ActivityCardDetailDrawer({
                 <div className="space-y-1.5">
                   <Label className="text-xs">Pontos (Fibonacci)</Label>
                   <Select
-                    value={card.points?.toString() ?? ''}
-                    onValueChange={(val) => save({ points: val ? Number(val) : undefined })}
+                    value={card.points != null ? card.points.toString() : '__none__'}
+                    onValueChange={(val) => save({ points: val !== '__none__' ? Number(val) : undefined })}
                     disabled={disabled}
                   >
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sem estimativa</SelectItem>
+                      <SelectItem value="__none__">Sem estimativa</SelectItem>
                       {FIBONACCI_POINTS.map((p) => (
                         <SelectItem key={p} value={String(p)}>{p}</SelectItem>
                       ))}
@@ -310,15 +310,15 @@ export function ActivityCardDetailDrawer({
                 <div className="space-y-1.5">
                   <Label className="text-xs">Responsável</Label>
                   <Select
-                    value={card.assignee_id ?? ''}
-                    onValueChange={(val) => save({ assigneeId: val || null })}
+                    value={card.assignee_id ?? '__none__'}
+                    onValueChange={(val) => save({ assigneeId: val !== '__none__' ? val : null })}
                     disabled={disabled}
                   >
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Sem responsável" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sem responsável</SelectItem>
+                      <SelectItem value="__none__">Sem responsável</SelectItem>
                       {members.map((m) => (
                         <SelectItem key={m.employee_id} value={m.employee_id}>
                           {m.employee?.nome ?? m.employee_id}
