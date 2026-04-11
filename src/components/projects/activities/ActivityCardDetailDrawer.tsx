@@ -324,11 +324,17 @@ export function ActivityCardDetailDrawer({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {CARD_TYPE_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
+                      {CARD_TYPE_OPTIONS.map((opt) => {
+                        const Icon = CARD_TYPE_ICON[opt.value];
+                        return (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <span className="flex items-center gap-2">
+                              <Icon className={cn('h-4 w-4 shrink-0', CARD_TYPE_COLOR[opt.value])} />
+                              {opt.label}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
