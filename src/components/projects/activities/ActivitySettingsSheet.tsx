@@ -421,7 +421,7 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
                     min={1}
                     value={wipInDev}
                     onChange={(e) => setWipInDev(e.target.value)}
-                    placeholder="—"
+                    placeholder="Sem limite"
                     className="h-9"
                   />
                 </div>
@@ -432,7 +432,7 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
                     min={1}
                     value={wipInTest}
                     onChange={(e) => setWipInTest(e.target.value)}
-                    placeholder="—"
+                    placeholder="Sem limite"
                     className="h-9"
                   />
                 </div>
@@ -443,7 +443,7 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
                     min={1}
                     value={wipInDeploy}
                     onChange={(e) => setWipInDeploy(e.target.value)}
-                    placeholder="—"
+                    placeholder="Sem limite"
                     className="h-9"
                   />
                 </div>

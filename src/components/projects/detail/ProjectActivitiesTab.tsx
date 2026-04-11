@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, KanbanSquare, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,16 +17,10 @@ import {
   DragStartEvent,
   PointerSensor,
   closestCorners,
-  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  arrayMove,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { Badge } from '@/components/ui/badge';
+import { arrayMove } from '@dnd-kit/sortable';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -49,7 +43,7 @@ import { useActivityPermissions } from '@/hooks/useActivityPermissions';
 import { useActivitySettings } from '@/hooks/useActivitySprints';
 import { useToast } from '@/hooks/use-toast';
 import { ActivityCard } from './ActivityCard';
-import { SortableActivityCard } from '@/components/projects/activities/SortableActivityCard';
+import { ActivityKanbanColumn } from '@/components/projects/activities/ActivityKanbanColumn';
 import { ActivityCardFormDrawer } from './ActivityCardFormDrawer';
 import { ActivityCardDetailDrawer } from '@/components/projects/activities/ActivityCardDetailDrawer';
 import { ActivityErrorBoundary } from '@/components/projects/activities/ActivityErrorBoundary';
@@ -64,27 +58,6 @@ const DEFAULT_WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = {
 
 const COLUMN_ORDER = ACTIVITY_COLUMNS;
 const ADDABLE_COLUMNS = new Set<ActivityColumnName>(['product_backlog', 'sprint_backlog']);
-
-// ── Droppable column wrapper ─────────────────────────────────────────────────
-function DroppableColumn({
-  id,
-  children,
-}: {
-  id: ActivityColumnName;
-  children: React.ReactNode;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`flex flex-col gap-2 flex-1 min-h-0 rounded-lg border p-2 overflow-y-auto transition-colors ${
-        isOver ? 'bg-primary/5 border-primary/30' : 'bg-muted/40 border-border'
-      }`}
-    >
-      {children}
-    </div>
-  );
-}
 
 // ── Props ────────────────────────────────────────────────────────────────────
 interface ProjectActivitiesTabProps {
@@ -320,71 +293,20 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
       >
         <ScrollArea className={`w-full ${boardHeight}`}>
           <div className={`flex gap-4 pb-4 min-w-max ${boardHeight}`}>
-            {ACTIVITY_COLUMNS.map((col) => {
-              const cards = byColumn[col];
-              const showAddButton = canCreate && !isReadOnly && ADDABLE_COLUMNS.has(col);
-              const wipLimit = WIP_LIMITS[col];
-
-              return (
-                <div
-                  key={col}
-                  className="min-w-[280px] flex-shrink-0 flex flex-col gap-3"
-                  style={{ height: '100%' }}
-                >
-                  <div className="flex items-center justify-between shrink-0">
-                    <span className="text-sm font-medium text-foreground">
-                      {COLUMN_LABELS[col]}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {wipLimit !== undefined && (
-                        <span className={`text-xs ${cards.length >= wipLimit ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                          {cards.length}/{wipLimit}
-                        </span>
-                      )}
-                      <Badge variant="secondary" className="text-xs">
-                        {cards.length}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <DroppableColumn id={col}>
-                    <SortableContext
-                      items={cards.map((c) => c.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {cards.length === 0 && col === 'product_backlog' ? (
-                        <div className="flex flex-col items-center justify-center flex-1 gap-2 text-muted-foreground">
-                          <KanbanSquare className="h-6 w-6 opacity-40" />
-                          <span className="text-xs">Nenhuma atividade</span>
-                        </div>
-                      ) : (
-                        cards.map((card) => (
-                          <SortableActivityCard
-                            key={card.id}
-                            card={card}
-                            projectName={project.name}
-                            disabled={isReadOnly || card.column_name === 'done'}
-                            onClick={() => setSelectedCardId(card.id)}
-                          />
-                        ))
-                      )}
-                    </SortableContext>
-
-                    {showAddButton && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-muted-foreground hover:text-foreground gap-1.5 mt-auto shrink-0"
-                        onClick={() => handleAddCard(col)}
-                      >
-                        <Plus className="h-4 w-4" />
-                        Card
-                      </Button>
-                    )}
-                  </DroppableColumn>
-                </div>
-              );
-            })}
+            {ACTIVITY_COLUMNS.map((col) => (
+              <ActivityKanbanColumn
+                key={col}
+                id={col}
+                label={COLUMN_LABELS[col]}
+                wipLimit={WIP_LIMITS[col]}
+                cards={byColumn[col]}
+                showAddButton={canCreate && !isReadOnly && ADDABLE_COLUMNS.has(col)}
+                onAddCard={() => handleAddCard(col)}
+                projectName={project.name}
+                isReadOnly={isReadOnly}
+                onCardClick={(id) => setSelectedCardId(id)}
+              />
+            ))}
           </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
