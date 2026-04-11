@@ -231,18 +231,15 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
     if (!employee) return;
     setIsSavingChecklists(true);
     try {
-      await Promise.all(
-        CK_KEYS.flatMap((key) => {
-          const cardType: ActivityCardType | null = key === 'common' ? null : key as ActivityCardType;
-          return [
-            checklistService.upsertTemplate(project.id, employee.tenant_id, 'dor', cardType, toItems(dorItems[key])),
-            checklistService.upsertTemplate(project.id, employee.tenant_id, 'dod', cardType, toItems(dodItems[key])),
-          ];
-        })
-      );
+      for (const key of CK_KEYS) {
+        const cardType: ActivityCardType | null = key === 'common' ? null : key as ActivityCardType;
+        await checklistService.upsertTemplate(project.id, employee.tenant_id, 'dor', cardType, toItems(dorItems[key]));
+        await checklistService.upsertTemplate(project.id, employee.tenant_id, 'dod', cardType, toItems(dodItems[key]));
+      }
       queryClient.invalidateQueries({ queryKey: ['checklist-templates', project.id] });
       toast({ title: 'Checklists salvos' });
-    } catch {
+    } catch (err) {
+      console.error('[checklist save]', err);
       toast({ title: 'Erro ao salvar checklists', variant: 'destructive' });
     } finally {
       setIsSavingChecklists(false);

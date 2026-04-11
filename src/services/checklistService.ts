@@ -83,18 +83,17 @@ export const checklistService = {
     cardType: ActivityCardType | null,
     items: { text: string }[],
   ): Promise<void> {
-    // Find existing row
-    let selectQ = supabase
+    // Find existing row — must check error too (maybeSingle errors on multiple rows)
+    const base = supabase
       .from('project_activity_checklist_templates')
       .select('id')
       .eq('project_id', projectId)
       .eq('type', type);
 
-    selectQ = cardType === null
-      ? selectQ.is('card_type', null)
-      : selectQ.eq('card_type', cardType);
-
-    const { data: existing } = await selectQ.maybeSingle();
+    const { data: existing, error: selectErr } = await (
+      cardType === null ? base.is('card_type', null) : base.eq('card_type', cardType)
+    ).maybeSingle();
+    if (selectErr) throw selectErr;
 
     if (existing?.id) {
       // Update items in place — no DELETE needed
