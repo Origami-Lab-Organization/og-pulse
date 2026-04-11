@@ -10,7 +10,7 @@ export function useProjectPlanningReadiness() {
   const checkReadiness = async (
     projectId: string
   ): Promise<ReadinessResult> => {
-    const [okrs, stakeholders, members, milestones] = await Promise.all([
+    const [okrs, stakeholders, members, milestones, projectRes] = await Promise.all([
       supabase
         .from("project_okrs")
         .select("id, key_results:project_key_results(id)")
@@ -29,15 +29,21 @@ export function useProjectPlanningReadiness() {
         .from("project_milestones")
         .select("id")
         .eq("project_id", projectId)
-        .limit(1)
+        .limit(1),
+      supabase
+        .from("projects")
+        .select("service_line")
+        .eq("id", projectId)
+        .single()
     ]);
 
+    const isVentures = (projectRes.data as any)?.service_line === 'ventures';
     const missing: string[] = [];
 
     if (!okrs.data?.some((o: any) => o.key_results?.length > 0)) {
       missing.push("OKRs definidos");
     }
-    if (!stakeholders.data?.length) {
+    if (!isVentures && !stakeholders.data?.length) {
       missing.push("Stakeholders mapeados");
     }
     if (!members.data?.length) {

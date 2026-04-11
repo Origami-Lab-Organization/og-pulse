@@ -27,6 +27,7 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
   const { data: milestones = [] } = useProjectMilestones(project.id);
   
   // OKRs are valid when there's at least 1 OKR with at least 1 Key Result
+  const isVentures = project.service_line === 'ventures';
   const hasValidOKRs = okrs.some(okr => (okr.key_results?.length || 0) > 0);
   const hasStakeholders = stakeholders.length > 0;
   const hasMilestones = milestones.length > 0;
@@ -128,7 +129,7 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
                   </div>
                 )}
               </>
-            ) : (
+            ) : !isVentures ? (
               <>
                 <div className="flex items-start gap-3">
                   <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
@@ -148,7 +149,7 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
                   </div>
                 </div>
               </>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -170,11 +171,13 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
               completed={hasValidOKRs}
               hint={!hasValidOKRs ? "Vá para a aba OKRs" : undefined}
             />
-            <ChecklistItem 
-              label="Stakeholders mapeados" 
-              completed={hasStakeholders}
-              hint={!hasStakeholders ? "Vá para a aba Stakeholders" : undefined}
-            />
+            {!isVentures && (
+              <ChecklistItem
+                label="Stakeholders mapeados"
+                completed={hasStakeholders}
+                hint={!hasStakeholders ? "Vá para a aba Stakeholders" : undefined}
+              />
+            )}
             <ChecklistItem 
               label="Equipe alocada" 
               completed={(project.members?.length || 0) > 0} 
