@@ -28,6 +28,27 @@ export interface ProjectActivityCardDB {
   updated_at: string;
 }
 
+export type ChecklistType = 'dor' | 'dod';
+
+export interface ChecklistTemplateDB {
+  id: string;
+  project_id: string;
+  tenant_id: string;
+  type: ChecklistType;
+  items: { text: string }[];
+  created_at: string;
+}
+
+export interface CardChecklistItemDB {
+  id: string;
+  card_id: string;
+  type: ChecklistType;
+  item_text: string;
+  is_checked: boolean;
+  position: number;
+  created_at: string;
+}
+
 export interface ProjectActivityCardWithRelations extends ProjectActivityCardDB {
   assignee?: {
     id: string;
@@ -35,6 +56,7 @@ export interface ProjectActivityCardWithRelations extends ProjectActivityCardDB 
     foto_url: string | null;
   } | null;
   card_tags?: ProjectActivityCardTagWithTag[];
+  card_checklist?: Pick<CardChecklistItemDB, 'id' | 'type' | 'is_checked'>[];
 }
 
 export interface CreateActivityInput {

@@ -429,9 +429,26 @@ export function ActivityCardDetailDrawer({
 
             <Separator />
 
-            {/* ── DoR / DoD ── */}
-            <Section title="DoR / DoD">
-              <CardChecklist cardId={card.id} disabled={disabled} />
+            {/* ── DoR ── */}
+            <Section title="Definition of Ready">
+              <CardChecklist
+                cardId={card.id}
+                cardTenantId={card.tenant_id}
+                type="dor"
+                isReadOnly={false}
+              />
+            </Section>
+
+            <Separator />
+
+            {/* ── DoD ── */}
+            <Section title="Definition of Done">
+              <CardChecklist
+                cardId={card.id}
+                cardTenantId={card.tenant_id}
+                type="dod"
+                isReadOnly={false}
+              />
             </Section>
 
             <Separator />

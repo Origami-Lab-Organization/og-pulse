@@ -9,6 +9,7 @@ import {
   ProjectActivityCardWithRelations,
   UpdateActivityInput,
 } from '@/types/projectActivity';
+import { checklistService } from '@/services/checklistService';
 
 export const useProjectActivities = (projectId: string | undefined) => {
   return useQuery({
@@ -16,7 +17,7 @@ export const useProjectActivities = (projectId: string | undefined) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_activity_cards')
-        .select('*, assignee:employees!project_activity_cards_assignee_id_fkey(id, nome, foto_url), card_tags:project_activity_card_tags(*, tag:project_activity_tags(*))')
+        .select('*, assignee:employees!project_activity_cards_assignee_id_fkey(id, nome, foto_url), card_tags:project_activity_card_tags(*, tag:project_activity_tags(*)), card_checklist:project_activity_card_checklist(id, type, is_checked)')
         .eq('project_id', projectId!)
         .order('column_name')
         .order('position');
@@ -56,7 +57,13 @@ export const useCreateActivity = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (newCard, variables) => {
+      // Semeia checklist a partir dos templates do projeto
+      try {
+        await checklistService.seedFromTemplates(newCard.id, variables.projectId);
+      } catch {
+        // templates ausentes ou erro de seeding não impede a criação
+      }
       queryClient.invalidateQueries({ queryKey: ['project-activities', variables.projectId] });
       toast({ title: 'Atividade criada' });
     },

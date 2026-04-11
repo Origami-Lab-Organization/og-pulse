@@ -64,6 +64,35 @@ export function ActivityCard({ card, projectName, onClick }: ActivityCardProps) 
         )}
       </div>
 
+      {/* DoR / DoD progress */}
+      {(() => {
+        const dorItems = card.card_checklist?.filter((i) => i.type === 'dor') ?? [];
+        const dodItems = card.card_checklist?.filter((i) => i.type === 'dod') ?? [];
+        const dorChecked = dorItems.filter((i) => i.is_checked).length;
+        const dodChecked = dodItems.filter((i) => i.is_checked).length;
+        if (dorItems.length === 0 && dodItems.length === 0) return null;
+        return (
+          <div className="flex items-center gap-2">
+            {dorItems.length > 0 && (
+              <span className={cn(
+                'text-xs font-mono',
+                dorChecked === dorItems.length ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
+              )}>
+                DoR {dorChecked}/{dorItems.length}
+              </span>
+            )}
+            {dodItems.length > 0 && (
+              <span className={cn(
+                'text-xs font-mono',
+                dodChecked === dodItems.length ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
+              )}>
+                DoD {dodChecked}/{dodItems.length}
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Tags row */}
       {card.card_tags && card.card_tags.length > 0 && (
         <div className="flex items-center gap-1 flex-wrap">

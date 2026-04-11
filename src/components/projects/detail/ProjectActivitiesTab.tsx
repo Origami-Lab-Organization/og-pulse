@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Plus, KanbanSquare } from 'lucide-react';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DndContext,
   DragEndEvent,
   DragOverlay,
@@ -25,6 +35,7 @@ import {
   ACTIVITY_COLUMNS,
   COLUMN_LABELS,
   ActivityColumnName,
+  ChecklistType,
   CreateActivityInput,
   ProjectActivityCardWithRelations,
 } from '@/types/projectActivity';
@@ -97,6 +108,12 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [targetColumn, setTargetColumn] = useState<ActivityColumnName>('product_backlog');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [pendingMove, setPendingMove] = useState<{
+    cardId: string;
+    targetCol: ActivityColumnName;
+    position: number;
+  } | null>(null);
+  const [pendingCheckType, setPendingCheckType] = useState<ChecklistType | null>(null);
 
   const selectedCard = localCards.find((a) => a.id === selectedCardId) ?? null;
 
@@ -114,6 +131,22 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
     },
     {} as Record<ActivityColumnName, ProjectActivityCardWithRelations[]>
   );
+
+  // ── Checklist completeness helper ────────────────────────────────────────────
+  const isChecklistComplete = (card: ProjectActivityCardWithRelations, type: ChecklistType) => {
+    const items = card.card_checklist?.filter((i) => i.type === type) ?? [];
+    return items.length === 0 || items.every((i) => i.is_checked);
+  };
+
+  // ── Execute confirmed move ───────────────────────────────────────────────────
+  const doMove = (cardId: string, targetCol: ActivityColumnName, position: number) => {
+    setLocalCards((prev) =>
+      prev.map((c) =>
+        c.id === cardId ? { ...c, column_name: targetCol, position } : c
+      )
+    );
+    moveActivity.mutate({ id: cardId, projectId: project.id, columnName: targetCol, position });
+  };
 
   // ── DnD handlers ────────────────────────────────────────────────────────────
   const handleDragStart = (event: DragStartEvent) => {
@@ -208,19 +241,21 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
     // e) Confirmar movimento
     const newPosition = byColumn[targetCol].length;
 
-    // Optimistic update
-    setLocalCards((prev) =>
-      prev.map((c) =>
-        c.id === cardId ? { ...c, column_name: targetCol, position: newPosition } : c
-      )
-    );
+    // f) DoR check ao mover para sprint_backlog
+    if (targetCol === 'sprint_backlog' && !isChecklistComplete(card, 'dor')) {
+      setPendingMove({ cardId, targetCol, position: newPosition });
+      setPendingCheckType('dor');
+      return;
+    }
 
-    moveActivity.mutate({
-      id: cardId,
-      projectId: project.id,
-      columnName: targetCol,
-      position: newPosition,
-    });
+    // g) DoD check ao mover para done
+    if (targetCol === 'done' && !isChecklistComplete(card, 'dod')) {
+      setPendingMove({ cardId, targetCol, position: newPosition });
+      setPendingCheckType('dod');
+      return;
+    }
+
+    doMove(cardId, targetCol, newPosition);
   };
 
   // ── Create card ──────────────────────────────────────────────────────────────
@@ -351,6 +386,40 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
           />
         </ActivityErrorBoundary>
       )}
+
+      {/* ── AlertDialog: DoR / DoD incompleto ── */}
+      <AlertDialog
+        open={!!pendingMove}
+        onOpenChange={(open) => { if (!open) setPendingMove(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingCheckType === 'dor' ? 'DoR incompleto' : 'DoD incompleto'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingCheckType === 'dor'
+                ? 'Nem todos os critérios de Definition of Ready foram marcados. Deseja mover o card mesmo assim?'
+                : 'Nem todos os critérios de Definition of Done foram marcados. Deseja mover o card mesmo assim?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingMove(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingMove) {
+                  doMove(pendingMove.cardId, pendingMove.targetCol, pendingMove.position);
+                }
+                setPendingMove(null);
+              }}
+            >
+              Mover assim mesmo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
