@@ -119,6 +119,67 @@ export const ACTIVITY_COLUMNS: ActivityColumnName[] = [
   'done',
 ];
 
+// ── Sprints ──────────────────────────────────────────────────────────────────
+
+export type SprintStatus = 'planned' | 'active' | 'completed';
+export type SprintNamingMode = 'auto' | 'manual';
+
+export interface ActivitySprintDB {
+  id: string;
+  project_id: string;
+  tenant_id: string;
+  name: string;
+  number: number;
+  start_date: string; // YYYY-MM-DD
+  end_date: string;   // YYYY-MM-DD
+  goal: string | null;
+  status: SprintStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActivitySettingsDB {
+  id: string;
+  project_id: string;
+  tenant_id: string;
+  sprint_duration_weeks: number;
+  sprint_naming_mode: SprintNamingMode;
+  wip_in_dev: number | null;
+  wip_in_test: number | null;
+  wip_in_deploy: number | null;
+}
+
+/** Returns a preview list of sprints without hitting the database. */
+export function generateSprints(
+  startDate: Date,
+  durationWeeks: number,
+  count: number
+): { name: string; number: number; start_date: string; end_date: string; status: SprintStatus }[] {
+  const msPerDay  = 24 * 60 * 60 * 1000;
+  const msPerWeek = 7 * msPerDay;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const fmt = (d: Date): string => {
+    const y   = d.getFullYear();
+    const m   = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  return Array.from({ length: count }, (_, i) => {
+    const sprintStart = new Date(startDate.getTime() + i * durationWeeks * msPerWeek);
+    const sprintEnd   = new Date(startDate.getTime() + (i + 1) * durationWeeks * msPerWeek - msPerDay);
+    const number      = i + 1;
+    const name        = `Sprint ${number}`;
+    const status: SprintStatus =
+      sprintStart <= today && today <= sprintEnd ? 'active' : 'planned';
+
+    return { name, number, start_date: fmt(sprintStart), end_date: fmt(sprintEnd), status };
+  });
+}
+
 // ── Tags ────────────────────────────────────────────────────────────────────
 
 export interface ProjectActivityTagDB {

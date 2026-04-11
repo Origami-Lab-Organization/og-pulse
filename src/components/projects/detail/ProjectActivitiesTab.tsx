@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, KanbanSquare } from 'lucide-react';
+import { Plus, KanbanSquare, Settings } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,15 +46,17 @@ import {
   useBatchUpdatePositions,
 } from '@/hooks/useProjectActivities';
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
+import { useActivitySettings } from '@/hooks/useActivitySprints';
 import { useToast } from '@/hooks/use-toast';
 import { ActivityCard } from './ActivityCard';
 import { SortableActivityCard } from '@/components/projects/activities/SortableActivityCard';
 import { ActivityCardFormDrawer } from './ActivityCardFormDrawer';
 import { ActivityCardDetailDrawer } from '@/components/projects/activities/ActivityCardDetailDrawer';
 import { ActivityErrorBoundary } from '@/components/projects/activities/ActivityErrorBoundary';
+import { ActivitySettingsSheet } from '@/components/projects/activities/ActivitySettingsSheet';
 
-// ── WIP limits per column ────────────────────────────────────────────────────
-const WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = {
+// ── Default WIP limits (used when no settings row exists yet) ────────────────
+const DEFAULT_WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = {
   in_dev: 5,
   in_test: 5,
   in_deploy: 3,
@@ -94,16 +96,27 @@ interface ProjectActivitiesTabProps {
 // ── Component ────────────────────────────────────────────────────────────────
 export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: ProjectActivitiesTabProps) {
   const { data: activities = [], isLoading } = useProjectActivities(project.id);
+  const { data: boardSettings } = useActivitySettings(project.id);
   const createActivity = useCreateActivity();
   const moveActivity = useMoveActivity();
   const batchUpdatePositions = useBatchUpdatePositions();
   const { toast } = useToast();
-  const { isEmployee, canMoveToProductBacklog } = useActivityPermissions(project);
+  const { isEmployee, canMoveToProductBacklog, isPM } = useActivityPermissions(project);
+
+  // WIP limits: from DB settings when available, else fall back to defaults
+  const WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = boardSettings
+    ? {
+        ...(boardSettings.wip_in_dev    != null ? { in_dev:    boardSettings.wip_in_dev    } : {}),
+        ...(boardSettings.wip_in_test   != null ? { in_test:   boardSettings.wip_in_test   } : {}),
+        ...(boardSettings.wip_in_deploy != null ? { in_deploy: boardSettings.wip_in_deploy } : {}),
+      }
+    : DEFAULT_WIP_LIMITS;
 
   // Local optimistic state for instant DnD feedback
   const [localCards, setLocalCards] = useState<ProjectActivityCardWithRelations[]>([]);
   useEffect(() => setLocalCards(activities), [activities]);
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeCard, setActiveCard] = useState<ProjectActivityCardWithRelations | null>(null);
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [targetColumn, setTargetColumn] = useState<ActivityColumnName>('product_backlog');
@@ -270,7 +283,7 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
     });
   };
 
-  const boardHeight = 'h-[calc(100dvh-240px)]';
+  const boardHeight = 'h-[calc(100dvh-280px)]';
 
   if (isLoading) {
     return (
@@ -284,6 +297,21 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
 
   return (
     <>
+      {/* ── Board header (settings button for Admin/PM) ── */}
+      {isPM && (
+        <div className="flex justify-end mb-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+            Configurações
+          </Button>
+        </div>
+      )}
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -386,6 +414,12 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
           />
         </ActivityErrorBoundary>
       )}
+
+      <ActivitySettingsSheet
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        project={project}
+      />
 
       {/* ── AlertDialog: DoR / DoD incompleto ── */}
       <AlertDialog
