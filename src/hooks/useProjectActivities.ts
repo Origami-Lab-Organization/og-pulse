@@ -16,7 +16,7 @@ export const useProjectActivities = (projectId: string | undefined) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_activity_cards')
-        .select('*, assignee:assignee_id(id, nome, foto_url), card_tags:project_activity_card_tags(*, tag:tag_id(*))')
+        .select('*, assignee:employees!project_activity_cards_assignee_id_fkey(id, nome, foto_url), card_tags:project_activity_card_tags(*, tag:project_activity_tags(*))')
         .eq('project_id', projectId!)
         .order('column_name')
         .order('position');
