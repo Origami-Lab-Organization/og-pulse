@@ -6,6 +6,7 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
+  SheetTitle,
 } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -194,10 +195,11 @@ export function ActivityCardDetailDrawer({
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-[560px] p-0 flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-[560px] p-0 flex flex-col" aria-describedby={undefined}>
 
         {/* ── Header ── */}
         <SheetHeader className="px-5 pt-5 pb-3 space-y-3 shrink-0">
+          <SheetTitle className="sr-only">{title}</SheetTitle>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}

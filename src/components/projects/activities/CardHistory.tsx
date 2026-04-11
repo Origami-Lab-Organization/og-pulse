@@ -37,7 +37,7 @@ export function CardHistory({ cardId }: CardHistoryProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_activity_card_history')
-        .select('*, changed_by_employee:changed_by(nome)')
+        .select('*, changed_by_employee:employees!project_activity_card_history_changed_by_fkey(nome)')
         .eq('card_id', cardId)
         .order('changed_at', { ascending: false });
       if (error) throw error;
