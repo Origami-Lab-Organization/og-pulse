@@ -40,7 +40,7 @@ import {
   useBatchUpdatePositions,
 } from '@/hooks/useProjectActivities';
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
-import { useActivitySettings } from '@/hooks/useActivitySprints';
+import { useActivitySettings, useActivitySprints } from '@/hooks/useActivitySprints';
 import { useToast } from '@/hooks/use-toast';
 import { ActivityCard } from './ActivityCard';
 import { ActivityKanbanColumn } from '@/components/projects/activities/ActivityKanbanColumn';
@@ -48,6 +48,8 @@ import { ActivityCardFormDrawer } from './ActivityCardFormDrawer';
 import { ActivityCardDetailDrawer } from '@/components/projects/activities/ActivityCardDetailDrawer';
 import { ActivityErrorBoundary } from '@/components/projects/activities/ActivityErrorBoundary';
 import { ActivitySettingsSheet } from '@/components/projects/activities/ActivitySettingsSheet';
+import { SprintBanner } from '@/components/projects/activities/SprintBanner';
+import { SprintPlanningDrawer } from '@/components/projects/activities/SprintPlanningDrawer';
 
 // ── Default WIP limits (used when no settings row exists yet) ────────────────
 const DEFAULT_WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = {
@@ -70,6 +72,7 @@ interface ProjectActivitiesTabProps {
 export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: ProjectActivitiesTabProps) {
   const { data: activities = [], isLoading } = useProjectActivities(project.id);
   const { data: boardSettings } = useActivitySettings(project.id);
+  const { data: sprints = [] } = useActivitySprints(project.id);
   const createActivity = useCreateActivity();
   const moveActivity = useMoveActivity();
   const batchUpdatePositions = useBatchUpdatePositions();
@@ -89,7 +92,9 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
   const [localCards, setLocalCards] = useState<ProjectActivityCardWithRelations[]>([]);
   useEffect(() => setLocalCards(activities), [activities]);
 
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen,    setSettingsOpen]    = useState(false);
+  const [planningOpen,    setPlanningOpen]    = useState(false);
+  const [planningSprintId, setPlanningSprintId] = useState<string | null>(null);
   const [activeCard, setActiveCard] = useState<ProjectActivityCardWithRelations | null>(null);
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [targetColumn, setTargetColumn] = useState<ActivityColumnName>('product_backlog');
@@ -102,6 +107,13 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
   const [pendingCheckType, setPendingCheckType] = useState<ChecklistType | null>(null);
 
   const selectedCard = localCards.find((a) => a.id === selectedCardId) ?? null;
+
+  const planningTargetSprint = sprints.find((s) => s.id === planningSprintId) ?? null;
+
+  const handleOpenPlanning = (sprintId: string) => {
+    setPlanningSprintId(sprintId);
+    setPlanningOpen(true);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -285,6 +297,15 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
         </div>
       )}
 
+      {/* ── Sprint Banner ── */}
+      <SprintBanner
+        projectId={project.id}
+        cards={localCards}
+        isPM={isPM}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenPlanning={handleOpenPlanning}
+      />
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -341,6 +362,14 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         project={project}
+      />
+
+      <SprintPlanningDrawer
+        open={planningOpen}
+        targetSprint={planningTargetSprint}
+        projectId={project.id}
+        cards={localCards}
+        onClose={() => setPlanningOpen(false)}
       />
 
       {/* ── AlertDialog: DoR / DoD incompleto ── */}

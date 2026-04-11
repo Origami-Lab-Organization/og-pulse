@@ -64,6 +64,21 @@ export function ActivityCard({ card, projectName, onClick }: ActivityCardProps) 
         )}
       </div>
 
+      {/* Task progress */}
+      {(() => {
+        const tasks = card.card_tasks ?? [];
+        if (tasks.length === 0) return null;
+        const done = tasks.filter((t) => t.completed_at != null).length;
+        return (
+          <span className={cn(
+            'text-xs font-mono',
+            done === tasks.length ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
+          )}>
+            {done}/{tasks.length} tarefas
+          </span>
+        );
+      })()}
+
       {/* DoR / DoD progress */}
       {(() => {
         const dorItems = card.card_checklist?.filter((i) => i.type === 'dor') ?? [];

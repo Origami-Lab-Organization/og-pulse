@@ -86,6 +86,34 @@ export const useCreateSprints = () => {
   });
 };
 
+// ── Update sprint goal ───────────────────────────────────────────────────────
+
+export const useUpdateSprintGoal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      projectId,
+      goal,
+    }: {
+      id: string;
+      projectId: string;
+      goal: string | null;
+    }) => {
+      const { error } = await supabase
+        .from('project_activity_sprints')
+        .update({ goal, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      return { projectId };
+    },
+    onSuccess: ({ projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['activity-sprints', projectId] });
+    },
+  });
+};
+
 // ── Settings ─────────────────────────────────────────────────────────────────
 
 export const useActivitySettings = (projectId: string | undefined) =>
