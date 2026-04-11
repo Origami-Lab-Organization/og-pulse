@@ -2285,6 +2285,7 @@ export type Database = {
       }
       project_activity_checklist_templates: {
         Row: {
+          card_type: string | null
           created_at: string
           id: string
           items: Json
@@ -2293,6 +2294,7 @@ export type Database = {
           type: string
         }
         Insert: {
+          card_type?: string | null
           created_at?: string
           id?: string
           items?: Json
@@ -2301,6 +2303,7 @@ export type Database = {
           type: string
         }
         Update: {
+          card_type?: string | null
           created_at?: string
           id?: string
           items?: Json
