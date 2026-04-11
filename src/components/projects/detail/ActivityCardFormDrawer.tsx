@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -22,7 +21,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -32,7 +30,6 @@ import {
 } from '@/components/ui/select';
 import { ActivityCardType, ActivityColumnName, CARD_TYPE_OPTIONS, CreateActivityInput } from '@/types/projectActivity';
 import { ProjectWithRelations } from '@/types/project';
-import { CardBlockSection } from '@/components/projects/activities/CardBlockSection';
 import { cn } from '@/lib/utils';
 
 const CARD_TYPE_ICON: Record<ActivityCardType, React.ElementType> = {
@@ -56,8 +53,6 @@ const schema = z.object({
   points:              z.coerce.number().int().min(0).optional().or(z.literal('')),
   userStory:           z.string().optional(),
   acceptanceCriteria:  z.string().optional(),
-  isBlocked:           z.boolean().default(false),
-  blockedReason:       z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -93,10 +88,6 @@ export function ActivityCardFormDrawer({
     },
   });
 
-  // isBlocked is a plain boolean, not a form field — controlled locally so CardBlockSection works
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [blockedReason, setBlockedReason] = useState('');
-
   const members = project.members ?? [];
 
   const handleSubmit = (values: FormValues) => {
@@ -108,21 +99,13 @@ export function ActivityCardFormDrawer({
       points:             values.points !== '' && values.points != null ? Number(values.points) : undefined,
       userStory:          values.userStory || undefined,
       acceptanceCriteria: values.acceptanceCriteria || undefined,
-      isBlocked,
-      blockedReason:      isBlocked ? blockedReason : undefined,
       columnName,
     });
     form.reset();
-    setIsBlocked(false);
-    setBlockedReason('');
   };
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) {
-      form.reset();
-      setIsBlocked(false);
-      setBlockedReason('');
-    }
+    if (!next) form.reset();
     onOpenChange(next);
   };
 
@@ -277,19 +260,6 @@ export function ActivityCardFormDrawer({
                     </FormItem>
                   )}
                 />
-
-                <Separator />
-
-                {/* Bloqueio */}
-                <div className="space-y-1.5">
-                  <p className="text-sm font-medium leading-none">Bloqueio</p>
-                  <CardBlockSection
-                    isBlocked={isBlocked}
-                    blockedReason={blockedReason}
-                    onBlockedChange={setIsBlocked}
-                    onReasonChange={setBlockedReason}
-                  />
-                </div>
 
               </div>
             </ScrollArea>
