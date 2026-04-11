@@ -10,6 +10,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -171,37 +172,6 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
     setDorItems(loadByType('dor'));
     setDodItems(loadByType('dod'));
   }, [templates, open]);
-
-  // ── Checklist helpers ─────────────────────────────────────────────────────
-  const makeDorUpdater = (key: CkKey) => ({
-    update: (idx: number, val: string) =>
-      setDorItems((prev) => ({
-        ...prev,
-        [key]: prev[key].map((v, i) => (i === idx ? val : v)),
-      })),
-    remove: (idx: number) =>
-      setDorItems((prev) => ({
-        ...prev,
-        [key]: prev[key].length > 1 ? prev[key].filter((_, i) => i !== idx) : prev[key],
-      })),
-    add: () =>
-      setDorItems((prev) => ({ ...prev, [key]: [...prev[key], ''] })),
-  });
-
-  const makeDodUpdater = (key: CkKey) => ({
-    update: (idx: number, val: string) =>
-      setDodItems((prev) => ({
-        ...prev,
-        [key]: prev[key].map((v, i) => (i === idx ? val : v)),
-      })),
-    remove: (idx: number) =>
-      setDodItems((prev) => ({
-        ...prev,
-        [key]: prev[key].length > 1 ? prev[key].filter((_, i) => i !== idx) : prev[key],
-      })),
-    add: () =>
-      setDodItems((prev) => ({ ...prev, [key]: [...prev[key], ''] })),
-  });
 
   const toItems = (arr: string[]) => arr.filter(Boolean).map((text) => ({ text }));
 
@@ -499,40 +469,20 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
                     </p>
                   </div>
 
-                  {CK_KEYS.map((key) => {
-                    const ctrl  = makeDorUpdater(key);
-                    const items = dorItems[key];
-                    return (
-                      <div key={key} className="space-y-1.5 pl-3 border-l-2 border-border">
-                        <p className="text-xs font-medium text-muted-foreground">{CK_LABELS[key]}</p>
-                        {items.map((text, idx) => (
-                          <div key={idx} className="flex gap-2">
-                            <Input
-                              value={text}
-                              onChange={(e) => ctrl.update(idx, e.target.value)}
-                              placeholder={`Critério ${idx + 1}`}
-                              className="h-7 text-xs"
-                            />
-                            <Button
-                              variant="ghost" size="icon"
-                              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => ctrl.remove(idx)}
-                              disabled={items.length <= 1}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => ctrl.add()}
-                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <Plus className="h-3 w-3" />Adicionar critério
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {CK_KEYS.map((key) => (
+                    <div key={key} className="space-y-1.5 pl-3 border-l-2 border-border">
+                      <p className="text-xs font-medium text-muted-foreground">{CK_LABELS[key]}</p>
+                      <Textarea
+                        value={dorItems[key].join('\n')}
+                        onChange={(e) =>
+                          setDorItems((prev) => ({ ...prev, [key]: e.target.value.split('\n') }))
+                        }
+                        placeholder="Um critério por linha..."
+                        className="text-xs resize-none min-h-[72px]"
+                        rows={Math.max(3, dorItems[key].filter(Boolean).length + 1)}
+                      />
+                    </div>
+                  ))}
                 </div>
 
                 <Separator />
@@ -546,40 +496,20 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
                     </p>
                   </div>
 
-                  {CK_KEYS.map((key) => {
-                    const ctrl  = makeDodUpdater(key);
-                    const items = dodItems[key];
-                    return (
-                      <div key={key} className="space-y-1.5 pl-3 border-l-2 border-border">
-                        <p className="text-xs font-medium text-muted-foreground">{CK_LABELS[key]}</p>
-                        {items.map((text, idx) => (
-                          <div key={idx} className="flex gap-2">
-                            <Input
-                              value={text}
-                              onChange={(e) => ctrl.update(idx, e.target.value)}
-                              placeholder={`Critério ${idx + 1}`}
-                              className="h-7 text-xs"
-                            />
-                            <Button
-                              variant="ghost" size="icon"
-                              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => ctrl.remove(idx)}
-                              disabled={items.length <= 1}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => ctrl.add()}
-                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <Plus className="h-3 w-3" />Adicionar critério
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {CK_KEYS.map((key) => (
+                    <div key={key} className="space-y-1.5 pl-3 border-l-2 border-border">
+                      <p className="text-xs font-medium text-muted-foreground">{CK_LABELS[key]}</p>
+                      <Textarea
+                        value={dodItems[key].join('\n')}
+                        onChange={(e) =>
+                          setDodItems((prev) => ({ ...prev, [key]: e.target.value.split('\n') }))
+                        }
+                        placeholder="Um critério por linha..."
+                        className="text-xs resize-none min-h-[72px]"
+                        rows={Math.max(3, dodItems[key].filter(Boolean).length + 1)}
+                      />
+                    </div>
+                  ))}
                 </div>
 
               </div>
