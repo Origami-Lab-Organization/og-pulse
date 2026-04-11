@@ -24,6 +24,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DatePicker } from '@/components/ui/date-picker';
 import { ProjectWithRelations } from '@/types/project';
 import {
+  ActivityCardType,
   ActivitySprintDB,
   SprintNamingMode,
   SprintStatus,
@@ -115,7 +116,23 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
   const [manualRows, setManualRows] = useState<SprintRow[]>([]);
 
   // ── Checklist template state ───────────────────────────────────────────────
-  const [dorItems, setDorItems] = useState<string[]>(['']);
+  // DoR is configured per card type + a "common" bucket (null key).
+  // DoD stays as a single common list for now.
+  type CkKey = 'common' | ActivityCardType;
+  const CK_KEYS: CkKey[] = ['common', 'story', 'bug', 'tech_debt', 'task'];
+  const CK_LABELS: Record<CkKey, string> = {
+    common:    'Comuns (todos os tipos)',
+    story:     'História',
+    bug:       'Bug',
+    tech_debt: 'Dívida Técnica',
+    task:      'Tarefa',
+  };
+
+  const emptyDorItems = (): Record<CkKey, string[]> => ({
+    common: [''], story: [''], bug: [''], tech_debt: [''], task: [''],
+  });
+
+  const [dorItems, setDorItems] = useState<Record<CkKey, string[]>>(emptyDorItems);
   const [dodItems, setDodItems] = useState<string[]>(['']);
 
   // ── Initialize from loaded data ───────────────────────────────────────────
@@ -150,29 +167,64 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
   // Initialize checklist templates
   useEffect(() => {
     if (!open) return;
-    const dor = templates.find((t) => t.type === 'dor');
-    const dod = templates.find((t) => t.type === 'dod');
-    setDorItems(dor && dor.items.length > 0 ? dor.items.map((i) => i.text) : ['']);
+
+    // DoR — per-type
+    const nextDor = emptyDorItems();
+    templates.filter((t) => t.type === 'dor').forEach((t) => {
+      const key: CkKey = (t.card_type as CkKey | null) ?? 'common';
+      nextDor[key] = t.items.length > 0 ? t.items.map((i) => i.text) : [''];
+    });
+    setDorItems(nextDor);
+
+    // DoD — common only
+    const dod = templates.find((t) => t.type === 'dod' && t.card_type === null);
     setDodItems(dod && dod.items.length > 0 ? dod.items.map((i) => i.text) : ['']);
   }, [templates, open]);
 
   // ── Checklist helpers ─────────────────────────────────────────────────────
-  const makeUpdater = (setter: React.Dispatch<React.SetStateAction<string[]>>) => ({
+  const makeDorUpdater = (key: CkKey) => ({
     update: (idx: number, val: string) =>
-      setter((prev) => prev.map((v, i) => (i === idx ? val : v))),
+      setDorItems((prev) => ({
+        ...prev,
+        [key]: prev[key].map((v, i) => (i === idx ? val : v)),
+      })),
     remove: (idx: number) =>
-      setter((prev) => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev),
+      setDorItems((prev) => ({
+        ...prev,
+        [key]: prev[key].length > 1 ? prev[key].filter((_, i) => i !== idx) : prev[key],
+      })),
     add: () =>
-      setter((prev) => [...prev, '']),
+      setDorItems((prev) => ({ ...prev, [key]: [...prev[key], ''] })),
   });
 
-  const dorCtrl = makeUpdater(setDorItems);
-  const dodCtrl = makeUpdater(setDodItems);
+  const dodCtrl = {
+    update: (idx: number, val: string) =>
+      setDodItems((prev) => prev.map((v, i) => (i === idx ? val : v))),
+    remove: (idx: number) =>
+      setDodItems((prev) => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev),
+    add: () => setDodItems((prev) => [...prev, '']),
+  };
+
+  const toItems = (arr: string[]) => arr.filter(Boolean).map((text) => ({ text }));
 
   const handleSaveChecklists = () => {
-    const toItems = (arr: string[]) => arr.filter(Boolean).map((text) => ({ text }));
-    saveTemplate.mutate({ projectId: project.id, type: 'dor', items: toItems(dorItems) });
-    saveTemplate.mutate({ projectId: project.id, type: 'dod', items: toItems(dodItems) });
+    // DoR — save each key (common + 4 types)
+    CK_KEYS.forEach((key) => {
+      const cardType: ActivityCardType | null = key === 'common' ? null : key as ActivityCardType;
+      saveTemplate.mutate({
+        projectId: project.id,
+        type: 'dor',
+        cardType,
+        items: toItems(dorItems[key]),
+      });
+    });
+    // DoD — common only
+    saveTemplate.mutate({
+      projectId: project.id,
+      type: 'dod',
+      cardType: null,
+      items: toItems(dodItems),
+    });
   };
 
   // ── Auto preview ──────────────────────────────────────────────────────────
@@ -493,43 +545,59 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
             {/* ── Checklists ── */}
             <Section title="Checklists">
 
-              {/* DoR */}
-              <div className="space-y-2">
+              {/* DoR — per card type */}
+              <div className="space-y-4">
                 <Label className="text-xs font-semibold">Definition of Ready (DoR)</Label>
-                {dorItems.map((text, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <Input
-                      value={text}
-                      onChange={(e) => dorCtrl.update(idx, e.target.value)}
-                      placeholder={`Critério ${idx + 1}`}
-                      className="h-8 text-sm"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => dorCtrl.remove(idx)}
-                      disabled={dorItems.length <= 1}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => dorCtrl.add()}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Plus className="h-3 w-3" />
-                  Adicionar critério
-                </button>
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Critérios que um card deve atender antes de entrar no Sprint Backlog.
+                </p>
+
+                {CK_KEYS.map((key) => {
+                  const ctrl = makeDorUpdater(key);
+                  const items = dorItems[key];
+                  return (
+                    <div key={key} className="space-y-1.5 pl-3 border-l-2 border-border">
+                      <p className="text-xs font-medium text-muted-foreground">{CK_LABELS[key]}</p>
+                      {items.map((text, idx) => (
+                        <div key={idx} className="flex gap-2">
+                          <Input
+                            value={text}
+                            onChange={(e) => ctrl.update(idx, e.target.value)}
+                            placeholder={`Critério ${idx + 1}`}
+                            className="h-7 text-xs"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => ctrl.remove(idx)}
+                            disabled={items.length <= 1}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => ctrl.add()}
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Adicionar critério
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
 
               <Separator className="my-1" />
 
-              {/* DoD */}
+              {/* DoD — common */}
               <div className="space-y-2">
                 <Label className="text-xs font-semibold">Definition of Done (DoD)</Label>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Critérios que um card deve atender para ser considerado concluído.
+                </p>
                 {dodItems.map((text, idx) => (
                   <div key={idx} className="flex gap-2">
                     <Input

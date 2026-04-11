@@ -35,6 +35,8 @@ export interface ChecklistTemplateDB {
   project_id: string;
   tenant_id: string;
   type: ChecklistType;
+  /** null = applies to all card types; non-null = specific card type only */
+  card_type: ActivityCardType | null;
   items: { text: string }[];
   created_at: string;
 }

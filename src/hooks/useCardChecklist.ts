@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { checklistService } from '@/services/checklistService';
-import { CardChecklistItemDB, ChecklistTemplateDB, ChecklistType } from '@/types/projectActivity';
+import { ActivityCardType, CardChecklistItemDB, ChecklistTemplateDB, ChecklistType } from '@/types/projectActivity';
 
 // ── Template hooks ────────────────────────────────────────────────────────────
 
@@ -24,13 +24,16 @@ export const useSaveChecklistTemplate = () => {
     mutationFn: async ({
       projectId,
       type,
+      cardType,
       items,
     }: {
       projectId: string;
       type: ChecklistType;
+      /** null = common to all card types */
+      cardType: ActivityCardType | null;
       items: { text: string }[];
     }) => {
-      await checklistService.upsertTemplate(projectId, employee!.tenant_id, type, items);
+      await checklistService.upsertTemplate(projectId, employee!.tenant_id, type, cardType, items);
       return { projectId };
     },
     onSuccess: ({ projectId }) => {

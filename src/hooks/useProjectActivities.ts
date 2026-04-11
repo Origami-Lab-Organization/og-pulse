@@ -62,7 +62,7 @@ export const useCreateActivity = () => {
     onSuccess: async (newCard, variables) => {
       // Semeia checklist a partir dos templates do projeto
       try {
-        await checklistService.seedFromTemplates(newCard.id, variables.projectId);
+        await checklistService.seedFromTemplates(newCard.id, variables.projectId, newCard.card_type);
       } catch {
         // templates ausentes ou erro de seeding não impede a criação
       }
