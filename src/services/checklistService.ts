@@ -84,15 +84,17 @@ export const checklistService = {
     items: { text: string }[],
   ): Promise<void> {
     // Find existing row — must check error too (maybeSingle errors on multiple rows)
-    const base = supabase
+    let selectQ = supabase
       .from('project_activity_checklist_templates')
       .select('id')
       .eq('project_id', projectId)
-      .eq('type', type);
+      .eq('type', type) as any;
 
-    const { data: existing, error: selectErr } = await (
-      cardType === null ? base.is('card_type', null) : base.eq('card_type', cardType)
-    ).maybeSingle();
+    selectQ = cardType === null
+      ? selectQ.is('card_type', null)
+      : selectQ.eq('card_type', cardType);
+
+    const { data: existing, error: selectErr } = await selectQ.maybeSingle();
     if (selectErr) throw selectErr;
 
     if (existing?.id) {
