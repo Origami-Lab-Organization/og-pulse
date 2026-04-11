@@ -7,6 +7,7 @@ import {
   SheetTitle,
   SheetFooter,
 } from '@/components/ui/sheet';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -65,24 +66,11 @@ interface SprintRow {
 function newEmptyRow(index: number, prevEndDate?: string): SprintRow {
   let start = '';
   if (prevEndDate) {
-    // start = prevEnd + 1 day
     const d = new Date(prevEndDate);
     d.setDate(d.getDate() + 1);
     start = d.toISOString().split('T')[0];
   }
   return { name: `Sprint ${index + 1}`, start_date: start, end_date: '', goal: '' };
-}
-
-// ── Section wrapper ───────────────────────────────────────────────────────────
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {title}
-      </p>
-      {children}
-    </div>
-  );
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -94,18 +82,21 @@ interface ActivitySettingsSheetProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivitySettingsSheetProps) {
-  const { data: settings } = useActivitySettings(project.id);
-  const { data: sprints = [] }  = useActivitySprints(project.id);
+  const { data: settings }    = useActivitySettings(project.id);
+  const { data: sprints = [] } = useActivitySprints(project.id);
   const { data: templates = [] } = useChecklistTemplates(project.id);
   const saveSettings  = useSaveActivitySettings();
   const createSprints = useCreateSprints();
   const saveTemplate  = useSaveChecklistTemplate();
 
-  // ── Sprint settings state ──────────────────────────────────────────────────
+  // ── Active tab ────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'sprints' | 'wip' | 'checklists'>('sprints');
+
+  // ── Sprint settings state ─────────────────────────────────────────────────
   const [durationWeeks, setDurationWeeks] = useState(2);
-  const [namingMode, setNamingMode]       = useState<SprintNamingMode>('auto');
-  const [startDate, setStartDate]         = useState<Date | undefined>(undefined);
-  const [sprintCount, setSprintCount]     = useState(6);
+  const [namingMode,    setNamingMode]    = useState<SprintNamingMode>('auto');
+  const [startDate,     setStartDate]     = useState<Date | undefined>(undefined);
+  const [sprintCount,   setSprintCount]   = useState(6);
 
   // ── WIP state ─────────────────────────────────────────────────────────────
   const [wipInDev,    setWipInDev]    = useState('');
@@ -116,8 +107,6 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
   const [manualRows, setManualRows] = useState<SprintRow[]>([]);
 
   // ── Checklist template state ───────────────────────────────────────────────
-  // DoR is configured per card type + a "common" bucket (null key).
-  // DoD stays as a single common list for now.
   type CkKey = 'common' | ActivityCardType;
   const CK_KEYS: CkKey[] = ['common', 'story', 'bug', 'tech_debt', 'task'];
   const CK_LABELS: Record<CkKey, string> = {
@@ -137,7 +126,10 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
 
   // ── Initialize from loaded data ───────────────────────────────────────────
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setActiveTab('sprints');
+      return;
+    }
     if (settings) {
       setDurationWeeks(settings.sprint_duration_weeks);
       setNamingMode(settings.sprint_naming_mode);
@@ -164,11 +156,8 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
     }
   }, [sprints, open]);
 
-  // Initialize checklist templates
   useEffect(() => {
     if (!open) return;
-
-    // DoR — per-type
     const nextDor = emptyDorItems();
     templates.filter((t) => t.type === 'dor').forEach((t) => {
       const key: CkKey = (t.card_type as CkKey | null) ?? 'common';
@@ -176,7 +165,6 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
     });
     setDorItems(nextDor);
 
-    // DoD — common only
     const dod = templates.find((t) => t.type === 'dod' && t.card_type === null);
     setDodItems(dod && dod.items.length > 0 ? dod.items.map((i) => i.text) : ['']);
   }, [templates, open]);
@@ -207,26 +195,6 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
 
   const toItems = (arr: string[]) => arr.filter(Boolean).map((text) => ({ text }));
 
-  const handleSaveChecklists = () => {
-    // DoR — save each key (common + 4 types)
-    CK_KEYS.forEach((key) => {
-      const cardType: ActivityCardType | null = key === 'common' ? null : key as ActivityCardType;
-      saveTemplate.mutate({
-        projectId: project.id,
-        type: 'dor',
-        cardType,
-        items: toItems(dorItems[key]),
-      });
-    });
-    // DoD — common only
-    saveTemplate.mutate({
-      projectId: project.id,
-      type: 'dod',
-      cardType: null,
-      items: toItems(dodItems),
-    });
-  };
-
   // ── Auto preview ──────────────────────────────────────────────────────────
   const previewSprints = useMemo(() => {
     if (!startDate) return [];
@@ -255,13 +223,26 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
 
   const handleSaveSettings = () => {
     saveSettings.mutate({
-      projectId:          project.id,
+      projectId:           project.id,
       sprintDurationWeeks: durationWeeks,
-      sprintNamingMode:   namingMode,
-      wipInDev:           wipInDev !== '' ? Number(wipInDev) : null,
-      wipInTest:          wipInTest !== '' ? Number(wipInTest) : null,
-      wipInDeploy:        wipInDeploy !== '' ? Number(wipInDeploy) : null,
+      sprintNamingMode:    namingMode,
+      wipInDev:            wipInDev    !== '' ? Number(wipInDev)    : null,
+      wipInTest:           wipInTest   !== '' ? Number(wipInTest)   : null,
+      wipInDeploy:         wipInDeploy !== '' ? Number(wipInDeploy) : null,
     });
+  };
+
+  const handleSaveChecklists = () => {
+    CK_KEYS.forEach((key) => {
+      const cardType: ActivityCardType | null = key === 'common' ? null : key as ActivityCardType;
+      saveTemplate.mutate({ projectId: project.id, type: 'dor', cardType, items: toItems(dorItems[key]) });
+    });
+    saveTemplate.mutate({ projectId: project.id, type: 'dod', cardType: null, items: toItems(dodItems) });
+  };
+
+  const handleSaveAll = () => {
+    handleSaveSettings();
+    handleSaveChecklists();
   };
 
   // Manual row helpers
@@ -278,374 +259,320 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
     });
   };
 
+  const isSaving = saveSettings.isPending || saveTemplate.isPending;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-[520px] p-0 flex flex-col">
-        <SheetHeader className="px-6 pt-6 pb-4 shrink-0">
+        <SheetHeader className="px-6 pt-6 pb-3 shrink-0">
           <SheetTitle>Configurações do Board</SheetTitle>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="px-6 pb-6 space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+          className="flex flex-col flex-1 min-h-0"
+        >
+          <TabsList className="mx-6 mb-0 shrink-0 justify-start bg-transparent border-b rounded-none gap-1 h-auto pb-0">
+            <TabsTrigger
+              value="sprints"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2 text-sm"
+            >
+              Sprints
+            </TabsTrigger>
+            <TabsTrigger
+              value="wip"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2 text-sm"
+            >
+              Limites WIP
+            </TabsTrigger>
+            <TabsTrigger
+              value="checklists"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2 text-sm"
+            >
+              Checklists
+            </TabsTrigger>
+          </TabsList>
 
-            {/* ── Sprints ── */}
-            <Section title="Sprints">
+          {/* ── Sprints ── */}
+          <TabsContent value="sprints" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
+              <div className="px-6 py-5 space-y-4">
 
-              {/* Duration */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Duração da sprint</Label>
-                <Select
-                  value={String(durationWeeks)}
-                  onValueChange={(v) => setDurationWeeks(Number(v))}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 semana</SelectItem>
-                    <SelectItem value="2">2 semanas</SelectItem>
-                    <SelectItem value="3">3 semanas</SelectItem>
-                    <SelectItem value="4">4 semanas</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Duração da sprint</Label>
+                  <Select value={String(durationWeeks)} onValueChange={(v) => setDurationWeeks(Number(v))}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 semana</SelectItem>
+                      <SelectItem value="2">2 semanas</SelectItem>
+                      <SelectItem value="3">3 semanas</SelectItem>
+                      <SelectItem value="4">4 semanas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {/* Start date */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Data de início</Label>
-                <DatePicker
-                  value={startDate}
-                  onChange={setStartDate}
-                  placeholder="Selecionar data de início"
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Data de início</Label>
+                  <DatePicker value={startDate} onChange={setStartDate} placeholder="Selecionar data de início" />
+                </div>
 
-              {/* Naming mode */}
-              <div className="space-y-2">
-                <Label className="text-xs">Modo de nomeação</Label>
-                <RadioGroup
-                  value={namingMode}
-                  onValueChange={(v) => setNamingMode(v as SprintNamingMode)}
-                  className="flex gap-6"
-                >
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="auto" id="mode-auto" />
-                    <Label htmlFor="mode-auto" className="text-sm font-normal cursor-pointer">
-                      Automático
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="manual" id="mode-manual" />
-                    <Label htmlFor="mode-manual" className="text-sm font-normal cursor-pointer">
-                      Manual
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Modo de nomeação</Label>
+                  <RadioGroup
+                    value={namingMode}
+                    onValueChange={(v) => setNamingMode(v as SprintNamingMode)}
+                    className="flex gap-6"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="auto" id="mode-auto" />
+                      <Label htmlFor="mode-auto" className="text-sm font-normal cursor-pointer">Automático</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="manual" id="mode-manual" />
+                      <Label htmlFor="mode-manual" className="text-sm font-normal cursor-pointer">Manual</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
 
-              {/* ── Auto mode ── */}
-              {namingMode === 'auto' && (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Quantidade de sprints</Label>
-                    <Select
-                      value={String(sprintCount)}
-                      onValueChange={(v) => setSprintCount(Number(v))}
+                {/* Auto mode */}
+                {namingMode === 'auto' && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Quantidade de sprints</Label>
+                      <Select value={String(sprintCount)} onValueChange={(v) => setSprintCount(Number(v))}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {[4, 6, 8, 10, 12].map((n) => (
+                            <SelectItem key={n} value={String(n)}>{n} sprints</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {previewSprints.length > 0 && (
+                      <div className="rounded-md border overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-muted/60 border-b">
+                              <th className="py-2 px-3 text-left font-medium text-muted-foreground">#</th>
+                              <th className="py-2 px-3 text-left font-medium text-muted-foreground">Nome</th>
+                              <th className="py-2 px-3 text-left font-medium text-muted-foreground">Início</th>
+                              <th className="py-2 px-3 text-left font-medium text-muted-foreground">Fim</th>
+                              <th className="py-2 px-3 text-left font-medium text-muted-foreground">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {previewSprints.map((s) => (
+                              <tr key={s.number} className="border-b last:border-0 hover:bg-muted/20">
+                                <td className="py-1.5 px-3 text-muted-foreground">{s.number}</td>
+                                <td className="py-1.5 px-3 font-medium">{s.name}</td>
+                                <td className="py-1.5 px-3 text-muted-foreground">{s.start_date}</td>
+                                <td className="py-1.5 px-3 text-muted-foreground">{s.end_date}</td>
+                                <td className="py-1.5 px-3">
+                                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_CLASS[s.status]}`}>
+                                    {STATUS_LABEL[s.status]}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {!startDate && (
+                      <p className="text-xs text-muted-foreground">
+                        Selecione a data de início para ver o preview.
+                      </p>
+                    )}
+
+                    <Button
+                      size="sm"
+                      disabled={previewSprints.length === 0 || createSprints.isPending}
+                      onClick={handleConfirmAuto}
                     >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[4, 6, 8, 10, 12].map((n) => (
-                          <SelectItem key={n} value={String(n)}>{n} sprints</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {createSprints.isPending ? 'Gerando...' : 'Confirmar geração'}
+                    </Button>
                   </div>
+                )}
 
-                  {/* Preview */}
-                  {previewSprints.length > 0 && (
+                {/* Manual mode */}
+                {namingMode === 'manual' && (
+                  <div className="space-y-3">
                     <div className="rounded-md border overflow-hidden">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="bg-muted/60 border-b">
-                            <th className="py-2 px-3 text-left font-medium text-muted-foreground">#</th>
-                            <th className="py-2 px-3 text-left font-medium text-muted-foreground">Nome</th>
-                            <th className="py-2 px-3 text-left font-medium text-muted-foreground">Início</th>
-                            <th className="py-2 px-3 text-left font-medium text-muted-foreground">Fim</th>
-                            <th className="py-2 px-3 text-left font-medium text-muted-foreground">Status</th>
+                            <th className="py-2 px-2 text-left font-medium text-muted-foreground">Nome</th>
+                            <th className="py-2 px-2 text-left font-medium text-muted-foreground">Início</th>
+                            <th className="py-2 px-2 text-left font-medium text-muted-foreground">Fim</th>
+                            <th className="py-2 px-2 text-left font-medium text-muted-foreground">Goal</th>
+                            <th className="py-2 px-1" />
                           </tr>
                         </thead>
                         <tbody>
-                          {previewSprints.map((s) => (
-                            <tr key={s.number} className="border-b last:border-0 hover:bg-muted/20">
-                              <td className="py-1.5 px-3 text-muted-foreground">{s.number}</td>
-                              <td className="py-1.5 px-3 font-medium">{s.name}</td>
-                              <td className="py-1.5 px-3 text-muted-foreground">{s.start_date}</td>
-                              <td className="py-1.5 px-3 text-muted-foreground">{s.end_date}</td>
-                              <td className="py-1.5 px-3">
-                                <Badge
-                                  variant="outline"
-                                  className={`text-[10px] px-1.5 py-0 ${STATUS_CLASS[s.status]}`}
-                                >
-                                  {STATUS_LABEL[s.status]}
-                                </Badge>
+                          {manualRows.map((row, idx) => (
+                            <tr key={idx} className="border-b last:border-0">
+                              <td className="py-1 px-1">
+                                <Input value={row.name} onChange={(e) => updateRow(idx, { name: e.target.value })} className="h-7 text-xs" />
+                              </td>
+                              <td className="py-1 px-1">
+                                <Input type="date" value={row.start_date} onChange={(e) => updateRow(idx, { start_date: e.target.value })} className="h-7 text-xs w-32" />
+                              </td>
+                              <td className="py-1 px-1">
+                                <Input type="date" value={row.end_date} onChange={(e) => updateRow(idx, { end_date: e.target.value })} className="h-7 text-xs w-32" />
+                              </td>
+                              <td className="py-1 px-1">
+                                <Input value={row.goal} onChange={(e) => updateRow(idx, { goal: e.target.value })} placeholder="Opcional" className="h-7 text-xs" />
+                              </td>
+                              <td className="py-1 px-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeRow(idx)} disabled={manualRows.length <= 1}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                  )}
-
-                  {!startDate && (
-                    <p className="text-xs text-muted-foreground">
-                      Selecione a data de início para ver o preview.
-                    </p>
-                  )}
-
-                  <Button
-                    size="sm"
-                    disabled={previewSprints.length === 0 || createSprints.isPending}
-                    onClick={handleConfirmAuto}
-                  >
-                    {createSprints.isPending ? 'Gerando...' : 'Confirmar geração'}
-                  </Button>
-                </div>
-              )}
-
-              {/* ── Manual mode ── */}
-              {namingMode === 'manual' && (
-                <div className="space-y-3">
-                  <div className="rounded-md border overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-muted/60 border-b">
-                          <th className="py-2 px-2 text-left font-medium text-muted-foreground">Nome</th>
-                          <th className="py-2 px-2 text-left font-medium text-muted-foreground">Início</th>
-                          <th className="py-2 px-2 text-left font-medium text-muted-foreground">Fim</th>
-                          <th className="py-2 px-2 text-left font-medium text-muted-foreground">Goal</th>
-                          <th className="py-2 px-1" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {manualRows.map((row, idx) => (
-                          <tr key={idx} className="border-b last:border-0">
-                            <td className="py-1 px-1">
-                              <Input
-                                value={row.name}
-                                onChange={(e) => updateRow(idx, { name: e.target.value })}
-                                className="h-7 text-xs"
-                              />
-                            </td>
-                            <td className="py-1 px-1">
-                              <Input
-                                type="date"
-                                value={row.start_date}
-                                onChange={(e) => updateRow(idx, { start_date: e.target.value })}
-                                className="h-7 text-xs w-32"
-                              />
-                            </td>
-                            <td className="py-1 px-1">
-                              <Input
-                                type="date"
-                                value={row.end_date}
-                                onChange={(e) => updateRow(idx, { end_date: e.target.value })}
-                                className="h-7 text-xs w-32"
-                              />
-                            </td>
-                            <td className="py-1 px-1">
-                              <Input
-                                value={row.goal}
-                                onChange={(e) => updateRow(idx, { goal: e.target.value })}
-                                placeholder="Opcional"
-                                className="h-7 text-xs"
-                              />
-                            </td>
-                            <td className="py-1 px-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                onClick={() => removeRow(idx)}
-                                disabled={manualRows.length <= 1}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={addRow}>
-                      <Plus className="h-3.5 w-3.5 mr-1.5" />
-                      Adicionar linha
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={createSprints.isPending}
-                      onClick={handleSaveManual}
-                    >
-                      {createSprints.isPending ? 'Salvando...' : 'Salvar sprints'}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </Section>
-
-            <Separator />
-
-            {/* ── WIP ── */}
-            <Section title="Limites WIP">
-              <p className="text-xs text-muted-foreground -mt-2">
-                Deixe em branco para sem limite.
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">In Dev</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={wipInDev}
-                    onChange={(e) => setWipInDev(e.target.value)}
-                    placeholder="Sem limite"
-                    className="h-9"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">In Test</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={wipInTest}
-                    onChange={(e) => setWipInTest(e.target.value)}
-                    placeholder="Sem limite"
-                    className="h-9"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">In Deploy</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={wipInDeploy}
-                    onChange={(e) => setWipInDeploy(e.target.value)}
-                    placeholder="Sem limite"
-                    className="h-9"
-                  />
-                </div>
-              </div>
-            </Section>
-
-            <Separator />
-
-            {/* ── Checklists ── */}
-            <Section title="Checklists">
-
-              {/* DoR — per card type */}
-              <div className="space-y-4">
-                <Label className="text-xs font-semibold">Definition of Ready (DoR)</Label>
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Critérios que um card deve atender antes de entrar no Sprint Backlog.
-                </p>
-
-                {CK_KEYS.map((key) => {
-                  const ctrl = makeDorUpdater(key);
-                  const items = dorItems[key];
-                  return (
-                    <div key={key} className="space-y-1.5 pl-3 border-l-2 border-border">
-                      <p className="text-xs font-medium text-muted-foreground">{CK_LABELS[key]}</p>
-                      {items.map((text, idx) => (
-                        <div key={idx} className="flex gap-2">
-                          <Input
-                            value={text}
-                            onChange={(e) => ctrl.update(idx, e.target.value)}
-                            placeholder={`Critério ${idx + 1}`}
-                            className="h-7 text-xs"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => ctrl.remove(idx)}
-                            disabled={items.length <= 1}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => ctrl.add()}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Adicionar critério
-                      </button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={addRow}>
+                        <Plus className="h-3.5 w-3.5 mr-1.5" />Adicionar linha
+                      </Button>
+                      <Button size="sm" disabled={createSprints.isPending} onClick={handleSaveManual}>
+                        {createSprints.isPending ? 'Salvando...' : 'Salvar sprints'}
+                      </Button>
                     </div>
-                  );
-                })}
-              </div>
-
-              <Separator className="my-1" />
-
-              {/* DoD — common */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold">Definition of Done (DoD)</Label>
-                <p className="text-xs text-muted-foreground -mt-1">
-                  Critérios que um card deve atender para ser considerado concluído.
-                </p>
-                {dodItems.map((text, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <Input
-                      value={text}
-                      onChange={(e) => dodCtrl.update(idx, e.target.value)}
-                      placeholder={`Critério ${idx + 1}`}
-                      className="h-8 text-sm"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => dodCtrl.remove(idx)}
-                      disabled={dodItems.length <= 1}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => dodCtrl.add()}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Plus className="h-3 w-3" />
-                  Adicionar critério
-                </button>
+                )}
               </div>
+            </ScrollArea>
+          </TabsContent>
 
-              <Button
-                size="sm"
-                onClick={handleSaveChecklists}
-                disabled={saveTemplate.isPending}
-              >
-                {saveTemplate.isPending ? 'Salvando...' : 'Salvar checklists'}
-              </Button>
+          {/* ── Limites WIP ── */}
+          <TabsContent value="wip" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
+              <div className="px-6 py-5 space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Deixe em branco para sem limite.
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">In Dev</Label>
+                    <Input type="number" min={1} value={wipInDev} onChange={(e) => setWipInDev(e.target.value)} placeholder="Sem limite" className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">In Test</Label>
+                    <Input type="number" min={1} value={wipInTest} onChange={(e) => setWipInTest(e.target.value)} placeholder="Sem limite" className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">In Deploy</Label>
+                    <Input type="number" min={1} value={wipInDeploy} onChange={(e) => setWipInDeploy(e.target.value)} placeholder="Sem limite" className="h-9" />
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
 
-            </Section>
+          {/* ── Checklists ── */}
+          <TabsContent value="checklists" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
+              <div className="px-6 py-5 space-y-5">
 
-          </div>
-        </ScrollArea>
+                {/* DoR — per card type */}
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Definition of Ready (DoR)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Critérios que um card deve atender antes de entrar no Sprint Backlog.
+                    </p>
+                  </div>
+
+                  {CK_KEYS.map((key) => {
+                    const ctrl  = makeDorUpdater(key);
+                    const items = dorItems[key];
+                    return (
+                      <div key={key} className="space-y-1.5 pl-3 border-l-2 border-border">
+                        <p className="text-xs font-medium text-muted-foreground">{CK_LABELS[key]}</p>
+                        {items.map((text, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <Input
+                              value={text}
+                              onChange={(e) => ctrl.update(idx, e.target.value)}
+                              placeholder={`Critério ${idx + 1}`}
+                              className="h-7 text-xs"
+                            />
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => ctrl.remove(idx)}
+                              disabled={items.length <= 1}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => ctrl.add()}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />Adicionar critério
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <Separator />
+
+                {/* DoD — common */}
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Definition of Done (DoD)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Critérios que um card deve atender para ser considerado concluído.
+                    </p>
+                  </div>
+                  {dodItems.map((text, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <Input
+                        value={text}
+                        onChange={(e) => dodCtrl.update(idx, e.target.value)}
+                        placeholder={`Critério ${idx + 1}`}
+                        className="h-8 text-sm"
+                      />
+                      <Button
+                        variant="ghost" size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => dodCtrl.remove(idx)}
+                        disabled={dodItems.length <= 1}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => dodCtrl.add()}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Plus className="h-3 w-3" />Adicionar critério
+                  </button>
+                </div>
+
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
 
         <SheetFooter className="px-6 py-4 border-t shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
-          <Button onClick={handleSaveSettings} disabled={saveSettings.isPending}>
-            {saveSettings.isPending ? 'Salvando...' : 'Salvar configurações'}
+          <Button onClick={handleSaveAll} disabled={isSaving}>
+            {isSaving ? 'Salvando...' : 'Salvar configurações'}
           </Button>
         </SheetFooter>
       </SheetContent>
