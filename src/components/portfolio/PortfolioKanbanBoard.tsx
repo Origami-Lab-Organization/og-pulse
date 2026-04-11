@@ -166,17 +166,20 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
     }
 
     // ── Avanço de uma coluna: validações específicas ──────────────────
-    await handleForwardTransition(projectId, project.name, project.portfolio_stage as PortfolioStage, targetStage);
+    const isVentures = project.service_line === 'ventures'
+      || project.service?.name?.toLowerCase().includes('ventures') === true;
+    await handleForwardTransition(projectId, project.name, project.portfolio_stage as PortfolioStage, targetStage, isVentures);
   };
 
   const handleForwardTransition = async (
     projectId: string,
     projectName: string,
     from: PortfolioStage,
-    to: PortfolioStage
+    to: PortfolioStage,
+    isVentures = false
   ) => {
     if (from === 'planning' && to === 'value_delivery') {
-      const { ready, missing } = await checkReadiness(projectId);
+      const { ready, missing } = await checkReadiness(projectId, isVentures);
       if (!ready) {
         toast({
           title: 'Projeto não pode ser movido',

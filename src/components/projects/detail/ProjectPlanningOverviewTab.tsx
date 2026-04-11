@@ -27,7 +27,8 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
   const { data: milestones = [] } = useProjectMilestones(project.id);
   
   // OKRs are valid when there's at least 1 OKR with at least 1 Key Result
-  const isVentures = project.service_line === 'ventures';
+  const isVentures = project.service_line === 'ventures'
+    || project.service?.name?.toLowerCase().includes('ventures') === true;
   const hasValidOKRs = okrs.some(okr => (okr.key_results?.length || 0) > 0);
   const hasStakeholders = stakeholders.length > 0;
   const hasMilestones = milestones.length > 0;
