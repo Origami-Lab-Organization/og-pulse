@@ -2472,6 +2472,74 @@ export type Database = {
           },
         ]
       }
+      project_activity_tasks: {
+        Row: {
+          assignee_id: string | null
+          card_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          position: number
+          tenant_id: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          card_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          description: string
+          due_date?: string | null
+          id?: string
+          position?: number
+          tenant_id: string
+        }
+        Update: {
+          assignee_id?: string | null
+          card_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          position?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activity_tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_tasks_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "project_activity_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_cards: {
         Row: {
           acceptance_criteria: string | null
