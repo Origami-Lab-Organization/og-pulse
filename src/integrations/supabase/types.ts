@@ -2062,6 +2062,44 @@ export type Database = {
           },
         ]
       }
+      project_activity_card_checklist: {
+        Row: {
+          card_id: string
+          created_at: string
+          id: string
+          is_checked: boolean
+          item_text: string
+          position: number
+          type: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string
+          id?: string
+          is_checked?: boolean
+          item_text: string
+          position?: number
+          type: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string
+          id?: string
+          is_checked?: boolean
+          item_text?: string
+          position?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activity_card_checklist_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "project_activity_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_activity_card_history: {
         Row: {
           card_id: string
@@ -2238,6 +2276,48 @@ export type Database = {
           },
           {
             foreignKeyName: "project_activity_cards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_activity_checklist_templates: {
+        Row: {
+          created_at: string
+          id: string
+          items: Json
+          project_id: string
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items?: Json
+          project_id: string
+          tenant_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items?: Json
+          project_id?: string
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activity_checklist_templates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_checklist_templates_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
