@@ -1,23 +1,44 @@
-import { AlertOctagon } from 'lucide-react';
+import { AlertOctagon, BookOpen, Bug, Wrench, CheckSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { ProjectActivityCardWithRelations, ActivityCardType, CARD_TYPE_LABELS } from '@/types/projectActivity';
 import { TagBadge } from '@/components/projects/activities/TagBadge';
 
+// ── Card type icon map ───────────────────────────────────────────────────────
+const CARD_TYPE_ICON: Record<ActivityCardType, React.ElementType> = {
+  story:     BookOpen,
+  bug:       Bug,
+  tech_debt: Wrench,
+  task:      CheckSquare,
+};
+
+const CARD_TYPE_COLOR: Record<ActivityCardType, string> = {
+  story:     'text-blue-600 dark:text-blue-400',
+  bug:       'text-red-600 dark:text-red-400',
+  tech_debt: 'text-amber-600 dark:text-amber-400',
+  task:      'text-muted-foreground',
+};
+
+// ── Card code helper ─────────────────────────────────────────────────────────
+function getCardCode(projectName: string, cardNumber: number | null): string {
+  if (cardNumber == null) return '';
+  const prefix = projectName
+    .replace(/[^a-zA-Z]/g, '')
+    .slice(0, 3)
+    .toUpperCase()
+    .padEnd(3, 'X');
+  return `${prefix}-${cardNumber}`;
+}
+
+// ── Props ────────────────────────────────────────────────────────────────────
 interface ActivityCardProps {
   card: ProjectActivityCardWithRelations;
+  projectName?: string;
   onClick?: () => void;
 }
 
-const CARD_TYPE_BADGE: Record<ActivityCardType, string> = {
-  story: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  bug: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  tech_debt: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  task: 'bg-secondary text-secondary-foreground',
-};
-
-export function ActivityCard({ card, onClick }: ActivityCardProps) {
+export function ActivityCard({ card, projectName, onClick }: ActivityCardProps) {
   const assigneeName: string = card.assignee?.nome ?? '';
   const initials = assigneeName
     .split(' ')
@@ -25,6 +46,9 @@ export function ActivityCard({ card, onClick }: ActivityCardProps) {
     .map((w) => w[0])
     .join('')
     .toUpperCase();
+
+  const Icon = CARD_TYPE_ICON[card.card_type];
+  const cardCode = projectName ? getCardCode(projectName, card.card_number) : '';
 
   return (
     <div
@@ -55,15 +79,17 @@ export function ActivityCard({ card, onClick }: ActivityCardProps) {
       )}
 
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span
-            className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-              CARD_TYPE_BADGE[card.card_type]
-            )}
-          >
-            {CARD_TYPE_LABELS[card.card_type]}
-          </span>
+        <div className="flex items-center gap-1.5">
+          {/* Icon replaces badge */}
+          <Icon
+            className={cn('h-4 w-4 shrink-0', CARD_TYPE_COLOR[card.card_type])}
+            title={CARD_TYPE_LABELS[card.card_type]}
+          />
+
+          {/* Card code */}
+          {cardCode && (
+            <span className="text-xs text-muted-foreground font-mono">{cardCode}</span>
+          )}
 
           {card.points != null && (
             <Badge variant="outline" className="text-xs h-5 px-1.5">

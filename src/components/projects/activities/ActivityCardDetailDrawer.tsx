@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Tag, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Tag, Clock, BookOpen, Bug, Wrench, CheckSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -44,12 +44,29 @@ import { cn } from '@/lib/utils';
 // ── Fibonacci points ────────────────────────────────────────────────────────
 const FIBONACCI_POINTS = [1, 2, 3, 5, 8, 13, 21];
 
-const CARD_TYPE_BADGE: Record<ActivityCardType, string> = {
-  story: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-0',
-  bug: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-0',
-  tech_debt: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-0',
-  task: 'bg-secondary text-secondary-foreground border-0',
+const CARD_TYPE_ICON: Record<ActivityCardType, React.ElementType> = {
+  story:     BookOpen,
+  bug:       Bug,
+  tech_debt: Wrench,
+  task:      CheckSquare,
 };
+
+const CARD_TYPE_COLOR: Record<ActivityCardType, string> = {
+  story:     'text-blue-600 dark:text-blue-400',
+  bug:       'text-red-600 dark:text-red-400',
+  tech_debt: 'text-amber-600 dark:text-amber-400',
+  task:      'text-muted-foreground',
+};
+
+function getCardCode(projectName: string, cardNumber: number | null): string {
+  if (cardNumber == null) return '';
+  const prefix = projectName
+    .replace(/[^a-zA-Z]/g, '')
+    .slice(0, 3)
+    .toUpperCase()
+    .padEnd(3, 'X');
+  return `${prefix}-${cardNumber}`;
+}
 
 // ── useDebounce ─────────────────────────────────────────────────────────────
 function useDebounce<T>(value: T, delay: number): T {
@@ -213,9 +230,22 @@ export function ActivityCardDetailDrawer({
           />
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={cn('text-xs', CARD_TYPE_BADGE[card.card_type])}>
-              {CARD_TYPE_LABELS[card.card_type]}
-            </Badge>
+            {/* Card type: icon + label */}
+            {(() => {
+              const Icon = CARD_TYPE_ICON[card.card_type];
+              return (
+                <span className={cn('flex items-center gap-1', CARD_TYPE_COLOR[card.card_type])}>
+                  <Icon className="h-4 w-4" />
+                  <span className="text-xs font-medium">{CARD_TYPE_LABELS[card.card_type]}</span>
+                </span>
+              );
+            })()}
+            {/* Card code */}
+            {card.card_number != null && (
+              <span className="text-xs text-muted-foreground font-mono">
+                {getCardCode(project.name, card.card_number)}
+              </span>
+            )}
             <Badge variant="outline" className="text-xs">
               {COLUMN_LABELS[card.column_name]}
             </Badge>

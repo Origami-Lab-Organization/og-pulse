@@ -299,6 +299,7 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
                           <SortableActivityCard
                             key={card.id}
                             card={card}
+                            projectName={project.name}
                             disabled={isReadOnly || card.column_name === 'done'}
                             onClick={() => setSelectedCardId(card.id)}
                           />
@@ -326,7 +327,7 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
         </ScrollArea>
 
         <DragOverlay>
-          {activeCard && <ActivityCard card={activeCard} />}
+          {activeCard && <ActivityCard card={activeCard} projectName={project.name} />}
         </DragOverlay>
       </DndContext>
 

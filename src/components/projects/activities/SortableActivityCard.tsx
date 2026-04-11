@@ -5,11 +5,12 @@ import { ProjectActivityCardWithRelations } from '@/types/projectActivity';
 
 interface SortableActivityCardProps {
   card: ProjectActivityCardWithRelations;
+  projectName?: string;
   disabled?: boolean;
   onClick?: () => void;
 }
 
-export function SortableActivityCard({ card, disabled, onClick }: SortableActivityCardProps) {
+export function SortableActivityCard({ card, projectName, disabled, onClick }: SortableActivityCardProps) {
   const {
     attributes,
     listeners,
@@ -27,7 +28,7 @@ export function SortableActivityCard({ card, disabled, onClick }: SortableActivi
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <ActivityCard card={card} onClick={onClick} />
+      <ActivityCard card={card} projectName={projectName} onClick={onClick} />
     </div>
   );
 }

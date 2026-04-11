@@ -13,6 +13,7 @@ export interface ProjectActivityCardDB {
   tenant_id: string;
   title: string;
   card_type: ActivityCardType;
+  card_number: number | null;
   user_story: string | null;
   acceptance_criteria: string | null;
   points: number | null;
