@@ -10,6 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -90,6 +91,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// ── Tab trigger style ────────────────────────────────────────────────────────
+const triggerCls =
+  'rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2 text-sm';
+
 // ── Props ────────────────────────────────────────────────────────────────────
 interface ActivityCardDetailDrawerProps {
   open: boolean;
@@ -113,7 +118,6 @@ export function ActivityCardDetailDrawer({
   const members = project.members ?? [];
   const isCardDone = card.column_name === 'done';
   const isFirst = card.column_name === 'product_backlog';
-  // Fields are read-only when card is Done or project is read-only
   const disabled = isReadOnly || isCardDone;
   const canNavigate = !isReadOnly;
 
@@ -122,6 +126,7 @@ export function ActivityCardDetailDrawer({
   const [userStory, setUserStory] = useState(card.user_story ?? '');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState(card.acceptance_criteria ?? '');
   const [blockedReason, setBlockedReason] = useState(card.blocked_reason ?? '');
+  const [activeTab, setActiveTab] = useState<'detalhes' | 'tarefas' | 'qualidade' | 'historico'>('detalhes');
 
   // Re-initialize when a different card is opened
   const prevCardIdRef = useRef<string>('');
@@ -132,6 +137,7 @@ export function ActivityCardDetailDrawer({
       setUserStory(card.user_story ?? '');
       setAcceptanceCriteria(card.acceptance_criteria ?? '');
       setBlockedReason(card.blocked_reason ?? '');
+      setActiveTab('detalhes');
     }
   }, [card.id, card.title, card.user_story, card.acceptance_criteria, card.blocked_reason]);
 
@@ -146,7 +152,7 @@ export function ActivityCardDetailDrawer({
           queryClient.invalidateQueries({ queryKey: ['project-activities', project.id] });
         }
       })
-      .catch(() => {}); // silently ignore when no templates configured
+      .catch(() => {});
   }, [open, card.id]);
 
   // ── Debounced values ────────────────────────────────────────────────────────
@@ -167,7 +173,6 @@ export function ActivityCardDetailDrawer({
     blocked_reason: card.blocked_reason,
   });
 
-  // saveFields: only for content edits, blocked when card is Done or isReadOnly
   const saveFields = (updates: Parameters<typeof updateCard.mutate>[0]['updates']) => {
     if (disabled) return;
     updateCard.mutate({
@@ -179,7 +184,6 @@ export function ActivityCardDetailDrawer({
     });
   };
 
-  // saveColumn: always allowed unless isReadOnly (enables moving out of Done)
   const saveColumn = (columnName: ActivityColumnName) => {
     if (isReadOnly) return;
     updateCard.mutate({
@@ -191,13 +195,11 @@ export function ActivityCardDetailDrawer({
     });
   };
 
-  // alias for field saves
   const save = saveFields;
 
   // ── Auto-save effects ────────────────────────────────────────────────────────
   const mountedRef = useRef(false);
   useEffect(() => {
-    // skip first render
     if (!mountedRef.current) { mountedRef.current = true; return; }
     if (debouncedTitle !== card.title) save({ title: debouncedTitle });
   }, [debouncedTitle]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -219,9 +221,7 @@ export function ActivityCardDetailDrawer({
 
   // ── Column navigation ────────────────────────────────────────────────────────
   const colIndex = ACTIVITY_COLUMNS.indexOf(card.column_name);
-  // ← disabled when product_backlog or done (done has its own "Reabrir" button)
   const canGoPrev = !isFirst && !isCardDone && canNavigate;
-  // → disabled when done
   const canGoNext = !isCardDone && colIndex < ACTIVITY_COLUMNS.length - 1 && canNavigate;
 
   const moveColumn = (direction: 'prev' | 'next') => {
@@ -229,6 +229,9 @@ export function ActivityCardDetailDrawer({
     if (!newCol) return;
     saveColumn(newCol);
   };
+
+  // ── Task count for badge ─────────────────────────────────────────────────────
+  const taskTotal = card.card_tasks?.length ?? 0;
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -247,7 +250,6 @@ export function ActivityCardDetailDrawer({
           />
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Card type: icon + label */}
             {(() => {
               const Icon = CARD_TYPE_ICON[card.card_type];
               return (
@@ -257,7 +259,6 @@ export function ActivityCardDetailDrawer({
                 </span>
               );
             })()}
-            {/* Card code */}
             {card.card_number != null && (
               <span className="text-xs text-muted-foreground font-mono">
                 {getCardCode(project.name, card.card_number)}
@@ -275,7 +276,6 @@ export function ActivityCardDetailDrawer({
             </span>
 
             <div className="flex items-center gap-1 ml-auto">
-              {/* "← Reabrir" aparece apenas em Done para Admin/PM; substitui o ← normal */}
               {isCardDone && canMoveFromDone ? (
                 <Button
                   variant="outline"
@@ -314,182 +314,207 @@ export function ActivityCardDetailDrawer({
 
         <Separator />
 
-        {/* ── Done warning ── */}
+        {/* ── Done warning — always visible above tabs ── */}
         {isCardDone && (
-          <div className="mx-5 mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
+          <div className="mx-5 mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200 shrink-0">
             <span className="text-xs leading-relaxed">
               Este card está concluído. Mova para <strong>In Deploy</strong> para editar.
             </span>
           </div>
         )}
 
-        {/* ── Scrollable body ── */}
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="px-5 py-4 space-y-6">
-
-            {/* ── Informações ── */}
-            <Section title="Informações">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Tipo</Label>
-                  <Select
-                    value={card.card_type}
-                    onValueChange={(val) => save({ cardType: val as ActivityCardType })}
-                    disabled={disabled}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CARD_TYPE_OPTIONS.map((opt) => {
-                        const Icon = CARD_TYPE_ICON[opt.value];
-                        return (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            <span className="flex items-center gap-2">
-                              <Icon className={cn('h-4 w-4 shrink-0', CARD_TYPE_COLOR[opt.value])} />
-                              {opt.label}
-                            </span>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Pontos (Fibonacci)</Label>
-                  <Select
-                    value={card.points != null ? card.points.toString() : '__none__'}
-                    onValueChange={(val) => save({ points: val !== '__none__' ? Number(val) : undefined })}
-                    disabled={disabled}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="—" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sem estimativa</SelectItem>
-                      {FIBONACCI_POINTS.map((p) => (
-                        <SelectItem key={p} value={String(p)}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {members.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Responsável</Label>
-                  <Select
-                    value={card.assignee_id ?? '__none__'}
-                    onValueChange={(val) => save({ assigneeId: val !== '__none__' ? val : null })}
-                    disabled={disabled}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Sem responsável" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sem responsável</SelectItem>
-                      {members.map((m) => (
-                        <SelectItem key={m.employee_id} value={m.employee_id}>
-                          {m.employee?.nome ?? m.employee_id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        {/* ── Tabs ── */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+          className="flex flex-col flex-1 min-h-0"
+        >
+          <TabsList className="mx-5 mt-1 shrink-0 justify-start bg-transparent border-b rounded-none gap-1 h-auto pb-0">
+            <TabsTrigger value="detalhes"  className={triggerCls}>Detalhes</TabsTrigger>
+            <TabsTrigger value="tarefas"   className={triggerCls}>
+              Tarefas
+              {taskTotal > 0 && (
+                <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {taskTotal}
+                </span>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="qualidade" className={triggerCls}>Qualidade</TabsTrigger>
+            <TabsTrigger value="historico" className={triggerCls}>Histórico</TabsTrigger>
+          </TabsList>
 
-              {/* Tags */}
-              <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1">
-                  <Tag className="h-3 w-3" /> Tags
-                </Label>
-                <TagInput projectId={project.id} cardId={card.id} disabled={disabled} />
-              </div>
-            </Section>
+          {/* ── Detalhes ── */}
+          <TabsContent value="detalhes" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
+              <div className="px-5 py-4 space-y-5">
 
-            <Separator />
+                {/* Tipo + Pontos */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Tipo</Label>
+                    <Select
+                      value={card.card_type}
+                      onValueChange={(val) => save({ cardType: val as ActivityCardType })}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CARD_TYPE_OPTIONS.map((opt) => {
+                          const Icon = CARD_TYPE_ICON[opt.value];
+                          return (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              <span className="flex items-center gap-2">
+                                <Icon className={cn('h-4 w-4 shrink-0', CARD_TYPE_COLOR[opt.value])} />
+                                {opt.label}
+                              </span>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-            {/* ── Detalhamento ── */}
-            <Section title="Detalhamento">
-              <div className="space-y-1.5">
-                <Label className="text-xs">User Story</Label>
-                <Textarea
-                  value={userStory}
-                  onChange={(e) => setUserStory(e.target.value)}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Pontos (Fibonacci)</Label>
+                    <Select
+                      value={card.points != null ? card.points.toString() : '__none__'}
+                      onValueChange={(val) => save({ points: val !== '__none__' ? Number(val) : undefined })}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Sem estimativa</SelectItem>
+                        {FIBONACCI_POINTS.map((p) => (
+                          <SelectItem key={p} value={String(p)}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Responsável */}
+                {members.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Responsável</Label>
+                    <Select
+                      value={card.assignee_id ?? '__none__'}
+                      onValueChange={(val) => save({ assigneeId: val !== '__none__' ? val : null })}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Sem responsável" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Sem responsável</SelectItem>
+                        {members.map((m) => (
+                          <SelectItem key={m.employee_id} value={m.employee_id}>
+                            {m.employee?.nome ?? m.employee_id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Tags */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1">
+                    <Tag className="h-3 w-3" /> Tags
+                  </Label>
+                  <TagInput projectId={project.id} cardId={card.id} disabled={disabled} />
+                </div>
+
+                <Separator />
+
+                {/* User Story */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">User Story</Label>
+                  <Textarea
+                    value={userStory}
+                    onChange={(e) => setUserStory(e.target.value)}
+                    disabled={disabled}
+                    placeholder="Como [ator], quero [ação] para [benefício]..."
+                    rows={3}
+                    className="text-sm resize-none"
+                  />
+                </div>
+
+                {/* Critérios de Aceitação */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Critérios de Aceitação</Label>
+                  <Textarea
+                    value={acceptanceCriteria}
+                    onChange={(e) => setAcceptanceCriteria(e.target.value)}
+                    disabled={disabled}
+                    placeholder="Dado que... quando... então..."
+                    rows={3}
+                    className="text-sm resize-none"
+                  />
+                </div>
+
+                <Separator />
+
+                {/* Bloqueio */}
+                <CardBlockSection
+                  isBlocked={card.is_blocked}
+                  blockedReason={blockedReason}
                   disabled={disabled}
-                  placeholder="Como [ator], quero [ação] para [benefício]..."
-                  rows={3}
-                  className="text-sm resize-none"
+                  onBlockedChange={(val) => save({ isBlocked: val })}
+                  onReasonChange={setBlockedReason}
                 />
+
               </div>
+            </ScrollArea>
+          </TabsContent>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs">Critérios de Aceitação</Label>
-                <Textarea
-                  value={acceptanceCriteria}
-                  onChange={(e) => setAcceptanceCriteria(e.target.value)}
-                  disabled={disabled}
-                  placeholder="Dado que... quando... então..."
-                  rows={3}
-                  className="text-sm resize-none"
-                />
+          {/* ── Tarefas ── */}
+          <TabsContent value="tarefas" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
+              <div className="px-5 py-4">
+                <CardTaskList cardId={card.id} project={project} tenantId={card.tenant_id} disabled={disabled} />
               </div>
-            </Section>
+            </ScrollArea>
+          </TabsContent>
 
-            <Separator />
+          {/* ── Qualidade ── */}
+          <TabsContent value="qualidade" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
+              <div className="px-5 py-4 space-y-5">
+                <Section title="Definition of Ready">
+                  <CardChecklist
+                    cardId={card.id}
+                    cardTenantId={card.tenant_id}
+                    type="dor"
+                    isReadOnly={false}
+                  />
+                </Section>
+                <Separator />
+                <Section title="Definition of Done">
+                  <CardChecklist
+                    cardId={card.id}
+                    cardTenantId={card.tenant_id}
+                    type="dod"
+                    isReadOnly={false}
+                  />
+                </Section>
+              </div>
+            </ScrollArea>
+          </TabsContent>
 
-            {/* ── Bloqueio ── */}
-            <Section title="Bloqueio">
-              <CardBlockSection
-                isBlocked={card.is_blocked}
-                blockedReason={blockedReason}
-                disabled={disabled}
-                onBlockedChange={(val) => save({ isBlocked: val })}
-                onReasonChange={setBlockedReason}
-              />
-            </Section>
+          {/* ── Histórico ── */}
+          <TabsContent value="historico" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
+              <div className="px-5 py-4">
+                <CardHistory cardId={card.id} />
+              </div>
+            </ScrollArea>
+          </TabsContent>
 
-            <Separator />
-
-            {/* ── DoR ── */}
-            <Section title="Definition of Ready">
-              <CardChecklist
-                cardId={card.id}
-                cardTenantId={card.tenant_id}
-                type="dor"
-                isReadOnly={false}
-              />
-            </Section>
-
-            <Separator />
-
-            {/* ── DoD ── */}
-            <Section title="Definition of Done">
-              <CardChecklist
-                cardId={card.id}
-                cardTenantId={card.tenant_id}
-                type="dod"
-                isReadOnly={false}
-              />
-            </Section>
-
-            <Separator />
-
-            {/* ── Tarefas ── */}
-            <Section title="Tarefas">
-              <CardTaskList cardId={card.id} project={project} tenantId={card.tenant_id} disabled={disabled} />
-            </Section>
-
-            <Separator />
-
-            {/* ── Histórico ── */}
-            <Section title="Histórico">
-              <CardHistory cardId={card.id} />
-            </Section>
-
-          </div>
-        </ScrollArea>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );
