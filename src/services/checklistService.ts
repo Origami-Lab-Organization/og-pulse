@@ -63,6 +63,65 @@ export const checklistService = {
     if (error) throw error;
   },
 
+  /**
+   * Idempotent: compares current card items against templates and inserts
+   * only the ones that are missing (by item_text + type). Safe to call on
+   * every card open — preserves existing check states, adds nothing twice.
+   * Returns true if any new items were inserted.
+   */
+  async ensureChecklistFromTemplates(
+    cardId: string,
+    projectId: string,
+    cardType: ActivityCardType,
+  ): Promise<boolean> {
+    const [templates, existingItems] = await Promise.all([
+      checklistService.getTemplates(projectId),
+      checklistService.getCardItems(cardId),
+    ]);
+
+    if (templates.length === 0) return false;
+
+    const relevant = templates.filter(
+      (t) => t.card_type === null || t.card_type === cardType,
+    );
+    if (relevant.length === 0) return false;
+
+    const existingByType: Record<string, Set<string>> = {
+      dor: new Set(existingItems.filter((i) => i.type === 'dor').map((i) => i.item_text)),
+      dod: new Set(existingItems.filter((i) => i.type === 'dod').map((i) => i.item_text)),
+    };
+
+    const common   = relevant.filter((t) => t.card_type === null);
+    const specific = relevant.filter((t) => t.card_type === cardType);
+    const buckets: Record<ChecklistType, string[]> = { dor: [], dod: [] };
+    for (const tmpl of [...common, ...specific]) {
+      buckets[tmpl.type].push(...tmpl.items.map((i) => i.text));
+    }
+
+    const rows: { card_id: string; type: ChecklistType; item_text: string; position: number }[] = [];
+    for (const [type, texts] of Object.entries(buckets) as [ChecklistType, string[]][]) {
+      const existingForType = existingItems.filter((i) => i.type === type);
+      const basePos = existingForType.length > 0
+        ? Math.max(...existingForType.map((i) => i.position)) + 1
+        : 0;
+      let offset = 0;
+      for (const text of texts) {
+        if (!existingByType[type].has(text)) {
+          rows.push({ card_id: cardId, type, item_text: text, position: basePos + offset });
+          offset++;
+        }
+      }
+    }
+
+    if (rows.length === 0) return false;
+
+    const { error } = await supabase
+      .from('project_activity_card_checklist')
+      .insert(rows);
+    if (error) throw error;
+    return true;
+  },
+
   async toggleItem(id: string, isChecked: boolean): Promise<void> {
     const { error } = await supabase
       .from('project_activity_card_checklist')

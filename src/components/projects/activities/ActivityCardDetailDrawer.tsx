@@ -135,16 +135,16 @@ export function ActivityCardDetailDrawer({
     }
   }, [card.id, card.title, card.user_story, card.acceptance_criteria, card.blocked_reason]);
 
-  // ── Auto-seed checklist from templates when card has no items ────────────────
+  // ── Ensure checklist is up-to-date with project templates ────────────────────
   useEffect(() => {
     if (!open) return;
-    const hasItems = card.card_checklist && card.card_checklist.length > 0;
-    if (hasItems) return;
     checklistService
-      .seedFromTemplates(card.id, project.id, card.card_type)
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ['card-checklist', card.id] });
-        queryClient.invalidateQueries({ queryKey: ['project-activities', project.id] });
+      .ensureChecklistFromTemplates(card.id, project.id, card.card_type)
+      .then((added) => {
+        if (added) {
+          queryClient.invalidateQueries({ queryKey: ['card-checklist', card.id] });
+          queryClient.invalidateQueries({ queryKey: ['project-activities', project.id] });
+        }
       })
       .catch(() => {}); // silently ignore when no templates configured
   }, [open, card.id]);
