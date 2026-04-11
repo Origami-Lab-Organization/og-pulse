@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { checklistService } from '@/services/checklistService';
 import { ChevronLeft, ChevronRight, Tag, Clock, BookOpen, Bug, Wrench, CheckSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -105,6 +107,7 @@ export function ActivityCardDetailDrawer({
   project,
   isReadOnly = false,
 }: ActivityCardDetailDrawerProps) {
+  const queryClient = useQueryClient();
   const updateCard = useUpdateActivityCard();
   const { canMoveFromDone } = useActivityPermissions(project);
   const members = project.members ?? [];
@@ -131,6 +134,20 @@ export function ActivityCardDetailDrawer({
       setBlockedReason(card.blocked_reason ?? '');
     }
   }, [card.id, card.title, card.user_story, card.acceptance_criteria, card.blocked_reason]);
+
+  // ── Auto-seed checklist from templates when card has no items ────────────────
+  useEffect(() => {
+    if (!open) return;
+    const hasItems = card.card_checklist && card.card_checklist.length > 0;
+    if (hasItems) return;
+    checklistService
+      .seedFromTemplates(card.id, project.id, card.card_type)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['card-checklist', card.id] });
+        queryClient.invalidateQueries({ queryKey: ['project-activities', project.id] });
+      })
+      .catch(() => {}); // silently ignore when no templates configured
+  }, [open, card.id]);
 
   // ── Debounced values ────────────────────────────────────────────────────────
   const debouncedTitle = useDebounce(title, 1000);
