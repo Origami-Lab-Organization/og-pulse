@@ -17,7 +17,7 @@ export const useProjectActivities = (projectId: string | undefined) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_activity_cards')
-        .select('*, assignee:employees!project_activity_cards_assignee_id_fkey(id, nome, foto_url), card_tags:project_activity_card_tags(*, tag:project_activity_tags(*)), card_checklist:project_activity_card_checklist(id, type, is_checked), card_tasks:project_activity_tasks(id, completed_at)')
+        .select('*, assignee:employees!project_activity_cards_assignee_id_fkey(id, nome, foto_url), card_tags:project_activity_card_tags(*, tag:project_activity_tags(*)), card_checklist:project_activity_card_checklist(id, type, is_checked)')
         .eq('project_id', projectId!)
         .order('column_name')
         .order('position');
