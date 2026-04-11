@@ -180,6 +180,16 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
 
   const toItems = (arr: string[]) => arr.filter(Boolean).map((text) => ({ text }));
 
+  // ── Date helpers for DatePicker ───────────────────────────────────────────────
+  const strToDate = (s: string): Date | undefined => {
+    if (!s) return undefined;
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  const dateToStr = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   // ── Auto preview ──────────────────────────────────────────────────────────
   const previewSprints = useMemo(() => {
     if (!startDate) return [];
@@ -399,45 +409,60 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
                 {/* Manual mode */}
                 {namingMode === 'manual' && (
                   <div className="space-y-3">
-                    <div className="rounded-md border overflow-hidden">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="bg-muted/60 border-b">
-                            <th className="py-2 px-2 text-left font-medium text-muted-foreground">Nome</th>
-                            <th className="py-2 px-2 text-left font-medium text-muted-foreground">Início</th>
-                            <th className="py-2 px-2 text-left font-medium text-muted-foreground">Fim</th>
-                            <th className="py-2 px-2 text-left font-medium text-muted-foreground">Goal</th>
-                            <th className="py-2 px-1" />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {manualRows.map((row, idx) => (
-                            <tr key={idx} className="border-b last:border-0">
-                              <td className="py-1 px-1">
-                                <Input value={row.name} onChange={(e) => updateRow(idx, { name: e.target.value })} className="h-7 text-xs" />
-                              </td>
-                              <td className="py-1 px-1">
-                                <Input type="date" value={row.start_date} onChange={(e) => updateRow(idx, { start_date: e.target.value })} className="h-7 text-xs w-32" />
-                              </td>
-                              <td className="py-1 px-1">
-                                <Input type="date" value={row.end_date} onChange={(e) => updateRow(idx, { end_date: e.target.value })} className="h-7 text-xs w-32" />
-                              </td>
-                              <td className="py-1 px-1">
-                                <Input value={row.goal} onChange={(e) => updateRow(idx, { goal: e.target.value })} placeholder="Opcional" className="h-7 text-xs" />
-                              </td>
-                              <td className="py-1 px-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeRow(idx)} disabled={manualRows.length <= 1}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="flex gap-2">
+                    {manualRows.map((row, idx) => (
+                      <div key={idx} className="rounded-md border p-3 space-y-2.5">
+                        {/* Nome + remover */}
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={row.name}
+                            onChange={(e) => updateRow(idx, { name: e.target.value })}
+                            className="h-8 text-sm flex-1"
+                            placeholder="Nome da sprint"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeRow(idx)}
+                            disabled={manualRows.length <= 1}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {/* Início + Fim */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Início</Label>
+                            <DatePicker
+                              value={strToDate(row.start_date)}
+                              onChange={(d) => d && updateRow(idx, { start_date: dateToStr(d) })}
+                              placeholder="Data de início"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Fim</Label>
+                            <DatePicker
+                              value={strToDate(row.end_date)}
+                              onChange={(d) => d && updateRow(idx, { end_date: dateToStr(d) })}
+                              placeholder="Data de fim"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Goal */}
+                        <Input
+                          value={row.goal}
+                          onChange={(e) => updateRow(idx, { goal: e.target.value })}
+                          placeholder="Objetivo da sprint (opcional)"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    ))}
+
+                    <div className="flex gap-2 pt-1">
                       <Button variant="outline" size="sm" onClick={addRow}>
-                        <Plus className="h-3.5 w-3.5 mr-1.5" />Adicionar linha
+                        <Plus className="h-3.5 w-3.5 mr-1.5" />Adicionar sprint
                       </Button>
                       <Button size="sm" disabled={createSprints.isPending} onClick={handleSaveManual}>
                         {createSprints.isPending ? 'Salvando...' : 'Salvar sprints'}
