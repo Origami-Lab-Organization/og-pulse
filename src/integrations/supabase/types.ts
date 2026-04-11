@@ -2325,6 +2325,111 @@ export type Database = {
           },
         ]
       }
+      project_activity_settings: {
+        Row: {
+          id: string
+          project_id: string
+          sprint_duration_weeks: number
+          sprint_naming_mode: string
+          tenant_id: string
+          wip_in_deploy: number | null
+          wip_in_dev: number | null
+          wip_in_test: number | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          sprint_duration_weeks?: number
+          sprint_naming_mode?: string
+          tenant_id: string
+          wip_in_deploy?: number | null
+          wip_in_dev?: number | null
+          wip_in_test?: number | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          sprint_duration_weeks?: number
+          sprint_naming_mode?: string
+          tenant_id?: string
+          wip_in_deploy?: number | null
+          wip_in_dev?: number | null
+          wip_in_test?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activity_settings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_activity_sprints: {
+        Row: {
+          created_at: string
+          end_date: string
+          goal: string | null
+          id: string
+          name: string
+          number: number
+          project_id: string
+          start_date: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          goal?: string | null
+          id?: string
+          name: string
+          number: number
+          project_id: string
+          start_date: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          goal?: string | null
+          id?: string
+          name?: string
+          number?: number
+          project_id?: string
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activity_sprints_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_sprints_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_activity_tags: {
         Row: {
           color: string

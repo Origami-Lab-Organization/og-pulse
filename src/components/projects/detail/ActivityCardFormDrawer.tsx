@@ -84,8 +84,6 @@ export function ActivityCardFormDrawer({
       points:             '',
       userStory:          '',
       acceptanceCriteria: '',
-      isBlocked:          false,
-      blockedReason:      '',
     },
   });
 
