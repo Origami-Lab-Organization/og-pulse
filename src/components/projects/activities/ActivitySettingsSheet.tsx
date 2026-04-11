@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DatePicker } from '@/components/ui/date-picker';
+import { formatDate } from '@/lib/formatters';
 import { ProjectWithRelations } from '@/types/project';
 import {
   ActivityCardType,
@@ -365,8 +366,8 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
                               <tr key={s.number} className="border-b last:border-0 hover:bg-muted/20">
                                 <td className="py-1.5 px-3 text-muted-foreground">{s.number}</td>
                                 <td className="py-1.5 px-3 font-medium">{s.name}</td>
-                                <td className="py-1.5 px-3 text-muted-foreground">{s.start_date}</td>
-                                <td className="py-1.5 px-3 text-muted-foreground">{s.end_date}</td>
+                                <td className="py-1.5 px-3 text-muted-foreground">{formatDate(s.start_date)}</td>
+                                <td className="py-1.5 px-3 text-muted-foreground">{formatDate(s.end_date)}</td>
                                 <td className="py-1.5 px-3">
                                   <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_CLASS[s.status]}`}>
                                     {STATUS_LABEL[s.status]}
