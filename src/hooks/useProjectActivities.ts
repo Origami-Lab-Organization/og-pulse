@@ -49,6 +49,8 @@ export const useCreateActivity = () => {
           assignee_id: input.assigneeId ?? null,
           column_name: (input.columnName ?? 'product_backlog') as ActivityColumnName,
           sprint_id: input.sprintId ?? null,
+          is_blocked: input.isBlocked ?? false,
+          blocked_reason: input.blockedReason ?? null,
           created_by: employee!.id,
         })
         .select()

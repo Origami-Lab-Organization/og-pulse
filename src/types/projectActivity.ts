@@ -69,6 +69,8 @@ export interface CreateActivityInput {
   assigneeId?: string;
   columnName?: ActivityColumnName;
   sprintId?: string;
+  isBlocked?: boolean;
+  blockedReason?: string;
 }
 
 export interface UpdateActivityInput {
