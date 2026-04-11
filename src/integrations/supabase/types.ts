@@ -2158,6 +2158,7 @@ export type Database = {
           acceptance_criteria: string | null
           assignee_id: string | null
           blocked_reason: string | null
+          card_number: number | null
           card_type: string
           column_name: string
           created_at: string
@@ -2177,6 +2178,7 @@ export type Database = {
           acceptance_criteria?: string | null
           assignee_id?: string | null
           blocked_reason?: string | null
+          card_number?: number | null
           card_type?: string
           column_name?: string
           created_at?: string
@@ -2196,6 +2198,7 @@ export type Database = {
           acceptance_criteria?: string | null
           assignee_id?: string | null
           blocked_reason?: string | null
+          card_number?: number | null
           card_type?: string
           column_name?: string
           created_at?: string
