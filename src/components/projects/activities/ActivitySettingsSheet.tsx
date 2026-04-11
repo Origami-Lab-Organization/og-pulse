@@ -117,12 +117,12 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
     task:      'Tarefa',
   };
 
-  const emptyDorItems = (): Record<CkKey, string[]> => ({
+  const emptyItems = (): Record<CkKey, string[]> => ({
     common: [''], story: [''], bug: [''], tech_debt: [''], task: [''],
   });
 
-  const [dorItems, setDorItems] = useState<Record<CkKey, string[]>>(emptyDorItems);
-  const [dodItems, setDodItems] = useState<string[]>(['']);
+  const [dorItems, setDorItems] = useState<Record<CkKey, string[]>>(emptyItems);
+  const [dodItems, setDodItems] = useState<Record<CkKey, string[]>>(emptyItems);
 
   // ── Initialize from loaded data ───────────────────────────────────────────
   useEffect(() => {
@@ -158,15 +158,18 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
 
   useEffect(() => {
     if (!open) return;
-    const nextDor = emptyDorItems();
-    templates.filter((t) => t.type === 'dor').forEach((t) => {
-      const key: CkKey = (t.card_type as CkKey | null) ?? 'common';
-      nextDor[key] = t.items.length > 0 ? t.items.map((i) => i.text) : [''];
-    });
-    setDorItems(nextDor);
 
-    const dod = templates.find((t) => t.type === 'dod' && t.card_type === null);
-    setDodItems(dod && dod.items.length > 0 ? dod.items.map((i) => i.text) : ['']);
+    const loadByType = (checkType: 'dor' | 'dod'): Record<CkKey, string[]> => {
+      const next = emptyItems();
+      templates.filter((t) => t.type === checkType).forEach((t) => {
+        const key: CkKey = (t.card_type as CkKey | null) ?? 'common';
+        next[key] = t.items.length > 0 ? t.items.map((i) => i.text) : [''];
+      });
+      return next;
+    };
+
+    setDorItems(loadByType('dor'));
+    setDodItems(loadByType('dod'));
   }, [templates, open]);
 
   // ── Checklist helpers ─────────────────────────────────────────────────────
@@ -185,13 +188,20 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
       setDorItems((prev) => ({ ...prev, [key]: [...prev[key], ''] })),
   });
 
-  const dodCtrl = {
+  const makeDodUpdater = (key: CkKey) => ({
     update: (idx: number, val: string) =>
-      setDodItems((prev) => prev.map((v, i) => (i === idx ? val : v))),
+      setDodItems((prev) => ({
+        ...prev,
+        [key]: prev[key].map((v, i) => (i === idx ? val : v)),
+      })),
     remove: (idx: number) =>
-      setDodItems((prev) => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev),
-    add: () => setDodItems((prev) => [...prev, '']),
-  };
+      setDodItems((prev) => ({
+        ...prev,
+        [key]: prev[key].length > 1 ? prev[key].filter((_, i) => i !== idx) : prev[key],
+      })),
+    add: () =>
+      setDodItems((prev) => ({ ...prev, [key]: [...prev[key], ''] })),
+  });
 
   const toItems = (arr: string[]) => arr.filter(Boolean).map((text) => ({ text }));
 
@@ -236,8 +246,8 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
     CK_KEYS.forEach((key) => {
       const cardType: ActivityCardType | null = key === 'common' ? null : key as ActivityCardType;
       saveTemplate.mutate({ projectId: project.id, type: 'dor', cardType, items: toItems(dorItems[key]) });
+      saveTemplate.mutate({ projectId: project.id, type: 'dod', cardType, items: toItems(dodItems[key]) });
     });
-    saveTemplate.mutate({ projectId: project.id, type: 'dod', cardType: null, items: toItems(dodItems) });
   };
 
   const handleSaveAll = () => {
@@ -527,39 +537,49 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
 
                 <Separator />
 
-                {/* DoD — common */}
-                <div className="space-y-2">
+                {/* DoD — per card type */}
+                <div className="space-y-4">
                   <div>
                     <p className="text-xs font-semibold text-foreground">Definition of Done (DoD)</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Critérios que um card deve atender para ser considerado concluído.
                     </p>
                   </div>
-                  {dodItems.map((text, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <Input
-                        value={text}
-                        onChange={(e) => dodCtrl.update(idx, e.target.value)}
-                        placeholder={`Critério ${idx + 1}`}
-                        className="h-8 text-sm"
-                      />
-                      <Button
-                        variant="ghost" size="icon"
-                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => dodCtrl.remove(idx)}
-                        disabled={dodItems.length <= 1}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => dodCtrl.add()}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Plus className="h-3 w-3" />Adicionar critério
-                  </button>
+
+                  {CK_KEYS.map((key) => {
+                    const ctrl  = makeDodUpdater(key);
+                    const items = dodItems[key];
+                    return (
+                      <div key={key} className="space-y-1.5 pl-3 border-l-2 border-border">
+                        <p className="text-xs font-medium text-muted-foreground">{CK_LABELS[key]}</p>
+                        {items.map((text, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <Input
+                              value={text}
+                              onChange={(e) => ctrl.update(idx, e.target.value)}
+                              placeholder={`Critério ${idx + 1}`}
+                              className="h-7 text-xs"
+                            />
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => ctrl.remove(idx)}
+                              disabled={items.length <= 1}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => ctrl.add()}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />Adicionar critério
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
 
               </div>
