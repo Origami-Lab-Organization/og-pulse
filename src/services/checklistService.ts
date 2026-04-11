@@ -74,7 +74,7 @@ export const checklistService = {
   /**
    * Replaces the template for (project, type, cardType).
    * cardType = null means the "common to all types" template.
-   * Uses delete + insert to sidestep NULLS NOT DISTINCT complexity on PostgREST upsert.
+   * Uses SELECT + (UPDATE or INSERT) to avoid needing a DELETE RLS policy.
    */
   async upsertTemplate(
     projectId: string,
@@ -83,27 +83,32 @@ export const checklistService = {
     cardType: ActivityCardType | null,
     items: { text: string }[],
   ): Promise<void> {
-    // Delete existing row
-    let delQuery = supabase
+    // Find existing row
+    let selectQ = supabase
       .from('project_activity_checklist_templates')
-      .delete()
+      .select('id')
       .eq('project_id', projectId)
       .eq('type', type);
 
-    if (cardType === null) {
-      delQuery = delQuery.is('card_type', null);
-    } else {
-      delQuery = delQuery.eq('card_type', cardType);
+    selectQ = cardType === null
+      ? selectQ.is('card_type', null)
+      : selectQ.eq('card_type', cardType);
+
+    const { data: existing } = await selectQ.maybeSingle();
+
+    if (existing?.id) {
+      // Update items in place — no DELETE needed
+      const { error } = await supabase
+        .from('project_activity_checklist_templates')
+        .update({ items })
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else if (items.length > 0) {
+      // No existing row — insert
+      const { error } = await supabase
+        .from('project_activity_checklist_templates')
+        .insert({ project_id: projectId, tenant_id: tenantId, type, card_type: cardType, items });
+      if (error) throw error;
     }
-
-    const { error: delErr } = await delQuery;
-    if (delErr) throw delErr;
-
-    if (items.length === 0) return;
-
-    const { error } = await supabase
-      .from('project_activity_checklist_templates')
-      .insert({ project_id: projectId, tenant_id: tenantId, type, card_type: cardType, items });
-    if (error) throw error;
   },
 };

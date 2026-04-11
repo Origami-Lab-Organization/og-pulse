@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { checklistService } from '@/services/checklistService';
 import {
   Sheet,
   SheetContent,
@@ -38,10 +41,8 @@ import {
   useCreateSprints,
   useSaveActivitySettings,
 } from '@/hooks/useActivitySprints';
-import {
-  useChecklistTemplates,
-  useSaveChecklistTemplate,
-} from '@/hooks/useCardChecklist';
+import { useChecklistTemplates } from '@/hooks/useCardChecklist';
+import { useQueryClient } from '@tanstack/react-query';
 
 // ── Sprint status badge ───────────────────────────────────────────────────────
 const STATUS_LABEL: Record<SprintStatus, string> = {
@@ -83,12 +84,15 @@ interface ActivitySettingsSheetProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivitySettingsSheetProps) {
+  const { employee } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: settings }    = useActivitySettings(project.id);
   const { data: sprints = [] } = useActivitySprints(project.id);
   const { data: templates = [] } = useChecklistTemplates(project.id);
   const saveSettings  = useSaveActivitySettings();
   const createSprints = useCreateSprints();
-  const saveTemplate  = useSaveChecklistTemplate();
+  const [isSavingChecklists, setIsSavingChecklists] = useState(false);
 
   // ── Active tab ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'sprints' | 'wip' | 'checklists'>('sprints');
@@ -212,12 +216,26 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
     });
   };
 
-  const handleSaveChecklists = () => {
-    CK_KEYS.forEach((key) => {
-      const cardType: ActivityCardType | null = key === 'common' ? null : key as ActivityCardType;
-      saveTemplate.mutate({ projectId: project.id, type: 'dor', cardType, items: toItems(dorItems[key]) });
-      saveTemplate.mutate({ projectId: project.id, type: 'dod', cardType, items: toItems(dodItems[key]) });
-    });
+  const handleSaveChecklists = async () => {
+    if (!employee) return;
+    setIsSavingChecklists(true);
+    try {
+      await Promise.all(
+        CK_KEYS.flatMap((key) => {
+          const cardType: ActivityCardType | null = key === 'common' ? null : key as ActivityCardType;
+          return [
+            checklistService.upsertTemplate(project.id, employee.tenant_id, 'dor', cardType, toItems(dorItems[key])),
+            checklistService.upsertTemplate(project.id, employee.tenant_id, 'dod', cardType, toItems(dodItems[key])),
+          ];
+        })
+      );
+      queryClient.invalidateQueries({ queryKey: ['checklist-templates', project.id] });
+      toast({ title: 'Checklists salvos' });
+    } catch {
+      toast({ title: 'Erro ao salvar checklists', variant: 'destructive' });
+    } finally {
+      setIsSavingChecklists(false);
+    }
   };
 
   const handleSaveAll = () => {
@@ -239,7 +257,7 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
     });
   };
 
-  const isSaving = saveSettings.isPending || saveTemplate.isPending;
+  const isSaving = saveSettings.isPending || isSavingChecklists;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
