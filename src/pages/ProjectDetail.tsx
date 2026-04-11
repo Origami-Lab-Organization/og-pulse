@@ -17,6 +17,7 @@ import { ProjectStakeholdersTab } from '@/components/projects/detail/ProjectStak
 import { ProjectScheduleTab } from '@/components/projects/detail/ProjectScheduleTab';
 import { ProjectExpectedResultTab } from '@/components/projects/detail/ProjectExpectedResultTab';
 import { ProjectCommissionsTab } from '@/components/projects/detail/ProjectCommissionsTab';
+import { ProjectActivitiesTab } from '@/components/projects/detail/ProjectActivitiesTab';
 import { ProjectValueBookUpload } from '@/components/projects/detail/ProjectValueBookUpload';
 import { ProjectFormDialog } from '@/components/projects/ProjectFormDialog';
 import { ProjectRemoveDialog } from '@/components/projects/ProjectRemoveDialog';
@@ -118,46 +119,45 @@ export default function ProjectDetail() {
   const canEdit = isAdmin || !isCompleted;
   const isReadOnly = isCompleted && !isAdmin;
   const canManageInstallments = (isAdmin || isManager) && !isReadOnly;
+  const isMember = project.members?.some((m) => m.employee_id === employee?.id) ?? false;
+  const canViewActivities = isAdmin || isManager || isMember;
+  const canCreateActivity = isAdmin || isManager;
   const showValueBook = !isPlanning;
+
+  const headerActions = (canEdit || isAdmin) ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {canEdit && (
+          <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar
+          </DropdownMenuItem>
+        )}
+        {isAdmin && (
+          <DropdownMenuItem
+            onClick={() => setRemoveDialogOpen(true)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Excluir / Arquivar
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : undefined;
 
   return (
     <AppLayout
       title={project.name}
-      breadcrumbs={[
-        { label: 'Portfólio', href: '/portfolio' },
-        { label: project.name },
-      ]}
-      actions={
-        (canEdit || isAdmin) ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canEdit && (
-                <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Editar
-                </DropdownMenuItem>
-              )}
-              {isAdmin && (
-                <DropdownMenuItem
-                  onClick={() => setRemoveDialogOpen(true)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Excluir / Arquivar
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : undefined
-      }
+      hideHeader
     >
-      <div className="space-y-6">
-        <ProjectHeader project={project} />
+      <div className="space-y-4">
+        <ProjectHeader project={project} actions={headerActions} />
 
         {isCancelled && (project as any).cancellation_reason && (
           <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
@@ -190,6 +190,9 @@ export default function ProjectDetail() {
             <TabsTrigger value="schedule">Cronograma</TabsTrigger>
             <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
+            {canViewActivities && (
+              <TabsTrigger value="activities">Atividades</TabsTrigger>
+            )}
             {showValueBook && (
               <TabsTrigger value="valuebook">Value Book</TabsTrigger>
             )}
@@ -235,6 +238,12 @@ export default function ProjectDetail() {
               <ProjectFinancialTab project={project} isReadOnly={isReadOnly} canManageInstallments={canManageInstallments} />
             )}
           </TabsContent>
+
+          {canViewActivities && (
+            <TabsContent value="activities" className="mt-6">
+              <ProjectActivitiesTab project={project} isReadOnly={isReadOnly} canCreate={canCreateActivity} />
+            </TabsContent>
+          )}
 
           {showValueBook && (
             <TabsContent value="valuebook" className="mt-6">
