@@ -3,7 +3,47 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { checklistService } from '@/services/checklistService';
-import { CardChecklistItemDB, ChecklistType } from '@/types/projectActivity';
+import { CardChecklistItemDB, ChecklistTemplateDB, ChecklistType } from '@/types/projectActivity';
+
+// ── Template hooks ────────────────────────────────────────────────────────────
+
+export const useChecklistTemplates = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: ['checklist-templates', projectId],
+    queryFn: () => checklistService.getTemplates(projectId!),
+    enabled: !!projectId,
+    select: (data) => data as ChecklistTemplateDB[],
+  });
+
+export const useSaveChecklistTemplate = () => {
+  const queryClient = useQueryClient();
+  const { employee } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      projectId,
+      type,
+      items,
+    }: {
+      projectId: string;
+      type: ChecklistType;
+      items: { text: string }[];
+    }) => {
+      await checklistService.upsertTemplate(projectId, employee!.tenant_id, type, items);
+      return { projectId };
+    },
+    onSuccess: ({ projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['checklist-templates', projectId] });
+      toast({ title: 'Checklist salvo' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao salvar checklist', variant: 'destructive' });
+    },
+  });
+};
+
+// ── Card checklist hooks ──────────────────────────────────────────────────────
 
 export const useCardChecklist = (cardId: string, type: ChecklistType) => {
   return useQuery({

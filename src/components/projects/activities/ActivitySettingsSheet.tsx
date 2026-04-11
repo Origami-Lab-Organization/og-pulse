@@ -35,6 +35,10 @@ import {
   useCreateSprints,
   useSaveActivitySettings,
 } from '@/hooks/useActivitySprints';
+import {
+  useChecklistTemplates,
+  useSaveChecklistTemplate,
+} from '@/hooks/useCardChecklist';
 
 // ── Sprint status badge ───────────────────────────────────────────────────────
 const STATUS_LABEL: Record<SprintStatus, string> = {
@@ -91,8 +95,10 @@ interface ActivitySettingsSheetProps {
 export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivitySettingsSheetProps) {
   const { data: settings } = useActivitySettings(project.id);
   const { data: sprints = [] }  = useActivitySprints(project.id);
+  const { data: templates = [] } = useChecklistTemplates(project.id);
   const saveSettings  = useSaveActivitySettings();
   const createSprints = useCreateSprints();
+  const saveTemplate  = useSaveChecklistTemplate();
 
   // ── Sprint settings state ──────────────────────────────────────────────────
   const [durationWeeks, setDurationWeeks] = useState(2);
@@ -107,6 +113,10 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
 
   // ── Manual rows state ─────────────────────────────────────────────────────
   const [manualRows, setManualRows] = useState<SprintRow[]>([]);
+
+  // ── Checklist template state ───────────────────────────────────────────────
+  const [dorItems, setDorItems] = useState<string[]>(['']);
+  const [dodItems, setDodItems] = useState<string[]>(['']);
 
   // ── Initialize from loaded data ───────────────────────────────────────────
   useEffect(() => {
@@ -136,6 +146,34 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
       setManualRows([newEmptyRow(0)]);
     }
   }, [sprints, open]);
+
+  // Initialize checklist templates
+  useEffect(() => {
+    if (!open) return;
+    const dor = templates.find((t) => t.type === 'dor');
+    const dod = templates.find((t) => t.type === 'dod');
+    setDorItems(dor && dor.items.length > 0 ? dor.items.map((i) => i.text) : ['']);
+    setDodItems(dod && dod.items.length > 0 ? dod.items.map((i) => i.text) : ['']);
+  }, [templates, open]);
+
+  // ── Checklist helpers ─────────────────────────────────────────────────────
+  const makeUpdater = (setter: React.Dispatch<React.SetStateAction<string[]>>) => ({
+    update: (idx: number, val: string) =>
+      setter((prev) => prev.map((v, i) => (i === idx ? val : v))),
+    remove: (idx: number) =>
+      setter((prev) => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev),
+    add: () =>
+      setter((prev) => [...prev, '']),
+  });
+
+  const dorCtrl = makeUpdater(setDorItems);
+  const dodCtrl = makeUpdater(setDodItems);
+
+  const handleSaveChecklists = () => {
+    const toItems = (arr: string[]) => arr.filter(Boolean).map((text) => ({ text }));
+    saveTemplate.mutate({ projectId: project.id, type: 'dor', items: toItems(dorItems) });
+    saveTemplate.mutate({ projectId: project.id, type: 'dod', items: toItems(dodItems) });
+  };
 
   // ── Auto preview ──────────────────────────────────────────────────────────
   const previewSprints = useMemo(() => {
@@ -448,6 +486,79 @@ export function ActivitySettingsSheet({ open, onOpenChange, project }: ActivityS
                   />
                 </div>
               </div>
+            </Section>
+
+            <Separator />
+
+            {/* ── Checklists ── */}
+            <Section title="Checklists">
+
+              {/* DoR */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">Definition of Ready (DoR)</Label>
+                {dorItems.map((text, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <Input
+                      value={text}
+                      onChange={(e) => dorCtrl.update(idx, e.target.value)}
+                      placeholder={`Critério ${idx + 1}`}
+                      className="h-8 text-sm"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => dorCtrl.remove(idx)}
+                      disabled={dorItems.length <= 1}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button variant="outline" size="sm" onClick={() => dorCtrl.add()}>
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Adicionar critério
+                </Button>
+              </div>
+
+              <Separator className="my-1" />
+
+              {/* DoD */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">Definition of Done (DoD)</Label>
+                {dodItems.map((text, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <Input
+                      value={text}
+                      onChange={(e) => dodCtrl.update(idx, e.target.value)}
+                      placeholder={`Critério ${idx + 1}`}
+                      className="h-8 text-sm"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => dodCtrl.remove(idx)}
+                      disabled={dodItems.length <= 1}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button variant="outline" size="sm" onClick={() => dodCtrl.add()}>
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Adicionar critério
+                </Button>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={handleSaveChecklists}
+                disabled={saveTemplate.isPending}
+              >
+                {saveTemplate.isPending ? 'Salvando...' : 'Salvar checklists'}
+              </Button>
+
             </Section>
 
           </div>

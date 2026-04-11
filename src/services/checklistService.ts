@@ -51,4 +51,19 @@ export const checklistService = {
       .eq('id', id);
     if (error) throw error;
   },
+
+  async upsertTemplate(
+    projectId: string,
+    tenantId: string,
+    type: ChecklistType,
+    items: { text: string }[]
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('project_activity_checklist_templates')
+      .upsert(
+        { project_id: projectId, tenant_id: tenantId, type, items },
+        { onConflict: 'project_id,type' }
+      );
+    if (error) throw error;
+  },
 };
