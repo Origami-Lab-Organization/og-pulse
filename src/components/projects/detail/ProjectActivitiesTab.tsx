@@ -282,21 +282,6 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
 
   return (
     <>
-      {/* ── Board header (settings button for Admin/PM) ── */}
-      {isPM && (
-        <div className="flex justify-end mb-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <Settings className="h-4 w-4" />
-            Configurações
-          </Button>
-        </div>
-      )}
-
       {/* ── Sprint Banner ── */}
       <SprintBanner
         projectId={project.id}

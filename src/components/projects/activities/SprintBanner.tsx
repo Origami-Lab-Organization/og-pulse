@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarRange, Target } from 'lucide-react';
+import { CalendarRange, Settings, Target } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -132,6 +132,18 @@ export function SprintBanner({
           onClick={() => onOpenPlanning(nextSprint.id)}
         >
           Planejar Sprint
+        </Button>
+      )}
+
+      {/* Settings icon — always accessible for PMs */}
+      {isPM && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 shrink-0"
+          onClick={onOpenSettings}
+        >
+          <Settings className="h-4 w-4 text-muted-foreground" />
         </Button>
       )}
     </div>
