@@ -49,6 +49,31 @@ export interface CardChecklistItemDB {
   created_at: string;
 }
 
+// ── Tasks ────────────────────────────────────────────────────────────────────
+
+export interface ActivityTaskDB {
+  id: string;
+  card_id: string;
+  tenant_id: string;
+  description: string;
+  assignee_id: string | null;
+  due_date: string | null;      // YYYY-MM-DD
+  completed_at: string | null;  // ISO timestamp
+  created_by: string;
+  position: number;
+  created_at: string;
+}
+
+export interface ActivityTaskWithRelations extends ActivityTaskDB {
+  assignee?: {
+    id: string;
+    nome: string;
+    foto_url: string | null;
+  } | null;
+}
+
+// ── Card with relations ───────────────────────────────────────────────────────
+
 export interface ProjectActivityCardWithRelations extends ProjectActivityCardDB {
   assignee?: {
     id: string;
@@ -57,6 +82,7 @@ export interface ProjectActivityCardWithRelations extends ProjectActivityCardDB 
   } | null;
   card_tags?: ProjectActivityCardTagWithTag[];
   card_checklist?: Pick<CardChecklistItemDB, 'id' | 'type' | 'is_checked'>[];
+  card_tasks?: Pick<ActivityTaskDB, 'id' | 'completed_at'>[];
 }
 
 export interface CreateActivityInput {

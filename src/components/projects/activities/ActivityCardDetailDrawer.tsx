@@ -461,7 +461,7 @@ export function ActivityCardDetailDrawer({
 
             {/* ── Tarefas ── */}
             <Section title="Tarefas">
-              <CardTaskList cardId={card.id} disabled={disabled} />
+              <CardTaskList cardId={card.id} project={project} tenantId={card.tenant_id} disabled={disabled} />
             </Section>
 
             <Separator />

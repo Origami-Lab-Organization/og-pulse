@@ -31,6 +31,8 @@ const FIELD_LABELS: Record<string, string> = {
   status:              'Coluna',
   dor:                 'DoR',
   dod:                 'DoD',
+  task_added:          'Tarefa adicionada',
+  task_completed:      'Tarefa concluída',
 };
 
 function formatFieldValue(field: string, value: string | null): string {
