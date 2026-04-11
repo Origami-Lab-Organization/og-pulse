@@ -69,7 +69,7 @@ export function CardHistory({ cardId }: CardHistoryProps) {
               {entry.changed_by_employee?.nome ?? 'Sistema'}
             </span>
             <span>
-              {formatDistanceToNow(parseISO(entry.changed_at), { addSuffix: true, locale: ptBR })}
+              {entry.changed_at ? formatDistanceToNow(parseISO(entry.changed_at), { addSuffix: true, locale: ptBR }) : ''}
             </span>
           </div>
           <p>

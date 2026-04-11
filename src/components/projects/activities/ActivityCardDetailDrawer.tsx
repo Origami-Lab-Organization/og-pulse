@@ -220,7 +220,7 @@ export function ActivityCardDetailDrawer({
             )}
             <span className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
               <Clock className="h-3 w-3" />
-              {format(parseISO(card.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {card.created_at ? format(parseISO(card.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : '—'}
             </span>
 
             <div className="flex items-center gap-1 ml-auto">

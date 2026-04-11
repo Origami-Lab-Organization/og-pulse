@@ -15,6 +15,7 @@ import { useProjectActivities, useCreateActivity } from '@/hooks/useProjectActiv
 import { ActivityCard } from './ActivityCard';
 import { ActivityCardFormDrawer } from './ActivityCardFormDrawer';
 import { ActivityCardDetailDrawer } from '@/components/projects/activities/ActivityCardDetailDrawer';
+import { ActivityErrorBoundary } from '@/components/projects/activities/ActivityErrorBoundary';
 
 interface ProjectActivitiesTabProps {
   project: ProjectWithRelations;
@@ -133,13 +134,15 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
       />
 
       {selectedCard && (
-        <ActivityCardDetailDrawer
-          open={!!selectedCardId}
-          onOpenChange={(open) => { if (!open) setSelectedCardId(null); }}
-          card={selectedCard}
-          project={project}
-          isReadOnly={isReadOnly}
-        />
+        <ActivityErrorBoundary onClose={() => setSelectedCardId(null)}>
+          <ActivityCardDetailDrawer
+            open={!!selectedCardId}
+            onOpenChange={(open) => { if (!open) setSelectedCardId(null); }}
+            card={selectedCard}
+            project={project}
+            isReadOnly={isReadOnly}
+          />
+        </ActivityErrorBoundary>
       )}
     </>
   );
