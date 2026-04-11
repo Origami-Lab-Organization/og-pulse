@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,6 +46,34 @@ export interface PreviousCardValues {
   is_blocked: boolean;
   blocked_reason: string | null;
 }
+
+export interface CardHistoryEntry {
+  id: string;
+  card_id: string;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  changed_at: string;
+  changed_by_employee: {
+    nome: string;
+    foto_url: string | null;
+  } | null;
+}
+
+export const useCardHistory = (cardId: string) =>
+  useQuery({
+    queryKey: ['card-history', cardId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_activity_card_history')
+        .select('*, changed_by_employee:employees!project_activity_card_history_changed_by_fkey(nome, foto_url)')
+        .eq('card_id', cardId)
+        .order('changed_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as CardHistoryEntry[];
+    },
+    enabled: !!cardId,
+  });
 
 export const useUpdateActivityCard = () => {
   const queryClient = useQueryClient();
