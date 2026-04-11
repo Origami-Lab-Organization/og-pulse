@@ -164,3 +164,30 @@ export const useMoveActivity = () => {
     },
   });
 };
+
+export const useBatchUpdatePositions = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      projectId,
+      cards,
+    }: {
+      projectId: string;
+      cards: { id: string; position: number }[];
+    }) => {
+      await Promise.all(
+        cards.map(({ id, position }) =>
+          supabase
+            .from('project_activity_cards')
+            .update({ position })
+            .eq('id', id)
+        )
+      );
+      return { projectId };
+    },
+    onSuccess: ({ projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project-activities', projectId] });
+    },
+  });
+};

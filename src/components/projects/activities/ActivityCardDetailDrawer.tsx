@@ -33,6 +33,7 @@ import {
 } from '@/types/projectActivity';
 import { ProjectWithRelations } from '@/types/project';
 import { useUpdateActivityCard, PreviousCardValues } from '@/hooks/useActivityCards';
+import { useActivityPermissions } from '@/hooks/useActivityPermissions';
 import { CardBlockSection } from './CardBlockSection';
 import { CardChecklist } from './CardChecklist';
 import { CardTaskList } from './CardTaskList';
@@ -87,12 +88,12 @@ export function ActivityCardDetailDrawer({
   isReadOnly = false,
 }: ActivityCardDetailDrawerProps) {
   const updateCard = useUpdateActivityCard();
+  const { canMoveFromDone } = useActivityPermissions(project);
   const members = project.members ?? [];
   const isCardDone = card.column_name === 'done';
+  const isFirst = card.column_name === 'product_backlog';
   // Fields are read-only when card is Done or project is read-only
   const disabled = isReadOnly || isCardDone;
-  // Navigation (← →) only blocked by isReadOnly, NOT by isCardDone
-  // so the user can move the card out of Done
   const canNavigate = !isReadOnly;
 
   // ── Local state ────────────────────────────────────────────────────────────
@@ -183,8 +184,10 @@ export function ActivityCardDetailDrawer({
 
   // ── Column navigation ────────────────────────────────────────────────────────
   const colIndex = ACTIVITY_COLUMNS.indexOf(card.column_name);
-  const canGoPrev = colIndex > 0 && canNavigate;
-  const canGoNext = colIndex < ACTIVITY_COLUMNS.length - 1 && canNavigate;
+  // ← disabled when product_backlog or done (done has its own "Reabrir" button)
+  const canGoPrev = !isFirst && !isCardDone && canNavigate;
+  // → disabled when done
+  const canGoNext = !isCardDone && colIndex < ACTIVITY_COLUMNS.length - 1 && canNavigate;
 
   const moveColumn = (direction: 'prev' | 'next') => {
     const newCol = ACTIVITY_COLUMNS[direction === 'prev' ? colIndex - 1 : colIndex + 1];
@@ -224,16 +227,29 @@ export function ActivityCardDetailDrawer({
             </span>
 
             <div className="flex items-center gap-1 ml-auto">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                disabled={!canGoPrev}
-                onClick={() => moveColumn('prev')}
-                title={canGoPrev ? `← ${COLUMN_LABELS[ACTIVITY_COLUMNS[colIndex - 1]]}` : undefined}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
+              {/* "← Reabrir" aparece apenas em Done para Admin/PM; substitui o ← normal */}
+              {isCardDone && canMoveFromDone ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs px-2"
+                  onClick={() => saveColumn('in_deploy')}
+                  title="Mover para In Deploy"
+                >
+                  ← Reabrir
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={!canGoPrev}
+                  onClick={() => moveColumn('prev')}
+                  title={canGoPrev ? `← ${COLUMN_LABELS[ACTIVITY_COLUMNS[colIndex - 1]]}` : undefined}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
