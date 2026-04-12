@@ -15,9 +15,12 @@ export const useProjectActivities = (projectId: string | undefined) => {
   return useQuery({
     queryKey: ['project-activities', projectId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Break up builder chain to avoid TS2589 "excessively deep type instantiation"
+      const query = supabase
         .from('project_activity_cards')
-        .select('*, assignee:employees!project_activity_cards_assignee_id_fkey(id, nome, foto_url), card_tags:project_activity_card_tags(*, tag:project_activity_tags(*)), card_checklist:project_activity_card_checklist(id, type, is_checked), card_tasks:project_activity_tasks(id, completed_at)')
+        .select('*, assignee:employees!project_activity_cards_assignee_id_fkey(id, nome, foto_url), card_tags:project_activity_card_tags(*, tag:project_activity_tags(*)), card_checklist:project_activity_card_checklist(id, type, is_checked), card_tasks:project_activity_tasks(id, completed_at)') as any;
+
+      const { data, error } = await query
         .eq('project_id', projectId!)
         .eq('is_archived', false)
         .order('column_name')
