@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,7 +70,10 @@ interface ProjectActivitiesTabProps {
 
 // ── Component ────────────────────────────────────────────────────────────────
 export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesTabProps) {
-  const { data: activities = [], isLoading } = useProjectActivities(project.id);
+  const { data: activitiesData, isLoading } = useProjectActivities(project.id);
+  // Stable reference: inline `= []` in destructuring creates a new array every render
+  // when data is undefined (error / loading), which causes the localCards effect to loop.
+  const activities = useMemo(() => activitiesData ?? [], [activitiesData]);
   const { data: boardSettings } = useActivitySettings(project.id);
   const { data: sprints = [] } = useActivitySprints(project.id);
   const createActivity = useCreateActivity();
