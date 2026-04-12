@@ -39,9 +39,11 @@ import {
 } from '@/hooks/useProjectActivities';
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
 import { useActivitySettings, useActivitySprints } from '@/hooks/useActivitySprints';
+import { useKanbanFilters, applyKanbanFilters } from '@/hooks/useKanbanFilters';
 import { useToast } from '@/hooks/use-toast';
 import { ActivityCard } from './ActivityCard';
 import { ActivityKanbanColumn } from '@/components/projects/activities/ActivityKanbanColumn';
+import { KanbanFiltersBar } from '@/components/projects/activities/KanbanFiltersBar';
 import { ActivityCardFormDrawer } from './ActivityCardFormDrawer';
 import { ActivityCardDetailDrawer } from '@/components/projects/activities/ActivityCardDetailDrawer';
 import { ActivityErrorBoundary } from '@/components/projects/activities/ActivityErrorBoundary';
@@ -77,6 +79,7 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
   const batchUpdatePositions = useBatchUpdatePositions();
   const { toast } = useToast();
   const { isEmployee, isPM } = useActivityPermissions(project);
+  const filters = useKanbanFilters();
 
   // WIP limits: from DB settings when available, else fall back to defaults
   const WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = boardSettings
@@ -121,10 +124,13 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  // Group cards by column, sorted by position
+  // Apply filters (DnD still uses full localCards for state management)
+  const visibleCards = applyKanbanFilters(localCards, filters);
+
+  // Group visible cards by column, sorted by position
   const byColumn = ACTIVITY_COLUMNS.reduce<Record<ActivityColumnName, ProjectActivityCardWithRelations[]>>(
     (acc, col) => {
-      acc[col] = localCards
+      acc[col] = visibleCards
         .filter((a) => a.column_name === col)
         .sort((a, b) => a.position - b.position);
       return acc;
@@ -293,6 +299,8 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
         onOpenPlanning={handleOpenPlanning}
         onCloseSprint={() => setCloseSprintOpen(true)}
       />
+
+      <KanbanFiltersBar projectId={project.id} {...filters} />
 
       <DndContext
         sensors={sensors}
