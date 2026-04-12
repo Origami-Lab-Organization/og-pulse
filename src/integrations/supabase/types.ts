@@ -2194,6 +2194,8 @@ export type Database = {
       project_activity_cards: {
         Row: {
           acceptance_criteria: string | null
+          archived_at: string | null
+          archived_by: string | null
           assignee_id: string | null
           blocked_reason: string | null
           card_number: number | null
@@ -2202,6 +2204,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          is_archived: boolean
           is_blocked: boolean
           points: number | null
           position: number
@@ -2214,6 +2217,8 @@ export type Database = {
         }
         Insert: {
           acceptance_criteria?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assignee_id?: string | null
           blocked_reason?: string | null
           card_number?: number | null
@@ -2222,6 +2227,7 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          is_archived?: boolean
           is_blocked?: boolean
           points?: number | null
           position?: number
@@ -2234,6 +2240,8 @@ export type Database = {
         }
         Update: {
           acceptance_criteria?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assignee_id?: string | null
           blocked_reason?: string | null
           card_number?: number | null
@@ -2242,6 +2250,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          is_archived?: boolean
           is_blocked?: boolean
           points?: number | null
           position?: number
@@ -2253,6 +2262,13 @@ export type Database = {
           user_story?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_activity_cards_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_activity_cards_assignee_id_fkey"
             columns: ["assignee_id"]
