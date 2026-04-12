@@ -3189,6 +3189,75 @@ export type Database = {
           },
         ]
       }
+      project_roles: {
+        Row: {
+          clt_encargos_multiplier: number | null
+          created_at: string | null
+          created_by: string | null
+          employee_id: string | null
+          employment_type: string
+          freelancer_email: string | null
+          freelancer_name: string | null
+          hourly_rate: number | null
+          id: string
+          monthly_rate: number | null
+          payment_type: string
+          project_id: string
+          role_name: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          clt_encargos_multiplier?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          employee_id?: string | null
+          employment_type: string
+          freelancer_email?: string | null
+          freelancer_name?: string | null
+          hourly_rate?: number | null
+          id?: string
+          monthly_rate?: number | null
+          payment_type: string
+          project_id: string
+          role_name: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          clt_encargos_multiplier?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          employee_id?: string | null
+          employment_type?: string
+          freelancer_email?: string | null
+          freelancer_name?: string | null
+          hourly_rate?: number | null
+          id?: string
+          monthly_rate?: number | null
+          payment_type?: string
+          project_id?: string
+          role_name?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_roles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_roles_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_stakeholders: {
         Row: {
           action: string | null
