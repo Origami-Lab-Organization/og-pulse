@@ -15,6 +15,7 @@ interface SprintBannerProps {
   isPM: boolean;
   onOpenSettings: () => void;
   onOpenPlanning: (sprintId: string) => void;
+  onCloseSprint: () => void;
 }
 
 function fmtDate(d: string): string {
@@ -27,6 +28,7 @@ export function SprintBanner({
   isPM,
   onOpenSettings,
   onOpenPlanning,
+  onCloseSprint,
 }: SprintBannerProps) {
   const { data: sprints = [] } = useActivitySprints(projectId);
   const updateGoal = useUpdateSprintGoal();
@@ -123,6 +125,18 @@ export function SprintBanner({
       <Badge variant="outline" className="shrink-0 text-xs">
         {committedPoints} pts comprometidos
       </Badge>
+
+      {/* Encerrar Sprint — always visible for PM when sprint is active */}
+      {isPM && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={onCloseSprint}
+        >
+          Encerrar Sprint
+        </Button>
+      )}
 
       {/* Planejar Sprint button — only when there's a planned sprint */}
       {isPM && nextSprint && (

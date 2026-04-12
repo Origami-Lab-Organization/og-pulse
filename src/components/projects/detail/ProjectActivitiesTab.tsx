@@ -50,6 +50,7 @@ import { ActivityErrorBoundary } from '@/components/projects/activities/Activity
 import { ActivitySettingsSheet } from '@/components/projects/activities/ActivitySettingsSheet';
 import { SprintBanner } from '@/components/projects/activities/SprintBanner';
 import { SprintPlanningDrawer } from '@/components/projects/activities/SprintPlanningDrawer';
+import { CloseSprintDialog } from '@/components/projects/activities/CloseSprintDialog';
 
 // ── Default WIP limits (used when no settings row exists yet) ────────────────
 const DEFAULT_WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = {
@@ -92,9 +93,10 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
   const [localCards, setLocalCards] = useState<ProjectActivityCardWithRelations[]>([]);
   useEffect(() => setLocalCards(activities), [activities]);
 
-  const [settingsOpen,    setSettingsOpen]    = useState(false);
-  const [planningOpen,    setPlanningOpen]    = useState(false);
-  const [planningSprintId, setPlanningSprintId] = useState<string | null>(null);
+  const [settingsOpen,      setSettingsOpen]      = useState(false);
+  const [planningOpen,      setPlanningOpen]      = useState(false);
+  const [planningSprintId,  setPlanningSprintId]  = useState<string | null>(null);
+  const [closeSprintOpen,   setCloseSprintOpen]   = useState(false);
   const [activeCard, setActiveCard] = useState<ProjectActivityCardWithRelations | null>(null);
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [targetColumn, setTargetColumn] = useState<ActivityColumnName>('product_backlog');
@@ -108,6 +110,8 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
 
   const selectedCard = localCards.find((a) => a.id === selectedCardId) ?? null;
 
+  const activeSprint        = sprints.find((s) => s.status === 'active') ?? null;
+  const nextSprint          = sprints.find((s) => s.status === 'planned') ?? null;
   const planningTargetSprint = sprints.find((s) => s.id === planningSprintId) ?? null;
 
   const handleOpenPlanning = (sprintId: string) => {
@@ -289,6 +293,7 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
         isPM={isPM}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenPlanning={handleOpenPlanning}
+        onCloseSprint={() => setCloseSprintOpen(true)}
       />
 
       <DndContext
@@ -356,6 +361,20 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
         cards={localCards}
         onClose={() => setPlanningOpen(false)}
       />
+
+      {activeSprint && (
+        <CloseSprintDialog
+          open={closeSprintOpen}
+          onOpenChange={setCloseSprintOpen}
+          activeSprint={activeSprint}
+          nextSprint={nextSprint}
+          cards={localCards}
+          projectId={project.id}
+          onSuccess={(next) => {
+            if (next) handleOpenPlanning(next.id);
+          }}
+        />
+      )}
 
       {/* ── AlertDialog: DoR / DoD incompleto ── */}
       <AlertDialog
