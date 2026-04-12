@@ -197,3 +197,110 @@ export const useArchiveCard = () => {
     },
   });
 };
+
+// ── Archived cards query ──────────────────────────────────────────────────────
+
+export interface ArchivedCardRow {
+  id: string;
+  title: string;
+  card_type: string;
+  column_name: string;
+  tenant_id: string;
+  archived_at: string | null;
+  archived_by: string | null;
+  points: number | null;
+  assignee_id: string | null;
+  card_type_label?: string;
+  archived_by_employee: { nome: string } | null;
+}
+
+export const useArchivedCards = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: ['archived-cards', projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_activity_cards')
+        .select('id, title, card_type, column_name, tenant_id, archived_at, archived_by, points, assignee_id, archived_by_employee:employees!project_activity_cards_archived_by_fkey(nome)')
+        .eq('project_id', projectId!)
+        .eq('is_archived', true)
+        .order('archived_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as ArchivedCardRow[];
+    },
+    enabled: !!projectId,
+  });
+
+// ── Restore card ─────────────────────────────────────────────────────────────
+
+export const useRestoreCard = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { employee } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      projectId,
+      tenantId,
+    }: {
+      id: string;
+      projectId: string;
+      tenantId: string;
+    }) => {
+      const now = new Date().toISOString();
+
+      const { error: updateError } = await supabase
+        .from('project_activity_cards')
+        .update({ is_archived: false, archived_at: null, archived_by: null, updated_at: now })
+        .eq('id', id);
+      if (updateError) throw updateError;
+
+      const { error: historyError } = await supabase
+        .from('project_activity_card_history')
+        .insert({
+          card_id:    id,
+          tenant_id:  tenantId,
+          changed_by: employee!.id,
+          field:      'archived',
+          old_value:  'true',
+          new_value:  'false',
+        });
+      if (historyError) throw historyError;
+
+      return { projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['project-activities', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['archived-cards', data.projectId] });
+      toast({ title: 'Card restaurado' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao restaurar card', variant: 'destructive' });
+    },
+  });
+};
+
+// ── Permanent delete (admin only) ─────────────────────────────────────────────
+
+export const useDeleteCardPermanently = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
+      const { error } = await supabase
+        .from('project_activity_cards')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return { projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['archived-cards', data.projectId] });
+      toast({ title: 'Card excluído permanentemente' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao excluir card', variant: 'destructive' });
+    },
+  });
+};

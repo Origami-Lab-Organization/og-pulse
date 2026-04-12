@@ -20,6 +20,8 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectWithRelations } from '@/types/project';
@@ -40,10 +42,12 @@ import {
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
 import { useActivitySettings, useActivitySprints } from '@/hooks/useActivitySprints';
 import { useKanbanFilters, applyKanbanFilters } from '@/hooks/useKanbanFilters';
+import { useArchivedCards } from '@/hooks/useActivityCards';
 import { useToast } from '@/hooks/use-toast';
 import { ActivityCard } from './ActivityCard';
 import { ActivityKanbanColumn } from '@/components/projects/activities/ActivityKanbanColumn';
 import { KanbanFiltersBar } from '@/components/projects/activities/KanbanFiltersBar';
+import { ArchivedCardsSheet } from '@/components/projects/activities/ArchivedCardsSheet';
 import { ActivityCardFormDrawer } from './ActivityCardFormDrawer';
 import { ActivityCardDetailDrawer } from '@/components/projects/activities/ActivityCardDetailDrawer';
 import { ActivityErrorBoundary } from '@/components/projects/activities/ActivityErrorBoundary';
@@ -80,8 +84,10 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
   const moveActivity = useMoveActivity();
   const batchUpdatePositions = useBatchUpdatePositions();
   const { toast } = useToast();
-  const { isEmployee, canCreateCard, canAccessSettings, canMoveToProductBacklog } = useActivityPermissions(project);
+  const { isAdmin, isEmployee, canCreateCard, canAccessSettings, canMoveToProductBacklog } = useActivityPermissions(project);
   const filters = useKanbanFilters();
+  const { data: archivedCards = [] } = useArchivedCards(canAccessSettings ? project.id : undefined);
+  const archivedCount = archivedCards.length;
 
   // WIP limits: from DB settings when available, else fall back to defaults
   const WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = boardSettings
@@ -96,6 +102,7 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
   const [localCards, setLocalCards] = useState<ProjectActivityCardWithRelations[]>([]);
   useEffect(() => setLocalCards(activities), [activities]);
 
+  const [archivedOpen,      setArchivedOpen]      = useState(false);
   const [settingsOpen,      setSettingsOpen]      = useState(false);
   const [planningOpen,      setPlanningOpen]      = useState(false);
   const [planningSprintId,  setPlanningSprintId]  = useState<string | null>(null);
@@ -302,7 +309,25 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
         onCloseSprint={() => setCloseSprintOpen(true)}
       />
 
-      <KanbanFiltersBar projectId={project.id} {...filters} />
+      <div className="mb-3 flex items-center gap-2 shrink-0">
+        <KanbanFiltersBar projectId={project.id} {...filters} />
+
+        {canAccessSettings && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs font-normal ml-auto shrink-0"
+            onClick={() => setArchivedOpen(true)}
+          >
+            Arquivados
+            {archivedCount > 0 && (
+              <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
+                {archivedCount}
+              </Badge>
+            )}
+          </Button>
+        )}
+      </div>
 
       <DndContext
         sensors={sensors}
@@ -417,6 +442,16 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {canAccessSettings && (
+        <ArchivedCardsSheet
+          open={archivedOpen}
+          onOpenChange={setArchivedOpen}
+          projectId={project.id}
+          isAdmin={isAdmin}
+          canManage={canAccessSettings}
+        />
+      )}
     </>
   );
 }
