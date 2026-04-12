@@ -29,8 +29,16 @@ function buildHistoryEntries(
   if (updates.assigneeId !== undefined) compare('assignee_id', updates.assigneeId, prev.assignee_id);
   if (updates.userStory !== undefined) compare('user_story', updates.userStory, prev.user_story);
   if (updates.acceptanceCriteria !== undefined) compare('acceptance_criteria', updates.acceptanceCriteria, prev.acceptance_criteria);
-  if (updates.isBlocked !== undefined) compare('is_blocked', String(updates.isBlocked), String(prev.is_blocked));
-  if (updates.blockedReason !== undefined) compare('blocked_reason', updates.blockedReason, prev.blocked_reason);
+  // Block/unblock: tracked as a single "blocked" entry to keep history readable
+  if (updates.isBlocked !== undefined && updates.isBlocked !== prev.is_blocked) {
+    rows.push({
+      field: 'blocked',
+      old_value: prev.is_blocked ? 'true' : 'false',
+      new_value: updates.isBlocked
+        ? `true: ${(updates.blockedReason ?? '').trim()}`
+        : 'false',
+    });
+  }
   // columnName skipped — DB trigger handles it
 
   return rows;

@@ -1,6 +1,12 @@
-import { AlertOctagon, BookOpen, Bug, Wrench, CheckSquare } from 'lucide-react';
+import { ShieldAlert, BookOpen, Bug, Wrench, CheckSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { ProjectActivityCardWithRelations, ActivityCardType, CARD_TYPE_LABELS } from '@/types/projectActivity';
 import { TagBadge } from '@/components/projects/activities/TagBadge';
@@ -60,7 +66,18 @@ export function ActivityCard({ card, projectName, onClick }: ActivityCardProps) 
           {card.title}
         </p>
         {card.is_blocked && (
-          <AlertOctagon className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              </TooltipTrigger>
+              {card.blocked_reason && (
+                <TooltipContent side="top" className="max-w-[200px] text-xs">
+                  {card.blocked_reason}
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
 

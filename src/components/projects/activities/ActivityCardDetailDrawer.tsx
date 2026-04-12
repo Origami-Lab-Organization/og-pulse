@@ -125,7 +125,6 @@ export function ActivityCardDetailDrawer({
   const [title, setTitle] = useState(card.title);
   const [userStory, setUserStory] = useState(card.user_story ?? '');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState(card.acceptance_criteria ?? '');
-  const [blockedReason, setBlockedReason] = useState(card.blocked_reason ?? '');
   const [activeTab, setActiveTab] = useState<'detalhes' | 'tarefas' | 'qualidade' | 'historico'>('detalhes');
 
   // Re-initialize when a different card is opened
@@ -136,10 +135,9 @@ export function ActivityCardDetailDrawer({
       setTitle(card.title);
       setUserStory(card.user_story ?? '');
       setAcceptanceCriteria(card.acceptance_criteria ?? '');
-      setBlockedReason(card.blocked_reason ?? '');
       setActiveTab('detalhes');
     }
-  }, [card.id, card.title, card.user_story, card.acceptance_criteria, card.blocked_reason]);
+  }, [card.id, card.title, card.user_story, card.acceptance_criteria]);
 
   // ── Ensure checklist is up-to-date with project templates ────────────────────
   useEffect(() => {
@@ -159,7 +157,6 @@ export function ActivityCardDetailDrawer({
   const debouncedTitle = useDebounce(title, 1000);
   const debouncedUserStory = useDebounce(userStory, 1000);
   const debouncedAcceptanceCriteria = useDebounce(acceptanceCriteria, 1000);
-  const debouncedBlockedReason = useDebounce(blockedReason, 1000);
 
   // ── Save helper ─────────────────────────────────────────────────────────────
   const previousCard = (): PreviousCardValues => ({
@@ -213,11 +210,6 @@ export function ActivityCardDetailDrawer({
     const val = debouncedAcceptanceCriteria || null;
     if (val !== (card.acceptance_criteria ?? null)) save({ acceptanceCriteria: debouncedAcceptanceCriteria });
   }, [debouncedAcceptanceCriteria]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const val = debouncedBlockedReason || null;
-    if (val !== (card.blocked_reason ?? null)) save({ blockedReason: debouncedBlockedReason || null });
-  }, [debouncedBlockedReason]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Column navigation ────────────────────────────────────────────────────────
   const colIndex = ACTIVITY_COLUMNS.indexOf(card.column_name);
@@ -460,11 +452,13 @@ export function ActivityCardDetailDrawer({
 
                 {/* Bloqueio */}
                 <CardBlockSection
-                  isBlocked={card.is_blocked}
-                  blockedReason={blockedReason}
+                  key={card.id}
+                  initialBlocked={card.is_blocked}
+                  initialReason={card.blocked_reason}
                   disabled={disabled}
-                  onBlockedChange={(val) => save({ isBlocked: val })}
-                  onReasonChange={setBlockedReason}
+                  onSave={(isBlocked, reason) =>
+                    save({ isBlocked, blockedReason: reason })
+                  }
                 />
 
               </div>
