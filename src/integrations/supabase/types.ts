@@ -2210,6 +2210,7 @@ export type Database = {
           position: number
           project_id: string
           sprint_id: string | null
+          target_sprint_id: string | null
           tenant_id: string
           title: string
           updated_at: string
@@ -2233,6 +2234,7 @@ export type Database = {
           position?: number
           project_id: string
           sprint_id?: string | null
+          target_sprint_id?: string | null
           tenant_id: string
           title: string
           updated_at?: string
@@ -2256,6 +2258,7 @@ export type Database = {
           position?: number
           project_id?: string
           sprint_id?: string | null
+          target_sprint_id?: string | null
           tenant_id?: string
           title?: string
           updated_at?: string
@@ -2288,6 +2291,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_cards_target_sprint_id_fkey"
+            columns: ["target_sprint_id"]
+            isOneToOne: false
+            referencedRelation: "project_activity_sprints"
             referencedColumns: ["id"]
           },
           {
