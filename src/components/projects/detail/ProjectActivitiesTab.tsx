@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Settings } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +20,6 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectWithRelations } from '@/types/project';
@@ -78,7 +76,7 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
   const moveActivity = useMoveActivity();
   const batchUpdatePositions = useBatchUpdatePositions();
   const { toast } = useToast();
-  const { isEmployee, canMoveToProductBacklog, isPM } = useActivityPermissions(project);
+  const { isEmployee, isPM } = useActivityPermissions(project);
 
   // WIP limits: from DB settings when available, else fall back to defaults
   const WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = boardSettings
@@ -243,8 +241,8 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
     // e) Confirmar movimento
     const newPosition = byColumn[targetCol].length;
 
-    // f) DoR check ao mover para sprint_backlog
-    if (targetCol === 'sprint_backlog' && !isChecklistComplete(card, 'dor')) {
+    // f) DoR check ao mover de sprint_backlog → in_dev
+    if (targetCol === 'in_dev' && card.column_name === 'sprint_backlog' && !isChecklistComplete(card, 'dor')) {
       setPendingMove({ cardId, targetCol, position: newPosition });
       setPendingCheckType('dor');
       return;
