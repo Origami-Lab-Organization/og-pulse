@@ -241,7 +241,7 @@ export default function ProjectDetail() {
 
           {canViewActivities && (
             <TabsContent value="activities" className="mt-6">
-              <ProjectActivitiesTab project={project} isReadOnly={isReadOnly} canCreate={canCreateActivity} />
+              <ProjectActivitiesTab project={project} isReadOnly={isReadOnly} />
             </TabsContent>
           )}
 

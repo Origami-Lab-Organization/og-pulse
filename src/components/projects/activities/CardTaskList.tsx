@@ -58,7 +58,7 @@ interface CardTaskListProps {
 
 export function CardTaskList({ cardId, project, tenantId, disabled = false }: CardTaskListProps) {
   const { employee } = useAuth();
-  const { isPM, isEmployee } = useActivityPermissions(project);
+  const { isAdmin, isPM, isEmployee } = useActivityPermissions(project);
   const members = project.members ?? [];
 
   const { data: tasks = [] } = useCardTasks(cardId);
@@ -80,7 +80,7 @@ export function CardTaskList({ cardId, project, tenantId, disabled = false }: Ca
 
   // ── Permissions ────────────────────────────────────────────────────────────
   const canManageTask = (task: ActivityTaskWithRelations): boolean => {
-    if (isPM) return true;
+    if (isAdmin || isPM) return true;
     if (isEmployee) return task.assignee_id === employee?.id;
     return false;
   };

@@ -66,11 +66,10 @@ const ADDABLE_COLUMNS = new Set<ActivityColumnName>(['product_backlog', 'sprint_
 interface ProjectActivitiesTabProps {
   project: ProjectWithRelations;
   isReadOnly: boolean;
-  canCreate: boolean;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
-export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: ProjectActivitiesTabProps) {
+export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesTabProps) {
   const { data: activities = [], isLoading } = useProjectActivities(project.id);
   const { data: boardSettings } = useActivitySettings(project.id);
   const { data: sprints = [] } = useActivitySprints(project.id);
@@ -78,7 +77,7 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
   const moveActivity = useMoveActivity();
   const batchUpdatePositions = useBatchUpdatePositions();
   const { toast } = useToast();
-  const { isEmployee, isPM } = useActivityPermissions(project);
+  const { isEmployee, canCreateCard, canAccessSettings, canMoveToProductBacklog } = useActivityPermissions(project);
   const filters = useKanbanFilters();
 
   // WIP limits: from DB settings when available, else fall back to defaults
@@ -223,8 +222,8 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
       return;
     }
 
-    // c) Funcionário simples não pode mover de/para Product Backlog
-    if (isEmployee && (sourceCol === 'product_backlog' || targetCol === 'product_backlog')) {
+    // c) Sem permissão para mover de/para Product Backlog
+    if (!canMoveToProductBacklog && (sourceCol === 'product_backlog' || targetCol === 'product_backlog')) {
       toast({
         title: 'Permissão insuficiente',
         description: 'Apenas PM ou Admin podem mover cards de/para o Product Backlog.',
@@ -294,7 +293,7 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
       <SprintBanner
         projectId={project.id}
         cards={localCards}
-        isPM={isPM}
+        isPM={canAccessSettings}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenPlanning={handleOpenPlanning}
         onCloseSprint={() => setCloseSprintOpen(true)}
@@ -317,7 +316,7 @@ export function ProjectActivitiesTab({ project, isReadOnly, canCreate }: Project
                 label={COLUMN_LABELS[col]}
                 wipLimit={WIP_LIMITS[col]}
                 cards={byColumn[col]}
-                showAddButton={canCreate && !isReadOnly && ADDABLE_COLUMNS.has(col)}
+                showAddButton={canCreateCard && !isReadOnly && ADDABLE_COLUMNS.has(col)}
                 onAddCard={() => handleAddCard(col)}
                 projectName={project.name}
                 isReadOnly={isReadOnly}
