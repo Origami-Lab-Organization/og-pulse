@@ -2209,6 +2209,7 @@ export type Database = {
           points: number | null
           position: number
           project_id: string
+          release_id: string | null
           sprint_id: string | null
           target_sprint_id: string | null
           tenant_id: string
@@ -2233,6 +2234,7 @@ export type Database = {
           points?: number | null
           position?: number
           project_id: string
+          release_id?: string | null
           sprint_id?: string | null
           target_sprint_id?: string | null
           tenant_id: string
@@ -2257,6 +2259,7 @@ export type Database = {
           points?: number | null
           position?: number
           project_id?: string
+          release_id?: string | null
           sprint_id?: string | null
           target_sprint_id?: string | null
           tenant_id?: string
@@ -2291,6 +2294,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_cards_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "project_activity_releases"
             referencedColumns: ["id"]
           },
           {
@@ -2350,6 +2360,89 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_activity_release_sprints: {
+        Row: {
+          id: string
+          release_id: string
+          sprint_id: string
+        }
+        Insert: {
+          id?: string
+          release_id: string
+          sprint_id: string
+        }
+        Update: {
+          id?: string
+          release_id?: string
+          sprint_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activity_release_sprints_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "project_activity_releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_release_sprints_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "project_activity_sprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_activity_releases: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          project_id: string
+          released_at: string | null
+          status: string
+          target_date: string
+          tenant_id: string
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          project_id: string
+          released_at?: string | null
+          status?: string
+          target_date: string
+          tenant_id: string
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          released_at?: string | null
+          status?: string
+          target_date?: string
+          tenant_id?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activity_releases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
