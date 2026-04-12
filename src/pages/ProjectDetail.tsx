@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ProjectHeader } from '@/components/projects/detail/ProjectHeader';
 import { ProjectOverviewTab } from '@/components/projects/detail/ProjectOverviewTab';
 import { ProjectPlanningOverviewTab } from '@/components/projects/detail/ProjectPlanningOverviewTab';
-import { ProjectCostsTab } from '@/components/projects/detail/ProjectCostsTab';
+import { EquipeTab } from '@/components/projects/detail/EquipeTab';
 import { ProjectFinancialTab } from '@/components/projects/detail/ProjectFinancialTab';
 import { ProjectOKRsTab } from '@/components/projects/detail/ProjectOKRsTab';
 import { ProjectStakeholdersTab } from '@/components/projects/detail/ProjectStakeholdersTab';
@@ -38,7 +38,9 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const initialTab = searchParams.get('tab') || 'overview';
+  const rawTab = searchParams.get('tab') || 'overview';
+  // Redirect legacy "costs" tab to "equipe"
+  const initialTab = rawTab === 'costs' ? 'equipe' : rawTab;
   const queryClient = useQueryClient();
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
@@ -185,7 +187,7 @@ export default function ProjectDetail() {
           <TabsList className="inline-flex w-max">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="okrs">OKR</TabsTrigger>
-            <TabsTrigger value="costs">Custos</TabsTrigger>
+            <TabsTrigger value="equipe">Equipe</TabsTrigger>
             <TabsTrigger value="commissions">Comissão</TabsTrigger>
             <TabsTrigger value="schedule">Cronograma</TabsTrigger>
             <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
@@ -211,11 +213,10 @@ export default function ProjectDetail() {
             <ProjectOKRsTab project={project} isReadOnly={isReadOnly} />
           </TabsContent>
 
-          <TabsContent value="costs" className="mt-6">
-            <ProjectCostsTab
+          <TabsContent value="equipe" className="mt-6">
+            <EquipeTab
               project={project}
-              isEditable={isPlanning && !isReadOnly}
-              canEditActuals={!isPlanning && !isReadOnly && project.portfolio_stage !== 'completed'}
+              isReadOnly={isReadOnly}
             />
           </TabsContent>
 

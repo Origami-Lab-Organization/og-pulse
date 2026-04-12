@@ -182,12 +182,12 @@ export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewT
             <ChecklistItem 
               label="Equipe alocada" 
               completed={(project.members?.length || 0) > 0} 
-              hint={(project.members?.length || 0) === 0 ? "Vá para a aba Custos" : undefined}
+              hint={(project.members?.length || 0) === 0 ? "Vá para a aba Equipe" : undefined}
             />
             <ChecklistItem 
               label="Custos planejados" 
               completed={hasCosts}
-              hint={!hasCosts ? "Vá para a aba Custos" : undefined}
+              hint={!hasCosts ? "Vá para a aba Equipe" : undefined}
             />
             <ChecklistItem 
               label="Cronograma definido" 
