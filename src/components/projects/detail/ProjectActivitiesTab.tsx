@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +31,7 @@ import {
   ACTIVITY_COLUMNS,
   COLUMN_LABELS,
   ActivityColumnName,
+  ActivitySprintDB,
   ChecklistType,
   CreateActivityInput,
   ProjectActivityCardWithRelations,
@@ -66,6 +69,79 @@ const DEFAULT_WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = {
 const COLUMN_ORDER = ACTIVITY_COLUMNS;
 const ADDABLE_COLUMNS = new Set<ActivityColumnName>(['product_backlog', 'sprint_backlog']);
 
+// ── BacklogBySprintView ───────────────────────────────────────────────────────
+
+interface BacklogBySprintViewProps {
+  cards: ProjectActivityCardWithRelations[];
+  sprints: ActivitySprintDB[];
+  onCardClick: (id: string) => void;
+}
+
+function BacklogBySprintView({ cards, sprints, onCardClick }: BacklogBySprintViewProps) {
+  const plannedSprints = sprints.filter((s) => s.status === 'planned');
+
+  // Build groups: one per planned sprint + "sem sprint alvo"
+  const groups: { sprintId: string | null; label: string; sublabel?: string; cards: ProjectActivityCardWithRelations[] }[] = [
+    ...plannedSprints.map((s) => ({
+      sprintId: s.id,
+      label: s.name,
+      sublabel: `${format(parseISO(s.start_date), 'dd/MM', { locale: ptBR })} – ${format(parseISO(s.end_date), 'dd/MM', { locale: ptBR })}`,
+      cards: cards.filter((c) => c.target_sprint_id === s.id),
+    })),
+    {
+      sprintId: null,
+      label: 'Sem sprint alvo',
+      cards: cards.filter((c) => !c.target_sprint_id),
+    },
+  ];
+
+  return (
+    <div className="space-y-4 mb-4">
+      {groups.map((group) => {
+        const totalPoints = group.cards.reduce((sum, c) => sum + (c.points ?? 0), 0);
+        return (
+          <div key={group.sprintId ?? '__none__'} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{group.label}</span>
+              {group.sublabel && (
+                <span className="text-xs text-muted-foreground">{group.sublabel}</span>
+              )}
+              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-1">
+                {group.cards.length} card{group.cards.length !== 1 ? 's' : ''}
+              </Badge>
+              {totalPoints > 0 && (
+                <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+                  {totalPoints}pts
+                </Badge>
+              )}
+            </div>
+            {group.cards.length === 0 ? (
+              <p className="text-xs text-muted-foreground pl-1">Nenhum card previsto.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-1.5">
+                {group.cards.map((card) => (
+                  <div
+                    key={card.id}
+                    className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer hover:border-primary/40 transition-colors"
+                    onClick={() => onCardClick(card.id)}
+                  >
+                    <span className="flex-1 leading-snug line-clamp-1">{card.title}</span>
+                    {card.points != null && (
+                      <Badge variant="outline" className="text-xs h-5 px-1.5 shrink-0">
+                        {card.points}
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Props ────────────────────────────────────────────────────────────────────
 interface ProjectActivitiesTabProps {
   project: ProjectWithRelations;
@@ -102,6 +178,7 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
   const [localCards, setLocalCards] = useState<ProjectActivityCardWithRelations[]>([]);
   useEffect(() => setLocalCards(activities), [activities]);
 
+  const [groupBacklog,      setGroupBacklog]      = useState(false);
   const [archivedOpen,      setArchivedOpen]      = useState(false);
   const [settingsOpen,      setSettingsOpen]      = useState(false);
   const [planningOpen,      setPlanningOpen]      = useState(false);
@@ -122,6 +199,12 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
 
   const activeSprint        = sprints.find((s) => s.status === 'active') ?? null;
   const nextSprint          = sprints.find((s) => s.status === 'planned') ?? null;
+
+  // Lookup map: sprint id → name (used to render "→ Sprint N" on backlog cards)
+  const sprintNameById = useMemo(
+    () => Object.fromEntries(sprints.map((s) => [s.id, s.name])),
+    [sprints],
+  );
   const planningTargetSprint = sprints.find((s) => s.id === planningSprintId) ?? null;
 
   const handleOpenPlanning = (sprintId: string) => {
@@ -312,22 +395,43 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
       <div className="mb-3 flex items-center gap-2 shrink-0">
         <KanbanFiltersBar projectId={project.id} {...filters} />
 
-        {canAccessSettings && (
+        <div className="flex items-center gap-1.5 ml-auto shrink-0">
           <Button
-            variant="outline"
+            variant={groupBacklog ? 'secondary' : 'outline'}
             size="sm"
-            className="h-8 gap-1.5 text-xs font-normal ml-auto shrink-0"
-            onClick={() => setArchivedOpen(true)}
+            className="h-8 text-xs font-normal"
+            onClick={() => setGroupBacklog((v) => !v)}
+            title="Agrupar Product Backlog por sprint alvo"
           >
-            Arquivados
-            {archivedCount > 0 && (
-              <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
-                {archivedCount}
-              </Badge>
-            )}
+            Backlog por sprint
           </Button>
-        )}
+
+          {canAccessSettings && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs font-normal"
+              onClick={() => setArchivedOpen(true)}
+            >
+              Arquivados
+              {archivedCount > 0 && (
+                <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
+                  {archivedCount}
+                </Badge>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* ── Backlog by target sprint (grouped view) ── */}
+      {groupBacklog && (
+        <BacklogBySprintView
+          cards={byColumn['product_backlog']}
+          sprints={sprints}
+          onCardClick={(id) => setSelectedCardId(id)}
+        />
+      )}
 
       <DndContext
         sensors={sensors}
@@ -335,7 +439,7 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <ScrollArea className={`w-full ${boardHeight}`}>
+        <ScrollArea className={`w-full ${groupBacklog ? 'hidden' : ''} ${boardHeight}`}>
           <div className={`flex gap-4 pb-4 min-w-max ${boardHeight}`}>
             {ACTIVITY_COLUMNS.map((col) => (
               <ActivityKanbanColumn
@@ -349,6 +453,7 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
                 projectName={project.name}
                 isReadOnly={isReadOnly}
                 onCardClick={(id) => setSelectedCardId(id)}
+                sprintNameById={col === 'product_backlog' ? sprintNameById : undefined}
               />
             ))}
           </div>

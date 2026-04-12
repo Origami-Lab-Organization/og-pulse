@@ -17,6 +17,7 @@ interface ActivityKanbanColumnProps {
   projectName: string;
   isReadOnly: boolean;
   onCardClick: (cardId: string) => void;
+  sprintNameById?: Record<string, string>;
 }
 
 export function ActivityKanbanColumn({
@@ -29,6 +30,7 @@ export function ActivityKanbanColumn({
   projectName,
   isReadOnly,
   onCardClick,
+  sprintNameById,
 }: ActivityKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
   const cardCount = cards.length;
@@ -81,6 +83,11 @@ export function ActivityKanbanColumn({
                 key={card.id}
                 card={card}
                 projectName={projectName}
+                targetSprintLabel={
+                  card.target_sprint_id && sprintNameById
+                    ? sprintNameById[card.target_sprint_id]
+                    : undefined
+                }
                 disabled={isReadOnly || card.column_name === 'done'}
                 onClick={() => onCardClick(card.id)}
               />

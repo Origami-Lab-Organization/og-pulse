@@ -114,6 +114,7 @@ export const useUpdateActivityCard = () => {
       if (updates.isBlocked !== undefined) payload.is_blocked = updates.isBlocked;
       if (updates.blockedReason !== undefined) payload.blocked_reason = updates.blockedReason;
       if (updates.sprintId !== undefined) payload.sprint_id = updates.sprintId;
+      if (updates.targetSprintId !== undefined) payload.target_sprint_id = updates.targetSprintId;
 
       const { error: updateError } = await supabase
         .from('project_activity_cards')

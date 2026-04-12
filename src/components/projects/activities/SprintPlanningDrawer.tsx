@@ -77,8 +77,15 @@ export function SprintPlanningDrawer({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirming,  setConfirming]  = useState(false);
 
-  // Product Backlog cards available to commit
-  const backlogCards = cards.filter((c) => c.column_name === 'product_backlog');
+  // Product Backlog cards available to commit.
+  // Cards pre-tagged with this sprint come first so they're easy to select.
+  const backlogCards = cards
+    .filter((c) => c.column_name === 'product_backlog')
+    .sort((a, b) => {
+      const aTagged = a.target_sprint_id === targetSprint?.id ? -1 : 0;
+      const bTagged = b.target_sprint_id === targetSprint?.id ? -1 : 0;
+      return aTagged - bTagged;
+    });
 
   // Reset state whenever the drawer opens / target sprint changes
   useEffect(() => {
@@ -114,15 +121,16 @@ export function SprintPlanningDrawer({
         await updateGoal.mutateAsync({ id: targetSprint.id, projectId, goal: newGoal });
       }
 
-      // 2. Batch-move selected cards → sprint_backlog
+      // 2. Batch-move selected cards → sprint_backlog and clear target_sprint_id
       const toMove = [...selectedIds];
       if (toMove.length > 0) {
         const { error } = await supabase
           .from('project_activity_cards')
           .update({
-            column_name: 'sprint_backlog',
-            sprint_id:   targetSprint.id,
-            updated_at:  new Date().toISOString(),
+            column_name:      'sprint_backlog',
+            sprint_id:        targetSprint.id,
+            target_sprint_id: null,
+            updated_at:       new Date().toISOString(),
           })
           .in('id', toMove);
         if (error) throw error;
@@ -201,8 +209,9 @@ export function SprintPlanningDrawer({
               ) : (
                 <div className="space-y-1 pb-4">
                   {backlogCards.map((card) => {
-                    const Icon    = CARD_TYPE_ICON[card.card_type];
-                    const checked = selectedIds.has(card.id);
+                    const Icon      = CARD_TYPE_ICON[card.card_type];
+                    const checked   = selectedIds.has(card.id);
+                    const isPreTagged = card.target_sprint_id === targetSprint?.id;
                     return (
                       <div
                         key={card.id}
@@ -226,6 +235,11 @@ export function SprintPlanningDrawer({
                         <span className="text-sm flex-1 leading-snug line-clamp-1">
                           {card.title}
                         </span>
+                        {isPreTagged && (
+                          <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0 gap-0.5 font-semibold">
+                            ✦ Previsto
+                          </Badge>
+                        )}
                         {card.points != null && (
                           <Badge variant="outline" className="text-xs h-5 px-1.5 shrink-0">
                             {card.points}

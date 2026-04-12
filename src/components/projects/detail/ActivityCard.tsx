@@ -41,10 +41,11 @@ function getCardCode(projectName: string, cardNumber: number | null): string {
 interface ActivityCardProps {
   card: ProjectActivityCardWithRelations;
   projectName?: string;
+  targetSprintLabel?: string;
   onClick?: () => void;
 }
 
-export function ActivityCard({ card, projectName, onClick }: ActivityCardProps) {
+export function ActivityCard({ card, projectName, targetSprintLabel, onClick }: ActivityCardProps) {
   const assigneeName: string = card.assignee?.nome ?? '';
   const initials = assigneeName
     .split(' ')
@@ -62,9 +63,14 @@ export function ActivityCard({ card, projectName, onClick }: ActivityCardProps) 
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium text-foreground leading-snug line-clamp-2 flex-1">
-          {card.title}
-        </p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">
+            {card.title}
+          </p>
+          {targetSprintLabel && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">→ {targetSprintLabel}</p>
+          )}
+        </div>
         {card.is_blocked && (
           <TooltipProvider>
             <Tooltip>

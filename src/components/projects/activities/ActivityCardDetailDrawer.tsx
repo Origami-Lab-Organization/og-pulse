@@ -53,6 +53,7 @@ import {
 import { ProjectWithRelations } from '@/types/project';
 import { useUpdateActivityCard, useArchiveCard, PreviousCardValues } from '@/hooks/useActivityCards';
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
+import { useActivitySprints } from '@/hooks/useActivitySprints';
 import { CardBlockSection } from './CardBlockSection';
 import { CardChecklist } from './CardChecklist';
 import { CardTaskList } from './CardTaskList';
@@ -132,6 +133,8 @@ export function ActivityCardDetailDrawer({
   const updateCard = useUpdateActivityCard();
   const archiveCard = useArchiveCard();
   const { isAdmin, canMoveFromDone, canAccessSettings } = useActivityPermissions(project);
+  const { data: sprints = [] } = useActivitySprints(project.id);
+  const plannedSprints = sprints.filter((s) => s.status === 'planned');
   const members = project.members ?? [];
   const isCardDone = card.column_name === 'done';
   const isFirst = card.column_name === 'product_backlog';
@@ -446,6 +449,36 @@ export function ActivityCardDetailDrawer({
                         {members.map((m) => (
                           <SelectItem key={m.employee_id} value={m.employee_id}>
                             {m.employee?.nome ?? m.employee_id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Sprint Alvo — only for Product Backlog cards */}
+                {card.column_name === 'product_backlog' && plannedSprints.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Sprint Alvo</Label>
+                    <Select
+                      value={card.target_sprint_id ?? '__none__'}
+                      onValueChange={(val) =>
+                        save({ targetSprintId: val !== '__none__' ? val : null })
+                      }
+                      disabled={disabled}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Nenhuma" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nenhuma</SelectItem>
+                        {plannedSprints.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                            {' '}
+                            <span className="text-muted-foreground">
+                              ({format(parseISO(s.start_date), 'dd/MM', { locale: ptBR })} – {format(parseISO(s.end_date), 'dd/MM', { locale: ptBR })})
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>

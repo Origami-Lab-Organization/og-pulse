@@ -26,6 +26,7 @@ export interface ProjectActivityCardDB {
   is_archived: boolean;
   archived_at: string | null;
   archived_by: string | null;
+  target_sprint_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -116,6 +117,7 @@ export interface UpdateActivityInput {
   sprintId?: string | null;
   isBlocked?: boolean;
   blockedReason?: string | null;
+  targetSprintId?: string | null;
 }
 
 export const CARD_TYPE_LABELS: Record<ActivityCardType, string> = {
