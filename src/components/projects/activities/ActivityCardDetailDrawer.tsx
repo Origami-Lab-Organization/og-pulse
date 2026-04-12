@@ -248,6 +248,7 @@ export function ActivityCardDetailDrawer({
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-[560px] p-0 flex flex-col" aria-describedby={undefined}>
 
@@ -576,5 +577,6 @@ export function ActivityCardDetailDrawer({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    </>
   );
 }
