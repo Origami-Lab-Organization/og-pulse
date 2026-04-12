@@ -1,0 +1,10 @@
+-- Add soft-delete / archive fields to project_activity_cards
+ALTER TABLE project_activity_cards
+  ADD COLUMN IF NOT EXISTS is_archived   boolean     NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS archived_at   timestamptz,
+  ADD COLUMN IF NOT EXISTS archived_by   uuid        REFERENCES employees(id) ON DELETE SET NULL;
+
+-- Index for the common filter (non-archived cards per project)
+CREATE INDEX IF NOT EXISTS idx_activity_cards_project_not_archived
+  ON project_activity_cards (project_id, is_archived)
+  WHERE is_archived = false;

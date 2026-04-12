@@ -148,3 +148,52 @@ export const useUpdateActivityCard = () => {
     },
   });
 };
+
+// ── Archive card ─────────────────────────────────────────────────────────────
+
+export const useArchiveCard = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { employee } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      projectId,
+      tenantId,
+    }: {
+      id: string;
+      projectId: string;
+      tenantId: string;
+    }) => {
+      const now = new Date().toISOString();
+
+      const { error: updateError } = await supabase
+        .from('project_activity_cards')
+        .update({ is_archived: true, archived_at: now, archived_by: employee!.id, updated_at: now })
+        .eq('id', id);
+      if (updateError) throw updateError;
+
+      const { error: historyError } = await supabase
+        .from('project_activity_card_history')
+        .insert({
+          card_id:    id,
+          tenant_id:  tenantId,
+          changed_by: employee!.id,
+          field:      'archived',
+          old_value:  'false',
+          new_value:  'true',
+        });
+      if (historyError) throw historyError;
+
+      return { projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['project-activities', data.projectId] });
+      toast({ title: 'Card arquivado' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao arquivar card', variant: 'destructive' });
+    },
+  });
+};

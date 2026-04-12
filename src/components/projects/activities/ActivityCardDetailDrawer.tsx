@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { checklistService } from '@/services/checklistService';
-import { ChevronLeft, ChevronRight, Tag, Clock, BookOpen, Bug, Wrench, CheckSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Tag, Clock, BookOpen, Bug, Wrench, CheckSquare, MoreHorizontal, Archive } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -10,6 +10,22 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,7 +51,7 @@ import {
   ACTIVITY_COLUMNS,
 } from '@/types/projectActivity';
 import { ProjectWithRelations } from '@/types/project';
-import { useUpdateActivityCard, PreviousCardValues } from '@/hooks/useActivityCards';
+import { useUpdateActivityCard, useArchiveCard, PreviousCardValues } from '@/hooks/useActivityCards';
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
 import { CardBlockSection } from './CardBlockSection';
 import { CardChecklist } from './CardChecklist';
@@ -114,17 +130,22 @@ export function ActivityCardDetailDrawer({
 }: ActivityCardDetailDrawerProps) {
   const queryClient = useQueryClient();
   const updateCard = useUpdateActivityCard();
-  const { canMoveFromDone } = useActivityPermissions(project);
+  const archiveCard = useArchiveCard();
+  const { isAdmin, canMoveFromDone, canAccessSettings } = useActivityPermissions(project);
   const members = project.members ?? [];
   const isCardDone = card.column_name === 'done';
   const isFirst = card.column_name === 'product_backlog';
   const disabled = isReadOnly || isCardDone;
   const canNavigate = !isReadOnly;
 
+  // Archive permission: admin always; PM only when card is not in done
+  const canArchive = isAdmin || (canAccessSettings && !isCardDone);
+
   // ── Local state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(card.title);
   const [userStory, setUserStory] = useState(card.user_story ?? '');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState(card.acceptance_criteria ?? '');
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'detalhes' | 'tarefas' | 'qualidade' | 'historico'>('detalhes');
 
   // Re-initialize when a different card is opened
@@ -300,6 +321,25 @@ export function ActivityCardDetailDrawer({
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
+
+              {canArchive && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive gap-2"
+                      onSelect={() => setArchiveDialogOpen(true)}
+                    >
+                      <Archive className="h-4 w-4" />
+                      Arquivar card
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
         </SheetHeader>
@@ -511,5 +551,30 @@ export function ActivityCardDetailDrawer({
         </Tabs>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Arquivar card?</AlertDialogTitle>
+          <AlertDialogDescription>
+            O card será removido do board e não poderá ser desfeito por aqui. Você pode acessar cards arquivados nas configurações do projeto.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              archiveCard.mutate(
+                { id: card.id, projectId: project.id, tenantId: card.tenant_id },
+                { onSuccess: () => onOpenChange(false) }
+              );
+            }}
+          >
+            {archiveCard.isPending ? 'Arquivando...' : 'Arquivar'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

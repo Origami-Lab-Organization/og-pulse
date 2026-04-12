@@ -23,6 +23,9 @@ export interface ProjectActivityCardDB {
   sprint_id: string | null;
   is_blocked: boolean;
   blocked_reason: string | null;
+  is_archived: boolean;
+  archived_at: string | null;
+  archived_by: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
