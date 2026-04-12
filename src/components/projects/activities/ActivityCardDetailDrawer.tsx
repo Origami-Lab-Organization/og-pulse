@@ -54,6 +54,7 @@ import { ProjectWithRelations } from '@/types/project';
 import { useUpdateActivityCard, useArchiveCard, PreviousCardValues } from '@/hooks/useActivityCards';
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
 import { useActivitySprints } from '@/hooks/useActivitySprints';
+import { useProjectReleases } from '@/hooks/useProjectReleases';
 import { CardBlockSection } from './CardBlockSection';
 import { CardChecklist } from './CardChecklist';
 import { CardTaskList } from './CardTaskList';
@@ -135,6 +136,8 @@ export function ActivityCardDetailDrawer({
   const { isAdmin, canMoveFromDone, canAccessSettings } = useActivityPermissions(project);
   const { data: sprints = [] } = useActivitySprints(project.id);
   const plannedSprints = sprints.filter((s) => s.status === 'planned');
+  const { data: releases = [] } = useProjectReleases(project.id);
+  const activeReleases = releases.filter((r) => r.status !== 'released');
   const members = project.members ?? [];
   const isCardDone = card.column_name === 'done';
   const isFirst = card.column_name === 'product_backlog';
@@ -449,6 +452,35 @@ export function ActivityCardDetailDrawer({
                         {members.map((m) => (
                           <SelectItem key={m.employee_id} value={m.employee_id}>
                             {m.employee?.nome ?? m.employee_id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Release */}
+                {activeReleases.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Release</Label>
+                    <Select
+                      value={card.release_id ?? '__none__'}
+                      onValueChange={(val) =>
+                        save({ releaseId: val !== '__none__' ? val : null })
+                      }
+                      disabled={disabled}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Nenhuma" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nenhuma</SelectItem>
+                        {activeReleases.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.name}
+                            {r.version && (
+                              <span className="ml-1 text-muted-foreground">({r.version})</span>
+                            )}
                           </SelectItem>
                         ))}
                       </SelectContent>

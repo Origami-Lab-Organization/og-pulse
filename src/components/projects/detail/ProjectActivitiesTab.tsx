@@ -58,6 +58,11 @@ import { ActivitySettingsSheet } from '@/components/projects/activities/Activity
 import { SprintBanner } from '@/components/projects/activities/SprintBanner';
 import { SprintPlanningDrawer } from '@/components/projects/activities/SprintPlanningDrawer';
 import { CloseSprintDialog } from '@/components/projects/activities/CloseSprintDialog';
+import { RoadmapView } from '@/components/projects/activities/RoadmapView';
+import { ReleaseDetailSheet } from '@/components/projects/activities/ReleaseDetailSheet';
+import { CreateReleaseDialog } from '@/components/projects/activities/CreateReleaseDialog';
+import { useProjectReleases } from '@/hooks/useProjectReleases';
+import { ProjectReleaseWithSprints } from '@/types/projectRelease';
 
 // ── Default WIP limits (used when no settings row exists yet) ────────────────
 const DEFAULT_WIP_LIMITS: Partial<Record<ActivityColumnName, number>> = {
@@ -156,6 +161,7 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
   const activities = useMemo(() => activitiesData ?? [], [activitiesData]);
   const { data: boardSettings } = useActivitySettings(project.id);
   const { data: sprints = [] } = useActivitySprints(project.id);
+  const { data: releases = [] } = useProjectReleases(project.id);
   const createActivity = useCreateActivity();
   const moveActivity = useMoveActivity();
   const batchUpdatePositions = useBatchUpdatePositions();
@@ -178,8 +184,11 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
   const [localCards, setLocalCards] = useState<ProjectActivityCardWithRelations[]>([]);
   useEffect(() => setLocalCards(activities), [activities]);
 
+  const [view,              setView]              = useState<'kanban' | 'roadmap'>('kanban');
   const [groupBacklog,      setGroupBacklog]      = useState(false);
   const [archivedOpen,      setArchivedOpen]      = useState(false);
+  const [selectedRelease,   setSelectedRelease]   = useState<ProjectReleaseWithSprints | null>(null);
+  const [createReleaseOpen, setCreateReleaseOpen] = useState(false);
   const [settingsOpen,      setSettingsOpen]      = useState(false);
   const [planningOpen,      setPlanningOpen]      = useState(false);
   const [planningSprintId,  setPlanningSprintId]  = useState<string | null>(null);
@@ -382,6 +391,42 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
 
   return (
     <>
+      {/* ── View toggle (Kanban | Roadmap) ── */}
+      <div className="mb-3 flex items-center gap-1 shrink-0">
+        <Button
+          variant={view === 'kanban' ? 'secondary' : 'ghost'}
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => setView('kanban')}
+        >
+          Kanban
+        </Button>
+        <Button
+          variant={view === 'roadmap' ? 'secondary' : 'ghost'}
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => setView('roadmap')}
+        >
+          Roadmap
+        </Button>
+      </div>
+
+      {/* ── Roadmap view ── */}
+      {view === 'roadmap' && (
+        <RoadmapView
+          releases={releases}
+          sprints={sprints}
+          cards={localCards}
+          canManage={canAccessSettings}
+          onReleaseClick={(r) => setSelectedRelease(r)}
+          onNewRelease={() => setCreateReleaseOpen(true)}
+        />
+      )}
+
+      {/* ── Kanban view ── */}
+      {view === 'kanban' && (
+      <>
+
       {/* ── Sprint Banner ── */}
       <SprintBanner
         projectId={project.id}
@@ -557,6 +602,28 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
           canManage={canAccessSettings}
         />
       )}
+
+      </> /* end kanban <> */
+      )} {/* end view === 'kanban' */}
+
+      {/* ── Release detail sheet ── */}
+      {selectedRelease && (
+        <ReleaseDetailSheet
+          open={!!selectedRelease}
+          onOpenChange={(o) => { if (!o) setSelectedRelease(null); }}
+          release={selectedRelease}
+          projectId={project.id}
+          sprints={sprints}
+          cards={localCards}
+          canManage={canAccessSettings}
+        />
+      )}
+
+      <CreateReleaseDialog
+        open={createReleaseOpen}
+        onOpenChange={setCreateReleaseOpen}
+        projectId={project.id}
+      />
     </>
   );
 }
