@@ -1,49 +1,65 @@
 import { supabase } from '@/integrations/supabase/client';
-import { ProjectRoleDB, ProjectRoleWithEmployee, CreateProjectRolePayload } from '@/types/equipe.types';
+import { ProjectAllocationWithEmployee } from '@/types/equipe.types';
 
 export const equipeService = {
-  async getProjectRoles(projectId: string): Promise<ProjectRoleWithEmployee[]> {
+  async getProjectAllocations(projectId: string): Promise<ProjectAllocationWithEmployee[]> {
     const { data, error } = await supabase
-      .from('project_roles')
+      .from('project_role_allocations')
       .select(`
         *,
-        employee:employees(id, nome, cargo, foto_url)
+        employee:employees(id, nome, cargo, foto_url),
+        budget_role:budget_roles(id, role_name, seniority, hourly_rate)
       `)
       .eq('project_id', projectId)
-      .order('created_at');
+      .order('employee_id')
+      .order('year')
+      .order('month');
     if (error) throw error;
-    return (data || []) as ProjectRoleWithEmployee[];
+    return (data || []) as ProjectAllocationWithEmployee[];
   },
 
-  async createProjectRole(
-    payload: CreateProjectRolePayload,
-    tenantId: string,
-    createdBy: string
-  ): Promise<ProjectRoleDB> {
+  async upsertAllocations(rows: {
+    project_id: string;
+    tenant_id: string;
+    employee_id: string;
+    budget_role_id: string | null;
+    custom_role_name: string | null;
+    year: number;
+    month: number;
+    planned_hours: number;
+  }[]): Promise<void> {
+    const { error } = await supabase
+      .from('project_role_allocations')
+      .upsert(rows, { onConflict: 'employee_id,project_id,year,month' });
+    if (error) throw error;
+  },
+
+  async deleteEmployeeAllocations(projectId: string, employeeId: string): Promise<void> {
+    const { error } = await supabase
+      .from('project_role_allocations')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('employee_id', employeeId);
+    if (error) throw error;
+  },
+
+  async getBudgetRolesForProject(budgetId: string) {
     const { data, error } = await supabase
-      .from('project_roles')
-      .insert({
-        project_id: payload.projectId,
-        tenant_id: tenantId,
-        role_name: payload.roleName,
-        employment_type: payload.employmentType,
-        payment_type: payload.paymentType,
-        employee_id: payload.employeeId || null,
-        freelancer_name: payload.freelancerName || null,
-        freelancer_email: payload.freelancerEmail || null,
-        hourly_rate: payload.hourlyRate ?? null,
-        monthly_rate: payload.monthlyRate ?? null,
-        clt_encargos_multiplier: payload.cltEncargosMultiplier ?? 1.72,
-        created_by: createdBy,
-      })
-      .select()
-      .single();
+      .from('budget_roles')
+      .select('*, months:budget_role_months(*)')
+      .eq('budget_id', budgetId)
+      .order('role_name');
     if (error) throw error;
-    return data as ProjectRoleDB;
+    return data || [];
   },
 
-  async deleteProjectRole(id: string): Promise<void> {
-    const { error } = await supabase.from('project_roles').delete().eq('id', id);
+  async getAllocatedBudgetRoleIds(projectId: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('project_role_allocations')
+      .select('budget_role_id')
+      .eq('project_id', projectId)
+      .not('budget_role_id', 'is', null);
     if (error) throw error;
+    return (data || []).map((r: any) => r.budget_role_id).filter(Boolean);
   },
 };
