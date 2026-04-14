@@ -43,8 +43,8 @@ export default function ProjectDetail() {
   const initialTab = rawTab === 'costs' ? 'equipe' : rawTab;
   const queryClient = useQueryClient();
   const { employee } = useAuth();
-  const isAdmin = employee?.isAdmin ?? false;
-  const isManager = employee?.is_gerente ?? false;
+  const isAdmin          = employee?.isAdmin ?? false;
+  const isManager        = employee?.is_gerente ?? false;
   const { data: project, isLoading } = useProject(id);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -121,8 +121,9 @@ export default function ProjectDetail() {
   const canEdit = isAdmin || !isCompleted;
   const isReadOnly = isCompleted && !isAdmin;
   const canManageInstallments = (isAdmin || isManager) && !isReadOnly;
-  const isMember = project.members?.some((m) => m.employee_id === employee?.id) ?? false;
-  const canViewActivities = isAdmin || isManager || isMember;
+  const isProjectManager  = project.manager_id === employee?.id;
+  const isMember          = project.members?.some((m) => m.employee_id === employee?.id) ?? false;
+  const canViewActivities = isAdmin || isManager || isProjectManager || isMember;
   const canCreateActivity = isAdmin || isManager;
   const showValueBook = !isPlanning;
 

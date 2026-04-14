@@ -8,13 +8,17 @@ export function useActivityPermissions(project: ProjectWithRelations) {
 
   const isAdmin = employee?.isAdmin ?? false;
 
-  // PM check is project-scoped: the employee must be listed as a project member
-  // with a role that maps to PM (pm / gerente / project manager).
-  const isPM = project.members?.some(
-    (m) =>
-      m.employee_id === employee?.id &&
-      PM_ROLES.includes(m.role?.toLowerCase() ?? '')
-  ) ?? false;
+  // Project manager: the canonical PM defined on the project record.
+  const isProjectManager = project.manager_id === employee?.id;
+
+  // PM check: project manager OR a project member with a PM-level role.
+  const isPM =
+    isProjectManager ||
+    (project.members?.some(
+      (m) =>
+        m.employee_id === employee?.id &&
+        PM_ROLES.includes(m.role?.toLowerCase() ?? '')
+    ) ?? false);
 
   const isMember = project.members?.some((m) => m.employee_id === employee?.id) ?? false;
 
