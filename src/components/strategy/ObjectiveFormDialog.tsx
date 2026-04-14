@@ -12,7 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEmployees } from '@/hooks/useEmployees';
-import { useCreateStrategyObjective } from '@/hooks/useStrategy';
+import { useCreateStrategyObjective, useUpdateStrategyObjective } from '@/hooks/useStrategy';
+import { StrategyObjectiveWithKrs } from '@/types/strategy';
 
 const schema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
@@ -26,12 +27,15 @@ interface ObjectiveFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cycleId: string;
+  objective?: StrategyObjectiveWithKrs | null;
   onSuccess?: () => void;
 }
 
-export function ObjectiveFormDialog({ open, onOpenChange, cycleId, onSuccess }: ObjectiveFormDialogProps) {
+export function ObjectiveFormDialog({ open, onOpenChange, cycleId, objective, onSuccess }: ObjectiveFormDialogProps) {
   const { data: employees = [] } = useEmployees();
   const createMutation = useCreateStrategyObjective();
+  const updateMutation = useUpdateStrategyObjective();
+  const isEditing = !!objective;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -39,17 +43,38 @@ export function ObjectiveFormDialog({ open, onOpenChange, cycleId, onSuccess }: 
   });
 
   useEffect(() => {
-    if (open) form.reset({ title: '', description: '', owner_id: '' });
-  }, [open]);
+    if (open) {
+      if (objective) {
+        form.reset({
+          title: objective.title,
+          description: objective.description || '',
+          owner_id: objective.ownerId || '',
+        });
+      } else {
+        form.reset({ title: '', description: '', owner_id: '' });
+      }
+    }
+  }, [open, objective]);
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await createMutation.mutateAsync({
-        cycle_id: cycleId,
-        title: values.title,
-        description: values.description || null,
-        owner_id: values.owner_id || null,
-      });
+      if (isEditing) {
+        await updateMutation.mutateAsync({
+          id: objective.id,
+          updates: {
+            title: values.title,
+            description: values.description || null,
+            owner_id: values.owner_id || null,
+          },
+        });
+      } else {
+        await createMutation.mutateAsync({
+          cycle_id: cycleId,
+          title: values.title,
+          description: values.description || null,
+          owner_id: values.owner_id || null,
+        });
+      }
       onOpenChange(false);
       onSuccess?.();
     } catch {
@@ -57,12 +82,16 @@ export function ObjectiveFormDialog({ open, onOpenChange, cycleId, onSuccess }: 
     }
   };
 
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Novo Objetivo</DialogTitle>
-          <DialogDescription>Defina um resultado desejado para o ciclo.</DialogDescription>
+          <DialogTitle>{isEditing ? 'Editar Objetivo' : 'Novo Objetivo'}</DialogTitle>
+          <DialogDescription>
+            {isEditing ? 'Atualize as informações do objetivo.' : 'Defina um resultado desejado para o ciclo.'}
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -79,7 +108,7 @@ export function ObjectiveFormDialog({ open, onOpenChange, cycleId, onSuccess }: 
 
             <FormField control={form.control} name="description" render={({ field }) => (
               <FormItem>
-                <FormLabel>Descrição</FormLabel>
+                <FormLabel>Descrição / Racional</FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Contexto ou motivação do objetivo..."
@@ -118,9 +147,9 @@ export function ObjectiveFormDialog({ open, onOpenChange, cycleId, onSuccess }: 
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button type="submit" form="objective-form" disabled={createMutation.isPending}>
-            {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Criar Objetivo
+          <Button type="submit" form="objective-form" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isEditing ? 'Salvar' : 'Criar Objetivo'}
           </Button>
         </DialogFooter>
       </DialogContent>
