@@ -235,9 +235,10 @@ export default function Strategy() {
               </div>
               {isAdmin && (
                 <div className="flex justify-end">
-                  <Button size="sm" onClick={() => setObjectiveFormOpen(true)}>
+                  <Button size="sm" onClick={() => { setEditingObjective(null); setObjectiveFormOpen(true); }}>
                     <Plus className="h-4 w-4 mr-1" />
                     Novo objetivo
+                  </Button>
                   </Button>
                 </div>
               )}
@@ -253,6 +254,10 @@ export default function Strategy() {
                       objective={obj}
                       isAdmin={isAdmin}
                       onAddKr={() => setKrFormObjectiveId(obj.id)}
+                      onEditObjective={() => {
+                        setEditingObjective(obj);
+                        setObjectiveFormOpen(true);
+                      }}
                       onCheckin={(krId) => {
                         const kr = obj.keyResults.find((k) => k.id === krId);
                         if (kr) setCheckinKr(kr);
@@ -311,8 +316,12 @@ export default function Strategy() {
       {effectiveCycleId && (
         <ObjectiveFormDialog
           open={objectiveFormOpen}
-          onOpenChange={setObjectiveFormOpen}
+          onOpenChange={(open) => {
+            setObjectiveFormOpen(open);
+            if (!open) setEditingObjective(null);
+          }}
           cycleId={effectiveCycleId}
+          objective={editingObjective}
         />
       )}
 
