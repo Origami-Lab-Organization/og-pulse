@@ -149,6 +149,7 @@ export default function Strategy() {
   // Dialog state
   const [cycleFormOpen, setCycleFormOpen] = useState(false);
   const [objectiveFormOpen, setObjectiveFormOpen] = useState(false);
+  const [editingObjective, setEditingObjective] = useState<StrategyObjectiveWithKrs | null>(null);
   const [krFormObjectiveId, setKrFormObjectiveId] = useState<string | null>(null);
   const [checkinKr, setCheckinKr] = useState<StrategyKeyResult | null>(null);
 
