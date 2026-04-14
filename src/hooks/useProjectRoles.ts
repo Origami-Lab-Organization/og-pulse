@@ -6,6 +6,7 @@ import {
   AddAllocationPayload,
   ProjectAllocation,
   ProjectAllocationWithEmployee,
+  CreateProjectRolePayload,
 } from '@/types/equipe.types';
 
 // ─── Aggregate raw rows → one entry per employee ──────────────────────────────
