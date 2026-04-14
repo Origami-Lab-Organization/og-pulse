@@ -1,4 +1,4 @@
-import { Plus, Trash2, TrendingUp, User } from 'lucide-react';
+import { Pencil, Plus, Trash2, TrendingUp, User } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ interface ObjectiveCardProps {
   onAddKr: () => void;
   onCheckin: (krId: string) => void;
   onDeleteObjective: () => void;
+  onEditObjective?: () => void;
   isAdmin: boolean;
 }
 
@@ -97,6 +98,7 @@ export function ObjectiveCard({
   onAddKr,
   onCheckin,
   onDeleteObjective,
+  onEditObjective,
   isAdmin,
 }: ObjectiveCardProps) {
   const objectiveStatus = getKrStatus(objective.avgConfidence);
@@ -120,6 +122,11 @@ export function ObjectiveCard({
               )}
             </div>
             <h3 className="font-semibold text-base leading-snug">{objective.title}</h3>
+            {objective.description && (
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                {objective.description}
+              </p>
+            )}
             {objective.ownerName && (
               <p className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                 <User className="h-3 w-3" />
@@ -129,14 +136,24 @@ export function ObjectiveCard({
           </div>
 
           {isAdmin && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={onDeleteObjective}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <div className="flex flex-col gap-0.5 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={onEditObjective}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={onDeleteObjective}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
