@@ -75,7 +75,7 @@ const OBJECTIVE_SELECT = `
   key_results:strategy_key_results(
     *,
     owner:employees!owner_id(nome),
-    checkins:strategy_checkins(* order(created_at.desc))
+    checkins:strategy_checkins(*)
   )
 `.trim();
 
@@ -132,7 +132,7 @@ export const strategyObjectiveService = {
 const KEY_RESULT_SELECT = `
   *,
   owner:employees!owner_id(nome),
-  checkins:strategy_checkins(* order(created_at.desc))
+  checkins:strategy_checkins(*)
 `.trim();
 
 export const strategyKeyResultService = {
