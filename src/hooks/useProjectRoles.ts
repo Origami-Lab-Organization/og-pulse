@@ -6,6 +6,7 @@ import {
   AddAllocationPayload,
   ProjectAllocation,
   ProjectAllocationWithEmployee,
+  CreateProjectRolePayload,
 } from '@/types/equipe.types';
 
 // ─── Aggregate raw rows → one entry per employee ──────────────────────────────
@@ -97,6 +98,40 @@ export const useRemoveAllocation = (projectId: string) => {
     },
     onError: () => {
       toast({ title: 'Erro ao remover alocação', variant: 'destructive' });
+    },
+  });
+};
+
+export const useCreateProjectRole = (projectId: string, onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  const { employee } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (payload: CreateProjectRolePayload) => {
+      if (!employee?.tenant_id) throw new Error('No tenant');
+      return equipeService.createProjectRole({
+        project_id: payload.projectId,
+        tenant_id: employee.tenant_id,
+        role_name: payload.roleName,
+        employment_type: payload.employmentType,
+        payment_type: payload.paymentType,
+        employee_id: payload.employeeId || null,
+        freelancer_name: payload.freelancerName || null,
+        freelancer_email: payload.freelancerEmail || null,
+        hourly_rate: payload.hourlyRate ?? null,
+        monthly_rate: payload.monthlyRate ?? null,
+        clt_encargos_multiplier: payload.cltEncargosMultiplier ?? null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-roles', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
+      toast({ title: 'Papel adicionado com sucesso' });
+      onSuccess?.();
+    },
+    onError: () => {
+      toast({ title: 'Erro ao adicionar papel', variant: 'destructive' });
     },
   });
 };

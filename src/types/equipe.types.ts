@@ -80,3 +80,21 @@ export interface AddAllocationPayload {
   customRoleName?: string;
   monthlyHours: { year: number; month: number; plannedHours: number }[];
 }
+
+// ─── Project Roles (team composition) ─────────────────────────────────────────
+
+export type EmploymentType = 'CLT' | 'PJ' | 'FREELANCER';
+export type PaymentType = 'hourly' | 'monthly' | 'delivery';
+
+export interface CreateProjectRolePayload {
+  projectId: string;
+  roleName: string;
+  employmentType: EmploymentType;
+  paymentType: PaymentType;
+  employeeId?: string;
+  freelancerName?: string;
+  freelancerEmail?: string;
+  hourlyRate?: number;
+  monthlyRate?: number;
+  cltEncargosMultiplier?: number;
+}
