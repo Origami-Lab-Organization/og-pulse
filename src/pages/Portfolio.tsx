@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -13,9 +13,11 @@ import {
   PortfolioProject,
 } from '@/hooks/usePortfolioProjects'
 import { useDeleteProject, useArchiveProject } from '@/hooks/useProjects'
-import { Search, Building2, User, Kanban, List } from 'lucide-react'
+import { Search, Building2, User, Kanban, List, FileDown } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth } from '@/contexts/AuthContext'
+import { generateProjectsRevenue2026Pdf } from '@/components/projects/ProjectsRevenuePdfGenerator'
+import { fetchProjectCosts2026 } from '@/services/projectReportService'
 
 export default function Portfolio() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -29,6 +31,8 @@ export default function Portfolio() {
   )
   const { employee } = useAuth()
   const isAdmin = employee?.isAdmin ?? false
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+
   const { data: projects, isLoading } = usePortfolioProjects(searchQuery, {
     clientId,
     serviceLine,
@@ -37,6 +41,19 @@ export default function Portfolio() {
   })
   const deleteProject = useDeleteProject()
   const archiveProject = useArchiveProject()
+
+  const handleGeneratePdf = useCallback(async () => {
+    const allProjects = projects || []
+    setIsGeneratingPdf(true)
+    try {
+      const costMap = await fetchProjectCosts2026(
+        allProjects.map((p) => ({ id: p.id, start_date: p.start_date }))
+      )
+      generateProjectsRevenue2026Pdf(allProjects, costMap)
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }, [projects])
 
   const handleRemoveProject = (project: PortfolioProject) => {
     if (!isAdmin) return
@@ -62,7 +79,23 @@ export default function Portfolio() {
   )
 
   return (
-    <AppLayout title='Portfólio de Projetos' actions={scopeBadge}>
+    <AppLayout
+      title='Portfólio de Projetos'
+      actions={
+        <div className='flex items-center gap-2'>
+          {scopeBadge}
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={handleGeneratePdf}
+            disabled={isGeneratingPdf}
+          >
+            <FileDown className='mr-2 h-4 w-4' />
+            {isGeneratingPdf ? 'Gerando...' : 'Relatório 2026'}
+          </Button>
+        </div>
+      }
+    >
       <div className='flex flex-col gap-4 h-[calc(100vh-10rem)]'>
         {isLoading ? (
           <div className='flex gap-4 p-4 bg-muted/30 rounded-lg'>
