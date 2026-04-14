@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import type { StrategyCycle } from '@/types/strategy';
+import type { StrategyCycle, StrategyObjectiveWithKrs } from '@/types/strategy';
 import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
