@@ -239,7 +239,6 @@ export default function Strategy() {
                     <Plus className="h-4 w-4 mr-1" />
                     Novo objetivo
                   </Button>
-                  </Button>
                 </div>
               )}
               {objectives.length === 0 ? (
