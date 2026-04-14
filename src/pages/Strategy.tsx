@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import type { StrategyCycle } from '@/types/strategy';
+import type { StrategyCycle, StrategyObjectiveWithKrs } from '@/types/strategy';
 import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -149,6 +149,7 @@ export default function Strategy() {
   // Dialog state
   const [cycleFormOpen, setCycleFormOpen] = useState(false);
   const [objectiveFormOpen, setObjectiveFormOpen] = useState(false);
+  const [editingObjective, setEditingObjective] = useState<StrategyObjectiveWithKrs | null>(null);
   const [krFormObjectiveId, setKrFormObjectiveId] = useState<string | null>(null);
   const [checkinKr, setCheckinKr] = useState<StrategyKeyResult | null>(null);
 
@@ -234,7 +235,7 @@ export default function Strategy() {
               </div>
               {isAdmin && (
                 <div className="flex justify-end">
-                  <Button size="sm" onClick={() => setObjectiveFormOpen(true)}>
+                  <Button size="sm" onClick={() => { setEditingObjective(null); setObjectiveFormOpen(true); }}>
                     <Plus className="h-4 w-4 mr-1" />
                     Novo objetivo
                   </Button>
@@ -252,6 +253,10 @@ export default function Strategy() {
                       objective={obj}
                       isAdmin={isAdmin}
                       onAddKr={() => setKrFormObjectiveId(obj.id)}
+                      onEditObjective={() => {
+                        setEditingObjective(obj);
+                        setObjectiveFormOpen(true);
+                      }}
                       onCheckin={(krId) => {
                         const kr = obj.keyResults.find((k) => k.id === krId);
                         if (kr) setCheckinKr(kr);
@@ -310,8 +315,12 @@ export default function Strategy() {
       {effectiveCycleId && (
         <ObjectiveFormDialog
           open={objectiveFormOpen}
-          onOpenChange={setObjectiveFormOpen}
+          onOpenChange={(open) => {
+            setObjectiveFormOpen(open);
+            if (!open) setEditingObjective(null);
+          }}
           cycleId={effectiveCycleId}
+          objective={editingObjective}
         />
       )}
 
