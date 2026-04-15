@@ -150,6 +150,8 @@ export function dbToStrategyCheckin(db: StrategyCheckinDB): StrategyCheckin {
   };
 }
 
+export type KrDirection = 'higher_is_better' | 'lower_is_better';
+
 export interface StrategyKeyResultDB {
   id: string;
   tenant_id: string;
@@ -161,6 +163,7 @@ export interface StrategyKeyResultDB {
   current_value: number;
   confidence: number;
   unit: string | null;
+  direction: KrDirection;
   owner_id: string | null;
   created_at: string;
   updated_at: string;
@@ -179,6 +182,7 @@ export interface StrategyKeyResult {
   currentValue: number;
   confidence: number;
   unit: string | null;
+  direction: KrDirection;
   ownerId: string | null;
   ownerName: string | null;
   createdAt: string;
@@ -195,6 +199,7 @@ export interface CreateStrategyKeyResultInput {
   current_value?: number;
   confidence?: number;
   unit?: string | null;
+  direction?: KrDirection;
   owner_id?: string | null;
 }
 
@@ -206,6 +211,7 @@ export interface UpdateStrategyKeyResultInput {
   current_value?: number;
   confidence?: number;
   unit?: string | null;
+  direction?: KrDirection;
   owner_id?: string | null;
 }
 
@@ -221,6 +227,7 @@ export function dbToStrategyKeyResult(db: StrategyKeyResultDB): StrategyKeyResul
     currentValue: db.current_value,
     confidence: db.confidence,
     unit: db.unit ?? null,
+    direction: db.direction ?? 'higher_is_better',
     ownerId: db.owner_id,
     ownerName: db.owner?.nome ?? null,
     createdAt: db.created_at,
