@@ -161,6 +161,7 @@ function CycleRow({
 export default function Strategy() {
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
+  const canManageStrategy = isAdmin || (employee?.is_gerente ?? false);
 
   const { data: cycles = [], isLoading: cyclesLoading } = useStrategyCycles();
   const { data: activeCycle } = useActiveStrategyCycle();
@@ -238,9 +239,8 @@ export default function Strategy() {
         )}
 
         {!isLoading && cycles.length > 0 && (
-          <Tabs defaultValue="overview" className="space-y-6">
+          <Tabs defaultValue="okrs" className="space-y-6">
             <TabsList className="w-full justify-start overflow-x-auto">
-              <TabsTrigger value="overview">Visão geral</TabsTrigger>
               <TabsTrigger value="okrs">OKRs</TabsTrigger>
               <TabsTrigger value="initiatives">Iniciativas</TabsTrigger>
               <TabsTrigger value="alerts" className="relative">
@@ -254,36 +254,12 @@ export default function Strategy() {
               <TabsTrigger value="cycles">Ciclos</TabsTrigger>
             </TabsList>
 
-            {/* ── Visão Geral ─────────────────────────────────────────────── */}
-            <TabsContent value="overview" className="space-y-6">
-              <StrategyMetricsBar objectives={objectives} initiatives={initiatives} />
-              {objectives.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Nenhum objetivo neste ciclo.
-                </p>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {objectives.map((obj) => (
-                    <ObjectiveCard
-                      key={obj.id}
-                      objective={obj}
-                      onClick={() => setDetailObjective(obj)}
-                      onAddKr={() => {}}
-                      onCheckin={() => {}}
-                      onDeleteObjective={() => {}}
-                      isAdmin={false}
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
             {/* ── OKRs ────────────────────────────────────────────────────── */}
             <TabsContent value="okrs" className="space-y-6">
               <div className="flex items-center justify-between">
                 <StrategyMetricsBar objectives={objectives} initiatives={initiatives} />
               </div>
-              {isAdmin && (
+              {canManageStrategy && (
                 <div className="flex justify-end">
                   <Button size="sm" onClick={() => { setEditingObjective(null); setObjectiveFormOpen(true); }}>
                     <Plus className="h-4 w-4 mr-1" />
