@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, TrendingUp, User } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, TrendingUp, TrendingDown, Minus, User } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -36,6 +36,7 @@ import {
   StrategyObjectiveWithKrs,
   StrategyKeyResult,
   StrategyCheckin,
+  KrDirection,
   getKrStatus,
   getKrProgress,
 } from '@/types/strategy';
@@ -78,42 +79,16 @@ const statusConfig = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getMonthsInRange(start: string, end: string): Date[] {
-  const months: Date[] = [];
-  const startDate = new Date(start + 'T00:00:00');
-  const endDate = new Date(end + 'T00:00:00');
-  const today = new Date();
-  const cutoff = endDate < today ? endDate : today;
-  const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-
-  while (current <= cutoff) {
-    months.push(new Date(current));
-    current.setMonth(current.getMonth() + 1);
-  }
-  return months;
+function checkinDate(c: StrategyCheckin): Date {
+  const s = c.checkinDate ?? c.createdAt;
+  return new Date(s.length === 10 ? s + 'T00:00:00' : s);
 }
 
-function getLatestCheckinForMonth(
-  checkins: StrategyCheckin[],
-  year: number,
-  month: number,
-): StrategyCheckin | null {
-  const inMonth = checkins.filter((c) => {
-    // Use checkinDate (explicit date) falling back to createdAt for legacy records
-    const dateStr = c.checkinDate ?? c.createdAt;
-    const d = new Date(dateStr + (dateStr.length === 10 ? 'T00:00:00' : ''));
-    return d.getFullYear() === year && d.getMonth() === month;
+function sortedCheckins(checkins: StrategyCheckin[], order: 'asc' | 'desc' = 'asc'): StrategyCheckin[] {
+  return [...checkins].sort((a, b) => {
+    const diff = checkinDate(a).getTime() - checkinDate(b).getTime();
+    return order === 'asc' ? diff : -diff;
   });
-  if (inMonth.length === 0) return null;
-  return inMonth.sort((a, b) => {
-    const da = new Date((a.checkinDate ?? a.createdAt) + (a.checkinDate?.length === 10 ? 'T00:00:00' : ''));
-    const db2 = new Date((b.checkinDate ?? b.createdAt) + (b.checkinDate?.length === 10 ? 'T00:00:00' : ''));
-    return db2.getTime() - da.getTime();
-  })[0];
-}
-
-function formatMonthLabel(date: Date): string {
-  return date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
 }
 
 function formatValue(value: number, unit: string | null): string {
@@ -130,7 +105,21 @@ function formatValue(value: number, unit: string | null): string {
   return `${num} ${unit}`;
 }
 
-// ─── KR evolution chart ───────────────────────────────────────────────────────
+function getCheckinDelta(
+  current: StrategyCheckin,
+  previous: StrategyCheckin | undefined,
+  unit: string | null,
+  direction: KrDirection,
+): { text: string; isGood: boolean; isZero: boolean } | null {
+  if (!previous) return null;
+  const delta = current.currentValue - previous.currentValue;
+  if (delta === 0) return { text: '0', isGood: false, isZero: true };
+  const sign = delta > 0 ? '+' : '';
+  const isGood = direction === 'lower_is_better' ? delta < 0 : delta > 0;
+  return { text: `${sign}${formatValue(delta, unit)}`, isGood, isZero: false };
+}
+
+// ─── KR evolution chart (individual check-ins) ───────────────────────────────
 
 const confidenceColors: Record<string, string> = {
   green: '#10b981',
@@ -138,58 +127,61 @@ const confidenceColors: Record<string, string> = {
   red: '#ef4444',
 };
 
-function KrChart({
-  kr,
-  cycleStart,
-  cycleEnd,
-}: {
-  kr: StrategyKeyResult;
-  cycleStart: string;
-  cycleEnd: string;
-}) {
-  const months = getMonthsInRange(cycleStart, cycleEnd);
+function KrChart({ kr }: { kr: StrategyKeyResult }) {
+  const ordered = sortedCheckins(kr.checkins, 'asc');
+  if (ordered.length === 0) return null;
 
-  const chartData = months.map((date) => {
-    const checkin = getLatestCheckinForMonth(kr.checkins, date.getFullYear(), date.getMonth());
+  const chartData = ordered.map((c) => {
+    const d = checkinDate(c);
+    const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     return {
-      label: formatMonthLabel(date),
-      value: checkin ? checkin.currentValue : null,
-      confidence: checkin ? checkin.confidence : null,
-      color: checkin ? confidenceColors[getKrStatus(checkin.confidence)] : undefined,
+      label,
+      fullDate: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      value: c.currentValue,
+      confidence: c.confidence,
+      notes: c.notes,
+      color: confidenceColors[getKrStatus(c.confidence)],
     };
   });
 
-  const hasData = chartData.some((d) => d.value !== null);
-  if (!hasData) return null;
-
-  const allValues = chartData.filter((d) => d.value !== null).map((d) => d.value as number);
+  const allValues = chartData.map((d) => d.value);
   const minVal = Math.min(...allValues, kr.initialValue);
   const maxVal = Math.max(...allValues, kr.targetValue);
   const padding = (maxVal - minVal) * 0.15 || 5;
 
   return (
-    <div className="mt-3 h-40">
+    <div className="mt-3 h-44">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+        <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-          <XAxis
-            dataKey="label"
-            tick={{ fontSize: 10 }}
-            tickLine={false}
-            axisLine={false}
-          />
+          <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
           <YAxis
             domain={[Math.max(0, minVal - padding), maxVal + padding]}
             tick={{ fontSize: 10 }}
             tickLine={false}
             axisLine={false}
-            width={40}
+            width={44}
             tickFormatter={(v) => formatValue(v, kr.unit)}
           />
           <Tooltip
-            formatter={(value: number) => [formatValue(value, kr.unit), 'Valor']}
-            labelFormatter={(label) => String(label)}
-            contentStyle={{ fontSize: 12 }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const d = payload[0].payload;
+              const status = getKrStatus(d.confidence);
+              return (
+                <div className="rounded-md border bg-popover p-2 text-[11px] shadow-md space-y-0.5">
+                  <p className="font-semibold">{d.fullDate}</p>
+                  <p>Valor: <span className="font-medium">{formatValue(d.value, kr.unit)}</span></p>
+                  <p className={cn(
+                    'font-medium',
+                    status === 'green' ? 'text-emerald-600' : status === 'amber' ? 'text-amber-600' : 'text-red-600',
+                  )}>
+                    Confiança: {d.confidence}/10
+                  </p>
+                  {d.notes && <p className="text-muted-foreground max-w-[180px] line-clamp-2">{d.notes}</p>}
+                </div>
+              );
+            }}
           />
           <ReferenceLine
             y={kr.targetValue}
@@ -197,6 +189,14 @@ function KrChart({
             strokeDasharray="4 2"
             label={{ value: `Meta: ${formatValue(kr.targetValue, kr.unit)}`, fontSize: 10, fill: '#6366f1', position: 'insideTopRight' }}
           />
+          {kr.initialValue !== kr.targetValue && (
+            <ReferenceLine
+              y={kr.initialValue}
+              stroke="#94a3b8"
+              strokeDasharray="2 2"
+              label={{ value: `Início: ${formatValue(kr.initialValue, kr.unit)}`, fontSize: 10, fill: '#94a3b8', position: 'insideBottomRight' }}
+            />
+          )}
           <Line
             type="monotone"
             dataKey="value"
@@ -204,7 +204,6 @@ function KrChart({
             strokeWidth={2}
             dot={(props) => {
               const { cx, cy, payload } = props;
-              if (payload.value === null) return <g key={props.key} />;
               return (
                 <circle
                   key={props.key}
@@ -217,7 +216,6 @@ function KrChart({
                 />
               );
             }}
-            connectNulls={false}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -225,97 +223,88 @@ function KrChart({
   );
 }
 
-// ─── Monthly history table ─────────────────────────────────────────────────
+// ─── Checkin history table ─────────────────────────────────────────────────
 
-function MonthlyHistory({
-  kr,
-  cycleStart,
-  cycleEnd,
-  onCheckin,
-}: {
-  kr: StrategyKeyResult;
-  cycleStart: string;
-  cycleEnd: string;
-  onCheckin: () => void;
-}) {
-  const months = getMonthsInRange(cycleStart, cycleEnd);
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth();
+function CheckinHistory({ kr }: { kr: StrategyKeyResult }) {
+  const desc = sortedCheckins(kr.checkins, 'desc');
+  // chronological order for delta calculation (older → newer)
+  const asc = sortedCheckins(kr.checkins, 'asc');
 
-  if (months.length === 0) return null;
+  if (desc.length === 0) {
+    return (
+      <p className="mt-3 text-center text-xs text-muted-foreground py-3">
+        Nenhum check-in registrado ainda. Use o botão <span className="font-medium">Check-in</span> para registrar o primeiro.
+      </p>
+    );
+  }
 
   return (
     <div className="mt-3 rounded-md border overflow-hidden">
       <table className="w-full text-xs">
         <thead>
           <tr className="bg-muted/50">
-            <th className="text-left px-3 py-2 font-medium text-muted-foreground w-20">Mês</th>
+            <th className="text-left px-3 py-2 font-medium text-muted-foreground w-24">Data</th>
             <th className="text-right px-3 py-2 font-medium text-muted-foreground">Valor</th>
-            <th className="text-right px-3 py-2 font-medium text-muted-foreground">Confiança</th>
+            <th className="text-right px-3 py-2 font-medium text-muted-foreground w-24">Δ variação</th>
+            <th className="text-right px-3 py-2 font-medium text-muted-foreground w-24">Confiança</th>
             <th className="text-left px-3 py-2 font-medium text-muted-foreground hidden sm:table-cell">Nota</th>
-            <th className="px-2 py-2 w-8" />
           </tr>
         </thead>
         <tbody>
-          {months.map((date) => {
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const checkin = getLatestCheckinForMonth(kr.checkins, year, month);
-            const isCurrentMonth = year === currentYear && month === currentMonth;
-            const status = checkin ? getKrStatus(checkin.confidence) : null;
+          {desc.map((c) => {
+            const ascIdx = asc.findIndex((x) => x.id === c.id);
+            const prev = asc[ascIdx - 1];
+            const delta = getCheckinDelta(c, prev, kr.unit, kr.direction);
+            const status = getKrStatus(c.confidence);
+            const dateStr = checkinDate(c).toLocaleDateString('pt-BR', {
+              day: '2-digit', month: '2-digit', year: 'numeric',
+            });
 
             return (
-              <tr key={`${year}-${month}`} className="border-t hover:bg-muted/30 transition-colors">
-                <td className="px-3 py-2 text-muted-foreground capitalize">
-                  {formatMonthLabel(date)}
-                  {isCurrentMonth && (
-                    <span className="ml-1 text-[10px] font-semibold text-primary">(atual)</span>
-                  )}
-                </td>
+              <tr key={c.id} className="border-t hover:bg-muted/30 transition-colors">
+                <td className="px-3 py-2 text-muted-foreground tabular-nums">{dateStr}</td>
                 <td className="px-3 py-2 text-right tabular-nums font-medium">
-                  {checkin ? formatValue(checkin.currentValue, kr.unit) : <span className="text-muted-foreground">—</span>}
+                  {formatValue(c.currentValue, kr.unit)}
                 </td>
-                <td className="px-3 py-2 text-right">
-                  {checkin ? (
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1 font-semibold',
-                        status === 'green'
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : status === 'amber'
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : 'text-red-600 dark:text-red-400',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'w-1.5 h-1.5 rounded-full',
-                          status === 'green'
-                            ? 'bg-emerald-500'
-                            : status === 'amber'
-                              ? 'bg-amber-500'
-                              : 'bg-red-500',
-                        )}
-                      />
-                      {checkin.confidence}/10
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {delta === null ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : delta.isZero ? (
+                    <span className="inline-flex items-center gap-0.5 text-muted-foreground">
+                      <Minus className="h-3 w-3" /> {delta.text}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <span className={cn(
+                      'inline-flex items-center gap-0.5 font-medium',
+                      delta.isGood ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+                    )}>
+                      {delta.isGood
+                        ? <TrendingUp className="h-3 w-3" />
+                        : <TrendingDown className="h-3 w-3" />}
+                      {delta.text}
+                    </span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-muted-foreground max-w-[180px] truncate hidden sm:table-cell">
-                  {checkin?.notes ?? '—'}
+                <td className="px-3 py-2 text-right">
+                  <span className={cn(
+                    'inline-flex items-center gap-1 font-semibold',
+                    status === 'green'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : status === 'amber'
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-red-600 dark:text-red-400',
+                  )}>
+                    <span className={cn('w-1.5 h-1.5 rounded-full', {
+                      'bg-emerald-500': status === 'green',
+                      'bg-amber-500': status === 'amber',
+                      'bg-red-500': status === 'red',
+                    })} />
+                    {c.confidence}/10
+                  </span>
                 </td>
-                <td className="px-2 py-1.5 text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-[10px]"
-                    onClick={onCheckin}
-                  >
-                    {checkin ? 'Atualizar' : '+ Check-in'}
-                  </Button>
+                <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate hidden sm:table-cell"
+                    title={c.notes ?? undefined}>
+                  {c.notes ?? '—'}
                 </td>
               </tr>
             );
@@ -349,20 +338,17 @@ function KrDetailRow({
   const status = getKrStatus(kr.confidence);
   const progress = getKrProgress(kr.currentValue, kr.targetValue, kr.direction, kr.initialValue);
   const cfg = statusConfig[status];
-  const hasMonthlyData = !!cycleStart && !!cycleEnd;
 
   return (
     <div className="py-3 border-b last:border-0">
       <div className="flex items-start gap-2 mb-2">
-        {hasMonthlyData && (
-          <button
-            className="mt-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            onClick={() => setExpanded((v) => !v)}
-            aria-label={expanded ? 'Recolher histórico' : 'Expandir histórico'}
-          >
-            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </button>
-        )}
+        <button
+          className="mt-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? 'Recolher histórico' : 'Expandir histórico'}
+        >
+          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium leading-snug">{kr.title}</p>
           {kr.direction === 'lower_is_better' && (
@@ -403,7 +389,7 @@ function KrDetailRow({
         </div>
       </div>
 
-      <div className={cn('flex items-center gap-3 mb-1', !hasMonthlyData && 'pl-0', hasMonthlyData && 'pl-6')}>
+      <div className="flex items-center gap-3 mb-1 pl-6">
         <div className="flex-1">
           <Progress value={progress} className={cn('h-1.5', cfg.progressClass)} />
         </div>
@@ -425,7 +411,7 @@ function KrDetailRow({
         </span>
       </div>
 
-      <div className={cn('flex items-center gap-4 text-[11px] text-muted-foreground', hasMonthlyData && 'pl-6')}>
+      <div className="flex items-center gap-4 text-[11px] text-muted-foreground pl-6">
         <span>
           Atual:{' '}
           <span className="font-medium text-foreground">
@@ -446,15 +432,10 @@ function KrDetailRow({
         )}
       </div>
 
-      {expanded && hasMonthlyData && (
-        <div className={cn('mt-1', hasMonthlyData && 'pl-6')}>
-          <KrChart kr={kr} cycleStart={cycleStart!} cycleEnd={cycleEnd!} />
-          <MonthlyHistory
-            kr={kr}
-            cycleStart={cycleStart!}
-            cycleEnd={cycleEnd!}
-            onCheckin={onCheckin}
-          />
+      {expanded && (
+        <div className="mt-1 pl-6">
+          <KrChart kr={kr} />
+          <CheckinHistory kr={kr} />
         </div>
       )}
     </div>
@@ -557,11 +538,9 @@ export function ObjectiveDetailModal({
                   ({objective.keyResults.length})
                 </span>
               </p>
-              {cycleStart && cycleEnd && (
-                <p className="text-[11px] text-muted-foreground">
-                  Clique em <ChevronRight className="inline h-3 w-3" /> para ver histórico mensal
-                </p>
-              )}
+              <p className="text-[11px] text-muted-foreground">
+                Clique em <ChevronRight className="inline h-3 w-3" /> para ver histórico de check-ins
+              </p>
             </div>
 
             {objective.keyResults.length === 0 ? (
