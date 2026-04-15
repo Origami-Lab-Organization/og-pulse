@@ -80,6 +80,22 @@ export function useUpdateStrategyCycle() {
   });
 }
 
+export function useDeleteStrategyCycle() {
+  const qc = useQueryClient();
+  const { employee } = useAuth();
+  return useMutation({
+    mutationFn: (id: string) =>
+      strategyCycleService.delete(id, employee!.tenant_id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['strategy_cycles'] });
+      toast({ title: 'Ciclo removido com sucesso' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao remover ciclo', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ─── Objectives ───────────────────────────────────────────────────────────────
 
 export function useStrategyObjectives(cycleId: string | undefined) {

@@ -1,6 +1,16 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, TrendingUp, User } from 'lucide-react';
 import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine,
+  ResponsiveContainer,
+} from 'recharts';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -103,6 +113,101 @@ function formatMonthLabel(date: Date): string {
 function formatValue(value: number, unit: string | null): string {
   if (!unit) return String(value);
   return `${value}${unit}`;
+}
+
+// ─── KR evolution chart ───────────────────────────────────────────────────────
+
+const confidenceColors: Record<string, string> = {
+  green: '#10b981',
+  amber: '#f59e0b',
+  red: '#ef4444',
+};
+
+function KrChart({
+  kr,
+  cycleStart,
+  cycleEnd,
+}: {
+  kr: StrategyKeyResult;
+  cycleStart: string;
+  cycleEnd: string;
+}) {
+  const months = getMonthsInRange(cycleStart, cycleEnd);
+
+  const chartData = months.map((date) => {
+    const checkin = getLatestCheckinForMonth(kr.checkins, date.getFullYear(), date.getMonth());
+    return {
+      label: formatMonthLabel(date),
+      value: checkin ? checkin.currentValue : null,
+      confidence: checkin ? checkin.confidence : null,
+      color: checkin ? confidenceColors[getKrStatus(checkin.confidence)] : undefined,
+    };
+  });
+
+  const hasData = chartData.some((d) => d.value !== null);
+  if (!hasData) return null;
+
+  const allValues = chartData.filter((d) => d.value !== null).map((d) => d.value as number);
+  const minVal = Math.min(...allValues, kr.initialValue);
+  const maxVal = Math.max(...allValues, kr.targetValue);
+  const padding = (maxVal - minVal) * 0.15 || 5;
+
+  return (
+    <div className="mt-3 h-40">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 10 }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis
+            domain={[Math.max(0, minVal - padding), maxVal + padding]}
+            tick={{ fontSize: 10 }}
+            tickLine={false}
+            axisLine={false}
+            width={40}
+            tickFormatter={(v) => formatValue(v, kr.unit)}
+          />
+          <Tooltip
+            formatter={(value: number) => [formatValue(value, kr.unit), 'Valor']}
+            labelFormatter={(label) => String(label)}
+            contentStyle={{ fontSize: 12 }}
+          />
+          <ReferenceLine
+            y={kr.targetValue}
+            stroke="#6366f1"
+            strokeDasharray="4 2"
+            label={{ value: `Meta: ${formatValue(kr.targetValue, kr.unit)}`, fontSize: 10, fill: '#6366f1', position: 'insideTopRight' }}
+          />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke="#6366f1"
+            strokeWidth={2}
+            dot={(props) => {
+              const { cx, cy, payload } = props;
+              if (payload.value === null) return <g key={props.key} />;
+              return (
+                <circle
+                  key={props.key}
+                  cx={cx}
+                  cy={cy}
+                  r={4}
+                  fill={payload.color ?? '#6366f1'}
+                  stroke="white"
+                  strokeWidth={1.5}
+                />
+              );
+            }}
+            connectNulls={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
 }
 
 // ─── Monthly history table ─────────────────────────────────────────────────
@@ -321,6 +426,7 @@ function KrDetailRow({
 
       {expanded && hasMonthlyData && (
         <div className={cn('mt-1', hasMonthlyData && 'pl-6')}>
+          <KrChart kr={kr} cycleStart={cycleStart!} cycleEnd={cycleEnd!} />
           <MonthlyHistory
             kr={kr}
             cycleStart={cycleStart!}

@@ -1,17 +1,23 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { StrategyCycle, StrategyObjectiveWithKrs } from '@/types/strategy';
-import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar, Pencil, Trash2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import {
   useStrategyCycles,
   useActiveStrategyCycle,
   useStrategyObjectives,
   useStrategyInitiatives,
+  useDeleteStrategyObjective,
+  useDeleteStrategyCycle,
 } from '@/hooks/useStrategy';
 import { CycleSelectorHeader } from '@/components/strategy/CycleSelectorHeader';
 import { CycleFormDialog } from '@/components/strategy/CycleFormDialog';
@@ -85,7 +91,17 @@ function AlertRow({ alert }: { alert: StrategyAlert }) {
 
 // ─── Cycle list row ───────────────────────────────────────────────────────────
 
-function CycleRow({ cycle }: { cycle: StrategyCycle }) {
+function CycleRow({
+  cycle,
+  isAdmin,
+  onEdit,
+  onDelete,
+}: {
+  cycle: StrategyCycle;
+  isAdmin: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const formatDate = (iso: string) =>
     new Date(iso + 'T00:00:00').toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -115,6 +131,26 @@ function CycleRow({ cycle }: { cycle: StrategyCycle }) {
         >
           {cycle.isActive ? 'Ativo' : 'Encerrado'}
         </Badge>
+        {isAdmin && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={onEdit}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -154,6 +190,12 @@ export default function Strategy() {
   const [krFormObjectiveId, setKrFormObjectiveId] = useState<string | null>(null);
   const [checkinKr, setCheckinKr] = useState<StrategyKeyResult | null>(null);
   const [detailObjective, setDetailObjective] = useState<StrategyObjectiveWithKrs | null>(null);
+
+  const deleteObjective = useDeleteStrategyObjective();
+  const deleteCycle = useDeleteStrategyCycle();
+  const [confirmDeleteObjectiveId, setConfirmDeleteObjectiveId] = useState<string | null>(null);
+  const [editingCycle, setEditingCycle] = useState<StrategyCycle | null>(null);
+  const [confirmDeleteCycleId, setConfirmDeleteCycleId] = useState<string | null>(null);
 
   const isLoading = cyclesLoading || objectivesLoading;
 
@@ -265,7 +307,7 @@ export default function Strategy() {
                         const kr = obj.keyResults.find((k) => k.id === krId);
                         if (kr) setCheckinKr(kr);
                       }}
-                      onDeleteObjective={() => {}}
+                      onDeleteObjective={() => setConfirmDeleteObjectiveId(obj.id)}
                     />
                   ))}
                 </div>
@@ -305,7 +347,13 @@ export default function Strategy() {
               )}
               <div className="space-y-2">
                 {cycles.map((cycle) => (
-                  <CycleRow key={cycle.id} cycle={cycle} />
+                  <CycleRow
+                    key={cycle.id}
+                    cycle={cycle}
+                    isAdmin={isAdmin}
+                    onEdit={() => { setEditingCycle(cycle); setCycleFormOpen(true); }}
+                    onDelete={() => setConfirmDeleteCycleId(cycle.id)}
+                  />
                 ))}
               </div>
             </TabsContent>
@@ -314,7 +362,11 @@ export default function Strategy() {
       </div>
 
       {/* Dialogs */}
-      <CycleFormDialog open={cycleFormOpen} onOpenChange={setCycleFormOpen} />
+      <CycleFormDialog
+        open={cycleFormOpen}
+        onOpenChange={(open) => { setCycleFormOpen(open); if (!open) setEditingCycle(null); }}
+        cycle={editingCycle}
+      />
 
       {effectiveCycleId && (
         <ObjectiveFormDialog
@@ -364,6 +416,61 @@ export default function Strategy() {
         }}
         onDeleted={() => setDetailObjective(null)}
       />
+
+      <AlertDialog
+        open={!!confirmDeleteCycleId}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteCycleId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir ciclo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Todos os objetivos, Key Results e iniciativas deste ciclo serão excluídos. Esta ação
+              não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                deleteCycle.mutate(confirmDeleteCycleId!, {
+                  onSuccess: () => setConfirmDeleteCycleId(null),
+                });
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!confirmDeleteObjectiveId}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteObjectiveId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir objetivo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso também excluirá todos os Key Results associados. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                deleteObjective.mutate(confirmDeleteObjectiveId!, {
+                  onSuccess: () => setConfirmDeleteObjectiveId(null),
+                });
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

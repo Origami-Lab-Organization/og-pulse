@@ -65,6 +65,16 @@ export const strategyCycleService = {
     if (error) throw error;
     return data;
   },
+
+  async delete(id: string, tenantId: string): Promise<void> {
+    const { error } = await supabase
+      .from('strategy_cycles')
+      .delete()
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
+
+    if (error) throw error;
+  },
 };
 
 // ─── Objective ────────────────────────────────────────────────────────────────

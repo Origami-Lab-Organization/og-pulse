@@ -9,7 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useCreateStrategyCycle } from '@/hooks/useStrategy';
+import { useCreateStrategyCycle, useUpdateStrategyCycle } from '@/hooks/useStrategy';
+import { StrategyCycle } from '@/types/strategy';
 
 const schema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
@@ -25,11 +26,14 @@ type FormValues = z.infer<typeof schema>;
 interface CycleFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  cycle?: StrategyCycle | null;
   onSuccess?: () => void;
 }
 
-export function CycleFormDialog({ open, onOpenChange, onSuccess }: CycleFormDialogProps) {
+export function CycleFormDialog({ open, onOpenChange, cycle, onSuccess }: CycleFormDialogProps) {
   const createMutation = useCreateStrategyCycle();
+  const updateMutation = useUpdateStrategyCycle();
+  const isEditing = !!cycle;
 
   const today = new Date().toISOString().slice(0, 10);
   const threeMonthsLater = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -45,22 +49,41 @@ export function CycleFormDialog({ open, onOpenChange, onSuccess }: CycleFormDial
 
   useEffect(() => {
     if (open) {
-      form.reset({
-        title: `Ciclo ${new Date().getFullYear()}`,
-        start_date: today,
-        end_date: threeMonthsLater,
-      });
+      if (isEditing && cycle) {
+        form.reset({
+          title: cycle.title,
+          start_date: cycle.startDate,
+          end_date: cycle.endDate,
+        });
+      } else {
+        form.reset({
+          title: `Ciclo ${new Date().getFullYear()}`,
+          start_date: today,
+          end_date: threeMonthsLater,
+        });
+      }
     }
-  }, [open]);
+  }, [open, cycle?.id]);
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await createMutation.mutateAsync({
-        title: values.title,
-        start_date: values.start_date,
-        end_date: values.end_date,
-        is_active: true,
-      });
+      if (isEditing && cycle) {
+        await updateMutation.mutateAsync({
+          id: cycle.id,
+          updates: {
+            title: values.title,
+            start_date: values.start_date,
+            end_date: values.end_date,
+          },
+        });
+      } else {
+        await createMutation.mutateAsync({
+          title: values.title,
+          start_date: values.start_date,
+          end_date: values.end_date,
+          is_active: true,
+        });
+      }
       onOpenChange(false);
       onSuccess?.();
     } catch {
@@ -68,13 +91,17 @@ export function CycleFormDialog({ open, onOpenChange, onSuccess }: CycleFormDial
     }
   };
 
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Novo Ciclo Estratégico</DialogTitle>
+          <DialogTitle>{isEditing ? 'Editar Ciclo' : 'Novo Ciclo Estratégico'}</DialogTitle>
           <DialogDescription>
-            Defina o período de planejamento da sua equipe.
+            {isEditing
+              ? 'Atualize o título e as datas do ciclo.'
+              : 'Defina o período de planejamento da sua equipe.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -118,9 +145,9 @@ export function CycleFormDialog({ open, onOpenChange, onSuccess }: CycleFormDial
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button type="submit" form="cycle-form" disabled={createMutation.isPending}>
-            {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Criar Ciclo
+          <Button type="submit" form="cycle-form" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isEditing ? 'Salvar alterações' : 'Criar Ciclo'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -18,7 +18,7 @@ import { useCreateStrategyCheckin } from '@/hooks/useStrategy';
 const schema = z.object({
   current_value: z.coerce.number(),
   confidence: z.number().min(0).max(10),
-  notes: z.string().min(10, 'Comentário deve ter pelo menos 10 caracteres'),
+  notes: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -67,7 +67,7 @@ export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: 
         key_result_id: keyResult.id,
         current_value: values.current_value,
         confidence: values.confidence,
-        notes: values.notes,
+        notes: values.notes || null,
       });
       onOpenChange(false);
       onSuccess?.();
@@ -128,7 +128,7 @@ export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: 
 
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>
-                <FormLabel>Comentário *</FormLabel>
+                <FormLabel>Comentário (opcional)</FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="O que aconteceu desde o último check-in? Quais são os próximos passos?"
