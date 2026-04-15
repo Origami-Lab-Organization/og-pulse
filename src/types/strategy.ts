@@ -111,6 +111,7 @@ export interface StrategyCheckinDB {
   current_value: number;
   confidence: number;
   notes: string | null;
+  checkin_date: string;
   created_by: string | null;
   created_at: string;
 }
@@ -122,6 +123,7 @@ export interface StrategyCheckin {
   currentValue: number;
   confidence: number;
   notes: string | null;
+  checkinDate: string;
   createdBy: string | null;
   createdAt: string;
 }
@@ -131,6 +133,7 @@ export interface CreateStrategyCheckinInput {
   current_value: number;
   confidence: number;
   notes?: string | null;
+  checkin_date: string;
 }
 
 export function dbToStrategyCheckin(db: StrategyCheckinDB): StrategyCheckin {
@@ -141,6 +144,7 @@ export function dbToStrategyCheckin(db: StrategyCheckinDB): StrategyCheckin {
     currentValue: db.current_value,
     confidence: db.confidence,
     notes: db.notes,
+    checkinDate: db.checkin_date,
     createdBy: db.created_by,
     createdAt: db.created_at,
   };

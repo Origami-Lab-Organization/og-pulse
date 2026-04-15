@@ -99,11 +99,17 @@ function getLatestCheckinForMonth(
   month: number,
 ): StrategyCheckin | null {
   const inMonth = checkins.filter((c) => {
-    const d = new Date(c.createdAt);
+    // Use checkinDate (explicit date) falling back to createdAt for legacy records
+    const dateStr = c.checkinDate ?? c.createdAt;
+    const d = new Date(dateStr + (dateStr.length === 10 ? 'T00:00:00' : ''));
     return d.getFullYear() === year && d.getMonth() === month;
   });
   if (inMonth.length === 0) return null;
-  return inMonth.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  return inMonth.sort((a, b) => {
+    const da = new Date((a.checkinDate ?? a.createdAt) + (a.checkinDate?.length === 10 ? 'T00:00:00' : ''));
+    const db2 = new Date((b.checkinDate ?? b.createdAt) + (b.checkinDate?.length === 10 ? 'T00:00:00' : ''));
+    return db2.getTime() - da.getTime();
+  })[0];
 }
 
 function formatMonthLabel(date: Date): string {

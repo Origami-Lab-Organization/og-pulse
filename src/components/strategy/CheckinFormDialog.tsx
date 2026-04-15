@@ -16,6 +16,7 @@ import { StrategyKeyResult } from '@/types/strategy';
 import { useCreateStrategyCheckin } from '@/hooks/useStrategy';
 
 const schema = z.object({
+  checkin_date: z.string().min(1, 'Data é obrigatória'),
   current_value: z.coerce.number(),
   confidence: z.number().min(0).max(10),
   notes: z.string().optional(),
@@ -39,9 +40,12 @@ function confidenceLabel(value: number) {
 export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: CheckinFormDialogProps) {
   const createMutation = useCreateStrategyCheckin();
 
+  const today = new Date().toISOString().slice(0, 10);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      checkin_date: today,
       current_value: keyResult.currentValue,
       confidence: keyResult.confidence,
       notes: '',
@@ -51,6 +55,7 @@ export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: 
   useEffect(() => {
     if (open) {
       form.reset({
+        checkin_date: today,
         current_value: keyResult.currentValue,
         confidence: keyResult.confidence,
         notes: '',
@@ -65,6 +70,7 @@ export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: 
     try {
       await createMutation.mutateAsync({
         key_result_id: keyResult.id,
+        checkin_date: values.checkin_date,
         current_value: values.current_value,
         confidence: values.confidence,
         notes: values.notes || null,
@@ -86,6 +92,16 @@ export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: 
 
         <Form {...form}>
           <form id="checkin-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField control={form.control} name="checkin_date" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data do check-in *</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             <FormField control={form.control} name="current_value" render={({ field }) => (
               <FormItem>
                 <FormLabel>Valor Atual</FormLabel>
