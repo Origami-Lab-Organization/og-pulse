@@ -224,6 +224,7 @@ export default function Analytics() {
 
     generateAnalyticsPdf({
       periodLabel,
+      year: financialEvolution.year,
       financialKPIs,
       financialMonths,
       projectFinancials,

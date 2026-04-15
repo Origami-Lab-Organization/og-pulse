@@ -22,6 +22,7 @@ export interface AnalyticsPdfFinancialKPIs {
 
 export interface AnalyticsPdfInput {
   periodLabel: string;
+  year: number;
   financialKPIs: AnalyticsPdfFinancialKPIs;
   financialMonths: FinancialMonthlyPoint[];
   projectFinancials: ProjectFinancialsData;
@@ -46,7 +47,18 @@ const COLOR_BG     = [245, 243, 255] as const;  // purple-50
 const COLOR_HEADER = [237, 233, 254] as const;  // purple-100
 
 export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
-  const { periodLabel, financialKPIs, financialMonths, projectFinancials, revenueData, stakeholderData } = input;
+  const { periodLabel, year, financialKPIs, financialMonths, projectFinancials, revenueData, stakeholderData } = input;
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-based
+
+  const getMonthKind = (monthIndex: number): 'past' | 'current' | 'future' => {
+    if (year < currentYear) return 'past';
+    if (year > currentYear) return 'future';
+    if (monthIndex < currentMonth) return 'past';
+    if (monthIndex === currentMonth) return 'current';
+    return 'future';
+  };
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -115,7 +127,8 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     if (colorOk !== undefined) {
-      doc.setTextColor(...(colorOk ? COLOR_GREEN : COLOR_RED));
+      const c = colorOk ? COLOR_GREEN : COLOR_RED;
+      doc.setTextColor(c[0], c[1], c[2]);
     } else {
       doc.setTextColor(...COLOR_ACCENT);
     }
@@ -212,35 +225,59 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
   // Monthly evolution table
   drawSectionTitle('Evolução Mensal');
 
-  const pastMonths = financialMonths.filter(m => m.isPast || m.isHighlighted);
+  // Legend note
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(...COLOR_GRAY);
+  doc.text('Real: meses passados  |  Real + Previsto: mês atual  |  Previsto: meses futuros', margin, y);
+  doc.setTextColor(20, 20, 20);
+  y += 4;
 
   const mCols = [
-    { label: 'Mês', w: 18 },
-    { label: 'Faturado', w: 32, align: 'right' as const },
-    { label: 'Receita Recebida', w: 38, align: 'right' as const },
-    { label: 'Receita Prevista', w: 38, align: 'right' as const },
-    { label: 'Custos Totais', w: 36, align: 'right' as const },
-    { label: 'Mão de Obra', w: 34, align: 'right' as const },
-    { label: 'Fornecedores', w: 34, align: 'right' as const },
-    { label: 'Margem %', w: 22, align: 'right' as const },
+    { label: 'Mês',          w: 14 },
+    { label: 'Faturado',     w: 28, align: 'right' as const },
+    { label: 'Rec. Real',    w: 28, align: 'right' as const },
+    { label: 'Custo Real',   w: 28, align: 'right' as const },
+    { label: 'Mg. Real %',   w: 22, align: 'right' as const },
+    { label: 'Rec. Prev.',   w: 28, align: 'right' as const },
+    { label: 'Custo Prev.',  w: 28, align: 'right' as const },
+    { label: 'Mg. Prev. %',  w: 22, align: 'right' as const },
+    { label: 'M.O. Real',    w: 26, align: 'right' as const },
+    { label: 'Forn. Real',   w: 26, align: 'right' as const },
   ];
 
   drawTableHeader(mCols);
 
-  pastMonths.forEach((m, i) => {
+  financialMonths.forEach((m, i) => {
     checkPageBreak(6);
-    const marginColor = m.grossMarginPct !== null
+    const kind = getMonthKind(m.monthIndex);
+    const showReal = kind === 'past' || kind === 'current';
+    const showPrev = kind === 'current' || kind === 'future';
+
+    const realMarginColor = m.grossMarginPct !== null
       ? (m.grossMarginPct >= (target ?? 30) ? COLOR_GREEN : COLOR_RED)
       : COLOR_GRAY;
+    const prevMarginColor = m.plannedGrossMarginPct !== null
+      ? (m.plannedGrossMarginPct >= (target ?? 30) ? COLOR_GREEN : COLOR_RED)
+      : COLOR_GRAY;
+
+    // highlight current month row
+    if (kind === 'current') {
+      doc.setFillColor(237, 233, 254);
+      doc.rect(margin, y, contentW, 5.5, 'F');
+    }
+
     drawTableRow([
-      { value: m.label, w: mCols[0].w },
-      { value: fmtK(m.faturado), w: mCols[1].w, align: 'right' },
-      { value: fmtK(m.revenueReal), w: mCols[2].w, align: 'right' },
-      { value: fmtK(m.revenuePlanned), w: mCols[3].w, align: 'right' },
-      { value: fmtK(m.totalCosts), w: mCols[4].w, align: 'right' },
-      { value: fmtK(m.laborCost), w: mCols[5].w, align: 'right' },
-      { value: fmtK(m.supplierCost), w: mCols[6].w, align: 'right' },
-      { value: fmtPct(m.grossMarginPct), w: mCols[7].w, align: 'right', color: marginColor },
+      { value: m.label,                                                        w: mCols[0].w, bold: kind === 'current' },
+      { value: showReal ? fmtK(m.faturado)          : '—',                    w: mCols[1].w, align: 'right' },
+      { value: showReal ? fmtK(m.revenueReal)        : '—',                   w: mCols[2].w, align: 'right' },
+      { value: showReal ? fmtK(m.totalCosts)         : '—',                   w: mCols[3].w, align: 'right' },
+      { value: showReal ? fmtPct(m.grossMarginPct)   : '—',                   w: mCols[4].w, align: 'right', color: showReal ? realMarginColor : COLOR_GRAY },
+      { value: showPrev ? fmtK(m.revenuePlanned)     : '—',                   w: mCols[5].w, align: 'right', color: showPrev ? undefined : COLOR_GRAY },
+      { value: showPrev ? fmtK(m.plannedTotalCosts)  : '—',                   w: mCols[6].w, align: 'right', color: showPrev ? undefined : COLOR_GRAY },
+      { value: showPrev ? fmtPct(m.plannedGrossMarginPct) : '—',              w: mCols[7].w, align: 'right', color: showPrev ? prevMarginColor : COLOR_GRAY },
+      { value: showReal ? fmtK(m.laborCost)          : '—',                   w: mCols[8].w, align: 'right' },
+      { value: showReal ? fmtK(m.supplierCost)       : '—',                   w: mCols[9].w, align: 'right' },
     ], i);
   });
 
@@ -359,7 +396,8 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
     doc.roundedRect(margin, y, contentW, 10, 2, 2, 'F');
     doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...(adherenceOk ? COLOR_GREEN : COLOR_RED));
+    const adherenceColor = adherenceOk ? COLOR_GREEN : COLOR_RED;
+    doc.setTextColor(adherenceColor[0], adherenceColor[1], adherenceColor[2]);
     doc.text(
       `Aderência ao orçamento: ${adherencePct.toFixed(1)}% do planejado utilizado — ${adherenceOk ? 'dentro do orçamento' : 'acima do orçamento'}`,
       margin + 3, y + 6,
