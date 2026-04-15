@@ -1,0 +1,1 @@
+ALTER TABLE strategy_key_results ADD COLUMN IF NOT EXISTS unit VARCHAR(20);
