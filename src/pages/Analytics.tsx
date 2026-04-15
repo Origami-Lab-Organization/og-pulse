@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   startOfMonth,
   endOfMonth,
@@ -6,7 +6,9 @@ import {
   endOfQuarter,
   startOfYear,
   endOfYear,
+  format,
 } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import {
   Loader2,
   FileText,
@@ -17,6 +19,7 @@ import {
   Package,
   Percent,
   Receipt,
+  FileDown,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
@@ -61,8 +64,10 @@ import { MarginDetailTable } from '@/components/analytics/MarginDetailTable'
 import { StakeholderKPIs } from '@/components/analytics/StakeholderKPIs'
 import { StakeholderDistributionChart } from '@/components/analytics/StakeholderDistributionChart'
 import { DetractorAlertTable } from '@/components/analytics/DetractorAlertTable'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { generateAnalyticsPdf } from '@/components/analytics/AnalyticsPdfGenerator'
 import { useAnalyticsFilterOptions } from '@/hooks/useAnalyticsData'
 import { useFinancialEvolution } from '@/hooks/useFinancialEvolution'
 import { useRevenueAnalytics } from '@/hooks/useRevenueAnalytics'
@@ -95,6 +100,7 @@ export default function Analytics() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>()
   const [activeTab, setActiveTab] = useState('overview')
   const [donutDimension, setDonutDimension] = useState<'client' | 'manager' | 'serviceLine'>('client')
+  const [isRequestingPdf, setIsRequestingPdf] = useState(false)
 
   const filters = useMemo(() => {
     let startDate: Date
@@ -136,16 +142,16 @@ export default function Analytics() {
   const isFinancialTab = FINANCIAL_TABS.includes(activeTab)
 
   const { data: financialEvolution, isLoading: isFinancialLoading } =
-    useFinancialEvolution(filters, { enabled: isFinancialTab })
+    useFinancialEvolution(filters, { enabled: isFinancialTab || isRequestingPdf })
   const { data: revenueData, isLoading: isRevenueLoading } =
-    useRevenueAnalytics(filters, { enabled: activeTab === 'revenue' })
+    useRevenueAnalytics(filters, { enabled: activeTab === 'revenue' || isRequestingPdf })
   const { data: projectFinancials, isLoading: isProjectFinancialsLoading } =
     useProjectFinancials(filters, {
-      enabled: activeTab === 'costs' || activeTab === 'margin' || activeTab === 'overview',
+      enabled: activeTab === 'costs' || activeTab === 'margin' || activeTab === 'overview' || isRequestingPdf,
     })
   const { data: stakeholderData, isLoading: isStakeholderLoading } =
-    useStakeholderAnalytics(filters, { enabled: activeTab === 'satisfaction' })
-const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
+    useStakeholderAnalytics(filters, { enabled: activeTab === 'satisfaction' || isRequestingPdf })
+  const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
     useYearlyEvolution(filters, { enabled: activeTab === 'costs' })
   const { data: filterOptions } = useAnalyticsFilterOptions()
 
@@ -197,6 +203,49 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
     }
   }, [financialMonths, financialEvolution])
 
+  const periodLabel = useMemo(() => {
+    if (granularity === 'year') return format(filters.startDate, 'yyyy')
+    if (granularity === 'quarter')
+      return `${format(filters.startDate, 'QQQ yyyy', { locale: ptBR })}`
+    if (granularity === 'custom')
+      return `${format(filters.startDate, 'dd/MM/yyyy')} – ${format(filters.endDate, 'dd/MM/yyyy')}`
+    return format(filters.startDate, 'MMMM yyyy', { locale: ptBR })
+  }, [granularity, filters])
+
+  useEffect(() => {
+    if (!isRequestingPdf) return
+    const allLoaded =
+      !isFinancialLoading &&
+      !isRevenueLoading &&
+      !isProjectFinancialsLoading &&
+      !isStakeholderLoading
+    if (!allLoaded) return
+    if (!financialEvolution || !revenueData || !projectFinancials || !stakeholderData || !financialKPIs) return
+
+    generateAnalyticsPdf({
+      periodLabel,
+      financialKPIs,
+      financialMonths,
+      projectFinancials,
+      revenueData,
+      stakeholderData,
+    })
+    setIsRequestingPdf(false)
+  }, [
+    isRequestingPdf,
+    isFinancialLoading,
+    isRevenueLoading,
+    isProjectFinancialsLoading,
+    isStakeholderLoading,
+    financialEvolution,
+    revenueData,
+    projectFinancials,
+    stakeholderData,
+    financialKPIs,
+    financialMonths,
+    periodLabel,
+  ])
+
   const clientOptions = useMemo(
     () => (filterOptions?.clients || []).map((c) => ({ id: c.id, label: c.company_name })),
     [filterOptions],
@@ -221,6 +270,17 @@ const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
       title='Analytics de Projetos'
       description='Performance, saúde e impacto dos projetos'
       breadcrumbs={[{ label: 'Analytics de Projetos' }]}
+      actions={
+        <Button
+          variant='outline'
+          size='sm'
+          onClick={() => setIsRequestingPdf(true)}
+          disabled={isRequestingPdf}
+        >
+          <FileDown className='mr-2 h-4 w-4' />
+          {isRequestingPdf ? 'Gerando...' : 'Exportar PDF'}
+        </Button>
+      }
     >
       <div className='space-y-6'>
         <AnalyticsFilters
