@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,10 +37,36 @@ function confidenceLabel(value: number) {
   return { text: 'Baixa confiança', color: 'text-red-600 dark:text-red-400' };
 }
 
+function isCurrencyUnit(unit: string | undefined | null) {
+  return unit === 'R$';
+}
+
+function formatDisplayValue(num: number, unit: string | undefined | null): string {
+  if (isCurrencyUnit(unit)) {
+    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  // Generic: show up to 4 decimal places, no trailing zeros
+  return num.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+}
+
+function parseDisplayValue(raw: string, unit: string | undefined | null): number {
+  if (isCurrencyUnit(unit)) {
+    // pt-BR: "122.125,50" → strip dots, replace comma with dot → "122125.50"
+    const cleaned = raw.replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleaned) || 0;
+  }
+  // Generic: accept both comma and dot as decimal separator
+  const cleaned = raw.replace(/[^\d,.-]/g, '').replace(',', '.');
+  return parseFloat(cleaned) || 0;
+}
+
 export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: CheckinFormDialogProps) {
   const createMutation = useCreateStrategyCheckin();
 
   const today = new Date().toISOString().slice(0, 10);
+  const [displayValue, setDisplayValue] = useState(() =>
+    formatDisplayValue(keyResult.currentValue, keyResult.unit),
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -60,6 +86,7 @@ export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: 
         confidence: keyResult.confidence,
         notes: '',
       });
+      setDisplayValue(formatDisplayValue(keyResult.currentValue, keyResult.unit));
     }
   }, [open, keyResult.id]);
 
@@ -113,11 +140,25 @@ export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: 
                   )}
                 </FormLabel>
                 <FormControl>
-                  <Input type="number" step="any" {...field} />
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={displayValue}
+                    onChange={(e) => {
+                      setDisplayValue(e.target.value);
+                      const num = parseDisplayValue(e.target.value, keyResult.unit);
+                      field.onChange(num);
+                    }}
+                    onBlur={() => {
+                      const num = parseDisplayValue(displayValue, keyResult.unit);
+                      field.onChange(num);
+                      setDisplayValue(formatDisplayValue(num, keyResult.unit));
+                    }}
+                  />
                 </FormControl>
                 <p className="text-xs text-muted-foreground">
-                  Meta: {keyResult.targetValue}{keyResult.unit && ` ${keyResult.unit}`}
-                  {keyResult.initialValue !== undefined && ` · Início: ${keyResult.initialValue}${keyResult.unit ? ` ${keyResult.unit}` : ''}`}
+                  Meta: {formatDisplayValue(keyResult.targetValue, keyResult.unit)}{keyResult.unit && ` ${keyResult.unit}`}
+                  {keyResult.initialValue !== undefined && ` · Início: ${formatDisplayValue(keyResult.initialValue, keyResult.unit)}${keyResult.unit ? ` ${keyResult.unit}` : ''}`}
                 </p>
                 <FormMessage />
               </FormItem>
