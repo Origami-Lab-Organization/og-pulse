@@ -14,6 +14,7 @@ function makeCheckin(confidence: number, daysAgo: number, now: number) {
     confidence,
     notes: null,
     createdBy: null,
+    checkinDate: createdAt,
     createdAt,
   };
 }

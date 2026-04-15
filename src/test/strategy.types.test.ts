@@ -194,6 +194,7 @@ describe('dbToStrategyKeyResult', () => {
     current_value: 70,
     confidence: 7,
     notes: null,
+    checkin_date: '2025-02-01',
     created_by: null,
     created_at: '2025-02-01T00:00:00Z',
   };
