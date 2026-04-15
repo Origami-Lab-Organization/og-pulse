@@ -14,6 +14,7 @@ function makeCheckin(confidence: number, daysAgo: number, now: number) {
     confidence,
     notes: null,
     createdBy: null,
+    checkinDate: createdAt,
     createdAt,
   };
 }
@@ -30,6 +31,7 @@ function makeKr(overrides: Partial<StrategyKeyResult> = {}): StrategyKeyResult {
     currentValue: 50,
     confidence: 7,
     unit: null,
+    direction: 'higher_is_better' as const,
     ownerId: null,
     ownerName: null,
     createdAt: '2025-01-01T00:00:00Z',

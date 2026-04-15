@@ -4191,6 +4191,7 @@ export type Database = {
           created_at: string
           current_value: number
           description: string | null
+          direction: string
           id: string
           initial_value: number
           objective_id: string
@@ -4206,6 +4207,7 @@ export type Database = {
           created_at?: string
           current_value?: number
           description?: string | null
+          direction?: string
           id?: string
           initial_value?: number
           objective_id: string
@@ -4221,6 +4223,7 @@ export type Database = {
           created_at?: string
           current_value?: number
           description?: string | null
+          direction?: string
           id?: string
           initial_value?: number
           objective_id?: string
