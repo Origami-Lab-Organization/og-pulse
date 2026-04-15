@@ -10,27 +10,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 const UNIT_OPTIONS = [
-  { value: '_none', label: 'Sem unidade' },
-  { value: '%',    label: '% — Percentual' },
-  { value: 'R$',   label: 'R$ — Reais' },
-  { value: 'pts',  label: 'pts — Pontos' },
-  { value: 'un',   label: 'un — Unidades' },
-  { value: 'h',    label: 'h — Horas' },
-  { value: 'dias', label: 'dias — Dias' },
+  { value: '_none', label: '—' },
+  { value: '%',    label: '%' },
+  { value: 'R$',   label: 'R$' },
+  { value: 'pts',  label: 'pts' },
+  { value: 'un',   label: 'un' },
+  { value: 'h',    label: 'h' },
+  { value: 'dias', label: 'dias' },
 ];
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useCreateStrategyKeyResult, useUpdateStrategyKeyResult } from '@/hooks/useStrategy';
-import { StrategyKeyResult } from '@/types/strategy';
+import { StrategyKeyResult, KrDirection } from '@/types/strategy';
 
 const schema = z.object({
   title: z.string().min(1, 'Nome é obrigatório'),
   initial_value: z.coerce.number(),
   target_value: z.coerce.number().min(0.01, 'Meta deve ser maior que zero'),
   unit: z.string().optional(),
+  direction: z.enum(['higher_is_better', 'lower_is_better']),
   confidence: z.number().min(0).max(10),
   owner_id: z.string().optional(),
 });
@@ -71,6 +74,7 @@ export function KeyResultFormDialog({
       initial_value: 0,
       target_value: 0,
       unit: '',
+      direction: 'higher_is_better' as KrDirection,
       confidence: 5,
       owner_id: '',
     },
@@ -84,17 +88,22 @@ export function KeyResultFormDialog({
           initial_value: keyResult.initialValue,
           target_value: keyResult.targetValue,
           unit: keyResult.unit ?? '',
+          direction: keyResult.direction ?? 'higher_is_better',
           confidence: keyResult.confidence,
           owner_id: keyResult.ownerId ?? '',
         });
       } else {
-        form.reset({ title: '', initial_value: 0, target_value: 0, unit: '', confidence: 5, owner_id: '' });
+        form.reset({ title: '', initial_value: 0, target_value: 0, unit: '', direction: 'higher_is_better', confidence: 5, owner_id: '' });
       }
     }
   }, [open, keyResult]);
 
   const confidence = form.watch('confidence');
   const { text: confText, color: confColor } = confidenceLabel(confidence);
+  const unit = form.watch('unit');
+
+  const unitPrefix = unit === 'R$' ? 'R$' : null;
+  const unitSuffix = unit && unit !== 'R$' ? unit : null;
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -106,6 +115,7 @@ export function KeyResultFormDialog({
             initial_value: values.initial_value,
             target_value: values.target_value,
             unit: values.unit || null,
+            direction: values.direction,
             owner_id: values.owner_id || null,
           },
         });
@@ -118,6 +128,7 @@ export function KeyResultFormDialog({
           current_value: values.initial_value,
           confidence: values.confidence,
           unit: values.unit || null,
+          direction: values.direction,
           owner_id: values.owner_id || null,
         });
       }
@@ -154,29 +165,9 @@ export function KeyResultFormDialog({
               </FormItem>
             )} />
 
-            <div className="grid grid-cols-3 gap-3">
-              <FormField control={form.control} name="initial_value" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor Inicial</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="0" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="target_value" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Meta *</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="100" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
+            <div className="grid grid-cols-5 gap-3">
               <FormField control={form.control} name="unit" render={({ field }) => (
-                <FormItem>
+                <FormItem className="col-span-1">
                   <FormLabel>Unidade</FormLabel>
                   <Select
                     value={field.value || '_none'}
@@ -184,7 +175,7 @@ export function KeyResultFormDialog({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sem unidade" />
+                        <SelectValue placeholder="—" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -197,7 +188,87 @@ export function KeyResultFormDialog({
                   </Select>
                 </FormItem>
               )} />
+
+              <FormField control={form.control} name="initial_value" render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel>Valor Inicial</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      {unitPrefix && (
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                          {unitPrefix}
+                        </span>
+                      )}
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        className={cn(unitPrefix && 'pl-8', unitSuffix && 'pr-10')}
+                        {...field}
+                      />
+                      {unitSuffix && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                          {unitSuffix}
+                        </span>
+                      )}
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="target_value" render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel>Meta *</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      {unitPrefix && (
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                          {unitPrefix}
+                        </span>
+                      )}
+                      <Input
+                        type="number"
+                        placeholder="100"
+                        className={cn(unitPrefix && 'pl-8', unitSuffix && 'pr-10')}
+                        {...field}
+                      />
+                      {unitSuffix && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                          {unitSuffix}
+                        </span>
+                      )}
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
+
+            <FormField control={form.control} name="direction" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Direção da meta</FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    className="flex gap-4 mt-1"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="higher_is_better" id="dir-higher" />
+                      <Label htmlFor="dir-higher" className="cursor-pointer font-normal">
+                        Quanto maior, melhor
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="lower_is_better" id="dir-lower" />
+                      <Label htmlFor="dir-lower" className="cursor-pointer font-normal">
+                        Quanto menor, melhor
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </FormControl>
+              </FormItem>
+            )} />
 
             {!isEditing && (
               <FormField control={form.control} name="confidence" render={({ field }) => (

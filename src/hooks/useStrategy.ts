@@ -113,7 +113,7 @@ export function useStrategyObjectives(cycleId: string | undefined) {
           keyResults.length > 0
             ? Math.round(
                 keyResults.reduce(
-                  (sum: number, kr: any) => sum + getKrProgress(kr.currentValue, kr.targetValue),
+                  (sum: number, kr: any) => sum + getKrProgress(kr.currentValue, kr.targetValue, kr.direction, kr.initialValue),
                   0,
                 ) / keyResults.length,
               )

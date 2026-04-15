@@ -45,7 +45,7 @@ function KrRow({
   onCheckin: () => void;
 }) {
   const status = getKrStatus(kr.confidence);
-  const progress = getKrProgress(kr.currentValue, kr.targetValue);
+  const progress = getKrProgress(kr.currentValue, kr.targetValue, kr.direction, kr.initialValue);
   const cfg = statusConfig[status];
 
   return (

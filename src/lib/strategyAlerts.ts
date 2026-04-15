@@ -32,7 +32,7 @@ export function computeAlerts(
 
   for (const obj of objectives) {
     for (const kr of obj.keyResults) {
-      const progress = getKrProgress(kr.currentValue, kr.targetValue);
+      const progress = getKrProgress(kr.currentValue, kr.targetValue, kr.direction, kr.initialValue);
 
       // SUCCESS: progress >= 100% or confidence = 10
       if (progress >= 100 || kr.confidence === 10) {

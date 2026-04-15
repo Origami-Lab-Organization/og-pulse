@@ -339,7 +339,18 @@ export function getKrStatus(confidence: number): KrStatus {
   return 'red';
 }
 
-export function getKrProgress(current: number, target: number): number {
+export function getKrProgress(
+  current: number,
+  target: number,
+  direction: KrDirection = 'higher_is_better',
+  initialValue?: number,
+): number {
+  if (direction === 'lower_is_better') {
+    const initial = initialValue ?? current;
+    const range = initial - target;
+    if (range === 0) return 0;
+    return Math.round(Math.min(Math.max(((initial - current) / range) * 100, 0), 100));
+  }
   if (target === 0) return 0;
   return Math.round(Math.min((current / target) * 100, 100));
 }

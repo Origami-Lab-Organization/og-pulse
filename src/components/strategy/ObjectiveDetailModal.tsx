@@ -347,7 +347,7 @@ function KrDetailRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const status = getKrStatus(kr.confidence);
-  const progress = getKrProgress(kr.currentValue, kr.targetValue);
+  const progress = getKrProgress(kr.currentValue, kr.targetValue, kr.direction, kr.initialValue);
   const cfg = statusConfig[status];
   const hasMonthlyData = !!cycleStart && !!cycleEnd;
 
@@ -363,7 +363,14 @@ function KrDetailRow({
             {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </button>
         )}
-        <p className="text-sm font-medium leading-snug flex-1">{kr.title}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium leading-snug">{kr.title}</p>
+          {kr.direction === 'lower_is_better' && (
+            <span className="inline-block mt-0.5 text-[10px] text-muted-foreground">
+              ↓ Quanto menor, melhor
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1 shrink-0">
           {isAdmin && (
             <>
