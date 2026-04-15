@@ -211,6 +211,7 @@ describe('dbToStrategyKeyResult', () => {
     current_value: 70,
     confidence: 7,
     unit: null,
+    direction: 'higher_is_better',
     owner_id: 'emp-1',
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-02-01T00:00:00Z',
