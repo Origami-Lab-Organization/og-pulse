@@ -201,6 +201,11 @@ export default function Strategy() {
 
   const selectedCycle = cycles.find((c) => c.id === effectiveCycleId);
 
+  // Always reflect the latest data from the query cache in the detail modal
+  const liveDetailObjective = detailObjective
+    ? (objectives.find((o) => o.id === detailObjective.id) ?? detailObjective)
+    : null;
+
   return (
     <AppLayout title="Estratégia">
       <div className="space-y-6">
@@ -399,19 +404,19 @@ export default function Strategy() {
       <ObjectiveDetailModal
         open={!!detailObjective}
         onOpenChange={(open) => { if (!open) setDetailObjective(null); }}
-        objective={detailObjective}
+        objective={liveDetailObjective}
         isAdmin={isAdmin}
         cycleStart={selectedCycle?.startDate}
         cycleEnd={selectedCycle?.endDate}
         onAddKr={() => {
-          if (detailObjective) setKrFormObjectiveId(detailObjective.id);
+          if (liveDetailObjective) setKrFormObjectiveId(liveDetailObjective.id);
         }}
         onCheckin={(krId) => {
-          const kr = detailObjective?.keyResults.find((k) => k.id === krId);
+          const kr = liveDetailObjective?.keyResults.find((k) => k.id === krId);
           if (kr) setCheckinKr(kr);
         }}
         onEdit={() => {
-          setEditingObjective(detailObjective);
+          setEditingObjective(liveDetailObjective);
           setObjectiveFormOpen(true);
         }}
         onDeleted={() => setDetailObjective(null)}
