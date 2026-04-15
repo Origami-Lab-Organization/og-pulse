@@ -29,6 +29,7 @@ function makeKr(overrides: Partial<StrategyKeyResult> = {}): StrategyKeyResult {
     targetValue: 100,
     currentValue: 50,
     confidence: 7,
+    unit: null,
     ownerId: null,
     ownerName: null,
     createdAt: '2025-01-01T00:00:00Z',
