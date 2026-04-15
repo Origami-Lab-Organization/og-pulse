@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Loader2, CalendarIcon } from 'lucide-react';
+import { Loader2, CalendarIcon, FileDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { generateCommercialPdf } from '@/components/commercial/CommercialPdfGenerator';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -62,11 +63,57 @@ export default function CommercialDashboard() {
 
   const { data, isLoading } = useCommercialDashboard(dateFrom, dateTo, selectedServiceLine, selectedResponsible);
 
+  const periodLabel = useMemo(() => {
+    const start = format(dateFrom, "dd/MM/yyyy", { locale: ptBR });
+    const end = format(dateTo, "dd/MM/yyyy", { locale: ptBR });
+    const opt = PERIOD_OPTIONS.find(o => o.value === periodType);
+    return opt?.value === 'custom' ? `${start} – ${end}` : (opt?.label ?? `${start} – ${end}`);
+  }, [dateFrom, dateTo, periodType]);
+
+  const handleExportPdf = () => {
+    if (!data) return;
+    generateCommercialPdf({
+      periodLabel,
+      kpis: {
+        conversionRate: data.conversionRate,
+        avgTicket: data.avgTicket,
+        avgSalesCycleDays: data.avgSalesCycleDays,
+        activePipeline: data.activePipeline,
+        forecast: data.forecast,
+        forecastLeadsCount: data.forecastLeadsCount,
+        newLeadsThisYear: data.newLeadsThisYear,
+        prevConversionRate: data.prevConversionRate,
+        prevAvgTicket: data.prevAvgTicket,
+        prevActivePipeline: data.prevActivePipeline,
+        prevForecast: data.prevForecast,
+        prevNewLeadsThisYear: data.prevNewLeadsThisYear,
+      },
+      funnelData: data.funnelData,
+      revenueByMonth: data.revenueByMonth,
+      pipelineByStage: data.pipelineByStage,
+      totalPipeline: data.totalPipeline,
+      topClients: data.topClients,
+      lossReasons: data.lossReasons,
+      activeLeads: data.activeLeadsPeriod,
+    });
+  };
+
   return (
     <AppLayout
       title="Dashboard Comercial"
       description="Inteligência comercial consolidada"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Dashboard' }]}
+      actions={
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportPdf}
+          disabled={isLoading || !data}
+        >
+          <FileDown className="mr-2 h-4 w-4" />
+          Exportar PDF
+        </Button>
+      }
     >
       <div className="space-y-6">
         {/* Filters */}

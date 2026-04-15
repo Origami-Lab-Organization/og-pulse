@@ -52,6 +52,9 @@ interface CommercialDashboardData {
   // Recent leads
   recentLeads: LeadWithBudget[];
 
+  // All active leads in period (for PDF export)
+  activeLeadsPeriod: LeadWithBudget[];
+
   // Responsible options
   responsibleOptions: ResponsibleOption[];
 }
@@ -292,6 +295,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       topClients,
       lossReasons,
       recentLeads,
+      activeLeadsPeriod,
       responsibleOptions,
     };
   }, [leads, archivedLeads, budgets, clients, cancelledBudgetIds, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
