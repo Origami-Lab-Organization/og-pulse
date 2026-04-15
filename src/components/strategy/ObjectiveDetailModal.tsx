@@ -117,8 +117,17 @@ function formatMonthLabel(date: Date): string {
 }
 
 function formatValue(value: number, unit: string | null): string {
-  if (!unit) return String(value);
-  return `${value}${unit}`;
+  const num = value.toLocaleString('pt-BR');
+  if (!unit) return num;
+  if (unit === 'R$') {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+  if (unit === '%') return `${num}%`;
+  return `${num} ${unit}`;
 }
 
 // ─── KR evolution chart ───────────────────────────────────────────────────────

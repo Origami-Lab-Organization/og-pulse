@@ -104,13 +104,20 @@ export function CheckinFormDialog({ open, onOpenChange, keyResult, onSuccess }: 
 
             <FormField control={form.control} name="current_value" render={({ field }) => (
               <FormItem>
-                <FormLabel>Valor Atual</FormLabel>
+                <FormLabel>
+                  Valor Atual
+                  {keyResult.unit && (
+                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                      ({keyResult.unit})
+                    </span>
+                  )}
+                </FormLabel>
                 <FormControl>
                   <Input type="number" step="any" {...field} />
                 </FormControl>
                 <p className="text-xs text-muted-foreground">
-                  Meta: {keyResult.targetValue}
-                  {keyResult.initialValue !== undefined && ` · Início: ${keyResult.initialValue}`}
+                  Meta: {keyResult.targetValue}{keyResult.unit && ` ${keyResult.unit}`}
+                  {keyResult.initialValue !== undefined && ` · Início: ${keyResult.initialValue}${keyResult.unit ? ` ${keyResult.unit}` : ''}`}
                 </p>
                 <FormMessage />
               </FormItem>

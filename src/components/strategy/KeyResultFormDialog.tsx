@@ -10,6 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const UNIT_OPTIONS = [
+  { value: '_none', label: 'Sem unidade' },
+  { value: '%',    label: '% — Percentual' },
+  { value: 'R$',   label: 'R$ — Reais' },
+  { value: 'pts',  label: 'pts — Pontos' },
+  { value: 'un',   label: 'un — Unidades' },
+  { value: 'h',    label: 'h — Horas' },
+  { value: 'dias', label: 'dias — Dias' },
+];
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { useEmployees } from '@/hooks/useEmployees';
@@ -168,9 +178,23 @@ export function KeyResultFormDialog({
               <FormField control={form.control} name="unit" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Unidade</FormLabel>
-                  <FormControl>
-                    <Input placeholder="%, pts..." {...field} />
-                  </FormControl>
+                  <Select
+                    value={field.value || '_none'}
+                    onValueChange={(v) => field.onChange(v === '_none' ? '' : v)}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sem unidade" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {UNIT_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </FormItem>
               )} />
             </div>
