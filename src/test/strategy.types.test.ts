@@ -161,6 +161,7 @@ describe('dbToStrategyCheckin', () => {
     current_value: 75,
     confidence: 8,
     notes: 'Bom progresso',
+    checkin_date: '2025-02-01',
     created_by: 'emp-1',
     created_at: '2025-02-01T00:00:00Z',
   };
