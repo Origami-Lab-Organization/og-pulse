@@ -4021,6 +4021,7 @@ export type Database = {
       }
       strategy_checkins: {
         Row: {
+          checkin_date: string
           confidence: number
           created_at: string
           created_by: string | null
@@ -4031,6 +4032,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          checkin_date?: string
           confidence: number
           created_at?: string
           created_by?: string | null
@@ -4041,6 +4043,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          checkin_date?: string
           confidence?: number
           created_at?: string
           created_by?: string | null
