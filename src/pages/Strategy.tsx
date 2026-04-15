@@ -17,6 +17,7 @@ import { CycleSelectorHeader } from '@/components/strategy/CycleSelectorHeader';
 import { CycleFormDialog } from '@/components/strategy/CycleFormDialog';
 import { StrategyMetricsBar } from '@/components/strategy/StrategyMetricsBar';
 import { ObjectiveCard } from '@/components/strategy/ObjectiveCard';
+import { ObjectiveDetailModal } from '@/components/strategy/ObjectiveDetailModal';
 import { ObjectiveFormDialog } from '@/components/strategy/ObjectiveFormDialog';
 import { KeyResultFormDialog } from '@/components/strategy/KeyResultFormDialog';
 import { CheckinFormDialog } from '@/components/strategy/CheckinFormDialog';
@@ -152,6 +153,7 @@ export default function Strategy() {
   const [editingObjective, setEditingObjective] = useState<StrategyObjectiveWithKrs | null>(null);
   const [krFormObjectiveId, setKrFormObjectiveId] = useState<string | null>(null);
   const [checkinKr, setCheckinKr] = useState<StrategyKeyResult | null>(null);
+  const [detailObjective, setDetailObjective] = useState<StrategyObjectiveWithKrs | null>(null);
 
   const isLoading = cyclesLoading || objectivesLoading;
 
@@ -218,6 +220,7 @@ export default function Strategy() {
                     <ObjectiveCard
                       key={obj.id}
                       objective={obj}
+                      onClick={() => setDetailObjective(obj)}
                       onAddKr={() => {}}
                       onCheckin={() => {}}
                       onDeleteObjective={() => {}}
@@ -252,6 +255,7 @@ export default function Strategy() {
                       key={obj.id}
                       objective={obj}
                       isAdmin={isAdmin}
+                      onClick={() => setDetailObjective(obj)}
                       onAddKr={() => setKrFormObjectiveId(obj.id)}
                       onEditObjective={() => {
                         setEditingObjective(obj);
@@ -339,6 +343,27 @@ export default function Strategy() {
           keyResult={checkinKr}
         />
       )}
+
+      <ObjectiveDetailModal
+        open={!!detailObjective}
+        onOpenChange={(open) => { if (!open) setDetailObjective(null); }}
+        objective={detailObjective}
+        isAdmin={isAdmin}
+        cycleStart={selectedCycle?.startDate}
+        cycleEnd={selectedCycle?.endDate}
+        onAddKr={() => {
+          if (detailObjective) setKrFormObjectiveId(detailObjective.id);
+        }}
+        onCheckin={(krId) => {
+          const kr = detailObjective?.keyResults.find((k) => k.id === krId);
+          if (kr) setCheckinKr(kr);
+        }}
+        onEdit={() => {
+          setEditingObjective(detailObjective);
+          setObjectiveFormOpen(true);
+        }}
+        onDeleted={() => setDetailObjective(null)}
+      />
     </AppLayout>
   );
 }

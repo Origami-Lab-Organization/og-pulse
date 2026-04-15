@@ -1,4 +1,4 @@
-import { Pencil, Plus, Trash2, TrendingUp, User } from 'lucide-react';
+import { Pencil, Trash2, TrendingUp, User } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { StrategyObjectiveWithKrs, StrategyKeyResult, getKrStatus, getKrProgress
 
 interface ObjectiveCardProps {
   objective: StrategyObjectiveWithKrs;
+  onClick: () => void;
   onAddKr: () => void;
   onCheckin: (krId: string) => void;
   onDeleteObjective: () => void;
@@ -55,7 +56,7 @@ function KrRow({
           variant="ghost"
           size="sm"
           className="h-6 px-2 text-[11px] shrink-0"
-          onClick={onCheckin}
+          onClick={(e) => { e.stopPropagation(); onCheckin(); }}
         >
           Check-in
         </Button>
@@ -95,6 +96,7 @@ function KrRow({
 
 export function ObjectiveCard({
   objective,
+  onClick,
   onAddKr,
   onCheckin,
   onDeleteObjective,
@@ -105,7 +107,10 @@ export function ObjectiveCard({
   const cfg = statusConfig[objectiveStatus];
 
   return (
-    <Card className="flex flex-col">
+    <Card
+      className="flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+      onClick={onClick}
+    >
       <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
@@ -141,7 +146,7 @@ export function ObjectiveCard({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={onEditObjective}
+                onClick={(e) => { e.stopPropagation(); onEditObjective?.(); }}
               >
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
@@ -149,7 +154,7 @@ export function ObjectiveCard({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                onClick={onDeleteObjective}
+                onClick={(e) => { e.stopPropagation(); onDeleteObjective(); }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -169,17 +174,6 @@ export function ObjectiveCard({
           </div>
         )}
 
-        {isAdmin && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3 h-7 text-xs w-full"
-            onClick={onAddKr}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Adicionar Key Result
-          </Button>
-        )}
       </CardContent>
     </Card>
   );

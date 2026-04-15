@@ -156,6 +156,7 @@ export interface StrategyKeyResultDB {
   target_value: number;
   current_value: number;
   confidence: number;
+  unit: string | null;
   owner_id: string | null;
   created_at: string;
   updated_at: string;
@@ -173,6 +174,7 @@ export interface StrategyKeyResult {
   targetValue: number;
   currentValue: number;
   confidence: number;
+  unit: string | null;
   ownerId: string | null;
   ownerName: string | null;
   createdAt: string;
@@ -188,6 +190,7 @@ export interface CreateStrategyKeyResultInput {
   target_value: number;
   current_value?: number;
   confidence?: number;
+  unit?: string | null;
   owner_id?: string | null;
 }
 
@@ -198,6 +201,7 @@ export interface UpdateStrategyKeyResultInput {
   target_value?: number;
   current_value?: number;
   confidence?: number;
+  unit?: string | null;
   owner_id?: string | null;
 }
 
@@ -212,6 +216,7 @@ export function dbToStrategyKeyResult(db: StrategyKeyResultDB): StrategyKeyResul
     targetValue: db.target_value,
     currentValue: db.current_value,
     confidence: db.confidence,
+    unit: db.unit ?? null,
     ownerId: db.owner_id,
     ownerName: db.owner?.nome ?? null,
     createdAt: db.created_at,
