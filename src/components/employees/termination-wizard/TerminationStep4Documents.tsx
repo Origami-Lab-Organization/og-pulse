@@ -96,10 +96,18 @@ const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
 
   return (
     <div className="space-y-4">
+      {contractType === 'PJ' && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription className="text-xs">
+            Para contratos PJ, o distrato pode ser formalizado via e-mail ou documento simples. Não é necessário reconhecimento em cartório.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Checklist */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Checklist de Documentos</CardTitle>
+          <CardTitle className="text-sm font-medium">{contractType === 'PJ' ? 'Documentos da Rescisão' : 'Checklist de Documentos'}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {checklist.map(doc => (

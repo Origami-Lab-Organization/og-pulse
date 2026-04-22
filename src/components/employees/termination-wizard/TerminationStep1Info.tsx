@@ -80,7 +80,7 @@ const TerminationStep1Info = ({ data, onChange, contractType, showErrors = false
     <div className="space-y-4">
       {/* Notification date */}
       <div className="space-y-2">
-        <Label>Data de comunicação ao funcionário</Label>
+        <Label>{contractType === 'PJ' ? 'Data de comunicação ao prestador' : 'Data de comunicação ao funcionário'}</Label>
         <Popover open={notifOpen} onOpenChange={setNotifOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !notifDate && "text-muted-foreground")}>

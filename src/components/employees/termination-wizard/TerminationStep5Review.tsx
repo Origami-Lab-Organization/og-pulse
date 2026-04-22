@@ -55,7 +55,7 @@ const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange, 
     <div className="space-y-4">
       <Accordion type="multiple" defaultValue={defaultAccordionValues} className="space-y-2">
         <AccordionItem value="employee" className="border rounded-lg px-4">
-          <AccordionTrigger className="text-sm font-medium">Dados do Funcionário</AccordionTrigger>
+          <AccordionTrigger className="text-sm font-medium">{contractType === 'PJ' ? 'Dados do Prestador' : 'Dados do Funcionário'}</AccordionTrigger>
           <AccordionContent>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div><span className="text-muted-foreground">Nome:</span> <span className="font-medium">{employee.nome}</span></div>
@@ -71,7 +71,7 @@ const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange, 
           <AccordionContent>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div><span className="text-muted-foreground">Comunicação:</span> <span className="font-medium">{formatDate(data.notification_date)}</span></div>
-              <div><span className="text-muted-foreground">Desligamento:</span> <span className="font-medium">{formatDate(data.termination_date)}</span></div>
+              <div><span className="text-muted-foreground">{contractType === 'PJ' ? 'Rescisão:' : 'Desligamento:'}</span> <span className="font-medium">{formatDate(data.termination_date)}</span></div>
               <div><span className="text-muted-foreground">Tipo:</span> <Badge variant="outline">{TERMINATION_TYPE_LABELS[data.termination_type]}</Badge></div>
               <div><span className="text-muted-foreground">Categoria:</span> <span className="font-medium">{REASON_CATEGORY_LABELS[data.reason_category]}</span></div>
             </div>
@@ -140,7 +140,7 @@ const TerminationStep5Review = ({ data, employee, confirmed, onConfirmedChange, 
           onCheckedChange={v => onConfirmedChange(!!v)}
         />
         <Label htmlFor="confirm-termination" className="text-sm cursor-pointer leading-relaxed">
-          Confirmo que as informações acima estão corretas e desejo iniciar o processo de desligamento de <strong>{employee.nome}</strong>.
+          Confirmo que as informações acima estão corretas e desejo {contractType === 'PJ' ? <>confirmar a rescisão do contrato com <strong>{employee.nome}</strong>.</> : <>iniciar o processo de desligamento de <strong>{employee.nome}</strong>.</>}
         </Label>
       </div>
     </div>

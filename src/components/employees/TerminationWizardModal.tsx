@@ -83,9 +83,12 @@ const TerminationWizardModal = ({
   const skipNotice = CONTRACT_TYPES_WITHOUT_NOTICE.includes(contractType);
 
   const steps = useMemo(() => {
-    if (skipNotice) return ALL_STEPS.filter(s => s.key !== 'notice');
-    return ALL_STEPS;
-  }, [skipNotice]);
+    const filtered = skipNotice ? ALL_STEPS.filter(s => s.key !== 'notice') : ALL_STEPS;
+    if (contractType === 'PJ') {
+      return filtered.map(s => s.key === 'payroll' ? { ...s, label: 'Acerto' } : s);
+    }
+    return filtered;
+  }, [skipNotice, contractType]);
 
   // Initialize termination_type via useEffect when wizard opens
 
@@ -101,7 +104,7 @@ const TerminationWizardModal = ({
   useEffect(() => {
     if (isOpen && employee) {
       const ct = employee.tipoContratacao || 'CLT';
-      const defType = ct === 'ESTAGIO' ? 'internship_end' : 'voluntary';
+      const defType = ct === 'ESTAGIO' ? 'internship_end' : ct === 'PJ' ? 'contract_end' : 'voluntary';
       setWizardData(prev => ({ ...prev, termination_type: defType }));
     }
   }, [isOpen, employee]);
@@ -254,7 +257,7 @@ const TerminationWizardModal = ({
     <Dialog open={isOpen} onOpenChange={open => { if (!open) handleRequestClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="termination-wizard-desc" onPointerDownOutside={e => { e.preventDefault(); handleRequestClose(); }}>
         <DialogHeader>
-          <DialogTitle>Desligamento de Funcionário</DialogTitle>
+          <DialogTitle>{contractType === 'PJ' ? 'Rescisão de Contrato PJ' : 'Desligamento de Funcionário'}</DialogTitle>
           <p id="termination-wizard-desc" className="sr-only">Wizard de desligamento de funcionário</p>
         </DialogHeader>
 
@@ -270,7 +273,7 @@ const TerminationWizardModal = ({
                 <p className="font-semibold text-foreground truncate">{employee.nome}</p>
                 <p className="text-sm text-muted-foreground">{employee.cargo}</p>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>Admitido em {formatDate(employee.dataAdmissao)} ({getTimeSince(employee.dataAdmissao)})</span>
+                  <span>{contractType === 'PJ' ? 'Contratado desde' : 'Admitido em'} {formatDate(employee.dataAdmissao)} ({getTimeSince(employee.dataAdmissao)})</span>
                   <span>•</span>
                   <Badge variant="outline" className={CONTRACT_TYPE_COLORS[employee.tipoContratacao] || ''}>
                     {CONTRACT_TYPE_LABELS[employee.tipoContratacao] || employee.tipoContratacao}
@@ -376,7 +379,7 @@ const TerminationWizardModal = ({
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 size="sm"
               >
-                {createTermination.isPending ? 'Salvando...' : 'Confirmar Desligamento'}
+                {createTermination.isPending ? 'Salvando...' : contractType === 'PJ' ? 'Confirmar Rescisão' : 'Confirmar Desligamento'}
               </Button>
             )}
           </div>
@@ -387,7 +390,7 @@ const TerminationWizardModal = ({
     <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Sair do desligamento?</AlertDialogTitle>
+          <AlertDialogTitle>{contractType === 'PJ' ? 'Sair da rescisão?' : 'Sair do desligamento?'}</AlertDialogTitle>
           <AlertDialogDescription>
             Tem certeza que deseja sair? Os dados preenchidos serão perdidos.
           </AlertDialogDescription>

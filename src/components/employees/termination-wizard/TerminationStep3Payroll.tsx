@@ -236,7 +236,7 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
       {/* Manual adjustments */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Ajustes Manuais</CardTitle>
+          <CardTitle className="text-sm font-medium">{contractType === 'PJ' ? 'Valores a Acertar' : 'Ajustes Manuais'}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {data.manual_adjustments.length > 0 && (
