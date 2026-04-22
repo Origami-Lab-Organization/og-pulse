@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { StrategyCycle, StrategyObjectiveWithKrs } from '@/types/strategy';
-import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar, Pencil, Trash2 } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar, Pencil, Trash2, Download } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import { CheckinFormDialog } from '@/components/strategy/CheckinFormDialog';
 import { InitiativesKanban } from '@/components/strategy/InitiativesKanban';
 import { StrategyKeyResult } from '@/types/strategy';
 import { computeAlerts, StrategyAlert, AlertSeverity } from '@/lib/strategyAlerts';
+import { exportStrategyToMarkdown } from '@/lib/exportStrategy';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -202,13 +203,28 @@ export default function Strategy() {
 
   const selectedCycle = cycles.find((c) => c.id === effectiveCycleId);
 
+  function handleExportReport() {
+    if (!selectedCycle) return;
+    exportStrategyToMarkdown({ cycle: selectedCycle, objectives, initiatives, alerts });
+  }
+
   // Always reflect the latest data from the query cache in the detail modal
   const liveDetailObjective = detailObjective
     ? (objectives.find((o) => o.id === detailObjective.id) ?? detailObjective)
     : null;
 
   return (
-    <AppLayout title="Estratégia">
+    <AppLayout
+      title="Estratégia"
+      actions={
+        selectedCycle ? (
+          <Button variant="outline" size="sm" onClick={handleExportReport}>
+            <Download className="h-4 w-4 mr-2" />
+            Exportar relatório
+          </Button>
+        ) : undefined
+      }
+    >
       <div className="space-y-6">
         {/* Cycle selector */}
         {cycles.length > 0 && (
