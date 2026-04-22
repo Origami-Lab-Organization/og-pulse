@@ -68,18 +68,39 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <img src={logo} alt="Origami Pulse" className="h-16 w-16" />
+    <div className="min-h-screen flex">
+      {/* Painel esquerdo — navy com gradiente de marca */}
+      <div className="hidden lg:flex lg:w-1/2 bg-[hsl(222,18%,10%)] flex-col items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-brand opacity-10" />
+        <div className="relative z-10 text-center">
+          <img src={logo} alt="Origami Pulse" className="h-20 w-20 mx-auto mb-8" />
+          <h1 className="ol-h1 text-white mb-4">
+            Gestão que gera{' '}
+            <span className="ol-text-accent">resultado real.</span>
+          </h1>
+          <p className="text-white/60 text-base max-w-sm mx-auto">
+            Controle projetos, equipe e rentabilidade em um só lugar.
+          </p>
+        </div>
+      </div>
+
+      {/* Painel direito — formulário */}
+      <div className="flex-1 flex items-center justify-center bg-background p-8">
+        <div className="w-full max-w-sm">
+          <div className="lg:hidden flex justify-center mb-8">
+            <img src={logo} alt="Origami Pulse" className="h-14 w-14" />
           </div>
-          <CardTitle className="text-2xl">Origami Pulse</CardTitle>
-          <CardDescription>
-            Gerencie a rentabilidade dos seus projetos com clareza.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+
+          <div className="mb-8">
+            <p className="ol-label text-muted-foreground mb-2">Plataforma</p>
+            <h2 className="ol-h2 text-foreground">
+              Origami <span className="ol-text-accent">Pulse</span>
+            </h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Gerencie a rentabilidade dos seus projetos com clareza.
+            </p>
+          </div>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -137,7 +158,7 @@ const Login = () => {
                 </Link>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button variant="gradient" type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -153,8 +174,8 @@ const Login = () => {
 
             </form>
           </Form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

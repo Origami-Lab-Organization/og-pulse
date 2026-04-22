@@ -193,7 +193,7 @@ const LandingPage = () => {
 
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="sticky top-0 z-50 w-full border-b bg-[hsl(222,18%,10%)]/95 backdrop-blur supports-[backdrop-filter]:bg-[hsl(222,18%,10%)]/80">
           <div className="container flex h-16 items-center justify-between">
             <div className="flex items-center gap-2">
               <img
@@ -201,43 +201,45 @@ const LandingPage = () => {
                 alt="Origami Pulse - Sistema de Gestão Financeira"
                 className="h-8 w-auto"
               />
-              <span className="font-semibold text-lg text-foreground">
-                Origami Pulse
+              <span className="font-semibold text-lg text-white">
+                Origami <span className="ol-text-accent">Pulse</span>
               </span>
             </div>
             <nav className="flex items-center gap-4">
-              <Button variant="ghost" asChild>
+              <Button variant="ghost" asChild className="text-white/70 hover:text-white hover:bg-white/10">
                 <Link to="/login">Entrar</Link>
               </Button>
-              <Button asChild>
-                <Link to="/login">Entrar</Link>
+              <Button variant="gradient" asChild>
+                <Link to="/register">Começar grátis</Link>
               </Button>
             </nav>
           </div>
         </header>
 
         <main>
-          {/* Hero Section */}
-          <section className="relative overflow-hidden py-20 md:py-32">
-            <div className="absolute inset-0 gradient-subtle" />
+          {/* DARK — Hero Section */}
+          <section className="relative overflow-hidden py-24 md:py-36 bg-[hsl(222,18%,10%)]">
+            <div className="absolute inset-0 bg-gradient-brand opacity-5" />
             <div className="container relative">
               <div className="mx-auto max-w-3xl text-center">
-                <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl animate-fade-in">
-                  Gestão Financeira Completa para{" "}
-                  <span className="text-primary">Empresas de Serviços</span>
+                <p className="ol-label text-white/40 mb-6">Gestão de Serviços</p>
+                <h1 className="ol-display text-white animate-fade-in">
+                  Gestão que gera{" "}
+                  <span className="ol-text-accent">resultado real.</span>
                 </h1>
-                <p className="mt-6 text-lg text-muted-foreground md:text-xl animate-fade-in">
+                <p className="mt-6 text-lg text-white/60 md:text-xl animate-fade-in">
                   Controle funcionários, projetos e orçamentos em um só lugar.
                   Saiba exatamente quanto custa sua operação e maximize sua
                   margem de lucro.
                 </p>
-                <div className="mt-10 flex items-center justify-center animate-fade-in">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    asChild
-                    className="w-full sm:w-auto"
-                  >
+                <div className="mt-10 flex items-center justify-center gap-4 animate-fade-in">
+                  <Button variant="gradient" size="lg" asChild>
+                    <Link to="/register">
+                      Cadastrar Empresa Grátis
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="lg" asChild className="border-white/20 text-white hover:bg-white/10 hover:text-white">
                     <Link to="/login">Acessar minha conta</Link>
                   </Button>
                 </div>
@@ -245,12 +247,14 @@ const LandingPage = () => {
             </div>
           </section>
 
-          {/* Problem Section */}
-          <section className="py-16 md:py-24 bg-muted/30">
+          {/* LIGHT — Problem Section */}
+          <section className="py-16 md:py-24 bg-muted/40">
             <div className="container">
               <div className="mx-auto max-w-3xl text-center">
-                <h2 className="text-3xl font-bold text-foreground">
-                  Você sabe quanto custa cada hora da sua equipe?
+                <p className="ol-label text-muted-foreground mb-4">O Problema</p>
+                <h2 className="ol-h2 text-foreground">
+                  Você sabe quanto custa{" "}
+                  <span className="ol-text-accent">cada hora</span> da sua equipe?
                 </h2>
                 <p className="mt-4 text-muted-foreground text-lg">
                   Muitas empresas de serviços precificam projetos sem considerar
@@ -267,23 +271,21 @@ const LandingPage = () => {
             </div>
           </section>
 
-          {/* Features Section */}
-          <section className="py-16 md:py-24" id="funcionalidades">
+          {/* WHITE — Features Section */}
+          <section className="py-16 md:py-24 bg-white" id="funcionalidades">
             <div className="container">
               <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-foreground">
-                  Funcionalidades Principais
+                <p className="ol-label text-muted-foreground mb-4">Funcionalidades</p>
+                <h2 className="ol-h2 text-foreground">
+                  Tudo que você precisa,{" "}
+                  <span className="ol-text-accent">em uma plataforma.</span>
                 </h2>
-                <p className="mt-4 text-muted-foreground text-lg">
-                  Tudo que você precisa para gerir sua empresa de serviços em
-                  uma única plataforma.
-                </p>
               </div>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {features.map((feature, index) => (
                   <Card
                     key={index}
-                    className="transition-all duration-300 hover:shadow-card-hover"
+                    className="hover:border-primary/30 transition-colors duration-200"
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
@@ -306,18 +308,19 @@ const LandingPage = () => {
             </div>
           </section>
 
-          {/* Benefits Section */}
-          <section className="py-16 md:py-24 bg-primary text-primary-foreground">
+          {/* DARK — Benefits Section */}
+          <section className="py-16 md:py-24 bg-[hsl(222,18%,10%)]">
             <div className="container">
               <div className="mx-auto max-w-3xl text-center">
-                <h2 className="text-3xl font-bold">
-                  Por que escolher o Origami Pulse?
+                <p className="ol-label text-white/40 mb-4">Por que escolher</p>
+                <h2 className="ol-h2 text-white">
+                  Origami <span className="ol-text-accent">Pulse</span>
                 </h2>
                 <div className="mt-10 grid gap-4 sm:grid-cols-2 text-left">
                   {benefits.map((benefit, index) => (
                     <div key={index} className="flex items-center gap-3">
-                      <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-accent" />
-                      <span className="text-primary-foreground/90">
+                      <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-primary" />
+                      <span className="text-white/80">
                         {benefit}
                       </span>
                     </div>
@@ -327,17 +330,15 @@ const LandingPage = () => {
             </div>
           </section>
 
-          {/* FAQ Section - AEO Optimized */}
-          <section className="py-16 md:py-24" id="faq">
+          {/* LIGHT — FAQ Section */}
+          <section className="py-16 md:py-24 bg-muted/40" id="faq">
             <div className="container">
               <div className="mx-auto max-w-3xl">
                 <div className="text-center mb-12">
-                  <h2 className="text-3xl font-bold text-foreground">
-                    Perguntas Frequentes
+                  <p className="ol-label text-muted-foreground mb-4">Dúvidas</p>
+                  <h2 className="ol-h2 text-foreground">
+                    Perguntas <span className="ol-text-accent">Frequentes</span>
                   </h2>
-                  <p className="mt-4 text-muted-foreground">
-                    Tire suas dúvidas sobre o Origami Pulse
-                  </p>
                 </div>
                 <Accordion type="single" collapsible className="w-full">
                   {faqItems.map((item, index) => (
@@ -355,19 +356,22 @@ const LandingPage = () => {
             </div>
           </section>
 
-          {/* Final CTA Section */}
-          <section className="py-16 md:py-24 gradient-subtle">
-            <div className="container">
+          {/* DARK — Final CTA Section */}
+          <section className="py-16 md:py-24 bg-[hsl(222,18%,10%)] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-brand opacity-5" />
+            <div className="container relative">
               <div className="mx-auto max-w-2xl text-center">
-                <h2 className="text-3xl font-bold text-foreground">
-                  Comece a controlar sua operação hoje
+                <p className="ol-label text-white/40 mb-4">Comece agora</p>
+                <h2 className="ol-h2 text-white">
+                  Controle sua operação{" "}
+                  <span className="ol-text-accent">hoje.</span>
                 </h2>
-                <p className="mt-4 text-muted-foreground text-lg">
+                <p className="mt-4 text-white/60 text-lg">
                   Cadastre sua empresa gratuitamente e tenha acesso completo ao
                   sistema. Sem necessidade de cartão de crédito.
                 </p>
                 <div className="mt-8">
-                  <Button size="lg" asChild>
+                  <Button variant="gradient" size="lg" asChild>
                     <Link to="/register">
                       Cadastrar Empresa Grátis
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -380,30 +384,30 @@ const LandingPage = () => {
         </main>
 
         {/* Footer */}
-        <footer className="border-t py-8">
+        <footer className="border-t border-white/10 bg-[hsl(222,20%,5%)] py-8">
           <div className="container">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <nav className="flex items-center gap-6">
                 <Link
                   to="/login"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm text-white/40 hover:text-white transition-colors"
                 >
                   Login
                 </Link>
                 <a
                   href="#funcionalidades"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm text-white/40 hover:text-white transition-colors"
                 >
                   Funcionalidades
                 </a>
                 <a
                   href="#faq"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm text-white/40 hover:text-white transition-colors"
                 >
                   FAQ
                 </a>
               </nav>
-              <p className="text-xs text-muted-foreground/60">
+              <p className="text-xs text-white/20">
                 Powered by OrigamiLab
               </p>
             </div>

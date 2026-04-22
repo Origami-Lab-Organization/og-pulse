@@ -15,7 +15,7 @@ const ClientCard = ({ client, onEdit, onDelete, canManage }: ClientCardProps) =>
   const hasAddress = client.logradouro || client.cidade || client.estado;
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-200 border-border">
+    <Card className="group hover:border-primary/30 transition-colors duration-200">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">

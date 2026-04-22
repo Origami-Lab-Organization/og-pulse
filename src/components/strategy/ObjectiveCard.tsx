@@ -108,7 +108,7 @@ export function ObjectiveCard({
 
   return (
     <Card
-      className="flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+      className="flex flex-col cursor-pointer hover:border-primary/30 transition-colors"
       onClick={onClick}
     >
       <CardHeader className="pb-2 pt-4 px-4">

@@ -34,7 +34,7 @@ const EmployeeCard = ({ employee, onEdit, onDelete, onTerminate, onViewTerminati
   const custoHora = custoTotal / (employee.jornadaMensal || 176);
 
   return (
-    <Card className="group animate-fade-in transition-all duration-200 hover:shadow-card-hover">
+    <Card className="group animate-fade-in transition-colors duration-200 hover:border-primary/30">
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">

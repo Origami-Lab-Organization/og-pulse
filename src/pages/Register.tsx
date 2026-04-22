@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Building2, ArrowLeft, ArrowRight, Eye, EyeOff, Check } from 'lucide-react';
 import { formatCNPJ, validateCNPJ, unformatCNPJ } from '@/lib/masks';
@@ -89,10 +88,8 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
           <div className="flex flex-col items-center">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                currentStep > step.num
-                  ? 'bg-[#16a34a] text-white'
-                  : currentStep === step.num
-                  ? 'bg-[#16a34a] text-white'
+                currentStep >= step.num
+                  ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground'
               }`}
             >
@@ -103,7 +100,7 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
           {i < steps.length - 1 && (
             <div
               className={`w-16 h-0.5 mx-2 mb-5 ${
-                currentStep > 1 ? 'bg-[#16a34a]' : 'bg-muted'
+                currentStep > 1 ? 'bg-primary' : 'bg-muted'
               }`}
             />
           )}
@@ -215,18 +212,38 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <img src={logo} alt="Origami Pulse" className="h-16 w-16" />
+    <div className="min-h-screen flex">
+      {/* Painel esquerdo — navy com gradiente de marca */}
+      <div className="hidden lg:flex lg:w-1/2 bg-[hsl(222,18%,10%)] flex-col items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-brand opacity-10" />
+        <div className="relative z-10 text-center">
+          <img src={logo} alt="Origami Pulse" className="h-20 w-20 mx-auto mb-8" />
+          <h1 className="ol-h1 text-white mb-4">
+            Comece a ver a <span className="ol-text-accent">margem real</span> dos seus projetos.
+          </h1>
+          <p className="text-white/60 text-base max-w-sm mx-auto">
+            Configure sua empresa em menos de 7 dias e tome decisões com dados concretos.
+          </p>
+        </div>
+      </div>
+
+      {/* Painel direito — formulário */}
+      <div className="flex-1 flex items-center justify-center bg-background p-8">
+        <div className="w-full max-w-lg">
+          <div className="lg:hidden flex justify-center mb-8">
+            <img src={logo} alt="Origami Pulse" className="h-14 w-14" />
           </div>
-          <CardTitle className="text-2xl">Cadastrar Empresa</CardTitle>
-          <CardDescription>
-            Comece a ver a margem real dos seus projetos em menos de 7 dias.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+
+          <div className="mb-6">
+            <p className="ol-label text-muted-foreground mb-2">Novo cadastro</p>
+            <h2 className="ol-h2 text-foreground">
+              Cadastrar <span className="ol-text-accent">Empresa</span>
+            </h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Comece a ver a margem real dos seus projetos em menos de 7 dias.
+            </p>
+          </div>
+
           <StepIndicator currentStep={step} />
 
           <Form {...form}>
@@ -335,11 +352,7 @@ const Register = () => {
                     )}
                   />
 
-                  <Button
-                    type="button"
-                    className="w-full"
-                    onClick={handleStep1Continue}
-                  >
+                  <Button variant="gradient" type="button" className="w-full" onClick={handleStep1Continue}>
                     Continuar
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -440,7 +453,7 @@ const Register = () => {
                     )}
                   />
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button variant="gradient" type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -475,8 +488,8 @@ const Register = () => {
               )}
             </form>
           </Form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

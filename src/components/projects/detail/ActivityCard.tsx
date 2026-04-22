@@ -59,7 +59,7 @@ export function ActivityCard({ card, projectName, targetSprintLabel, onClick }: 
 
   return (
     <div
-      className="rounded-md bg-background border border-border p-3 shadow-sm space-y-2 cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
+      className="rounded-md bg-background border border-border p-3 space-y-2 cursor-pointer hover:border-primary/40 transition-colors"
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-2">

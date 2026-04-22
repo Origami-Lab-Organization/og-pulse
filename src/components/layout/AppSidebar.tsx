@@ -196,7 +196,7 @@ export function AppSidebar() {
             <Collapsible key={group.label} defaultOpen className="group/collapsible">
               <SidebarGroup>
                 {!collapsed && (
-                  <SidebarGroupLabel asChild className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">
+                  <SidebarGroupLabel asChild className="ol-label text-sidebar-foreground/50">
                     <CollapsibleTrigger className="flex w-full items-center justify-between">
                       {group.label}
                       <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />

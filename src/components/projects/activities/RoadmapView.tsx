@@ -268,7 +268,7 @@ export function RoadmapView({
                     zIndex: 1,
                     cursor: 'pointer',
                   }}
-                  className="rounded-lg border border-border bg-card shadow-sm px-3 py-2.5 hover:border-primary/40 hover:shadow-md transition-all flex flex-col gap-1.5"
+                  className="rounded-lg border border-border bg-card px-3 py-2.5 hover:border-primary/40 transition-colors flex flex-col gap-1.5"
                 >
                   {/* Name + version */}
                   <div className="flex items-start justify-between gap-1">
