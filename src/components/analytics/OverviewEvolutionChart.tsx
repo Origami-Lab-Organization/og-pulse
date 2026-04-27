@@ -12,9 +12,9 @@ interface Props {
 }
 
 const FATURADO_COLOR = 'hsl(152, 55%, 28%)';
-const REVENUE_COLOR = 'hsl(210, 60%, 50%)';
+const REVENUE_COLOR = 'hsl(152, 55%, 55%)';
 const COSTS_COLOR = 'hsl(0, 70%, 60%)';
-const MARGIN_COLOR = 'hsl(220, 70%, 50%)';
+const MARGIN_COLOR = 'hsl(210, 70%, 50%)';
 
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -22,8 +22,8 @@ function CustomTooltip({ active, payload, label }: any) {
     <div className="rounded-lg border bg-popover px-3 py-2 text-sm shadow-md">
       <p className="mb-1 font-medium capitalize">{label}</p>
       {payload.map((p: any) => {
-        if (p.value === null || p.value === undefined) return null;
-        const formatted = p.dataKey === 'marginPct'
+        if (p.value === null || p.value === undefined || p.value === 0) return null;
+        const formatted = p.dataKey === 'marginPct' || p.dataKey === 'marginPctProj'
           ? `${Number(p.value).toFixed(1)}%`
           : formatCurrency(p.value);
         return (
@@ -38,25 +38,46 @@ function CustomTooltip({ active, payload, label }: any) {
 
 export function OverviewEvolutionChart({ data, year }: Props) {
   const chartData = data.map((m) => {
-    const showProj = !m.isPast || m.isCurrent;
+    const faturadoReal = m.isPast ? m.faturado : null;
+    const faturadoRem = m.isCurrent
+      ? Math.max(0, m.revenuePlanned - m.faturado)
+      : !m.isPast
+        ? m.revenuePlanned
+        : null;
+
+    const custosReal = m.isPast ? m.totalCosts : null;
+    const custosRem = m.isCurrent
+      ? Math.max(0, m.plannedTotalCosts - m.totalCosts)
+      : !m.isPast
+        ? m.plannedTotalCosts
+        : null;
+
     return {
       label: m.label,
-      faturado: m.isPast ? m.faturado : null,
-      receita: m.isPast ? m.revenueReal : null,
-      custos: m.isPast ? m.totalCosts : null,
+      faturadoReal,
+      faturadoRem,
+      receitaReal: m.isPast ? m.revenueReal : null,
+      custosReal,
+      custosRem,
       marginPct: m.isPast ? (m.grossMarginPct ?? null) : null,
-      faturadoProj: showProj ? m.revenuePlanned : null,
-      custosProj: showProj ? m.plannedTotalCosts : null,
-      marginPctProj: showProj ? (m.plannedGrossMarginPct ?? null) : null,
+      marginPctProj: (!m.isPast || m.isCurrent) ? (m.plannedGrossMarginPct ?? null) : null,
       isHighlighted: m.isHighlighted,
       isPast: m.isPast,
     };
   });
 
   const maxVal = Math.max(
-    ...chartData.map((d) => Math.max(d.faturado ?? 0, d.receita ?? 0, d.custos ?? 0, d.faturadoProj ?? 0, d.custosProj ?? 0)),
+    ...chartData.map((d) =>
+      Math.max(
+        (d.faturadoReal ?? 0) + (d.faturadoRem ?? 0),
+        d.receitaReal ?? 0,
+        (d.custosReal ?? 0) + (d.custosRem ?? 0),
+      ),
+    ),
     1,
   );
+
+  const opacity = (d: typeof chartData[number]) => d.isHighlighted ? 1 : 0.3;
 
   return (
     <Card className="h-full flex flex-col">
@@ -64,6 +85,21 @@ export function OverviewEvolutionChart({ data, year }: Props) {
         <CardTitle className="text-base">Evolução Financeira Consolidada</CardTitle>
       </CardHeader>
       <CardContent className="flex-1">
+        {/* SVG pattern defs for hatched projected bars */}
+        <svg width="0" height="0" style={{ position: 'absolute' }}>
+          <defs>
+            <pattern id="hatch-faturado" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="5" stroke={FATURADO_COLOR} strokeWidth="2.5" />
+            </pattern>
+            <pattern id="hatch-receita" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="5" stroke={REVENUE_COLOR} strokeWidth="2.5" />
+            </pattern>
+            <pattern id="hatch-custos" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="5" stroke={COSTS_COLOR} strokeWidth="2.5" />
+            </pattern>
+          </defs>
+        </svg>
+
         <div className="h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: 5, right: 44, left: 0, bottom: 0 }}>
@@ -88,36 +124,38 @@ export function OverviewEvolutionChart({ data, year }: Props) {
               <Tooltip content={<CustomTooltip />} />
               <Legend />
 
-              <Bar yAxisId="val" dataKey="faturado" name="Faturado" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
+              {/* Faturado: solid (realized) + hatched (planned remainder) stacked */}
+              <Bar yAxisId="val" dataKey="faturadoReal" name="Faturado" stackId="fat" fill={FATURADO_COLOR} radius={[0, 0, 0, 0]} barSize={12}>
                 {chartData.map((d, i) => (
-                  <Cell key={i} fill={FATURADO_COLOR} fillOpacity={d.isHighlighted ? 1 : 0.3} />
+                  <Cell key={i} fill={FATURADO_COLOR} fillOpacity={opacity(d)} />
+                ))}
+              </Bar>
+              <Bar yAxisId="val" dataKey="faturadoRem" name="Faturado (proj.)" stackId="fat" fill="url(#hatch-faturado)" radius={[3, 3, 0, 0]} barSize={12}>
+                {chartData.map((d, i) => (
+                  <Cell key={i} fill="url(#hatch-faturado)" fillOpacity={opacity(d)} />
                 ))}
               </Bar>
 
-              <Bar yAxisId="val" dataKey="faturadoProj" name="Faturado (proj.)" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={10} fillOpacity={0.4}>
+              {/* Receita Recebida: realized only */}
+              <Bar yAxisId="val" dataKey="receitaReal" name="Receita Recebida" fill={REVENUE_COLOR} radius={[3, 3, 0, 0]} barSize={12}>
                 {chartData.map((d, i) => (
-                  <Cell key={i} fill={FATURADO_COLOR} fillOpacity={d.isHighlighted ? 0.4 : 0.15} />
+                  <Cell key={i} fill={REVENUE_COLOR} fillOpacity={opacity(d)} />
                 ))}
               </Bar>
 
-              <Bar yAxisId="val" dataKey="receita" name="Receita Recebida" fill={REVENUE_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
+              {/* Custos: solid (realized) + hatched (planned remainder) stacked */}
+              <Bar yAxisId="val" dataKey="custosReal" name="Custos" stackId="cus" fill={COSTS_COLOR} radius={[0, 0, 0, 0]} barSize={12}>
                 {chartData.map((d, i) => (
-                  <Cell key={i} fill={REVENUE_COLOR} fillOpacity={d.isHighlighted ? 1 : 0.3} />
+                  <Cell key={i} fill={COSTS_COLOR} fillOpacity={opacity(d)} />
+                ))}
+              </Bar>
+              <Bar yAxisId="val" dataKey="custosRem" name="Custos (proj.)" stackId="cus" fill="url(#hatch-custos)" radius={[3, 3, 0, 0]} barSize={12}>
+                {chartData.map((d, i) => (
+                  <Cell key={i} fill="url(#hatch-custos)" fillOpacity={opacity(d)} />
                 ))}
               </Bar>
 
-              <Bar yAxisId="val" dataKey="custos" name="Custos" fill={COSTS_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
-                {chartData.map((d, i) => (
-                  <Cell key={i} fill={COSTS_COLOR} fillOpacity={d.isHighlighted ? 1 : 0.3} />
-                ))}
-              </Bar>
-
-              <Bar yAxisId="val" dataKey="custosProj" name="Custos (proj.)" fill={COSTS_COLOR} radius={[3, 3, 0, 0]} barSize={10} fillOpacity={0.4}>
-                {chartData.map((d, i) => (
-                  <Cell key={i} fill={COSTS_COLOR} fillOpacity={d.isHighlighted ? 0.4 : 0.15} />
-                ))}
-              </Bar>
-
+              {/* Margin lines */}
               <Line
                 yAxisId="pct"
                 type="monotone"
@@ -129,7 +167,6 @@ export function OverviewEvolutionChart({ data, year }: Props) {
                 activeDot={{ r: 5 }}
                 connectNulls={false}
               />
-
               <Line
                 yAxisId="pct"
                 type="monotone"
