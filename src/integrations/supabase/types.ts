@@ -946,6 +946,7 @@ export type Database = {
           salario_liquido: number
           salario_mensal: number
           tipo_contratacao: string
+          total_monthly_cost_estimated: number | null
         }
         Insert: {
           beneficios?: number
@@ -966,6 +967,7 @@ export type Database = {
           salario_liquido?: number
           salario_mensal?: number
           tipo_contratacao?: string
+          total_monthly_cost_estimated?: number | null
         }
         Update: {
           beneficios?: number
@@ -986,6 +988,7 @@ export type Database = {
           salario_liquido?: number
           salario_mensal?: number
           tipo_contratacao?: string
+          total_monthly_cost_estimated?: number | null
         }
         Relationships: [
           {
@@ -3016,18 +3019,21 @@ export type Database = {
       }
       project_member_months: {
         Row: {
+          cost_per_hour: number | null
           hours: number
           id: string
           month_number: number
           project_member_id: string
         }
         Insert: {
+          cost_per_hour?: number | null
           hours?: number
           id?: string
           month_number: number
           project_member_id: string
         }
         Update: {
+          cost_per_hour?: number | null
           hours?: number
           id?: string
           month_number?: number
@@ -3561,6 +3567,7 @@ export type Database = {
       }
       project_timesheets: {
         Row: {
+          cost_per_hour: number | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -3574,6 +3581,7 @@ export type Database = {
           work_date: string
         }
         Insert: {
+          cost_per_hour?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -3587,6 +3595,7 @@ export type Database = {
           work_date: string
         }
         Update: {
+          cost_per_hour?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
