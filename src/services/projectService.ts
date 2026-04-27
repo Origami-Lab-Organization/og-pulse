@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { addMonths, parseISO, format } from 'date-fns';
+import { employeeVersionService } from './employeeVersionService';
 import {
   ProjectDB,
   ProjectMemberDB,
@@ -564,6 +566,88 @@ export const projectService = {
     }
 
     return (data || []) as unknown as (ProjectMemberDB & { employee?: { id: string; nome: string; cargo: string } })[];
+  },
+
+  /**
+   * Recalculate cost_per_hour for all project_member_months and project_timesheets
+   * linked to a given employee, using the employee_versions historical cost data.
+   * Called after a new employee version is created (salary/contract change).
+   */
+  async recalculateMemberCosts(employeeId: string): Promise<void> {
+    try {
+      // 1. Fetch all versions for this employee (descending so newest first)
+      const versions = await employeeVersionService.getVersions(employeeId);
+      if (versions.length === 0) return;
+
+      // Helper: find the version active on a given date string (yyyy-MM-dd)
+      const findVersion = (dateStr: string) =>
+        versions.find(v =>
+          v.effective_from <= dateStr &&
+          (v.effective_until == null || v.effective_until > dateStr)
+        );
+
+      // 2. Fetch all project_members for this employee with project start_date
+      const { data: membersData } = await supabase
+        .from('project_members')
+        .select('id, project:projects(start_date)')
+        .eq('employee_id', employeeId);
+
+      if (!membersData || membersData.length === 0) return;
+
+      const memberIds = membersData.map((m: any) => m.id);
+      const startDateByMember: Record<string, string> = {};
+      membersData.forEach((m: any) => {
+        if (m.project?.start_date) startDateByMember[m.id] = m.project.start_date;
+      });
+
+      // 3. Recalculate project_member_months
+      const { data: months } = await supabase
+        .from('project_member_months')
+        .select('id, project_member_id, month_number')
+        .in('project_member_id', memberIds);
+
+      if (months && months.length > 0) {
+        for (const month of months as any[]) {
+          const startDate = startDateByMember[month.project_member_id];
+          if (!startDate) continue;
+
+          const calendarDate = format(
+            addMonths(parseISO(startDate), month.month_number - 1),
+            'yyyy-MM-dd'
+          );
+          const version = findVersion(calendarDate);
+          if (!version?.total_monthly_cost_estimated || !version.jornada_mensal) continue;
+
+          const costPerHour = version.total_monthly_cost_estimated / version.jornada_mensal;
+          await supabase
+            .from('project_member_months')
+            .update({ cost_per_hour: costPerHour })
+            .eq('id', month.id);
+        }
+      }
+
+      // 4. Recalculate project_timesheets
+      const { data: timesheets } = await supabase
+        .from('project_timesheets')
+        .select('id, work_date')
+        .in('project_member_id', memberIds);
+
+      if (timesheets && timesheets.length > 0) {
+        for (const ts of timesheets as any[]) {
+          const version = findVersion(ts.work_date);
+          if (!version?.total_monthly_cost_estimated || !version.jornada_mensal) continue;
+
+          const costPerHour = version.total_monthly_cost_estimated / version.jornada_mensal;
+          await supabase
+            .from('project_timesheets')
+            .update({ cost_per_hour: costPerHour })
+            .eq('id', ts.id);
+        }
+      }
+    } catch (err) {
+      console.error('Error recalculating member costs:', err);
+      // Don't throw — recalculation is best-effort
+    }
   },
 
   // Project Installments

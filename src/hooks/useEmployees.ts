@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService, CreateEmployeeInput, EmployeeDB } from '@/services/employeeService';
 import { employeeVersionService, EmployeeVersionDB } from '@/services/employeeVersionService';
+import { projectService } from '@/services/projectService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CreateEmployeeToolInput, CreateEmployeeBenefitInput, ContractType, SystemRole } from '@/types/employee';
@@ -163,14 +164,23 @@ export const useUpdateEmployee = () => {
     }) => {
       return employeeService.update(id, updates, createNewVersion, effectiveFrom);
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       if (variables.createNewVersion) {
         queryClient.invalidateQueries({ queryKey: ['employee-versions', variables.id] });
+        // Recalculate historical project costs based on employee versions
+        try {
+          await projectService.recalculateMemberCosts(variables.id);
+          queryClient.invalidateQueries({ queryKey: ['project-member-months'] });
+          queryClient.invalidateQueries({ queryKey: ['timesheets-by-members'] });
+          queryClient.invalidateQueries({ queryKey: ['project'] });
+        } catch (e) {
+          console.error('Error recalculating member costs:', e);
+        }
       }
       toast({
         title: 'Funcionário atualizado',
-        description: variables.createNewVersion 
+        description: variables.createNewVersion
           ? `${data.nome} foi atualizado. Um novo marco financeiro foi criado.`
           : `${data.nome} foi atualizado com sucesso.`,
       });

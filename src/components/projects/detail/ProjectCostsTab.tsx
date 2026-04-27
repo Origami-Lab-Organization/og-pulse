@@ -175,42 +175,40 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
     return Number((member as any).hourly_rate) || 0;
   }, []);
 
-  // Calculate PLANNED labor costs using real employee cost or budget hourly rate
+  // Calculate PLANNED labor costs using stored cost_per_hour per month when available
   const laborCostsPlanned = useMemo(() => {
     if (!project.members || project.members.length === 0) return 0;
 
     let total = 0;
     project.members.forEach((member) => {
-      const hourlyCost = getMemberHourlyCost(member);
-
-      // Sum PLANNED hours across all months
-      const memberHours = memberMonths
+      const fallbackCost = getMemberHourlyCost(member);
+      memberMonths
         .filter((mm) => mm.project_member_id === member.id)
-        .reduce((sum, mm) => sum + Number(mm.hours), 0);
-
-      total += hourlyCost * memberHours;
+        .forEach((mm) => {
+          const cost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
+          total += cost * Number(mm.hours);
+        });
     });
 
     return total;
   }, [project.members, memberMonths, getMemberHourlyCost]);
 
-  // Calculate ACTUAL labor costs from timesheets
+  // Calculate ACTUAL labor costs using stored cost_per_hour per timesheet when available
   const laborCostsActual = useMemo(() => {
     if (!project.members || project.members.length === 0) return 0;
 
-    let total = 0;
+    // Build a map of member fallback costs
+    const memberCostMap = new Map<string, number>();
     project.members.forEach((member) => {
-      const hourlyCost = getMemberHourlyCost(member);
-
-      // Sum ACTUAL hours from timesheets
-      const actualHours = timesheets
-        .filter((ts) => ts.project_member_id === member.id)
-        .reduce((sum, ts) => sum + Number(ts.hours), 0);
-
-      total += hourlyCost * actualHours;
+      memberCostMap.set(member.id, getMemberHourlyCost(member));
     });
 
-    return total;
+    return timesheets.reduce((total, ts) => {
+      const cost = (ts as any).cost_per_hour != null
+        ? Number((ts as any).cost_per_hour)
+        : (memberCostMap.get(ts.project_member_id) || 0);
+      return total + cost * Number(ts.hours);
+    }, 0);
   }, [project.members, timesheets, getMemberHourlyCost]);
 
   // Calculate PLANNED supplier costs from monthly values

@@ -135,7 +135,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .lte('invoice_date', endStr),
         supabase
           .from('project_timesheets')
-          .select('project_id, project_member_id, hours, work_date')
+          .select('project_id, project_member_id, hours, work_date, cost_per_hour')
           .in('project_id', projectIds)
           .gte('work_date', startStr)
           .lte('work_date', endStr),
@@ -229,9 +229,10 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         if (!member?.employee) continue;
 
         const emp = member.employee;
-        const hourlyCost = emp.jornada_mensal > 0
+        const dynamicCost = emp.jornada_mensal > 0
           ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
           : 0;
+        const hourlyCost = (ts as any).cost_per_hour != null ? Number((ts as any).cost_per_hour) : dynamicCost;
         const cost = Number(ts.hours) * hourlyCost;
 
         const projCost = costsByProjectMap.get(ts.project_id);

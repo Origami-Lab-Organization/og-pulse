@@ -182,6 +182,17 @@ export const employeeService = {
     if (updates.dataNascimento !== undefined) dbUpdates.data_nascimento = updates.dataNascimento;
     if (updates.fotoUrl !== undefined) dbUpdates.foto_url = updates.fotoUrl;
 
+    // Capture current cost before update so we can backfill the old version
+    let oldTotalMonthlyCost: number | null = null;
+    if (createNewVersion) {
+      const { data: current } = await supabase
+        .from('employees')
+        .select('total_monthly_cost_estimated')
+        .eq('id', id)
+        .single();
+      oldTotalMonthlyCost = current?.total_monthly_cost_estimated ?? null;
+    }
+
     const { data, error } = await supabase
       .from('employees')
       .update(dbUpdates)
@@ -199,6 +210,14 @@ export const employeeService = {
     // Create a new version if requested (for financial/charge changes)
     if (createNewVersion) {
       try {
+        // Backfill total_monthly_cost_estimated into the still-open version BEFORE
+        // createVersion closes it, preserving the historical cost for that period
+        await supabase
+          .from('employee_versions')
+          .update({ total_monthly_cost_estimated: oldTotalMonthlyCost })
+          .eq('employee_id', id)
+          .is('effective_until', null);
+
         await employeeVersionService.createVersion({
           employeeId: id,
           effectiveFrom,
@@ -214,6 +233,7 @@ export const employeeService = {
           jornadaMensal: updatedEmployee.jornada_mensal,
           tipoContratacao: updatedEmployee.tipo_contratacao,
           cargo: updatedEmployee.cargo,
+          totalMonthlyCostEstimated: updatedEmployee.total_monthly_cost_estimated,
         });
       } catch (versionError) {
         console.error('Error creating employee version:', versionError);

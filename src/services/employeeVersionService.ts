@@ -17,6 +17,7 @@ export interface EmployeeVersionDB {
   jornada_mensal: number;
   tipo_contratacao: string;
   cargo: string;
+  total_monthly_cost_estimated: number | null;
   created_at: string;
 }
 
@@ -35,6 +36,7 @@ export interface CreateVersionInput {
   jornadaMensal: number;
   tipoContratacao: string;
   cargo: string;
+  totalMonthlyCostEstimated?: number | null;
 }
 
 // Fields that trigger a new version when changed
@@ -147,6 +149,7 @@ export const employeeVersionService = {
         jornada_mensal: input.jornadaMensal,
         tipo_contratacao: input.tipoContratacao,
         cargo: input.cargo,
+        total_monthly_cost_estimated: input.totalMonthlyCostEstimated ?? null,
       })
       .select()
       .single();

@@ -398,7 +398,21 @@ export function ProjectLaborSection({
     [actualHoursByMemberAndMonth]
   );
 
-  // Calculate totals using real employee cost (PLANNED + ACTUAL by month)
+  // Actual cost per member using stored cost_per_hour from each timesheet
+  const actualCostByMember = useMemo(() => {
+    const result: Record<string, number> = {};
+    timesheets.forEach((ts) => {
+      const cost = (ts as any).cost_per_hour != null
+        ? Number((ts as any).cost_per_hour) * Number(ts.hours)
+        : null; // will use fallback in totals
+      if (cost != null) {
+        result[ts.project_member_id] = (result[ts.project_member_id] || 0) + cost;
+      }
+    });
+    return result;
+  }, [timesheets]);
+
+  // Calculate totals using stored cost_per_hour when available, falling back to current rate
   const totals = useMemo(() => {
     const byMonth: Record<number, { plannedHours: number; plannedValue: number; actualHours: number; actualValue: number }> = {};
     let totalHours = 0;
@@ -411,46 +425,62 @@ export function ProjectLaborSection({
     });
 
     members.forEach((member) => {
-      const realCost = getRealHourlyCost(member);
+      const fallbackCost = getRealHourlyCost(member);
       months.forEach((monthNum) => {
+        const mm = memberMonths.find(
+          (m) => m.project_member_id === member.id && m.month_number === monthNum
+        );
+        const plannedCost = (mm as any)?.cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
         const plannedHours = getHoursForMonth(member.id, monthNum);
         const actualHours = getActualHoursForMonth(member.id, monthNum);
-        
+        const actualCost = fallbackCost; // per-month actual cost uses fallback; total uses stored ts cost
+
         byMonth[monthNum].plannedHours = Math.round((byMonth[monthNum].plannedHours + plannedHours) * 10) / 10;
-        byMonth[monthNum].plannedValue += plannedHours * realCost;
+        byMonth[monthNum].plannedValue += plannedHours * plannedCost;
         byMonth[monthNum].actualHours = Math.round((byMonth[monthNum].actualHours + actualHours) * 10) / 10;
-        byMonth[monthNum].actualValue += actualHours * realCost;
-        
+        byMonth[monthNum].actualValue += actualHours * actualCost;
+
         totalHours = Math.round((totalHours + plannedHours) * 10) / 10;
-        totalValue += plannedHours * realCost;
+        totalValue += plannedHours * plannedCost;
         totalActualHours = Math.round((totalActualHours + actualHours) * 10) / 10;
-        totalActualValue += actualHours * realCost;
       });
+      // Use stored timesheet cost when available for the member's total actual value
+      const storedActualCost = actualCostByMember[member.id];
+      if (storedActualCost != null) {
+        totalActualValue += storedActualCost;
+      } else {
+        const actualHrs = actualHoursByMember[member.id] || 0;
+        totalActualValue += actualHrs * fallbackCost;
+      }
     });
 
     return { byMonth, totalHours, totalValue, totalActualHours, totalActualValue };
-  }, [members, months, getRealHourlyCost, getHoursForMonth, getActualHoursForMonth]);
+  }, [members, months, getRealHourlyCost, getHoursForMonth, getActualHoursForMonth, memberMonths, actualCostByMember, actualHoursByMember]);
 
 
-  // Calculate member totals using real employee cost (PLANNED + ACTUAL)
+  // Calculate member totals using stored cost_per_hour when available
   const memberTotals = useMemo(() => {
     const result: Record<string, { plannedHours: number; plannedValue: number; actualHours: number; actualValue: number }> = {};
     members.forEach((member) => {
-      const realCost = getRealHourlyCost(member);
+      const fallbackCost = getRealHourlyCost(member);
       let plannedHours = 0;
+      let plannedValue = 0;
       months.forEach((monthNum) => {
-        plannedHours = Math.round((plannedHours + getHoursForMonth(member.id, monthNum)) * 10) / 10;
+        const h = getHoursForMonth(member.id, monthNum);
+        const mm = memberMonths.find(
+          (m) => m.project_member_id === member.id && m.month_number === monthNum
+        );
+        const cost = (mm as any)?.cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
+        plannedHours = Math.round((plannedHours + h) * 10) / 10;
+        plannedValue += h * cost;
       });
       const actualHours = actualHoursByMember[member.id] || 0;
-      result[member.id] = { 
-        plannedHours, 
-        plannedValue: plannedHours * realCost,
-        actualHours,
-        actualValue: actualHours * realCost,
-      };
+      const storedActualCost = actualCostByMember[member.id];
+      const actualValue = storedActualCost != null ? storedActualCost : actualHours * fallbackCost;
+      result[member.id] = { plannedHours, plannedValue, actualHours, actualValue };
     });
     return result;
-  }, [members, months, getRealHourlyCost, getHoursForMonth, actualHoursByMember]);
+  }, [members, months, getRealHourlyCost, getHoursForMonth, actualHoursByMember, memberMonths, actualCostByMember]);
 
   // Detect if we're in planning mode (no actual hours yet)
   const isInPlanningMode = useMemo(() => {

@@ -131,13 +131,13 @@ export function useFinancialEvolution(
           .lte('invoice_date', yearEnd),
         supabase
           .from('project_timesheets')
-          .select('project_member_id, work_date, hours')
+          .select('project_member_id, work_date, hours, cost_per_hour')
           .in('project_id', projectIds)
           .gte('work_date', yearStart)
           .lte('work_date', yearEnd),
         supabase
           .from('project_members')
-          .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_mensal), plannedMonths:project_member_months(month_number, hours)')
+          .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_mensal), plannedMonths:project_member_months(month_number, hours, cost_per_hour)')
           .in('project_id', projectIds),
         supabase
           .from('project_suppliers')
@@ -206,18 +206,21 @@ export function useFinancialEvolution(
       for (const ts of timesheets) {
         const d = parseISO(ts.work_date);
         if (d.getFullYear() !== year) continue;
-        const hourlyCost = memberCostMap.get(ts.project_member_id) ?? 0;
+        const hourlyCost = (ts as any).cost_per_hour != null
+          ? Number((ts as any).cost_per_hour)
+          : (memberCostMap.get(ts.project_member_id) ?? 0);
         monthData[d.getMonth()].laborCost += Number(ts.hours) * hourlyCost;
       }
 
       for (const m of members) {
         const project = projectMap.get(m.project_id);
         if (!project?.start_date || !m.employee) continue;
-        const hourlyCost = memberCostMap.get(m.id) ?? 0;
+        const fallbackCost = memberCostMap.get(m.id) ?? 0;
         const projStart = parseISO(project.start_date);
         for (const pm of (m.plannedMonths || [])) {
           const actualDate = addMonths(startOfMonth(projStart), pm.month_number - 1);
           if (actualDate.getFullYear() !== year) continue;
+          const hourlyCost = (pm as any).cost_per_hour != null ? Number((pm as any).cost_per_hour) : fallbackCost;
           monthData[actualDate.getMonth()].plannedLaborCost += Number(pm.hours) * hourlyCost;
         }
       }
