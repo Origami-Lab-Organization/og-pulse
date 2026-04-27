@@ -186,6 +186,11 @@ export default function Analytics() {
       revenueActual > 0
         ? ((revenueActual - totalCosts) / revenueActual) * 100
         : 0
+    const plannedTotalCosts = highlighted.reduce((s, m) => s + m.plannedTotalCosts, 0)
+    const projectedGrossMargin =
+      revenueProjected > 0
+        ? ((revenueProjected - plannedTotalCosts) / revenueProjected) * 100
+        : 0
 
     return {
       faturado,
@@ -199,6 +204,7 @@ export default function Analytics() {
       commissionCost,
       reimbursementCost,
       grossMargin,
+      projectedGrossMargin,
       grossMarginTarget: financialEvolution.grossMarginTarget,
     }
   }, [financialMonths, financialEvolution])
@@ -286,7 +292,10 @@ export default function Analytics() {
       <div className='space-y-6'>
         <AnalyticsFilters
           granularity={granularity}
-          onGranularityChange={setGranularity}
+          onGranularityChange={(g) => {
+            setGranularity(g);
+            setCurrentPeriodDate(new Date());
+          }}
           currentPeriodDate={currentPeriodDate}
           onPeriodDateChange={setCurrentPeriodDate}
           customStart={customStart}
@@ -348,6 +357,7 @@ export default function Analytics() {
                       <div className='lg:col-span-1'>
                         <ExecutiveSummaryCard
                           grossMargin={financialKPIs.grossMargin}
+                          projectedGrossMargin={financialKPIs.projectedGrossMargin}
                           grossMarginTarget={financialKPIs.grossMarginTarget}
                           revenueActual={financialKPIs.revenueActual}
                           faturado={financialKPIs.faturado}

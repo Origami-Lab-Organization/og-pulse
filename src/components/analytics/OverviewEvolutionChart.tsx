@@ -37,18 +37,24 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 export function OverviewEvolutionChart({ data, year }: Props) {
-  const chartData = data.map((m) => ({
-    label: m.label,
-    faturado: m.isPast ? m.faturado : 0,
-    receita: m.isPast ? m.revenueReal : 0,
-    custos: m.isPast ? m.totalCosts : 0,
-    marginPct: m.isPast ? (m.grossMarginPct ?? 0) : 0,
-    isHighlighted: m.isHighlighted,
-    isPast: m.isPast,
-  }));
+  const chartData = data.map((m) => {
+    const showProj = !m.isPast || m.isCurrent;
+    return {
+      label: m.label,
+      faturado: m.isPast ? m.faturado : null,
+      receita: m.isPast ? m.revenueReal : null,
+      custos: m.isPast ? m.totalCosts : null,
+      marginPct: m.isPast ? (m.grossMarginPct ?? null) : null,
+      faturadoProj: showProj ? m.revenuePlanned : null,
+      custosProj: showProj ? m.plannedTotalCosts : null,
+      marginPctProj: showProj ? (m.plannedGrossMarginPct ?? null) : null,
+      isHighlighted: m.isHighlighted,
+      isPast: m.isPast,
+    };
+  });
 
   const maxVal = Math.max(
-    ...chartData.map((d) => Math.max(d.faturado, d.receita, d.custos)),
+    ...chartData.map((d) => Math.max(d.faturado ?? 0, d.receita ?? 0, d.custos ?? 0, d.faturadoProj ?? 0, d.custosProj ?? 0)),
     1,
   );
 
@@ -82,21 +88,33 @@ export function OverviewEvolutionChart({ data, year }: Props) {
               <Tooltip content={<CustomTooltip />} />
               <Legend />
 
-              <Bar yAxisId="val" dataKey="faturado" name="Faturado" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={12}>
+              <Bar yAxisId="val" dataKey="faturado" name="Faturado" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
                 {chartData.map((d, i) => (
                   <Cell key={i} fill={FATURADO_COLOR} fillOpacity={d.isHighlighted ? 1 : 0.3} />
                 ))}
               </Bar>
 
-              <Bar yAxisId="val" dataKey="receita" name="Receita Recebida" fill={REVENUE_COLOR} radius={[3, 3, 0, 0]} barSize={12}>
+              <Bar yAxisId="val" dataKey="faturadoProj" name="Faturado (proj.)" fill={FATURADO_COLOR} radius={[3, 3, 0, 0]} barSize={10} fillOpacity={0.4}>
+                {chartData.map((d, i) => (
+                  <Cell key={i} fill={FATURADO_COLOR} fillOpacity={d.isHighlighted ? 0.4 : 0.15} />
+                ))}
+              </Bar>
+
+              <Bar yAxisId="val" dataKey="receita" name="Receita Recebida" fill={REVENUE_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
                 {chartData.map((d, i) => (
                   <Cell key={i} fill={REVENUE_COLOR} fillOpacity={d.isHighlighted ? 1 : 0.3} />
                 ))}
               </Bar>
 
-              <Bar yAxisId="val" dataKey="custos" name="Custos" fill={COSTS_COLOR} radius={[3, 3, 0, 0]} barSize={12}>
+              <Bar yAxisId="val" dataKey="custos" name="Custos" fill={COSTS_COLOR} radius={[3, 3, 0, 0]} barSize={10}>
                 {chartData.map((d, i) => (
                   <Cell key={i} fill={COSTS_COLOR} fillOpacity={d.isHighlighted ? 1 : 0.3} />
+                ))}
+              </Bar>
+
+              <Bar yAxisId="val" dataKey="custosProj" name="Custos (proj.)" fill={COSTS_COLOR} radius={[3, 3, 0, 0]} barSize={10} fillOpacity={0.4}>
+                {chartData.map((d, i) => (
+                  <Cell key={i} fill={COSTS_COLOR} fillOpacity={d.isHighlighted ? 0.4 : 0.15} />
                 ))}
               </Bar>
 
@@ -108,6 +126,19 @@ export function OverviewEvolutionChart({ data, year }: Props) {
                 stroke={MARGIN_COLOR}
                 strokeWidth={2}
                 dot={{ r: 3, fill: MARGIN_COLOR }}
+                activeDot={{ r: 5 }}
+                connectNulls={false}
+              />
+
+              <Line
+                yAxisId="pct"
+                type="monotone"
+                dataKey="marginPctProj"
+                name="Margem (proj.)"
+                stroke={MARGIN_COLOR}
+                strokeWidth={2}
+                strokeDasharray="4 3"
+                dot={{ r: 3, fill: MARGIN_COLOR, fillOpacity: 0.5 }}
                 activeDot={{ r: 5 }}
                 connectNulls={false}
               />

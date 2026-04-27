@@ -10,6 +10,7 @@ export interface FinancialMonthlyPoint {
   label: string;
   isHighlighted: boolean;
   isPast: boolean;
+  isCurrent: boolean;
   // Revenue
   revenueReal: number;
   revenuePlanned: number;
@@ -85,6 +86,7 @@ export function useFinancialEvolution(
           label: format(new Date(year, i, 1), 'MMM', { locale: ptBR }),
           isHighlighted: false,
           isPast: startOfMonth(new Date(year, i, 1)) <= new Date(),
+          isCurrent: false,
           revenueReal: 0, revenuePlanned: 0, faturado: 0,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
           commissionCost: 0, reimbursementCost: 0,
@@ -274,6 +276,7 @@ export function useFinancialEvolution(
       const today = new Date();
       for (const m of monthData) {
         m.isPast = startOfMonth(new Date(year, m.monthIndex, 1)) <= today;
+        m.isCurrent = m.monthIndex === today.getMonth() && year === today.getFullYear();
 
         m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost + m.reimbursementCost;
         m.plannedTotalCosts = m.plannedLaborCost + m.plannedSupplierCost + m.plannedMaterialCost;

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   grossMargin: number;
+  projectedGrossMargin: number;
   grossMarginTarget: number | null;
   revenueActual: number;
   faturado: number;
@@ -22,7 +23,7 @@ function detectTrend(margins: { margin: number }[]): { label: string; icon: type
   return { label: 'Em queda', icon: TrendingDown, color: 'text-red-600 dark:text-red-400' };
 }
 
-export function ExecutiveSummaryCard({ grossMargin, grossMarginTarget, revenueActual, faturado, totalCosts, monthlyMargins }: Props) {
+export function ExecutiveSummaryCard({ grossMargin, projectedGrossMargin, grossMarginTarget, revenueActual, faturado, totalCosts, monthlyMargins }: Props) {
   const target = grossMarginTarget ?? 0;
   const diff = grossMargin - target;
   const conversionPct = faturado > 0 ? (revenueActual / faturado) * 100 : 0;
@@ -69,7 +70,10 @@ export function ExecutiveSummaryCard({ grossMargin, grossMarginTarget, revenueAc
           <div className={cn('text-5xl lg:text-6xl font-extrabold tracking-tight', statusColor)}>
             {formatPercent(grossMargin)}
           </div>
-          <p className="text-sm text-muted-foreground mt-1">Margem bruta consolidada</p>
+          <p className="text-sm text-muted-foreground mt-1">Margem bruta realizada</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Projetado: <span className="font-medium text-foreground">{formatPercent(projectedGrossMargin)}</span>
+          </p>
         </div>
 
         {/* Delta */}

@@ -16,7 +16,8 @@ interface Props {
   grossMarginTarget?: number | null;
 }
 
-function getBarColor(margin: number | null, target: number): string {
+function getBarColor(margin: number | null, target: number, contribution: number): string {
+  if (contribution < 0) return 'hsl(0, 72%, 51%)';
   if (margin === null) return 'hsl(220, 10%, 70%)';
   if (margin >= target) return 'hsl(152, 55%, 45%)';
   if (margin >= target * 0.5) return 'hsl(38, 92%, 50%)';
@@ -65,7 +66,7 @@ export function ProjectContributionChart({ byProject, grossMarginTarget }: Props
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="contribution" radius={[0, 4, 4, 0]} barSize={18}>
                 {data.map((d, i) => (
-                  <Cell key={i} fill={getBarColor(d.margin, target)} />
+                  <Cell key={i} fill={getBarColor(d.margin, target, d.contribution)} />
                 ))}
               </Bar>
             </BarChart>
