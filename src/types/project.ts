@@ -223,6 +223,7 @@ export interface ProjectMemberMonthDB {
   project_member_id: string;
   month_number: number;
   hours: number;
+  cost_per_hour: number | null;
 }
 
 // Project Supplier Months (value per month)

@@ -9,6 +9,7 @@ export interface ProjectTimesheetDB {
   work_date: string;
   hours: number;
   description: string | null;
+  cost_per_hour: number | null;
   created_at: string;
   created_by: string | null;
 }
