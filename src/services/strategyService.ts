@@ -5,6 +5,7 @@ import {
   StrategyKeyResultDB,
   StrategyCheckinDB,
   StrategyInitiativeDB,
+  GuardrailDB,
   CreateStrategyCycleInput,
   UpdateStrategyCycleInput,
   CreateStrategyObjectiveInput,
@@ -14,6 +15,8 @@ import {
   CreateStrategyCheckinInput,
   CreateStrategyInitiativeInput,
   UpdateStrategyInitiativeInput,
+  CreateGuardrailInput,
+  UpdateGuardrailInput,
 } from '@/types/strategy';
 
 // ─── Cycle ────────────────────────────────────────────────────────────────────
@@ -368,5 +371,55 @@ export const strategyInitiativeService = {
     const results = await Promise.all(promises);
     const failed = results.find((r) => r.error);
     if (failed?.error) throw failed.error;
+  },
+};
+
+// ─── Guardrail ────────────────────────────────────────────────────────────────
+
+export const guardrailService = {
+  async getAll(cycleId: string, tenantId: string): Promise<GuardrailDB[]> {
+    const { data, error } = await supabase
+      .from('strategy_guardrails')
+      .select('*')
+      .eq('cycle_id', cycleId)
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return (data || []) as GuardrailDB[];
+  },
+
+  async create(input: CreateGuardrailInput, tenantId: string): Promise<GuardrailDB> {
+    const { data, error } = await supabase
+      .from('strategy_guardrails')
+      .insert({ ...input, tenant_id: tenantId })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return data as GuardrailDB;
+  },
+
+  async update(id: string, updates: UpdateGuardrailInput, tenantId: string): Promise<GuardrailDB> {
+    const { data, error } = await supabase
+      .from('strategy_guardrails')
+      .update(updates)
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return data as GuardrailDB;
+  },
+
+  async delete(id: string, tenantId: string): Promise<void> {
+    const { error } = await supabase
+      .from('strategy_guardrails')
+      .delete()
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
+
+    if (error) throw error;
   },
 };

@@ -346,3 +346,79 @@ export function getKrProgress(
   if (target === 0) return 0;
   return Math.round(Math.min((current / target) * 100, 100));
 }
+
+// ─── Guardrail ────────────────────────────────────────────────────────────────
+
+export type GuardrailOperator = '>=' | '<=';
+export type GuardrailStatus = 'ok' | 'violated' | 'unknown';
+
+export interface GuardrailDB {
+  id: string;
+  tenant_id: string;
+  cycle_id: string;
+  title: string;
+  description: string | null;
+  threshold: number;
+  operator: GuardrailOperator;
+  unit: string | null;
+  current_value: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Guardrail {
+  id: string;
+  tenantId: string;
+  cycleId: string;
+  title: string;
+  description: string | null;
+  threshold: number;
+  operator: GuardrailOperator;
+  unit: string | null;
+  currentValue: number | null;
+  status: GuardrailStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateGuardrailInput {
+  cycle_id: string;
+  title: string;
+  description?: string | null;
+  threshold: number;
+  operator: GuardrailOperator;
+  unit?: string | null;
+  current_value?: number | null;
+}
+
+export interface UpdateGuardrailInput {
+  title?: string;
+  description?: string | null;
+  threshold?: number;
+  operator?: GuardrailOperator;
+  unit?: string | null;
+  current_value?: number | null;
+}
+
+export function getGuardrailStatus(db: GuardrailDB): GuardrailStatus {
+  if (db.current_value === null || db.current_value === undefined) return 'unknown';
+  if (db.operator === '>=') return db.current_value >= db.threshold ? 'ok' : 'violated';
+  return db.current_value <= db.threshold ? 'ok' : 'violated';
+}
+
+export function dbToGuardrail(db: GuardrailDB): Guardrail {
+  return {
+    id: db.id,
+    tenantId: db.tenant_id,
+    cycleId: db.cycle_id,
+    title: db.title,
+    description: db.description,
+    threshold: db.threshold,
+    operator: db.operator,
+    unit: db.unit,
+    currentValue: db.current_value,
+    status: getGuardrailStatus(db),
+    createdAt: db.created_at,
+    updatedAt: db.updated_at,
+  };
+}

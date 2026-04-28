@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import type { StrategyCycle, StrategyObjectiveWithKrs } from '@/types/strategy';
-import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar, Pencil, Trash2, Download, XCircle } from 'lucide-react';
+import type { StrategyCycle, StrategyObjectiveWithKrs, Guardrail } from '@/types/strategy';
+import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar, Pencil, Trash2, Download, XCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ import {
   useDeleteStrategyObjective,
   useDeleteStrategyCycle,
   useUpdateStrategyCycle,
+  useGuardrails,
+  useDeleteGuardrail,
 } from '@/hooks/useStrategy';
 import { CycleSelectorHeader } from '@/components/strategy/CycleSelectorHeader';
 import { CycleFormDialog } from '@/components/strategy/CycleFormDialog';
@@ -29,6 +31,8 @@ import { ObjectiveFormDialog } from '@/components/strategy/ObjectiveFormDialog';
 import { KeyResultFormDialog } from '@/components/strategy/KeyResultFormDialog';
 import { CheckinFormDialog } from '@/components/strategy/CheckinFormDialog';
 import { InitiativesKanban } from '@/components/strategy/InitiativesKanban';
+import { GuardrailFormDialog } from '@/components/strategy/GuardrailFormDialog';
+import { GuardrailUpdateDialog } from '@/components/strategy/GuardrailUpdateDialog';
 import { StrategyKeyResult } from '@/types/strategy';
 import { computeAlerts, StrategyAlert, AlertSeverity } from '@/lib/strategyAlerts';
 import { exportStrategyToMarkdown } from '@/lib/exportStrategy';
@@ -171,6 +175,100 @@ function CycleRow({
   );
 }
 
+// ─── Guardrail card ───────────────────────────────────────────────────────────
+
+const statusConfig = {
+  ok:       { label: 'OK',       className: 'border-emerald-500 text-emerald-600 dark:text-emerald-400' },
+  violated: { label: 'Violado',  className: 'border-red-500 text-red-600 dark:text-red-400' },
+  unknown:  { label: 'Sem valor',className: 'border-muted-foreground/40 text-muted-foreground' },
+};
+
+function GuardrailCard({
+  guardrail,
+  isAdmin,
+  cycleIsActive,
+  onEdit,
+  onUpdate,
+  onDelete,
+}: {
+  guardrail: Guardrail;
+  isAdmin: boolean;
+  cycleIsActive: boolean;
+  onEdit: () => void;
+  onUpdate: () => void;
+  onDelete: () => void;
+}) {
+  const cfg = statusConfig[guardrail.status];
+
+  const formatVal = (v: number | null) => {
+    if (v === null) return '—';
+    const num = v.toLocaleString('pt-BR');
+    if (!guardrail.unit) return num;
+    if (guardrail.unit === 'R$') return `R$ ${num}`;
+    return `${num}${guardrail.unit}`;
+  };
+
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-4 py-4 px-5">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <Badge variant="outline" className={cn('text-[11px] font-semibold shrink-0', cfg.className)}>
+              {cfg.label}
+            </Badge>
+            <span className="text-xs text-muted-foreground shrink-0">
+              Atual: <span className="font-medium text-foreground">{formatVal(guardrail.currentValue)}</span>
+              {' '}
+              <span className="text-muted-foreground">
+                Limite: {guardrail.operator} {formatVal(guardrail.threshold)}
+              </span>
+            </span>
+          </div>
+          <p className="font-semibold truncate">{guardrail.title}</p>
+          {guardrail.description && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{guardrail.description}</p>
+          )}
+        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            {cycleIsActive && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  title="Atualizar valor"
+                  onClick={onUpdate}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  title="Editar"
+                  onClick={onEdit}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              title="Excluir"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Strategy() {
@@ -193,6 +291,7 @@ export default function Strategy() {
     effectiveCycleId || undefined,
   );
   const { data: initiatives = [] } = useStrategyInitiatives(effectiveCycleId || undefined);
+  const { data: guardrails = [] } = useGuardrails(effectiveCycleId || undefined);
 
   const alerts = useMemo(
     () => computeAlerts(objectives, activeCycle ?? null),
@@ -210,10 +309,15 @@ export default function Strategy() {
   const deleteObjective = useDeleteStrategyObjective();
   const deleteCycle = useDeleteStrategyCycle();
   const updateCycle = useUpdateStrategyCycle();
+  const deleteGuardrail = useDeleteGuardrail();
   const [confirmDeleteObjectiveId, setConfirmDeleteObjectiveId] = useState<string | null>(null);
   const [editingCycle, setEditingCycle] = useState<StrategyCycle | null>(null);
   const [confirmDeleteCycleId, setConfirmDeleteCycleId] = useState<string | null>(null);
   const [confirmCloseCycleId, setConfirmCloseCycleId] = useState<string | null>(null);
+  const [guardrailFormOpen, setGuardrailFormOpen] = useState(false);
+  const [editingGuardrail, setEditingGuardrail] = useState<Guardrail | null>(null);
+  const [updatingGuardrail, setUpdatingGuardrail] = useState<Guardrail | null>(null);
+  const [confirmDeleteGuardrailId, setConfirmDeleteGuardrailId] = useState<string | null>(null);
 
   const isLoading = cyclesLoading || objectivesLoading;
 
@@ -284,6 +388,14 @@ export default function Strategy() {
                   </span>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="guardrails" className="relative">
+                Guardrails
+                {guardrails.filter((g) => g.status === 'violated').length > 0 && (
+                  <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {guardrails.filter((g) => g.status === 'violated').length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="cycles">Ciclos</TabsTrigger>
             </TabsList>
 
@@ -348,6 +460,38 @@ export default function Strategy() {
                 </div>
               ) : (
                 alerts.map((alert) => <AlertRow key={alert.id} alert={alert} />)
+              )}
+            </TabsContent>
+
+            {/* ── Guardrails ──────────────────────────────────────────────── */}
+            <TabsContent value="guardrails" className="space-y-4">
+              {isAdmin && isCycleActive && (
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={() => { setEditingGuardrail(null); setGuardrailFormOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Novo guardrail
+                  </Button>
+                </div>
+              )}
+              {guardrails.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                  <ShieldAlert className="h-10 w-10 text-muted-foreground/40" />
+                  <p className="text-muted-foreground text-sm">Nenhum guardrail cadastrado neste ciclo.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {guardrails.map((g) => (
+                    <GuardrailCard
+                      key={g.id}
+                      guardrail={g}
+                      isAdmin={isAdmin}
+                      cycleIsActive={isCycleActive}
+                      onEdit={() => { setEditingGuardrail(g); setGuardrailFormOpen(true); }}
+                      onUpdate={() => setUpdatingGuardrail(g)}
+                      onDelete={() => setConfirmDeleteGuardrailId(g.id)}
+                    />
+                  ))}
+                </div>
               )}
             </TabsContent>
 
@@ -434,6 +578,48 @@ export default function Strategy() {
         }}
         onDeleted={() => setDetailObjective(null)}
       />
+
+      {effectiveCycleId && (
+        <GuardrailFormDialog
+          open={guardrailFormOpen}
+          onOpenChange={(open) => { setGuardrailFormOpen(open); if (!open) setEditingGuardrail(null); }}
+          cycleId={effectiveCycleId}
+          guardrail={editingGuardrail}
+        />
+      )}
+
+      <GuardrailUpdateDialog
+        open={!!updatingGuardrail}
+        onOpenChange={(open) => { if (!open) setUpdatingGuardrail(null); }}
+        guardrail={updatingGuardrail}
+      />
+
+      <AlertDialog
+        open={!!confirmDeleteGuardrailId}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteGuardrailId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir guardrail?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                deleteGuardrail.mutate(confirmDeleteGuardrailId!, {
+                  onSuccess: () => setConfirmDeleteGuardrailId(null),
+                });
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!confirmDeleteCycleId}

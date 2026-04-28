@@ -7,6 +7,7 @@ import {
   strategyKeyResultService,
   strategyCheckinService,
   strategyInitiativeService,
+  guardrailService,
 } from '@/services/strategyService';
 import {
   dbToStrategyCycle,
@@ -14,6 +15,7 @@ import {
   dbToStrategyKeyResult,
   dbToStrategyInitiative,
   dbToStrategyCheckin,
+  dbToGuardrail,
   StrategyObjectiveWithKrs,
   getKrProgress,
   CreateStrategyCycleInput,
@@ -26,6 +28,8 @@ import {
   CreateStrategyInitiativeInput,
   UpdateStrategyInitiativeInput,
   StrategyInitiativeDB,
+  CreateGuardrailInput,
+  UpdateGuardrailInput,
 } from '@/types/strategy';
 
 // ─── Cycles ───────────────────────────────────────────────────────────────────
@@ -347,6 +351,69 @@ export function useReorderInitiatives() {
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao reordenar iniciativas', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+// ─── Guardrails ───────────────────────────────────────────────────────────────
+
+export function useGuardrails(cycleId: string | undefined) {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+  return useQuery({
+    queryKey: ['strategy_guardrails', cycleId, tenantId],
+    queryFn: async () => {
+      const rows = await guardrailService.getAll(cycleId!, tenantId!);
+      return rows.map(dbToGuardrail);
+    },
+    enabled: !!tenantId && !!cycleId,
+  });
+}
+
+export function useCreateGuardrail() {
+  const qc = useQueryClient();
+  const { employee } = useAuth();
+  return useMutation({
+    mutationFn: (input: CreateGuardrailInput) =>
+      guardrailService.create(input, employee!.tenant_id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['strategy_guardrails'] });
+      toast({ title: 'Guardrail criado com sucesso' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao criar guardrail', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateGuardrail() {
+  const qc = useQueryClient();
+  const { employee } = useAuth();
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: UpdateGuardrailInput }) =>
+      guardrailService.update(id, updates, employee!.tenant_id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['strategy_guardrails'] });
+      toast({ title: 'Guardrail atualizado com sucesso' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao atualizar guardrail', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteGuardrail() {
+  const qc = useQueryClient();
+  const { employee } = useAuth();
+  return useMutation({
+    mutationFn: (id: string) =>
+      guardrailService.delete(id, employee!.tenant_id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['strategy_guardrails'] });
+      toast({ title: 'Guardrail removido' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao remover guardrail', description: err.message, variant: 'destructive' });
     },
   });
 }
