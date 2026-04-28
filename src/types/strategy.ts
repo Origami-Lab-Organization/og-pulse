@@ -240,12 +240,14 @@ export interface StrategyInitiativeDB {
   objective_id: string;
   title: string;
   description: string | null;
+  notes: string | null;
   status: InitiativeStatus;
   priority: InitiativePriority | null;
   effort: InitiativeEffort | null;
   position: number;
   owner_id: string | null;
   due_date: string | null;
+  due_date_notes: string | null;
   created_at: string;
   updated_at: string;
   owner?: { nome: string } | null;
@@ -258,6 +260,7 @@ export interface StrategyInitiative {
   objectiveId: string;
   title: string;
   description: string | null;
+  notes: string | null;
   status: InitiativeStatus;
   priority: InitiativePriority | null;
   effort: InitiativeEffort | null;
@@ -265,6 +268,7 @@ export interface StrategyInitiative {
   ownerId: string | null;
   ownerName: string | null;
   dueDate: string | null;
+  dueDateNotes: string | null;
   objectiveTitle: string | null;
   createdAt: string;
   updatedAt: string;
@@ -274,23 +278,27 @@ export interface CreateStrategyInitiativeInput {
   objective_id: string;
   title: string;
   description?: string | null;
+  notes?: string | null;
   status?: InitiativeStatus;
   priority?: InitiativePriority | null;
   effort?: InitiativeEffort | null;
   position?: number;
   owner_id?: string | null;
   due_date?: string | null;
+  due_date_notes?: string | null;
 }
 
 export interface UpdateStrategyInitiativeInput {
   title?: string;
   description?: string | null;
+  notes?: string | null;
   status?: InitiativeStatus;
   priority?: InitiativePriority | null;
   effort?: InitiativeEffort | null;
   position?: number;
   owner_id?: string | null;
   due_date?: string | null;
+  due_date_notes?: string | null;
 }
 
 export function dbToStrategyInitiative(db: StrategyInitiativeDB): StrategyInitiative {
@@ -300,6 +308,7 @@ export function dbToStrategyInitiative(db: StrategyInitiativeDB): StrategyInitia
     objectiveId: db.objective_id,
     title: db.title,
     description: db.description,
+    notes: db.notes,
     status: db.status,
     priority: db.priority,
     effort: db.effort,
@@ -307,6 +316,7 @@ export function dbToStrategyInitiative(db: StrategyInitiativeDB): StrategyInitia
     ownerId: db.owner_id,
     ownerName: db.owner?.nome ?? null,
     dueDate: db.due_date,
+    dueDateNotes: db.due_date_notes,
     objectiveTitle: db.objective?.title ?? null,
     createdAt: db.created_at,
     updatedAt: db.updated_at,

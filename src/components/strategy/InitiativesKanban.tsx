@@ -1,31 +1,28 @@
-import { useState, useMemo, useEffect } from 'react';
+import { type MouseEvent, type PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  closestCorners,
   DndContext,
   DragEndEvent,
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  useDroppable,
   useSensor,
   useSensors,
-  closestCorners,
 } from '@dnd-kit/core';
 import {
+  arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from '@dnd-kit/sortable';
-import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { X, Plus, User } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { CalendarDays, Plus, User, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,22 +33,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { getStrategyInitiativeBadgeClass } from '@/lib/strategyInitiativeBadge';
 import { cn } from '@/lib/utils';
 import {
+  InitiativeStatus,
   StrategyInitiative,
   StrategyObjectiveWithKrs,
-  InitiativeStatus,
-  InitiativePriority,
-  InitiativeEffort,
 } from '@/types/strategy';
 import {
-  useUpdateInitiativeStatus,
   useDeleteStrategyInitiative,
   useReorderInitiatives,
+  useUpdateInitiativeStatus,
 } from '@/hooks/useStrategy';
+import { InitiativeDetailDialog } from './InitiativeDetailDialog';
 import { InitiativeFormDialog } from './InitiativeFormDialog';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+const EMPTY_OWNER_FILTER = '__unassigned__';
 
 const COLUMNS: { id: InitiativeStatus; label: string; color: string }[] = [
   { id: 'backlog', label: 'Backlog', color: 'text-muted-foreground' },
@@ -60,15 +64,14 @@ const COLUMNS: { id: InitiativeStatus; label: string; color: string }[] = [
   { id: 'done', label: 'Concluído', color: 'text-emerald-600 dark:text-emerald-400' },
 ];
 
-const PRIORITY_CONFIG: Record<InitiativePriority, { label: string; className: string }> = {
-  alta: { label: 'Alta', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  media: { label: 'Média', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  baixa: { label: 'Baixa', className: 'bg-muted text-muted-foreground' },
-};
-
-const EFFORT_LABELS: Record<InitiativeEffort, string> = { 1: 'P', 2: 'M', 3: 'G' };
-
-// ─── Initiative Card ──────────────────────────────────────────────────────────
+function formatDueDate(date: string | null) {
+  if (!date) return null;
+  return new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
 
 interface InitiativeCardProps {
   initiative: StrategyInitiative;
@@ -76,17 +79,68 @@ interface InitiativeCardProps {
   isOverlay?: boolean;
   cycleIsActive: boolean;
   onDelete: () => void;
+  onOpen?: () => void;
 }
 
-function InitiativeCard({ initiative, isDragging, isOverlay, cycleIsActive, onDelete }: InitiativeCardProps) {
+function InitiativeCard({
+  initiative,
+  isDragging,
+  isOverlay,
+  cycleIsActive,
+  onDelete,
+  onOpen,
+}: InitiativeCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: initiative.id,
     disabled: !cycleIsActive,
   });
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
+  const movedRef = useRef(false);
+  const dueDateLabel = formatDueDate(initiative.dueDate);
+  const initiativeBadgeClass = getStrategyInitiativeBadgeClass(
+    initiative.objectiveId ?? initiative.objectiveTitle ?? initiative.id,
+  );
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+  };
+
+  const handlePointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    pointerDownRef.current = { x: event.clientX, y: event.clientY };
+    movedRef.current = false;
+  };
+
+  const handlePointerMoveCapture = (event: PointerEvent<HTMLDivElement>) => {
+    if (!pointerDownRef.current) return;
+
+    const dx = Math.abs(event.clientX - pointerDownRef.current.x);
+    const dy = Math.abs(event.clientY - pointerDownRef.current.y);
+    if (dx > 5 || dy > 5) {
+      movedRef.current = true;
+    }
+  };
+
+  const resetPointerState = () => {
+    pointerDownRef.current = null;
+    movedRef.current = false;
+  };
+
+  const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest('button')) {
+      resetPointerState();
+      return;
+    }
+    if (!onOpen || isOverlay || isDragging || movedRef.current) {
+      resetPointerState();
+      return;
+    }
+
+    onOpen();
+    resetPointerState();
   };
 
   return (
@@ -95,62 +149,59 @@ function InitiativeCard({ initiative, isDragging, isOverlay, cycleIsActive, onDe
       style={style}
       {...attributes}
       {...(cycleIsActive ? listeners : {})}
+      onPointerDownCapture={handlePointerDownCapture}
+      onPointerMoveCapture={handlePointerMoveCapture}
+      onPointerCancelCapture={resetPointerState}
+      onClickCapture={handleClickCapture}
       className={cn(
-        'group relative select-none transition-all',
+        'group relative select-none transition-all hover:border-primary/40',
         cycleIsActive && 'cursor-grab active:cursor-grabbing',
+        onOpen && !isOverlay && 'cursor-pointer',
         isDragging && 'opacity-40',
         isOverlay && 'rotate-1 shadow-xl opacity-95 cursor-grabbing',
       )}
     >
-      <CardContent className="p-3 space-y-2">
-        {/* Delete button */}
+      <CardContent className="space-y-2 p-3">
         {cycleIsActive && (
           <button
             type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="absolute top-2 right-2 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete();
+            }}
+            className="absolute right-2 top-2 hidden h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:flex"
           >
             <X className="h-3 w-3" />
           </button>
         )}
 
-        {/* Title */}
-        <p className="text-sm font-medium leading-snug pr-5 line-clamp-2">{initiative.title}</p>
+        <p className="pr-5 text-sm font-medium leading-snug line-clamp-3">{initiative.title}</p>
 
-        {/* Objective badge */}
         {initiative.objectiveTitle && (
           <Badge
             variant="outline"
-            className="text-[10px] font-medium border-violet-400 text-violet-600 dark:text-violet-400 max-w-full truncate block"
+            className={cn(
+              'block max-w-full truncate text-[10px] font-medium',
+              initiativeBadgeClass,
+            )}
           >
             <span className="truncate">{initiative.objectiveTitle}</span>
           </Badge>
         )}
 
-        {/* Footer row */}
-        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-          {initiative.priority && (
-            <span
-              className={cn(
-                'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold',
-                PRIORITY_CONFIG[initiative.priority].className,
-              )}
-            >
-              {PRIORITY_CONFIG[initiative.priority].label}
-            </span>
-          )}
-
-          {initiative.effort && (
-            <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
-              {EFFORT_LABELS[initiative.effort]}
+        <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+          {dueDateLabel && (
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="h-2.5 w-2.5" />
+              {dueDateLabel}
             </span>
           )}
 
           {initiative.ownerName && (
-            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground ml-auto">
+            <span className="inline-flex items-center gap-0.5 sm:ml-auto">
               <User className="h-2.5 w-2.5" />
-              <span className="max-w-[80px] truncate">{initiative.ownerName.split(' ')[0]}</span>
+              <span className="max-w-[110px] truncate">{initiative.ownerName.split(' ')[0]}</span>
             </span>
           )}
         </div>
@@ -159,29 +210,35 @@ function InitiativeCard({ initiative, isDragging, isOverlay, cycleIsActive, onDe
   );
 }
 
-// ─── Kanban Column ────────────────────────────────────────────────────────────
-
 interface KanbanColumnProps {
   column: (typeof COLUMNS)[number];
   initiatives: StrategyInitiative[];
   activeId: string | null;
   cycleIsActive: boolean;
   onDelete: (id: string) => void;
+  onOpen: (id: string) => void;
 }
 
-function KanbanColumn({ column, initiatives, activeId, cycleIsActive, onDelete }: KanbanColumnProps) {
+function KanbanColumn({
+  column,
+  initiatives,
+  activeId,
+  cycleIsActive,
+  onDelete,
+  onOpen,
+}: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col h-full min-h-[480px] rounded-lg border bg-muted/30 transition-colors',
+        'flex h-full min-h-[480px] flex-col rounded-lg border bg-muted/30 transition-colors',
         isOver && 'border-primary/60 border-dashed bg-primary/5',
       )}
     >
-      <div className="flex items-center justify-between p-3 border-b">
-        <h3 className={cn('font-semibold text-sm', column.color)}>{column.label}</h3>
+      <div className="flex items-center justify-between border-b p-3">
+        <h3 className={cn('text-sm font-semibold', column.color)}>{column.label}</h3>
         <Badge variant="secondary" className="text-xs">
           {initiatives.length}
         </Badge>
@@ -190,7 +247,7 @@ function KanbanColumn({ column, initiatives, activeId, cycleIsActive, onDelete }
       <ScrollArea className="flex-1 p-2">
         <SortableContext
           id={column.id}
-          items={initiatives.map((i) => i.id)}
+          items={initiatives.map((initiative) => initiative.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-2">
@@ -201,10 +258,11 @@ function KanbanColumn({ column, initiatives, activeId, cycleIsActive, onDelete }
                 isDragging={activeId === initiative.id}
                 cycleIsActive={cycleIsActive}
                 onDelete={() => onDelete(initiative.id)}
+                onOpen={() => onOpen(initiative.id)}
               />
             ))}
             {initiatives.length === 0 && (
-              <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
+              <div className="flex h-20 items-center justify-center text-xs text-muted-foreground">
                 Nenhuma iniciativa
               </div>
             )}
@@ -215,8 +273,6 @@ function KanbanColumn({ column, initiatives, activeId, cycleIsActive, onDelete }
   );
 }
 
-// ─── Main Board ───────────────────────────────────────────────────────────────
-
 interface InitiativesKanbanProps {
   initiatives: StrategyInitiative[];
   objectives: StrategyObjectiveWithKrs[];
@@ -224,18 +280,37 @@ interface InitiativesKanbanProps {
   cycleIsActive: boolean;
 }
 
-export function InitiativesKanban({ initiatives, objectives, cycleId, cycleIsActive }: InitiativesKanbanProps) {
+export function InitiativesKanban({
+  initiatives,
+  objectives,
+  cycleId: _cycleId,
+  cycleIsActive,
+}: InitiativesKanbanProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [editingInitiativeId, setEditingInitiativeId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [filterObjectiveId, setFilterObjectiveId] = useState<string>('all');
-  const [filterPriority, setFilterPriority] = useState<string>('all');
-
-  // Local optimistic state so the board reorders immediately
+  const [filterOwnerId, setFilterOwnerId] = useState<string>('all');
   const [localOrder, setLocalOrder] = useState<StrategyInitiative[]>(initiatives);
 
-  // Sync when server data changes (refetch)
-  useEffect(() => { setLocalOrder(initiatives); }, [initiatives]);
+  useEffect(() => {
+    setLocalOrder(initiatives);
+  }, [initiatives]);
+
+  useEffect(() => {
+    if (detailId && !localOrder.some((initiative) => initiative.id === detailId)) {
+      setDetailId(null);
+    }
+  }, [detailId, localOrder]);
+
+  useEffect(() => {
+    if (editingInitiativeId && !localOrder.some((initiative) => initiative.id === editingInitiativeId)) {
+      setEditingInitiativeId(null);
+      setFormOpen(false);
+    }
+  }, [editingInitiativeId, localOrder]);
 
   const updateStatus = useUpdateInitiativeStatus();
   const deleteInitiative = useDeleteStrategyInitiative();
@@ -245,36 +320,85 @@ export function InitiativesKanban({ initiatives, objectives, cycleId, cycleIsAct
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  const filtered = useMemo(() => {
-    return localOrder.filter((i) => {
-      if (filterObjectiveId !== 'all' && i.objectiveId !== filterObjectiveId) return false;
-      if (filterPriority !== 'all' && i.priority !== filterPriority) return false;
-      return true;
+  const ownerOptions = useMemo(() => {
+    const owners = new Map<string, string>();
+    let hasUnassigned = false;
+
+    localOrder.forEach((initiative) => {
+      if (!initiative.ownerId) {
+        hasUnassigned = true;
+        return;
+      }
+
+      owners.set(initiative.ownerId, initiative.ownerName ?? 'Dono removido');
     });
-  }, [localOrder, filterObjectiveId, filterPriority]);
+
+    return {
+      hasUnassigned,
+      owners: [...owners.entries()]
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+    };
+  }, [localOrder]);
+
+  const filtered = useMemo(
+    () =>
+      localOrder.filter((initiative) => {
+        if (filterObjectiveId !== 'all' && initiative.objectiveId !== filterObjectiveId) {
+          return false;
+        }
+        if (filterOwnerId === EMPTY_OWNER_FILTER && initiative.ownerId) {
+          return false;
+        }
+        if (
+          filterOwnerId !== 'all' &&
+          filterOwnerId !== EMPTY_OWNER_FILTER &&
+          initiative.ownerId !== filterOwnerId
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [filterObjectiveId, filterOwnerId, localOrder],
+  );
 
   const byStatus = useMemo(() => {
-    const map: Record<InitiativeStatus, StrategyInitiative[]> = {
+    const grouped: Record<InitiativeStatus, StrategyInitiative[]> = {
       backlog: [],
       in_progress: [],
       review: [],
       done: [],
     };
-    filtered.forEach((i) => { map[i.status].push(i); });
-    // Maintain position order within each column
-    Object.values(map).forEach((col) => col.sort((a, b) => a.position - b.position));
-    return map;
+
+    filtered.forEach((initiative) => {
+      grouped[initiative.status].push(initiative);
+    });
+
+    Object.values(grouped).forEach((column) => column.sort((a, b) => a.position - b.position));
+    return grouped;
   }, [filtered]);
 
   const activeInitiative = useMemo(
-    () => localOrder.find((i) => i.id === activeId) ?? null,
+    () => localOrder.find((initiative) => initiative.id === activeId) ?? null,
     [activeId, localOrder],
   );
 
+  const detailInitiative = useMemo(
+    () => localOrder.find((initiative) => initiative.id === detailId) ?? null,
+    [detailId, localOrder],
+  );
+
+  const editingInitiative = useMemo(
+    () => localOrder.find((initiative) => initiative.id === editingInitiativeId) ?? null,
+    [editingInitiativeId, localOrder],
+  );
+
   const findColumn = (id: string): InitiativeStatus | null => {
-    for (const col of COLUMNS) {
-      if (col.id === id) return col.id;
-      if (byStatus[col.id].some((i) => i.id === id)) return col.id;
+    for (const column of COLUMNS) {
+      if (column.id === id) return column.id;
+      if (byStatus[column.id].some((initiative) => initiative.id === id)) {
+        return column.id;
+      }
     }
     return null;
   };
@@ -285,12 +409,15 @@ export function InitiativesKanban({ initiatives, objectives, cycleId, cycleIsAct
 
   const handleDragOver = ({ active, over }: DragOverEvent) => {
     if (!over) return;
-    const activeCol = findColumn(active.id as string);
-    const overCol = findColumn(over.id as string);
-    if (!activeCol || !overCol || activeCol === overCol) return;
 
-    setLocalOrder((prev) =>
-      prev.map((i) => (i.id === active.id ? { ...i, status: overCol } : i)),
+    const activeColumn = findColumn(active.id as string);
+    const overColumn = findColumn(over.id as string);
+    if (!activeColumn || !overColumn || activeColumn === overColumn) return;
+
+    setLocalOrder((current) =>
+      current.map((initiative) =>
+        initiative.id === active.id ? { ...initiative, status: overColumn } : initiative,
+      ),
     );
   };
 
@@ -298,35 +425,42 @@ export function InitiativesKanban({ initiatives, objectives, cycleId, cycleIsAct
     setActiveId(null);
     if (!over) return;
 
-    const activeCol = findColumn(active.id as string);
-    const overCol = findColumn(over.id as string);
-    if (!activeCol || !overCol) return;
+    const activeColumn = findColumn(active.id as string);
+    const overColumn = findColumn(over.id as string);
+    if (!activeColumn || !overColumn) return;
 
-    const original = initiatives.find((i) => i.id === active.id);
+    const original = initiatives.find((initiative) => initiative.id === active.id);
     if (!original) return;
 
-    if (activeCol !== overCol) {
-      // Column change
-      const colItems = byStatus[overCol];
-      const newPosition = colItems.length;
-      updateStatus.mutate({ id: active.id as string, status: overCol, position: newPosition });
+    if (activeColumn !== overColumn) {
+      const columnItems = byStatus[overColumn];
+      const newPosition = columnItems.length;
+      updateStatus.mutate({
+        id: active.id as string,
+        status: overColumn,
+        position: newPosition,
+      });
       return;
     }
 
-    // Same column — reorder
-    const colItems = byStatus[activeCol];
-    const oldIndex = colItems.findIndex((i) => i.id === active.id);
-    const newIndex = colItems.findIndex((i) => i.id === over.id);
+    const columnItems = byStatus[activeColumn];
+    const oldIndex = columnItems.findIndex((initiative) => initiative.id === active.id);
+    const newIndex = columnItems.findIndex((initiative) => initiative.id === over.id);
     if (oldIndex === newIndex) return;
 
-    const reordered = arrayMove(colItems, oldIndex, newIndex);
-    const updates = reordered.map((item, idx) => ({ id: item.id, position: idx }));
+    const reordered = arrayMove(columnItems, oldIndex, newIndex);
+    const updates = reordered.map((initiative, index) => ({
+      id: initiative.id,
+      position: index,
+    }));
 
-    // Apply optimistic update
-    setLocalOrder((prev) => {
-      const rest = prev.filter((i) => i.status !== activeCol);
-      const updated = reordered.map((item, idx) => ({ ...item, position: idx }));
-      return [...rest, ...updated];
+    setLocalOrder((current) => {
+      const rest = current.filter((initiative) => initiative.status !== activeColumn);
+      const updatedColumn = reordered.map((initiative, index) => ({
+        ...initiative,
+        position: index,
+      }));
+      return [...rest, ...updatedColumn];
     });
 
     reorderInitiatives.mutate(updates);
@@ -334,43 +468,57 @@ export function InitiativesKanban({ initiatives, objectives, cycleId, cycleIsAct
 
   const handleDelete = () => {
     if (!deleteId) return;
-    deleteInitiative.mutate(deleteId, { onSuccess: () => setDeleteId(null) });
+    deleteInitiative.mutate(deleteId, {
+      onSuccess: () => {
+        setDeleteId(null);
+      },
+    });
   };
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         {cycleIsActive && (
-          <Button size="sm" onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditingInitiativeId(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="mr-1 h-4 w-4" />
             Nova iniciativa
           </Button>
         )}
 
         <Select value={filterObjectiveId} onValueChange={setFilterObjectiveId}>
-          <SelectTrigger className="w-52 h-8 text-sm">
-            <SelectValue placeholder="Filtrar por OKR" />
+          <SelectTrigger aria-label="Filtrar por objetivo" className="h-8 w-52 text-sm">
+            <SelectValue placeholder="Filtrar por objetivo" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os objetivos</SelectItem>
-            {objectives.map((obj) => (
-              <SelectItem key={obj.id} value={obj.id}>
-                <span className="truncate max-w-xs">{obj.title}</span>
+            {objectives.map((objective) => (
+              <SelectItem key={objective.id} value={objective.id}>
+                <span className="max-w-xs truncate">{objective.title}</span>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={filterPriority} onValueChange={setFilterPriority}>
-          <SelectTrigger className="w-40 h-8 text-sm">
-            <SelectValue placeholder="Filtrar prioridade" />
+        <Select value={filterOwnerId} onValueChange={setFilterOwnerId}>
+          <SelectTrigger aria-label="Filtrar por dono" className="h-8 w-44 text-sm">
+            <SelectValue placeholder="Filtrar por dono" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="alta">Alta</SelectItem>
-            <SelectItem value="media">Média</SelectItem>
-            <SelectItem value="baixa">Baixa</SelectItem>
+            <SelectItem value="all">Todos os donos</SelectItem>
+            {ownerOptions.owners.map((owner) => (
+              <SelectItem key={owner.id} value={owner.id}>
+                {owner.name}
+              </SelectItem>
+            ))}
+            {ownerOptions.hasUnassigned && (
+              <SelectItem value={EMPTY_OWNER_FILTER}>Sem dono</SelectItem>
+            )}
           </SelectContent>
         </Select>
 
@@ -379,7 +527,6 @@ export function InitiativesKanban({ initiatives, objectives, cycleId, cycleIsAct
         </span>
       </div>
 
-      {/* Board */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -389,14 +536,15 @@ export function InitiativesKanban({ initiatives, objectives, cycleId, cycleIsAct
       >
         <div className="overflow-x-auto pb-2">
           <div className="grid grid-cols-[repeat(4,minmax(240px,1fr))] gap-4">
-            {COLUMNS.map((col) => (
+            {COLUMNS.map((column) => (
               <KanbanColumn
-                key={col.id}
-                column={col}
-                initiatives={byStatus[col.id]}
+                key={column.id}
+                column={column}
+                initiatives={byStatus[column.id]}
                 activeId={activeId}
                 cycleIsActive={cycleIsActive}
                 onDelete={setDeleteId}
+                onOpen={setDetailId}
               />
             ))}
           </div>
@@ -414,15 +562,48 @@ export function InitiativesKanban({ initiatives, objectives, cycleId, cycleIsAct
         </DragOverlay>
       </DndContext>
 
-      {/* Form Dialog */}
       <InitiativeFormDialog
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) {
+            setEditingInitiativeId(null);
+          }
+        }}
         objectives={objectives}
+        initiative={editingInitiative}
       />
 
-      {/* Delete confirm */}
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+      <InitiativeDetailDialog
+        open={!!detailInitiative}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailId(null);
+          }
+        }}
+        initiative={detailInitiative}
+        cycleIsActive={cycleIsActive}
+        onEdit={() => {
+          if (!detailInitiative) return;
+          setDetailId(null);
+          setEditingInitiativeId(detailInitiative.id);
+          setFormOpen(true);
+        }}
+        onDelete={() => {
+          if (!detailInitiative) return;
+          setDetailId(null);
+          setDeleteId(detailInitiative.id);
+        }}
+      />
+
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteId(null);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir iniciativa?</AlertDialogTitle>
