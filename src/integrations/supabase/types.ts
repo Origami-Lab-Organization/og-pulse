@@ -2065,6 +2065,166 @@ export type Database = {
           },
         ]
       }
+      personal_kanban_card_tags: {
+        Row: {
+          card_id: string
+          created_at: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_kanban_card_tags_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "personal_kanban_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_kanban_card_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "personal_kanban_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_kanban_cards: {
+        Row: {
+          column_id: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          employee_id: string
+          id: string
+          position: number
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          column_id: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          employee_id: string
+          id?: string
+          position?: number
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          column_id?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          employee_id?: string
+          id?: string
+          position?: number
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_kanban_cards_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "personal_kanban_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_kanban_cards_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_kanban_columns: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          name: string
+          position: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          name: string
+          position?: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          name?: string
+          position?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_kanban_columns_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_kanban_tags: {
+        Row: {
+          color: string
+          created_at: string
+          employee_id: string
+          id: string
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_kanban_tags_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_activity_card_checklist: {
         Row: {
           card_id: string
