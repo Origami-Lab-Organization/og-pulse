@@ -4287,6 +4287,56 @@ export type Database = {
           },
         ]
       }
+      strategy_guardrails: {
+        Row: {
+          created_at: string
+          current_value: number | null
+          cycle_id: string
+          description: string | null
+          id: string
+          operator: string
+          tenant_id: string
+          threshold: number
+          title: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number | null
+          cycle_id: string
+          description?: string | null
+          id?: string
+          operator?: string
+          tenant_id: string
+          threshold: number
+          title: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number | null
+          cycle_id?: string
+          description?: string | null
+          id?: string
+          operator?: string
+          tenant_id?: string
+          threshold?: number
+          title?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_guardrails_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "strategy_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategy_initiatives: {
         Row: {
           created_at: string
