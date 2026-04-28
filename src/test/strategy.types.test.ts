@@ -251,6 +251,7 @@ describe('dbToStrategyInitiative', () => {
     objective_id: 'obj-1',
     title: 'Implementar NPS no produto',
     description: null,
+    notes: 'Registrar aprendizados e dependências',
     status: 'in_progress',
     priority: 'alta',
     effort: 2,
@@ -276,6 +277,7 @@ describe('dbToStrategyInitiative', () => {
     expect(result.ownerName).toBe('Carlos Lima');
     expect(result.objectiveTitle).toBe('Aumentar NPS');
     expect(result.dueDate).toBe('2025-03-01');
+    expect(result.notes).toBe('Registrar aprendizados e dependências');
   });
 
   it('handles null optional join fields', () => {
@@ -284,6 +286,7 @@ describe('dbToStrategyInitiative', () => {
       owner: null,
       objective: null,
       owner_id: null,
+      notes: null,
       priority: null,
       effort: null,
     });
@@ -292,6 +295,7 @@ describe('dbToStrategyInitiative', () => {
     expect(result.ownerId).toBeNull();
     expect(result.priority).toBeNull();
     expect(result.effort).toBeNull();
+    expect(result.notes).toBeNull();
   });
 
   it('preserves all status values', () => {

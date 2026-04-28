@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { getStrategyObjectiveStatus, strategyObjectiveStatusConfig } from '@/lib/strategyObjectiveStatus';
 import { cn } from '@/lib/utils';
 import { StrategyObjectiveWithKrs, StrategyKeyResult, getKrStatus, getKrProgress } from '@/types/strategy';
 
@@ -17,27 +18,6 @@ interface ObjectiveCardProps {
   cycleIsActive: boolean;
 }
 
-const statusConfig = {
-  green: {
-    label: 'No caminho',
-    className: 'border-emerald-500 text-emerald-600 dark:text-emerald-400',
-    dot: 'bg-emerald-500',
-    progressClass: '[&>div]:bg-emerald-500',
-  },
-  amber: {
-    label: 'Em risco',
-    className: 'border-amber-500 text-amber-600 dark:text-amber-400',
-    dot: 'bg-amber-500',
-    progressClass: '[&>div]:bg-amber-500',
-  },
-  red: {
-    label: 'Crítico',
-    className: 'border-red-500 text-red-600 dark:text-red-400',
-    dot: 'bg-red-500',
-    progressClass: '[&>div]:bg-red-500',
-  },
-};
-
 function KrRow({
   kr,
   onCheckin,
@@ -49,7 +29,7 @@ function KrRow({
 }) {
   const status = getKrStatus(kr.confidence);
   const progress = getKrProgress(kr.currentValue, kr.targetValue, kr.direction, kr.initialValue);
-  const cfg = statusConfig[status];
+  const cfg = strategyObjectiveStatusConfig[status];
 
   return (
     <div className="py-2.5 border-b last:border-0">
@@ -103,8 +83,7 @@ export function ObjectiveCard({
   isAdmin,
   cycleIsActive,
 }: ObjectiveCardProps) {
-  const objectiveStatus = getKrStatus(objective.avgConfidence);
-  const cfg = statusConfig[objectiveStatus];
+  const cfg = getStrategyObjectiveStatus(objective.avgConfidence);
 
   return (
     <Card
