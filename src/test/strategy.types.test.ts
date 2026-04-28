@@ -212,10 +212,8 @@ describe('dbToStrategyKeyResult', () => {
     confidence: 7,
     unit: null,
     direction: 'higher_is_better',
-    owner_id: 'emp-1',
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-02-01T00:00:00Z',
-    owner: { nome: 'Maria Santos' },
     checkins: [checkinDB],
   };
 
@@ -229,7 +227,6 @@ describe('dbToStrategyKeyResult', () => {
     expect(result.targetValue).toBe(100);
     expect(result.currentValue).toBe(70);
     expect(result.confidence).toBe(7);
-    expect(result.ownerName).toBe('Maria Santos');
   });
 
   it('converts nested checkins', () => {
@@ -242,12 +239,6 @@ describe('dbToStrategyKeyResult', () => {
   it('returns empty checkins array when none present', () => {
     const result = dbToStrategyKeyResult({ ...db, checkins: undefined });
     expect(result.checkins).toEqual([]);
-  });
-
-  it('handles null owner', () => {
-    const result = dbToStrategyKeyResult({ ...db, owner: null, owner_id: null });
-    expect(result.ownerName).toBeNull();
-    expect(result.ownerId).toBeNull();
   });
 });
 

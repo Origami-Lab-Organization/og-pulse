@@ -107,7 +107,6 @@ function buildKrSection(kr: StrategyKeyResult, index: number, objIndex: number):
   lines.push(`#### KR ${objIndex}.${index} — ${kr.title}`);
   if (kr.description) lines.push(`\n> ${kr.description}`);
   lines.push('');
-  lines.push(`- **Responsável:** ${kr.ownerName ?? '—'}`);
   lines.push(
     `- **Meta:** ${formatKrValue(kr.initialValue, kr.unit)} → ${formatKrValue(kr.targetValue, kr.unit)} _(${kr.direction === 'higher_is_better' ? 'quanto maior melhor' : 'quanto menor melhor'})_`,
   );

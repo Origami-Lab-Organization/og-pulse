@@ -32,8 +32,6 @@ function makeKr(overrides: Partial<StrategyKeyResult> = {}): StrategyKeyResult {
     confidence: 7,
     unit: null,
     direction: 'higher_is_better' as const,
-    ownerId: null,
-    ownerName: null,
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     checkins: [],
