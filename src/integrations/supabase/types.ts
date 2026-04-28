@@ -4344,6 +4344,7 @@ export type Database = {
           due_date: string | null
           effort: number | null
           id: string
+          notes: string | null
           objective_id: string
           owner_id: string | null
           position: number
@@ -4359,6 +4360,7 @@ export type Database = {
           due_date?: string | null
           effort?: number | null
           id?: string
+          notes?: string | null
           objective_id: string
           owner_id?: string | null
           position?: number
@@ -4374,6 +4376,7 @@ export type Database = {
           due_date?: string | null
           effort?: number | null
           id?: string
+          notes?: string | null
           objective_id?: string
           owner_id?: string | null
           position?: number
