@@ -1,4 +1,4 @@
-import { CalendarDays, Layers3, Target, User } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { getStrategyInitiativeBadgeClass } from '@/lib/strategyInitiativeBadge';
 import { InitiativeStatus, StrategyInitiative } from '@/types/strategy';
@@ -21,8 +20,15 @@ const STATUS_LABELS: Record<InitiativeStatus, string> = {
   done: 'Concluído',
 };
 
+const STATUS_COLORS: Record<InitiativeStatus, string> = {
+  backlog: 'text-muted-foreground',
+  in_progress: 'text-blue-600 dark:text-blue-400',
+  review: 'text-amber-600 dark:text-amber-400',
+  done: 'text-emerald-600 dark:text-emerald-400',
+};
+
 function formatDate(date: string | null) {
-  if (!date) return 'Nao definida';
+  if (!date) return null;
   return new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
@@ -39,6 +45,18 @@ interface InitiativeDetailDialogProps {
   onDelete: () => void;
 }
 
+function ReadOnlyField({ value, empty, children }: { value?: string | null; empty?: string; children?: React.ReactNode }) {
+  const content = children ?? value;
+  const isEmpty = !content;
+  return (
+    <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+      {isEmpty
+        ? <span className="text-muted-foreground">{empty ?? '—'}</span>
+        : content}
+    </div>
+  );
+}
+
 export function InitiativeDetailDialog({
   open,
   onOpenChange,
@@ -53,93 +71,97 @@ export function InitiativeDetailDialog({
   const initiativeBadgeClass = getStrategyInitiativeBadgeClass(
     initiative.objectiveId ?? initiative.objectiveTitle ?? initiative.id,
   );
+  const formattedDate = formatDate(initiative.dueDate);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="leading-snug">{initiative.title}</DialogTitle>
-          <DialogDescription>
-            Visualize os detalhes da iniciativa e acompanhe as informacoes salvas.
+          <DialogTitle className="leading-snug pr-6">{initiative.title}</DialogTitle>
+          <DialogDescription asChild>
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <span className={cn('text-sm font-medium', STATUS_COLORS[initiative.status])}>
+                ● {STATUS_LABELS[initiative.status]}
+              </span>
+              {initiative.objectiveTitle && (
+                <Badge
+                  variant="outline"
+                  className={cn('max-w-[200px] text-xs font-medium', initiativeBadgeClass)}
+                >
+                  <span className="truncate">{initiative.objectiveTitle}</span>
+                </Badge>
+              )}
+            </div>
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="font-medium">
-              {STATUS_LABELS[initiative.status]}
-            </Badge>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border p-3">
-              <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <Target className="h-3.5 w-3.5" />
-                Objetivo vinculado
-              </div>
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">Objetivo vinculado</p>
+            <ReadOnlyField empty="Não vinculado">
               {initiative.objectiveTitle ? (
                 <Badge
                   variant="outline"
-                  className={cn('max-w-full text-xs font-medium', initiativeBadgeClass)}
+                  className={cn('text-xs font-medium', initiativeBadgeClass)}
                 >
-                  <span className="truncate">{initiative.objectiveTitle}</span>
+                  {initiative.objectiveTitle}
                 </Badge>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nao vinculado</p>
-              )}
-            </div>
-
-            <div className="rounded-lg border p-3">
-              <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <User className="h-3.5 w-3.5" />
-                Dono
-              </div>
-              <p className="text-sm">{initiative.ownerName ?? 'Sem dono'}</p>
-            </div>
-
-            <div className="rounded-lg border p-3">
-              <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <CalendarDays className="h-3.5 w-3.5" />
-                Prazo de entrega
-              </div>
-              <p className="text-sm">{formatDate(initiative.dueDate)}</p>
-              {initiative.dueDateNotes && (
-                <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">{initiative.dueDateNotes}</p>
-              )}
-            </div>
+              ) : null}
+            </ReadOnlyField>
           </div>
 
-          <Separator />
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">Dono</p>
+            <ReadOnlyField value={initiative.ownerName} empty="Sem dono" />
+          </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              <Layers3 className="h-3.5 w-3.5" />
-              Observacoes
-            </div>
-            <div className="min-h-28 rounded-lg border bg-muted/20 p-3">
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">Prazo de entrega</p>
+            <ReadOnlyField value={formattedDate} empty="Não definido" />
+            {initiative.dueDateNotes && (
+              <p className="px-1 text-xs text-muted-foreground whitespace-pre-wrap">
+                {initiative.dueDateNotes}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">Observações</p>
+            <div className="min-h-24 rounded-md border bg-muted/30 px-3 py-2 text-sm">
               {visibleNotes ? (
-                <p className="whitespace-pre-wrap text-sm leading-6">{visibleNotes}</p>
+                <p className="whitespace-pre-wrap leading-6">{visibleNotes}</p>
               ) : (
-                <p className="text-sm text-muted-foreground">Nenhuma observacao registrada.</p>
+                <span className="text-muted-foreground">Nenhuma observação registrada.</span>
               )}
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fechar
-          </Button>
-          {cycleIsActive && (
-            <>
-              <Button variant="outline" onClick={onEdit}>
+        <DialogFooter className="sm:justify-between">
+          {cycleIsActive ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={onDelete}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Excluir
+            </Button>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Fechar
+            </Button>
+            {cycleIsActive && (
+              <Button onClick={onEdit}>
+                <Pencil className="mr-1.5 h-4 w-4" />
                 Editar
               </Button>
-              <Button variant="destructive" onClick={onDelete}>
-                Excluir
-              </Button>
-            </>
-          )}
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
