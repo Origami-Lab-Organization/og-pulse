@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { StrategyCycle, StrategyObjectiveWithKrs, Guardrail } from '@/types/strategy';
-import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar, Pencil, Trash2, Download, XCircle, RefreshCw, ShieldAlert } from 'lucide-react';
+import { Plus, Target, Calendar, Pencil, Trash2, Download, XCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -34,66 +34,11 @@ import { InitiativesKanban } from '@/components/strategy/InitiativesKanban';
 import { GuardrailFormDialog } from '@/components/strategy/GuardrailFormDialog';
 import { GuardrailUpdateDialog } from '@/components/strategy/GuardrailUpdateDialog';
 import { StrategyKeyResult } from '@/types/strategy';
-import { computeAlerts, StrategyAlert, AlertSeverity } from '@/lib/strategyAlerts';
 import { exportStrategyToMarkdown } from '@/lib/exportStrategy';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-// ─── Alert row ────────────────────────────────────────────────────────────────
 
-const alertConfig: Record<AlertSeverity, { icon: React.ElementType; className: string; label: string }> = {
-  danger: {
-    icon: AlertCircle,
-    className: 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30',
-    label: 'Crítico',
-  },
-  warning: {
-    icon: AlertTriangle,
-    className: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30',
-    label: 'Atenção',
-  },
-  info: {
-    icon: Info,
-    className: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30',
-    label: 'Info',
-  },
-  success: {
-    icon: CheckCircle2,
-    className: 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30',
-    label: 'Sucesso',
-  },
-};
-
-function AlertRow({ alert }: { alert: StrategyAlert }) {
-  const cfg = alertConfig[alert.severity];
-  const Icon = cfg.icon;
-  return (
-    <div className={cn('flex items-start gap-3 rounded-lg border px-4 py-3', cfg.className)}>
-      <Icon
-        className={cn(
-          'h-4 w-4 mt-0.5 shrink-0',
-          alert.severity === 'danger' && 'text-red-600 dark:text-red-400',
-          alert.severity === 'warning' && 'text-amber-600 dark:text-amber-400',
-          alert.severity === 'info' && 'text-blue-600 dark:text-blue-400',
-          alert.severity === 'success' && 'text-emerald-600 dark:text-emerald-400',
-        )}
-      />
-      <p className="text-sm flex-1">{alert.message}</p>
-      <Badge
-        variant="outline"
-        className={cn(
-          'text-[10px] font-semibold shrink-0',
-          alert.severity === 'danger' && 'border-red-400 text-red-600 dark:text-red-400',
-          alert.severity === 'warning' && 'border-amber-400 text-amber-600 dark:text-amber-400',
-          alert.severity === 'info' && 'border-blue-400 text-blue-600 dark:text-blue-400',
-          alert.severity === 'success' && 'border-emerald-400 text-emerald-600 dark:text-emerald-400',
-        )}
-      >
-        {cfg.label}
-      </Badge>
-    </div>
-  );
-}
 
 // ─── Cycle list row ───────────────────────────────────────────────────────────
 
@@ -293,11 +238,6 @@ export default function Strategy() {
   const { data: initiatives = [] } = useStrategyInitiatives(effectiveCycleId || undefined);
   const { data: guardrails = [] } = useGuardrails(effectiveCycleId || undefined);
 
-  const alerts = useMemo(
-    () => computeAlerts(objectives, activeCycle ?? null),
-    [objectives, activeCycle],
-  );
-
   // Dialog state
   const [cycleFormOpen, setCycleFormOpen] = useState(false);
   const [objectiveFormOpen, setObjectiveFormOpen] = useState(false);
@@ -326,7 +266,7 @@ export default function Strategy() {
 
   function handleExportReport() {
     if (!selectedCycle) return;
-    exportStrategyToMarkdown({ cycle: selectedCycle, objectives, initiatives, alerts });
+    exportStrategyToMarkdown({ cycle: selectedCycle, objectives, initiatives, alerts: [] });
   }
 
   // Always reflect the latest data from the query cache in the detail modal
@@ -379,15 +319,6 @@ export default function Strategy() {
           <Tabs defaultValue="okrs" className="space-y-6">
             <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="okrs">OKRs</TabsTrigger>
-              <TabsTrigger value="initiatives">Iniciativas</TabsTrigger>
-              <TabsTrigger value="alerts" className="relative">
-                Alertas
-                {alerts.filter((a) => a.severity === 'danger' || a.severity === 'warning').length > 0 && (
-                  <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                    {alerts.filter((a) => a.severity === 'danger' || a.severity === 'warning').length}
-                  </span>
-                )}
-              </TabsTrigger>
               <TabsTrigger value="guardrails" className="relative">
                 Guardrails
                 {guardrails.filter((g) => g.status === 'violated').length > 0 && (
@@ -396,6 +327,7 @@ export default function Strategy() {
                   </span>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="initiatives">Iniciativas</TabsTrigger>
               <TabsTrigger value="cycles">Ciclos</TabsTrigger>
             </TabsList>
 
@@ -441,28 +373,6 @@ export default function Strategy() {
               )}
             </TabsContent>
 
-            {/* ── Iniciativas ─────────────────────────────────────────────── */}
-            <TabsContent value="initiatives">
-              <InitiativesKanban
-                initiatives={initiatives}
-                objectives={objectives}
-                cycleId={effectiveCycleId}
-                cycleIsActive={isCycleActive}
-              />
-            </TabsContent>
-
-            {/* ── Alertas ─────────────────────────────────────────────────── */}
-            <TabsContent value="alerts" className="space-y-3">
-              {alerts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
-                  <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                  <p className="text-sm text-muted-foreground">Nenhum alerta ativo. Tudo certo!</p>
-                </div>
-              ) : (
-                alerts.map((alert) => <AlertRow key={alert.id} alert={alert} />)
-              )}
-            </TabsContent>
-
             {/* ── Guardrails ──────────────────────────────────────────────── */}
             <TabsContent value="guardrails" className="space-y-4">
               {isAdmin && isCycleActive && (
@@ -493,6 +403,16 @@ export default function Strategy() {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            {/* ── Iniciativas ─────────────────────────────────────────────── */}
+            <TabsContent value="initiatives">
+              <InitiativesKanban
+                initiatives={initiatives}
+                objectives={objectives}
+                cycleId={effectiveCycleId}
+                cycleIsActive={isCycleActive}
+              />
             </TabsContent>
 
             {/* ── Ciclos ──────────────────────────────────────────────────── */}
