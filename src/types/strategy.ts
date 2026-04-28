@@ -164,10 +164,8 @@ export interface StrategyKeyResultDB {
   confidence: number;
   unit: string | null;
   direction: KrDirection;
-  owner_id: string | null;
   created_at: string;
   updated_at: string;
-  owner?: { nome: string } | null;
   checkins?: StrategyCheckinDB[];
 }
 
@@ -183,8 +181,6 @@ export interface StrategyKeyResult {
   confidence: number;
   unit: string | null;
   direction: KrDirection;
-  ownerId: string | null;
-  ownerName: string | null;
   createdAt: string;
   updatedAt: string;
   checkins: StrategyCheckin[];
@@ -200,7 +196,6 @@ export interface CreateStrategyKeyResultInput {
   confidence?: number;
   unit?: string | null;
   direction?: KrDirection;
-  owner_id?: string | null;
 }
 
 export interface UpdateStrategyKeyResultInput {
@@ -212,7 +207,6 @@ export interface UpdateStrategyKeyResultInput {
   confidence?: number;
   unit?: string | null;
   direction?: KrDirection;
-  owner_id?: string | null;
 }
 
 export function dbToStrategyKeyResult(db: StrategyKeyResultDB): StrategyKeyResult {
@@ -228,8 +222,6 @@ export function dbToStrategyKeyResult(db: StrategyKeyResultDB): StrategyKeyResul
     confidence: db.confidence,
     unit: db.unit ?? null,
     direction: db.direction ?? 'higher_is_better',
-    ownerId: db.owner_id,
-    ownerName: db.owner?.nome ?? null,
     createdAt: db.created_at,
     updatedAt: db.updated_at,
     checkins: (db.checkins ?? []).map(dbToStrategyCheckin),

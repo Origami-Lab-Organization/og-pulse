@@ -84,7 +84,6 @@ const OBJECTIVE_SELECT = `
   owner:employees!owner_id(nome),
   key_results:strategy_key_results(
     *,
-    owner:employees!owner_id(nome),
     checkins:strategy_checkins(*)
   )
 `.trim();

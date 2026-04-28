@@ -24,7 +24,6 @@ const UNIT_OPTIONS = [
 ];
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
-import { useEmployees } from '@/hooks/useEmployees';
 import { useCreateStrategyKeyResult, useUpdateStrategyKeyResult } from '@/hooks/useStrategy';
 import { StrategyKeyResult, KrDirection } from '@/types/strategy';
 
@@ -35,7 +34,6 @@ const schema = z.object({
   unit: z.string().optional(),
   direction: z.enum(['higher_is_better', 'lower_is_better']),
   confidence: z.number().min(0).max(10),
-  owner_id: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -61,7 +59,6 @@ export function KeyResultFormDialog({
   keyResult,
   onSuccess,
 }: KeyResultFormDialogProps) {
-  const { data: employees = [] } = useEmployees();
   const createMutation = useCreateStrategyKeyResult();
   const updateMutation = useUpdateStrategyKeyResult();
 
@@ -76,7 +73,6 @@ export function KeyResultFormDialog({
       unit: '',
       direction: 'higher_is_better' as KrDirection,
       confidence: 5,
-      owner_id: '',
     },
   });
 
@@ -90,10 +86,9 @@ export function KeyResultFormDialog({
           unit: keyResult.unit ?? '',
           direction: keyResult.direction ?? 'higher_is_better',
           confidence: keyResult.confidence,
-          owner_id: keyResult.ownerId ?? '',
         });
       } else {
-        form.reset({ title: '', initial_value: 0, target_value: 0, unit: '', direction: 'higher_is_better', confidence: 5, owner_id: '' });
+        form.reset({ title: '', initial_value: 0, target_value: 0, unit: '', direction: 'higher_is_better', confidence: 5 });
       }
     }
   }, [open, keyResult]);
@@ -116,7 +111,6 @@ export function KeyResultFormDialog({
             target_value: values.target_value,
             unit: values.unit || null,
             direction: values.direction,
-            owner_id: values.owner_id || null,
           },
         });
       } else {
@@ -129,7 +123,6 @@ export function KeyResultFormDialog({
           confidence: values.confidence,
           unit: values.unit || null,
           direction: values.direction,
-          owner_id: values.owner_id || null,
         });
       }
       onOpenChange(false);
@@ -298,27 +291,6 @@ export function KeyResultFormDialog({
               )} />
             )}
 
-            <FormField control={form.control} name="owner_id" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Responsável</FormLabel>
-                <Select value={field.value || ''} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o responsável" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {employees
-                      .filter((e) => e.status === 'ativo')
-                      .map((emp) => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          {emp.nome}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )} />
           </form>
         </Form>
 

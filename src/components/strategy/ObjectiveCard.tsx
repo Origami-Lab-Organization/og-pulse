@@ -14,6 +14,7 @@ interface ObjectiveCardProps {
   onDeleteObjective: () => void;
   onEditObjective?: () => void;
   isAdmin: boolean;
+  cycleIsActive: boolean;
 }
 
 const statusConfig = {
@@ -40,9 +41,11 @@ const statusConfig = {
 function KrRow({
   kr,
   onCheckin,
+  cycleIsActive,
 }: {
   kr: StrategyKeyResult;
   onCheckin: () => void;
+  cycleIsActive: boolean;
 }) {
   const status = getKrStatus(kr.confidence);
   const progress = getKrProgress(kr.currentValue, kr.targetValue, kr.direction, kr.initialValue);
@@ -52,14 +55,16 @@ function KrRow({
     <div className="py-2.5 border-b last:border-0">
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <p className="text-sm font-medium leading-snug flex-1">{kr.title}</p>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 px-2 text-[11px] shrink-0"
-          onClick={(e) => { e.stopPropagation(); onCheckin(); }}
-        >
-          Check-in
-        </Button>
+        {cycleIsActive && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[11px] shrink-0"
+            onClick={(e) => { e.stopPropagation(); onCheckin(); }}
+          >
+            Check-in
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
@@ -84,12 +89,6 @@ function KrRow({
         </span>
       </div>
 
-      {kr.ownerName && (
-        <p className="flex items-center gap-1 text-[11px] text-muted-foreground mt-1">
-          <User className="h-3 w-3" />
-          {kr.ownerName}
-        </p>
-      )}
     </div>
   );
 }
@@ -102,6 +101,7 @@ export function ObjectiveCard({
   onDeleteObjective,
   onEditObjective,
   isAdmin,
+  cycleIsActive,
 }: ObjectiveCardProps) {
   const objectiveStatus = getKrStatus(objective.avgConfidence);
   const cfg = statusConfig[objectiveStatus];
@@ -140,7 +140,7 @@ export function ObjectiveCard({
             )}
           </div>
 
-          {isAdmin && (
+          {isAdmin && cycleIsActive && (
             <div className="flex flex-col gap-0.5 shrink-0">
               <Button
                 variant="ghost"
@@ -169,7 +169,7 @@ export function ObjectiveCard({
         ) : (
           <div>
             {objective.keyResults.map((kr) => (
-              <KrRow key={kr.id} kr={kr} onCheckin={() => onCheckin(kr.id)} />
+              <KrRow key={kr.id} kr={kr} onCheckin={() => onCheckin(kr.id)} cycleIsActive={cycleIsActive} />
             ))}
           </div>
         )}

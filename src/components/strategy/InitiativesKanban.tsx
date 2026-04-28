@@ -74,12 +74,14 @@ interface InitiativeCardProps {
   initiative: StrategyInitiative;
   isDragging?: boolean;
   isOverlay?: boolean;
+  cycleIsActive: boolean;
   onDelete: () => void;
 }
 
-function InitiativeCard({ initiative, isDragging, isOverlay, onDelete }: InitiativeCardProps) {
+function InitiativeCard({ initiative, isDragging, isOverlay, cycleIsActive, onDelete }: InitiativeCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: initiative.id,
+    disabled: !cycleIsActive,
   });
 
   const style = {
@@ -92,23 +94,26 @@ function InitiativeCard({ initiative, isDragging, isOverlay, onDelete }: Initiat
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
+      {...(cycleIsActive ? listeners : {})}
       className={cn(
-        'group relative cursor-grab active:cursor-grabbing select-none transition-all',
+        'group relative select-none transition-all',
+        cycleIsActive && 'cursor-grab active:cursor-grabbing',
         isDragging && 'opacity-40',
         isOverlay && 'rotate-1 shadow-xl opacity-95 cursor-grabbing',
       )}
     >
       <CardContent className="p-3 space-y-2">
         {/* Delete button */}
-        <button
-          type="button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="absolute top-2 right-2 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
-        >
-          <X className="h-3 w-3" />
-        </button>
+        {cycleIsActive && (
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="absolute top-2 right-2 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
 
         {/* Title */}
         <p className="text-sm font-medium leading-snug pr-5 line-clamp-2">{initiative.title}</p>
@@ -160,10 +165,11 @@ interface KanbanColumnProps {
   column: (typeof COLUMNS)[number];
   initiatives: StrategyInitiative[];
   activeId: string | null;
+  cycleIsActive: boolean;
   onDelete: (id: string) => void;
 }
 
-function KanbanColumn({ column, initiatives, activeId, onDelete }: KanbanColumnProps) {
+function KanbanColumn({ column, initiatives, activeId, cycleIsActive, onDelete }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
@@ -193,6 +199,7 @@ function KanbanColumn({ column, initiatives, activeId, onDelete }: KanbanColumnP
                 key={initiative.id}
                 initiative={initiative}
                 isDragging={activeId === initiative.id}
+                cycleIsActive={cycleIsActive}
                 onDelete={() => onDelete(initiative.id)}
               />
             ))}
@@ -214,9 +221,10 @@ interface InitiativesKanbanProps {
   initiatives: StrategyInitiative[];
   objectives: StrategyObjectiveWithKrs[];
   cycleId: string;
+  cycleIsActive: boolean;
 }
 
-export function InitiativesKanban({ initiatives, objectives, cycleId }: InitiativesKanbanProps) {
+export function InitiativesKanban({ initiatives, objectives, cycleId, cycleIsActive }: InitiativesKanbanProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -333,10 +341,12 @@ export function InitiativesKanban({ initiatives, objectives, cycleId }: Initiati
     <div className="flex flex-col gap-4">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button size="sm" onClick={() => setFormOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nova iniciativa
-        </Button>
+        {cycleIsActive && (
+          <Button size="sm" onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nova iniciativa
+          </Button>
+        )}
 
         <Select value={filterObjectiveId} onValueChange={setFilterObjectiveId}>
           <SelectTrigger className="w-52 h-8 text-sm">
@@ -385,6 +395,7 @@ export function InitiativesKanban({ initiatives, objectives, cycleId }: Initiati
                 column={col}
                 initiatives={byStatus[col.id]}
                 activeId={activeId}
+                cycleIsActive={cycleIsActive}
                 onDelete={setDeleteId}
               />
             ))}
@@ -396,6 +407,7 @@ export function InitiativesKanban({ initiatives, objectives, cycleId }: Initiati
             <InitiativeCard
               initiative={activeInitiative}
               isOverlay
+              cycleIsActive={cycleIsActive}
               onDelete={() => {}}
             />
           )}

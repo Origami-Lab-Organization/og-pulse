@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { StrategyCycle, StrategyObjectiveWithKrs } from '@/types/strategy';
-import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar, Pencil, Trash2, Download } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, Info, AlertCircle, Target, Calendar, Pencil, Trash2, Download, XCircle } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
   useStrategyInitiatives,
   useDeleteStrategyObjective,
   useDeleteStrategyCycle,
+  useUpdateStrategyCycle,
 } from '@/hooks/useStrategy';
 import { CycleSelectorHeader } from '@/components/strategy/CycleSelectorHeader';
 import { CycleFormDialog } from '@/components/strategy/CycleFormDialog';
@@ -97,11 +98,13 @@ function CycleRow({
   isAdmin,
   onEdit,
   onDelete,
+  onClose,
 }: {
   cycle: StrategyCycle;
   isAdmin: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onClose?: () => void;
 }) {
   const formatDate = (iso: string) =>
     new Date(iso + 'T00:00:00').toLocaleDateString('pt-BR', {
@@ -134,6 +137,17 @@ function CycleRow({
         </Badge>
         {isAdmin && (
           <div className="flex items-center gap-0.5 shrink-0">
+            {cycle.isActive && onClose && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-amber-600"
+                title="Encerrar ciclo"
+                onClick={onClose}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -195,13 +209,16 @@ export default function Strategy() {
 
   const deleteObjective = useDeleteStrategyObjective();
   const deleteCycle = useDeleteStrategyCycle();
+  const updateCycle = useUpdateStrategyCycle();
   const [confirmDeleteObjectiveId, setConfirmDeleteObjectiveId] = useState<string | null>(null);
   const [editingCycle, setEditingCycle] = useState<StrategyCycle | null>(null);
   const [confirmDeleteCycleId, setConfirmDeleteCycleId] = useState<string | null>(null);
+  const [confirmCloseCycleId, setConfirmCloseCycleId] = useState<string | null>(null);
 
   const isLoading = cyclesLoading || objectivesLoading;
 
   const selectedCycle = cycles.find((c) => c.id === effectiveCycleId);
+  const isCycleActive = selectedCycle?.isActive ?? false;
 
   function handleExportReport() {
     if (!selectedCycle) return;
@@ -275,7 +292,7 @@ export default function Strategy() {
               <div className="flex items-center justify-between">
                 <StrategyMetricsBar objectives={objectives} initiatives={initiatives} />
               </div>
-              {canManageStrategy && (
+              {canManageStrategy && isCycleActive && (
                 <div className="flex justify-end">
                   <Button size="sm" onClick={() => { setEditingObjective(null); setObjectiveFormOpen(true); }}>
                     <Plus className="h-4 w-4 mr-1" />
@@ -294,6 +311,7 @@ export default function Strategy() {
                       key={obj.id}
                       objective={obj}
                       isAdmin={isAdmin}
+                      cycleIsActive={isCycleActive}
                       onClick={() => setDetailObjective(obj)}
                       onAddKr={() => setKrFormObjectiveId(obj.id)}
                       onEditObjective={() => {
@@ -317,6 +335,7 @@ export default function Strategy() {
                 initiatives={initiatives}
                 objectives={objectives}
                 cycleId={effectiveCycleId}
+                cycleIsActive={isCycleActive}
               />
             </TabsContent>
 
@@ -350,6 +369,7 @@ export default function Strategy() {
                     isAdmin={isAdmin}
                     onEdit={() => { setEditingCycle(cycle); setCycleFormOpen(true); }}
                     onDelete={() => setConfirmDeleteCycleId(cycle.id)}
+                    onClose={cycle.isActive ? () => setConfirmCloseCycleId(cycle.id) : undefined}
                   />
                 ))}
               </div>
@@ -398,6 +418,7 @@ export default function Strategy() {
         onOpenChange={(open) => { if (!open) setDetailObjective(null); }}
         objective={liveDetailObjective}
         isAdmin={isAdmin}
+        cycleIsActive={isCycleActive}
         cycleStart={selectedCycle?.startDate}
         cycleEnd={selectedCycle?.endDate}
         onAddKr={() => {
@@ -437,6 +458,34 @@ export default function Strategy() {
               }}
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!confirmCloseCycleId}
+        onOpenChange={(open) => { if (!open) setConfirmCloseCycleId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar ciclo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O ciclo será marcado como encerrado e não aparecerá mais como ativo. Os dados de OKRs
+              e iniciativas serão mantidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                updateCycle.mutate(
+                  { id: confirmCloseCycleId!, updates: { is_active: false } },
+                  { onSuccess: () => setConfirmCloseCycleId(null) },
+                );
+              }}
+            >
+              Encerrar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

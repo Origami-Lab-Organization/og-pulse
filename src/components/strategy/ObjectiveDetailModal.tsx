@@ -48,6 +48,7 @@ interface ObjectiveDetailModalProps {
   onOpenChange: (open: boolean) => void;
   objective: StrategyObjectiveWithKrs | null;
   isAdmin: boolean;
+  cycleIsActive: boolean;
   cycleStart?: string;
   cycleEnd?: string;
   onAddKr: () => void;
@@ -320,6 +321,7 @@ function CheckinHistory({ kr }: { kr: StrategyKeyResult }) {
 function KrDetailRow({
   kr,
   isAdmin,
+  cycleIsActive,
   cycleStart,
   cycleEnd,
   onCheckin,
@@ -328,6 +330,7 @@ function KrDetailRow({
 }: {
   kr: StrategyKeyResult;
   isAdmin: boolean;
+  cycleIsActive: boolean;
   cycleStart?: string;
   cycleEnd?: string;
   onCheckin: () => void;
@@ -358,7 +361,7 @@ function KrDetailRow({
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {isAdmin && (
+          {isAdmin && cycleIsActive && (
             <>
               <Button
                 variant="ghost"
@@ -378,14 +381,16 @@ function KrDetailRow({
               </Button>
             </>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-3 text-xs"
-            onClick={onCheckin}
-          >
-            Check-in
-          </Button>
+          {cycleIsActive && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-3 text-xs"
+              onClick={onCheckin}
+            >
+              Check-in
+            </Button>
+          )}
         </div>
       </div>
 
@@ -424,12 +429,6 @@ function KrDetailRow({
             {formatValue(kr.targetValue, kr.unit)}
           </span>
         </span>
-        {kr.ownerName && (
-          <span className="flex items-center gap-1 ml-auto">
-            <User className="h-3 w-3" />
-            {kr.ownerName}
-          </span>
-        )}
       </div>
 
       {expanded && (
@@ -449,6 +448,7 @@ export function ObjectiveDetailModal({
   onOpenChange,
   objective,
   isAdmin,
+  cycleIsActive,
   cycleStart,
   cycleEnd,
   onAddKr,
@@ -501,7 +501,7 @@ export function ObjectiveDetailModal({
                 </div>
                 <DialogTitle className="text-xl leading-snug">{objective.title}</DialogTitle>
               </div>
-              {isAdmin && (
+              {isAdmin && cycleIsActive && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -554,6 +554,7 @@ export function ObjectiveDetailModal({
                     key={kr.id}
                     kr={kr}
                     isAdmin={isAdmin}
+                    cycleIsActive={cycleIsActive}
                     cycleStart={cycleStart}
                     cycleEnd={cycleEnd}
                     onCheckin={() => onCheckin(kr.id)}
@@ -567,7 +568,7 @@ export function ObjectiveDetailModal({
 
           <DialogFooter className="shrink-0 flex-row justify-between gap-2 pt-2">
             <div className="flex items-center gap-2">
-              {isAdmin && (
+              {isAdmin && cycleIsActive && (
                 <Button
                   variant="destructive"
                   size="sm"
@@ -580,7 +581,7 @@ export function ObjectiveDetailModal({
               )}
             </div>
             <div className="flex items-center gap-2">
-              {isAdmin && (
+              {isAdmin && cycleIsActive && (
                 <Button variant="outline" size="sm" onClick={onAddKr}>
                   <Plus className="h-4 w-4 mr-1.5" />
                   Adicionar Key Result
