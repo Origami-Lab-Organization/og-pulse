@@ -528,6 +528,7 @@ export type Database = {
           final_total: number
           id: string
           is_recurring: boolean
+          is_template: boolean
           lead_contact: string | null
           lead_name: string | null
           margin_override_approved: boolean
@@ -545,6 +546,7 @@ export type Database = {
           success_fee_percent: number | null
           success_fee_type: string | null
           taxes_percent: number
+          template_for_service_id: string | null
           tenant_id: string
           title: string
           total_with_fees: number
@@ -565,6 +567,7 @@ export type Database = {
           final_total?: number
           id?: string
           is_recurring?: boolean
+          is_template?: boolean
           lead_contact?: string | null
           lead_name?: string | null
           margin_override_approved?: boolean
@@ -582,6 +585,7 @@ export type Database = {
           success_fee_percent?: number | null
           success_fee_type?: string | null
           taxes_percent?: number
+          template_for_service_id?: string | null
           tenant_id: string
           title: string
           total_with_fees?: number
@@ -602,6 +606,7 @@ export type Database = {
           final_total?: number
           id?: string
           is_recurring?: boolean
+          is_template?: boolean
           lead_contact?: string | null
           lead_name?: string | null
           margin_override_approved?: boolean
@@ -619,6 +624,7 @@ export type Database = {
           success_fee_percent?: number | null
           success_fee_type?: string | null
           taxes_percent?: number
+          template_for_service_id?: string | null
           tenant_id?: string
           title?: string
           total_with_fees?: number
@@ -638,6 +644,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_template_for_service_id_fkey"
+            columns: ["template_for_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
           {
@@ -4144,6 +4157,7 @@ export type Database = {
           is_active: boolean
           name: string
           project_type: string
+          template_budget_id: string | null
           tenant_id: string
           unit_price: number | null
           updated_at: string
@@ -4159,6 +4173,7 @@ export type Database = {
           is_active?: boolean
           name: string
           project_type: string
+          template_budget_id?: string | null
           tenant_id: string
           unit_price?: number | null
           updated_at?: string
@@ -4174,11 +4189,19 @@ export type Database = {
           is_active?: boolean
           name?: string
           project_type?: string
+          template_budget_id?: string | null
           tenant_id?: string
           unit_price?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "services_template_budget_id_fkey"
+            columns: ["template_budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "services_tenant_id_fkey"
             columns: ["tenant_id"]
