@@ -258,6 +258,7 @@ describe('dbToStrategyInitiative', () => {
     position: 0,
     owner_id: 'emp-1',
     due_date: '2025-03-01',
+    due_date_notes: null,
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
     owner: { nome: 'Carlos Lima' },
