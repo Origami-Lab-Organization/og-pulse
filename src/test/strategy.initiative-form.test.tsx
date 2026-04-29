@@ -55,6 +55,7 @@ const initiative: StrategyInitiative = {
   ownerId: 'emp-2',
   ownerName: 'Maria',
   dueDate: '2026-06-15',
+  dueDateNotes: null,
   objectiveTitle: 'Dobrar receita',
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
