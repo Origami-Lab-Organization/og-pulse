@@ -289,6 +289,7 @@ export interface CreateStrategyInitiativeInput {
 }
 
 export interface UpdateStrategyInitiativeInput {
+  objective_id?: string;
   title?: string;
   description?: string | null;
   notes?: string | null;
