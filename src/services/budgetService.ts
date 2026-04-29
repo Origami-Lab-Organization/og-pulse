@@ -118,6 +118,7 @@ export const budgetService = {
         client:clients(id, company_name, trading_name)
       `)
       .eq('tenant_id', tenantId)
+      .eq('is_template', false)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -303,7 +304,8 @@ export const budgetService = {
   async create(
     input: CreateBudgetInput,
     tenantId: string,
-    createdBy: string
+    createdBy: string,
+    options?: { isTemplate?: boolean; templateForServiceId?: string }
   ): Promise<BudgetDB> {
     // Generate budget number
     const budgetNumber = await this.generateBudgetNumber(tenantId);
@@ -344,6 +346,8 @@ export const budgetService = {
         margin_override_approved_by: input.marginOverrideApproved ? createdBy : null,
         margin_override_approved_at: input.marginOverrideApproved ? new Date().toISOString() : null,
         margin_override_pending: input.marginOverridePending || false,
+        is_template: options?.isTemplate ?? false,
+        template_for_service_id: options?.templateForServiceId ?? null,
       })
       .select()
       .single();
@@ -663,6 +667,65 @@ export const budgetService = {
       console.error('Error deleting budget:', error);
       throw error;
     }
+  },
+
+  async cloneTemplateForLead(
+    templateBudgetId: string,
+    leadId: string,
+    clientId: string | null,
+    title: string,
+    tenantId: string,
+    createdBy: string
+  ): Promise<BudgetDB> {
+    const template = await this.getById(templateBudgetId);
+    if (!template) throw new Error('Template de orçamento não encontrado');
+
+    const input: CreateBudgetInput = {
+      title,
+      clientId: clientId || undefined,
+      startDate: new Date().toISOString().split('T')[0],
+      durationMonths: template.duration_months,
+      adminExpensesPercent: template.admin_expenses_percent,
+      taxesPercent: template.taxes_percent,
+      commissionPercent: template.commission_percent,
+      netMarginPercent: template.net_margin_percent,
+      discountValue: (template as any).discount_value ?? 0,
+      notes: template.notes || undefined,
+      billingType: (template.billing_type as any) ?? 'fixed_scope',
+      roles: template.roles.map((role) => ({
+        tempId: crypto.randomUUID(),
+        roleRateId: role.role_rate_id || '',
+        roleName: role.role_name,
+        seniority: role.seniority,
+        hourlyRate: role.hourly_rate,
+        months: role.months.map((m) => ({
+          monthNumber: m.month_number,
+          hours: m.hours,
+        })),
+      })),
+      materials: (template.materials || []).map((m) => ({
+        tempId: crypto.randomUUID(),
+        description: m.description,
+        value: m.value,
+      })),
+      suppliers: (template.suppliers || []).map((s) => ({
+        tempId: crypto.randomUUID(),
+        name: s.name,
+        description: s.description || '',
+        monthlyValue: s.monthly_value,
+      })),
+    };
+
+    const newBudget = await this.create(input, tenantId, createdBy);
+
+    // Link to lead
+    const { error: linkError } = await fromTable('leads')
+      .update({ budget_id: newBudget.id })
+      .eq('id', leadId);
+
+    if (linkError) throw linkError;
+
+    return newBudget;
   },
 
   async duplicate(id: string, tenantId: string, createdBy: string): Promise<BudgetDB> {

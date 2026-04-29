@@ -92,6 +92,23 @@ export const useToggleServiceActive = () => {
   });
 };
 
+export const useLinkServiceTemplate = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ serviceId, budgetId }: { serviceId: string; budgetId: string | null }) => {
+      return serviceService.linkTemplateBudget(serviceId, budgetId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao vincular template', variant: 'destructive' });
+    },
+  });
+};
+
 export const useDeleteService = () => {
   const queryClient = useQueryClient();
   const { employee } = useAuth();

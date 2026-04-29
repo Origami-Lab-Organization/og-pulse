@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -27,8 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Calculator, ExternalLink } from 'lucide-react';
 import { Service, CreateServiceInput, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
+import { formatCurrency } from '@/lib/formatters';
 import { formatCurrency } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 
@@ -68,6 +70,7 @@ export function ServiceFormDialog({
   onSubmit,
   isLoading,
 }: ServiceFormDialogProps) {
+  const navigate = useNavigate();
   const [valueDisplay, setValueDisplay] = useState('');
 
   const form = useForm<FormValues>({
@@ -244,37 +247,119 @@ export function ServiceFormDialog({
             {/* Dynamic value fields */}
             {showValueFields && (
               <div className="space-y-3 rounded-md border bg-muted/30 p-3">
-                {/* fixed_scope: just R$ input */}
+                {/* fixed_scope: template composition or manual R$ input */}
                 {billingType === 'fixed_scope' && (
-                  <FormField
-                    control={form.control}
-                    name="defaultValue"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Valor padrão</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                              R$
-                            </span>
-                            <Input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="0,00"
-                              className="pl-9"
-                              value={valueDisplay}
-                              onChange={(e) => {
-                                const digits = e.target.value.replace(/\D/g, '');
-                                setValueDisplay(digits ? formatCurrency(digits) : '');
-                                field.onChange(digits ? parseInt(digits, 10) / 100 : undefined);
+                  <>
+                    {service?.id ? (
+                      // Existing service: show template CTA or template summary
+                      service.templateBudgetId ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-medium">Preço calculado por composição</p>
+                              <p className="text-lg font-bold text-primary">
+                                {service.defaultValue != null ? formatCurrency(service.defaultValue) : '—'}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="text-xs text-primary hover:underline flex items-center gap-1"
+                              onClick={() => {
+                                onOpenChange(false);
+                                navigate(`/budgets/${service.templateBudgetId}`);
                               }}
-                            />
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              Editar composição
+                            </button>
                           </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                          <p className="text-xs text-muted-foreground">
+                            O preço é calculado automaticamente a partir da composição de custos (roles, fornecedores e materiais).
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <FormField
+                            control={form.control}
+                            name="defaultValue"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Valor padrão</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                      R$
+                                    </span>
+                                    <Input
+                                      type="text"
+                                      inputMode="numeric"
+                                      placeholder="0,00"
+                                      className="pl-9"
+                                      value={valueDisplay}
+                                      onChange={(e) => {
+                                        const digits = e.target.value.replace(/\D/g, '');
+                                        setValueDisplay(digits ? formatCurrency(digits) : '');
+                                        field.onChange(digits ? parseInt(digits, 10) / 100 : undefined);
+                                      }}
+                                    />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <button
+                            type="button"
+                            className="w-full flex items-center justify-center gap-2 rounded-md border border-dashed border-primary/50 py-2 text-sm text-primary hover:bg-primary/5 transition-colors"
+                            onClick={() => {
+                              onOpenChange(false);
+                              navigate(`/budgets/new?templateForServiceId=${service.id}`);
+                            }}
+                          >
+                            <Calculator className="h-4 w-4" />
+                            Definir por composição de custos
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      // New service (no ID yet): show manual input + note
+                      <div className="space-y-2">
+                        <FormField
+                          control={form.control}
+                          name="defaultValue"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Valor padrão</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                    R$
+                                  </span>
+                                  <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="0,00"
+                                    className="pl-9"
+                                    value={valueDisplay}
+                                    onChange={(e) => {
+                                      const digits = e.target.value.replace(/\D/g, '');
+                                      setValueDisplay(digits ? formatCurrency(digits) : '');
+                                      field.onChange(digits ? parseInt(digits, 10) / 100 : undefined);
+                                    }}
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <p className="text-xs text-muted-foreground flex items-start gap-1">
+                          <Calculator className="h-3 w-3 mt-0.5 shrink-0" />
+                          Após salvar, edite o serviço para definir o preço por composição de custos.
+                        </p>
+                      </div>
                     )}
-                  />
+                  </>
                 )}
 
                 {/* recurring: R$ input + period select */}

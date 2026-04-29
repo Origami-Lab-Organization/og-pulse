@@ -61,6 +61,7 @@ import {
   AlertTriangle,
   FileText,
   Lock,
+  Zap,
 } from 'lucide-react'
 import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead'
 import { ArchiveLeadDialog } from './ArchiveLeadDialog'
@@ -69,6 +70,7 @@ import { LeadActivityTimeline } from './LeadActivityTimeline'
 import { LeadInteractionsTab } from './LeadInteractionsTab'
 import { BudgetVersionHistory } from './BudgetVersionHistory'
 import { useUpdateLead, useUpdateLeadStage } from '@/hooks/useLeads'
+import { useApplyServiceTemplate } from '@/hooks/useBudgets'
 import { useClients } from '@/hooks/useClients'
 import { useEmployees } from '@/hooks/useEmployees'
 import { useServices } from '@/hooks/useServices'
@@ -168,6 +170,7 @@ export function LeadDetailDialog({
   const isAdmin = employee?.isAdmin
   const updateLead = useUpdateLead()
   const updateStage = useUpdateLeadStage()
+  const applyServiceTemplate = useApplyServiceTemplate()
   const { data: clients = [] } = useClients()
   const { data: employees = [] } = useEmployees()
   const { data: services = [] } = useServices()
@@ -180,6 +183,7 @@ export function LeadDetailDialog({
   const activeServices = services.filter((s) => s.isActive)
   const selectedService = services.find((s) => s.id === lead?.service_line)
   const isNoRevenue = selectedService?.billingType === 'no_revenue'
+  const serviceHasTemplate = !!(selectedService?.templateBudgetId)
   const servicesByType = BILLING_TYPES.reduce(
     (acc, type) => {
       acc[type] = activeServices.filter((s) => s.billingType === type)
@@ -542,6 +546,50 @@ export function LeadDetailDialog({
                         )
                       })()}
 
+                    {/* Template service preview: show when service has a cost template and no budget yet */}
+                    {lead.crm_stage !== 'screening' &&
+                      serviceHasTemplate &&
+                      !lead.budget_id &&
+                      selectedService && (
+                        <div className='rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2'>
+                          <div className='flex items-center justify-between'>
+                            <div className='flex items-center gap-1.5'>
+                              <Zap className='h-3.5 w-3.5 text-primary' />
+                              <p className='text-xs font-semibold text-primary'>Preço padrão disponível</p>
+                            </div>
+                            {selectedService.defaultValue != null && (
+                              <span className='text-sm font-bold text-primary'>
+                                {formatCurrency(selectedService.defaultValue)}
+                              </span>
+                            )}
+                          </div>
+                          <p className='text-xs text-muted-foreground'>
+                            O serviço <strong>{selectedService.name}</strong> tem uma composição de custos pré-definida. Aplique para preencher os dados financeiros automaticamente.
+                          </p>
+                          <Button
+                            type='button'
+                            size='sm'
+                            className='w-full'
+                            disabled={applyServiceTemplate.isPending || isArchived}
+                            onClick={() => {
+                              applyServiceTemplate.mutate({
+                                templateBudgetId: selectedService.templateBudgetId!,
+                                leadId: lead.id,
+                                clientId: lead.client_id,
+                                title: lead.name,
+                              });
+                            }}
+                          >
+                            {applyServiceTemplate.isPending ? (
+                              <Loader2 className='h-3.5 w-3.5 mr-1.5 animate-spin' />
+                            ) : (
+                              <Zap className='h-3.5 w-3.5 mr-1.5' />
+                            )}
+                            Aplicar preço padrão
+                          </Button>
+                        </div>
+                      )}
+
                     <FormField
                       control={form.control}
                       name='responsible_id'
@@ -607,10 +655,10 @@ export function LeadDetailDialog({
                         />
                       )}
 
-                    {/* Budget section: proposal / negotiation / closed */}
-                    {['proposal', 'negotiation', 'closed'].includes(
+                    {/* Budget section: proposal / negotiation / closed, OR any stage when budget is already linked */}
+                    {(lead.budget_id || ['proposal', 'negotiation', 'closed'].includes(
                       lead.crm_stage,
-                    ) && (
+                    )) && (
                       <>
                         <Separator />
                         <div className='space-y-3' ref={budgetAlertRef}>

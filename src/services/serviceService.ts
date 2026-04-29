@@ -108,6 +108,18 @@ export const serviceService = {
     }
   },
 
+  async linkTemplateBudget(serviceId: string, budgetId: string | null): Promise<void> {
+    const { error } = await supabase
+      .from('services')
+      .update({ template_budget_id: budgetId, updated_at: new Date().toISOString() } as any)
+      .eq('id', serviceId);
+
+    if (error) {
+      console.error('Error linking template budget to service:', error);
+      throw error;
+    }
+  },
+
   async seedDefaults(tenantId: string, defaults: CreateServiceInput[]): Promise<void> {
     const rows = defaults.map((s) => ({
       tenant_id: tenantId,

@@ -34,7 +34,8 @@ import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets';
 import { useToast } from '@/hooks/use-toast';
 import { useLead, useLinkBudgetToLead } from '@/hooks/useLeads';
-import { useServices } from '@/hooks/useServices';
+import { useServices, useLinkServiceTemplate } from '@/hooks/useServices';
+import { serviceService } from '@/services/serviceService';
 import { supabase } from '@/integrations/supabase/client';
 import { BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { cn } from '@/lib/utils';
@@ -42,7 +43,7 @@ import ClientFormDialog from '@/components/clients/ClientFormDialog';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
-  clientId: z.string().min(1, 'Selecione ou cadastre um cliente'),
+  clientId: z.string().optional().default(''),
   startDate: z.string().optional(),
   durationMonths: z.coerce.number().min(1, 'Mínimo 1 mês').max(60, 'Máximo 60 meses'),
   notes: z.string().optional(),
@@ -94,7 +95,9 @@ export default function BudgetForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const leadId = searchParams.get('leadId');
+  const templateForServiceId = searchParams.get('templateForServiceId');
   const isEditing = !!id;
+  const isTemplateMode = !!templateForServiceId && !isEditing;
   const createClientMutation = useCreateClient();
   const { toast } = useToast();
   const { employee } = useAuth();
@@ -105,10 +108,15 @@ export default function BudgetForm() {
   const { data: financialSettings } = useFinancialSettings();
   const { data: leadData } = useLead(leadId);
   const { data: services = [] } = useServices();
-  const createMutation = useCreateBudget();
+  const createMutation = useCreateBudget(
+    isTemplateMode ? { isTemplate: true, templateForServiceId: templateForServiceId! } : undefined
+  );
+  const linkServiceTemplate = useLinkServiceTemplate();
   const updateMutation = useUpdateBudget();
   const linkBudgetToLead = useLinkBudgetToLead();
   const isFromLead = !!leadId;
+
+  const templateService = services.find(s => s.id === templateForServiceId);
 
   // Manual override: set when user changes billing type via selector (no-lead edit/create)
   const [overrideBillingType, setOverrideBillingType] = useState<BillingType | null>(null);
@@ -118,6 +126,8 @@ export default function BudgetForm() {
   const billingType = useMemo<BillingType>(() => {
     // Manual override always wins (user changed the selector)
     if (overrideBillingType) return overrideBillingType;
+    // When creating template, derive from service billing type
+    if (isTemplateMode && templateService) return templateService.billingType;
     // When creating from a lead, derive from lead's service
     if (isFromLead && leadData?.service_line && services.length) {
       const service = services.find(s => s.id === leadData.service_line);
@@ -129,7 +139,7 @@ export default function BudgetForm() {
       return budget.is_recurring ? 'recurring' : 'fixed_scope';
     }
     return 'fixed_scope';
-  }, [overrideBillingType, isFromLead, leadData?.service_line, services, isEditing, budget]);
+  }, [overrideBillingType, isTemplateMode, templateService, isFromLead, leadData?.service_line, services, isEditing, budget]);
 
   const wizardSteps = getWizardSteps(billingType, isContinuous);
 
@@ -174,9 +184,9 @@ export default function BudgetForm() {
   const durationMonths = form.watch('durationMonths');
   const watchedTitle = form.watch('title');
 
-  // Guard: new budgets must come from a lead
+  // Guard: new budgets must come from a lead or be a template
   useEffect(() => {
-    if (!isEditing && !leadId) {
+    if (!isEditing && !leadId && !templateForServiceId) {
       toast({
         title: 'Aviso',
         description: 'Orçamentos devem ser criados a partir de um lead no CRM',
@@ -184,7 +194,7 @@ export default function BudgetForm() {
       });
       navigate('/crm');
     }
-  }, [isEditing, leadId, navigate, toast]);
+  }, [isEditing, leadId, templateForServiceId, navigate, toast]);
 
   // Pre-fill from lead data
   useEffect(() => {
@@ -195,6 +205,14 @@ export default function BudgetForm() {
       }
     }
   }, [leadData, isEditing, form]);
+
+  // Pre-fill title from service name in template mode
+  useEffect(() => {
+    if (isTemplateMode && templateService && !isEditing) {
+      form.setValue('title', `Template — ${templateService.name}`);
+      form.setValue('durationMonths', 1);
+    }
+  }, [isTemplateMode, templateService, isEditing, form]);
 
   // Pre-fill successFeePercent from service defaultValue when available
   useEffect(() => {
@@ -386,7 +404,29 @@ export default function BudgetForm() {
       updateMutation.mutate({ id, input }, {
         onSuccess: async () => {
           if (needsApprovalNotif) await sendMarginApprovalNotifications(id, input.title);
-          navigate('/budgets');
+          // If editing a template budget, sync default_value on the service
+          if (budget && (budget as any).is_template && (budget as any).template_for_service_id) {
+            await serviceService.update((budget as any).template_for_service_id, {
+              defaultValue: calculation.finalTotal,
+            });
+            navigate('/services');
+          } else {
+            navigate('/budgets');
+          }
+        },
+      });
+    } else if (isTemplateMode && templateForServiceId) {
+      createMutation.mutate(input, {
+        onSuccess: async (data: any) => {
+          if (data?.id) {
+            await linkServiceTemplate.mutateAsync({ serviceId: templateForServiceId, budgetId: data.id });
+            await serviceService.update(templateForServiceId, {
+              defaultValue: calculation.finalTotal,
+              hasDefaultValue: true,
+            });
+            toast({ title: 'Template salvo', description: 'Composição de custos vinculada ao serviço.' });
+            navigate('/services');
+          }
         },
       });
     } else {
@@ -408,11 +448,19 @@ export default function BudgetForm() {
 
   const validateCurrentStep = async (): Promise<boolean> => {
     if (currentStep === 1) {
+      if (isTemplateMode) {
+        const result = await form.trigger(isMonthlyMode ? ['title', 'durationMonths'] : ['title', 'startDate', 'durationMonths']);
+        return result;
+      }
       const fields: ('title' | 'clientId' | 'startDate' | 'durationMonths')[] =
         isMonthlyMode
           ? ['title', 'clientId', 'durationMonths']
           : ['title', 'clientId', 'startDate', 'durationMonths'];
       const result = await form.trigger(fields);
+      if (result && !form.getValues('clientId')) {
+        form.setError('clientId', { message: 'Selecione ou cadastre um cliente' });
+        return false;
+      }
       return result;
     }
     return true;
@@ -446,8 +494,8 @@ export default function BudgetForm() {
     );
   }
 
-  // Block editing of active (closed) budgets
-  if (isEditing && budget && budget.status === 'active') {
+  // Block editing of active (closed) budgets (but allow template budgets)
+  if (isEditing && budget && budget.status === 'active' && !(budget as any).is_template) {
     navigate(`/budgets/${id}`);
     return null;
   }
@@ -485,6 +533,16 @@ export default function BudgetForm() {
             </div>
 
             <CardContent className="pt-5 space-y-4">
+              {/* Banner: template mode */}
+              {isTemplateMode && templateService && (
+                <Alert className="border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Você está definindo a composição de custos para o serviço <strong>{templateService.name}</strong>. O preço calculado será aplicado automaticamente nos leads que usarem este serviço.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Banner for budgets that predate recurring mode */}
               {isEditing && !budget?.is_recurring && billingType === 'recurring' && (
                 <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
@@ -592,25 +650,27 @@ export default function BudgetForm() {
 
               {/* Client + duration layout */}
               {isMonthlyMode ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="clientId" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cliente</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {clients.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <button type="button" className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-0.5" onClick={() => setShowClientDialog(true)}>
-                        <Plus className="h-3 w-3" />
-                        Novo cliente
-                      </button>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                <div className={isTemplateMode ? '' : 'grid grid-cols-2 gap-4'}>
+                  {!isTemplateMode && (
+                    <FormField control={form.control} name="clientId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cliente</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {clients.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <button type="button" className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-0.5" onClick={() => setShowClientDialog(true)}>
+                          <Plus className="h-3 w-3" />
+                          Novo cliente
+                        </button>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  )}
                   <FormField control={form.control} name="durationMonths" render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -626,24 +686,26 @@ export default function BudgetForm() {
                 </div>
               ) : (
                 <>
-                  <FormField control={form.control} name="clientId" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cliente</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {clients.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <button type="button" className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-0.5" onClick={() => setShowClientDialog(true)}>
-                        <Plus className="h-3 w-3" />
-                        Novo cliente
-                      </button>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  {!isTemplateMode && (
+                    <FormField control={form.control} name="clientId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cliente</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {clients.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.tradingName || c.companyName}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <button type="button" className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-0.5" onClick={() => setShowClientDialog(true)}>
+                          <Plus className="h-3 w-3" />
+                          Novo cliente
+                        </button>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="startDate" render={({ field }) => (
                       <FormItem>
@@ -1225,12 +1287,12 @@ export default function BudgetForm() {
 
   return (
     <AppLayout
-      title={isEditing ? 'Editar Orçamento' : 'Novo Orçamento'}
-      description={isEditing ? `Editando: ${budget?.title}` : 'Crie uma nova proposta comercial'}
-      breadcrumbs={[
-        { label: 'CRM', href: '/crm' },
-        { label: isEditing ? 'Editar' : 'Novo' },
-      ]}
+      title={isTemplateMode ? `Composição — ${templateService?.name || 'Serviço'}` : isEditing ? 'Editar Orçamento' : 'Novo Orçamento'}
+      description={isTemplateMode ? 'Defina a composição de custos para calcular o preço fixo do serviço' : isEditing ? `Editando: ${budget?.title}` : 'Crie uma nova proposta comercial'}
+      breadcrumbs={isTemplateMode
+        ? [{ label: 'Serviços', href: '/services' }, { label: 'Composição de Custos' }]
+        : [{ label: 'CRM', href: '/crm' }, { label: isEditing ? 'Editar' : 'Novo' }]
+      }
     >
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()} className="space-y-6">

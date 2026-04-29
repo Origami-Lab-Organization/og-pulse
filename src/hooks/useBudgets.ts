@@ -25,7 +25,7 @@ export function useBudget(id: string | null) {
   });
 }
 
-export function useCreateBudget() {
+export function useCreateBudget(options?: { isTemplate?: boolean; templateForServiceId?: string }) {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
   const { toast } = useToast();
@@ -34,19 +34,59 @@ export function useCreateBudget() {
 
   return useMutation({
     mutationFn: (input: CreateBudgetInput) =>
-      budgetService.create(input, tenantId!, createdBy!),
+      budgetService.create(input, tenantId!, createdBy!, options),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
-      toast({
-        title: 'Sucesso',
-        description: 'Orçamento criado com sucesso!',
-      });
+      if (!options?.isTemplate) {
+        toast({
+          title: 'Sucesso',
+          description: 'Orçamento criado com sucesso!',
+        });
+      }
     },
     onError: (error: any) => {
       console.error('Error creating budget:', error);
       toast({
         title: 'Erro ao criar orçamento',
         description: error?.message || error?.details || JSON.stringify(error),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useApplyServiceTemplate() {
+  const queryClient = useQueryClient();
+  const { employee } = useAuth();
+  const { toast } = useToast();
+  const tenantId = employee?.tenant_id;
+  const createdBy = employee?.id;
+
+  return useMutation({
+    mutationFn: ({
+      templateBudgetId,
+      leadId,
+      clientId,
+      title,
+    }: {
+      templateBudgetId: string;
+      leadId: string;
+      clientId: string | null;
+      title: string;
+    }) =>
+      budgetService.cloneTemplateForLead(templateBudgetId, leadId, clientId, title, tenantId!, createdBy!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      toast({
+        title: 'Preço padrão aplicado',
+        description: 'Os dados financeiros foram preenchidos a partir do serviço.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao aplicar preço padrão',
+        description: error?.message || 'Tente novamente.',
         variant: 'destructive',
       });
     },

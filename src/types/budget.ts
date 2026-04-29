@@ -43,6 +43,8 @@ export interface BudgetDB {
   created_at: string;
   updated_at: string;
   margin_override_pending?: boolean;
+  is_template: boolean;
+  template_for_service_id: string | null;
 }
 
 export interface BudgetRoleDB {

@@ -21,6 +21,7 @@ export interface ServiceDB {
   billing_unit: string | null;
   has_default_value: boolean;
   is_active: boolean;
+  template_budget_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +36,7 @@ export interface Service {
   billingUnit: string | null;
   hasDefaultValue: boolean;
   isActive: boolean;
+  templateBudgetId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +60,7 @@ export const dbToService = (db: ServiceDB): Service => ({
   billingUnit: db.billing_unit,
   hasDefaultValue: db.has_default_value,
   isActive: db.is_active,
+  templateBudgetId: db.template_budget_id ?? null,
   createdAt: db.created_at,
   updatedAt: db.updated_at,
 });
