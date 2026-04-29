@@ -582,13 +582,8 @@ export function InitiativesKanban({
           }
         }}
         initiative={detailInitiative}
+        objectives={objectives}
         cycleIsActive={cycleIsActive}
-        onEdit={() => {
-          if (!detailInitiative) return;
-          setDetailId(null);
-          setEditingInitiativeId(detailInitiative.id);
-          setFormOpen(true);
-        }}
         onDelete={() => {
           if (!detailInitiative) return;
           setDetailId(null);
