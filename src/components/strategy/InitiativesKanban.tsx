@@ -425,12 +425,15 @@ export function InitiativesKanban({
     setActiveId(null);
     if (!over) return;
 
-    const activeColumn = findColumn(active.id as string);
-    const overColumn = findColumn(over.id as string);
-    if (!activeColumn || !overColumn) return;
-
     const original = initiatives.find((initiative) => initiative.id === active.id);
     if (!original) return;
+
+    // Use original server-state status as source of truth — localOrder was already
+    // optimistically updated by handleDragOver, so findColumn(active.id) would
+    // incorrectly return the destination column instead of the origin.
+    const activeColumn = original.status;
+    const overColumn = findColumn(over.id as string);
+    if (!overColumn) return;
 
     if (activeColumn !== overColumn) {
       const columnItems = byStatus[overColumn];

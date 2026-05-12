@@ -30,7 +30,6 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Calculator, ExternalLink } from 'lucide-react';
 import { Service, CreateServiceInput, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
-import { formatCurrency } from '@/lib/formatters';
 import { formatCurrency } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 
