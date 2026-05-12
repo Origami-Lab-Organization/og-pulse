@@ -1,12 +1,14 @@
-import { type MouseEvent, type PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type MouseEvent, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  closestCorners,
+  closestCenter,
+  CollisionDetection,
   DndContext,
   DragEndEvent,
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  pointerWithin,
   useDroppable,
   useSensor,
   useSensors,
@@ -63,6 +65,8 @@ const COLUMNS: { id: InitiativeStatus; label: string; color: string }[] = [
   { id: 'review', label: 'Em revisão', color: 'text-amber-600 dark:text-amber-400' },
   { id: 'done', label: 'Concluído', color: 'text-emerald-600 dark:text-emerald-400' },
 ];
+
+const COLUMN_IDS = new Set(COLUMNS.map(c => c.id));
 
 function formatDueDate(date: string | null) {
   if (!date) return null;
@@ -378,6 +382,38 @@ export function InitiativesKanban({
     return grouped;
   }, [filtered]);
 
+  const byStatusRef = useRef(byStatus);
+  byStatusRef.current = byStatus;
+
+  // closestCorners picks backlog card corners (~50px away) over the empty target column
+  // corners (~225px away), so cross-column drags never register. This algorithm uses
+  // pointer position to find the target column first, then closestCenter within it.
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const currentByStatus = byStatusRef.current;
+
+    const columnContainers = args.droppableContainers.filter(
+      dc => COLUMN_IDS.has(dc.id as string),
+    );
+    const columnCollisions = pointerWithin({ ...args, droppableContainers: columnContainers });
+
+    if (columnCollisions.length === 0) return closestCenter(args);
+
+    const targetColumnId = columnCollisions[0].id as InitiativeStatus;
+
+    const cardsInColumn = args.droppableContainers.filter(
+      dc =>
+        !COLUMN_IDS.has(dc.id as string) &&
+        currentByStatus[targetColumnId]?.some(i => i.id === dc.id),
+    );
+
+    if (cardsInColumn.length > 0) {
+      const closestCard = closestCenter({ ...args, droppableContainers: cardsInColumn });
+      if (closestCard.length > 0) return closestCard;
+    }
+
+    return columnCollisions;
+  }, []);
+
   const activeInitiative = useMemo(
     () => localOrder.find((initiative) => initiative.id === activeId) ?? null,
     [activeId, localOrder],
@@ -532,7 +568,7 @@ export function InitiativesKanban({
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
