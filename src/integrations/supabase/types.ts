@@ -4365,6 +4365,7 @@ export type Database = {
           created_at: string
           description: string | null
           due_date: string | null
+          due_date_notes: string | null
           effort: number | null
           id: string
           notes: string | null
@@ -4381,6 +4382,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_date?: string | null
+          due_date_notes?: string | null
           effort?: number | null
           id?: string
           notes?: string | null
@@ -4397,6 +4399,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_date?: string | null
+          due_date_notes?: string | null
           effort?: number | null
           id?: string
           notes?: string | null
