@@ -402,7 +402,7 @@ export function InitiativesKanban({
 
     const cardsInColumn = args.droppableContainers.filter(
       dc =>
-        !COLUMN_IDS.has(dc.id as string) &&
+        !COLUMN_IDS.has(dc.id as InitiativeStatus) &&
         currentByStatus[targetColumnId]?.some(i => i.id === dc.id),
     );
 
