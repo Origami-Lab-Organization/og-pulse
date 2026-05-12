@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -6,47 +6,37 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 interface CardBlockSectionProps {
-  initialBlocked: boolean;
-  initialReason: string | null;
+  blocked: boolean;
+  reason: string;
   disabled?: boolean;
-  onSave: (isBlocked: boolean, reason: string | null) => void;
+  onChange: (blocked: boolean, reason: string) => void;
+  error?: string;
 }
 
 export function CardBlockSection({
-  initialBlocked,
-  initialReason,
+  blocked,
+  reason,
   disabled = false,
-  onSave,
+  onChange,
+  error,
 }: CardBlockSectionProps) {
-  const [blocked, setBlocked] = useState(initialBlocked);
-  const [reason, setReason]   = useState(initialReason ?? '');
-  const [error, setError]     = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const wasBlockedRef = useRef(blocked);
+
+  useEffect(() => {
+    if (!wasBlockedRef.current && blocked) {
+      // Just turned on — focus textarea after animation
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+    wasBlockedRef.current = blocked;
+  }, [blocked]);
 
   const handleBlockedChange = (val: boolean) => {
     if (val) {
-      // Turning ON: show textarea via animation, then focus
-      setBlocked(true);
-      setError('');
-      setTimeout(() => textareaRef.current?.focus(), 50);
+      onChange(true, reason);
     } else {
-      // Turning OFF: clear reason, save immediately
-      setBlocked(false);
-      setReason('');
-      setError('');
-      onSave(false, null);
+      onChange(false, '');
     }
-  };
-
-  const handleBlur = () => {
-    if (!blocked) return;
-    const trimmed = reason.trim();
-    if (!trimmed) {
-      setError('Descreva o impedimento para salvar.');
-      return;
-    }
-    setError('');
-    onSave(true, trimmed);
   };
 
   return (
@@ -83,11 +73,7 @@ export function CardBlockSection({
           ref={textareaRef}
           placeholder="Descreva o impedimento..."
           value={reason}
-          onChange={(e) => {
-            setReason(e.target.value);
-            if (error && e.target.value.trim()) setError('');
-          }}
-          onBlur={handleBlur}
+          onChange={(e) => onChange(blocked, e.target.value)}
           disabled={disabled}
           rows={2}
           className={cn(

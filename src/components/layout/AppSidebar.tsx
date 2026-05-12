@@ -21,6 +21,7 @@ import {
   FolderKanban,
   UserSearch,
   Target,
+  LayoutKanban,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -57,6 +58,7 @@ const navigationGroups = [
     items: [
       { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
+      { title: 'Meu Kanban', url: '/my-kanban', icon: LayoutKanban },
       { title: 'Meus Projetos', url: '/my-projects', icon: FolderKanban },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
     ] as NavItem[],

@@ -28,8 +28,8 @@ export interface MyProjectDetail {
   stakeholders: {
     name: string;
     role: string;
-    company: string;
-    type: string;
+    organization: string | null;
+    jobTitle: string | null;
     email: string | null;
     phone: string | null;
   }[];
@@ -107,7 +107,7 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
           .eq('project_id', projectId),
         supabase
           .from('project_stakeholders')
-          .select('name, role, company, type, email, phone')
+          .select('name, role, organization, job_title, email, phone')
           .eq('project_id', projectId)
           .order('created_at', { ascending: true }),
         supabase
@@ -248,8 +248,8 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
         stakeholders: (stakeholdersResult.data || []).map((s: any) => ({
           name: s.name,
           role: s.role,
-          company: s.company,
-          type: s.type,
+          organization: s.organization ?? null,
+          jobTitle: s.job_title ?? null,
           email: s.email ?? null,
           phone: s.phone ?? null,
         })),

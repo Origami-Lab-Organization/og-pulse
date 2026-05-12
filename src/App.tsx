@@ -45,6 +45,7 @@ import Inbox from "./pages/Inbox";
 import JobOpenings from "./pages/JobOpenings";
 import JobApplicationVaga from "./pages/JobApplicationVaga";
 import Strategy from "./pages/Strategy";
+import MyKanban from "./pages/MyKanban";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 2 * 60 * 1000 } },
@@ -130,12 +131,12 @@ const App = () => (
                 } 
               />
               <Route
-                path="/projects/:id" 
+                path="/projects/:id"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <ProtectedRoute>
                     <ProjectDetail />
-                  </RoleProtectedRoute>
-                } 
+                  </ProtectedRoute>
+                }
               />
               <Route 
                 path="/alocacao"
@@ -244,6 +245,7 @@ const App = () => (
               />
               <Route path="/materiais" element={<RoleProtectedRoute requireManager><Materials /></RoleProtectedRoute>} />
               <Route path="/assinaturas" element={<RoleProtectedRoute requireManager><Subscriptions /></RoleProtectedRoute>} />
+              <Route path="/my-kanban" element={<ProtectedRoute><MyKanban /></ProtectedRoute>} />
               <Route path="/my-projects" element={<ProtectedRoute><MyProjects /></ProtectedRoute>} />
               <Route path="/my-projects/:id" element={<ProtectedRoute><MyProjectDetail /></ProtectedRoute>} />
               <Route path="/rh/candidatos" element={<RoleProtectedRoute requireManager><Candidates /></RoleProtectedRoute>} />
