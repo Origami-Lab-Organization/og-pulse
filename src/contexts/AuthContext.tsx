@@ -109,6 +109,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(session?.user ?? null);
 
+        // USER_UPDATED fires when updateUser() is called (e.g. password change).
+        // updatePassword() already handles the employee state refresh after updating
+        // must_change_password in the DB, so re-fetching here would create a race
+        // condition that overwrites the correct state with a stale value.
+        if (event === 'USER_UPDATED') {
+          setLoading(false);
+          return;
+        }
+
         if (session?.user) {
           // Use setTimeout to avoid potential race conditions
           setTimeout(async () => {
@@ -202,26 +211,37 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const updatePassword = async (newPassword: string) => {
+    // Update the DB flag BEFORE calling updateUser so that the USER_UPDATED
+    // auth event (if it triggers a re-fetch) reads the correct value.
+    if (employee) {
+      await supabase
+        .from('employees')
+        .update({ must_change_password: false, status: 'ativo' })
+        .eq('id', employee.id);
+    }
+
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
 
-    if (!error && employee) {
-      // Update must_change_password to false and set status to 'ativo'
-      await supabase
-        .from('employees')
-        .update({ 
-          must_change_password: false,
-          status: 'ativo'
-        })
-        .eq('id', employee.id);
+    if (error) {
+      // Revert the flag if the auth update failed
+      if (employee) {
+        await supabase
+          .from('employees')
+          .update({ must_change_password: true })
+          .eq('id', employee.id);
+      }
+      return { error: error as Error | null };
+    }
 
-      // Refresh employee data
-      const updatedEmployee = await fetchEmployeeData(user!.id);
+    // Refresh local employee state with the updated data
+    if (user) {
+      const updatedEmployee = await fetchEmployeeData(user.id);
       setEmployee(updatedEmployee);
     }
 
-    return { error: error as Error | null };
+    return { error: null };
   };
 
   return (
