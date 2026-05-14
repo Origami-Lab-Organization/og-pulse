@@ -211,34 +211,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const updatePassword = async (newPassword: string) => {
-    // Update the DB flag BEFORE calling updateUser so that the USER_UPDATED
-    // auth event (if it triggers a re-fetch) reads the correct value.
-    if (employee) {
-      await supabase
-        .from('employees')
-        .update({ must_change_password: false, status: 'ativo' })
-        .eq('id', employee.id);
-    }
-
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
 
     if (error) {
-      // Revert the flag if the auth update failed
-      if (employee) {
-        await supabase
-          .from('employees')
-          .update({ must_change_password: true })
-          .eq('id', employee.id);
-      }
       return { error: error as Error | null };
     }
 
-    // Refresh local employee state with the updated data
+    // Clear must_change_password and activate the employee via a SECURITY
+    // DEFINER RPC. A direct UPDATE from the client fails because the
+    // prevent_employee_self_escalation trigger blocks status changes by
+    // the user themselves — which silently kept must_change_password=true
+    // and trapped the user on /change-password.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: rpcError } = await (supabase.rpc as any)('complete_password_change');
+    if (rpcError) {
+      console.error('Error finalizing password change:', rpcError);
+      return { error: rpcError as Error | null };
+    }
+
+    // Optimistically update local state so ProtectedRoute does not
+    // redirect back to /change-password before the next fetch resolves.
+    if (employee) {
+      setEmployee({ ...employee, must_change_password: false });
+    }
+
+    // Refresh from the DB to keep state authoritative.
     if (user) {
       const updatedEmployee = await fetchEmployeeData(user.id);
-      setEmployee(updatedEmployee);
+      if (updatedEmployee) {
+        setEmployee(updatedEmployee);
+      }
     }
 
     return { error: null };
