@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Label } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
 import { useEmployees } from '@/hooks/useEmployees';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 
@@ -13,6 +13,8 @@ interface ProjectCostBreakdownChartProps {
 const HOURS_PER_MONTH = 176;
 
 export function ProjectCostBreakdownChart({ project }: ProjectCostBreakdownChartProps) {
+  const formatCurrency = useMaskedCurrency();
+  const hideValues = useHideValues();
   const { data: employees = [] } = useEmployees();
 
   const { costData, total } = useMemo(() => {
@@ -126,7 +128,7 @@ export function ProjectCostBreakdownChart({ project }: ProjectCostBreakdownChart
                             y={(viewBox.cy || 0) + 8}
                             className="fill-foreground text-sm font-bold"
                           >
-                            {formatTotalShort(total)}
+                            {hideValues ? '•••••' : formatTotalShort(total)}
                           </tspan>
                         </text>
                       );
@@ -157,7 +159,7 @@ export function ProjectCostBreakdownChart({ project }: ProjectCostBreakdownChart
                   style={{ backgroundColor: item.color }}
                 />
                 <span className="text-muted-foreground">{item.name}:</span>
-                <span className="font-medium">{percent}%</span>
+                <span className="font-medium">{hideValues ? '•••' : `${percent}%`}</span>
               </div>
             );
           })}

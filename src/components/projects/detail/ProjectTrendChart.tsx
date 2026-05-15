@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
 import { useMemo } from 'react';
 import {
   AreaChart,
@@ -25,6 +25,8 @@ interface ProjectTrendChartProps {
 }
 
 export function ProjectTrendChart({ data, budgetLine }: ProjectTrendChartProps) {
+  const formatCurrency = useMaskedCurrency();
+  const hideValues = useHideValues();
   const chartData = useMemo(() => {
     let cumulativePlanned = 0;
     let cumulativeRealized = 0;
@@ -115,8 +117,8 @@ export function ProjectTrendChart({ data, budgetLine }: ProjectTrendChartProps) 
                 axisLine={false}
                 className="text-muted-foreground"
               />
-              <YAxis 
-                tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+              <YAxis
+                tickFormatter={(value) => hideValues ? '•••' : `R$ ${(value / 1000).toFixed(0)}k`}
                 tick={{ fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}

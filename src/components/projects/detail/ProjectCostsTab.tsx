@@ -6,7 +6,7 @@ import { ProjectSuppliersSection } from '@/components/projects/detail/ProjectSup
 import { ProjectMaterialsSection } from '@/components/projects/detail/ProjectMaterialsSection';
 import { ProjectReimbursementsSection } from '@/components/projects/detail/ProjectReimbursementsSection';
 import { ProjectWithRelations } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
@@ -34,15 +34,16 @@ interface CostCardProps {
   budgetedValue?: number;
 }
 
-function CostCard({ 
-  icon, 
-  iconBg, 
-  label, 
-  plannedValue, 
-  actualValue, 
+function CostCard({
+  icon,
+  iconBg,
+  label,
+  plannedValue,
+  actualValue,
   isPlanningMode = false,
   budgetedValue = 0
 }: CostCardProps) {
+  const formatCurrency = useMaskedCurrency();
   // In planning mode: show planned vs budgeted
   // In execution mode: show actual vs planned
   const baseValue = isPlanningMode ? budgetedValue : plannedValue;
@@ -82,14 +83,15 @@ interface FinancialSummaryCardProps {
   totalActualCost: number;
 }
 
-function FinancialSummaryCard({ 
-  totalPlannedCost, 
-  totalBudgetedCost, 
-  contractValue, 
+function FinancialSummaryCard({
+  totalPlannedCost,
+  totalBudgetedCost,
+  contractValue,
   grossMarginTarget,
   isPlanningMode,
   totalActualCost,
 }: FinancialSummaryCardProps) {
+  const formatCurrency = useMaskedCurrency();
   // Determine which cost value to show based on mode
   const displayCost = isPlanningMode ? totalPlannedCost : totalActualCost;
   const baseDisplayCost = isPlanningMode ? totalBudgetedCost : totalPlannedCost;

@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ProjectSupplierDB } from '@/types/project';
-import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
+import { getProjectMonthLabel } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useUpsertSupplierActual, ProjectSupplierActualDB } from '@/hooks/useProjectSupplierActuals';
 
 interface SupplierActualDialogProps {
@@ -42,6 +43,7 @@ export function SupplierActualDialog({
   getPlannedValueForMonth,
   projectStartDate,
 }: SupplierActualDialogProps) {
+  const formatCurrency = useMaskedCurrency();
   const [monthNumber, setMonthNumber] = useState<number>(1);
   const [value, setValue] = useState<number>(0);
   const [notes, setNotes] = useState<string>('');

@@ -32,8 +32,9 @@ import {
   INSTALLMENT_STATUS_LABELS,
   InstallmentStatus,
 } from '@/types/project';
-import { formatCurrency, formatDate } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { formatCurrency as formatCurrencyMask, parseCurrency } from '@/lib/masks';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useUpdateInstallment, useCreateInstallment, useDeleteInstallment } from '@/hooks/useProjects';
 import { Pencil, Check, X, Plus, Trash2 } from 'lucide-react';
 
@@ -57,6 +58,7 @@ export function ProjectInstallmentsTable({
   isManualInstallments = false,
   canManageInstallments = false,
 }: ProjectInstallmentsTableProps) {
+  const formatCurrency = useMaskedCurrency();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<{
     status: InstallmentStatus;

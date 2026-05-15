@@ -1,13 +1,15 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
 
 interface ProjectPaymentsChartProps {
   project: ProjectWithRelations;
 }
 
 export function ProjectPaymentsChart({ project }: ProjectPaymentsChartProps) {
+  const formatCurrency = useMaskedCurrency();
+  const hideValues = useHideValues();
   const paymentData = useMemo(() => {
     const installments = project.installments || [];
     const contractValue = Number(project.total_value || 0);
@@ -58,7 +60,7 @@ export function ProjectPaymentsChart({ project }: ProjectPaymentsChartProps) {
                 {formatCurrency(paymentData.received)}
               </p>
               <p className="text-xs text-muted-foreground">
-                de {formatCurrency(paymentData.total)} ({paymentData.receivedPercent.toFixed(0)}%)
+                de {formatCurrency(paymentData.total)} ({hideValues ? '•••' : `${paymentData.receivedPercent.toFixed(0)}%`})
               </p>
             </div>
             

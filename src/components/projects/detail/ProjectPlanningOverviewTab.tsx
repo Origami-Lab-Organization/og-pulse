@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PROJECT_STATUS_LABELS, PAYMENT_METHOD_OPTIONS } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -22,6 +22,7 @@ interface ProjectPlanningOverviewTabProps {
 }
 
 export function ProjectPlanningOverviewTab({ project }: ProjectPlanningOverviewTabProps) {
+  const formatCurrency = useMaskedCurrency();
   const { data: okrs = [] } = useProjectOKRs(project.id);
   const { data: stakeholders = [] } = useProjectStakeholders(project.id);
   const { data: milestones = [] } = useProjectMilestones(project.id);

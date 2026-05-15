@@ -54,9 +54,10 @@ interface CompletionDialogState {
 interface PortfolioKanbanBoardProps {
   projects: PortfolioProject[];
   onRemoveProject?: (project: PortfolioProject) => void;
+  hideValues?: boolean;
 }
 
-export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKanbanBoardProps) {
+export function PortfolioKanbanBoard({ projects, onRemoveProject, hideValues }: PortfolioKanbanBoardProps) {
   const [activeProject, setActiveProject] = useState<PortfolioProject | null>(null);
   const [retroDialog, setRetroDialog] = useState<RetroDialogState | null>(null);
   const [retroJustification, setRetroJustification] = useState('');
@@ -252,6 +253,7 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
                 color={column.color}
                 projects={projectsByStage[column.id]}
                 onRemoveProject={onRemoveProject}
+                hideValues={hideValues}
               />
             ))}
           </div>
@@ -260,7 +262,7 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
         <DragOverlay>
           {activeProject ? (
             <div className="rotate-3 scale-105">
-              <PortfolioCard project={activeProject} />
+              <PortfolioCard project={activeProject} hideValues={hideValues} />
             </div>
           ) : null}
         </DragOverlay>

@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
 import {
   BarChart,
   Bar,
@@ -22,6 +22,8 @@ interface ProjectFinancialChartProps {
 }
 
 export function ProjectFinancialChart({ data }: ProjectFinancialChartProps) {
+  const formatCurrency = useMaskedCurrency();
+  const hideValues = useHideValues();
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -61,8 +63,8 @@ export function ProjectFinancialChart({ data }: ProjectFinancialChartProps) {
                 tick={{ fontSize: 12 }}
                 className="text-muted-foreground"
               />
-              <YAxis 
-                tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+              <YAxis
+                tickFormatter={(value) => hideValues ? '•••' : `R$ ${(value / 1000).toFixed(0)}k`}
                 tick={{ fontSize: 12 }}
                 className="text-muted-foreground"
               />

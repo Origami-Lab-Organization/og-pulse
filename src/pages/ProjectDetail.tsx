@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Edit, Lock, Trash2, MoreVertical, Archive } from "lucide-react";
+import { Edit, Lock, Trash2, MoreVertical, Archive, Eye, EyeOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,8 @@ import {
   useArchiveProject,
 } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
+import { HideValuesProvider, useHideValuesPreference } from "@/contexts/HideValuesContext";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CreateProjectInput } from "@/types/project";
 import { useState } from "react";
 
@@ -63,6 +65,7 @@ export default function ProjectDetail() {
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [hideValues, setHideValues] = useHideValuesPreference();
 
   const handleUpdate = (data: CreateProjectInput, justification?: string) => {
     if (!project) return;
@@ -147,32 +150,59 @@ export default function ProjectDetail() {
   const canCreateActivity = isAdmin || isManager;
   const showValueBook = !isPlanning;
 
+  const showMenu = canAccessFullProject && (canEdit || isAdmin);
+  const showHideValuesToggle = canAccessFullProject;
+
   const headerActions =
-    canAccessFullProject && (canEdit || isAdmin) ? (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {canEdit && (
-            <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
-              <Edit className="mr-2 h-4 w-4" />
-              Editar
-            </DropdownMenuItem>
-          )}
-          {isAdmin && (
-            <DropdownMenuItem
-              onClick={() => setRemoveDialogOpen(true)}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Excluir / Arquivar
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+    showMenu || showHideValuesToggle ? (
+      <div className="flex items-center gap-2">
+        {showHideValuesToggle && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setHideValues((v) => !v)}
+              >
+                {hideValues ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {hideValues ? "Mostrar valores" : "Ocultar valores"}
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {showMenu && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canEdit && (
+                <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Editar
+                </DropdownMenuItem>
+              )}
+              {isAdmin && (
+                <DropdownMenuItem
+                  onClick={() => setRemoveDialogOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir / Arquivar
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
     ) : undefined;
 
   if (!canAccessFullProject && !canViewActivities) {
@@ -189,8 +219,9 @@ export default function ProjectDetail() {
 
   return (
     <AppLayout title={project.name} hideHeader>
-      <div className="space-y-4">
-        <ProjectHeader project={project} actions={headerActions} />
+      <HideValuesProvider value={hideValues}>
+        <div className="space-y-4">
+          <ProjectHeader project={project} actions={headerActions} />
 
         {isCancelled && (project as any).cancellation_reason && (
           <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
@@ -347,6 +378,7 @@ export default function ProjectDetail() {
           )}
         </>
       )}
+      </HideValuesProvider>
     </AppLayout>
   );
 }

@@ -10,7 +10,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ProjectInstallmentDB } from '@/types/project';
-import { formatCurrency, formatDate } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useUpdateInstallment } from '@/hooks/useProjects';
 import { Pencil, Check, X } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export function PlanningInstallmentsTable({
   installments,
   projectId,
 }: PlanningInstallmentsTableProps) {
+  const formatCurrency = useMaskedCurrency();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editInvoiceDate, setEditInvoiceDate] = useState('');
 

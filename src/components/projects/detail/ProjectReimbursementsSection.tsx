@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ReimbursementRequest, useDeleteReimbursement } from '@/hooks/useReimbursements';
@@ -25,6 +25,7 @@ interface ProjectReimbursementsSectionProps {
 }
 
 export function ProjectReimbursementsSection({ reimbursements, isEditable = false }: ProjectReimbursementsSectionProps) {
+  const formatCurrency = useMaskedCurrency();
   const totalValue = reimbursements.reduce((sum, r) => sum + Number(r.total_amount), 0);
   const deleteMutation = useDeleteReimbursement();
 

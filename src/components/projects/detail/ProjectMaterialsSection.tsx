@@ -32,7 +32,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectMaterialDB, CreateProjectMaterialInput } from '@/types/project';
-import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
+import { getProjectMonthLabel } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useAddProjectMaterial, useRemoveProjectMaterial } from '@/hooks/useProjectCosts';
 import { MaterialRealizeDialog } from './MaterialRealizeDialog';
 
@@ -53,6 +54,7 @@ export function ProjectMaterialsSection({
   canEditActuals = false,
   projectStartDate,
 }: ProjectMaterialsSectionProps) {
+  const formatCurrency = useMaskedCurrency();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [realizeDialogOpen, setRealizeDialogOpen] = useState(false);
   const [formData, setFormData] = useState<Omit<CreateProjectMaterialInput, 'projectId'>>({

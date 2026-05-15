@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Paperclip } from 'lucide-react';
@@ -13,6 +13,7 @@ interface ReimbursementDetailDialogProps {
 }
 
 export function ReimbursementDetailDialog({ open, onOpenChange, reimbursement }: ReimbursementDetailDialogProps) {
+  const formatCurrency = useMaskedCurrency();
   const { data: attachments = [], isLoading } = useReimbursementAttachments(reimbursement?.id || null);
 
   const downloadFile = async (fileUrl: string) => {

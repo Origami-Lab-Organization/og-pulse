@@ -13,9 +13,11 @@ import {
   PortfolioProject,
 } from '@/hooks/usePortfolioProjects'
 import { useDeleteProject, useArchiveProject } from '@/hooks/useProjects'
-import { Search, Building2, User, Kanban, List } from 'lucide-react'
+import { Search, Building2, User, Kanban, List, Eye, EyeOff } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth } from '@/contexts/AuthContext'
+import { useHideValuesPreference } from '@/contexts/HideValuesContext'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export default function Portfolio() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -24,6 +26,7 @@ export default function Portfolio() {
   const [managerId, setManagerId] = useState('')
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
+  const [hideValues, setHideValues] = useHideValuesPreference()
   const [removeProject, setRemoveProject] = useState<PortfolioProject | null>(
     null,
   )
@@ -62,10 +65,34 @@ export default function Portfolio() {
     </Badge>
   )
 
+  const headerActions = (
+    <div className='flex items-center gap-2'>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant='outline'
+            size='icon'
+            onClick={() => setHideValues(!hideValues)}
+          >
+            {hideValues ? (
+              <EyeOff className='h-4 w-4' />
+            ) : (
+              <Eye className='h-4 w-4' />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          {hideValues ? 'Mostrar valores' : 'Ocultar valores'}
+        </TooltipContent>
+      </Tooltip>
+      {scopeBadge}
+    </div>
+  )
+
   return (
     <AppLayout
       title='Portfólio de Projetos'
-      actions={scopeBadge}
+      actions={headerActions}
     >
       <div className='flex flex-col gap-4 h-[calc(100vh-10rem)]'>
         {isLoading ? (
@@ -80,7 +107,7 @@ export default function Portfolio() {
           </div>
         ) : (
           <>
-            <PortfolioKPIBar projects={projects || []} />
+            <PortfolioKPIBar projects={projects || []} hideValues={hideValues} />
 
             <div className='flex flex-wrap items-center gap-3'>
               <PortfolioFilters
@@ -129,11 +156,12 @@ export default function Portfolio() {
                 <PortfolioKanbanBoard
                   projects={projects || []}
                   onRemoveProject={isAdmin ? handleRemoveProject : undefined}
+                  hideValues={hideValues}
                 />
               </div>
             ) : (
               <div className='overflow-auto'>
-                <PortfolioTable projects={projects || []} />
+                <PortfolioTable projects={projects || []} hideValues={hideValues} />
               </div>
             )}
           </>
