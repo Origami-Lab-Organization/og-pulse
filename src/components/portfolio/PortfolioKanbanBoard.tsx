@@ -7,11 +7,10 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
+  pointerWithin,
 } from '@dnd-kit/core';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -19,36 +18,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PortfolioColumn } from './PortfolioColumn';
 import { PortfolioCard } from './PortfolioCard';
 import { PortfolioProject, useUpdatePortfolioStage } from '@/hooks/usePortfolioProjects';
-import { PORTFOLIO_COLUMNS, PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
+import { PORTFOLIO_COLUMNS, PortfolioStage } from '@/types/portfolio';
 import { useProjectPlanningReadiness } from '@/hooks/useProjectPlanningReadiness';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-
-const STAGE_ORDER: PortfolioStage[] = [
-  'planning',
-  'value_delivery',
-  'results_presentation',
-  'learning_case',
-  'completed',
-];
-
-interface RetroDialogState {
-  projectId: string;
-  targetStage: PortfolioStage;
-  projectName: string;
-  currentLabel: string;
-  targetLabel: string;
-}
+import { format } from 'date-fns';
 
 interface CompletionDialogState {
   projectId: string;
-  pendingCount: number;
-  totalCount: number;
+  projectName: string;
 }
 
 interface PortfolioKanbanBoardProps {
@@ -58,20 +42,14 @@ interface PortfolioKanbanBoardProps {
 
 export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKanbanBoardProps) {
   const [activeProject, setActiveProject] = useState<PortfolioProject | null>(null);
-  const [retroDialog, setRetroDialog] = useState<RetroDialogState | null>(null);
-  const [retroJustification, setRetroJustification] = useState('');
   const [completionDialog, setCompletionDialog] = useState<CompletionDialogState | null>(null);
+  const [completionDate, setCompletionDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
 
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
 
   const updateStage = useUpdatePortfolioStage();
-  const {
-    checkReadiness,
-    checkDeliveryToResultsReadiness,
-    checkResultsToLearningReadiness,
-    checkCompletionReadiness,
-  } = useProjectPlanningReadiness();
+  const { checkCompletionReadiness } = useProjectPlanningReadiness();
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -110,7 +88,14 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
     const { active, over } = event;
     setActiveProject(null);
 
-    if (!over) return;
+    if (!over) {
+      toast({
+        title: 'Movimento não realizado',
+        description: 'Solte o card sobre uma coluna do portfólio para mover o projeto.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const projectId = active.id as string;
     const project = projects.find((p) => p.id === projectId);
@@ -126,7 +111,16 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
       }
     }
 
-    if (!targetStage || targetStage === project.portfolio_stage) return;
+    if (!targetStage) {
+      toast({
+        title: 'Movimento não realizado',
+        description: 'Não foi possível identificar a coluna de destino.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (targetStage === project.portfolio_stage) return;
 
     // Projetos concluídos só podem ser movidos por admins
     if (project.portfolio_stage === 'completed' && !isAdmin) {
@@ -138,99 +132,46 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
       return;
     }
 
-    const currentIndex = STAGE_ORDER.indexOf(project.portfolio_stage as PortfolioStage);
-    const targetIndex = STAGE_ORDER.indexOf(targetStage);
-
-    // ── Retrocesso: abrir dialog de justificativa ─────────────────────
-    if (targetIndex < currentIndex) {
-      setRetroJustification('');
-      setRetroDialog({
+    if (targetStage === 'completed') {
+      setCompletionDate(format(new Date(), 'yyyy-MM-dd'));
+      setCompletionDialog({
         projectId,
-        targetStage,
         projectName: project.name,
-        currentLabel: PORTFOLIO_STAGE_LABELS[project.portfolio_stage as PortfolioStage],
-        targetLabel: PORTFOLIO_STAGE_LABELS[targetStage],
       });
       return;
     }
 
-    // ── Salto de mais de uma coluna: bloquear ─────────────────────────
-    if (targetIndex > currentIndex + 1) {
-      const nextStage = STAGE_ORDER[currentIndex + 1];
+    updateStage.mutate({ projectId, newStage: targetStage });
+  };
+
+  const confirmCompletion = async () => {
+    if (!completionDialog) return;
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    if (!completionDate || completionDate > today) {
       toast({
-        title: 'Movimento não permitido',
-        description: `O projeto deve passar por cada etapa sequencialmente. Mova para "${PORTFOLIO_STAGE_LABELS[nextStage]}" primeiro.`,
+        title: 'Data inválida',
+        description: 'Informe uma data real de conclusão até hoje.',
         variant: 'destructive',
       });
       return;
     }
 
-    // ── Avanço de uma coluna: validações específicas ──────────────────
-    const isVentures = project.service_line === 'ventures'
-      || project.service?.name?.toLowerCase().includes('ventures') === true;
-    await handleForwardTransition(projectId, project.name, project.portfolio_stage as PortfolioStage, targetStage, isVentures);
-  };
-
-  const handleForwardTransition = async (
-    projectId: string,
-    projectName: string,
-    from: PortfolioStage,
-    to: PortfolioStage,
-    isVentures = false
-  ) => {
-    if (from === 'planning' && to === 'value_delivery') {
-      const { ready, missing } = await checkReadiness(projectId, isVentures);
-      if (!ready) {
-        toast({
-          title: 'Projeto não pode ser movido',
-          description: `Itens pendentes: ${missing.join(', ')}`,
-          variant: 'destructive',
-        });
-        return;
-      }
+    const { ready, missing } = await checkCompletionReadiness(completionDialog.projectId);
+    if (!ready) {
+      toast({
+        title: 'Projeto não pode ser concluído',
+        description: `Itens pendentes: ${missing.join(', ')}`,
+        variant: 'destructive',
+      });
+      return;
     }
 
-    if (from === 'value_delivery' && to === 'results_presentation') {
-      const { ready, missing } = await checkDeliveryToResultsReadiness(projectId);
-      if (!ready) {
-        toast({
-          title: 'Projeto não pode ser movido',
-          description: `Itens pendentes: ${missing.join(', ')}`,
-          variant: 'destructive',
-        });
-        return;
-      }
-    }
-
-    if (from === 'results_presentation' && to === 'learning_case') {
-      await checkResultsToLearningReadiness(projectId);
-      // always passes — no validation required for now
-    }
-
-    if (from === 'learning_case' && to === 'completed') {
-      const { ready, pendingCount, totalCount } = await checkCompletionReadiness(projectId);
-      if (!ready) {
-        setCompletionDialog({ projectId, pendingCount, totalCount });
-        return;
-      }
-    }
-
-    updateStage.mutate({ projectId, newStage: to });
-  };
-
-  const confirmRetro = () => {
-    if (!retroDialog || retroJustification.trim().length < 10) return;
-    console.log(
-      `[Retrocesso] Projeto "${retroDialog.projectName}": ${retroDialog.currentLabel} → ${retroDialog.targetLabel}. Motivo: ${retroJustification.trim()}`
-    );
-    updateStage.mutate({ projectId: retroDialog.projectId, newStage: retroDialog.targetStage });
-    setRetroDialog(null);
-    setRetroJustification('');
-  };
-
-  const confirmCompletion = () => {
-    if (!completionDialog) return;
-    updateStage.mutate({ projectId: completionDialog.projectId, newStage: 'completed' });
+    updateStage.mutate({
+      projectId: completionDialog.projectId,
+      newStage: 'completed',
+      completedDate: completionDate,
+    });
     setCompletionDialog(null);
   };
 
@@ -238,7 +179,7 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
@@ -266,61 +207,32 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
         </DragOverlay>
       </DndContext>
 
-      {/* Retrocesso dialog */}
-      <AlertDialog open={retroDialog !== null} onOpenChange={(open) => { if (!open) setRetroDialog(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Retroceder projeto?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Você está movendo o projeto <strong>{retroDialog?.projectName}</strong> de{' '}
-              <strong>{retroDialog?.currentLabel}</strong> para{' '}
-              <strong>{retroDialog?.targetLabel}</strong>. Isso indica que o projeto precisa
-              retornar a uma etapa anterior.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="space-y-2 py-2">
-            <Label htmlFor="retro-justification">Informe o motivo do retrocesso:</Label>
-            <Textarea
-              id="retro-justification"
-              placeholder="Descreva o motivo..."
-              value={retroJustification}
-              onChange={(e) => setRetroJustification(e.target.value)}
-              rows={3}
-            />
-            {retroJustification.length > 0 && retroJustification.trim().length < 10 && (
-              <p className="text-xs text-destructive">Mínimo de 10 caracteres.</p>
-            )}
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setRetroDialog(null); setRetroJustification(''); }}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={retroJustification.trim().length < 10}
-              onClick={confirmRetro}
-            >
-              Confirmar retrocesso
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Conclusão com parcelas pendentes */}
+      {/* Conclusão */}
       <AlertDialog open={completionDialog !== null} onOpenChange={(open) => { if (!open) setCompletionDialog(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Parcelas pendentes</AlertDialogTitle>
+            <AlertDialogTitle>Concluir projeto?</AlertDialogTitle>
             <AlertDialogDescription>
-              Existem <strong>{completionDialog?.pendingCount}</strong> parcela(s) pendente(s) de
-              recebimento. Deseja concluir o projeto mesmo assim?
+              Informe a data real de conclusão de <strong>{completionDialog?.projectName}</strong>.
+              O projeto só será concluído se todas as etapas do cronograma estiverem concluídas e
+              todos os pagamentos aplicáveis estiverem recebidos.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="completion-date">Data real de conclusão</Label>
+            <Input
+              id="completion-date"
+              type="date"
+              max={format(new Date(), 'yyyy-MM-dd')}
+              value={completionDate}
+              onChange={(event) => setCompletionDate(event.target.value)}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setCompletionDialog(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCompletion}>Concluir mesmo assim</AlertDialogAction>
+            <Button onClick={confirmCompletion} disabled={updateStage.isPending}>
+              {updateStage.isPending ? 'Concluindo...' : 'Concluir projeto'}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

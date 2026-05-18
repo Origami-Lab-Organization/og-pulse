@@ -27,6 +27,7 @@ export interface ProjectDB {
   description: string | null;
   start_date: string;
   end_date: string | null;
+  completed_date: string | null;
   is_continuous: boolean;
   total_value: number;
   payment_method: string;

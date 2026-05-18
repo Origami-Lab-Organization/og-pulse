@@ -10,6 +10,7 @@ export interface PortfolioProject {
   total_value: number;
   start_date: string;
   end_date: string | null;
+  completed_date?: string | null;
   is_continuous: boolean;
   portfolio_stage: PortfolioStage;
   lead_id: string | null;
@@ -150,10 +151,19 @@ export const useUpdatePortfolioStage = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ projectId, newStage }: { projectId: string; newStage: PortfolioStage }) => {
+    mutationFn: async ({
+      projectId,
+      newStage,
+      completedDate,
+    }: {
+      projectId: string;
+      newStage: PortfolioStage;
+      completedDate?: string;
+    }) => {
       const updateData: Record<string, unknown> = { portfolio_stage: newStage };
       if (newStage === 'completed') {
         updateData.status = 'completed';
+        updateData.completed_date = completedDate;
       }
       const { data, error } = await supabase
         .from('projects')
