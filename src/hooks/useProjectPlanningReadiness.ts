@@ -104,36 +104,55 @@ export function useProjectPlanningReadiness() {
     return { ready: true, missing: [] };
   };
 
-  // learning_case → completed — returns pending installment count alongside readiness
+  // any stage → completed
   const checkCompletionReadiness = async (
     projectId: string
   ): Promise<
-    ReadinessResult & { pendingCount: number; totalCount: number }
+    ReadinessResult & {
+      pendingInstallmentsCount: number;
+      totalInstallmentsCount: number;
+      pendingMilestonesCount: number;
+      totalMilestonesCount: number;
+    }
   > => {
-    const { data: installments } = await supabase
-      .from("project_installments")
-      .select("id, status")
-      .eq("project_id", projectId);
+    const [milestonesRes, installmentsRes] = await Promise.all([
+      supabase
+        .from("project_milestones")
+        .select("id, status")
+        .eq("project_id", projectId),
+      supabase
+        .from("project_installments")
+        .select("id, status")
+        .eq("project_id", projectId)
+    ]);
 
-    const all = installments || [];
-    const pending = all.filter((i: any) => i.status !== "received");
+    const milestones = milestonesRes.data || [];
+    const pendingMilestones = milestones.filter((m: any) => m.status !== "completed");
+    const installments = installmentsRes.data || [];
+    const pendingInstallments = installments.filter((i: any) => i.status !== "received");
+    const missing: string[] = [];
 
-    if (pending.length === 0) {
-      return {
-        ready: true,
-        missing: [],
-        pendingCount: 0,
-        totalCount: all.length
-      };
+    if (milestones.length === 0) {
+      missing.push("Cronograma cadastrado");
+    } else if (pendingMilestones.length > 0) {
+      missing.push(
+        `Todas as etapas do cronograma concluídas (${pendingMilestones.length} de ${milestones.length} pendentes)`
+      );
+    }
+
+    if (pendingInstallments.length > 0) {
+      missing.push(
+        `Todos os pagamentos recebidos (${pendingInstallments.length} de ${installments.length} pendentes)`
+      );
     }
 
     return {
-      ready: false,
-      missing: [
-        `Todas as parcelas recebidas (${pending.length} de ${all.length} pendentes)`
-      ],
-      pendingCount: pending.length,
-      totalCount: all.length
+      ready: missing.length === 0,
+      missing,
+      pendingInstallmentsCount: pendingInstallments.length,
+      totalInstallmentsCount: installments.length,
+      pendingMilestonesCount: pendingMilestones.length,
+      totalMilestonesCount: milestones.length
     };
   };
 

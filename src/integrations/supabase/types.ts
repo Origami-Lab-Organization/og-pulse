@@ -3813,6 +3813,7 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           client_id: string
+          completed_date: string | null
           contract_url: string | null
           created_at: string
           description: string | null
@@ -3845,6 +3846,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           client_id: string
+          completed_date?: string | null
           contract_url?: string | null
           created_at?: string
           description?: string | null
@@ -3877,6 +3879,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           client_id?: string
+          completed_date?: string | null
           contract_url?: string | null
           created_at?: string
           description?: string | null
