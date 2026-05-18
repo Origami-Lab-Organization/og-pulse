@@ -146,6 +146,7 @@ interface ProjectScope {
   managerName: string;
   teamKey: string;
   teamLabel: string;
+  portfolioStage: string | null;
 }
 
 interface RawRow {
@@ -168,6 +169,7 @@ interface QueryProjectMember {
 interface QueryProject {
   id: string; name: string; start_date: string; duration_months: number | null;
   is_continuous: boolean | null; manager_id: string; service_line: string | null;
+  portfolio_stage: string | null;
   manager: QueryManager | null; project_members: QueryProjectMember[] | null;
 }
 interface MemberMonthRow { project_member_id: string; month_number: number; hours: number; }
@@ -378,14 +380,14 @@ export function AllocationOverview({
 
   /* ─── Data Query (unchanged logic) ─── */
   const { data, isLoading } = useQuery({
-    queryKey: ['allocation-overview-planner', tenantId, isAdmin, currentEmployeeId, selectedYear],
+    queryKey: ['allocation-planner-v2', tenantId, isAdmin, currentEmployeeId, selectedYear],
     queryFn: async () => {
       if (!tenantId) throw new Error('No tenant');
 
       let projectsQuery = supabase
         .from('projects')
         .select(`
-          id, name, start_date, duration_months, is_continuous, manager_id, service_line,
+          id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage,
           manager:employees!projects_manager_id_fkey(id, nome),
           project_members (
             id, employee_id, role, seniority,
@@ -395,9 +397,7 @@ export function AllocationOverview({
             )
           )
         `)
-        .eq('tenant_id', tenantId)
-        .or('status.eq.active,portfolio_stage.neq.planning')
-        .neq('portfolio_stage', 'completed');
+        .eq('tenant_id', tenantId);
 
       if (!isAdmin && currentEmployeeId) {
         projectsQuery = projectsQuery.eq('manager_id', currentEmployeeId);
@@ -437,6 +437,7 @@ export function AllocationOverview({
           managerName: p.manager?.nome || 'Sem gerente',
           teamKey: sl.key,
           teamLabel: sl.label,
+          portfolioStage: p.portfolio_stage,
         };
       });
 
@@ -460,12 +461,51 @@ export function AllocationOverview({
         return { projects: scopedProjects, rows: [] as RawRow[], options };
       }
 
+      // Busca TODOS os project_members dos colaboradores — sem filtro de projeto — para
+      // garantir que timesheets de projetos em qualquer estágio (incluindo concluídos) sejam incluídos.
+      const { data: allProjectMembersData } = employeeIds.length > 0
+        ? await supabase.from('project_members').select('id, employee_id, project_id').in('employee_id', employeeIds)
+        : { data: [] };
+
+      const memberToInfo = new Map<string, { employeeId: string; projectId: string }>();
+      (allProjectMembersData || []).forEach((m: any) => {
+        if (m.employee_id) memberToInfo.set(m.id, { employeeId: m.employee_id, projectId: m.project_id });
+      });
+
+      // Derive all unique project IDs from the full member list (for direct project_id timesheet query)
+      const allProjectIds = [...new Set(
+        (allProjectMembersData || []).map((m: any) => m.project_id as string).filter(Boolean)
+      )];
+
+      // Extend projectById with any projects not already in the map (e.g. projects managed by others)
+      const missingProjectIds = allProjectIds.filter(pid => !projectById.has(pid));
+      if (missingProjectIds.length > 0) {
+        const { data: extraProjects } = await supabase
+          .from('projects')
+          .select('id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage')
+          .in('id', missingProjectIds);
+        (extraProjects || []).forEach((p: any) => {
+          if (!projectById.has(p.id)) {
+            projectById.set(p.id, {
+              id: p.id, name: p.name, startDate: p.start_date,
+              durationMonths: Number(p.duration_months) || 1,
+              isContinuous: Boolean(p.is_continuous),
+              managerId: p.manager_id, managerName: '',
+              teamKey: '__extra__', teamLabel: 'Outros projetos',
+              portfolioStage: p.portfolio_stage,
+            });
+          }
+        });
+      }
+
       const startDate = `${selectedYear}-01-01`;
       const endDate = `${selectedYear}-12-31`;
 
       const [memberMonthsRes, timesheetsRes, activityTypesRes] = await Promise.all([
         supabase.from('project_member_months').select('project_member_id, month_number, hours').in('project_member_id', memberIds),
-        supabase.from('project_timesheets').select('project_member_id, work_date, hours').in('project_member_id', memberIds).gte('work_date', startDate).lte('work_date', endDate),
+        allProjectIds.length > 0
+          ? supabase.from('project_timesheets').select('project_member_id, work_date, hours').in('project_id', allProjectIds).gte('work_date', startDate).lte('work_date', endDate)
+          : Promise.resolve({ data: [] as TimesheetRow[], error: null }),
         supabase.from('activity_types').select('id, name, applies_to_all, activity_type_employees(employee_id)').eq('tenant_id', tenantId).eq('is_active', true).order('name'),
       ]);
 
@@ -545,12 +585,12 @@ export function AllocationOverview({
       });
 
       timesheets.forEach((entry) => {
-        const meta = memberMetaById.get(entry.project_member_id);
-        if (!meta) return;
-        const project = projectById.get(meta.projectId);
-        if (!project) return;
-        const row = rowMap.get(meta.employeeId);
+        const info = memberToInfo.get(entry.project_member_id);
+        if (!info) return;
+        const row = rowMap.get(info.employeeId);
         if (!row) return;
+        const project = projectById.get(info.projectId);
+        if (!project) return;
         const month = Number(entry.work_date.substring(5, 7));
         if (month < 1 || month > 12) return;
         ensureProjectHours(row, project, entry.project_member_id).actualByMonth[month - 1] += Number(entry.hours) || 0;
@@ -601,6 +641,7 @@ export function AllocationOverview({
 
   const scopedProjects = useMemo(() => {
     return (data?.projects || []).filter((p) => {
+      if (p.portfolioStage === 'completed' || p.portfolioStage === 'planning') return false;
       if (filters.teamId !== 'all' && p.teamKey !== filters.teamId) return false;
       if (filters.managerId !== 'all' && p.managerId !== filters.managerId) return false;
       return true;
@@ -623,13 +664,20 @@ export function AllocationOverview({
       );
     }
 
+    const useProjectFilter = filters.projectId !== 'all';
     const builtRows = sourceRows.map((raw): AllocationPlannerRow => {
       const monthTotals: MonthTotal[] = MONTH_COLUMNS.map(({ month }) => {
         const cap = calculateMonthlyCapacity(toMonthKey(selectedYear, month), raw.employee.jornadaDiaria, holidays);
-        const planned = projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.plannedByMonth[month - 1] || 0), 0)
-          + Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.plannedByMonth[month - 1] || 0), 0);
-        const actual = projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.actualByMonth[month - 1] || 0), 0)
-          + Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.actualByMonth[month - 1] || 0), 0);
+        const activityPlanned = Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.plannedByMonth[month - 1] || 0), 0);
+        const activityActual = Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.actualByMonth[month - 1] || 0), 0);
+        const planned = (useProjectFilter
+          ? projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.plannedByMonth[month - 1] || 0), 0)
+          : Object.values(raw.projectsById).reduce((s, p) => s + (p.plannedByMonth[month - 1] || 0), 0)
+        ) + activityPlanned;
+        const actual = (useProjectFilter
+          ? projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.actualByMonth[month - 1] || 0), 0)
+          : Object.values(raw.projectsById).reduce((s, p) => s + (p.actualByMonth[month - 1] || 0), 0)
+        ) + activityActual;
         return { monthKey: toMonthKey(selectedYear, month), month, planned, actual, capacityHours: cap };
       });
 
@@ -860,7 +908,7 @@ export function AllocationOverview({
         }
 
         if (persisted > 0) {
-          await queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
+          await queryClient.invalidateQueries({ queryKey: ['allocation-planner-v2'] });
           toast({ title: 'Alocação atualizada', description: `${persisted} célula(s) salva(s) para ${expandedRow.employeeName}.` });
         } else {
           toast({ title: 'Sem alterações', description: 'Não houve mudanças para salvar.' });
