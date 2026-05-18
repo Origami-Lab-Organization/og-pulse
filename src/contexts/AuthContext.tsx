@@ -109,6 +109,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(session?.user ?? null);
 
+        // USER_UPDATED fires when updateUser() is called (e.g. password change).
+        // updatePassword() already handles the employee state refresh after updating
+        // must_change_password in the DB, so re-fetching here would create a race
+        // condition that overwrites the correct state with a stale value.
+        if (event === 'USER_UPDATED') {
+          setLoading(false);
+          return;
+        }
+
         if (session?.user) {
           // Use setTimeout to avoid potential race conditions
           setTimeout(async () => {
@@ -206,22 +215,37 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       password: newPassword,
     });
 
-    if (!error && employee) {
-      // Update must_change_password to false and set status to 'ativo'
-      await supabase
-        .from('employees')
-        .update({ 
-          must_change_password: false,
-          status: 'ativo'
-        })
-        .eq('id', employee.id);
-
-      // Refresh employee data
-      const updatedEmployee = await fetchEmployeeData(user!.id);
-      setEmployee(updatedEmployee);
+    if (error) {
+      return { error: error as Error | null };
     }
 
-    return { error: error as Error | null };
+    // Clear must_change_password and activate the employee via a SECURITY
+    // DEFINER RPC. A direct UPDATE from the client fails because the
+    // prevent_employee_self_escalation trigger blocks status changes by
+    // the user themselves — which silently kept must_change_password=true
+    // and trapped the user on /change-password.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: rpcError } = await (supabase.rpc as any)('complete_password_change');
+    if (rpcError) {
+      console.error('Error finalizing password change:', rpcError);
+      return { error: rpcError as Error | null };
+    }
+
+    // Optimistically update local state so ProtectedRoute does not
+    // redirect back to /change-password before the next fetch resolves.
+    if (employee) {
+      setEmployee({ ...employee, must_change_password: false });
+    }
+
+    // Refresh from the DB to keep state authoritative.
+    if (user) {
+      const updatedEmployee = await fetchEmployeeData(user.id);
+      if (updatedEmployee) {
+        setEmployee(updatedEmployee);
+      }
+    }
+
+    return { error: null };
   };
 
   return (

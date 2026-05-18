@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 interface Stakeholder {
   name: string;
   role: string;
-  company: string;
-  type: string;
+  organization: string | null;
+  jobTitle: string | null;
   email: string | null;
   phone: string | null;
 }
@@ -125,13 +125,13 @@ export function MyProjectStakeholdersTab({ stakeholders }: MyProjectStakeholders
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <p className="text-sm font-medium leading-snug">{s.name}</p>
-                  <TypeBadge type={s.type} />
+                  {s.jobTitle && <TypeBadge type={s.jobTitle} />}
                 </div>
 
                 <p className="text-xs text-muted-foreground truncate">{s.role}</p>
 
-                {s.company && (
-                  <p className="text-xs text-muted-foreground font-medium truncate">{s.company}</p>
+                {s.organization && (
+                  <p className="text-xs text-muted-foreground font-medium truncate">{s.organization}</p>
                 )}
 
                 {(s.email || s.phone) && (

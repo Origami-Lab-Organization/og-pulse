@@ -392,7 +392,7 @@ export function InitiativesKanban({
     const currentByStatus = byStatusRef.current;
 
     const columnContainers = args.droppableContainers.filter(
-      dc => COLUMN_IDS.has(dc.id as string),
+      dc => COLUMN_IDS.has(dc.id as InitiativeStatus),
     );
     const columnCollisions = pointerWithin({ ...args, droppableContainers: columnContainers });
 
@@ -402,7 +402,7 @@ export function InitiativesKanban({
 
     const cardsInColumn = args.droppableContainers.filter(
       dc =>
-        !COLUMN_IDS.has(dc.id as string) &&
+        !COLUMN_IDS.has(dc.id as InitiativeStatus) &&
         currentByStatus[targetColumnId]?.some(i => i.id === dc.id),
     );
 

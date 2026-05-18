@@ -14,9 +14,10 @@ import { Button } from '@/components/ui/button';
 interface PortfolioCardProps {
   project: PortfolioProject;
   onRemove?: (project: PortfolioProject) => void;
+  hideValues?: boolean;
 }
 
-export function PortfolioCard({ project, onRemove }: PortfolioCardProps) {
+export function PortfolioCard({ project, onRemove, hideValues }: PortfolioCardProps) {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
@@ -147,21 +148,23 @@ export function PortfolioCard({ project, onRemove }: PortfolioCardProps) {
               <div className="cursor-default">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Recebimento</span>
                 <div className="flex items-center justify-between text-xs mb-1.5 mt-0.5">
-                  <span className="font-medium text-foreground">{formatCurrency(totalValue)}</span>
-                  <span className="text-muted-foreground">{progressPercent}%</span>
+                  <span className="font-medium text-foreground">{hideValues ? '•••••' : formatCurrency(totalValue)}</span>
+                  <span className="text-muted-foreground">{hideValues ? '•••' : `${progressPercent}%`}</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all duration-300"
-                    style={{ width: `${progressPercent}%` }}
-                  />
+                  {!hideValues && (
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  )}
                 </div>
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs space-y-0.5">
-              <p>Valor projetado: {formatCurrency(totalValue)}</p>
-              <p>Valor recebido: {formatCurrency(receivedValue)}</p>
-              <p>Percentual: {progressPercent}%</p>
+              <p>Valor projetado: {hideValues ? '•••••' : formatCurrency(totalValue)}</p>
+              <p>Valor recebido: {hideValues ? '•••••' : formatCurrency(receivedValue)}</p>
+              <p>Percentual: {hideValues ? '•••' : `${progressPercent}%`}</p>
             </TooltipContent>
           </Tooltip>
         )}

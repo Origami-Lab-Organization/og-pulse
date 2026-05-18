@@ -8,6 +8,7 @@ interface RichTextAreaProps {
   placeholder?: string;
   minHeight?: string;
   error?: boolean;
+  disabled?: boolean;
 }
 
 export function RichTextArea({
@@ -16,6 +17,7 @@ export function RichTextArea({
   placeholder,
   minHeight = '120px',
   error,
+  disabled = false,
 }: RichTextAreaProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastValueRef = useRef<string>(value || '');
@@ -65,38 +67,50 @@ export function RichTextArea({
       .trim();
 
   return (
-    <div className={cn('rounded-md border overflow-hidden', error && 'border-destructive')}>
+    <div
+      className={cn(
+        'rounded-md border overflow-hidden',
+        error && 'border-destructive',
+        disabled && 'opacity-60'
+      )}
+    >
       {/* Toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b bg-muted/30">
         <button
           type="button"
+          disabled={disabled}
           onMouseDown={(e) => {
             e.preventDefault();
+            if (disabled) return;
             execCommand('bold');
           }}
-          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-muted-foreground disabled:hover:bg-transparent"
           title="Negrito (Ctrl+B)"
         >
           <Bold className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
+          disabled={disabled}
           onMouseDown={(e) => {
             e.preventDefault();
+            if (disabled) return;
             execCommand('italic');
           }}
-          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-muted-foreground disabled:hover:bg-transparent"
           title="Itálico (Ctrl+I)"
         >
           <Italic className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
+          disabled={disabled}
           onMouseDown={(e) => {
             e.preventDefault();
+            if (disabled) return;
             execCommand('insertUnorderedList');
           }}
-          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-muted-foreground disabled:hover:bg-transparent"
           title="Lista com marcadores"
         >
           <List className="h-3.5 w-3.5" />
@@ -112,7 +126,7 @@ export function RichTextArea({
         )}
         <div
           ref={editorRef}
-          contentEditable
+          contentEditable={!disabled}
           suppressContentEditableWarning
           onInput={handleInput}
           style={{ minHeight }}

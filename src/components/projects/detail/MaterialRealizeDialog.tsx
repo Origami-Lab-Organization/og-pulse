@@ -12,7 +12,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ProjectMaterialDB } from '@/types/project';
-import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
+import { getProjectMonthLabel } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useUpdateProjectMaterial } from '@/hooks/useProjectCosts';
 
 interface MaterialRealizeDialogProps {
@@ -30,6 +31,7 @@ export function MaterialRealizeDialog({
   projectId,
   projectStartDate,
 }: MaterialRealizeDialogProps) {
+  const formatCurrency = useMaskedCurrency();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
 

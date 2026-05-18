@@ -20,8 +20,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { RichTextArea } from '@/components/job-openings/RichTextArea';
 import {
   Select,
   SelectContent,
@@ -87,7 +87,10 @@ export function ActivityCardFormDrawer({
     },
   });
 
-  const members = project.members ?? [];
+  const assigneeOptions = (project.members ?? [])
+    .filter((m) => !!m.employee?.nome)
+    .map((m) => ({ id: m.employee_id, nome: m.employee!.nome }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
   const handleSubmit = (values: FormValues) => {
     onSubmit({
@@ -171,7 +174,7 @@ export function ActivityCardFormDrawer({
                 />
 
                 {/* Responsável */}
-                {members.length > 0 && (
+                {assigneeOptions.length > 0 && (
                   <FormField
                     control={form.control}
                     name="assigneeId"
@@ -185,9 +188,9 @@ export function ActivityCardFormDrawer({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {members.map((m) => (
-                              <SelectItem key={m.employee_id} value={m.employee_id}>
-                                {m.employee?.nome ?? m.employee_id}
+                            {assigneeOptions.map((e) => (
+                              <SelectItem key={e.id} value={e.id}>
+                                {e.nome}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -224,17 +227,16 @@ export function ActivityCardFormDrawer({
                 <FormField
                   control={form.control}
                   name="userStory"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem>
                       <FormLabel>User Story</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Como [ator], quero [ação] para [benefício]..."
-                          rows={3}
-                          className="text-sm resize-none"
-                          {...field}
-                        />
-                      </FormControl>
+                      <RichTextArea
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        placeholder="Como [ator], quero [ação] para [benefício]..."
+                        minHeight="180px"
+                        error={!!fieldState.error}
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -244,17 +246,16 @@ export function ActivityCardFormDrawer({
                 <FormField
                   control={form.control}
                   name="acceptanceCriteria"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem>
                       <FormLabel>Critérios de Aceitação</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Dado que... quando... então..."
-                          rows={3}
-                          className="text-sm resize-none"
-                          {...field}
-                        />
-                      </FormControl>
+                      <RichTextArea
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        placeholder="Dado que... quando... então..."
+                        minHeight="180px"
+                        error={!!fieldState.error}
+                      />
                       <FormMessage />
                     </FormItem>
                   )}

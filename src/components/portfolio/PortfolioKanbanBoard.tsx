@@ -38,9 +38,10 @@ interface CompletionDialogState {
 interface PortfolioKanbanBoardProps {
   projects: PortfolioProject[];
   onRemoveProject?: (project: PortfolioProject) => void;
+  hideValues?: boolean;
 }
 
-export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKanbanBoardProps) {
+export function PortfolioKanbanBoard({ projects, onRemoveProject, hideValues }: PortfolioKanbanBoardProps) {
   const [activeProject, setActiveProject] = useState<PortfolioProject | null>(null);
   const [completionDialog, setCompletionDialog] = useState<CompletionDialogState | null>(null);
   const [completionDate, setCompletionDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -193,6 +194,7 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
                 color={column.color}
                 projects={projectsByStage[column.id]}
                 onRemoveProject={onRemoveProject}
+                hideValues={hideValues}
               />
             ))}
           </div>
@@ -201,7 +203,7 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject }: PortfolioKan
         <DragOverlay>
           {activeProject ? (
             <div className="rotate-3 scale-105">
-              <PortfolioCard project={activeProject} />
+              <PortfolioCard project={activeProject} hideValues={hideValues} />
             </div>
           ) : null}
         </DragOverlay>

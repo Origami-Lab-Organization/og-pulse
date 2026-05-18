@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Check, Clock, Pencil, Percent, Plus, ShieldCheck, X } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ProjectInstallmentDB, INSTALLMENT_STATUS_LABELS } from '@/types/project';
@@ -47,6 +47,7 @@ export function ProjectCommissionsSection({
   isAdmin = false,
   employeeId,
 }: ProjectCommissionsSectionProps) {
+  const formatCurrency = useMaskedCurrency();
   const updateCommission = useUpdateCommission();
   const generateCommissions = useGenerateCommissions();
   const createManualCommission = useCreateManualCommission();

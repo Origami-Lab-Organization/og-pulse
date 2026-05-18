@@ -25,10 +25,10 @@ export function useActivityPermissions(project: ProjectWithRelations) {
   // isEmployee: member with no elevated role on this project
   const isEmployee = isMember && !isAdmin && !isPM;
 
-  const canCreateCard      = isAdmin || isPM;
+  const canCreateCard      = isAdmin || isPM || isMember;
   const canAccessSettings  = isAdmin || isPM;
-  const canMoveToProductBacklog = isAdmin || isPM;
-  const canMoveFromDone         = isAdmin || isPM;
+  const canMoveToProductBacklog = isAdmin || isPM || isMember;
+  const canMoveFromDone         = isAdmin || isPM || isMember;
 
   return {
     isAdmin,

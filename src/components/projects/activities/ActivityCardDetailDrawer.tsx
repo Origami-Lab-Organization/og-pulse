@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { checklistService } from '@/services/checklistService';
-import { ChevronLeft, ChevronRight, Tag, Clock, BookOpen, Bug, Wrench, CheckSquare, MoreHorizontal, Archive } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Tag, Clock, BookOpen, Bug, Wrench, CheckSquare, MoreHorizontal, Archive, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -24,11 +24,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextArea } from '@/components/job-openings/RichTextArea';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -52,6 +53,7 @@ import {
 } from '@/types/projectActivity';
 import { ProjectWithRelations } from '@/types/project';
 import { useUpdateActivityCard, useArchiveCard, PreviousCardValues } from '@/hooks/useActivityCards';
+import { useDeleteActivity } from '@/hooks/useProjectActivities';
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
 import { useActivitySprints } from '@/hooks/useActivitySprints';
 import { useProjectReleases } from '@/hooks/useProjectReleases';
@@ -89,16 +91,6 @@ function getCardCode(projectName: string, cardNumber: number | null): string {
   return `${prefix}-${cardNumber}`;
 }
 
-// ── useDebounce ─────────────────────────────────────────────────────────────
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState<T>(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
-
 // ── Section wrapper ──────────────────────────────────────────────────────────
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -133,12 +125,16 @@ export function ActivityCardDetailDrawer({
   const queryClient = useQueryClient();
   const updateCard = useUpdateActivityCard();
   const archiveCard = useArchiveCard();
+  const deleteCard = useDeleteActivity();
   const { isAdmin, canMoveFromDone, canAccessSettings } = useActivityPermissions(project);
   const { data: sprints = [] } = useActivitySprints(project.id);
   const plannedSprints = sprints.filter((s) => s.status === 'planned');
   const { data: releases = [] } = useProjectReleases(project.id);
   const activeReleases = releases.filter((r) => r.status !== 'released');
-  const members = project.members ?? [];
+  const assigneeOptions = (project.members ?? [])
+    .filter((m) => !!m.employee?.nome)
+    .map((m) => ({ id: m.employee_id, nome: m.employee!.nome }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   const isCardDone = card.column_name === 'done';
   const isFirst = card.column_name === 'product_backlog';
   const disabled = isReadOnly || isCardDone;
@@ -146,25 +142,55 @@ export function ActivityCardDetailDrawer({
 
   // Archive permission: admin always; PM only when card is not in done
   const canArchive = isAdmin || (canAccessSettings && !isCardDone);
+  // Delete permission: anyone with edit access (admin always, even when done)
+  const canDelete = !isReadOnly && (isAdmin || !isCardDone);
 
   // ── Local state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(card.title);
+  const [cardType, setCardType] = useState<ActivityCardType>(card.card_type);
+  const [points, setPoints] = useState<number | null>(card.points);
+  const [assigneeId, setAssigneeId] = useState<string | null>(card.assignee_id);
+  const [releaseId, setReleaseId] = useState<string | null>(card.release_id);
+  const [targetSprintId, setTargetSprintId] = useState<string | null>(card.target_sprint_id);
   const [userStory, setUserStory] = useState(card.user_story ?? '');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState(card.acceptance_criteria ?? '');
+  const [isBlocked, setIsBlocked] = useState(card.is_blocked);
+  const [blockedReason, setBlockedReason] = useState(card.blocked_reason ?? '');
+  const [blockedError, setBlockedError] = useState('');
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'detalhes' | 'tarefas' | 'qualidade' | 'historico'>('detalhes');
 
-  // Re-initialize when a different card is opened
+  // Re-initialize when a different card is opened OR when the underlying card data refreshes
   const prevCardIdRef = useRef<string>('');
   useEffect(() => {
-    if (card.id !== prevCardIdRef.current) {
-      prevCardIdRef.current = card.id;
-      setTitle(card.title);
-      setUserStory(card.user_story ?? '');
-      setAcceptanceCriteria(card.acceptance_criteria ?? '');
-      setActiveTab('detalhes');
-    }
-  }, [card.id, card.title, card.user_story, card.acceptance_criteria]);
+    const isNewCard = card.id !== prevCardIdRef.current;
+    prevCardIdRef.current = card.id;
+    setTitle(card.title);
+    setCardType(card.card_type);
+    setPoints(card.points);
+    setAssigneeId(card.assignee_id);
+    setReleaseId(card.release_id);
+    setTargetSprintId(card.target_sprint_id);
+    setUserStory(card.user_story ?? '');
+    setAcceptanceCriteria(card.acceptance_criteria ?? '');
+    setIsBlocked(card.is_blocked);
+    setBlockedReason(card.blocked_reason ?? '');
+    setBlockedError('');
+    if (isNewCard) setActiveTab('detalhes');
+  }, [
+    card.id,
+    card.title,
+    card.card_type,
+    card.points,
+    card.assignee_id,
+    card.release_id,
+    card.target_sprint_id,
+    card.user_story,
+    card.acceptance_criteria,
+    card.is_blocked,
+    card.blocked_reason,
+  ]);
 
   // ── Ensure checklist is up-to-date with project templates ────────────────────
   useEffect(() => {
@@ -179,11 +205,6 @@ export function ActivityCardDetailDrawer({
       })
       .catch(() => {});
   }, [open, card.id]);
-
-  // ── Debounced values ────────────────────────────────────────────────────────
-  const debouncedTitle = useDebounce(title, 1000);
-  const debouncedUserStory = useDebounce(userStory, 1000);
-  const debouncedAcceptanceCriteria = useDebounce(acceptanceCriteria, 1000);
 
   // ── Save helper ─────────────────────────────────────────────────────────────
   const previousCard = (): PreviousCardValues => ({
@@ -221,22 +242,46 @@ export function ActivityCardDetailDrawer({
 
   const save = saveFields;
 
-  // ── Auto-save effects ────────────────────────────────────────────────────────
-  const mountedRef = useRef(false);
-  useEffect(() => {
-    if (!mountedRef.current) { mountedRef.current = true; return; }
-    if (debouncedTitle !== card.title) save({ title: debouncedTitle });
-  }, [debouncedTitle]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Dirty detection + explicit save ──────────────────────────────────────────
+  const trimmedTitle = title.trim();
+  const userStoryOrNull = userStory.trim() ? userStory : null;
+  const acceptanceCriteriaOrNull = acceptanceCriteria.trim() ? acceptanceCriteria : null;
+  const trimmedBlockedReason = blockedReason.trim();
+  const blockedReasonForSave = isBlocked ? trimmedBlockedReason : null;
 
-  useEffect(() => {
-    const val = debouncedUserStory || null;
-    if (val !== (card.user_story ?? null)) save({ userStory: debouncedUserStory });
-  }, [debouncedUserStory]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isDirty =
+    trimmedTitle !== card.title.trim() ||
+    cardType !== card.card_type ||
+    (points ?? null) !== (card.points ?? null) ||
+    (assigneeId ?? null) !== (card.assignee_id ?? null) ||
+    (releaseId ?? null) !== (card.release_id ?? null) ||
+    (targetSprintId ?? null) !== (card.target_sprint_id ?? null) ||
+    userStoryOrNull !== (card.user_story ?? null) ||
+    acceptanceCriteriaOrNull !== (card.acceptance_criteria ?? null) ||
+    isBlocked !== card.is_blocked ||
+    blockedReasonForSave !== (card.blocked_reason ?? null);
 
-  useEffect(() => {
-    const val = debouncedAcceptanceCriteria || null;
-    if (val !== (card.acceptance_criteria ?? null)) save({ acceptanceCriteria: debouncedAcceptanceCriteria });
-  }, [debouncedAcceptanceCriteria]); // eslint-disable-line react-hooks/exhaustive-deps
+  const blockedIncomplete = isBlocked && !trimmedBlockedReason;
+
+  const handleSave = () => {
+    if (disabled || !isDirty || !trimmedTitle) return;
+    if (blockedIncomplete) {
+      setBlockedError('Descreva o impedimento para salvar.');
+      return;
+    }
+    const updates: Parameters<typeof updateCard.mutate>[0]['updates'] = {};
+    if (trimmedTitle !== card.title) updates.title = trimmedTitle;
+    if (cardType !== card.card_type) updates.cardType = cardType;
+    if ((points ?? null) !== (card.points ?? null)) updates.points = points ?? undefined;
+    if ((assigneeId ?? null) !== (card.assignee_id ?? null)) updates.assigneeId = assigneeId;
+    if ((releaseId ?? null) !== (card.release_id ?? null)) updates.releaseId = releaseId;
+    if ((targetSprintId ?? null) !== (card.target_sprint_id ?? null)) updates.targetSprintId = targetSprintId;
+    if (userStoryOrNull !== (card.user_story ?? null)) updates.userStory = userStoryOrNull ?? '';
+    if (acceptanceCriteriaOrNull !== (card.acceptance_criteria ?? null)) updates.acceptanceCriteria = acceptanceCriteriaOrNull ?? '';
+    if (isBlocked !== card.is_blocked) updates.isBlocked = isBlocked;
+    if (blockedReasonForSave !== (card.blocked_reason ?? null)) updates.blockedReason = blockedReasonForSave;
+    save(updates);
+  };
 
   // ── Column navigation ────────────────────────────────────────────────────────
   const colIndex = ACTIVITY_COLUMNS.indexOf(card.column_name);
@@ -329,7 +374,7 @@ export function ActivityCardDetailDrawer({
                 <ChevronRight className="h-4 w-4" />
               </Button>
 
-              {canArchive && (
+              {(canArchive || canDelete) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -337,13 +382,25 @@ export function ActivityCardDetailDrawer({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive gap-2"
-                      onSelect={() => setArchiveDialogOpen(true)}
-                    >
-                      <Archive className="h-4 w-4" />
-                      Arquivar card
-                    </DropdownMenuItem>
+                    {canArchive && (
+                      <DropdownMenuItem
+                        className="gap-2"
+                        onSelect={() => setArchiveDialogOpen(true)}
+                      >
+                        <Archive className="h-4 w-4" />
+                        Arquivar card
+                      </DropdownMenuItem>
+                    )}
+                    {canArchive && canDelete && <DropdownMenuSeparator />}
+                    {canDelete && (
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive gap-2"
+                        onSelect={() => setDeleteDialogOpen(true)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Excluir card
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -383,8 +440,8 @@ export function ActivityCardDetailDrawer({
           </TabsList>
 
           {/* ── Detalhes ── */}
-          <TabsContent value="detalhes" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
-            <ScrollArea className="h-full">
+          <TabsContent value="detalhes" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden flex flex-col">
+            <ScrollArea className="flex-1 min-h-0">
               <div className="px-5 py-4 space-y-5">
 
                 {/* Tipo + Pontos */}
@@ -392,8 +449,8 @@ export function ActivityCardDetailDrawer({
                   <div className="space-y-1.5">
                     <Label className="text-xs">Tipo</Label>
                     <Select
-                      value={card.card_type}
-                      onValueChange={(val) => save({ cardType: val as ActivityCardType })}
+                      value={cardType}
+                      onValueChange={(val) => setCardType(val as ActivityCardType)}
                       disabled={disabled}
                     >
                       <SelectTrigger className="h-8 text-sm">
@@ -418,8 +475,8 @@ export function ActivityCardDetailDrawer({
                   <div className="space-y-1.5">
                     <Label className="text-xs">Pontos (Fibonacci)</Label>
                     <Select
-                      value={card.points != null ? card.points.toString() : '__none__'}
-                      onValueChange={(val) => save({ points: val !== '__none__' ? Number(val) : undefined })}
+                      value={points != null ? points.toString() : '__none__'}
+                      onValueChange={(val) => setPoints(val !== '__none__' ? Number(val) : null)}
                       disabled={disabled}
                     >
                       <SelectTrigger className="h-8 text-sm">
@@ -436,38 +493,44 @@ export function ActivityCardDetailDrawer({
                 </div>
 
                 {/* Responsável */}
-                {members.length > 0 && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Responsável</Label>
-                    <Select
-                      value={card.assignee_id ?? '__none__'}
-                      onValueChange={(val) => save({ assigneeId: val !== '__none__' ? val : null })}
-                      disabled={disabled}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Sem responsável" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Sem responsável</SelectItem>
-                        {members.map((m) => (
-                          <SelectItem key={m.employee_id} value={m.employee_id}>
-                            {m.employee?.nome ?? m.employee_id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                {(() => {
+                  const selectedName =
+                    (assigneeId === card.assignee_id ? card.assignee?.nome : null)
+                    ?? assigneeOptions.find((e) => e.id === assigneeId)?.nome
+                    ?? null;
+                  return (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Responsável</Label>
+                      <Select
+                        value={assigneeId ?? '__none__'}
+                        onValueChange={(val) => setAssigneeId(val !== '__none__' ? val : null)}
+                        disabled={disabled}
+                      >
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Sem responsável">
+                            {assigneeId ? (selectedName ?? 'Sem responsável') : 'Sem responsável'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sem responsável</SelectItem>
+                          {assigneeOptions.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>
+                              {e.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })()}
 
                 {/* Release */}
                 {activeReleases.length > 0 && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Release</Label>
                     <Select
-                      value={card.release_id ?? '__none__'}
-                      onValueChange={(val) =>
-                        save({ releaseId: val !== '__none__' ? val : null })
-                      }
+                      value={releaseId ?? '__none__'}
+                      onValueChange={(val) => setReleaseId(val !== '__none__' ? val : null)}
                       disabled={disabled}
                     >
                       <SelectTrigger className="h-8 text-sm">
@@ -493,10 +556,8 @@ export function ActivityCardDetailDrawer({
                   <div className="space-y-1.5">
                     <Label className="text-xs">Sprint Alvo</Label>
                     <Select
-                      value={card.target_sprint_id ?? '__none__'}
-                      onValueChange={(val) =>
-                        save({ targetSprintId: val !== '__none__' ? val : null })
-                      }
+                      value={targetSprintId ?? '__none__'}
+                      onValueChange={(val) => setTargetSprintId(val !== '__none__' ? val : null)}
                       disabled={disabled}
                     >
                       <SelectTrigger className="h-8 text-sm">
@@ -531,26 +592,24 @@ export function ActivityCardDetailDrawer({
                 {/* User Story */}
                 <div className="space-y-1.5">
                   <Label className="text-xs">User Story</Label>
-                  <Textarea
+                  <RichTextArea
                     value={userStory}
-                    onChange={(e) => setUserStory(e.target.value)}
+                    onChange={setUserStory}
                     disabled={disabled}
                     placeholder="Como [ator], quero [ação] para [benefício]..."
-                    rows={3}
-                    className="text-sm resize-none"
+                    minHeight="120px"
                   />
                 </div>
 
                 {/* Critérios de Aceitação */}
                 <div className="space-y-1.5">
                   <Label className="text-xs">Critérios de Aceitação</Label>
-                  <Textarea
+                  <RichTextArea
                     value={acceptanceCriteria}
-                    onChange={(e) => setAcceptanceCriteria(e.target.value)}
+                    onChange={setAcceptanceCriteria}
                     disabled={disabled}
                     placeholder="Dado que... quando... então..."
-                    rows={3}
-                    className="text-sm resize-none"
+                    minHeight="120px"
                   />
                 </div>
 
@@ -558,17 +617,36 @@ export function ActivityCardDetailDrawer({
 
                 {/* Bloqueio */}
                 <CardBlockSection
-                  key={card.id}
-                  initialBlocked={card.is_blocked}
-                  initialReason={card.blocked_reason}
+                  blocked={isBlocked}
+                  reason={blockedReason}
                   disabled={disabled}
-                  onSave={(isBlocked, reason) =>
-                    save({ isBlocked, blockedReason: reason })
-                  }
+                  error={blockedError}
+                  onChange={(b, r) => {
+                    setIsBlocked(b);
+                    setBlockedReason(r);
+                    if (blockedError && (!b || r.trim())) setBlockedError('');
+                  }}
                 />
 
               </div>
             </ScrollArea>
+
+            {!isReadOnly && (
+              <div className="border-t px-5 py-3 flex items-center justify-end gap-3 shrink-0 bg-background">
+                {isDirty && (
+                  <span className="text-xs text-muted-foreground mr-auto">
+                    Alterações não salvas
+                  </span>
+                )}
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={disabled || !isDirty || !trimmedTitle || updateCard.isPending}
+                >
+                  {updateCard.isPending ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           {/* ── Tarefas ── */}
@@ -638,6 +716,31 @@ export function ActivityCardDetailDrawer({
             }}
           >
             {archiveCard.isPending ? 'Arquivando...' : 'Arquivar'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir card?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta ação é permanente e não pode ser desfeita. Todos os dados do card (tarefas, checklists, histórico) serão removidos.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              deleteCard.mutate(
+                { id: card.id, projectId: project.id },
+                { onSuccess: () => onOpenChange(false) }
+              );
+            }}
+          >
+            {deleteCard.isPending ? 'Excluindo...' : 'Excluir'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -35,7 +35,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectMemberDB, SENIORITY_OPTIONS } from '@/types/project';
 import { BudgetRoleWithMonths } from '@/types/budget';
-import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
+import { getProjectMonthLabel } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useAddProjectMember, useRemoveProjectMember, useUpdateProjectMember, useAssignMemberEmployee } from '@/hooks/useProjects';
 import { useProjectMemberMonths, useUpsertMemberMonth } from '@/hooks/useProjectMemberMonths';
@@ -74,6 +75,7 @@ export function ProjectLaborSection({
   projectStartDate,
   serviceLine,
 }: ProjectLaborSectionProps) {
+  const formatCurrency = useMaskedCurrency();
   const isFinanciamento = serviceLine === 'financiamento_inovacao';
   const [dialogOpen, setDialogOpen] = useState(false);
   const [useBudgetRole, setUseBudgetRole] = useState(budgetRoles.length > 0);

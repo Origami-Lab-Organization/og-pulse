@@ -19,27 +19,24 @@ import {
   Inbox,
   UserSearch,
   FolderKanban,
+  LucideSquareKanban,
   ClipboardList,
   Menu,
   ChevronDown,
-  Target
+  Target,
 } from "lucide-react";
 import {
   NavigationMenu,
   NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuList,
-  NavigationMenuTrigger
+  NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger
+  CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,7 +46,7 @@ import { cn } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
-  TooltipTrigger
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
 
 interface NavItem {
@@ -73,17 +70,23 @@ const navigationGroups: NavGroup[] = [
     label: "Meu Espaço",
     items: [
       { title: "Caixa de Entrada", url: "/inbox", icon: Inbox },
+      { title: "Meu Kanban", url: "/my-kanban", icon: LucideSquareKanban },
       { title: "Meus Projetos", url: "/my-projects", icon: FolderKanban },
       { title: "Timesheet", url: "/my-timesheet", icon: Clock },
-      { title: "Reembolsos", url: "/reimbursements", icon: Receipt }
-    ]
+      { title: "Reembolsos", url: "/reimbursements", icon: Receipt },
+    ],
   },
   {
     label: "Estratégia",
     requiresAdmin: true,
     items: [
-      { title: "Estratégia", url: "/estrategia", icon: Target, requiresAdmin: true }
-    ]
+      {
+        title: "Estratégia",
+        url: "/estrategia",
+        icon: Target,
+        requiresAdmin: true,
+      },
+    ],
   },
   {
     label: "Comercial",
@@ -93,22 +96,22 @@ const navigationGroups: NavGroup[] = [
         title: "Dashboard",
         url: "/comercial",
         icon: LayoutDashboard,
-        requiresManager: true
+        requiresManager: true,
       },
       { title: "CRM", url: "/crm", icon: Kanban, requiresManager: true },
       {
         title: "Serviços",
         url: "/comercial/servicos",
         icon: Briefcase,
-        requiresManager: true
+        requiresManager: true,
       },
       {
         title: "Clientes",
         url: "/clients",
         icon: Building2,
-        requiresManager: true
-      }
-    ]
+        requiresManager: true,
+      },
+    ],
   },
   {
     label: "Projetos",
@@ -118,39 +121,39 @@ const navigationGroups: NavGroup[] = [
         title: "Portfólio de Projetos",
         url: "/portfolio",
         icon: Kanban,
-        requiresManager: true
+        requiresManager: true,
       },
       {
         title: "Alocação da Equipe",
         url: "/alocacao",
         icon: Clock,
-        requiresManager: true
+        requiresManager: true,
       },
       {
         title: "Fornecedores",
         url: "/suppliers",
         icon: Truck,
-        requiresManager: true
+        requiresManager: true,
       },
       {
         title: "Materiais",
         url: "/materiais",
         icon: Package,
-        requiresManager: true
+        requiresManager: true,
       },
       {
         title: "Assinaturas",
         url: "/assinaturas",
         icon: RefreshCw,
-        requiresManager: true
+        requiresManager: true,
       },
       {
         title: "Analytics",
         url: "/analytics",
         icon: BarChart3,
-        requiresManager: true
-      }
-    ]
+        requiresManager: true,
+      },
+    ],
   },
   {
     label: "RH",
@@ -160,19 +163,19 @@ const navigationGroups: NavGroup[] = [
         title: "Funcionários",
         url: "/employees",
         icon: Users,
-        requiresAdmin: true
+        requiresAdmin: true,
       },
       {
         title: "Contratações",
         url: "/rh/candidatos",
         icon: UserSearch,
-        requiresManager: true
+        requiresManager: true,
       },
       {
         title: "Vagas",
         url: "/rh/vagas",
         icon: ClipboardList,
-        requiresManager: true
+        requiresManager: true,
       },
 
       {
@@ -180,37 +183,37 @@ const navigationGroups: NavGroup[] = [
         url: "/rh/contratos",
         icon: FileSignature,
         requiresAdmin: true,
-        disabled: true
+        disabled: true,
       },
       {
         title: "Folha de Pagamento",
         url: "/rh/folha",
         icon: DollarSign,
         requiresAdmin: true,
-        disabled: true
+        disabled: true,
       },
       {
         title: "Férias e Afastamentos",
         url: "/rh/ferias",
         icon: Palmtree,
         requiresAdmin: true,
-        disabled: true
+        disabled: true,
       },
       {
         title: "Desligamentos",
         url: "/rh/desligamentos",
         icon: LogOut,
-        requiresAdmin: true
+        requiresAdmin: true,
       },
       {
         title: "Relatórios",
         url: "/rh/relatorios",
         icon: BarChart3,
         requiresAdmin: true,
-        disabled: true
-      }
-    ]
-  }
+        disabled: true,
+      },
+    ],
+  },
 ];
 
 export function AppNavbar() {
@@ -276,7 +279,7 @@ export function AppNavbar() {
                         isActive(item.url)
                           ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary after:rounded-full"
                           : "text-muted-foreground hover:text-primary",
-                        item.disabled && "opacity-50 cursor-not-allowed"
+                        item.disabled && "opacity-50 cursor-not-allowed",
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
@@ -319,7 +322,7 @@ export function AppNavbar() {
                               isActive(item.url)
                                 ? "bg-accent text-accent-foreground font-medium"
                                 : "hover:bg-accent/50 text-foreground",
-                              item.disabled && "opacity-50 cursor-not-allowed"
+                              item.disabled && "opacity-50 cursor-not-allowed",
                             )}
                           >
                             <Icon className="h-4 w-4 shrink-0" />
@@ -369,7 +372,9 @@ export function AppNavbar() {
           <SheetContent side="left" className="w-72 p-0">
             <div className="flex items-center gap-2 px-4 py-4 border-b">
               <img src={logo} alt="Pulse" className="h-7 w-7" />
-              <span className="font-semibold text-foreground text-lg">Pulse</span>
+              <span className="font-semibold text-foreground text-lg">
+                Pulse
+              </span>
             </div>
             <nav className="overflow-y-auto h-[calc(100%-57px)]">
               {visibleGroups.map((group) => {
@@ -389,13 +394,15 @@ export function AppNavbar() {
                           <button
                             key={item.title}
                             disabled={item.disabled}
-                            onClick={() => !item.disabled && handleMobileNavigate(item.url)}
+                            onClick={() =>
+                              !item.disabled && handleMobileNavigate(item.url)
+                            }
                             className={cn(
                               "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
                               isActive(item.url)
                                 ? "bg-accent text-accent-foreground font-medium"
                                 : "hover:bg-accent/50 text-foreground",
-                              item.disabled && "opacity-50 cursor-not-allowed"
+                              item.disabled && "opacity-50 cursor-not-allowed",
                             )}
                           >
                             <Icon className="h-4 w-4 shrink-0" />
@@ -421,19 +428,24 @@ export function AppNavbar() {
                             <button
                               key={item.title}
                               disabled={item.disabled}
-                              onClick={() => !item.disabled && handleMobileNavigate(item.url)}
+                              onClick={() =>
+                                !item.disabled && handleMobileNavigate(item.url)
+                              }
                               className={cn(
                                 "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
                                 isActive(item.url)
                                   ? "bg-accent text-accent-foreground font-medium"
                                   : "hover:bg-accent/50 text-foreground",
-                                item.disabled && "opacity-50 cursor-not-allowed"
+                                item.disabled &&
+                                  "opacity-50 cursor-not-allowed",
                               )}
                             >
                               <Icon className="h-4 w-4 shrink-0" />
                               <span>{item.title}</span>
                               {item.disabled && (
-                                <span className="ml-auto text-[10px] text-muted-foreground">Em breve</span>
+                                <span className="ml-auto text-[10px] text-muted-foreground">
+                                  Em breve
+                                </span>
                               )}
                             </button>
                           );

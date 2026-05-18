@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, Target, DollarSign, Receipt, Wallet, Percent } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
-import { formatCurrency, formatPercent, getProjectMonthLabel } from '@/lib/formatters';
+import { getProjectMonthLabel } from '@/lib/formatters';
+import { useMaskedCurrency, useMaskedPercent, useHideValues } from '@/contexts/HideValuesContext';
 import { ProjectFinancialChart } from './ProjectFinancialChart';
 import { ProjectTrendChart } from './ProjectTrendChart';
 import { ProjectInstallmentsTable } from '@/components/projects/ProjectInstallmentsTable';
@@ -22,6 +23,9 @@ interface ProjectFinancialTabProps {
 }
 
 export function ProjectFinancialTab({ project, isReadOnly = false, canManageInstallments = false }: ProjectFinancialTabProps) {
+  const formatCurrency = useMaskedCurrency();
+  const formatPercent = useMaskedPercent();
+  const hideValues = useHideValues();
   const memberIds = useMemo(
     () => (project.members || []).map((m) => m.id),
     [project.members]
@@ -221,7 +225,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
               </div>
               <div className="pt-1">
                 <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.revenueExecuted.toFixed(1)}%
+                  {hideValues ? '•••' : `${kpiData.revenueExecuted.toFixed(1)}%`}
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">executado</span>
               </div>
@@ -249,7 +253,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
               </div>
               <div className="pt-1">
                 <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.commissionExecuted.toFixed(1)}%
+                  {hideValues ? '•••' : `${kpiData.commissionExecuted.toFixed(1)}%`}
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">executado</span>
               </div>
@@ -277,7 +281,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
               </div>
               <div className="pt-1">
                 <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.costExecuted.toFixed(1)}%
+                  {hideValues ? '•••' : `${kpiData.costExecuted.toFixed(1)}%`}
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">executado</span>
               </div>
@@ -323,7 +327,9 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
               </div>
               <div className="pt-1">
                 <span className={`text-xs font-semibold ${kpiData.marginVar >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {kpiData.marginVar >= 0 ? '+' : ''}{kpiData.marginVar.toFixed(1)}pp
+                  {hideValues
+                    ? '••• pp'
+                    : `${kpiData.marginVar >= 0 ? '+' : ''}${kpiData.marginVar.toFixed(1)}pp`}
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">variação</span>
               </div>

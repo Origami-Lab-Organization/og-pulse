@@ -27,7 +27,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ProjectSupplierDB, CreateProjectSupplierInput } from '@/types/project';
 import { BudgetSupplierDB } from '@/types/budget';
 import { Supplier } from '@/types/supplier';
-import { formatCurrency, getProjectMonthLabel } from '@/lib/formatters';
+import { getProjectMonthLabel } from '@/lib/formatters';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useAddProjectSupplier, useRemoveProjectSupplier } from '@/hooks/useProjectCosts';
 import { useProjectSupplierMonths, useUpsertSupplierMonth } from '@/hooks/useProjectSupplierMonths';
 import { ProjectSupplierActualDB } from '@/hooks/useProjectSupplierActuals';
@@ -67,6 +68,7 @@ export function ProjectSuppliersSection({
   availableSuppliers,
   projectStartDate,
 }: ProjectSuppliersSectionProps) {
+  const formatCurrency = useMaskedCurrency();
   // Inline add mode
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newSupplierData, setNewSupplierData] = useState<NewSupplierRowData>({

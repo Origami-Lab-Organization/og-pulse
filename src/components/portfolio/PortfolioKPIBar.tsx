@@ -7,9 +7,10 @@ import { differenceInDays, parseISO } from 'date-fns';
 
 interface PortfolioKPIBarProps {
   projects: PortfolioProject[];
+  hideValues?: boolean;
 }
 
-export function PortfolioKPIBar({ projects }: PortfolioKPIBarProps) {
+export function PortfolioKPIBar({ projects, hideValues }: PortfolioKPIBarProps) {
   const planningProjects = projects.filter(p => p.portfolio_stage === 'planning');
   const stalePlanningCount = planningProjects.filter(p => {
     if (!p.start_date) return false;
@@ -73,7 +74,7 @@ export function PortfolioKPIBar({ projects }: PortfolioKPIBarProps) {
             <DollarSign className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(portfolioValue)}</p>
+            <p className="text-2xl font-bold text-foreground">{hideValues ? '•••••' : formatCurrency(portfolioValue)}</p>
             <p className="text-xs text-muted-foreground">Valor do Portfólio</p>
           </div>
         </CardContent>
@@ -86,7 +87,7 @@ export function PortfolioKPIBar({ projects }: PortfolioKPIBarProps) {
             <TrendingUp className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(totalReceived)}</p>
+            <p className="text-2xl font-bold text-foreground">{hideValues ? '•••••' : formatCurrency(totalReceived)}</p>
             <p className="text-xs text-muted-foreground">Recebidos até o momento</p>
           </div>
         </CardContent>

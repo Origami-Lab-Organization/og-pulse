@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
-import { formatCurrency } from '@/lib/formatters';
+import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
 import { useMemo } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
@@ -13,6 +13,8 @@ interface ProjectExpectedResultTabProps {
 }
 
 export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabProps) {
+  const formatCurrency = useMaskedCurrency();
+  const hideValues = useHideValues();
   const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
   const supplierIds = useMemo(() => (project.suppliers || []).map((s) => s.id), [project.suppliers]);
 
@@ -115,11 +117,13 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
               Margem %
             </div>
             <p className={`text-2xl font-bold ${isPositiveMargin ? 'text-green-600' : 'text-destructive'}`}>
-              {marginPercent.toFixed(1)}%
+              {hideValues ? '•••' : `${marginPercent.toFixed(1)}%`}
             </p>
             {marginTarget > 0 && (
               <p className={`text-xs mt-1 ${marginGap >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                {marginGap >= 0 ? '+' : ''}{marginGap.toFixed(1)}pp vs meta ({marginTarget}%)
+                {hideValues
+                  ? '••• pp vs meta'
+                  : `${marginGap >= 0 ? '+' : ''}${marginGap.toFixed(1)}pp vs meta (${marginTarget}%)`}
               </p>
             )}
           </CardContent>

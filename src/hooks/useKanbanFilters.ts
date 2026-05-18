@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { ActivityCardType, ProjectActivityCardWithRelations } from '@/types/projectActivity';
 
 export interface KanbanFilters {
@@ -53,12 +52,8 @@ export function applyKanbanFilters(
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useKanbanFilters(): KanbanFiltersReturn {
-  const { employee } = useAuth();
-
   const [searchText,  setSearchText]  = useState('');
-  const [assigneeIds, setAssigneeIds] = useState<string[]>(
-    employee?.id ? [employee.id] : []
-  );
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [cardTypes, setCardTypes] = useState<ActivityCardType[]>([]);
   const [tagIds,    setTagIds]    = useState<string[]>([]);
   const [sprintId,  setSprintId]  = useState<string | null>(null);

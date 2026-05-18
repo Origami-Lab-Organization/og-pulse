@@ -17,7 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
-import { formatCurrency, formatPercent } from '@/lib/formatters';
+import { useMaskedCurrency, useMaskedPercent } from '@/contexts/HideValuesContext';
 import { ProjectTeamSection } from './ProjectTeamSection';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
@@ -34,6 +34,8 @@ interface ProjectOverviewTabProps {
 }
 
 export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
+  const formatCurrency = useMaskedCurrency();
+  const formatPercent = useMaskedPercent();
   const memberIds = useMemo(
     () => (project.members || []).map((m) => m.id),
     [project.members]

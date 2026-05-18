@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
@@ -11,6 +12,7 @@ import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
 
 interface PortfolioTableProps {
   projects: PortfolioProject[];
+  hideValues?: boolean;
 }
 
 const stageColors: Record<PortfolioStage, string> = {
@@ -21,7 +23,7 @@ const stageColors: Record<PortfolioStage, string> = {
   completed:              'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
 };
 
-const columns: ColumnDef<PortfolioProject>[] = [
+const createColumns = (hideValues: boolean): ColumnDef<PortfolioProject>[] => [
   {
     accessorKey: 'name',
     header: ({ column }) => <DataTableColumnHeader column={column} title="Projeto" />,
@@ -68,7 +70,7 @@ const columns: ColumnDef<PortfolioProject>[] = [
     },
     header: ({ column }) => <DataTableColumnHeader column={column} title="Valor Total" />,
     cell: ({ getValue }) => (
-      <span className="font-medium">{formatCurrency(getValue() as number)}</span>
+      <span className="font-medium">{hideValues ? '•••••' : formatCurrency(getValue() as number)}</span>
     ),
   },
   {
@@ -83,6 +85,14 @@ const columns: ColumnDef<PortfolioProject>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title="Recebimento" />,
     cell: ({ getValue }) => {
       const pct = getValue() as number;
+      if (hideValues) {
+        return (
+          <div className="flex items-center gap-2 min-w-[100px]">
+            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden" />
+            <span className="text-xs text-muted-foreground w-8 text-right">•••</span>
+          </div>
+        );
+      }
       return (
         <div className="flex items-center gap-2 min-w-[100px]">
           <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
@@ -106,8 +116,9 @@ const columns: ColumnDef<PortfolioProject>[] = [
   },
 ];
 
-export function PortfolioTable({ projects }: PortfolioTableProps) {
+export function PortfolioTable({ projects, hideValues = false }: PortfolioTableProps) {
   const navigate = useNavigate();
+  const columns = useMemo(() => createColumns(hideValues), [hideValues]);
 
   return (
     <div className="overflow-auto">
