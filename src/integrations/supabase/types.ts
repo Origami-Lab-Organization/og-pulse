@@ -5064,6 +5064,7 @@ export type Database = {
           cargo: string
           employee_id: string
           employee_name: string
+          hire_date: string
           jornada_diaria: number
           month: number
           planned_hours: number
