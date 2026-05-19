@@ -3813,7 +3813,6 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           client_id: string
-          completed_date: string | null
           contract_url: string | null
           created_at: string
           description: string | null
@@ -3846,7 +3845,6 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           client_id: string
-          completed_date?: string | null
           contract_url?: string | null
           created_at?: string
           description?: string | null
@@ -3879,7 +3877,6 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           client_id?: string
-          completed_date?: string | null
           contract_url?: string | null
           created_at?: string
           description?: string | null
@@ -5023,7 +5020,57 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_password_change: { Args: never; Returns: undefined }
       generate_budget_number: { Args: { p_tenant_id: string }; Returns: string }
+      get_allocation_employee_detail: {
+        Args: {
+          p_employee_id: string
+          p_manager_id?: string
+          p_project_id?: string
+          p_team_key?: string
+          p_tenant_id: string
+          p_year: number
+        }
+        Returns: {
+          actual_hours: number
+          client_name: string
+          duration_months: number
+          is_continuous: boolean
+          item_id: string
+          item_type: string
+          manager_id: string
+          manager_name: string
+          month: number
+          planned_hours: number
+          project_id: string
+          project_member_id: string
+          project_start_date: string
+          subtitle: string
+          team_key: string
+          team_label: string
+          title: string
+        }[]
+      }
+      get_allocation_employee_month_summary: {
+        Args: {
+          p_manager_id?: string
+          p_project_id?: string
+          p_team_key?: string
+          p_tenant_id: string
+          p_year: number
+        }
+        Returns: {
+          actual_hours: number
+          cargo: string
+          employee_id: string
+          employee_name: string
+          jornada_diaria: number
+          month: number
+          planned_hours: number
+          status: string
+          termination_date: string
+        }[]
+      }
       get_crm_received_value: { Args: { p_tenant_id: string }; Returns: number }
       get_employee_status: { Args: { p_auth_id: string }; Returns: string }
       get_employee_version_at_date: {
