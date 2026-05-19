@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { format, subWeeks } from 'date-fns';
 import { Search } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,9 @@ import {
   StatusDualCounts,
 } from '@/components/timesheets/AllocationOverview';
 import { AllocationKPIBar } from '@/components/timesheets/AllocationKPIBar';
+import { AllocationTypeKPIRow } from '@/components/timesheets/AllocationTypeKPIRow';
+import { useAllocationTypeKpis } from '@/hooks/useAllocationTypeKpis';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Select,
   SelectContent,
@@ -33,13 +37,36 @@ export default function Timesheets() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchQuery, setSearchQuery] = useState('');
   const [options, setOptions] = useState<PlannerFilterOptions>(EMPTY_OPTIONS);
-  const [kpiData, setKpiData] = useState<{ counts: StatusDualCounts; total: number }>({ counts: EMPTY_COUNTS, total: 0 });
+  const [kpiData, setKpiData] = useState<{ counts: StatusDualCounts; total: number; capacityAnnual: number; capacityCurrentMonth: number }>({
+    counts: EMPTY_COUNTS, total: 0, capacityAnnual: 0, capacityCurrentMonth: 0,
+  });
+
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+  const isAdmin = employee?.isAdmin ?? false;
+  const currentEmployeeId = employee?.id;
+
+  const now = useMemo(() => new Date(), []);
+  const currentMonth = now.getMonth() + 1;
+  const weekCutoffDate = useMemo(() => format(subWeeks(now, 1), 'yyyy-MM-dd'), [now]);
 
   const [filters, setFilters] = useState<PlannerFilters>({
     teamId: 'all',
     managerId: 'all',
     projectId: 'all',
     onlyConflicts: false,
+  });
+
+  const { data: typeKpis, isLoading: isLoadingTypeKpis } = useAllocationTypeKpis({
+    tenantId,
+    selectedYear,
+    currentMonth,
+    weekCutoffDate,
+    managerId: filters.managerId,
+    projectId: filters.projectId,
+    teamId: filters.teamId,
+    isAdmin,
+    currentEmployeeId,
   });
 
   const updateFilter = <K extends keyof PlannerFilters>(key: K, value: PlannerFilters[K]) => {
@@ -55,6 +82,15 @@ export default function Timesheets() {
       <div className="space-y-6">
         {/* KPI cards acima dos filtros */}
         <AllocationKPIBar counts={kpiData.counts} total={kpiData.total} />
+        <AllocationTypeKPIRow
+          data={typeKpis}
+          isLoading={isLoadingTypeKpis}
+          capacityAnnual={kpiData.capacityAnnual}
+          capacityMonth={kpiData.capacityCurrentMonth}
+          selectedYear={selectedYear}
+          currentMonth={currentMonth}
+          weekCutoffDate={weekCutoffDate}
+        />
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col xl:flex-row xl:items-center gap-3">

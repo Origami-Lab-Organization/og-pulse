@@ -1,12 +1,10 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Building2, User, Wrench } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  addMonths,
   differenceInCalendarMonths,
   eachDayOfInterval,
   endOfMonth,
-  format,
   parseISO,
   startOfMonth,
   isWeekend,
@@ -23,7 +21,12 @@ import { useHolidays, isHoliday } from '@/hooks/useHolidays';
 import { Holiday } from '@/types/holiday';
 import { useUpsertMemberMonth } from '@/hooks/useProjectMemberMonths';
 import { useToast } from '@/hooks/use-toast';
-import { SERVICE_LINE_LABELS } from '@/types/lead';
+import {
+  AllocationDetailRpcRow,
+  useAllocationEmployeeDetail,
+  useAllocationEmployeeMonthSummary,
+  useAllocationProjectOptions,
+} from '@/hooks/useAllocationPlannerData';
 import { cn } from '@/lib/utils';
 import { AllocationHeatmapLegend } from './AllocationHeatmapLegend';
 import { AllocationEditableCell } from './AllocationEditableCell';
@@ -151,50 +154,13 @@ interface ProjectScope {
 
 interface RawRow {
   employee: EmployeeAllocation;
-  projectsById: Record<string, ExpandedProjectRow>;
-  internalActivitiesById: Record<string, ExpandedInternalActivityRow>;
 }
 
-interface QueryManager { id: string; nome: string; }
-interface QueryTermination { termination_date: string | null; }
-interface QueryEmployee {
-  id: string; nome: string; cargo: string;
-  jornada_diaria: number | null; status: string | null;
-  employee_terminations: QueryTermination | null;
+interface DetailAllocationData {
+  projectsById: Record<string, ExpandedProjectRow>;
+  projectScopesById: Record<string, ProjectScope>;
+  internalActivitiesById: Record<string, ExpandedInternalActivityRow>;
 }
-interface QueryProjectMember {
-  id: string; employee_id: string | null; role: string; seniority: string;
-  employees: QueryEmployee | null;
-}
-interface QueryProject {
-  id: string; name: string; start_date: string; duration_months: number | null;
-  is_continuous: boolean | null; manager_id: string; service_line: string | null;
-  portfolio_stage: string | null;
-  manager: QueryManager | null; project_members: QueryProjectMember[] | null;
-}
-interface MemberMonthRow { project_member_id: string; month_number: number; hours: number; }
-interface TimesheetProject {
-  id: string; tenant_id: string | null; name: string; start_date: string; duration_months: number | null;
-  is_continuous: boolean | null; manager_id: string; service_line: string | null;
-  portfolio_stage: string | null; manager: QueryManager | null;
-}
-interface TimesheetMember {
-  id: string; employee_id: string | null; project_id: string | null;
-  employees: QueryEmployee | null;
-  projects: TimesheetProject | null;
-}
-interface TimesheetRow {
-  project_id: string | null; project_member_id: string | null;
-  work_date: string; hours: number;
-  project_members: TimesheetMember | null;
-}
-interface QueryActivityTypeEmployee { employee_id: string; }
-interface QueryActivityType {
-  id: string; name: string; applies_to_all: boolean;
-  activity_type_employees: QueryActivityTypeEmployee[] | null;
-}
-interface ActivityEmployeeMonthRow { employee_id: string; activity_type_id: string; year: number; month: number; hours: number; }
-interface ActivityTimesheetYearRow { employee_id: string; activity_type_id: string; work_date: string; hours: number; }
 
 /* ─── Helpers ─── */
 
@@ -208,29 +174,6 @@ const STATUS_STYLES: Record<StatusLabel, string> = {
   Ocioso: 'bg-muted text-muted-foreground',
   Adequado: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
 };
-
-const SUPABASE_PAGE_SIZE = 1000;
-
-async function fetchAllSupabasePages<T>(
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
-): Promise<T[]> {
-  const rows: T[] = [];
-  let from = 0;
-
-  while (true) {
-    const to = from + SUPABASE_PAGE_SIZE - 1;
-    const { data, error } = await buildQuery(from, to);
-    if (error) throw error;
-
-    const page = data ?? [];
-    rows.push(...page);
-
-    if (page.length < SUPABASE_PAGE_SIZE) break;
-    from += SUPABASE_PAGE_SIZE;
-  }
-
-  return rows;
-}
 
 function parseLocalDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -375,7 +318,7 @@ interface AllocationOverviewProps {
   filters: PlannerFilters;
   onStatusCountsChange?: (counts: StatusDualCounts) => void;
   onFilterOptionsChange?: (options: PlannerFilterOptions) => void;
-  onKPIDataChange?: (data: { counts: StatusDualCounts; total: number }) => void;
+  onKPIDataChange?: (data: { counts: StatusDualCounts; total: number; capacityAnnual: number; capacityCurrentMonth: number }) => void;
 }
 
 /* ─── Component ─── */
@@ -415,273 +358,27 @@ export function AllocationOverview({
 
   const currentMonthIndex = useMemo(() => getCurrentMonthIndex(selectedYear), [selectedYear]);
 
-  /* ─── Data Query (unchanged logic) ─── */
-  const { data, isLoading } = useQuery({
-    queryKey: ['allocation-planner-v2', tenantId, isAdmin, currentEmployeeId, selectedYear],
-    queryFn: async () => {
-      if (!tenantId) throw new Error('No tenant');
-
-      let projectsQuery = supabase
-        .from('projects')
-        .select(`
-          id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage,
-          manager:employees!projects_manager_id_fkey(id, nome),
-          project_members (
-            id, employee_id, role, seniority,
-            employees (
-              id, nome, cargo, jornada_diaria, status,
-              employee_terminations!termination_id (termination_date)
-            )
-          )
-        `)
-        .eq('tenant_id', tenantId);
-
-      if (!isAdmin && currentEmployeeId) {
-        projectsQuery = projectsQuery.eq('manager_id', currentEmployeeId);
-      }
-
-      const { data: projects, error: projectError } = await projectsQuery;
-      if (projectError) throw projectError;
-
-      const projectRows = (projects ?? []) as QueryProject[];
-      if (projectRows.length === 0) {
-        return { projects: [] as ProjectScope[], rows: [] as RawRow[], options: { teams: [], managers: [], projects: [] } as PlannerFilterOptions };
-      }
-
-      const allMembers = projectRows.flatMap((p) =>
-        (p.project_members || []).map((m) => ({
-          projectId: p.id, projectStartDate: p.start_date,
-          memberId: m.id, employeeId: m.employee_id, employee: m.employees,
-        }))
-      );
-
-      const memberMetaById = new Map<string, { projectId: string; projectStartDate: string; employeeId: string }>();
-      allMembers.forEach((m) => { if (m.employeeId) memberMetaById.set(m.memberId, { projectId: m.projectId, projectStartDate: m.projectStartDate, employeeId: m.employeeId }); });
-
-      const memberIds = Array.from(memberMetaById.keys());
-      const employeeIds = Array.from(new Set(allMembers.map((m) => m.employeeId).filter((id): id is string => Boolean(id))));
-
-      const startDate = `${selectedYear}-01-01`;
-      const endDate = `${selectedYear}-12-31`;
-
-      const [memberMonths, timesheetsRaw, activityTypesRes] = await Promise.all([
-        memberIds.length > 0
-          ? fetchAllSupabasePages<MemberMonthRow>((from, to) =>
-            supabase
-              .from('project_member_months')
-              .select('project_member_id, month_number, hours')
-              .in('project_member_id', memberIds)
-              .range(from, to)
-          )
-          : Promise.resolve([] as MemberMonthRow[]),
-        fetchAllSupabasePages<TimesheetRow>((from, to) =>
-          supabase
-            .from('project_timesheets')
-            .select(`
-              project_id, project_member_id, work_date, hours,
-              project_members!inner (
-                id, employee_id, project_id,
-                employees (
-                  id, nome, cargo, jornada_diaria, status,
-                  employee_terminations!termination_id (termination_date)
-                ),
-                projects!inner (
-                  id, tenant_id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage,
-                  manager:employees!projects_manager_id_fkey(id, nome)
-                )
-              )
-            `)
-            .gte('work_date', startDate)
-            .lte('work_date', endDate)
-            .order('work_date', { ascending: true })
-            .range(from, to)
-        ),
-        supabase.from('activity_types').select('id, name, applies_to_all, activity_type_employees(employee_id)').eq('tenant_id', tenantId).eq('is_active', true).order('name'),
-      ]);
-
-      if (activityTypesRes.error) throw activityTypesRes.error;
-
-      const timesheets = timesheetsRaw.filter((entry) => {
-        const project = entry.project_members?.projects;
-        if (!project || project.tenant_id !== tenantId) return false;
-        if (!isAdmin && currentEmployeeId && project.manager_id !== currentEmployeeId) return false;
-        return true;
-      });
-      const activityTypes = (activityTypesRes.data ?? []) as QueryActivityType[];
-
-      // Resolve service_line UUIDs to names using both planned projects and actual-only projects.
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const timesheetProjects = timesheets.map((entry) => entry.project_members?.projects).filter((p): p is TimesheetProject => Boolean(p));
-      const allServiceLines = Array.from(new Set([
-        ...projectRows.map((p) => p.service_line).filter(Boolean),
-        ...timesheetProjects.map((p) => p.service_line).filter(Boolean),
-      ])) as string[];
-      const serviceLineUuids = allServiceLines.filter((id) => uuidRegex.test(id));
-      let serviceNameMap = new Map<string, string>();
-      if (serviceLineUuids.length > 0) {
-        const { data: services } = await supabase.from('services').select('id, name').in('id', serviceLineUuids);
-        if (services) serviceNameMap = new Map(services.map((s: { id: string; name: string }) => [s.id, s.name]));
-      }
-
-      const resolveServiceLine = (raw: string | null): { key: string; label: string } => {
-        if (!raw) return { key: '__sem_time__', label: 'Sem linha de serviço' };
-        const name = serviceNameMap.get(raw) || SERVICE_LINE_LABELS[raw] || raw;
-        return { key: raw, label: name };
-      };
-
-      const projectById = new Map<string, ProjectScope>();
-      const addProjectScope = (p: QueryProject | TimesheetProject): ProjectScope => {
-        const existing = projectById.get(p.id);
-        if (existing) return existing;
-
-        const sl = resolveServiceLine(p.service_line);
-        const scope: ProjectScope = {
-          id: p.id, name: p.name, startDate: p.start_date,
-          durationMonths: Number(p.duration_months) || 1,
-          isContinuous: Boolean(p.is_continuous),
-          managerId: p.manager_id,
-          managerName: p.manager?.nome || 'Sem gerente',
-          teamKey: sl.key,
-          teamLabel: sl.label,
-          portfolioStage: p.portfolio_stage,
-        };
-        projectById.set(scope.id, scope);
-        return scope;
-      };
-
-      projectRows.forEach(addProjectScope);
-      timesheetProjects.forEach(addProjectScope);
-
-      const scopedProjects = Array.from(projectById.values());
-      const allEmployeeIds = Array.from(new Set([
-        ...employeeIds,
-        ...timesheets.map((entry) => entry.project_members?.employee_id).filter((id): id is string => Boolean(id)),
-      ]));
-      const activityTypeIds = activityTypes.map((a) => a.id);
-
-      const [activityEmployeeMonths, activityTimesheets] = await Promise.all([
-        activityTypeIds.length === 0 || allEmployeeIds.length === 0
-          ? Promise.resolve([] as ActivityEmployeeMonthRow[])
-          : fetchAllSupabasePages<ActivityEmployeeMonthRow>((from, to) =>
-            supabase
-              .from('activity_employee_months')
-              .select('employee_id, activity_type_id, year, month, hours')
-              .eq('tenant_id', tenantId)
-              .in('employee_id', allEmployeeIds)
-              .in('activity_type_id', activityTypeIds)
-              .eq('year', selectedYear)
-              .range(from, to)
-          ),
-        activityTypeIds.length === 0 || allEmployeeIds.length === 0
-          ? Promise.resolve([] as ActivityTimesheetYearRow[])
-          : fetchAllSupabasePages<ActivityTimesheetYearRow>((from, to) =>
-            supabase
-              .from('activity_timesheets')
-              .select('employee_id, activity_type_id, work_date, hours')
-              .in('employee_id', allEmployeeIds)
-              .in('activity_type_id', activityTypeIds)
-              .gte('work_date', startDate)
-              .lte('work_date', endDate)
-              .order('work_date', { ascending: true })
-              .range(from, to)
-          ),
-      ]);
-      const rowMap = new Map<string, RawRow>();
-
-      const ensureRow = (emp: QueryEmployee): RawRow => {
-        if (!rowMap.has(emp.id)) {
-          rowMap.set(emp.id, {
-            employee: {
-              employeeId: emp.id, employeeName: emp.nome, cargo: emp.cargo,
-              jornadaDiaria: Number(emp.jornada_diaria) || 8, status: emp.status ?? 'ativo',
-              terminationDate: emp.employee_terminations?.termination_date || undefined,
-            },
-            projectsById: {}, internalActivitiesById: {},
-          });
-        }
-        return rowMap.get(emp.id)!;
-      };
-
-      const ensureProjectHours = (row: RawRow, project: ProjectScope, projectMemberId: string | null) => {
-        if (!row.projectsById[project.id]) row.projectsById[project.id] = createEmptyProjectRow(project, projectMemberId);
-        if (!row.projectsById[project.id].projectMemberId && projectMemberId) row.projectsById[project.id].projectMemberId = projectMemberId;
-        return row.projectsById[project.id];
-      };
-
-      allMembers.forEach((m) => {
-        if (!m.employeeId || !m.employee) return;
-        const project = projectById.get(m.projectId);
-        if (!project) return;
-        ensureProjectHours(ensureRow(m.employee), project, m.memberId);
-      });
-
-      const activityTypeAllowedByEmployee = new Map<string, QueryActivityType[]>();
-      allEmployeeIds.forEach((eid) => {
-        activityTypeAllowedByEmployee.set(eid, activityTypes.filter((a) => a.applies_to_all || (a.activity_type_employees || []).some((e) => e.employee_id === eid)));
-      });
-
-      rowMap.forEach((row, eid) => {
-        (activityTypeAllowedByEmployee.get(eid) || []).forEach((a) => {
-          if (!row.internalActivitiesById[a.id]) row.internalActivitiesById[a.id] = createEmptyInternalActivityRow(a.id, a.name);
-        });
-      });
-
-      memberMonths.forEach((entry) => {
-        const meta = memberMetaById.get(entry.project_member_id);
-        if (!meta) return;
-        const project = projectById.get(meta.projectId);
-        if (!project) return;
-        const row = rowMap.get(meta.employeeId);
-        if (!row) return;
-        const projectMonth = addMonths(parseLocalDate(meta.projectStartDate), Number(entry.month_number) - 1);
-        if (projectMonth.getFullYear() !== selectedYear) return;
-        ensureProjectHours(row, project, entry.project_member_id).plannedByMonth[projectMonth.getMonth()] += Number(entry.hours) || 0;
-      });
-
-      timesheets.forEach((entry) => {
-        const member = entry.project_members;
-        const emp = member?.employees;
-        const employeeId = member?.employee_id;
-        const projectId = member?.projects?.id || member?.project_id || entry.project_id;
-        if (!emp || !employeeId || !projectId) return;
-        const row = ensureRow(emp);
-        const project = projectById.get(projectId);
-        if (!project) return;
-        const month = Number(entry.work_date.substring(5, 7));
-        if (month < 1 || month > 12) return;
-        ensureProjectHours(row, project, entry.project_member_id).actualByMonth[month - 1] += Number(entry.hours) || 0;
-      });
-
-      activityEmployeeMonths.forEach((entry) => {
-        if (Number(entry.year) !== selectedYear) return;
-        const row = rowMap.get(entry.employee_id);
-        if (!row) return;
-        const a = row.internalActivitiesById[entry.activity_type_id];
-        if (!a) return;
-        const m = Number(entry.month);
-        if (m < 1 || m > 12) return;
-        a.plannedByMonth[m - 1] += Number(entry.hours) || 0;
-      });
-
-      activityTimesheets.forEach((entry) => {
-        const row = rowMap.get(entry.employee_id);
-        if (!row) return;
-        const a = row.internalActivitiesById[entry.activity_type_id];
-        if (!a) return;
-        const m = Number(entry.work_date.substring(5, 7));
-        if (m < 1 || m > 12) return;
-        a.actualByMonth[m - 1] += Number(entry.hours) || 0;
-      });
-
-      const options = buildFilterOptions(scopedProjects);
-      return {
-        projects: scopedProjects.sort((a, b) => a.name.localeCompare(b.name)),
-        rows: Array.from(rowMap.values()).sort((a, b) => a.employee.employeeName.localeCompare(b.employee.employeeName)),
-        options,
-      };
-    },
-    enabled: !!tenantId,
+  const { data: projectOptions = [], isLoading: isLoadingOptions } = useAllocationProjectOptions(tenantId, isAdmin, currentEmployeeId);
+  const { data: summaryRows = [], isLoading: isLoadingSummary } = useAllocationEmployeeMonthSummary({
+    tenantId,
+    selectedYear,
+    isAdmin,
+    currentEmployeeId,
+    managerId: filters.managerId,
+    projectId: filters.projectId,
+    teamId: filters.teamId,
   });
+  const { data: detailRows = [], isLoading: isLoadingDetail } = useAllocationEmployeeDetail({
+    tenantId,
+    selectedYear,
+    employeeId: expandedEmployeeId,
+    isAdmin,
+    currentEmployeeId,
+    managerId: filters.managerId,
+    projectId: filters.projectId,
+    teamId: filters.teamId,
+  });
+  const isLoading = isLoadingOptions || isLoadingSummary;
 
   function buildFilterOptions(scopedProjects: ProjectScope[]): PlannerFilterOptions {
     return {
@@ -693,28 +390,52 @@ export function AllocationOverview({
     };
   }
 
-  useEffect(() => { if (data?.options) onFilterOptionsChange?.(data.options); }, [data?.options, onFilterOptionsChange]);
-
   const scopedProjects = useMemo(() => {
-    return (data?.projects || []).filter((p) => {
+    return projectOptions.map((project): ProjectScope => ({
+      id: project.id,
+      name: project.name,
+      startDate: '',
+      durationMonths: 1,
+      isContinuous: false,
+      managerId: project.managerId,
+      managerName: project.managerName,
+      teamKey: project.teamKey,
+      teamLabel: project.teamLabel,
+      portfolioStage: project.portfolioStage,
+    })).filter((p) => {
       if (filters.teamId !== 'all' && p.teamKey !== filters.teamId) return false;
       if (filters.managerId !== 'all' && p.managerId !== filters.managerId) return false;
       return true;
     });
-  }, [data?.projects, filters.teamId, filters.managerId]);
+  }, [projectOptions, filters.teamId, filters.managerId]);
+
+  const filterOptions = useMemo(() => buildFilterOptions(scopedProjects), [scopedProjects]);
+  useEffect(() => { onFilterOptionsChange?.(filterOptions); }, [filterOptions, onFilterOptionsChange]);
 
   const visibleProjects = useMemo(() => {
     if (filters.projectId === 'all') return scopedProjects;
     return scopedProjects.filter((p) => p.id === filters.projectId);
   }, [scopedProjects, filters.projectId]);
 
-  const visibleProjectById = useMemo(() => {
-    return new Map(visibleProjects.map((p) => [p.id, p]));
-  }, [visibleProjects]);
-
   const rowsWithStatus = useMemo(() => {
-    const projectIds = visibleProjects.map((p) => p.id);
-    let sourceRows = (data?.rows || []).filter((row) => !isExcludedForYear(row.employee, selectedYear));
+    const rowMap = new Map<string, RawRow>();
+
+    summaryRows.forEach((summary) => {
+      if (!rowMap.has(summary.employee_id)) {
+        rowMap.set(summary.employee_id, {
+          employee: {
+            employeeId: summary.employee_id,
+            employeeName: summary.employee_name,
+            cargo: summary.cargo,
+            jornadaDiaria: Number(summary.jornada_diaria) || 8,
+            status: summary.status ?? 'ativo',
+            terminationDate: summary.termination_date || undefined,
+          },
+        });
+      }
+    });
+
+    let sourceRows = Array.from(rowMap.values()).filter((row) => !isExcludedForYear(row.employee, selectedYear));
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -726,10 +447,9 @@ export function AllocationOverview({
     const builtRows = sourceRows.map((raw): AllocationPlannerRow => {
       const monthTotals: MonthTotal[] = MONTH_COLUMNS.map(({ month }) => {
         const cap = calculateMonthlyCapacity(toMonthKey(selectedYear, month), raw.employee.jornadaDiaria, holidays);
-        const activityPlanned = Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.plannedByMonth[month - 1] || 0), 0);
-        const activityActual = Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.actualByMonth[month - 1] || 0), 0);
-        const planned = projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.plannedByMonth[month - 1] || 0), 0) + activityPlanned;
-        const actual = projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.actualByMonth[month - 1] || 0), 0) + activityActual;
+        const summary = summaryRows.find((row) => row.employee_id === raw.employee.employeeId && Number(row.month) === month);
+        const planned = Number(summary?.planned_hours) || 0;
+        const actual = Number(summary?.actual_hours) || 0;
         return { monthKey: toMonthKey(selectedYear, month), month, planned, actual, capacityHours: cap };
       });
 
@@ -744,7 +464,7 @@ export function AllocationOverview({
         statusActual: getAllocationStatus(totalActual, capacityAnnual),
         monthTotals,
         plannedUtilizationByMonth: monthTotals.map((m) => (m.capacityHours > 0 ? m.planned / m.capacityHours : 0)),
-        projectsById: raw.projectsById, internalActivitiesById: raw.internalActivitiesById, employee: raw.employee,
+        projectsById: {}, internalActivitiesById: {}, employee: raw.employee,
       };
     });
 
@@ -758,7 +478,7 @@ export function AllocationOverview({
       if (sa !== sb) return sa - sb;
       return a.employeeName.localeCompare(b.employeeName);
     });
-  }, [data?.rows, visibleProjects, selectedYear, holidays, searchQuery, filters.onlyConflicts]);
+  }, [summaryRows, selectedYear, holidays, searchQuery, filters.onlyConflicts]);
 
   const counts = useMemo<StatusDualCounts>(() => {
     const result: StatusDualCounts = { planned: emptyStatusCounts(), actual: emptyStatusCounts() };
@@ -766,8 +486,23 @@ export function AllocationOverview({
     return result;
   }, [rowsWithStatus]);
 
+  const capacityTotals = useMemo(() => {
+    const annual = rowsWithStatus.reduce((s, r) => s + r.capacityHours, 0);
+    const month = currentMonthIndex >= 0
+      ? rowsWithStatus.reduce((s, r) => s + (r.monthTotals[currentMonthIndex]?.capacityHours || 0), 0)
+      : 0;
+    return { annual, month };
+  }, [rowsWithStatus, currentMonthIndex]);
+
   useEffect(() => { onStatusCountsChange?.(counts); }, [counts, onStatusCountsChange]);
-  useEffect(() => { onKPIDataChange?.({ counts, total: rowsWithStatus.length }); }, [counts, rowsWithStatus.length, onKPIDataChange]);
+  useEffect(() => {
+    onKPIDataChange?.({
+      counts,
+      total: rowsWithStatus.length,
+      capacityAnnual: capacityTotals.annual,
+      capacityCurrentMonth: capacityTotals.month,
+    });
+  }, [counts, rowsWithStatus.length, capacityTotals, onKPIDataChange]);
 
   /* ─── Expanded row state ─── */
 
@@ -787,29 +522,67 @@ export function AllocationOverview({
   useEffect(() => { if (expandedEmployeeId && !expandedRow) closeExpanded(); }, [expandedEmployeeId, expandedRow, closeExpanded]);
   useEffect(() => { closeExpanded(); }, [selectedYear, filters.teamId, filters.managerId, filters.projectId, closeExpanded]);
 
-  const getExpandableProjectsForRow = useCallback((row: AllocationPlannerRow): ProjectScope[] => {
-    return Object.keys(row.projectsById)
-      .map((projectId) => visibleProjectById.get(projectId))
-      .filter((project): project is ProjectScope => Boolean(project))
-      .filter((project) => {
-        const ph = row.projectsById[project.id];
-        return Boolean(ph.projectMemberId) || ph.plannedByMonth.some((v) => v > 0) || ph.actualByMonth.some((v) => v > 0);
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [visibleProjectById]);
+  const detailData = useMemo<DetailAllocationData>(() => {
+    const projectsById: Record<string, ExpandedProjectRow> = {};
+    const projectScopesById: Record<string, ProjectScope> = {};
+    const internalActivitiesById: Record<string, ExpandedInternalActivityRow> = {};
 
-  const initializeDraftForRow = (row: AllocationPlannerRow) => {
+    detailRows.forEach((row: AllocationDetailRpcRow) => {
+      const monthIndex = Number(row.month) - 1;
+      if (monthIndex < 0 || monthIndex > 11) return;
+
+      if (row.item_type === 'project') {
+        const projectId = row.project_id || row.item_id;
+        if (!projectId) return;
+
+        const projectScope: ProjectScope = projectScopesById[projectId] ?? {
+          id: projectId,
+          name: row.title,
+          startDate: row.project_start_date || `${selectedYear}-01-01`,
+          durationMonths: Number(row.duration_months) || 1,
+          isContinuous: Boolean(row.is_continuous),
+          managerId: row.manager_id || '',
+          managerName: row.manager_name || 'Sem gerente',
+          teamKey: row.team_key || '__sem_time__',
+          teamLabel: row.team_label || 'Sem linha de serviço',
+          portfolioStage: null,
+        };
+        projectScopesById[projectId] = projectScope;
+
+        if (!projectsById[projectId]) {
+          projectsById[projectId] = createEmptyProjectRow(projectScope, row.project_member_id);
+        }
+        if (!projectsById[projectId].projectMemberId && row.project_member_id) {
+          projectsById[projectId].projectMemberId = row.project_member_id;
+        }
+        projectsById[projectId].plannedByMonth[monthIndex] += Number(row.planned_hours) || 0;
+        projectsById[projectId].actualByMonth[monthIndex] += Number(row.actual_hours) || 0;
+        return;
+      }
+
+      const activityTypeId = row.item_id;
+      if (!internalActivitiesById[activityTypeId]) {
+        internalActivitiesById[activityTypeId] = createEmptyInternalActivityRow(activityTypeId, row.title);
+      }
+      internalActivitiesById[activityTypeId].plannedByMonth[monthIndex] += Number(row.planned_hours) || 0;
+      internalActivitiesById[activityTypeId].actualByMonth[monthIndex] += Number(row.actual_hours) || 0;
+    });
+
+    return { projectsById, projectScopesById, internalActivitiesById };
+  }, [detailRows, selectedYear]);
+
+  const initializeDraftFromDetail = useCallback((data: DetailAllocationData) => {
     const nextPlanned: Record<string, number> = {};
-    const projectsForExpanded = getExpandableProjectsForRow(row);
+    const projectsForExpanded = Object.values(data.projectScopesById).sort((a, b) => a.name.localeCompare(b.name));
 
     projectsForExpanded.forEach((p) => {
-      const ph = row.projectsById[p.id] || createEmptyProjectRow(p, null);
+      const ph = data.projectsById[p.id] || createEmptyProjectRow(p, null);
       MONTH_COLUMNS.forEach(({ month }) => {
         nextPlanned[draftProjectKey(p.id, month)] = ph.plannedByMonth[month - 1] || 0;
       });
     });
 
-    Object.values(row.internalActivitiesById).sort((a, b) => a.activityName.localeCompare(b.activityName)).forEach((a) => {
+    Object.values(data.internalActivitiesById).sort((a, b) => a.activityName.localeCompare(b.activityName)).forEach((a) => {
       MONTH_COLUMNS.forEach(({ month }) => {
         nextPlanned[draftActivityKey(a.activityTypeId, month)] = a.plannedByMonth[month - 1] || 0;
       });
@@ -817,12 +590,20 @@ export function AllocationOverview({
 
     setDraftPlanned(nextPlanned);
     setOriginalPlanned(nextPlanned);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!expandedRow || isLoadingDetail) return;
+    initializeDraftFromDetail(detailData);
+  }, [expandedRow, detailData, initializeDraftFromDetail, isLoadingDetail]);
 
   const toggleExpand = (row: AllocationPlannerRow) => {
     if (expandedEmployeeId === row.employeeId) { closeExpanded(); return; }
     setExpandedEmployeeId(row.employeeId);
-    initializeDraftForRow(row);
+    setDraftPlanned({});
+    setOriginalPlanned({});
+    setEditingCellKey(null);
+    setEditingCellInitialValue(0);
   };
 
   const updateDraftCell = (key: string, nextValue: number) => {
@@ -832,18 +613,23 @@ export function AllocationOverview({
 
   const expandedProjects = useMemo(() => {
     if (!expandedRow) return [];
-    return getExpandableProjectsForRow(expandedRow);
-  }, [expandedRow, getExpandableProjectsForRow]);
+    return Object.values(detailData.projectScopesById)
+      .filter((project) => {
+        const rowProject = detailData.projectsById[project.id];
+        return Boolean(rowProject?.projectMemberId) || Boolean(rowProject?.plannedByMonth.some((v) => v > 0)) || Boolean(rowProject?.actualByMonth.some((v) => v > 0));
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [detailData, expandedRow]);
 
   const expandedInternalActivities = useMemo(() => {
     if (!expandedRow) return [];
-    return Object.values(expandedRow.internalActivitiesById).sort((a, b) => a.activityName.localeCompare(b.activityName));
-  }, [expandedRow]);
+    return Object.values(detailData.internalActivitiesById).sort((a, b) => a.activityName.localeCompare(b.activityName));
+  }, [detailData, expandedRow]);
 
   const expandedItems = useMemo<ExpandedAllocationItemRow[]>(() => {
     if (!expandedRow) return [];
     const projectItems: ExpandedAllocationItemRow[] = expandedProjects.map((p) => {
-      const ph = expandedRow.projectsById[p.id] || createEmptyProjectRow(p, null);
+      const ph = detailData.projectsById[p.id] || createEmptyProjectRow(p, null);
       return {
         id: p.id, type: 'project', title: p.name,
         subtitle: `${p.managerName} · ${p.teamLabel}`,
@@ -858,7 +644,7 @@ export function AllocationOverview({
       editableByMonth: MONTH_COLUMNS.map(() => true),
     }));
     return [...projectItems, ...internalItems];
-  }, [expandedInternalActivities, expandedProjects, expandedRow, selectedYear]);
+  }, [detailData, expandedInternalActivities, expandedProjects, expandedRow, selectedYear]);
 
   /* ─── Pending changes ─── */
   const pendingChanges = useMemo<ChangeEntry[]>(() => {
@@ -912,7 +698,7 @@ export function AllocationOverview({
       let persisted = 0;
 
         for (const project of expandedProjects) {
-          const rowProject = expandedRow.projectsById[project.id];
+          const rowProject = detailData.projectsById[project.id];
           let projectMemberId = rowProject?.projectMemberId || null;
 
           for (const { month } of MONTH_COLUMNS) {
@@ -963,7 +749,8 @@ export function AllocationOverview({
         }
 
         if (persisted > 0) {
-          await queryClient.invalidateQueries({ queryKey: ['allocation-planner-v2'] });
+          await queryClient.invalidateQueries({ queryKey: ['allocation-employee-month-summary'] });
+          await queryClient.invalidateQueries({ queryKey: ['allocation-employee-detail'] });
           toast({ title: 'Alocação atualizada', description: `${persisted} célula(s) salva(s) para ${expandedRow.employeeName}.` });
         } else {
           toast({ title: 'Sem alterações', description: 'Não houve mudanças para salvar.' });
@@ -1004,7 +791,6 @@ export function AllocationOverview({
           if (item.editableByMonth[nextCol]) {
             const key = item.type === 'project' ? draftProjectKey(item.id, nextCol + 1) : draftActivityKey(item.id, nextCol + 1);
             const val = draftPlanned[key] ?? item.plannedByMonth[nextCol] ?? 0;
-            beginInlineEdit(key, val);
             beginInlineEdit(key, val);
             return;
           }
@@ -1139,7 +925,12 @@ export function AllocationOverview({
                             <TableRow className="bg-muted/20 hover:bg-muted/20">
                               <TableCell colSpan={totalColumns} className="p-4">
                                 <div className="space-y-4">
-                                  {expandedItems.length === 0 ? (
+                                  {isLoadingDetail ? (
+                                    <div className="space-y-3">
+                                      <Skeleton className="h-6 w-44" />
+                                      <Skeleton className="h-24 w-full" />
+                                    </div>
+                                  ) : expandedItems.length === 0 ? (
                                     <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
                                       Nenhum item de alocação disponível para este funcionário com os filtros atuais.
                                     </div>
@@ -1293,7 +1084,13 @@ export function AllocationOverview({
         {correctionEmployeeId && tenantId && (
           <AllocationCorrectionDialog
             open={correctionDialogOpen}
-            onOpenChange={setCorrectionDialogOpen}
+            onOpenChange={(open) => {
+              setCorrectionDialogOpen(open);
+              if (!open) {
+                queryClient.invalidateQueries({ queryKey: ['allocation-employee-month-summary'] });
+                queryClient.invalidateQueries({ queryKey: ['allocation-employee-detail'] });
+              }
+            }}
             employeeId={correctionEmployeeId}
             employeeName={correctionEmployeeName}
             tenantId={tenantId}
