@@ -205,6 +205,7 @@ const defaultFilters: PlannerFilters = {
   managerId: 'all',
   projectId: 'all',
   onlyConflicts: false,
+  hideTerminated: false,
 };
 
 function renderAllocation(filters: PlannerFilters = defaultFilters) {
