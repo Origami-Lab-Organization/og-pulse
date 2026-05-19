@@ -186,12 +186,7 @@ export default function Portfolio() {
               { onSuccess: () => setRemoveProject(null) },
             )
           }}
-          onArchive={(reason, notes) => {
-            archiveProject.mutate(
-              { id: removeProject.id, reason, notes },
-              { onSuccess: () => setRemoveProject(null) },
-            )
-          }}
+          onArchive={() => {}}
           isProcessing={deleteProject.isPending || archiveProject.isPending}
         />
       )}
