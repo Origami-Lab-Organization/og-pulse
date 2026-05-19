@@ -94,6 +94,7 @@ const actualOnlyProject = project('p-actual-only', 'Projeto Sem Planejado', null
 
 let includeActualOnly = false;
 let includeActivity = false;
+let includePaginatedTimesheets = false;
 
 const memberMonths = [
   { project_member_id: 'm-clube', month_number: 5, hours: 20 },
@@ -138,6 +139,13 @@ function tableData(table: string) {
       rows.push(timesheet('p-actual-only', 'm-actual-only', 6, actualOnlyProject));
     }
 
+    if (includePaginatedTimesheets) {
+      return [
+        ...Array.from({ length: 1000 }, (_, index) => timesheet('p-bry', 'm-bry', 0, undefined, index % 2 === 0 ? 'p-bry' : null)),
+        ...rows,
+      ];
+    }
+
     return rows;
   }
 
@@ -165,6 +173,9 @@ function tableData(table: string) {
 }
 
 class SupabaseQueryMock {
+  private fromIndex = 0;
+  private toIndex: number | null = null;
+
   constructor(private table: string) {}
 
   select() { return this; }
@@ -173,12 +184,19 @@ class SupabaseQueryMock {
   gte() { return this; }
   lte() { return this; }
   order() { return this; }
+  range(from: number, to: number) {
+    this.fromIndex = from;
+    this.toIndex = to;
+    return this;
+  }
 
   then<TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
     onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ) {
-    return Promise.resolve({ data: tableData(this.table), error: null }).then(onfulfilled, onrejected);
+    const data = tableData(this.table);
+    const pagedData = this.toIndex === null ? data : data.slice(this.fromIndex, this.toIndex + 1);
+    return Promise.resolve({ data: pagedData, error: null }).then(onfulfilled, onrejected);
   }
 }
 
@@ -216,6 +234,7 @@ describe('AllocationOverview', () => {
   beforeEach(() => {
     includeActualOnly = false;
     includeActivity = false;
+    includePaginatedTimesheets = false;
     supabaseFrom.mockImplementation((table: string) => new SupabaseQueryMock(table));
   });
 
@@ -237,6 +256,17 @@ describe('AllocationOverview', () => {
 
   it('mostra projeto com real mesmo quando nao existe planejado', async () => {
     includeActualOnly = true;
+    renderAllocation();
+
+    await screen.findByText('78h');
+    await expandItalo();
+
+    expect(within(projectRow('Projeto Sem Planejado')).getByText('6h')).toBeInTheDocument();
+  });
+
+  it('contabiliza lancamentos reais que passam da primeira pagina do Supabase', async () => {
+    includeActualOnly = true;
+    includePaginatedTimesheets = true;
     renderAllocation();
 
     await screen.findByText('78h');

@@ -209,6 +209,29 @@ const STATUS_STYLES: Record<StatusLabel, string> = {
   Adequado: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
 };
 
+const SUPABASE_PAGE_SIZE = 1000;
+
+async function fetchAllSupabasePages<T>(
+  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + SUPABASE_PAGE_SIZE - 1;
+    const { data, error } = await buildQuery(from, to);
+    if (error) throw error;
+
+    const page = data ?? [];
+    rows.push(...page);
+
+    if (page.length < SUPABASE_PAGE_SIZE) break;
+    from += SUPABASE_PAGE_SIZE;
+  }
+
+  return rows;
+}
+
 function parseLocalDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -441,39 +464,44 @@ export function AllocationOverview({
       const startDate = `${selectedYear}-01-01`;
       const endDate = `${selectedYear}-12-31`;
 
-      let timesheetsQuery = supabase
-        .from('project_timesheets')
-        .select(`
-          project_id, project_member_id, work_date, hours,
-          project_members!inner (
-            id, employee_id, project_id,
-            employees (
-              id, nome, cargo, jornada_diaria, status,
-              employee_terminations!termination_id (termination_date)
-            ),
-            projects!inner (
-              id, tenant_id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage,
-              manager:employees!projects_manager_id_fkey(id, nome)
-            )
-          )
-        `)
-        .gte('work_date', startDate)
-        .lte('work_date', endDate);
-
-      const [memberMonthsRes, timesheetsRes, activityTypesRes] = await Promise.all([
+      const [memberMonths, timesheetsRaw, activityTypesRes] = await Promise.all([
         memberIds.length > 0
-          ? supabase.from('project_member_months').select('project_member_id, month_number, hours').in('project_member_id', memberIds)
-          : Promise.resolve({ data: [] as MemberMonthRow[], error: null }),
-        timesheetsQuery,
+          ? fetchAllSupabasePages<MemberMonthRow>((from, to) =>
+            supabase
+              .from('project_member_months')
+              .select('project_member_id, month_number, hours')
+              .in('project_member_id', memberIds)
+              .range(from, to)
+          )
+          : Promise.resolve([] as MemberMonthRow[]),
+        fetchAllSupabasePages<TimesheetRow>((from, to) =>
+          supabase
+            .from('project_timesheets')
+            .select(`
+              project_id, project_member_id, work_date, hours,
+              project_members!inner (
+                id, employee_id, project_id,
+                employees (
+                  id, nome, cargo, jornada_diaria, status,
+                  employee_terminations!termination_id (termination_date)
+                ),
+                projects!inner (
+                  id, tenant_id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage,
+                  manager:employees!projects_manager_id_fkey(id, nome)
+                )
+              )
+            `)
+            .gte('work_date', startDate)
+            .lte('work_date', endDate)
+            .order('work_date', { ascending: true })
+            .range(from, to)
+        ),
         supabase.from('activity_types').select('id, name, applies_to_all, activity_type_employees(employee_id)').eq('tenant_id', tenantId).eq('is_active', true).order('name'),
       ]);
 
-      if (memberMonthsRes.error) throw memberMonthsRes.error;
-      if (timesheetsRes.error) throw timesheetsRes.error;
       if (activityTypesRes.error) throw activityTypesRes.error;
 
-      const memberMonths = (memberMonthsRes.data ?? []) as MemberMonthRow[];
-      const timesheets = ((timesheetsRes.data ?? []) as TimesheetRow[]).filter((entry) => {
+      const timesheets = timesheetsRaw.filter((entry) => {
         const project = entry.project_members?.projects;
         if (!project || project.tenant_id !== tenantId) return false;
         if (!isAdmin && currentEmployeeId && project.manager_id !== currentEmployeeId) return false;
@@ -531,20 +559,33 @@ export function AllocationOverview({
       ]));
       const activityTypeIds = activityTypes.map((a) => a.id);
 
-      const [activityEmployeeMonthsRes, activityTimesheetsRes] = await Promise.all([
+      const [activityEmployeeMonths, activityTimesheets] = await Promise.all([
         activityTypeIds.length === 0 || allEmployeeIds.length === 0
-          ? Promise.resolve({ data: [] as ActivityEmployeeMonthRow[], error: null })
-          : supabase.from('activity_employee_months').select('employee_id, activity_type_id, year, month, hours').eq('tenant_id', tenantId).in('employee_id', allEmployeeIds).in('activity_type_id', activityTypeIds).eq('year', selectedYear),
+          ? Promise.resolve([] as ActivityEmployeeMonthRow[])
+          : fetchAllSupabasePages<ActivityEmployeeMonthRow>((from, to) =>
+            supabase
+              .from('activity_employee_months')
+              .select('employee_id, activity_type_id, year, month, hours')
+              .eq('tenant_id', tenantId)
+              .in('employee_id', allEmployeeIds)
+              .in('activity_type_id', activityTypeIds)
+              .eq('year', selectedYear)
+              .range(from, to)
+          ),
         activityTypeIds.length === 0 || allEmployeeIds.length === 0
-          ? Promise.resolve({ data: [] as ActivityTimesheetYearRow[], error: null })
-          : supabase.from('activity_timesheets').select('employee_id, activity_type_id, work_date, hours').in('employee_id', allEmployeeIds).in('activity_type_id', activityTypeIds).gte('work_date', startDate).lte('work_date', endDate),
+          ? Promise.resolve([] as ActivityTimesheetYearRow[])
+          : fetchAllSupabasePages<ActivityTimesheetYearRow>((from, to) =>
+            supabase
+              .from('activity_timesheets')
+              .select('employee_id, activity_type_id, work_date, hours')
+              .in('employee_id', allEmployeeIds)
+              .in('activity_type_id', activityTypeIds)
+              .gte('work_date', startDate)
+              .lte('work_date', endDate)
+              .order('work_date', { ascending: true })
+              .range(from, to)
+          ),
       ]);
-
-      if (activityEmployeeMonthsRes.error) throw activityEmployeeMonthsRes.error;
-      if (activityTimesheetsRes.error) throw activityTimesheetsRes.error;
-
-      const activityEmployeeMonths = (activityEmployeeMonthsRes.data ?? []) as ActivityEmployeeMonthRow[];
-      const activityTimesheets = (activityTimesheetsRes.data ?? []) as ActivityTimesheetYearRow[];
       const rowMap = new Map<string, RawRow>();
 
       const ensureRow = (emp: QueryEmployee): RawRow => {
