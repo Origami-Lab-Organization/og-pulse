@@ -5081,16 +5081,21 @@ export type Database = {
           p_tenant_id: string
           p_week_cutoff_date: string
           p_year: number
+          p_ytd_cutoff_date: string
         }
         Returns: {
           activity_actual_annual: number
           activity_actual_month: number
+          activity_actual_ytd: number
           activity_planned_annual: number
           activity_planned_month: number
+          activity_planned_ytd: number
           project_actual_annual: number
           project_actual_month: number
+          project_actual_ytd: number
           project_planned_annual: number
           project_planned_month: number
+          project_planned_ytd: number
         }[]
       }
       get_crm_received_value: { Args: { p_tenant_id: string }; Returns: number }
