@@ -82,26 +82,15 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
         .eq('employee_id', employeeId);
 
       if (membersError) throw membersError;
-      if (!members || members.length === 0) {
-        const expectedHoursEmpty = calculateExpectedHours(monthKey, jornada_diaria, typedHolidays);
-        // Still fetch activity hours even without project allocations
-        const { data: activityTimesheetsEmpty } = await supabase
-          .from('activity_timesheets')
-          .select('hours')
-          .eq('employee_id', employeeId)
-          .gte('work_date', `${monthKey}-01`)
-          .lt('work_date', format(addMonths(parseISO(`${monthKey}-01`), 1), 'yyyy-MM-dd'));
-        const totalActivityHoursEmpty = (activityTimesheetsEmpty || []).reduce((sum, r: any) => sum + Number(r.hours), 0);
-        return { projects: [], totalPlannedHours: 0, totalActualHours: 0, totalActivityHours: totalActivityHoursEmpty, monthlyCapacity, expectedHours: expectedHoursEmpty };
-      }
-
-      const memberIds = members.map((m: any) => m.id);
+      const memberIds = (members || []).map((m: any) => m.id);
 
       // 3. Get project_member_months for all member IDs
-      const { data: memberMonths } = await supabase
-        .from('project_member_months')
-        .select('project_member_id, month_number, hours')
-        .in('project_member_id', memberIds);
+      const { data: memberMonths } = memberIds.length > 0
+        ? await supabase
+          .from('project_member_months')
+          .select('project_member_id, month_number, hours')
+          .in('project_member_id', memberIds)
+        : { data: [] };
 
       // 4. Get timesheets and activity timesheets for the month
       const monthStart = `${monthKey}-01`;
@@ -112,8 +101,15 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
       const [{ data: timesheets }, { data: activityTimesheets }] = await Promise.all([
         supabase
           .from('project_timesheets')
-          .select('project_id, project_member_id, hours')
-          .in('project_member_id', memberIds)
+          .select(`
+            project_id, project_member_id, hours,
+            project_members!inner (employee_id),
+            projects!inner (
+              id, name, start_date, portfolio_stage,
+              clients!inner (id, company_name)
+            )
+          `)
+          .eq('project_members.employee_id', employeeId)
           .gte('work_date', monthStart)
           .lt('work_date', monthEnd),
         supabase
@@ -127,7 +123,7 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
       // 5. Build allocation per project
       const projectMap = new Map<string, ProjectAllocation>();
 
-      members.forEach((member: any) => {
+      (members || []).forEach((member: any) => {
         const project = member.projects;
         const projectId = project.id;
 
@@ -158,7 +154,19 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
 
       // Aggregate actual hours from timesheets
       (timesheets || []).forEach((ts: any) => {
-        const entry = projectMap.get(ts.project_id);
+        const project = ts.projects;
+        const projectId = ts.project_id || project?.id;
+        if (project && projectId && !projectMap.has(projectId)) {
+          projectMap.set(projectId, {
+            projectId,
+            projectName: project.name,
+            clientName: project.clients?.company_name || 'Sem cliente',
+            plannedHours: 0,
+            actualHours: 0,
+          });
+        }
+
+        const entry = projectId ? projectMap.get(projectId) : undefined;
         if (entry) {
           entry.actualHours += Number(ts.hours);
         }

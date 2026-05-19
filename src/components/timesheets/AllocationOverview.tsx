@@ -173,7 +173,21 @@ interface QueryProject {
   manager: QueryManager | null; project_members: QueryProjectMember[] | null;
 }
 interface MemberMonthRow { project_member_id: string; month_number: number; hours: number; }
-interface TimesheetRow { project_member_id: string; work_date: string; hours: number; }
+interface TimesheetProject {
+  id: string; name: string; start_date: string; duration_months: number | null;
+  is_continuous: boolean | null; manager_id: string; service_line: string | null;
+  portfolio_stage: string | null; manager: QueryManager | null;
+}
+interface TimesheetMember {
+  id: string; employee_id: string | null; project_id: string | null;
+  employees: QueryEmployee | null;
+}
+interface TimesheetRow {
+  project_id: string | null; project_member_id: string | null;
+  work_date: string; hours: number;
+  project_members: TimesheetMember | null;
+  projects: TimesheetProject | null;
+}
 interface QueryActivityTypeEmployee { employee_id: string; }
 interface QueryActivityType {
   id: string; name: string; applies_to_all: boolean;
@@ -411,38 +425,6 @@ export function AllocationOverview({
         return { projects: [] as ProjectScope[], rows: [] as RawRow[], options: { teams: [], managers: [], projects: [] } as PlannerFilterOptions };
       }
 
-      // Resolve service_line UUIDs to names (filter out old-style string keys that aren't valid UUIDs)
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const allServiceLines = Array.from(new Set(projectRows.map((p) => p.service_line).filter(Boolean))) as string[];
-      const serviceLineUuids = allServiceLines.filter((id) => uuidRegex.test(id));
-      let serviceNameMap = new Map<string, string>();
-      if (serviceLineUuids.length > 0) {
-        const { data: services } = await supabase.from('services').select('id, name').in('id', serviceLineUuids);
-        if (services) serviceNameMap = new Map(services.map((s: { id: string; name: string }) => [s.id, s.name]));
-      }
-
-      const resolveServiceLine = (raw: string | null): { key: string; label: string } => {
-        if (!raw) return { key: '__sem_time__', label: 'Sem linha de serviço' };
-        const name = serviceNameMap.get(raw) || SERVICE_LINE_LABELS[raw] || raw;
-        return { key: raw, label: name };
-      };
-
-      const scopedProjects: ProjectScope[] = projectRows.map((p) => {
-        const sl = resolveServiceLine(p.service_line);
-        return {
-          id: p.id, name: p.name, startDate: p.start_date,
-          durationMonths: Number(p.duration_months) || 1,
-          isContinuous: Boolean(p.is_continuous),
-          managerId: p.manager_id,
-          managerName: p.manager?.nome || 'Sem gerente',
-          teamKey: sl.key,
-          teamLabel: sl.label,
-          portfolioStage: p.portfolio_stage,
-        };
-      });
-
-      const projectById = new Map<string, ProjectScope>(scopedProjects.map((p) => [p.id, p]));
-
       const allMembers = projectRows.flatMap((p) =>
         (p.project_members || []).map((m) => ({
           projectId: p.id, projectStartDate: p.start_date,
@@ -456,56 +438,38 @@ export function AllocationOverview({
       const memberIds = Array.from(memberMetaById.keys());
       const employeeIds = Array.from(new Set(allMembers.map((m) => m.employeeId).filter((id): id is string => Boolean(id))));
 
-      if (memberIds.length === 0) {
-        const options = buildFilterOptions(scopedProjects);
-        return { projects: scopedProjects, rows: [] as RawRow[], options };
-      }
-
-      // Busca TODOS os project_members dos colaboradores — sem filtro de projeto — para
-      // garantir que timesheets de projetos em qualquer estágio (incluindo concluídos) sejam incluídos.
-      const { data: allProjectMembersData } = employeeIds.length > 0
-        ? await supabase.from('project_members').select('id, employee_id, project_id').in('employee_id', employeeIds)
-        : { data: [] };
-
-      const memberToInfo = new Map<string, { employeeId: string; projectId: string }>();
-      (allProjectMembersData || []).forEach((m: any) => {
-        if (m.employee_id) memberToInfo.set(m.id, { employeeId: m.employee_id, projectId: m.project_id });
-      });
-
-      // Derive all unique project IDs from the full member list (for direct project_id timesheet query)
-      const allProjectIds = [...new Set(
-        (allProjectMembersData || []).map((m: any) => m.project_id as string).filter(Boolean)
-      )];
-
-      // Extend projectById with any projects not already in the map (e.g. projects managed by others)
-      const missingProjectIds = allProjectIds.filter(pid => !projectById.has(pid));
-      if (missingProjectIds.length > 0) {
-        const { data: extraProjects } = await supabase
-          .from('projects')
-          .select('id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage')
-          .in('id', missingProjectIds);
-        (extraProjects || []).forEach((p: any) => {
-          if (!projectById.has(p.id)) {
-            projectById.set(p.id, {
-              id: p.id, name: p.name, startDate: p.start_date,
-              durationMonths: Number(p.duration_months) || 1,
-              isContinuous: Boolean(p.is_continuous),
-              managerId: p.manager_id, managerName: '',
-              teamKey: '__extra__', teamLabel: 'Outros projetos',
-              portfolioStage: p.portfolio_stage,
-            });
-          }
-        });
-      }
-
       const startDate = `${selectedYear}-01-01`;
       const endDate = `${selectedYear}-12-31`;
 
+      let timesheetsQuery = supabase
+        .from('project_timesheets')
+        .select(`
+          project_id, project_member_id, work_date, hours,
+          project_members!inner (
+            id, employee_id, project_id,
+            employees (
+              id, nome, cargo, jornada_diaria, status,
+              employee_terminations!termination_id (termination_date)
+            )
+          ),
+          projects!inner (
+            id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage,
+            manager:employees!projects_manager_id_fkey(id, nome)
+          )
+        `)
+        .eq('projects.tenant_id', tenantId)
+        .gte('work_date', startDate)
+        .lte('work_date', endDate);
+
+      if (!isAdmin && currentEmployeeId) {
+        timesheetsQuery = timesheetsQuery.eq('projects.manager_id', currentEmployeeId);
+      }
+
       const [memberMonthsRes, timesheetsRes, activityTypesRes] = await Promise.all([
-        supabase.from('project_member_months').select('project_member_id, month_number, hours').in('project_member_id', memberIds),
-        allProjectIds.length > 0
-          ? supabase.from('project_timesheets').select('project_member_id, work_date, hours').in('project_id', allProjectIds).gte('work_date', startDate).lte('work_date', endDate)
-          : Promise.resolve({ data: [] as TimesheetRow[], error: null }),
+        memberIds.length > 0
+          ? supabase.from('project_member_months').select('project_member_id, month_number, hours').in('project_member_id', memberIds)
+          : Promise.resolve({ data: [] as MemberMonthRow[], error: null }),
+        timesheetsQuery,
         supabase.from('activity_types').select('id, name, applies_to_all, activity_type_employees(employee_id)').eq('tenant_id', tenantId).eq('is_active', true).order('name'),
       ]);
 
@@ -513,23 +477,72 @@ export function AllocationOverview({
       if (timesheetsRes.error) throw timesheetsRes.error;
       if (activityTypesRes.error) throw activityTypesRes.error;
 
+      const memberMonths = (memberMonthsRes.data ?? []) as MemberMonthRow[];
+      const timesheets = (timesheetsRes.data ?? []) as TimesheetRow[];
       const activityTypes = (activityTypesRes.data ?? []) as QueryActivityType[];
+
+      // Resolve service_line UUIDs to names using both planned projects and actual-only projects.
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const timesheetProjects = timesheets.map((entry) => entry.projects).filter((p): p is TimesheetProject => Boolean(p));
+      const allServiceLines = Array.from(new Set([
+        ...projectRows.map((p) => p.service_line).filter(Boolean),
+        ...timesheetProjects.map((p) => p.service_line).filter(Boolean),
+      ])) as string[];
+      const serviceLineUuids = allServiceLines.filter((id) => uuidRegex.test(id));
+      let serviceNameMap = new Map<string, string>();
+      if (serviceLineUuids.length > 0) {
+        const { data: services } = await supabase.from('services').select('id, name').in('id', serviceLineUuids);
+        if (services) serviceNameMap = new Map(services.map((s: { id: string; name: string }) => [s.id, s.name]));
+      }
+
+      const resolveServiceLine = (raw: string | null): { key: string; label: string } => {
+        if (!raw) return { key: '__sem_time__', label: 'Sem linha de serviço' };
+        const name = serviceNameMap.get(raw) || SERVICE_LINE_LABELS[raw] || raw;
+        return { key: raw, label: name };
+      };
+
+      const projectById = new Map<string, ProjectScope>();
+      const addProjectScope = (p: QueryProject | TimesheetProject): ProjectScope => {
+        const existing = projectById.get(p.id);
+        if (existing) return existing;
+
+        const sl = resolveServiceLine(p.service_line);
+        const scope: ProjectScope = {
+          id: p.id, name: p.name, startDate: p.start_date,
+          durationMonths: Number(p.duration_months) || 1,
+          isContinuous: Boolean(p.is_continuous),
+          managerId: p.manager_id,
+          managerName: p.manager?.nome || 'Sem gerente',
+          teamKey: sl.key,
+          teamLabel: sl.label,
+          portfolioStage: p.portfolio_stage,
+        };
+        projectById.set(scope.id, scope);
+        return scope;
+      };
+
+      projectRows.forEach(addProjectScope);
+      timesheetProjects.forEach(addProjectScope);
+
+      const scopedProjects = Array.from(projectById.values());
+      const allEmployeeIds = Array.from(new Set([
+        ...employeeIds,
+        ...timesheets.map((entry) => entry.project_members?.employee_id).filter((id): id is string => Boolean(id)),
+      ]));
       const activityTypeIds = activityTypes.map((a) => a.id);
 
       const [activityEmployeeMonthsRes, activityTimesheetsRes] = await Promise.all([
-        activityTypeIds.length === 0 || employeeIds.length === 0
+        activityTypeIds.length === 0 || allEmployeeIds.length === 0
           ? Promise.resolve({ data: [] as ActivityEmployeeMonthRow[], error: null })
-          : supabase.from('activity_employee_months').select('employee_id, activity_type_id, year, month, hours').eq('tenant_id', tenantId).in('employee_id', employeeIds).in('activity_type_id', activityTypeIds).eq('year', selectedYear),
-        activityTypeIds.length === 0 || employeeIds.length === 0
+          : supabase.from('activity_employee_months').select('employee_id, activity_type_id, year, month, hours').eq('tenant_id', tenantId).in('employee_id', allEmployeeIds).in('activity_type_id', activityTypeIds).eq('year', selectedYear),
+        activityTypeIds.length === 0 || allEmployeeIds.length === 0
           ? Promise.resolve({ data: [] as ActivityTimesheetYearRow[], error: null })
-          : supabase.from('activity_timesheets').select('employee_id, activity_type_id, work_date, hours').in('employee_id', employeeIds).in('activity_type_id', activityTypeIds).gte('work_date', startDate).lte('work_date', endDate),
+          : supabase.from('activity_timesheets').select('employee_id, activity_type_id, work_date, hours').in('employee_id', allEmployeeIds).in('activity_type_id', activityTypeIds).gte('work_date', startDate).lte('work_date', endDate),
       ]);
 
       if (activityEmployeeMonthsRes.error) throw activityEmployeeMonthsRes.error;
       if (activityTimesheetsRes.error) throw activityTimesheetsRes.error;
 
-      const memberMonths = (memberMonthsRes.data ?? []) as MemberMonthRow[];
-      const timesheets = (timesheetsRes.data ?? []) as TimesheetRow[];
       const activityEmployeeMonths = (activityEmployeeMonthsRes.data ?? []) as ActivityEmployeeMonthRow[];
       const activityTimesheets = (activityTimesheetsRes.data ?? []) as ActivityTimesheetYearRow[];
       const rowMap = new Map<string, RawRow>();
@@ -562,7 +575,7 @@ export function AllocationOverview({
       });
 
       const activityTypeAllowedByEmployee = new Map<string, QueryActivityType[]>();
-      employeeIds.forEach((eid) => {
+      allEmployeeIds.forEach((eid) => {
         activityTypeAllowedByEmployee.set(eid, activityTypes.filter((a) => a.applies_to_all || (a.activity_type_employees || []).some((e) => e.employee_id === eid)));
       });
 
@@ -585,11 +598,13 @@ export function AllocationOverview({
       });
 
       timesheets.forEach((entry) => {
-        const info = memberToInfo.get(entry.project_member_id);
-        if (!info) return;
-        const row = rowMap.get(info.employeeId);
-        if (!row) return;
-        const project = projectById.get(info.projectId);
+        const member = entry.project_members;
+        const emp = member?.employees;
+        const employeeId = member?.employee_id;
+        const projectId = entry.project_id || member?.project_id || entry.projects?.id;
+        if (!emp || !employeeId || !projectId) return;
+        const row = ensureRow(emp);
+        const project = projectById.get(projectId);
         if (!project) return;
         const month = Number(entry.work_date.substring(5, 7));
         if (month < 1 || month > 12) return;
@@ -641,7 +656,6 @@ export function AllocationOverview({
 
   const scopedProjects = useMemo(() => {
     return (data?.projects || []).filter((p) => {
-      if (p.portfolioStage === 'completed' || p.portfolioStage === 'planning') return false;
       if (filters.teamId !== 'all' && p.teamKey !== filters.teamId) return false;
       if (filters.managerId !== 'all' && p.managerId !== filters.managerId) return false;
       return true;
@@ -652,6 +666,10 @@ export function AllocationOverview({
     if (filters.projectId === 'all') return scopedProjects;
     return scopedProjects.filter((p) => p.id === filters.projectId);
   }, [scopedProjects, filters.projectId]);
+
+  const visibleProjectById = useMemo(() => {
+    return new Map(visibleProjects.map((p) => [p.id, p]));
+  }, [visibleProjects]);
 
   const rowsWithStatus = useMemo(() => {
     const projectIds = visibleProjects.map((p) => p.id);
@@ -664,20 +682,13 @@ export function AllocationOverview({
       );
     }
 
-    const useProjectFilter = filters.projectId !== 'all';
     const builtRows = sourceRows.map((raw): AllocationPlannerRow => {
       const monthTotals: MonthTotal[] = MONTH_COLUMNS.map(({ month }) => {
         const cap = calculateMonthlyCapacity(toMonthKey(selectedYear, month), raw.employee.jornadaDiaria, holidays);
         const activityPlanned = Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.plannedByMonth[month - 1] || 0), 0);
         const activityActual = Object.values(raw.internalActivitiesById).reduce((s, a) => s + (a.actualByMonth[month - 1] || 0), 0);
-        const planned = (useProjectFilter
-          ? projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.plannedByMonth[month - 1] || 0), 0)
-          : Object.values(raw.projectsById).reduce((s, p) => s + (p.plannedByMonth[month - 1] || 0), 0)
-        ) + activityPlanned;
-        const actual = (useProjectFilter
-          ? projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.actualByMonth[month - 1] || 0), 0)
-          : Object.values(raw.projectsById).reduce((s, p) => s + (p.actualByMonth[month - 1] || 0), 0)
-        ) + activityActual;
+        const planned = projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.plannedByMonth[month - 1] || 0), 0) + activityPlanned;
+        const actual = projectIds.reduce((s, pid) => s + (raw.projectsById[pid]?.actualByMonth[month - 1] || 0), 0) + activityActual;
         return { monthKey: toMonthKey(selectedYear, month), month, planned, actual, capacityHours: cap };
       });
 
@@ -735,13 +746,20 @@ export function AllocationOverview({
   useEffect(() => { if (expandedEmployeeId && !expandedRow) closeExpanded(); }, [expandedEmployeeId, expandedRow, closeExpanded]);
   useEffect(() => { closeExpanded(); }, [selectedYear, filters.teamId, filters.managerId, filters.projectId, closeExpanded]);
 
+  const getExpandableProjectsForRow = useCallback((row: AllocationPlannerRow): ProjectScope[] => {
+    return Object.keys(row.projectsById)
+      .map((projectId) => visibleProjectById.get(projectId))
+      .filter((project): project is ProjectScope => Boolean(project))
+      .filter((project) => {
+        const ph = row.projectsById[project.id];
+        return Boolean(ph.projectMemberId) || ph.plannedByMonth.some((v) => v > 0) || ph.actualByMonth.some((v) => v > 0);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [visibleProjectById]);
+
   const initializeDraftForRow = (row: AllocationPlannerRow) => {
     const nextPlanned: Record<string, number> = {};
-    const projectsForExpanded = visibleProjects.filter((p) => {
-      const ph = row.projectsById[p.id];
-      if (!ph) return false;
-      return Boolean(ph.projectMemberId) || ph.plannedByMonth.some((v) => v > 0) || ph.actualByMonth.some((v) => v > 0);
-    });
+    const projectsForExpanded = getExpandableProjectsForRow(row);
 
     projectsForExpanded.forEach((p) => {
       const ph = row.projectsById[p.id] || createEmptyProjectRow(p, null);
@@ -773,12 +791,8 @@ export function AllocationOverview({
 
   const expandedProjects = useMemo(() => {
     if (!expandedRow) return [];
-    return visibleProjects.filter((p) => {
-      const ph = expandedRow.projectsById[p.id];
-      if (!ph) return false;
-      return Boolean(ph.projectMemberId) || ph.plannedByMonth.some((v) => v > 0) || ph.actualByMonth.some((v) => v > 0);
-    });
-  }, [expandedRow, visibleProjects]);
+    return getExpandableProjectsForRow(expandedRow);
+  }, [expandedRow, getExpandableProjectsForRow]);
 
   const expandedInternalActivities = useMemo(() => {
     if (!expandedRow) return [];
