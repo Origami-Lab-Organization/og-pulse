@@ -168,7 +168,7 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
 
         supabase
           .from('project_timesheets')
-          .select('project_id, project_member_id, hours')
+          .select('project_id, project_member_id, hours, cost_per_hour')
           .in('project_id', projectIds)
           .gte('work_date', startStr)
           .lte('work_date', endStr),
@@ -259,9 +259,12 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
           const member = memberMap.get(ts.project_member_id);
           if (!member?.employee) continue;
           const emp = member.employee;
-          const hourlyCost = Number(emp.jornada_mensal) > 0
+          const fallbackCost = Number(emp.jornada_mensal) > 0
             ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
             : 0;
+          const hourlyCost = (ts as any).cost_per_hour != null
+            ? Number((ts as any).cost_per_hour)
+            : fallbackCost;
           laborCost += Number(ts.hours) * hourlyCost;
 
           const key = ts.project_member_id;

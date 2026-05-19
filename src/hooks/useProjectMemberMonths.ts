@@ -50,11 +50,30 @@ export const useUpsertMemberMonth = () => {
         .single();
 
       if (error) throw error;
+      
+      const { data: member, error: memberError } = await supabase
+        .from('project_members')
+        .select('employee_id')
+        .eq('id', projectMemberId)
+        .single();
+
+      if (memberError) throw memberError;
+
+      if (member?.employee_id) {
+        const { error: recalcError } = await (supabase as any).rpc('recalculate_employee_cost_snapshots', {
+          p_employee_id: member.employee_id,
+        });
+
+        if (recalcError) throw recalcError;
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-member-months'] });
       queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['allocation-employee-month-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['allocation-employee-detail'] });
     },
     onError: (error: Error) => {
       toast({

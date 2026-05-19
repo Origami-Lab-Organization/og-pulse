@@ -25,20 +25,21 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
   const costs = useMemo(() => {
     let laborCost = 0;
     project.members?.forEach((member) => {
-      let hourlyCost = 0;
-      if (member.employee) {
-        const totalMonthlyCost = member.employee.total_monthly_cost_estimated || 0;
-        const workHours = member.employee.jornada_mensal || 168;
-        hourlyCost = workHours > 0 ? totalMonthlyCost / workHours : 0;
-      } else {
-        hourlyCost = Number((member as any).hourly_rate) || 0;
-      }
+      const fallbackCost = member.employee
+        ? (() => {
+            const totalMonthlyCost = member.employee.total_monthly_cost_estimated || 0;
+            const workHours = member.employee.jornada_mensal || 168;
+            return workHours > 0 ? totalMonthlyCost / workHours : 0;
+          })()
+        : Number((member as any).hourly_rate) || 0;
 
-      const totalPlannedHours = memberMonths
-        .filter((mm) => mm.project_member_id === member.id)
-        .reduce((sum, mm) => sum + Number(mm.hours), 0);
+      const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
+      if (memberEntries.length === 0) return;
 
-      laborCost += hourlyCost * totalPlannedHours;
+      laborCost += memberEntries.reduce((sum, mm) => {
+        const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
+        return sum + hourlyCost * Number(mm.hours);
+      }, 0);
     });
 
     const suppliersCost = supplierMonths.reduce((sum, sm) => sum + Number(sm.value), 0);

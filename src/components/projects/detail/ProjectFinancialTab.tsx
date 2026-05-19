@@ -52,31 +52,37 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     return Math.max(1, differenceInMonths(end, start) + 1);
   }, [project]);
 
+  const fallbackHourlyCost = (member: NonNullable<typeof project.members>[number]) => {
+    if (!member.employee) return Number((member as any).hourly_rate) || 0;
+    const totalCost = member.employee.total_monthly_cost_estimated || 0;
+    const workHours = member.employee.jornada_mensal || 168;
+    return workHours > 0 ? totalCost / workHours : 0;
+  };
+
   // Aggregate cost data (same logic as OverviewTab)
   const costData = useMemo(() => {
     const laborPlanned = (project.members || []).reduce((acc, member) => {
-      const employee = member.employee;
-      if (!employee) return acc;
-      const totalCost = employee.total_monthly_cost_estimated || 0;
-      const workHours = employee.jornada_mensal || 168;
-      const hourlyCost = workHours > 0 ? totalCost / workHours : 0;
-      const memberHoursPlanned = memberMonths
-        .filter((mm) => mm.project_member_id === member.id)
-        .reduce((s, mm) => s + mm.hours, 0);
-      const totalHours = memberHoursPlanned > 0 ? memberHoursPlanned : Number(member.hours_per_month || 0) * projectDuration;
-      return acc + hourlyCost * totalHours;
+      const fallbackCost = fallbackHourlyCost(member);
+      const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
+      if (memberEntries.length === 0) {
+        return acc + fallbackCost * Number(member.hours_per_month || 0) * projectDuration;
+      }
+
+      return acc + memberEntries.reduce((sum, mm) => {
+        const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
+        return sum + hourlyCost * Number(mm.hours);
+      }, 0);
     }, 0);
 
     const laborActual = (project.members || []).reduce((acc, member) => {
-      const employee = member.employee;
-      if (!employee) return acc;
-      const totalCost = employee.total_monthly_cost_estimated || 0;
-      const workHours = employee.jornada_mensal || 168;
-      const hourlyCost = workHours > 0 ? totalCost / workHours : 0;
-      const actualHours = timesheets
+      const fallbackCost = fallbackHourlyCost(member);
+      const memberActualCost = timesheets
         .filter((t) => t.project_member_id === member.id)
-        .reduce((s, t) => s + t.hours, 0);
-      return acc + hourlyCost * actualHours;
+        .reduce((sum, t) => {
+          const hourlyCost = (t as any).cost_per_hour != null ? Number((t as any).cost_per_hour) : fallbackCost;
+          return sum + hourlyCost * Number(t.hours);
+        }, 0);
+      return acc + memberActualCost;
     }, 0);
 
     const supplierPlanned = supplierMonths.reduce((s, sm) => s + sm.value, 0) ||
@@ -141,12 +147,11 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
 
       // Planned labor for this month
       const laborPlan = (project.members || []).reduce((acc, member) => {
-        const employee = member.employee;
-        if (!employee) return acc;
-        const totalCost = employee.total_monthly_cost_estimated || 0;
-        const workHours = employee.jornada_mensal || 168;
-        const hourlyCost = workHours > 0 ? totalCost / workHours : 0;
+        const fallbackCost = fallbackHourlyCost(member);
         const monthEntry = memberMonths.find((mm) => mm.project_member_id === member.id && mm.month_number === monthNum);
+        const hourlyCost = (monthEntry as any)?.cost_per_hour != null
+          ? Number((monthEntry as any).cost_per_hour)
+          : fallbackCost;
         const hours = monthEntry ? monthEntry.hours : Number(member.hours_per_month || 0);
         return acc + hourlyCost * hours;
       }, 0);
@@ -155,18 +160,17 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
       const monthStart = startOfMonth(addMonths(startDate, i));
       const monthEnd = startOfMonth(addMonths(startDate, i + 1));
       const laborReal = (project.members || []).reduce((acc, member) => {
-        const employee = member.employee;
-        if (!employee) return acc;
-        const totalCost = employee.total_monthly_cost_estimated || 0;
-        const workHours = employee.jornada_mensal || 168;
-        const hourlyCost = workHours > 0 ? totalCost / workHours : 0;
-        const hours = timesheets
+        const fallbackCost = fallbackHourlyCost(member);
+        const memberActualCost = timesheets
           .filter((t) => {
             const d = parseISO(t.work_date);
             return t.project_member_id === member.id && d >= monthStart && d < monthEnd;
           })
-          .reduce((s, t) => s + t.hours, 0);
-        return acc + hourlyCost * hours;
+          .reduce((sum, t) => {
+            const hourlyCost = (t as any).cost_per_hour != null ? Number((t as any).cost_per_hour) : fallbackCost;
+            return sum + hourlyCost * Number(t.hours);
+          }, 0);
+        return acc + memberActualCost;
       }, 0);
 
       // Planned suppliers for this month

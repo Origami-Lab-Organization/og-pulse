@@ -141,7 +141,7 @@ export function ProjectLaborSection({
     return Number((member as any).hourly_rate) || 0;
   }, []);
 
-  // Get real hourly cost from employee's total_monthly_cost_estimated / jornada_mensal
+  // Legacy fallback only. Historical calculations should use stored cost_per_hour snapshots.
   // If no employee is assigned, use the member's hourly_rate (from budget) as cost
   const getRealHourlyCost = useCallback((member: typeof members[0]): number => {
     if (member.employee) {
@@ -400,19 +400,37 @@ export function ProjectLaborSection({
     [actualHoursByMemberAndMonth]
   );
 
-  // Actual cost per member using stored cost_per_hour from each timesheet
+  const actualCostByMemberAndMonth = useMemo(() => {
+    const result: Record<string, Record<number, number>> = {};
+    const startDate = parseISO(projectStartDate);
+    const fallbackCostByMember = new Map(members.map((member) => [member.id, getRealHourlyCost(member)]));
+
+    timesheets.forEach((ts) => {
+      const workDate = parseISO(ts.work_date);
+      const monthNumber = differenceInMonths(startOfMonth(workDate), startOfMonth(startDate)) + 1;
+
+      if (monthNumber < 1 || monthNumber > durationMonths) return;
+
+      if (!result[ts.project_member_id]) {
+        result[ts.project_member_id] = {};
+      }
+      const hourlyCost = (ts as any).cost_per_hour != null
+        ? Number((ts as any).cost_per_hour)
+        : (fallbackCostByMember.get(ts.project_member_id) || 0);
+      result[ts.project_member_id][monthNumber] =
+        (result[ts.project_member_id][monthNumber] || 0) + Number(ts.hours) * hourlyCost;
+    });
+
+    return result;
+  }, [timesheets, projectStartDate, durationMonths, members, getRealHourlyCost]);
+
   const actualCostByMember = useMemo(() => {
     const result: Record<string, number> = {};
-    timesheets.forEach((ts) => {
-      const cost = (ts as any).cost_per_hour != null
-        ? Number((ts as any).cost_per_hour) * Number(ts.hours)
-        : null; // will use fallback in totals
-      if (cost != null) {
-        result[ts.project_member_id] = (result[ts.project_member_id] || 0) + cost;
-      }
+    Object.entries(actualCostByMemberAndMonth).forEach(([memberId, costsByMonth]) => {
+      result[memberId] = Object.values(costsByMonth).reduce((sum, cost) => sum + cost, 0);
     });
     return result;
-  }, [timesheets]);
+  }, [actualCostByMemberAndMonth]);
 
   // Calculate totals using stored cost_per_hour when available, falling back to current rate
   const totals = useMemo(() => {
@@ -435,12 +453,12 @@ export function ProjectLaborSection({
         const plannedCost = (mm as any)?.cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
         const plannedHours = getHoursForMonth(member.id, monthNum);
         const actualHours = getActualHoursForMonth(member.id, monthNum);
-        const actualCost = fallbackCost; // per-month actual cost uses fallback; total uses stored ts cost
+        const actualValue = actualCostByMemberAndMonth[member.id]?.[monthNum] ?? (actualHours * fallbackCost);
 
         byMonth[monthNum].plannedHours = Math.round((byMonth[monthNum].plannedHours + plannedHours) * 10) / 10;
         byMonth[monthNum].plannedValue += plannedHours * plannedCost;
         byMonth[monthNum].actualHours = Math.round((byMonth[monthNum].actualHours + actualHours) * 10) / 10;
-        byMonth[monthNum].actualValue += actualHours * actualCost;
+        byMonth[monthNum].actualValue += actualValue;
 
         totalHours = Math.round((totalHours + plannedHours) * 10) / 10;
         totalValue += plannedHours * plannedCost;
@@ -457,7 +475,7 @@ export function ProjectLaborSection({
     });
 
     return { byMonth, totalHours, totalValue, totalActualHours, totalActualValue };
-  }, [members, months, getRealHourlyCost, getHoursForMonth, getActualHoursForMonth, memberMonths, actualCostByMember, actualHoursByMember]);
+  }, [members, months, getRealHourlyCost, getHoursForMonth, getActualHoursForMonth, memberMonths, actualCostByMember, actualHoursByMember, actualCostByMemberAndMonth]);
 
 
   // Calculate member totals using stored cost_per_hour when available

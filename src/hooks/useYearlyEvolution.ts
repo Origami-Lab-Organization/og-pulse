@@ -108,14 +108,14 @@ export function useYearlyEvolution(
 
         supabase
           .from('project_timesheets')
-          .select('project_member_id, work_date, hours')
+          .select('project_member_id, work_date, hours, cost_per_hour')
           .in('project_id', projectIds)
           .gte('work_date', yearStart)
           .lte('work_date', yearEnd),
 
         supabase
           .from('project_members')
-          .select('id, project_id, employee_id, employee:employees(jornada_mensal, total_monthly_cost_estimated), plannedMonths:project_member_months(month_number, hours)')
+          .select('id, project_id, employee_id, employee:employees(jornada_mensal, total_monthly_cost_estimated), plannedMonths:project_member_months(month_number, hours, cost_per_hour)')
           .in('project_id', projectIds),
 
         // All active tenant employees for capacity calculation
@@ -165,7 +165,10 @@ export function useYearlyEvolution(
         const monthIdx = d.getMonth();
         const info = memberMap.get(ts.project_member_id);
         if (info) {
-          laborCostByMonth[monthIdx] += Number(ts.hours) * info.hourlyCost;
+          const hourlyCost = (ts as any).cost_per_hour != null
+            ? Number((ts as any).cost_per_hour)
+            : info.hourlyCost;
+          laborCostByMonth[monthIdx] += Number(ts.hours) * hourlyCost;
         }
       }
 

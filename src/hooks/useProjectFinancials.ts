@@ -121,7 +121,7 @@ export function useProjectFinancials(
 
         supabase
           .from('project_timesheets')
-          .select('project_id, project_member_id, hours')
+          .select('project_id, project_member_id, hours, cost_per_hour')
           .in('project_id', projectIds)
           .gte('work_date', startStr)
           .lte('work_date', endStr),
@@ -175,7 +175,10 @@ export function useProjectFinancials(
         memberCostMap.set(m.id, hourly);
       }
       for (const ts of (timesheetsRes.data || []) as any[]) {
-        add(costs, ts.project_id, Number(ts.hours) * (memberCostMap.get(ts.project_member_id) ?? 0));
+        const hourlyCost = ts.cost_per_hour != null
+          ? Number(ts.cost_per_hour)
+          : (memberCostMap.get(ts.project_member_id) ?? 0);
+        add(costs, ts.project_id, Number(ts.hours) * hourlyCost);
       }
 
       for (const ps of (suppliersRes.data || []) as any[]) {
