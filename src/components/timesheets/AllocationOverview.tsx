@@ -87,6 +87,7 @@ export interface PlannerFilters {
   managerId: string;
   projectId: string;
   onlyConflicts: boolean;
+  hideTerminated: boolean;
 }
 
 interface MonthTotal {
@@ -329,9 +330,10 @@ interface AllocationOverviewProps {
   searchQuery?: string;
   selectedYear: number;
   filters: PlannerFilters;
+  ytdMonth?: number;
   onStatusCountsChange?: (counts: StatusDualCounts) => void;
   onFilterOptionsChange?: (options: PlannerFilterOptions) => void;
-  onKPIDataChange?: (data: { counts: StatusDualCounts; total: number; capacityAnnual: number; capacityCurrentMonth: number }) => void;
+  onKPIDataChange?: (data: { counts: StatusDualCounts; total: number; capacityAnnual: number; capacityCurrentMonth: number; capacityYtd: number }) => void;
 }
 
 /* ─── Component ─── */
@@ -340,6 +342,7 @@ export function AllocationOverview({
   searchQuery = '',
   selectedYear,
   filters,
+  ytdMonth,
   onStatusCountsChange,
   onFilterOptionsChange,
   onKPIDataChange,
@@ -511,8 +514,15 @@ export function AllocationOverview({
     const month = currentMonthIndex >= 0
       ? rowsWithStatus.reduce((s, r) => s + (r.monthTotals[currentMonthIndex]?.capacityHours || 0), 0)
       : 0;
-    return { annual, month };
-  }, [rowsWithStatus, currentMonthIndex]);
+    const ytd = ytdMonth && ytdMonth > 0
+      ? rowsWithStatus.reduce((s, r) => {
+          let sum = 0;
+          for (let i = 0; i < ytdMonth; i++) sum += r.monthTotals[i]?.capacityHours || 0;
+          return s + sum;
+        }, 0)
+      : 0;
+    return { annual, month, ytd };
+  }, [rowsWithStatus, currentMonthIndex, ytdMonth]);
 
   useEffect(() => { onStatusCountsChange?.(counts); }, [counts, onStatusCountsChange]);
   useEffect(() => {
@@ -521,8 +531,14 @@ export function AllocationOverview({
       total: rowsWithStatus.length,
       capacityAnnual: capacityTotals.annual,
       capacityCurrentMonth: capacityTotals.month,
+      capacityYtd: capacityTotals.ytd,
     });
   }, [counts, rowsWithStatus.length, capacityTotals, onKPIDataChange]);
+
+  const tableRows = useMemo(() => {
+    if (!filters.hideTerminated) return rowsWithStatus;
+    return rowsWithStatus.filter((r) => !r.employee.terminationDate);
+  }, [rowsWithStatus, filters.hideTerminated]);
 
   /* ─── Expanded row state ─── */
 
@@ -862,7 +878,7 @@ export function AllocationOverview({
               <p className="text-sm text-muted-foreground text-center py-6">
                 Nenhum projeto encontrado para os filtros selecionados.
               </p>
-            ) : rowsWithStatus.length === 0 ? (
+            ) : tableRows.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
                 Nenhum colaborador corresponde aos filtros selecionados.
               </p>
@@ -889,7 +905,7 @@ export function AllocationOverview({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rowsWithStatus.map((row) => {
+                    {tableRows.map((row) => {
                       const isExpanded = expandedEmployeeId === row.employeeId;
 
                       return (

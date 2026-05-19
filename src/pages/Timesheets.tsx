@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { format, subWeeks } from 'date-fns';
+import { format, subWeeks, startOfWeek, subDays } from 'date-fns';
 import { Search } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { YearNavigator } from '@/components/timesheets/YearNavigator';
 import {
   AllocationOverview,
@@ -31,8 +32,8 @@ export default function Timesheets() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchQuery, setSearchQuery] = useState('');
   const [options, setOptions] = useState<PlannerFilterOptions>(EMPTY_OPTIONS);
-  const [kpiData, setKpiData] = useState<{ counts: any; total: number; capacityAnnual: number; capacityCurrentMonth: number }>({
-    counts: {}, total: 0, capacityAnnual: 0, capacityCurrentMonth: 0,
+  const [kpiData, setKpiData] = useState<{ counts: any; total: number; capacityAnnual: number; capacityCurrentMonth: number; capacityYtd: number }>({
+    counts: {}, total: 0, capacityAnnual: 0, capacityCurrentMonth: 0, capacityYtd: 0,
   });
 
   const { employee } = useAuth();
@@ -44,11 +45,22 @@ export default function Timesheets() {
   const currentMonth = now.getMonth() + 1;
   const weekCutoffDate = useMemo(() => format(subWeeks(now, 1), 'yyyy-MM-dd'), [now]);
 
+  // Last Friday before current week (Monday - 3 days)
+  const ytdCutoffDate = useMemo(() => {
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    return format(subDays(weekStart, 3), 'yyyy-MM-dd');
+  }, [now]);
+  const ytdMonth = useMemo(() => {
+    const [, m] = ytdCutoffDate.split('-').map(Number);
+    return m;
+  }, [ytdCutoffDate]);
+
   const [filters, setFilters] = useState<PlannerFilters>({
     teamId: 'all',
     managerId: 'all',
     projectId: 'all',
     onlyConflicts: false,
+    hideTerminated: false,
   });
 
   const { data: typeKpis, isLoading: isLoadingTypeKpis } = useAllocationTypeKpis({
@@ -56,6 +68,7 @@ export default function Timesheets() {
     selectedYear,
     currentMonth,
     weekCutoffDate,
+    ytdCutoffDate,
     managerId: filters.managerId,
     projectId: filters.projectId,
     teamId: filters.teamId,
@@ -78,10 +91,12 @@ export default function Timesheets() {
           data={typeKpis}
           isLoading={isLoadingTypeKpis}
           capacityAnnual={kpiData.capacityAnnual}
+          capacityYtd={kpiData.capacityYtd}
           capacityMonth={kpiData.capacityCurrentMonth}
           selectedYear={selectedYear}
           currentMonth={currentMonth}
           weekCutoffDate={weekCutoffDate}
+          ytdCutoffDate={ytdCutoffDate}
         />
 
         <div className="flex flex-col gap-4">
@@ -121,6 +136,20 @@ export default function Timesheets() {
                 ))}
               </SelectContent>
             </Select>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="hide-terminated"
+                checked={filters.hideTerminated}
+                onCheckedChange={(v) => updateFilter('hideTerminated', Boolean(v))}
+              />
+              <label
+                htmlFor="hide-terminated"
+                className="text-sm text-muted-foreground cursor-pointer select-none whitespace-nowrap"
+              >
+                Ocultar desligados
+              </label>
+            </div>
           </div>
         </div>
 
@@ -128,6 +157,7 @@ export default function Timesheets() {
           searchQuery={searchQuery}
           selectedYear={selectedYear}
           filters={filters}
+          ytdMonth={ytdMonth}
           onFilterOptionsChange={setOptions}
           onKPIDataChange={setKpiData}
         />

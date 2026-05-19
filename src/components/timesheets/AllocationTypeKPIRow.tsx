@@ -10,10 +10,12 @@ interface AllocationTypeKPIRowProps {
   data: AllocationTypeKpis | null | undefined;
   isLoading?: boolean;
   capacityAnnual: number;
+  capacityYtd: number;
   capacityMonth: number;
   selectedYear: number;
   currentMonth: number;
   weekCutoffDate: string;
+  ytdCutoffDate: string;
 }
 
 function pct(hours: number, capacity: number): number {
@@ -32,11 +34,11 @@ function monthLabel(month: number, year: number): string {
   return format(new Date(year, month - 1, 1), 'MMMM', { locale: ptBR });
 }
 
-function cutoffLabel(weekCutoffDate: string): string {
+function formatCutoff(dateStr: string): string {
   try {
-    return format(parseISO(weekCutoffDate), "dd/MM", { locale: ptBR });
+    return format(parseISO(dateStr), "dd/MM", { locale: ptBR });
   } catch {
-    return weekCutoffDate;
+    return dateStr;
   }
 }
 
@@ -91,15 +93,17 @@ export function AllocationTypeKPIRow({
   data,
   isLoading,
   capacityAnnual,
+  capacityYtd,
   capacityMonth,
   selectedYear,
   currentMonth,
   weekCutoffDate,
+  ytdCutoffDate,
 }: AllocationTypeKPIRowProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
           <Card key={i}>
             <CardContent className="p-4">
               <Skeleton className="h-10 w-full mb-2" />
@@ -111,35 +115,37 @@ export function AllocationTypeKPIRow({
     );
   }
 
-  const cutoff = cutoffLabel(weekCutoffDate);
-  const monthName = monthLabel(currentMonth, selectedYear);
-  const weekTooltip = `Considera lançamentos até ${cutoff} — última semana fechada. Colaboradores registram horas na sexta-feira para a semana em curso.`;
+  const weekCutoff = formatCutoff(weekCutoffDate);
+  const ytdCutoff  = formatCutoff(ytdCutoffDate);
+  const monthName  = monthLabel(currentMonth, selectedYear);
+  const monthCap   = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-  const projActualAnnual  = pct(data?.project_actual_annual   ?? 0, capacityAnnual);
-  const projPlannedAnnual = pct(data?.project_planned_annual  ?? 0, capacityAnnual);
-  const projActualMonth   = pct(data?.project_actual_month    ?? 0, capacityMonth);
-  const projPlannedMonth  = pct(data?.project_planned_month   ?? 0, capacityMonth);
-  const actActualAnnual   = pct(data?.activity_actual_annual  ?? 0, capacityAnnual);
-  const actPlannedAnnual  = pct(data?.activity_planned_annual ?? 0, capacityAnnual);
-  const actActualMonth    = pct(data?.activity_actual_month   ?? 0, capacityMonth);
-  const actPlannedMonth   = pct(data?.activity_planned_month  ?? 0, capacityMonth);
+  const weekTooltip = `Considera lançamentos até ${weekCutoff} — última semana fechada. Colaboradores registram horas na sexta-feira para a semana em curso.`;
+  const ytdTooltip  = `Acumulado do ano até ${ytdCutoff} — última sexta-feira antes da semana atual. Colaboradores registram horas na sexta-feira para a semana em curso.`;
+
+  const projActualAnnual   = pct(data?.project_actual_annual    ?? 0, capacityAnnual);
+  const projPlannedAnnual  = pct(data?.project_planned_annual   ?? 0, capacityAnnual);
+  const actActualAnnual    = pct(data?.activity_actual_annual   ?? 0, capacityAnnual);
+  const actPlannedAnnual   = pct(data?.activity_planned_annual  ?? 0, capacityAnnual);
+
+  const projActualYtd      = pct(data?.project_actual_ytd       ?? 0, capacityYtd);
+  const projPlannedYtd     = pct(data?.project_planned_ytd      ?? 0, capacityYtd);
+  const actActualYtd       = pct(data?.activity_actual_ytd      ?? 0, capacityYtd);
+  const actPlannedYtd      = pct(data?.activity_planned_ytd     ?? 0, capacityYtd);
+
+  const projActualMonth    = pct(data?.project_actual_month     ?? 0, capacityMonth);
+  const projPlannedMonth   = pct(data?.project_planned_month    ?? 0, capacityMonth);
+  const actActualMonth     = pct(data?.activity_actual_month    ?? 0, capacityMonth);
+  const actPlannedMonth    = pct(data?.activity_planned_month   ?? 0, capacityMonth);
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
       <KPICard
         icon={Briefcase}
         label="% Projetos"
         sublabel={`Ano ${selectedYear}`}
         actualPct={projActualAnnual}
         plannedPct={projPlannedAnnual}
-      />
-      <KPICard
-        icon={Briefcase}
-        label="% Projetos"
-        sublabel={`${monthName.charAt(0).toUpperCase() + monthName.slice(1)} (até ${cutoff})`}
-        actualPct={projActualMonth}
-        plannedPct={projPlannedMonth}
-        tooltipText={weekTooltip}
       />
       <KPICard
         icon={Activity}
@@ -149,9 +155,33 @@ export function AllocationTypeKPIRow({
         plannedPct={actPlannedAnnual}
       />
       <KPICard
+        icon={Briefcase}
+        label="% Projetos"
+        sublabel={`Ano até ${ytdCutoff}`}
+        actualPct={projActualYtd}
+        plannedPct={projPlannedYtd}
+        tooltipText={ytdTooltip}
+      />
+      <KPICard
         icon={Activity}
         label="% Atividades Internas"
-        sublabel={`${monthName.charAt(0).toUpperCase() + monthName.slice(1)} (até ${cutoff})`}
+        sublabel={`Ano até ${ytdCutoff}`}
+        actualPct={actActualYtd}
+        plannedPct={actPlannedYtd}
+        tooltipText={ytdTooltip}
+      />
+      <KPICard
+        icon={Briefcase}
+        label="% Projetos"
+        sublabel={`${monthCap} (até ${weekCutoff})`}
+        actualPct={projActualMonth}
+        plannedPct={projPlannedMonth}
+        tooltipText={weekTooltip}
+      />
+      <KPICard
+        icon={Activity}
+        label="% Atividades Internas"
+        sublabel={`${monthCap} (até ${weekCutoff})`}
         actualPct={actActualMonth}
         plannedPct={actPlannedMonth}
         tooltipText={weekTooltip}
