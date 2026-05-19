@@ -5071,6 +5071,27 @@ export type Database = {
           termination_date: string
         }[]
       }
+      get_allocation_type_kpis: {
+        Args: {
+          p_current_month: number
+          p_manager_id?: string
+          p_project_id?: string
+          p_team_key?: string
+          p_tenant_id: string
+          p_week_cutoff_date: string
+          p_year: number
+        }
+        Returns: {
+          activity_actual_annual: number
+          activity_actual_month: number
+          activity_planned_annual: number
+          activity_planned_month: number
+          project_actual_annual: number
+          project_actual_month: number
+          project_planned_annual: number
+          project_planned_month: number
+        }[]
+      }
       get_crm_received_value: { Args: { p_tenant_id: string }; Returns: number }
       get_employee_status: { Args: { p_auth_id: string }; Returns: string }
       get_employee_version_at_date: {
