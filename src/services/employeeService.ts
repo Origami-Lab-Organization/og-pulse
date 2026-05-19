@@ -231,6 +231,7 @@ export const employeeService = {
           ferias: updatedEmployee.ferias,
           proLabore: updatedEmployee.pro_labore,
           jornadaMensal: updatedEmployee.jornada_mensal,
+          jornadaDiaria: updatedEmployee.jornada_diaria,
           tipoContratacao: updatedEmployee.tipo_contratacao,
           cargo: updatedEmployee.cargo,
           totalMonthlyCostEstimated: updatedEmployee.total_monthly_cost_estimated,
@@ -554,6 +555,7 @@ export const employeeService = {
           ferias: breakdown.details.provisaoFerias,
           proLabore: Number(employee.pro_labore),
           jornadaMensal: Number(employee.jornada_mensal),
+          jornadaDiaria: Number(employee.jornada_diaria),
           tipoContratacao: employee.tipo_contratacao,
           cargo: employee.cargo,
         });

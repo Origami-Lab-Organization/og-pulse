@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { addMonths, format, parseISO, startOfMonth, endOfMonth, min, eachDayOfInterval, isWeekend } from 'date-fns';
+import { parseISO, endOfMonth, min, eachDayOfInterval, isWeekend } from 'date-fns';
 import { isHoliday } from '@/hooks/useHolidays';
 import { Holiday } from '@/types/holiday';
+import { AllocationDetailRpcRow } from './useAllocationPlannerData';
 
 export interface ProjectAllocation {
   projectId: string;
@@ -51,11 +52,11 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
         return { projects: [], totalPlannedHours: 0, totalActualHours: 0, totalActivityHours: 0, monthlyCapacity: 0, expectedHours: 0 };
       }
 
-      // 1. Get employee's monthly capacity and daily hours
+      // 1. Get employee's monthly capacity, tenant and daily hours
       const [{ data: empData }, { data: holidays }] = await Promise.all([
         supabase
           .from('employees')
-          .select('jornada_diaria')
+          .select('tenant_id, jornada_diaria')
           .eq('id', employeeId)
           .single(),
         supabase
@@ -64,114 +65,52 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
           .eq('is_active', true),
       ]);
 
+      const tenantId = empData?.tenant_id;
       const jornada_diaria = empData?.jornada_diaria ?? 8;
       const typedHolidays = (holidays || []) as Holiday[];
       const monthlyCapacity = calculateMonthlyCapacity(monthKey, jornada_diaria, typedHolidays);
+      const [year, month] = monthKey.split('-').map(Number);
 
-      // 2. Get project_members for this employee with project details
-      const { data: members, error: membersError } = await supabase
-        .from('project_members')
-        .select(`
-          id,
-          project_id,
-          projects!inner (
-            id, name, start_date, portfolio_stage,
-            clients!inner (id, company_name)
-          )
-        `)
-        .eq('employee_id', employeeId);
+      if (!tenantId || !year || !month) {
+        return { projects: [], totalPlannedHours: 0, totalActualHours: 0, totalActivityHours: 0, monthlyCapacity, expectedHours: 0 };
+      }
 
-      if (membersError) throw membersError;
-      const memberIds = (members || []).map((m: any) => m.id);
+      const { data: detailRows, error: detailError } = await supabase.rpc('get_allocation_employee_detail', {
+        p_tenant_id: tenantId,
+        p_year: year,
+        p_employee_id: employeeId,
+        p_manager_id: null,
+        p_project_id: null,
+        p_team_key: null,
+      });
+      if (detailError) throw detailError;
 
-      // 3. Get project_member_months for all member IDs
-      const { data: memberMonths } = memberIds.length > 0
-        ? await supabase
-          .from('project_member_months')
-          .select('project_member_id, month_number, hours')
-          .in('project_member_id', memberIds)
-        : { data: [] };
-
-      // 4. Get timesheets and activity timesheets for the month
-      const monthStart = `${monthKey}-01`;
-      const monthDate = parseISO(monthStart);
-      const nextMonth = addMonths(monthDate, 1);
-      const monthEnd = format(nextMonth, 'yyyy-MM-dd');
-
-      const [{ data: timesheets }, { data: activityTimesheets }] = await Promise.all([
-        supabase
-          .from('project_timesheets')
-          .select(`
-            project_id, project_member_id, hours,
-            project_members!inner (
-              employee_id,
-              projects!inner (
-                id, name, start_date, portfolio_stage,
-                clients!inner (id, company_name)
-              )
-            )
-          `)
-          .eq('project_members.employee_id', employeeId)
-          .gte('work_date', monthStart)
-          .lt('work_date', monthEnd),
-        supabase
-          .from('activity_timesheets')
-          .select('hours')
-          .eq('employee_id', employeeId)
-          .gte('work_date', monthStart)
-          .lt('work_date', monthEnd),
-      ]);
-
-      // 5. Build allocation per project
       const projectMap = new Map<string, ProjectAllocation>();
+      let totalActivityHours = 0;
 
-      (members || []).forEach((member: any) => {
-        const project = member.projects;
-        const projectId = project.id;
+      ((detailRows ?? []) as AllocationDetailRpcRow[]).forEach((row) => {
+        if (Number(row.month) !== month) return;
 
+        if (row.item_type === 'internal_activity') {
+          totalActivityHours += Number(row.actual_hours) || 0;
+          return;
+        }
+
+        const projectId = row.project_id || row.item_id;
+        if (!projectId) return;
         if (!projectMap.has(projectId)) {
           projectMap.set(projectId, {
             projectId,
-            projectName: project.name,
-            clientName: project.clients.company_name,
+            projectName: row.title,
+            clientName: row.client_name || 'Sem cliente',
             plannedHours: 0,
             actualHours: 0,
           });
         }
 
-        // Convert month_number to calendar month using project start_date
-        const projectStart = parseISO(project.start_date);
-        const relevantMonths = (memberMonths || []).filter(
-          (mm: any) => mm.project_member_id === member.id
-        );
-
-        relevantMonths.forEach((mm: any) => {
-          const calendarMonth = addMonths(projectStart, mm.month_number - 1);
-          const calendarMonthKey = format(calendarMonth, 'yyyy-MM');
-          if (calendarMonthKey === monthKey) {
-            projectMap.get(projectId)!.plannedHours += Number(mm.hours);
-          }
-        });
-      });
-
-      // Aggregate actual hours from timesheets
-      (timesheets || []).forEach((ts: any) => {
-        const project = ts.project_members?.projects;
-        const projectId = project?.id || ts.project_id;
-        if (project && projectId && !projectMap.has(projectId)) {
-          projectMap.set(projectId, {
-            projectId,
-            projectName: project.name,
-            clientName: project.clients?.company_name || 'Sem cliente',
-            plannedHours: 0,
-            actualHours: 0,
-          });
-        }
-
-        const entry = projectId ? projectMap.get(projectId) : undefined;
-        if (entry) {
-          entry.actualHours += Number(ts.hours);
-        }
+        const entry = projectMap.get(projectId)!;
+        entry.plannedHours += Number(row.planned_hours) || 0;
+        entry.actualHours += Number(row.actual_hours) || 0;
       });
 
       const projects = Array.from(projectMap.values()).sort((a, b) =>
@@ -180,7 +119,6 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
 
       const totalPlannedHours = projects.reduce((sum, p) => sum + p.plannedHours, 0);
       const totalActualHours = projects.reduce((sum, p) => sum + p.actualHours, 0);
-      const totalActivityHours = (activityTimesheets || []).reduce((sum, r: any) => sum + Number(r.hours), 0);
 
       const expectedHours = calculateExpectedHours(monthKey, jornada_diaria, typedHolidays);
 

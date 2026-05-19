@@ -15,6 +15,7 @@ export interface EmployeeVersionDB {
   ferias: number;
   pro_labore: number;
   jornada_mensal: number;
+  jornada_diaria: number;
   tipo_contratacao: string;
   cargo: string;
   total_monthly_cost_estimated: number | null;
@@ -34,6 +35,7 @@ export interface CreateVersionInput {
   ferias: number;
   proLabore: number;
   jornadaMensal: number;
+  jornadaDiaria?: number;
   tipoContratacao: string;
   cargo: string;
   totalMonthlyCostEstimated?: number | null;
@@ -147,6 +149,7 @@ export const employeeVersionService = {
         ferias: input.ferias,
         pro_labore: input.proLabore,
         jornada_mensal: input.jornadaMensal,
+        jornada_diaria: input.jornadaDiaria ?? Math.round(input.jornadaMensal / 22),
         tipo_contratacao: input.tipoContratacao,
         cargo: input.cargo,
         total_monthly_cost_estimated: input.totalMonthlyCostEstimated ?? null,
