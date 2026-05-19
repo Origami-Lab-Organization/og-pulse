@@ -1,60 +1,43 @@
+## Plano: Recálculo canônico de snapshots de custo de funcionários
 
+Aplicar a migration SQL fornecida que estabelece o cálculo definitivo de `cost_per_hour` em `project_member_months` e `project_timesheets`, baseado em dias úteis (descontando feriados via `company_holidays`) e ponderado por versões de `employee_versions` ativas em cada período.
 
-## Problema
+### O que a migration faz
 
-Atualmente, o sistema impede que qualquer usuário (incluindo admins) defina a margem líquida abaixo do mínimo configurado nas configurações financeiras. O campo `onBlur` força `Math.max(minNetMarginPercent, ...)` e a verificação de margem baixa (`isMarginBelowMinimum`) só dispara quando `discountValue > 0`.
+1. **`count_employee_cost_business_days(tenant, start, end)`** — conta dias úteis (seg-sex) excluindo feriados fixos e pontuais ativos no tenant.
 
-O comportamento desejado:
-1. **Admin** pode definir a margem líquida abaixo do mínimo diretamente (com confirmação via checkbox)
-2. **Não-admin** pode salvar com margem abaixo do mínimo, mas envia para aprovação do admin
-3. A verificação deve considerar a margem efetiva (que já inclui desconto) independentemente de haver desconto explícito
+2. **`recalculate_employee_cost_snapshots(employee_id)`** — para um funcionário:
+   - **Member months**: para cada mês planejado, divide o mês em segmentos por versão vigente e calcula `cost_per_hour` ponderado por capacidade (dias úteis × jornada diária).
+   - **Timesheets**: para cada lançamento, usa a versão ativa na `work_date` e divide o custo mensal total pela capacidade do mês.
 
-## Mudanças
+3. **Triggers automáticos** (`BEFORE INSERT OR UPDATE`):
+   - `set_project_member_month_cost_snapshot` em `project_member_months`
+   - `set_project_timesheet_cost_snapshot` em `project_timesheets`
+   - Garantem que novos lançamentos já nasçam com `cost_per_hour` correto.
 
-### 1. Remover trava do campo de margem líquida (BudgetForm.tsx)
+4. **Backfill final**: executa `recalculate_employee_cost_snapshots` para todos os funcionários de todos os tenants.
 
-**Linha ~949** — O `onBlur` atualmente força o valor mínimo:
-```tsx
-onBlur={(e) => setNetMarginPercent(Math.max(minNetMarginPercent, ...))}
-```
-Mudar para permitir valores abaixo do mínimo:
-```tsx
-onBlur={(e) => setNetMarginPercent(Math.max(0, Math.min(parseFloat(e.target.value) || 0, 100)))}
-```
+### Pontos de atenção
 
-Também remover `min={minNetMarginPercent}` do input e usar `min={0}`.
+- **Escopo global**: o `DO $$` no final roda para **todos** os funcionários de **todos** os tenants, não só Origami Lab. Confirmar se é o desejado (substitui rates já corrigidos manualmente para Kauany etc., mas como a lógica agora é canônica, isso deve produzir os valores corretos).
+- **`SECURITY DEFINER` + `auth.uid()` check**: a função `recalculate_employee_cost_snapshots` valida tenant via `user_belongs_to_tenant` quando chamada por usuário autenticado. Como o `DO $$` roda como superuser (sem `auth.uid()`), o check é pulado — ok para backfill.
+- **Triggers `BEFORE UPDATE OF project_member_id, month_number`**: só disparam ao mudar essas colunas. Editar `hours` não recalcula `cost_per_hour` (correto — o custo não depende das horas planejadas, só da versão ativa).
+- **Mudança de versão de funcionário não dispara recálculo**: se um `employee_versions` for inserido/atualizado, os snapshots existentes ficam stale até `recalculate_employee_cost_snapshots(employee_id)` ser chamado. Recomendo adicionar trigger em `employee_versions` em migration futura — não incluso aqui.
+- **Fallback**: se um funcionário não tem versão cobrindo o mês/data, `cost_per_hour` permanece como está (a função usa `WHERE ... AND cost_per_hour IS NOT NULL` no UPDATE, então não sobrescreve com NULL).
 
-### 2. Corrigir condição `isMarginBelowMinimum` (BudgetForm.tsx)
+### Detalhes técnicos
 
-**Linha ~293** — Remover `&& discountValue > 0`:
-```tsx
-// De:
-const isMarginBelowMinimum = billingType !== 'no_revenue' && billingType !== 'success_fee' 
-  && calculation.effectiveMarginPercent < minNetMarginPercent && discountValue > 0;
+- Tabela de feriados usada: `public.company_holidays` (campos: `tenant_id`, `is_active`, `holiday_type` ∈ {`fixed`, `floating`, `one_time`}, `fixed_day`, `fixed_month`, `specific_date`).
+- Função `count_employee_cost_business_days` é `STABLE SECURITY DEFINER` — chamável em queries e triggers.
+- Fórmula por segmento: `capacidade_segmento = dias_úteis(segmento) × jornada_diaria`, `custo_hora_segmento = custo_mensal / (dias_úteis_mês × jornada_diaria)`, ponderado por capacidade.
 
-// Para:
-const isMarginBelowMinimum = billingType !== 'no_revenue' && billingType !== 'success_fee' 
-  && calculation.effectiveMarginPercent < minNetMarginPercent;
-```
+### Passos de execução
 
-Isso garante que a verificação funcione tanto quando a margem cai por desconto quanto quando o usuário define manualmente um `netMarginPercent` abaixo do mínimo.
+1. Confirmar com o usuário se está ok rodar o backfill **global** (todos os tenants).
+2. Aplicar via `supabase--migration` (tool de schema, pois cria functions/triggers).
+3. Após aplicação, validar com query nos dados da Origami Lab (tenant `93e40db0-...`) que `cost_per_hour` em timesheets e member_months bate com expectativa (especialmente Kauany, Enzo, Gabriel, Rafael).
+4. Spot-check de totais de custo de projetos comparando com snapshot pré-migration.
 
-### 3. Ajustar mensagem da notificação (BudgetForm.tsx)
+### Pergunta antes de implementar
 
-**Linha ~321** — A mensagem atual menciona "desconto" explicitamente. Ajustar para ser mais genérica quando não houver desconto:
-```
-"A margem líquida efetiva do orçamento ficou em X% (mínimo: Y%). Aprovação necessária."
-```
-
-### 4. Ajustar InboxBudgetDetail (InboxBudgetDetail.tsx)
-
-Exibir a margem líquida configurada pelo usuário nos metadados da notificação, além do desconto (que pode ser zero).
-
-## Fluxo resultante
-
-- **Admin editando orçamento**: pode digitar margem líquida < mínimo → aparece alerta com checkbox → confirma → salva diretamente
-- **Não-admin editando orçamento**: pode digitar margem líquida < mínimo → aparece alerta informando que será enviado para aprovação → salva com `margin_override_pending = true` → notificação enviada aos admins
-- **Admin na Inbox**: recebe notificação → pode aprovar ou rejeitar
-
-Nenhuma migration é necessária — os campos `margin_override_approved` e `margin_override_pending` já existem na tabela `budgets`.
-
+Posso prosseguir aplicando exatamente o SQL enviado (escopo global, todos os tenants), ou prefere limitar o backfill apenas ao tenant da Origami Lab?

@@ -5021,6 +5021,10 @@ export type Database = {
     }
     Functions: {
       complete_password_change: { Args: never; Returns: undefined }
+      count_employee_cost_business_days: {
+        Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
+        Returns: number
+      }
       generate_budget_number: { Args: { p_tenant_id: string }; Returns: string }
       get_allocation_employee_detail: {
         Args: {
@@ -5137,6 +5141,10 @@ export type Database = {
       is_manager_in_tenant: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
+      }
+      recalculate_employee_cost_snapshots: {
+        Args: { p_employee_id: string }
+        Returns: undefined
       }
       update_overdue_installments: { Args: never; Returns: undefined }
       user_belongs_to_tenant: {
