@@ -103,10 +103,12 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
           .from('project_timesheets')
           .select(`
             project_id, project_member_id, hours,
-            project_members!inner (employee_id),
-            projects!inner (
-              id, name, start_date, portfolio_stage,
-              clients!inner (id, company_name)
+            project_members!inner (
+              employee_id,
+              projects!inner (
+                id, name, start_date, portfolio_stage,
+                clients!inner (id, company_name)
+              )
             )
           `)
           .eq('project_members.employee_id', employeeId)
@@ -154,8 +156,8 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
 
       // Aggregate actual hours from timesheets
       (timesheets || []).forEach((ts: any) => {
-        const project = ts.projects;
-        const projectId = ts.project_id || project?.id;
+        const project = ts.project_members?.projects;
+        const projectId = project?.id || ts.project_id;
         if (project && projectId && !projectMap.has(projectId)) {
           projectMap.set(projectId, {
             projectId,

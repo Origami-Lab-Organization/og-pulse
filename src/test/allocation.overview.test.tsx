@@ -61,6 +61,7 @@ const italo = {
 function project(id: string, name: string, memberId: string | null) {
   return {
     id,
+    tenant_id: 'tenant-1',
     name,
     start_date: '2026-01-01',
     duration_months: 12,
@@ -102,9 +103,9 @@ const memberMonths = [
   { project_member_id: 'm-tecnoflow', month_number: 5, hours: 20 },
 ];
 
-function timesheet(projectId: string, memberId: string, hours: number, projectData = plannedProjects.find((p) => p.id === projectId)) {
+function timesheet(projectId: string, memberId: string, hours: number, projectData = plannedProjects.find((p) => p.id === projectId), directProjectId: string | null = projectId) {
   return {
-    project_id: projectId,
+    project_id: directProjectId,
     project_member_id: memberId,
     work_date: '2026-05-12',
     hours,
@@ -113,8 +114,8 @@ function timesheet(projectId: string, memberId: string, hours: number, projectDa
       employee_id: italo.id,
       project_id: projectId,
       employees: italo,
+      projects: projectData,
     },
-    projects: projectData,
   };
 }
 
@@ -130,7 +131,7 @@ function tableData(table: string) {
       timesheet('p-clube', 'm-clube', 4),
       timesheet('p-bry', 'm-bry', 57),
       timesheet('p-pericias', 'm-pericias', 3),
-      timesheet('p-prumo', 'm-prumo', 8),
+      timesheet('p-prumo', 'm-prumo', 8, undefined, null),
     ];
 
     if (includeActualOnly) {

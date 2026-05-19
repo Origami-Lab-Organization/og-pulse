@@ -174,19 +174,19 @@ interface QueryProject {
 }
 interface MemberMonthRow { project_member_id: string; month_number: number; hours: number; }
 interface TimesheetProject {
-  id: string; name: string; start_date: string; duration_months: number | null;
+  id: string; tenant_id: string | null; name: string; start_date: string; duration_months: number | null;
   is_continuous: boolean | null; manager_id: string; service_line: string | null;
   portfolio_stage: string | null; manager: QueryManager | null;
 }
 interface TimesheetMember {
   id: string; employee_id: string | null; project_id: string | null;
   employees: QueryEmployee | null;
+  projects: TimesheetProject | null;
 }
 interface TimesheetRow {
   project_id: string | null; project_member_id: string | null;
   work_date: string; hours: number;
   project_members: TimesheetMember | null;
-  projects: TimesheetProject | null;
 }
 interface QueryActivityTypeEmployee { employee_id: string; }
 interface QueryActivityType {
@@ -450,20 +450,15 @@ export function AllocationOverview({
             employees (
               id, nome, cargo, jornada_diaria, status,
               employee_terminations!termination_id (termination_date)
+            ),
+            projects!inner (
+              id, tenant_id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage,
+              manager:employees!projects_manager_id_fkey(id, nome)
             )
-          ),
-          projects!inner (
-            id, name, start_date, duration_months, is_continuous, manager_id, service_line, portfolio_stage,
-            manager:employees!projects_manager_id_fkey(id, nome)
           )
         `)
-        .eq('projects.tenant_id', tenantId)
         .gte('work_date', startDate)
         .lte('work_date', endDate);
-
-      if (!isAdmin && currentEmployeeId) {
-        timesheetsQuery = timesheetsQuery.eq('projects.manager_id', currentEmployeeId);
-      }
 
       const [memberMonthsRes, timesheetsRes, activityTypesRes] = await Promise.all([
         memberIds.length > 0
@@ -478,12 +473,17 @@ export function AllocationOverview({
       if (activityTypesRes.error) throw activityTypesRes.error;
 
       const memberMonths = (memberMonthsRes.data ?? []) as MemberMonthRow[];
-      const timesheets = (timesheetsRes.data ?? []) as TimesheetRow[];
+      const timesheets = ((timesheetsRes.data ?? []) as TimesheetRow[]).filter((entry) => {
+        const project = entry.project_members?.projects;
+        if (!project || project.tenant_id !== tenantId) return false;
+        if (!isAdmin && currentEmployeeId && project.manager_id !== currentEmployeeId) return false;
+        return true;
+      });
       const activityTypes = (activityTypesRes.data ?? []) as QueryActivityType[];
 
       // Resolve service_line UUIDs to names using both planned projects and actual-only projects.
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const timesheetProjects = timesheets.map((entry) => entry.projects).filter((p): p is TimesheetProject => Boolean(p));
+      const timesheetProjects = timesheets.map((entry) => entry.project_members?.projects).filter((p): p is TimesheetProject => Boolean(p));
       const allServiceLines = Array.from(new Set([
         ...projectRows.map((p) => p.service_line).filter(Boolean),
         ...timesheetProjects.map((p) => p.service_line).filter(Boolean),
@@ -601,7 +601,7 @@ export function AllocationOverview({
         const member = entry.project_members;
         const emp = member?.employees;
         const employeeId = member?.employee_id;
-        const projectId = entry.project_id || member?.project_id || entry.projects?.id;
+        const projectId = member?.projects?.id || member?.project_id || entry.project_id;
         if (!emp || !employeeId || !projectId) return;
         const row = ensureRow(emp);
         const project = projectById.get(projectId);
