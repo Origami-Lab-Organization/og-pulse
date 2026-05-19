@@ -8,9 +8,7 @@ import {
   AllocationOverview,
   PlannerFilterOptions,
   PlannerFilters,
-  StatusDualCounts,
 } from '@/components/timesheets/AllocationOverview';
-import { AllocationKPIBar } from '@/components/timesheets/AllocationKPIBar';
 import { AllocationTypeKPIRow } from '@/components/timesheets/AllocationTypeKPIRow';
 import { useAllocationTypeKpis } from '@/hooks/useAllocationTypeKpis';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,17 +26,13 @@ const EMPTY_OPTIONS: PlannerFilterOptions = {
   projects: [],
 };
 
-const EMPTY_COUNTS: StatusDualCounts = {
-  planned: { Sobrealocado: 0, Subalocado: 0, Ocioso: 0, Adequado: 0 },
-  actual: { Sobrealocado: 0, Subalocado: 0, Ocioso: 0, Adequado: 0 },
-};
 
 export default function Timesheets() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchQuery, setSearchQuery] = useState('');
   const [options, setOptions] = useState<PlannerFilterOptions>(EMPTY_OPTIONS);
-  const [kpiData, setKpiData] = useState<{ counts: StatusDualCounts; total: number; capacityAnnual: number; capacityCurrentMonth: number }>({
-    counts: EMPTY_COUNTS, total: 0, capacityAnnual: 0, capacityCurrentMonth: 0,
+  const [kpiData, setKpiData] = useState<{ counts: any; total: number; capacityAnnual: number; capacityCurrentMonth: number }>({
+    counts: {}, total: 0, capacityAnnual: 0, capacityCurrentMonth: 0,
   });
 
   const { employee } = useAuth();
@@ -80,8 +74,6 @@ export default function Timesheets() {
       breadcrumbs={[{ label: 'Alocação' }]}
     >
       <div className="space-y-6">
-        {/* KPI cards acima dos filtros */}
-        <AllocationKPIBar counts={kpiData.counts} total={kpiData.total} />
         <AllocationTypeKPIRow
           data={typeKpis}
           isLoading={isLoadingTypeKpis}

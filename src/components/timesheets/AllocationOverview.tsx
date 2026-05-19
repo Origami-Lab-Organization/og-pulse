@@ -5,6 +5,8 @@ import {
   differenceInCalendarMonths,
   eachDayOfInterval,
   endOfMonth,
+  max as dateMax,
+  min as dateMin,
   parseISO,
   startOfMonth,
   isWeekend,
@@ -58,6 +60,7 @@ interface EmployeeAllocation {
   cargo: string;
   jornadaDiaria: number;
   status: string;
+  hireDate?: string;
   terminationDate?: string;
 }
 
@@ -259,9 +262,19 @@ function countWorkingDays(start: Date, end: Date, holidays: Holiday[]): number {
   return count;
 }
 
-function calculateMonthlyCapacity(monthKey: string, jornadaDiaria: number, holidays: Holiday[]): number {
+function calculateEmployeeMonthlyCapacity(
+  monthKey: string,
+  jornadaDiaria: number,
+  holidays: Holiday[],
+  hireDate?: string,
+  terminationDate?: string,
+): number {
   const monthStart = parseISO(`${monthKey}-01`);
-  return countWorkingDays(monthStart, endOfMonth(monthStart), holidays) * jornadaDiaria;
+  const monthEnd = endOfMonth(monthStart);
+  const effectiveStart = hireDate ? dateMax([monthStart, parseLocalDate(hireDate)]) : monthStart;
+  const effectiveEnd = terminationDate ? dateMin([monthEnd, parseLocalDate(terminationDate)]) : monthEnd;
+  if (effectiveStart > effectiveEnd) return 0;
+  return countWorkingDays(effectiveStart, effectiveEnd, holidays) * jornadaDiaria;
 }
 
 function isExcludedForYear(emp: EmployeeAllocation, selectedYear: number): boolean {
@@ -429,6 +442,7 @@ export function AllocationOverview({
             cargo: summary.cargo,
             jornadaDiaria: Number(summary.jornada_diaria) || 8,
             status: summary.status ?? 'ativo',
+            hireDate: summary.hire_date || undefined,
             terminationDate: summary.termination_date || undefined,
           },
         });
@@ -446,7 +460,13 @@ export function AllocationOverview({
 
     const builtRows = sourceRows.map((raw): AllocationPlannerRow => {
       const monthTotals: MonthTotal[] = MONTH_COLUMNS.map(({ month }) => {
-        const cap = calculateMonthlyCapacity(toMonthKey(selectedYear, month), raw.employee.jornadaDiaria, holidays);
+        const cap = calculateEmployeeMonthlyCapacity(
+          toMonthKey(selectedYear, month),
+          raw.employee.jornadaDiaria,
+          holidays,
+          raw.employee.hireDate,
+          raw.employee.terminationDate,
+        );
         const summary = summaryRows.find((row) => row.employee_id === raw.employee.employeeId && Number(row.month) === month);
         const planned = Number(summary?.planned_hours) || 0;
         const actual = Number(summary?.actual_hours) || 0;
