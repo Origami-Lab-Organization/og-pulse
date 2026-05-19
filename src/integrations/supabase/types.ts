@@ -5020,6 +5020,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_employee_capacity_hours: {
+        Args: {
+          p_employee_id: string
+          p_end_date: string
+          p_start_date: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
       complete_password_change: { Args: never; Returns: undefined }
       count_employee_cost_business_days: {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
@@ -5065,6 +5074,7 @@ export type Database = {
         }
         Returns: {
           actual_hours: number
+          capacity_hours: number
           cargo: string
           employee_id: string
           employee_name: string
