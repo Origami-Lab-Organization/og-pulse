@@ -14,8 +14,6 @@ import {
   DollarSign,
   Palmtree,
   Briefcase,
-  Package,
-  RefreshCw,
   Inbox,
   UserSearch,
   FolderKanban,
@@ -133,18 +131,6 @@ const navigationGroups: NavGroup[] = [
         title: "Fornecedores",
         url: "/suppliers",
         icon: Truck,
-        requiresManager: true,
-      },
-      {
-        title: "Materiais",
-        url: "/materiais",
-        icon: Package,
-        requiresManager: true,
-      },
-      {
-        title: "Assinaturas",
-        url: "/assinaturas",
-        icon: RefreshCw,
         requiresManager: true,
       },
       {
