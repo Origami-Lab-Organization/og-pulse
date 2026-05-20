@@ -18,6 +18,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
+import { useProjectAssignableMembers } from '@/hooks/useProjectAssignableMembers';
 import {
   useCardTasks,
   useCreateTask,
@@ -59,7 +60,7 @@ interface CardTaskListProps {
 export function CardTaskList({ cardId, project, tenantId, disabled = false }: CardTaskListProps) {
   const { employee } = useAuth();
   const { isAdmin, isPM, isEmployee } = useActivityPermissions(project);
-  const members = project.members ?? [];
+  const { data: members = [] } = useProjectAssignableMembers(project.id);
 
   const { data: tasks = [] } = useCardTasks(cardId);
   const createTask = useCreateTask();
@@ -170,7 +171,7 @@ export function CardTaskList({ cardId, project, tenantId, disabled = false }: Ca
                     <SelectItem value="__none__">Sem responsável</SelectItem>
                     {members.map((m) => (
                       <SelectItem key={m.employee_id} value={m.employee_id}>
-                        {m.employee?.nome ?? m.employee_id}
+                        {m.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -287,7 +288,7 @@ export function CardTaskList({ cardId, project, tenantId, disabled = false }: Ca
                 <SelectItem value="__none__">Sem responsável</SelectItem>
                 {members.map((m) => (
                   <SelectItem key={m.employee_id} value={m.employee_id}>
-                    {m.employee?.nome ?? m.employee_id}
+                    {m.nome}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useProjectMembers } from '@/hooks/useProjects';
+import { useProjectAssignableMembers } from '@/hooks/useProjectAssignableMembers';
 import { useProjectTags } from '@/hooks/useActivityTags';
 import { useActivitySprints } from '@/hooks/useActivitySprints';
 import { ActivityCardType, CARD_TYPE_OPTIONS } from '@/types/projectActivity';
@@ -137,17 +137,15 @@ export function KanbanFiltersBar({
   filterCount,
   clearAllFilters,
 }: KanbanFiltersBarProps) {
-  const { data: members = [] } = useProjectMembers(projectId);
+  const { data: members = [] } = useProjectAssignableMembers(projectId);
   const { data: tags = [] } = useProjectTags(projectId);
   const { data: sprints = [] } = useActivitySprints(projectId);
 
-  const memberOptions: MultiSelectOption[] = members
-    .filter((m) => m.employee)
-    .map((m) => ({
-      value: m.employee!.id,
-      label: m.employee!.nome,
-      avatar: m.employee!.nome,
-    }));
+  const memberOptions: MultiSelectOption[] = members.map((m) => ({
+    value: m.employee_id,
+    label: m.nome,
+    avatar: m.nome,
+  }));
 
   const cardTypeOptions: MultiSelectOption[] = CARD_TYPE_OPTIONS.map((o) => ({
     value: o.value,

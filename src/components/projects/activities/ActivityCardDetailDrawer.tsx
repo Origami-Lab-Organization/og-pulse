@@ -57,6 +57,7 @@ import { useDeleteActivity } from '@/hooks/useProjectActivities';
 import { useActivityPermissions } from '@/hooks/useActivityPermissions';
 import { useActivitySprints } from '@/hooks/useActivitySprints';
 import { useProjectReleases } from '@/hooks/useProjectReleases';
+import { useProjectAssignableMembers } from '@/hooks/useProjectAssignableMembers';
 import { CardBlockSection } from './CardBlockSection';
 import { CardChecklist } from './CardChecklist';
 import { CardTaskList } from './CardTaskList';
@@ -131,9 +132,9 @@ export function ActivityCardDetailDrawer({
   const plannedSprints = sprints.filter((s) => s.status === 'planned');
   const { data: releases = [] } = useProjectReleases(project.id);
   const activeReleases = releases.filter((r) => r.status !== 'released');
-  const assigneeOptions = (project.members ?? [])
-    .filter((m) => !!m.employee?.nome)
-    .map((m) => ({ id: m.employee_id, nome: m.employee!.nome }))
+  const { data: assignableMembers = [] } = useProjectAssignableMembers(project.id);
+  const assigneeOptions = assignableMembers
+    .map((m) => ({ id: m.employee_id, nome: m.nome }))
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   const isCardDone = card.column_name === 'done';
   const isFirst = card.column_name === 'product_backlog';
