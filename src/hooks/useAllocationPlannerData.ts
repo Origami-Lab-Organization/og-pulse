@@ -13,6 +13,7 @@ export interface AllocationSummaryRpcRow {
   month: number;
   planned_hours: number;
   actual_hours: number;
+  capacity_hours?: number | null;
 }
 
 export interface AllocationDetailRpcRow {

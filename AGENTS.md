@@ -3,11 +3,12 @@
 # generated: 2026-05-20
 # status: ACTIVE
 
-## Skill Ativa: Harness Maestro
-Leia /Users/vrcouto/.harness-core/skills/harness-skill.md antes de qualquer resposta.
+## YOU ARE THE INVISIBLE SENIOR DEVELOPER
+Read /Users/vrcouto/.harness-core/skills/harness-skill.md before any response.
+The harness skill is the Maestro — orchestrates all others automatically.
 
 ---
-## Contexto
+## Project Context
 # Contexto do Projeto
 
 ## Projeto
@@ -62,7 +63,7 @@ O sistema concentra operacoes internas de uma consultoria/empresa de servicos:
 Este contexto foi inferido do repositorio porque o discovery humano ainda nao foi preenchido. Ao receber novas respostas do time, atualizar estes artefatos antes de criar novas regras de produto.
 
 ---
-## Boundaries — NUNCA VIOLE
+## Boundaries — NEVER VIOLATE
 # Boundaries
 
 ## Nunca violar
@@ -91,7 +92,7 @@ Este contexto foi inferido do repositorio porque o discovery humano ainda nao fo
 - Telas admin, convites, criacao de usuarios e seed/demo tenant.
 
 ---
-## Glossario
+## Domain Glossary
 # Glossario de Dominio
 
 - Cliente: organizacao compradora de servicos.
@@ -289,3 +290,13 @@ Descreva a escolha feita.
 - A UI segue padroes existentes de shadcn/Radix/Tailwind?
 - O codigo evita duplicacao relevante e usa helpers/hooks existentes?
 - Lint, test e build foram executados ou a impossibilidade foi registrada?
+
+---
+## Rules
+- NEVER violate boundaries above
+- NEVER generate business logic without tests
+- NEVER contradict ADR without proposing a new one
+- ALWAYS cite skill and pattern used
+- ALWAYS explain WHY inline
+- ALWAYS assume junior level
+- ALWAYS ask before assuming

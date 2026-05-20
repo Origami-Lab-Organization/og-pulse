@@ -85,10 +85,13 @@ export interface CreateEmployeeInput {
 }
 
 export const employeeService = {
-  async getAll(tenantId: string): Promise<(EmployeeDB & { employee_tools: { monthly_cost: number }[], employee_benefits: { monthly_value: number }[] })[]> {
+  async getAll(tenantId: string): Promise<(EmployeeDB & {
+    employee_tools: { monthly_cost: number; is_active: boolean }[];
+    employee_benefits: { monthly_value: number; is_active: boolean }[];
+  })[]> {
     const { data, error } = await supabase
       .from('employees')
-      .select('*, employee_tools(monthly_cost), employee_benefits(monthly_value)')
+      .select('*, employee_tools(monthly_cost, is_active), employee_benefits(monthly_value, is_active)')
       .eq('tenant_id', tenantId)
       .order('nome');
 
@@ -97,7 +100,10 @@ export const employeeService = {
       throw error;
     }
 
-    return (data || []) as (EmployeeDB & { employee_tools: { monthly_cost: number }[], employee_benefits: { monthly_value: number }[] })[];
+    return (data || []) as (EmployeeDB & {
+      employee_tools: { monthly_cost: number; is_active: boolean }[];
+      employee_benefits: { monthly_value: number; is_active: boolean }[];
+    })[];
   },
 
   async getById(id: string, tenantId?: string): Promise<EmployeeDB | null> {
@@ -414,6 +420,7 @@ export const employeeService = {
       .from('employee_benefits')
       .select('*')
       .eq('employee_id', employeeId)
+      .eq('is_active', true)
       .order('name');
 
     if (error) {

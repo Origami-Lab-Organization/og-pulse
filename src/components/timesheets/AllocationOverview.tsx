@@ -463,14 +463,15 @@ export function AllocationOverview({
 
     const builtRows = sourceRows.map((raw): AllocationPlannerRow => {
       const monthTotals: MonthTotal[] = MONTH_COLUMNS.map(({ month }) => {
-        const cap = calculateEmployeeMonthlyCapacity(
+        const summary = summaryRows.find((row) => row.employee_id === raw.employee.employeeId && Number(row.month) === month);
+        const fallbackCapacity = calculateEmployeeMonthlyCapacity(
           toMonthKey(selectedYear, month),
           raw.employee.jornadaDiaria,
           holidays,
           raw.employee.hireDate,
           raw.employee.terminationDate,
         );
-        const summary = summaryRows.find((row) => row.employee_id === raw.employee.employeeId && Number(row.month) === month);
+        const cap = summary?.capacity_hours != null ? Number(summary.capacity_hours) : fallbackCapacity;
         const planned = Number(summary?.planned_hours) || 0;
         const actual = Number(summary?.actual_hours) || 0;
         return { monthKey: toMonthKey(selectedYear, month), month, planned, actual, capacityHours: cap };

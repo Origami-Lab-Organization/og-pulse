@@ -1,0 +1,23 @@
+# Glossario de Dominio
+
+- Cliente: organizacao compradora de servicos.
+- Lead: oportunidade comercial em negociacao.
+- CRM: gestao de pipeline, interacoes, follow-ups e conversao.
+- Servico: oferta comercial precificada e associada a projetos/orcamentos.
+- Projeto: entrega contratada, com membros, receitas, parcelas, milestones e status.
+- Portfolio: visao consolidada de projetos e saude operacional.
+- Orcamento/Budget: estimativa comercial com papeis, horas, materiais, fornecedores, margem e versoes.
+- Versao de orcamento: snapshot comparavel de uma proposta.
+- Colaborador/Employee: pessoa interna alocavel, com custos, beneficios, ferramentas e status.
+- Timesheet: apontamento de horas por atividade/projeto/periodo.
+- Activity Type: tipo de atividade usado em apontamentos.
+- Reembolso: solicitacao financeira feita por colaborador, com aprovacao e comprovantes.
+- Desligamento/Termination: processo de saida de colaborador.
+- OKR: objetivo e resultado-chave de estrategia.
+- Iniciativa: acao estrategica ligada a objetivo.
+- Guardrail: limite ou indicador de controle estrategico.
+- Margem bruta: diferenca entre receita e custos diretos.
+- Receita reconhecida: valor considerado no periodo conforme regra financeira.
+- Parcela/Installment: item de faturamento/recebimento ligado a projeto ou budget.
+- Tenant: unidade isolada de dados no sistema.
+- RLS: Row Level Security do Supabase para isolamento e autorizacao.

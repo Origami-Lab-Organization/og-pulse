@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { parseISO, endOfMonth, min, eachDayOfInterval, isWeekend } from 'date-fns';
-import { isHoliday } from '@/hooks/useHolidays';
-import { Holiday } from '@/types/holiday';
+import { parseISO, endOfMonth, min, format } from 'date-fns';
 import { AllocationDetailRpcRow } from './useAllocationPlannerData';
 
 export interface ProjectAllocation {
@@ -22,26 +20,8 @@ export interface MyAllocationData {
   expectedHours: number;
 }
 
-function countWorkingDays(start: Date, end: Date, holidays: Holiday[]): number {
-  const days = eachDayOfInterval({ start, end });
-  let count = 0;
-  for (const day of days) {
-    if (isWeekend(day)) continue;
-    if (isHoliday(day, holidays)) continue;
-    count++;
-  }
-  return count;
-}
-
-function calculateExpectedHours(monthKey: string, jornada_diaria: number, holidays: Holiday[]): number {
-  const monthStart = parseISO(`${monthKey}-01`);
-  const upperLimit = min([new Date(), endOfMonth(monthStart)]);
-  return countWorkingDays(monthStart, upperLimit, holidays) * jornada_diaria;
-}
-
-function calculateMonthlyCapacity(monthKey: string, jornada_diaria: number, holidays: Holiday[]): number {
-  const monthStart = parseISO(`${monthKey}-01`);
-  return countWorkingDays(monthStart, endOfMonth(monthStart), holidays) * jornada_diaria;
+function toDateString(date: Date): string {
+  return format(date, 'yyyy-MM-dd');
 }
 
 export const useMyAllocationData = (employeeId: string | undefined, monthKey: string) => {
@@ -52,37 +32,49 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
         return { projects: [], totalPlannedHours: 0, totalActualHours: 0, totalActivityHours: 0, monthlyCapacity: 0, expectedHours: 0 };
       }
 
-      // 1. Get employee's monthly capacity, tenant and daily hours
-      const [{ data: empData }, { data: holidays }] = await Promise.all([
-        supabase
-          .from('employees')
-          .select('tenant_id, jornada_diaria')
-          .eq('id', employeeId)
-          .single(),
-        supabase
-          .from('company_holidays')
-          .select('*')
-          .eq('is_active', true),
-      ]);
+      // 1. Get employee tenant. Capacity is calculated by the same historical DB rule used by allocation.
+      const { data: empData } = await supabase
+        .from('employees')
+        .select('tenant_id')
+        .eq('id', employeeId)
+        .single();
 
       const tenantId = empData?.tenant_id;
-      const jornada_diaria = empData?.jornada_diaria ?? 8;
-      const typedHolidays = (holidays || []) as Holiday[];
-      const monthlyCapacity = calculateMonthlyCapacity(monthKey, jornada_diaria, typedHolidays);
       const [year, month] = monthKey.split('-').map(Number);
+      const monthStart = parseISO(`${monthKey}-01`);
+      const monthEnd = endOfMonth(monthStart);
+      const expectedEnd = min([new Date(), monthEnd]);
 
       if (!tenantId || !year || !month) {
-        return { projects: [], totalPlannedHours: 0, totalActualHours: 0, totalActivityHours: 0, monthlyCapacity, expectedHours: 0 };
+        return { projects: [], totalPlannedHours: 0, totalActualHours: 0, totalActivityHours: 0, monthlyCapacity: 0, expectedHours: 0 };
       }
 
-      const { data: detailRows, error: detailError } = await supabase.rpc('get_allocation_employee_detail', {
-        p_tenant_id: tenantId,
-        p_year: year,
-        p_employee_id: employeeId,
-        p_manager_id: null,
-        p_project_id: null,
-        p_team_key: null,
-      });
+      const [monthlyCapacityResult, expectedHoursResult, detailResult] = await Promise.all([
+        supabase.rpc('calculate_employee_capacity_hours', {
+          p_tenant_id: tenantId,
+          p_employee_id: employeeId,
+          p_start_date: toDateString(monthStart),
+          p_end_date: toDateString(monthEnd),
+        }),
+        supabase.rpc('calculate_employee_capacity_hours', {
+          p_tenant_id: tenantId,
+          p_employee_id: employeeId,
+          p_start_date: toDateString(monthStart),
+          p_end_date: toDateString(expectedEnd),
+        }),
+        supabase.rpc('get_allocation_employee_detail', {
+          p_tenant_id: tenantId,
+          p_year: year,
+          p_employee_id: employeeId,
+          p_manager_id: null,
+          p_project_id: null,
+          p_team_key: null,
+        }),
+      ]);
+
+      if (monthlyCapacityResult.error) throw monthlyCapacityResult.error;
+      if (expectedHoursResult.error) throw expectedHoursResult.error;
+      const { data: detailRows, error: detailError } = detailResult;
       if (detailError) throw detailError;
 
       const projectMap = new Map<string, ProjectAllocation>();
@@ -120,7 +112,8 @@ export const useMyAllocationData = (employeeId: string | undefined, monthKey: st
       const totalPlannedHours = projects.reduce((sum, p) => sum + p.plannedHours, 0);
       const totalActualHours = projects.reduce((sum, p) => sum + p.actualHours, 0);
 
-      const expectedHours = calculateExpectedHours(monthKey, jornada_diaria, typedHolidays);
+      const monthlyCapacity = Number(monthlyCapacityResult.data) || 0;
+      const expectedHours = Number(expectedHoursResult.data) || 0;
 
       return { projects, totalPlannedHours, totalActualHours, totalActivityHours, monthlyCapacity, expectedHours };
     },

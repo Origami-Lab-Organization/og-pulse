@@ -5034,6 +5034,15 @@ export type Database = {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
         Returns: number
       }
+      calculate_employee_capacity_hours: {
+        Args: {
+          p_employee_id: string
+          p_end_date: string
+          p_start_date: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
       generate_budget_number: { Args: { p_tenant_id: string }; Returns: string }
       get_allocation_employee_detail: {
         Args: {
@@ -5082,6 +5091,7 @@ export type Database = {
           jornada_diaria: number
           month: number
           planned_hours: number
+          capacity_hours: number
           status: string
           termination_date: string
         }[]

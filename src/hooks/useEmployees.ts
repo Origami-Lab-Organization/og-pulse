@@ -9,19 +9,22 @@ import { CostBreakdown } from '@/lib/employeeCostCalculator';
 
 // Type for employee with tools and benefits from DB
 type EmployeeWithRelations = EmployeeDB & { 
-  employee_tools?: { monthly_cost: number }[];
-  employee_benefits?: { monthly_value: number }[];
+  employee_tools?: { monthly_cost: number; is_active?: boolean }[];
+  employee_benefits?: { monthly_value: number; is_active?: boolean }[];
   termination_id?: string | null;
 };
 
 // Convert DB format to frontend format
 export const dbToEmployee = (db: EmployeeWithRelations) => {
-  const totalToolsCost = (db.employee_tools || []).reduce(
+  const activeTools = (db.employee_tools || []).filter((tool) => tool.is_active !== false);
+  const activeBenefits = (db.employee_benefits || []).filter((benefit) => benefit.is_active !== false);
+
+  const totalToolsCost = activeTools.reduce(
     (sum, tool) => sum + Number(tool.monthly_cost),
     0
   );
   
-  const totalBenefitsCost = (db.employee_benefits || []).reduce(
+  const totalBenefitsCost = activeBenefits.reduce(
     (sum, benefit) => sum + Number(benefit.monthly_value),
     0
   );
