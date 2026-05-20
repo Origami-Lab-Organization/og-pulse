@@ -1,8 +1,10 @@
+import { useEffect, useRef, useState } from 'react';
 import { KanbanSquare, Plus } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ActivityColumnName, ProjectActivityCardWithRelations } from '@/types/projectActivity';
 import { SortableActivityCard } from './SortableActivityCard';
@@ -13,7 +15,8 @@ interface ActivityKanbanColumnProps {
   wipLimit?: number;
   cards: ProjectActivityCardWithRelations[];
   showAddButton: boolean;
-  onAddCard: () => void;
+  onCreateCard: (title: string) => void;
+  isCreating?: boolean;
   projectName: string;
   isReadOnly: boolean;
   onCardClick: (cardId: string) => void;
@@ -26,19 +29,49 @@ export function ActivityKanbanColumn({
   wipLimit,
   cards,
   showAddButton,
-  onAddCard,
+  onCreateCard,
+  isCreating,
   projectName,
   isReadOnly,
   onCardClick,
   sprintNameById,
 }: ActivityKanbanColumnProps) {
+  const [inlineOpen, setInlineOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (inlineOpen) inputRef.current?.focus();
+  }, [inlineOpen]);
+
+  const startInline = () => {
+    setTitle('');
+    setInlineOpen(true);
+  };
+
+  const cancelInline = () => {
+    setTitle('');
+    setInlineOpen(false);
+  };
+
+  const submitInline = () => {
+    const trimmed = title.trim();
+    if (!trimmed) {
+      cancelInline();
+      return;
+    }
+    onCreateCard(trimmed);
+    setTitle('');
+    setInlineOpen(false);
+  };
+
   const { setNodeRef, isOver } = useDroppable({ id });
   const cardCount = cards.length;
   const hasWip    = wipLimit != null && wipLimit > 0;
   const isAtLimit = hasWip && cardCount >= wipLimit!;
 
   return (
-    <div className="min-w-[280px] flex-shrink-0 flex flex-col gap-3" style={{ height: '100%' }}>
+    <div className="w-[280px] flex-shrink-0 flex flex-col gap-3" style={{ height: '100%' }}>
 
       {/* ── Column header ── */}
       <div className="flex items-center justify-between shrink-0">
@@ -96,15 +129,58 @@ export function ActivityKanbanColumn({
         </SortableContext>
 
         {showAddButton && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-muted-foreground hover:text-foreground gap-1.5 mt-auto shrink-0"
-            onClick={onAddCard}
-          >
-            <Plus className="h-4 w-4" />
-            Card
-          </Button>
+          inlineOpen ? (
+            <div className="mt-auto shrink-0 flex flex-col gap-2 rounded-md border border-border bg-background p-2">
+              <Input
+                ref={inputRef}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Título do card"
+                className="h-8 text-sm"
+                disabled={isCreating}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitInline();
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelInline();
+                  }
+                }}
+              />
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={submitInline}
+                  disabled={isCreating || !title.trim()}
+                >
+                  {isCreating ? 'Adicionando...' : 'Adicionar'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={cancelInline}
+                  disabled={isCreating}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-muted-foreground hover:text-foreground gap-1.5 mt-auto shrink-0"
+              onClick={startInline}
+            >
+              <Plus className="h-4 w-4" />
+              Card
+            </Button>
+          )
         )}
       </div>
     </div>

@@ -64,7 +64,7 @@ export function ActivityCard({ card, projectName, targetSprintLabel, onClick }: 
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">
+          <p className="text-sm font-medium text-foreground leading-snug line-clamp-2 break-words">
             {card.title}
           </p>
           {targetSprintLabel && (

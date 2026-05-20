@@ -33,7 +33,6 @@ import {
   ActivityColumnName,
   ActivitySprintDB,
   ChecklistType,
-  CreateActivityInput,
   ProjectActivityCardWithRelations,
 } from '@/types/projectActivity';
 import {
@@ -51,7 +50,6 @@ import { ActivityCard } from './ActivityCard';
 import { ActivityKanbanColumn } from '@/components/projects/activities/ActivityKanbanColumn';
 import { KanbanFiltersBar } from '@/components/projects/activities/KanbanFiltersBar';
 import { ArchivedCardsSheet } from '@/components/projects/activities/ArchivedCardsSheet';
-import { ActivityCardFormDrawer } from './ActivityCardFormDrawer';
 import { ActivityCardDetailDrawer } from '@/components/projects/activities/ActivityCardDetailDrawer';
 import { ActivityErrorBoundary } from '@/components/projects/activities/ActivityErrorBoundary';
 import { ActivitySettingsSheet } from '@/components/projects/activities/ActivitySettingsSheet';
@@ -194,8 +192,6 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
   const [planningSprintId,  setPlanningSprintId]  = useState<string | null>(null);
   const [closeSprintOpen,   setCloseSprintOpen]   = useState(false);
   const [activeCard, setActiveCard] = useState<ProjectActivityCardWithRelations | null>(null);
-  const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
-  const [targetColumn, setTargetColumn] = useState<ActivityColumnName>('product_backlog');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<{
     cardId: string;
@@ -366,14 +362,11 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
   };
 
   // ── Create card ──────────────────────────────────────────────────────────────
-  const handleAddCard = (col: ActivityColumnName) => {
-    setTargetColumn(col);
-    setCreateDrawerOpen(true);
-  };
-
-  const handleSubmit = (input: CreateActivityInput) => {
-    createActivity.mutate(input, {
-      onSuccess: () => setCreateDrawerOpen(false),
+  const handleCreateCard = (col: ActivityColumnName, title: string) => {
+    createActivity.mutate({
+      projectId: project.id,
+      title,
+      columnName: col,
     });
   };
 
@@ -494,7 +487,8 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
                 wipLimit={WIP_LIMITS[col]}
                 cards={byColumn[col]}
                 showAddButton={canCreateCard && !isReadOnly && ADDABLE_COLUMNS.has(col)}
-                onAddCard={() => handleAddCard(col)}
+                onCreateCard={(title) => handleCreateCard(col, title)}
+                isCreating={createActivity.isPending}
                 projectName={project.name}
                 isReadOnly={isReadOnly}
                 onCardClick={(id) => setSelectedCardId(id)}
@@ -509,15 +503,6 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
           {activeCard && <ActivityCard card={activeCard} projectName={project.name} />}
         </DragOverlay>
       </DndContext>
-
-      <ActivityCardFormDrawer
-        open={createDrawerOpen}
-        onOpenChange={setCreateDrawerOpen}
-        project={project}
-        columnName={targetColumn}
-        onSubmit={handleSubmit}
-        isSubmitting={createActivity.isPending}
-      />
 
       {selectedCard && (
         <ActivityErrorBoundary onClose={() => setSelectedCardId(null)}>

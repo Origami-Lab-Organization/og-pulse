@@ -5,11 +5,11 @@ import { ChevronLeft, ChevronRight, Tag, Clock, BookOpen, Bug, Wrench, CheckSqua
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -300,12 +300,15 @@ export function ActivityCardDetailDrawer({
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <>
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-[560px] p-0 flex flex-col" aria-describedby={undefined}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="w-[80vw] h-[80vh] max-w-none sm:max-w-none p-0 flex flex-col gap-0 overflow-hidden"
+        aria-describedby={undefined}
+      >
 
         {/* ── Header ── */}
-        <SheetHeader className="px-5 pt-5 pb-3 space-y-3 shrink-0">
-          <SheetTitle className="sr-only">{title}</SheetTitle>
+        <DialogHeader className="px-5 pt-5 pb-3 pr-12 space-y-3 shrink-0">
+          <DialogTitle className="sr-only">{title}</DialogTitle>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -406,7 +409,7 @@ export function ActivityCardDetailDrawer({
               )}
             </div>
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
         <Separator />
 
@@ -693,8 +696,8 @@ export function ActivityCardDetailDrawer({
           </TabsContent>
 
         </Tabs>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
 
     <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
       <AlertDialogContent>
