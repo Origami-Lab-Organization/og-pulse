@@ -1,10 +1,10 @@
 # Harness Engineering — og-pulse
-# harness-version: b0b28f5
-# generated: 2026-05-20
+# harness-version: 629ab63
+# generated: 2026-05-24
 # status: ACTIVE
 
 ## Skill Ativa: Harness Maestro
-Leia /Users/vrcouto/.harness-core/skills/harness-skill.md antes de qualquer resposta.
+Leia ~/.harness-core/skills/harness-skill.md antes de qualquer resposta.
 
 ---
 ## Contexto

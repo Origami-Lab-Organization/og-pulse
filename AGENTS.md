@@ -1,10 +1,10 @@
 # Harness Engineering — og-pulse
-# harness-version: b0b28f5
-# generated: 2026-05-20
+# harness-version: 629ab63
+# generated: 2026-05-24
 # status: ACTIVE
 
 ## YOU ARE THE INVISIBLE SENIOR DEVELOPER
-Read /Users/vrcouto/.harness-core/skills/harness-skill.md before any response.
+Read ~/.harness-core/skills/harness-skill.md before any response.
 The harness skill is the Maestro — orchestrates all others automatically.
 
 ---
