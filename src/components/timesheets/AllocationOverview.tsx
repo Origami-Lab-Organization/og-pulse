@@ -105,6 +105,7 @@ export interface ExpandedProjectRow {
   plannedByMonth: number[];
   actualByMonth: number[];
   projectStartDate: string;
+  projectEndDate?: string;
   durationMonths: number;
   isContinuous: boolean;
 }
@@ -147,6 +148,7 @@ interface ProjectScope {
   id: string;
   name: string;
   startDate: string;
+  endDate?: string;
   durationMonths: number;
   isContinuous: boolean;
   managerId: string;
@@ -297,7 +299,12 @@ function monthNumberForProject(year: number, month: number, projectStartDate: st
 function isProjectMonthEditable(project: ProjectScope, year: number, month: number): boolean {
   const monthNumber = monthNumberForProject(year, month, project.startDate);
   if (monthNumber < 1) return false;
-  if (!project.isContinuous && monthNumber > project.durationMonths) return false;
+  if (!project.isContinuous) {
+    const effectiveDuration = project.endDate
+      ? differenceInCalendarMonths(startOfMonth(parseLocalDate(project.endDate)), startOfMonth(parseLocalDate(project.startDate))) + 1
+      : project.durationMonths;
+    if (monthNumber > effectiveDuration) return false;
+  }
   return true;
 }
 
@@ -305,7 +312,8 @@ function createEmptyProjectRow(project: ProjectScope, projectMemberId: string | 
   return {
     projectId: project.id, projectName: project.name, projectMemberId,
     plannedByMonth: Array(12).fill(0), actualByMonth: Array(12).fill(0),
-    projectStartDate: project.startDate, durationMonths: project.durationMonths, isContinuous: project.isContinuous,
+    projectStartDate: project.startDate, projectEndDate: project.endDate,
+    durationMonths: project.durationMonths, isContinuous: project.isContinuous,
   };
 }
 
@@ -576,6 +584,7 @@ export function AllocationOverview({
           id: projectId,
           name: row.title,
           startDate: row.project_start_date || `${selectedYear}-01-01`,
+          endDate: row.project_end_date || undefined,
           durationMonths: Number(row.duration_months) || 1,
           isContinuous: Boolean(row.is_continuous),
           managerId: row.manager_id || '',
