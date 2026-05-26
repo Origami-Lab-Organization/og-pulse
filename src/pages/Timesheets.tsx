@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format, subWeeks, startOfWeek, subDays } from 'date-fns';
+import { format, startOfWeek, subDays } from 'date-fns';
 import { Search } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Input } from '@/components/ui/input';
@@ -43,7 +43,10 @@ export default function Timesheets() {
 
   const now = useMemo(() => new Date(), []);
   const currentMonth = now.getMonth() + 1;
-  const weekCutoffDate = useMemo(() => format(subWeeks(now, 1), 'yyyy-MM-dd'), [now]);
+  const weekCutoffDate = useMemo(() => {
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    return format(subDays(weekStart, 3), 'yyyy-MM-dd');
+  }, [now]);
 
   // Last Friday before current week (Monday - 3 days)
   const ytdCutoffDate = useMemo(() => {

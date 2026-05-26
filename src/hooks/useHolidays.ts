@@ -12,6 +12,12 @@ export const useHolidays = () => {
   });
 };
 
+function invalidateAllocationCaches(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['holidays'] });
+  queryClient.invalidateQueries({ queryKey: ['allocation-employee-month-summary'] });
+  queryClient.invalidateQueries({ queryKey: ['allocation-type-kpis'] });
+}
+
 export const useCreateHoliday = () => {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
@@ -22,7 +28,7 @@ export const useCreateHoliday = () => {
       return holidayService.create(employee.tenant_id, formData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['holidays'] });
+      invalidateAllocationCaches(queryClient);
       toast.success('Feriado criado com sucesso!');
     },
     onError: (error) => {
@@ -40,7 +46,7 @@ export const useUpdateHoliday = () => {
       return holidayService.update(id, formData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['holidays'] });
+      invalidateAllocationCaches(queryClient);
       toast.success('Feriado atualizado com sucesso!');
     },
     onError: (error) => {
@@ -56,7 +62,7 @@ export const useDeleteHoliday = () => {
   return useMutation({
     mutationFn: (id: string) => holidayService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['holidays'] });
+      invalidateAllocationCaches(queryClient);
       toast.success('Feriado excluído com sucesso!');
     },
     onError: (error) => {
