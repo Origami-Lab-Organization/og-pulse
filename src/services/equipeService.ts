@@ -76,8 +76,8 @@ export const equipeService = {
     monthly_rate?: number | null;
     clt_encargos_multiplier?: number | null;
   }) {
-    const { data, error } = await supabase
-      .from('project_roles')
+    const { data, error } = await (supabase
+      .from('project_roles' as any) as any)
       .insert(payload)
       .select()
       .single();
