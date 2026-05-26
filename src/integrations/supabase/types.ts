@@ -3368,68 +3368,57 @@ export type Database = {
           },
         ]
       }
-      project_roles: {
+      project_role_allocations: {
         Row: {
-          clt_encargos_multiplier: number | null
-          created_at: string | null
-          created_by: string | null
-          employee_id: string | null
-          employment_type: string
-          freelancer_email: string | null
-          freelancer_name: string | null
-          hourly_rate: number | null
+          budget_role_id: string | null
+          custom_role_name: string | null
+          employee_id: string
           id: string
-          monthly_rate: number | null
-          payment_type: string
+          month: number
+          planned_hours: number | null
           project_id: string
-          role_name: string
           tenant_id: string
-          updated_at: string | null
+          year: number
         }
         Insert: {
-          clt_encargos_multiplier?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          employee_id?: string | null
-          employment_type: string
-          freelancer_email?: string | null
-          freelancer_name?: string | null
-          hourly_rate?: number | null
+          budget_role_id?: string | null
+          custom_role_name?: string | null
+          employee_id: string
           id?: string
-          monthly_rate?: number | null
-          payment_type: string
+          month: number
+          planned_hours?: number | null
           project_id: string
-          role_name: string
           tenant_id: string
-          updated_at?: string | null
+          year: number
         }
         Update: {
-          clt_encargos_multiplier?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          employee_id?: string | null
-          employment_type?: string
-          freelancer_email?: string | null
-          freelancer_name?: string | null
-          hourly_rate?: number | null
+          budget_role_id?: string | null
+          custom_role_name?: string | null
+          employee_id?: string
           id?: string
-          monthly_rate?: number | null
-          payment_type?: string
+          month?: number
+          planned_hours?: number | null
           project_id?: string
-          role_name?: string
           tenant_id?: string
-          updated_at?: string | null
+          year?: number
         }
         Relationships: [
           {
-            foreignKeyName: "project_roles_employee_id_fkey"
+            foreignKeyName: "project_role_allocations_budget_role_id_fkey"
+            columns: ["budget_role_id"]
+            isOneToOne: false
+            referencedRelation: "budget_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_role_allocations_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "project_roles_project_id_fkey"
+            foreignKeyName: "project_role_allocations_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
