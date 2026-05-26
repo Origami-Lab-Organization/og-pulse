@@ -13,15 +13,18 @@ import { Button } from '@/components/ui/button';
 
 interface PortfolioCardProps {
   project: PortfolioProject;
+  canEdit?: boolean;
   onRemove?: (project: PortfolioProject) => void;
   hideValues?: boolean;
 }
 
-export function PortfolioCard({ project, onRemove, hideValues }: PortfolioCardProps) {
+export function PortfolioCard({ project, canEdit = false, onRemove, hideValues }: PortfolioCardProps) {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
-  const isLocked = project.portfolio_stage === 'completed' && !isAdmin;
+  const isCompletedLocked = project.portfolio_stage === 'completed' && !isAdmin;
+  const isPermissionLocked = !canEdit;
+  const isLocked = isCompletedLocked || isPermissionLocked;
   const {
     attributes,
     listeners,
@@ -31,6 +34,7 @@ export function PortfolioCard({ project, onRemove, hideValues }: PortfolioCardPr
     isDragging,
   } = useSortable({
     id: project.id,
+    disabled: isLocked,
     data: {
       type: 'project',
       project,
@@ -104,7 +108,9 @@ export function PortfolioCard({ project, onRemove, hideValues }: PortfolioCardPr
                 <Lock className="h-3 w-3 text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
-                Apenas administradores podem alterar projetos concluídos
+                {isCompletedLocked
+                  ? 'Apenas administradores podem alterar projetos concluídos'
+                  : 'Você só pode alterar projetos em que é PM'}
               </TooltipContent>
             </Tooltip>
           )}

@@ -82,6 +82,7 @@ interface InitiativeDetailDialogProps {
   initiative: StrategyInitiative | null;
   objectives: StrategyObjectiveWithKrs[];
   cycleIsActive: boolean;
+  canManageInitiatives: boolean;
   onDelete: () => void;
 }
 
@@ -91,6 +92,7 @@ export function InitiativeDetailDialog({
   initiative,
   objectives,
   cycleIsActive,
+  canManageInitiatives,
   onDelete,
 }: InitiativeDetailDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -115,7 +117,7 @@ export function InitiativeDetailDialog({
         notes: initiative.notes ?? initiative.description ?? '',
       });
     }
-  }, [initiative]);
+  }, [form, initiative]);
 
   if (!initiative) return null;
 
@@ -145,7 +147,7 @@ export function InitiativeDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
-        {cycleIsActive && !isEditing && (
+        {canManageInitiatives && cycleIsActive && !isEditing && (
           <div className="absolute right-10 top-3.5 z-10">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

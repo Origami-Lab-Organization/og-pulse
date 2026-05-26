@@ -219,7 +219,8 @@ function GuardrailCard({
 export default function Strategy() {
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
-  const canManageStrategy = isAdmin || (employee?.is_gerente ?? false);
+  const canManageOkrs = isAdmin;
+  const canManageInitiatives = isAdmin || (employee?.is_gerente ?? false);
 
   const { data: cycles = [], isLoading: cyclesLoading } = useStrategyCycles();
   const { data: activeCycle } = useActiveStrategyCycle();
@@ -230,7 +231,7 @@ export default function Strategy() {
   // Sync selected cycle when active cycle loads
   useEffect(() => {
     if (!selectedCycleId && activeCycle?.id) setSelectedCycleId(activeCycle.id);
-  }, [activeCycle?.id]);
+  }, [activeCycle?.id, selectedCycleId]);
 
   const { data: objectives = [], isLoading: objectivesLoading } = useStrategyObjectives(
     effectiveCycleId || undefined,
@@ -336,7 +337,7 @@ export default function Strategy() {
               <div className="flex items-center justify-between">
                 <StrategyMetricsBar objectives={objectives} initiatives={initiatives} />
               </div>
-              {canManageStrategy && isCycleActive && (
+              {canManageOkrs && isCycleActive && (
                 <div className="flex justify-end">
                   <Button size="sm" onClick={() => { setEditingObjective(null); setObjectiveFormOpen(true); }}>
                     <Plus className="h-4 w-4 mr-1" />
@@ -354,7 +355,7 @@ export default function Strategy() {
                     <ObjectiveCard
                       key={obj.id}
                       objective={obj}
-                      isAdmin={isAdmin}
+                      canManageOkrs={canManageOkrs}
                       cycleIsActive={isCycleActive}
                       onClick={() => setDetailObjective(obj)}
                       onAddKr={() => setKrFormObjectiveId(obj.id)}
@@ -412,6 +413,7 @@ export default function Strategy() {
                 objectives={objectives}
                 cycleId={effectiveCycleId}
                 cycleIsActive={isCycleActive}
+                canManageInitiatives={canManageInitiatives}
               />
             </TabsContent>
 
@@ -481,7 +483,7 @@ export default function Strategy() {
         open={!!detailObjective}
         onOpenChange={(open) => { if (!open) setDetailObjective(null); }}
         objective={liveDetailObjective}
-        isAdmin={isAdmin}
+        canManageOkrs={canManageOkrs}
         cycleIsActive={isCycleActive}
         cycleStart={selectedCycle?.startDate}
         cycleEnd={selectedCycle?.endDate}

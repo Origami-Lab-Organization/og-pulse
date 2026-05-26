@@ -269,12 +269,13 @@ describe('InitiativesKanban', () => {
         objectives={objectives}
         cycleId="cycle-1"
         cycleIsActive
+        canManageInitiatives
       />,
     );
 
-    const ownerFilter = screen.getByLabelText('Filtrar por responsavel');
+    const ownerFilter = screen.getByLabelText('Filtrar por dono');
     expect(screen.getByRole('option', { name: 'Victor' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Sem responsável' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Sem dono' })).toBeInTheDocument();
 
     fireEvent.change(ownerFilter, { target: { value: 'emp-1' } });
 
@@ -299,14 +300,15 @@ describe('InitiativesKanban', () => {
         objectives={objectives}
         cycleId="cycle-1"
         cycleIsActive
+        canManageInitiatives
       />,
     );
 
     fireEvent.click(screen.getByText('Padronizar Sprint 0'));
 
-    expect(await screen.findByText('Observacoes')).toBeInTheDocument();
+    expect(await screen.findByText('Observações')).toBeInTheDocument();
     expect(screen.getByText('Validar com time comercial antes de escalar.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ações' })).toBeInTheDocument();
   });
 
   it('shows the due date on the initiative card', () => {
@@ -316,6 +318,7 @@ describe('InitiativesKanban', () => {
         objectives={objectives}
         cycleId="cycle-1"
         cycleIsActive
+        canManageInitiatives
       />,
     );
 
@@ -329,6 +332,7 @@ describe('InitiativesKanban', () => {
         objectives={objectives}
         cycleId="cycle-1"
         cycleIsActive
+        canManageInitiatives
       />,
     );
 
@@ -361,6 +365,7 @@ describe('InitiativesKanban', () => {
         objectives={objectives}
         cycleId="cycle-1"
         cycleIsActive
+        canManageInitiatives
       />,
     );
 
@@ -370,6 +375,43 @@ describe('InitiativesKanban', () => {
     fireEvent.click(deleteButton);
 
     expect(await screen.findByText('Excluir iniciativa?')).toBeInTheDocument();
-    expect(screen.queryByText('Observacoes')).not.toBeInTheDocument();
+    expect(screen.queryByText('Observações')).not.toBeInTheDocument();
+  });
+
+  it('allows managers to create and manage initiatives in an active cycle', async () => {
+    render(
+      <InitiativesKanban
+        initiatives={initiatives}
+        objectives={objectives}
+        cycleId="cycle-1"
+        cycleIsActive
+        canManageInitiatives
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Nova iniciativa/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Padronizar Sprint 0'));
+
+    expect(await screen.findByRole('button', { name: 'Ações' })).toBeInTheDocument();
+  });
+
+  it('renders initiatives read-only when the user cannot manage them', async () => {
+    render(
+      <InitiativesKanban
+        initiatives={initiatives}
+        objectives={objectives}
+        cycleId="cycle-1"
+        cycleIsActive
+        canManageInitiatives={false}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /Nova iniciativa/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Padronizar Sprint 0'));
+
+    expect(await screen.findByText('Observações')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ações' })).not.toBeInTheDocument();
   });
 });

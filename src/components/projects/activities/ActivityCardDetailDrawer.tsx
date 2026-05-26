@@ -142,7 +142,9 @@ export function ActivityCardDetailDrawer({
   const canNavigate = !isReadOnly;
 
   // Archive permission: admin always; PM only when card is not in done
-  const canArchive = isAdmin || (canAccessSettings && !isCardDone);
+  // Seguindo .harness/patterns/security.md: drawer respeita o modo leitura definido
+  // pelo detalhe do projeto, mesmo quando roles legados dariam permissao.
+  const canArchive = !isReadOnly && (isAdmin || (canAccessSettings && !isCardDone));
   // Delete permission: anyone with edit access (admin always, even when done)
   const canDelete = !isReadOnly && (isAdmin || !isCardDone);
 

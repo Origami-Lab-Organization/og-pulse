@@ -46,6 +46,11 @@ const CANCELLATION_REASON_LABELS: Record<string, string> = {
   other: "Outro",
 };
 
+type ProjectCancellationFields = {
+  cancellation_reason?: string | null;
+  cancellation_notes?: string | null;
+};
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -139,16 +144,19 @@ export default function ProjectDetail() {
   const isPlanning = project.portfolio_stage === "planning";
   const isCompleted = project.portfolio_stage === "completed";
   const isCancelled = project.status === "cancelled";
-  const canEdit = isAdmin || !isCompleted;
-  const isReadOnly = isCompleted && !isAdmin;
-  const canManageInstallments = (isAdmin || isManager) && !isReadOnly;
   const isProjectManager = project.manager_id === employee?.id;
+  const canManageProject = isAdmin || isProjectManager;
+  // Seguindo .harness/patterns/security.md e OWASP A01: gerente ve o tenant,
+  // mas escrita no detalhe depende do projeto especifico.
+  const canEdit = canManageProject && (isAdmin || !isCompleted);
+  const isReadOnly = !canManageProject || (isCompleted && !isAdmin);
+  const canManageInstallments = canManageProject && !isReadOnly;
   const isMember =
     project.members?.some((m) => m.employee_id === employee?.id) ?? false;
   const canViewActivities =
     isAdmin || isManager || isProjectManager || isMember;
-  const canCreateActivity = isAdmin || isManager;
   const showValueBook = !isPlanning;
+  const cancellation = project as typeof project & ProjectCancellationFields;
 
   const showMenu = canAccessFullProject && (canEdit || isAdmin);
   const showHideValuesToggle = canAccessFullProject;
@@ -223,19 +231,19 @@ export default function ProjectDetail() {
         <div className="space-y-4">
           <ProjectHeader project={project} actions={headerActions} />
 
-        {isCancelled && (project as any).cancellation_reason && (
+        {isCancelled && cancellation.cancellation_reason && (
           <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
             <Badge variant="destructive">Cancelado</Badge>
             <div className="space-y-1">
               <p className="font-medium text-foreground">
                 Motivo:{" "}
                 {CANCELLATION_REASON_LABELS[
-                  (project as any).cancellation_reason
-                ] || (project as any).cancellation_reason}
+                  cancellation.cancellation_reason
+                ] || cancellation.cancellation_reason}
               </p>
-              {(project as any).cancellation_notes && (
+              {cancellation.cancellation_notes && (
                 <p className="text-muted-foreground">
-                  {(project as any).cancellation_notes}
+                  {cancellation.cancellation_notes}
                 </p>
               )}
             </div>
@@ -363,6 +371,7 @@ export default function ProjectDetail() {
             onSubmit={handleUpdate}
             isSubmitting={updateProject.isPending}
             requireJustification={isCompleted && isAdmin}
+            canChangeManager={isAdmin}
           />
 
           {project && (

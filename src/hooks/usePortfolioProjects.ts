@@ -7,6 +7,7 @@ import { PortfolioStage } from '@/types/portfolio';
 export interface PortfolioProject {
   id: string;
   name: string;
+  manager_id: string | null;
   total_value: number;
   start_date: string;
   end_date: string | null;
@@ -47,8 +48,6 @@ interface PortfolioFilters {
 export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFilters) => {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
-  const isAdmin = employee?.isAdmin ?? false;
-  const employeeId = employee?.id;
 
   const clientId = filters?.clientId;
   const serviceLineFilter = filters?.serviceLine;
@@ -56,7 +55,7 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
   const yearFilter = filters?.year;
 
   return useQuery({
-    queryKey: ['portfolio-projects', tenantId, searchQuery, isAdmin, employeeId, clientId, serviceLineFilter, managerIdFilter, yearFilter],
+    queryKey: ['portfolio-projects', tenantId, searchQuery, clientId, serviceLineFilter, managerIdFilter, yearFilter],
     queryFn: async () => {
       let query = supabase
         .from('projects')
@@ -66,6 +65,7 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
           total_value,
           start_date,
           end_date,
+          completed_date,
           is_continuous,
           portfolio_stage,
           lead_id,
@@ -77,15 +77,12 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
         `)
         .eq('tenant_id', tenantId!);
 
-      // Se não é admin, filtra apenas projetos onde é gerente
-      if (!isAdmin && employeeId) {
-        query = query.eq('manager_id', employeeId);
-      }
-
       // Filtros avançados
       if (clientId) query = query.eq('client_id', clientId);
       if (serviceLineFilter) query = query.eq('service_line', serviceLineFilter);
-      if (isAdmin && managerIdFilter) query = query.eq('manager_id', managerIdFilter);
+      // Seguindo .harness/patterns/security.md: a leitura ampla depende de RLS por tenant;
+      // o filtro de PM é uma escolha da tela, não uma regra de autorização.
+      if (managerIdFilter) query = query.eq('manager_id', managerIdFilter);
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
@@ -160,7 +157,12 @@ export const useUpdatePortfolioStage = () => {
       newStage: PortfolioStage;
       completedDate?: string;
     }) => {
-      const updateData: Record<string, unknown> = { portfolio_stage: newStage };
+      // Seguindo .harness/patterns/security.md: manter payload tipado evita enviar campos fora do schema.
+      const updateData: {
+        portfolio_stage: PortfolioStage;
+        status?: 'completed';
+        completed_date?: string | null;
+      } = { portfolio_stage: newStage };
       if (newStage === 'completed') {
         updateData.status = 'completed';
         updateData.completed_date = completedDate;

@@ -37,11 +37,17 @@ interface CompletionDialogState {
 
 interface PortfolioKanbanBoardProps {
   projects: PortfolioProject[];
+  canEditProject?: (project: PortfolioProject) => boolean;
   onRemoveProject?: (project: PortfolioProject) => void;
   hideValues?: boolean;
 }
 
-export function PortfolioKanbanBoard({ projects, onRemoveProject, hideValues }: PortfolioKanbanBoardProps) {
+export function PortfolioKanbanBoard({
+  projects,
+  canEditProject = () => false,
+  onRemoveProject,
+  hideValues,
+}: PortfolioKanbanBoardProps) {
   const [activeProject, setActiveProject] = useState<PortfolioProject | null>(null);
   const [completionDialog, setCompletionDialog] = useState<CompletionDialogState | null>(null);
   const [completionDate, setCompletionDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -101,6 +107,17 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject, hideValues }: 
     const projectId = active.id as string;
     const project = projects.find((p) => p.id === projectId);
     if (!project) return;
+
+    // Seguindo .harness/patterns/security.md e OWASP A01: mover card altera o recurso
+    // projeto, entao a UI tambem verifica permissao do projeto especifico.
+    if (!canEditProject(project)) {
+      toast({
+        title: 'Ação não permitida',
+        description: 'Você só pode alterar projetos em que é PM.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     let targetStage: PortfolioStage | null = null;
     if (PORTFOLIO_COLUMNS.some((col) => col.id === over.id)) {
@@ -193,6 +210,7 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject, hideValues }: 
                 label={column.label}
                 color={column.color}
                 projects={projectsByStage[column.id]}
+                canEditProject={canEditProject}
                 onRemoveProject={onRemoveProject}
                 hideValues={hideValues}
               />
@@ -203,7 +221,11 @@ export function PortfolioKanbanBoard({ projects, onRemoveProject, hideValues }: 
         <DragOverlay>
           {activeProject ? (
             <div className="rotate-3 scale-105">
-              <PortfolioCard project={activeProject} hideValues={hideValues} />
+              <PortfolioCard
+                project={activeProject}
+                canEdit={canEditProject(activeProject)}
+                hideValues={hideValues}
+              />
             </div>
           ) : null}
         </DragOverlay>

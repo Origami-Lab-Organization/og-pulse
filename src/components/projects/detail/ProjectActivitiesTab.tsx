@@ -164,7 +164,13 @@ export function ProjectActivitiesTab({ project, isReadOnly }: ProjectActivitiesT
   const moveActivity = useMoveActivity();
   const batchUpdatePositions = useBatchUpdatePositions();
   const { toast } = useToast();
-  const { isAdmin, isEmployee, canCreateCard, canAccessSettings, canMoveToProductBacklog } = useActivityPermissions(project);
+  const activityPermissions = useActivityPermissions(project);
+  const { isAdmin, isEmployee } = activityPermissions;
+  // Seguindo .harness/patterns/security.md: quando o detalhe esta em modo leitura,
+  // nenhuma permissao interna de atividade deve reabrir escrita por role legado.
+  const canCreateCard = activityPermissions.canCreateCard && !isReadOnly;
+  const canAccessSettings = activityPermissions.canAccessSettings && !isReadOnly;
+  const canMoveToProductBacklog = activityPermissions.canMoveToProductBacklog && !isReadOnly;
   const filters = useKanbanFilters();
   const { data: archivedCards = [] } = useArchivedCards(canAccessSettings ? project.id : undefined);
   const archivedCount = archivedCards.length;

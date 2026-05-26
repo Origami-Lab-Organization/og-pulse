@@ -82,7 +82,7 @@ describe('InitiativeFormDialog', () => {
     fireEvent.change(screen.getByLabelText(/Título/i), {
       target: { value: 'Lançar operação outbound' },
     });
-    fireEvent.change(screen.getByLabelText(/Conclusão prevista/i), {
+    fireEvent.change(screen.getByLabelText(/Prazo de entrega/i), {
       target: { value: '2026-05-30' },
     });
     fireEvent.change(screen.getByLabelText(/Observações/i), {
@@ -99,6 +99,7 @@ describe('InitiativeFormDialog', () => {
         effort: null,
         owner_id: null,
         due_date: '2026-05-30',
+        due_date_notes: null,
         notes: 'Depende da definição do playbook comercial.',
         position: 0,
       });
@@ -125,7 +126,7 @@ describe('InitiativeFormDialog', () => {
     fireEvent.change(screen.getByLabelText(/Título/i), {
       target: { value: 'Abrir nova frente enterprise' },
     });
-    fireEvent.change(screen.getByLabelText(/Conclusão prevista/i), {
+    fireEvent.change(screen.getByLabelText(/Prazo de entrega/i), {
       target: { value: '2026-07-01' },
     });
     fireEvent.change(screen.getByLabelText(/Observações/i), {
@@ -144,6 +145,7 @@ describe('InitiativeFormDialog', () => {
           effort: null,
           owner_id: 'emp-2',
           due_date: '2026-07-01',
+          due_date_notes: null,
           notes: 'Aguardar alinhamento com marketing e pricing.',
         },
       });

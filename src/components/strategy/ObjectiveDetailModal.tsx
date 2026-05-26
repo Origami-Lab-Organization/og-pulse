@@ -13,6 +13,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -47,7 +48,7 @@ interface ObjectiveDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   objective: StrategyObjectiveWithKrs | null;
-  isAdmin: boolean;
+  canManageOkrs: boolean;
   cycleIsActive: boolean;
   cycleStart?: string;
   cycleEnd?: string;
@@ -320,7 +321,7 @@ function CheckinHistory({ kr }: { kr: StrategyKeyResult }) {
 
 function KrDetailRow({
   kr,
-  isAdmin,
+  canManageOkrs,
   cycleIsActive,
   cycleStart,
   cycleEnd,
@@ -329,7 +330,7 @@ function KrDetailRow({
   onDelete,
 }: {
   kr: StrategyKeyResult;
-  isAdmin: boolean;
+  canManageOkrs: boolean;
   cycleIsActive: boolean;
   cycleStart?: string;
   cycleEnd?: string;
@@ -361,7 +362,7 @@ function KrDetailRow({
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {isAdmin && cycleIsActive && (
+          {canManageOkrs && cycleIsActive && (
             <>
               <Button
                 variant="ghost"
@@ -381,7 +382,7 @@ function KrDetailRow({
               </Button>
             </>
           )}
-          {cycleIsActive && (
+          {canManageOkrs && cycleIsActive && (
             <Button
               variant="outline"
               size="sm"
@@ -447,7 +448,7 @@ export function ObjectiveDetailModal({
   open,
   onOpenChange,
   objective,
-  isAdmin,
+  canManageOkrs,
   cycleIsActive,
   cycleStart,
   cycleEnd,
@@ -500,8 +501,11 @@ export function ObjectiveDetailModal({
                   )}
                 </div>
                 <DialogTitle className="text-xl leading-snug">{objective.title}</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Detalhes do objetivo estrategico, Key Results e historico de check-ins.
+                </DialogDescription>
               </div>
-              {isAdmin && cycleIsActive && (
+              {canManageOkrs && cycleIsActive && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -553,7 +557,7 @@ export function ObjectiveDetailModal({
                   <KrDetailRow
                     key={kr.id}
                     kr={kr}
-                    isAdmin={isAdmin}
+                    canManageOkrs={canManageOkrs}
                     cycleIsActive={cycleIsActive}
                     cycleStart={cycleStart}
                     cycleEnd={cycleEnd}
@@ -568,7 +572,7 @@ export function ObjectiveDetailModal({
 
           <DialogFooter className="shrink-0 flex-row justify-between gap-2 pt-2">
             <div className="flex items-center gap-2">
-              {isAdmin && cycleIsActive && (
+              {canManageOkrs && cycleIsActive && (
                 <Button
                   variant="destructive"
                   size="sm"
@@ -581,7 +585,7 @@ export function ObjectiveDetailModal({
               )}
             </div>
             <div className="flex items-center gap-2">
-              {isAdmin && cycleIsActive && (
+              {canManageOkrs && cycleIsActive && (
                 <Button variant="outline" size="sm" onClick={onAddKr}>
                   <Plus className="h-4 w-4 mr-1.5" />
                   Adicionar Key Result

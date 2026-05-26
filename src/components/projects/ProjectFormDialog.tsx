@@ -68,6 +68,12 @@ const projectSchema = z.object({
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
 
+type ProjectFormExtras = ProjectWithRelations & {
+  service?: { name?: string | null } | null;
+  renewal_date?: string | null;
+  success_fee_percent?: number | null;
+};
+
 interface ProjectFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -75,6 +81,7 @@ interface ProjectFormDialogProps {
   onSubmit: (data: CreateProjectInput, justification?: string) => void;
   isSubmitting?: boolean;
   requireJustification?: boolean;
+  canChangeManager?: boolean;
 }
 
 export function ProjectFormDialog({
@@ -84,6 +91,7 @@ export function ProjectFormDialog({
   onSubmit,
   isSubmitting,
   requireJustification = false,
+  canChangeManager = true,
 }: ProjectFormDialogProps) {
   const [activeTab, setActiveTab] = useState('basic');
   const [justification, setJustification] = useState('');
@@ -119,6 +127,7 @@ export function ProjectFormDialog({
   // Reset form when project changes (for edit mode)
   useEffect(() => {
     if (open) {
+      const projectWithExtras = project as ProjectFormExtras | null | undefined;
       // Resolve service_line: prefer UUID that exists in catalog, else match by service name
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       let resolvedServiceLine = '';
@@ -126,7 +135,7 @@ export function ProjectFormDialog({
         if (uuidPattern.test(project.service_line) && services.some(s => s.id === project.service_line)) {
           resolvedServiceLine = project.service_line;
         } else {
-          const serviceName = (project as any).service?.name;
+          const serviceName = projectWithExtras?.service?.name;
           if (serviceName) {
             resolvedServiceLine = services.find(s => s.name === serviceName)?.id || '';
           }
@@ -142,14 +151,14 @@ export function ProjectFormDialog({
         startDate: project?.start_date || '',
         endDate: project?.end_date || '',
         isContinuous: project?.is_continuous || false,
-        renewalDate: (project as any)?.renewal_date || '',
+        renewalDate: projectWithExtras?.renewal_date || '',
         status: project?.status || 'planning',
         totalValue: Number(project?.total_value) || 0,
         paymentMethod: project?.payment_method || 'mensal',
         installmentsCount: project?.installments_count || 1,
         firstInvoiceDate: project?.first_invoice_date || '',
         dueDay: project?.due_day || 10,
-        successFeePercent: (project as any)?.success_fee_percent ?? undefined,
+        successFeePercent: projectWithExtras?.success_fee_percent ?? undefined,
       });
       setActiveTab('basic');
       setJustification('');
@@ -305,7 +314,11 @@ export function ProjectFormDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Gerente do Projeto *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          disabled={!canChangeManager}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione o gerente" />

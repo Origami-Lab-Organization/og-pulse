@@ -82,6 +82,7 @@ interface InitiativeCardProps {
   isDragging?: boolean;
   isOverlay?: boolean;
   cycleIsActive: boolean;
+  canManageInitiatives: boolean;
   onDelete: () => void;
   onOpen?: () => void;
 }
@@ -91,12 +92,13 @@ function InitiativeCard({
   isDragging,
   isOverlay,
   cycleIsActive,
+  canManageInitiatives,
   onDelete,
   onOpen,
 }: InitiativeCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: initiative.id,
-    disabled: !cycleIsActive,
+    disabled: !canManageInitiatives || !cycleIsActive,
   });
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
@@ -152,21 +154,21 @@ function InitiativeCard({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...(cycleIsActive ? listeners : {})}
+      {...(canManageInitiatives && cycleIsActive ? listeners : {})}
       onPointerDownCapture={handlePointerDownCapture}
       onPointerMoveCapture={handlePointerMoveCapture}
       onPointerCancelCapture={resetPointerState}
       onClickCapture={handleClickCapture}
       className={cn(
         'group relative select-none transition-all hover:border-primary/40',
-        cycleIsActive && 'cursor-grab active:cursor-grabbing',
+        canManageInitiatives && cycleIsActive && 'cursor-grab active:cursor-grabbing',
         onOpen && !isOverlay && 'cursor-pointer',
         isDragging && 'opacity-40',
         isOverlay && 'rotate-1 shadow-xl opacity-95 cursor-grabbing',
       )}
     >
       <CardContent className="space-y-2 p-3">
-        {cycleIsActive && (
+        {canManageInitiatives && cycleIsActive && (
           <button
             type="button"
             onPointerDown={(event) => event.stopPropagation()}
@@ -219,6 +221,7 @@ interface KanbanColumnProps {
   initiatives: StrategyInitiative[];
   activeId: string | null;
   cycleIsActive: boolean;
+  canManageInitiatives: boolean;
   onDelete: (id: string) => void;
   onOpen: (id: string) => void;
 }
@@ -228,6 +231,7 @@ function KanbanColumn({
   initiatives,
   activeId,
   cycleIsActive,
+  canManageInitiatives,
   onDelete,
   onOpen,
 }: KanbanColumnProps) {
@@ -261,6 +265,7 @@ function KanbanColumn({
                 initiative={initiative}
                 isDragging={activeId === initiative.id}
                 cycleIsActive={cycleIsActive}
+                canManageInitiatives={canManageInitiatives}
                 onDelete={() => onDelete(initiative.id)}
                 onOpen={() => onOpen(initiative.id)}
               />
@@ -282,6 +287,7 @@ interface InitiativesKanbanProps {
   objectives: StrategyObjectiveWithKrs[];
   cycleId: string;
   cycleIsActive: boolean;
+  canManageInitiatives: boolean;
 }
 
 export function InitiativesKanban({
@@ -289,6 +295,7 @@ export function InitiativesKanban({
   objectives,
   cycleId: _cycleId,
   cycleIsActive,
+  canManageInitiatives,
 }: InitiativesKanbanProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -440,10 +447,12 @@ export function InitiativesKanban({
   };
 
   const handleDragStart = ({ active }: DragStartEvent) => {
+    if (!canManageInitiatives) return;
     setActiveId(active.id as string);
   };
 
   const handleDragOver = ({ active, over }: DragOverEvent) => {
+    if (!canManageInitiatives) return;
     if (!over) return;
 
     const activeColumn = findColumn(active.id as string);
@@ -459,6 +468,7 @@ export function InitiativesKanban({
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     setActiveId(null);
+    if (!canManageInitiatives) return;
     if (!over) return;
 
     const original = initiatives.find((initiative) => initiative.id === active.id);
@@ -517,7 +527,7 @@ export function InitiativesKanban({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        {cycleIsActive && (
+        {canManageInitiatives && cycleIsActive && (
           <Button
             size="sm"
             onClick={() => {
@@ -582,6 +592,7 @@ export function InitiativesKanban({
                 initiatives={byStatus[column.id]}
                 activeId={activeId}
                 cycleIsActive={cycleIsActive}
+                canManageInitiatives={canManageInitiatives}
                 onDelete={setDeleteId}
                 onOpen={setDetailId}
               />
@@ -595,6 +606,7 @@ export function InitiativesKanban({
               initiative={activeInitiative}
               isOverlay
               cycleIsActive={cycleIsActive}
+              canManageInitiatives={canManageInitiatives}
               onDelete={() => {}}
             />
           )}
@@ -623,6 +635,7 @@ export function InitiativesKanban({
         initiative={detailInitiative}
         objectives={objectives}
         cycleIsActive={cycleIsActive}
+        canManageInitiatives={canManageInitiatives}
         onDelete={() => {
           if (!detailInitiative) return;
           setDetailId(null);

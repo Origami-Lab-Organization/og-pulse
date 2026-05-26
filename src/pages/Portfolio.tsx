@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -32,6 +32,21 @@ export default function Portfolio() {
   )
   const { employee } = useAuth()
   const isAdmin = employee?.isAdmin ?? false
+  const isManager = employee?.is_gerente ?? false
+  const canViewPortfolio = isAdmin || isManager
+  const canFilterManagers = canViewPortfolio
+  const didApplyInitialManagerFilter = useRef(false)
+
+  useEffect(() => {
+    // Seguindo .harness/patterns/security.md: o filtro inicial ajuda o fluxo do PM,
+    // mas nao substitui a autorizacao por recurso aplicada nas acoes e no RLS.
+    if (didApplyInitialManagerFilter.current || isAdmin || !isManager || !employee?.id) return
+    setManagerId(employee.id)
+    didApplyInitialManagerFilter.current = true
+  }, [employee?.id, isAdmin, isManager])
+
+  const canEditProject = (project: PortfolioProject) =>
+    isAdmin || project.manager_id === employee?.id
 
   const { data: projects, isLoading } = usePortfolioProjects(searchQuery, {
     clientId,
@@ -47,21 +62,24 @@ export default function Portfolio() {
     setRemoveProject(project)
   }
 
-  const scopeBadge = isAdmin ? (
+  const scopeBadgeLabel = isAdmin
+    ? 'Visão da empresa'
+    : managerId === employee?.id
+      ? 'Meus projetos'
+      : managerId
+        ? 'Filtro por gerente'
+        : 'Todos os projetos'
+
+  const scopeBadge = (
     <Badge
       variant='outline'
-      className='bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800 gap-1'
+      className={isAdmin
+        ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800 gap-1'
+        : 'bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700 gap-1'
+      }
     >
-      <Building2 className='h-3 w-3' />
-      Visão da empresa
-    </Badge>
-  ) : (
-    <Badge
-      variant='outline'
-      className='bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700 gap-1'
-    >
-      <User className='h-3 w-3' />
-      Meus projetos
+      {isAdmin ? <Building2 className='h-3 w-3' /> : <User className='h-3 w-3' />}
+      {scopeBadgeLabel}
     </Badge>
   )
 
@@ -111,7 +129,7 @@ export default function Portfolio() {
 
             <div className='flex flex-wrap items-center gap-3'>
               <PortfolioFilters
-                isAdmin={isAdmin}
+                canFilterManagers={canFilterManagers}
                 clientId={clientId}
                 serviceLine={serviceLine}
                 managerId={managerId}
@@ -155,6 +173,7 @@ export default function Portfolio() {
               <div className='flex-1 overflow-auto bg-muted/30 rounded-lg'>
                 <PortfolioKanbanBoard
                   projects={projects || []}
+                  canEditProject={canEditProject}
                   onRemoveProject={isAdmin ? handleRemoveProject : undefined}
                   hideValues={hideValues}
                 />

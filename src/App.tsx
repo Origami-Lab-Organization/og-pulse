@@ -248,7 +248,7 @@ const App = () => (
               <Route path="/rh/vagas" element={<RoleProtectedRoute requireManager><JobOpenings /></RoleProtectedRoute>} />
               <Route path="/trabalhe-conosco/:tenantId" element={<JobApplication />} />
               <Route path="/trabalhe-conosco/:tenantId/:vagaId" element={<JobApplicationVaga />} />
-              <Route path="/estrategia" element={<RoleProtectedRoute requireAdmin><Strategy /></RoleProtectedRoute>} />
+              <Route path="/estrategia" element={<RoleProtectedRoute requireManager><Strategy /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -14,7 +14,7 @@ interface ObjectiveCardProps {
   onCheckin: (krId: string) => void;
   onDeleteObjective: () => void;
   onEditObjective?: () => void;
-  isAdmin: boolean;
+  canManageOkrs: boolean;
   cycleIsActive: boolean;
 }
 
@@ -22,10 +22,12 @@ function KrRow({
   kr,
   onCheckin,
   cycleIsActive,
+  canManageOkrs,
 }: {
   kr: StrategyKeyResult;
   onCheckin: () => void;
   cycleIsActive: boolean;
+  canManageOkrs: boolean;
 }) {
   const status = getKrStatus(kr.confidence);
   const progress = getKrProgress(kr.currentValue, kr.targetValue, kr.direction, kr.initialValue);
@@ -35,7 +37,7 @@ function KrRow({
     <div className="py-2.5 border-b last:border-0">
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <p className="text-sm font-medium leading-snug flex-1">{kr.title}</p>
-        {cycleIsActive && (
+        {canManageOkrs && cycleIsActive && (
           <Button
             variant="ghost"
             size="sm"
@@ -80,7 +82,7 @@ export function ObjectiveCard({
   onCheckin,
   onDeleteObjective,
   onEditObjective,
-  isAdmin,
+  canManageOkrs,
   cycleIsActive,
 }: ObjectiveCardProps) {
   const cfg = getStrategyObjectiveStatus(objective.avgConfidence);
@@ -119,7 +121,7 @@ export function ObjectiveCard({
             )}
           </div>
 
-          {isAdmin && cycleIsActive && (
+          {canManageOkrs && cycleIsActive && (
             <div className="flex flex-col gap-0.5 shrink-0">
               <Button
                 variant="ghost"
@@ -148,7 +150,13 @@ export function ObjectiveCard({
         ) : (
           <div>
             {objective.keyResults.map((kr) => (
-              <KrRow key={kr.id} kr={kr} onCheckin={() => onCheckin(kr.id)} cycleIsActive={cycleIsActive} />
+              <KrRow
+                key={kr.id}
+                kr={kr}
+                onCheckin={() => onCheckin(kr.id)}
+                cycleIsActive={cycleIsActive}
+                canManageOkrs={canManageOkrs}
+              />
             ))}
           </div>
         )}

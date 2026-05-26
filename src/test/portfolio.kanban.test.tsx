@@ -119,6 +119,7 @@ vi.mock('@/hooks/useProjectPlanningReadiness', () => ({
 const baseProject: PortfolioProject = {
   id: 'project-1',
   name: 'Projeto Alpha',
+  manager_id: 'manager-1',
   total_value: 10000,
   start_date: '2026-01-01',
   end_date: '2026-05-31',
@@ -140,8 +141,11 @@ const baseProject: PortfolioProject = {
   installments: [],
 };
 
-function renderBoard(project: PortfolioProject = baseProject) {
-  return render(<PortfolioKanbanBoard projects={[project]} />);
+function renderBoard(
+  project: PortfolioProject = baseProject,
+  canEditProject: (project: PortfolioProject) => boolean = () => true,
+) {
+  return render(<PortfolioKanbanBoard projects={[project]} canEditProject={canEditProject} />);
 }
 
 function todayInputValue() {
@@ -183,6 +187,28 @@ describe('PortfolioKanbanBoard', () => {
       projectId: 'project-1',
       newStage: 'results_presentation',
     });
+  });
+
+  it('bloqueia movimento quando gerente nao e PM do projeto', async () => {
+    renderBoard({ ...baseProject, manager_id: 'manager-2' }, () => false);
+
+    await dropProject('results_presentation');
+
+    expect(updateStageMutate).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Ação não permitida',
+    }));
+  });
+
+  it('bloqueia movimento de projeto concluido para gerente nao-admin', async () => {
+    renderBoard({ ...baseProject, portfolio_stage: 'completed' });
+
+    await dropProject('value_delivery');
+
+    expect(updateStageMutate).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      description: 'Apenas administradores podem mover projetos concluídos.',
+    }));
   });
 
   it('permite mover direto de Entrega de Valor para Aprendizado e Case', async () => {

@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select';
 
 interface PortfolioFiltersProps {
-  isAdmin: boolean;
+  canFilterManagers: boolean;
   clientId: string;
   serviceLine: string;
   managerId: string;
@@ -34,7 +34,7 @@ interface ManagerOption {
 }
 
 export function PortfolioFilters({
-  isAdmin,
+  canFilterManagers,
   clientId,
   serviceLine,
   managerId,
@@ -63,7 +63,7 @@ export function PortfolioFilters({
   }, [tenantId]);
 
   useEffect(() => {
-    if (!tenantId || !isAdmin) return;
+    if (!tenantId || !canFilterManagers) return;
     supabase
       .from('employees')
       .select('id, nome')
@@ -71,7 +71,7 @@ export function PortfolioFilters({
       .eq('is_gerente', true)
       .order('nome')
       .then(({ data }) => setManagers((data || []) as ManagerOption[]));
-  }, [tenantId, isAdmin]);
+  }, [tenantId, canFilterManagers]);
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -118,8 +118,9 @@ export function PortfolioFilters({
         </SelectContent>
       </Select>
 
-      {/* Filtro de Gerente — apenas admin */}
-      {isAdmin && (
+      {/* Seguindo .harness/patterns/security.md: filtro visível para quem pode ver o portfólio,
+          mas autorização de escrita continua por recurso/RLS. */}
+      {canFilterManagers && (
         <Select value={managerId || '__all__'} onValueChange={v => onManagerChange(v === '__all__' ? '' : v)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Todos os gerentes" />

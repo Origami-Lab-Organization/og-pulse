@@ -79,7 +79,7 @@ const navigationGroups = [
       { title: 'Alocação da Equipe', url: '/alocacao', icon: Clock, requiresManager: true },
       { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
       { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
-      { title: 'Estratégia', url: '/estrategia', icon: Target, requiresAdmin: true },
+      { title: 'Estratégia', url: '/estrategia', icon: Target, requiresManager: true },
     ] as NavItem[],
   },
   {

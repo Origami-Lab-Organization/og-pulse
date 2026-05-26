@@ -10,11 +10,20 @@ interface PortfolioColumnProps {
   label: string;
   color: string;
   projects: PortfolioProject[];
+  canEditProject?: (project: PortfolioProject) => boolean;
   onRemoveProject?: (project: PortfolioProject) => void;
   hideValues?: boolean;
 }
 
-export function PortfolioColumn({ id, label, color, projects, onRemoveProject, hideValues }: PortfolioColumnProps) {
+export function PortfolioColumn({
+  id,
+  label,
+  color,
+  projects,
+  canEditProject = () => false,
+  onRemoveProject,
+  hideValues,
+}: PortfolioColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id,
     data: {
@@ -51,7 +60,13 @@ export function PortfolioColumn({ id, label, color, projects, onRemoveProject, h
               </div>
             ) : (
               projects.map((project) => (
-                <PortfolioCard key={project.id} project={project} onRemove={onRemoveProject} hideValues={hideValues} />
+                <PortfolioCard
+                  key={project.id}
+                  project={project}
+                  canEdit={canEditProject(project)}
+                  onRemove={onRemoveProject}
+                  hideValues={hideValues}
+                />
               ))
             )}
           </div>
