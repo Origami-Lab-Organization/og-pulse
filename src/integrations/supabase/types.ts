@@ -5047,6 +5047,7 @@ export type Database = {
           manager_name: string
           month: number
           planned_hours: number
+          project_end_date: string
           project_id: string
           project_member_id: string
           project_start_date: string

@@ -29,6 +29,7 @@ export interface AllocationDetailRpcRow {
   team_key: string;
   team_label: string;
   project_start_date: string | null;
+  project_end_date: string | null;
   duration_months: number | null;
   is_continuous: boolean | null;
   month: number;
