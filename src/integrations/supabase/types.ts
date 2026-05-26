@@ -3813,6 +3813,7 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           client_id: string
+          completed_date: string | null
           contract_url: string | null
           created_at: string
           description: string | null
@@ -3845,6 +3846,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           client_id: string
+          completed_date?: string | null
           contract_url?: string | null
           created_at?: string
           description?: string | null
@@ -3877,6 +3879,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           client_id?: string
+          completed_date?: string | null
           contract_url?: string | null
           created_at?: string
           description?: string | null
@@ -5034,15 +5037,6 @@ export type Database = {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
         Returns: number
       }
-      calculate_employee_capacity_hours: {
-        Args: {
-          p_employee_id: string
-          p_end_date: string
-          p_start_date: string
-          p_tenant_id: string
-        }
-        Returns: number
-      }
       generate_budget_number: { Args: { p_tenant_id: string }; Returns: string }
       get_allocation_employee_detail: {
         Args: {
@@ -5091,7 +5085,6 @@ export type Database = {
           jornada_diaria: number
           month: number
           planned_hours: number
-          capacity_hours: number
           status: string
           termination_date: string
         }[]
@@ -5142,6 +5135,15 @@ export type Database = {
           salario_mensal: number
           tipo_contratacao: string
           version_id: string
+        }[]
+      }
+      get_project_assignable_members: {
+        Args: { p_project_id: string }
+        Returns: {
+          cargo: string
+          employee_id: string
+          foto_url: string
+          nome: string
         }[]
       }
       get_project_tenant_id: { Args: { _project_id: string }; Returns: string }
