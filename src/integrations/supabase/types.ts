@@ -3808,7 +3808,6 @@ export type Database = {
           description: string | null
           due_day: number
           duration_months: number
-          completed_date: string | null
           end_date: string | null
           first_invoice_date: string | null
           id: string
@@ -3842,7 +3841,6 @@ export type Database = {
           description?: string | null
           due_day?: number
           duration_months?: number
-          completed_date?: string | null
           end_date?: string | null
           first_invoice_date?: string | null
           id?: string
@@ -3876,7 +3874,6 @@ export type Database = {
           description?: string | null
           due_day?: number
           duration_months?: number
-          completed_date?: string | null
           end_date?: string | null
           first_invoice_date?: string | null
           id?: string
