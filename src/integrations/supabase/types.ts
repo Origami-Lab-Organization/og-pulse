@@ -1036,6 +1036,7 @@ export type Database = {
           is_gerente: boolean
           jornada_diaria: number
           jornada_mensal: number
+          invited_at: string | null
           must_change_password: boolean
           nome: string
           pro_labore: number
@@ -1077,6 +1078,7 @@ export type Database = {
           is_gerente?: boolean
           jornada_diaria?: number
           jornada_mensal?: number
+          invited_at?: string | null
           must_change_password?: boolean
           nome: string
           pro_labore?: number
@@ -1118,6 +1120,7 @@ export type Database = {
           is_gerente?: boolean
           jornada_diaria?: number
           jornada_mensal?: number
+          invited_at?: string | null
           must_change_password?: boolean
           nome?: string
           pro_labore?: number

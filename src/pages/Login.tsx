@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,17 +29,20 @@ type LoginFormData = z.infer<typeof loginSchema>;
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { signIn } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const from = location.state?.from?.pathname || '/inbox';
+  // Pré-preenche o e-mail quando o acesso vem do link de convite (?email=...).
+  const invitedEmail = searchParams.get('email') ?? '';
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      email: invitedEmail,
       password: '',
     },
   });
@@ -52,7 +55,8 @@ const Login = () => {
     if (error) {
       toast({
         title: 'Erro ao fazer login',
-        description: 'Email ou senha incorretos.',
+        description:
+          'Email ou senha incorretos. Se você recebeu um convite, copie a senha temporária diretamente do e-mail.',
         variant: 'destructive',
       });
       setIsLoading(false);

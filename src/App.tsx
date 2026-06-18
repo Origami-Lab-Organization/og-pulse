@@ -13,6 +13,7 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
+import PrimeiroAcesso from "./pages/PrimeiroAcesso";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 import JobApplication from "./pages/JobApplication";
@@ -66,13 +67,23 @@ const App = () => (
               <Route path="/boas-vindas" element={<Welcome />} />
               <Route path="/termos" element={<Terms />} />
               <Route path="/privacidade" element={<Privacy />} />
-              <Route 
-                path="/change-password" 
+              {/* Primeiro acesso — troca de senha obrigatória do convite (FUNC-J1) */}
+              <Route
+                path="/primeiro-acesso"
+                element={
+                  <ProtectedRoute>
+                    <PrimeiroAcesso />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Troca voluntária de senha (acionada pelo menu do usuário) */}
+              <Route
+                path="/change-password"
                 element={
                   <ProtectedRoute>
                     <ChangePassword />
                   </ProtectedRoute>
-                } 
+                }
               />
               {/* Root redirect */}
               <Route path="/" element={<Navigate to="/inbox" replace />} />

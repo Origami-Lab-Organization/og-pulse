@@ -22,6 +22,18 @@ const generateTempPassword = () => {
   return password;
 };
 
+// Acrescenta o e-mail ao link de acesso (?email=...) para pré-preencher o login (FUNC-J1).
+function buildAccessUrl(loginUrl: string, email: string): string {
+  try {
+    const url = new URL(loginUrl);
+    url.searchParams.set("email", email);
+    return url.toString();
+  } catch {
+    const separator = loginUrl.includes("?") ? "&" : "?";
+    return `${loginUrl}${separator}email=${encodeURIComponent(email)}`;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("Resend employee invite function called");
 
@@ -123,11 +135,12 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Failed to update password");
     }
 
-    // Update employee record
+    // Update employee record — reinicia o TTL de 7 dias do convite (FUNC-J1)
     const { error: updateEmpError } = await supabaseAdmin
       .from("employees")
       .update({
         must_change_password: true,
+        invited_at: new Date().toISOString(),
       })
       .eq("id", employeeId);
 
@@ -135,6 +148,15 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Error updating employee:", updateEmpError);
       throw new Error("Failed to update employee record");
     }
+
+    // Nome da empresa para personalizar o convite (fallback "Origami Pulse").
+    const { data: tenant } = await supabaseAdmin
+      .from("tenants")
+      .select("name")
+      .eq("id", currentEmployee.tenant_id)
+      .maybeSingle();
+    const companyName = tenant?.name ?? "Origami Pulse";
+    const accessUrl = buildAccessUrl(loginUrl, employee.email);
 
     // Send new invite email
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -149,7 +171,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { error: emailError } = await resend.emails.send({
       from: resendFromEmail,
       to: [employee.email],
-      subject: "Novo Convite de Acesso - OG Pulse",
+      subject: `Novo convite de acesso ao Origami Pulse · ${companyName}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -158,33 +180,31 @@ const handler = async (req: Request): Promise<Response> => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Novo Convite de Acesso</title>
         </head>
-        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-          <div style="background-color: #ffffff; border-radius: 10px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f5;">
+          <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">
             <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #1a1a1a; margin: 0; font-size: 28px;">OG Pulse</h1>
-              <p style="color: #666; margin-top: 5px;">Gestão de Equipes</p>
+              <h1 style="color: #111827; margin: 0; font-size: 24px;">Origami Pulse</h1>
+              <p style="color: #6b7280; margin-top: 5px;">Convite de acesso · ${companyName}</p>
             </div>
-            
+
             <h2 style="color: #333; margin-bottom: 20px;">Olá, ${employee.nome}!</h2>
-            
-            <p style="margin-bottom: 20px;">Um novo convite de acesso foi gerado para você no OG Pulse.</p>
-            
-            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 25px 0;">
-              <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${employee.email}</p>
-              <p style="margin: 0;"><strong>Senha temporária:</strong> <code style="background-color: #e9ecef; padding: 2px 8px; border-radius: 4px;">${newTempPassword}</code></p>
+
+            <p style="margin-bottom: 20px;">Um novo convite de acesso foi gerado para você no Origami Pulse da <strong>${companyName}</strong>.</p>
+
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
+              <p style="margin: 0 0 10px 0;"><strong>E-mail:</strong> ${employee.email}</p>
+              <p style="margin: 0;"><strong>Senha temporária:</strong> <code style="background-color: #eef2ff; padding: 4px 10px; border-radius: 4px;">${newTempPassword}</code></p>
             </div>
-            
-            <p style="margin-bottom: 25px;">Use estas credenciais para acessar o sistema:</p>
-            
+
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${loginUrl}" style="display: inline-block; background-color: #3b82f6; color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600;">Acessar Sistema</a>
+              <a href="${accessUrl}" style="display: inline-block; background-color: #4f46e5; color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600;">Acessar o Origami Pulse</a>
             </div>
-            
-            <p style="color: #666; font-size: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef;">
-              <strong>Importante:</strong> Por segurança, você será solicitado a criar uma nova senha no primeiro acesso.
-            </p>
+
+            <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 14px; border-radius: 8px; margin-top: 20px; font-size: 14px;">
+              <strong>Você precisará criar uma nova senha no primeiro acesso.</strong> Este convite é válido por 7 dias.
+            </div>
           </div>
-          
+
           <p style="text-align: center; color: #999; font-size: 12px; margin-top: 20px;">
             Este é um email automático, por favor não responda.
           </p>

@@ -269,6 +269,8 @@ const handler = async (req: Request): Promise<Response> => {
         tenant_id: tenantId,
         auth_id: authUserId,
         must_change_password: !isExistingUser, // Only require change for new users
+        // Marca o envio do convite para validar o TTL de 7 dias no primeiro acesso (FUNC-J1).
+        invited_at: !isExistingUser ? new Date().toISOString() : null,
       })
       .select()
       .single();
@@ -306,7 +308,16 @@ const handler = async (req: Request): Promise<Response> => {
     // Send invite email in background (non-blocking) for new users only
     if (!isExistingUser && tempPassword) {
       console.log("Scheduling invite email to be sent in background to:", email);
-      
+
+      // Nome da empresa para personalizar o convite (FUNC-J1). Falha aqui não
+      // bloqueia o envio — o template usa "Origami Pulse" como fallback.
+      const { data: tenant } = await adminClient
+        .from('tenants')
+        .select('name')
+        .eq('id', tenantId)
+        .maybeSingle();
+      const companyName = tenant?.name ?? undefined;
+
       // Background task - does not block the response
       EdgeRuntime.waitUntil(
         (async () => {
@@ -322,6 +333,7 @@ const handler = async (req: Request): Promise<Response> => {
                 nome,
                 tempPassword,
                 loginUrl,
+                companyName,
               }),
             });
 
