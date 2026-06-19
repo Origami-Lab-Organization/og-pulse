@@ -34,7 +34,10 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const from = location.state?.from?.pathname || '/inbox';
+  // '/' resolve o destino por papel (admin → /dashboard, demais → /inbox)
+  // via HomeRedirect, aguardando o perfil carregar. Rotas de origem (deep link)
+  // são preservadas.
+  const from = location.state?.from?.pathname || '/';
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
