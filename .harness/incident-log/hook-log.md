@@ -26,3 +26,11 @@
 ### 2026-06-19T16:04:06.637Z
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: C:\hakathon\og-pulse\src\services\employeeService.ts
+
+### 2026-06-19T19:41:06.583Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: C:\hakathon\og-pulse\src\services\terminationService.ts
+
+### 2026-06-19T19:42:11.941Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: C:\hakathon\og-pulse\src\services\terminationService.ts
