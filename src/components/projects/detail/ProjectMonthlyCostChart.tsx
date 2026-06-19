@@ -191,7 +191,7 @@ export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMont
                     width={65}
                   />
                   <Tooltip content={(props) => <BarTooltip {...props} formatCurrency={formatCurrency} />} />
-                  <Legend />
+                  <Legend iconType="circle" iconSize={8} />
                   {/* Planejado em neutro, Realizado no verde escuro da marca —
                       acento único, conforme o modelo de design e o origami-ds. */}
                   <Bar dataKey="planned"  name="Planejado" fill="hsl(var(--muted-foreground) / 0.35)" radius={[4, 4, 0, 0]} />
