@@ -16,6 +16,7 @@ import {
 import { CandidateKanbanColumn } from "./CandidateKanbanColumn";
 import { CandidateKanbanCard } from "./CandidateKanbanCard";
 import { CandidateDetailDialog } from "./CandidateDetailDialog";
+import { CandidateHireDialog } from "./CandidateHireDialog";
 
 interface CandidateKanbanBoardProps {
   candidates: JobApplicationDB[];
@@ -36,6 +37,8 @@ export function CandidateKanbanBoard({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [hireCandidate, setHireCandidate] = useState<JobApplicationDB | null>(null);
+  const [hireOpen, setHireOpen] = useState(false);
 
   const selectedCandidate = candidates.find((c) => c.id === selectedCandidateId) ?? null;
 
@@ -70,6 +73,11 @@ export function CandidateKanbanBoard({
     setDetailOpen(true);
   };
 
+  const handleHireClick = (candidate: JobApplicationDB) => {
+    setHireCandidate(candidate);
+    setHireOpen(true);
+  };
+
   return (
     <>
       <DndContext
@@ -87,6 +95,7 @@ export function CandidateKanbanBoard({
               color={color}
               candidates={candidates.filter((c) => c.status === id)}
               onCardClick={handleCardClick}
+              onHireClick={id === "aprovado" ? handleHireClick : undefined}
             />
           ))}
         </div>
@@ -107,6 +116,12 @@ export function CandidateKanbanBoard({
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onStatusChange={onStatusChange}
+      />
+
+      <CandidateHireDialog
+        candidate={hireCandidate}
+        open={hireOpen}
+        onOpenChange={setHireOpen}
       />
     </>
   );

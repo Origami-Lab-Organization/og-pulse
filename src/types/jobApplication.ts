@@ -22,6 +22,7 @@ export type JobApplicationStatus =
   | "entrevista"
   | "prova_tecnica"
   | "aprovado"
+  | "contratado"
   | "descartado"
   | "banco_de_talentos";
 
@@ -63,6 +64,7 @@ export const JOB_APPLICATION_STATUS_LABELS: Record<JobApplicationStatus, string>
   entrevista: "Entrevista",
   prova_tecnica: "Prova Técnica",
   aprovado: "Aprovado",
+  contratado: "Contratado",
   descartado: "Descartado",
   banco_de_talentos: "Banco de Talentos",
 };
