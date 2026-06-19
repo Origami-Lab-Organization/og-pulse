@@ -34,6 +34,19 @@ function buildAccessUrl(loginUrl: string, email: string): string {
   }
 }
 
+// Destino do primeiro acesso a partir do loginUrl do app (FUNC-J1).
+function firstAccessRedirect(loginUrl: string): string {
+  try {
+    const url = new URL(loginUrl);
+    url.pathname = "/primeiro-acesso";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return (loginUrl || "").replace(/\/login\/?$/, "") + "/primeiro-acesso";
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("Resend employee invite function called");
 
@@ -158,6 +171,36 @@ const handler = async (req: Request): Promise<Response> => {
     const companyName = tenant?.name ?? "Origami Pulse";
     const accessUrl = buildAccessUrl(loginUrl, employee.email);
 
+    // Magic link (FUNC-J1): leva direto à tela de primeiro acesso já autenticado.
+    let actionLink: string | undefined;
+    try {
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: "magiclink",
+        email: employee.email,
+        options: { redirectTo: firstAccessRedirect(loginUrl) },
+      });
+      if (linkError) {
+        console.error("resend: nao foi possivel gerar o link, usando fallback");
+      } else {
+        actionLink = linkData?.properties?.action_link ?? undefined;
+      }
+    } catch (_e) {
+      console.error("resend: geracao de link falhou, usando fallback");
+    }
+
+    const passwordless = Boolean(actionLink);
+    const ctaLink = actionLink || accessUrl;
+    const ctaLabel = passwordless ? "Definir minha senha e acessar" : "Acessar o Origami Pulse";
+    const credentialsBlock = passwordless
+      ? `<p style="margin-bottom: 20px;">Clique no botão abaixo para criar sua senha e acessar — não é preciso digitar nenhuma senha temporária.</p>`
+      : `<div style="background-color: #F6F7EB; border: 1px solid #DEE0D0; border-radius: 8px; padding: 20px; margin: 25px 0;">
+              <p style="margin: 0 0 10px 0;"><strong>E-mail:</strong> ${employee.email}</p>
+              <p style="margin: 0;"><strong>Senha temporária:</strong> <code style="font-family: 'JetBrains Mono','Courier New',monospace; background-color: #E9F7F0; color: #063D2B; padding: 4px 10px; border-radius: 4px;">${newTempPassword}</code></p>
+            </div>`;
+    const infoBlock = passwordless
+      ? `<strong>Este link é pessoal e tem validade limitada.</strong> Se expirar, use "Reenviar e-mail de primeiro acesso" na tela de login.`
+      : `<strong>Você precisará criar uma nova senha no primeiro acesso.</strong> Este convite é válido por 7 dias.`;
+
     // Send new invite email
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const resendFromEmail = Deno.env.get("RESEND_FROM_EMAIL");
@@ -180,28 +223,28 @@ const handler = async (req: Request): Promise<Response> => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Novo Convite de Acesso</title>
         </head>
-        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f5;">
-          <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #111827; margin: 0; font-size: 24px;">Origami Pulse</h1>
-              <p style="color: #6b7280; margin-top: 5px;">Convite de acesso · ${companyName}</p>
-            </div>
+        <body style="font-family: 'Inter','Segoe UI',Tahoma,sans-serif; line-height: 1.6; color: #252525; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #FBFBF7;">
+          <div style="background-color: #FFFFFF; border-radius: 12px; overflow: hidden; border: 1px solid #ECEDE1; box-shadow: 0 1px 2px rgba(37,37,37,0.07);">
+            <div style="height: 4px; background-color: #0E895D;"></div>
+            <div style="padding: 40px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #252525; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.01em;">Origami <span style="color: #0E895D;">Pulse</span></h1>
+                <p style="color: #6F7167; margin-top: 5px; font-size: 13px;">Convite de acesso · ${companyName}</p>
+              </div>
 
-            <h2 style="color: #333; margin-bottom: 20px;">Olá, ${employee.nome}!</h2>
+              <h2 style="color: #252525; margin-bottom: 20px;">Olá, ${employee.nome}!</h2>
 
-            <p style="margin-bottom: 20px;">Um novo convite de acesso foi gerado para você no Origami Pulse da <strong>${companyName}</strong>.</p>
+              <p style="margin-bottom: 20px; color: #3A3A36;">Um novo convite de acesso foi gerado para você no Origami Pulse da <strong>${companyName}</strong>.</p>
 
-            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
-              <p style="margin: 0 0 10px 0;"><strong>E-mail:</strong> ${employee.email}</p>
-              <p style="margin: 0;"><strong>Senha temporária:</strong> <code style="background-color: #eef2ff; padding: 4px 10px; border-radius: 4px;">${newTempPassword}</code></p>
-            </div>
+              ${credentialsBlock}
 
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${accessUrl}" style="display: inline-block; background-color: #4f46e5; color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600;">Acessar o Origami Pulse</a>
-            </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${ctaLink}" style="display: inline-block; background-color: #0E895D; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600;">${ctaLabel}</a>
+              </div>
 
-            <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 14px; border-radius: 8px; margin-top: 20px; font-size: 14px;">
-              <strong>Você precisará criar uma nova senha no primeiro acesso.</strong> Este convite é válido por 7 dias.
+              <div style="background-color: #E9F7F0; border: 1px solid #93DDBC; color: #063D2B; padding: 14px; border-radius: 8px; margin-top: 20px; font-size: 14px;">
+                ${infoBlock}
+              </div>
             </div>
           </div>
 

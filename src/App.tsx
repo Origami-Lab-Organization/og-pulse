@@ -14,6 +14,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import PrimeiroAcesso from "./pages/PrimeiroAcesso";
+import ReenviarPrimeiroAcesso from "./pages/ReenviarPrimeiroAcesso";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 import JobApplication from "./pages/JobApplication";
@@ -63,6 +64,8 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Navigate to="/login" replace />} />
               <Route path="/esqueci-minha-senha" element={<ForgotPassword />} />
+              {/* Reenvio do convite de primeiro acesso — público (FUNC-J1) */}
+              <Route path="/reenviar-primeiro-acesso" element={<ReenviarPrimeiroAcesso />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/boas-vindas" element={<Welcome />} />
               <Route path="/termos" element={<Terms />} />

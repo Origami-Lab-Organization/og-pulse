@@ -69,6 +69,19 @@ function generateTempPassword(length = 12): string {
   return password.split('').sort(() => Math.random() - 0.5).join('');
 }
 
+// Deriva a URL de destino do primeiro acesso a partir do loginUrl do app (FUNC-J1).
+function firstAccessRedirect(loginUrl: string): string {
+  try {
+    const url = new URL(loginUrl);
+    url.pathname = "/primeiro-acesso";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return loginUrl.replace(/\/login\/?$/, "") + "/primeiro-acesso";
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -318,6 +331,25 @@ const handler = async (req: Request): Promise<Response> => {
         .maybeSingle();
       const companyName = tenant?.name ?? undefined;
 
+      // Magic link (FUNC-J1): leva o convidado direto a tela de primeiro acesso ja
+      // autenticado. Se falhar (ex.: redirectTo fora da allowlist), o e-mail usa o
+      // fluxo de fallback.
+      let actionLink: string | undefined;
+      try {
+        const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+          type: 'magiclink',
+          email,
+          options: { redirectTo: firstAccessRedirect(loginUrl) },
+        });
+        if (linkError) {
+          console.error('Could not generate access link, using fallback:', linkError.message);
+        } else {
+          actionLink = linkData?.properties?.action_link ?? undefined;
+        }
+      } catch (e: unknown) {
+        console.error('Access link generation failed, using fallback:', e instanceof Error ? e.message : e);
+      }
+
       // Background task - does not block the response
       EdgeRuntime.waitUntil(
         (async () => {
@@ -334,6 +366,7 @@ const handler = async (req: Request): Promise<Response> => {
                 tempPassword,
                 loginUrl,
                 companyName,
+                actionLink,
               }),
             });
 
