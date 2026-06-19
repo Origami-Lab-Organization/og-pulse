@@ -10,100 +10,44 @@ import {
   Archive,
   ArchiveRestore,
   Trophy,
-  MessageSquarePlus,
-  Loader2,
   History,
+  CalendarClock,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useLeadActivities } from '@/hooks/useLeadActivities';
+import { useLeadTimeline, TimelineItem } from '@/hooks/useLeadTimeline';
+import { useEmployees } from '@/hooks/useEmployees';
 import { LeadActivityType, LeadActivityWithCreator } from '@/services/leadActivityService';
+import { LeadInteraction, CHANNEL_LABELS } from '@/hooks/useLeadInteractions';
+import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
+import { getFollowUpVisualStatus, FOLLOW_UP_STATUS_LABEL, FollowUpVisualStatus } from '@/lib/followUps';
+import { LeadAttachmentLink } from './LeadAttachmentLink';
 import { cn } from '@/lib/utils';
 
 interface LeadActivityTimelineProps {
   leadId: string;
 }
 
-const ACTIVITY_CONFIG: Record<
-  LeadActivityType,
-  {
-    icon: typeof Plus;
-    color: string;
-    bgColor: string;
-  }
-> = {
-  created: { icon: Plus, color: 'text-green-600', bgColor: 'bg-green-100 dark:bg-green-900/30' },
-  stage_changed: { icon: ArrowRight, color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
-  lead_updated: { icon: Pencil, color: 'text-amber-600', bgColor: 'bg-amber-100 dark:bg-amber-900/30' },
-  budget_created: { icon: FileText, color: 'text-purple-600', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
-  budget_updated: { icon: FileEdit, color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
-  budget_unlinked: { icon: Unlink, color: 'text-red-600', bgColor: 'bg-red-100 dark:bg-red-900/30' },
-  archived: { icon: Archive, color: 'text-gray-600', bgColor: 'bg-gray-100 dark:bg-gray-800/50' },
-  unarchived: { icon: ArchiveRestore, color: 'text-teal-600', bgColor: 'bg-teal-100 dark:bg-teal-900/30' },
-  closed: { icon: Trophy, color: 'text-green-700', bgColor: 'bg-green-200 dark:bg-green-900/50' },
-  note_added: { icon: MessageSquarePlus, color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
+// Ícone por tipo automático — cor sempre neutra (atividade de sistema = ruído de fundo, GP-J5 CA-02).
+const ACTIVITY_ICON: Record<LeadActivityType, typeof Plus> = {
+  created: Plus,
+  stage_changed: ArrowRight,
+  lead_updated: Pencil,
+  budget_created: FileText,
+  budget_updated: FileEdit,
+  budget_unlinked: Unlink,
+  archived: Archive,
+  unarchived: ArchiveRestore,
+  closed: Trophy,
+  note_added: Pencil,
 };
 
-function ActivityItem({ activity }: { activity: LeadActivityWithCreator }) {
-  const config = ACTIVITY_CONFIG[activity.activity_type] || ACTIVITY_CONFIG.lead_updated;
-  const Icon = config.icon;
-  const createdAt = new Date(activity.created_at);
-  const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true, locale: ptBR });
-
-  return (
-    <div className="flex gap-3 relative">
-      {/* Timeline line */}
-      <div className="flex flex-col items-center">
-        <div
-          className={cn(
-            'flex items-center justify-center w-8 h-8 rounded-full shrink-0',
-            config.bgColor
-          )}
-        >
-          <Icon className={cn('h-4 w-4', config.color)} />
-        </div>
-        <div className="w-px bg-border flex-1 min-h-[16px]" />
-      </div>
-
-      {/* Content */}
-      <div className="pb-4 flex-1 min-w-0">
-        <p className="text-sm font-medium leading-tight">{activity.description}</p>
-
-        {/* Change summary for budget updates */}
-        {activity.activity_type === 'budget_updated' && activity.metadata?.change_summary && (
-          <p className="text-xs text-muted-foreground mt-1">
-            {activity.metadata.change_summary as string}
-          </p>
-        )}
-
-        {/* Stage change badges */}
-        {activity.activity_type === 'stage_changed' && activity.metadata?.from_stage && (
-          <div className="flex items-center gap-1.5 mt-1">
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-              {stageLabel(activity.metadata.from_stage as string)}
-            </Badge>
-            <ArrowRight className="h-3 w-3 text-muted-foreground" />
-            <Badge variant="default" className="text-[10px] px-1.5 py-0 h-5">
-              {stageLabel(activity.metadata.to_stage as string)}
-            </Badge>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs text-muted-foreground" title={format(createdAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}>
-            {timeAgo}
-          </span>
-          {activity.creator && (
-            <span className="text-xs text-muted-foreground">
-              por {activity.creator.nome}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+const FOLLOW_UP_BADGE_CLASSES: Record<FollowUpVisualStatus, string> = {
+  pending: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30',
+  overdue: 'bg-red-100 text-red-700 dark:bg-red-900/30',
+  done: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30',
+  skipped: 'bg-muted text-muted-foreground',
+};
 
 function stageLabel(stage: string): string {
   const labels: Record<string, string> = {
@@ -116,8 +60,165 @@ function stageLabel(stage: string): string {
   return labels[stage] || stage;
 }
 
+function relativeTime(iso: string): string {
+  return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: ptBR });
+}
+
+function fullTime(iso: string): string {
+  return format(new Date(iso), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+}
+
+/** Linha da timeline: coluna do marcador (badge + fio) + conteúdo. */
+function TimelineRow({
+  badge,
+  isLast,
+  children,
+}: {
+  badge: React.ReactNode;
+  isLast: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-3 relative">
+      <div className="flex flex-col items-center">
+        {badge}
+        {!isLast && <div className="w-px bg-border flex-1 min-h-[16px]" />}
+      </div>
+      <div className="pb-4 flex-1 min-w-0">{children}</div>
+    </div>
+  );
+}
+
+/** Tipo 1 — atividade automática: ícone cinza, texto compacto. */
+function AutomaticActivityItem({ activity, isLast }: { activity: LeadActivityWithCreator; isLast: boolean }) {
+  const Icon = ACTIVITY_ICON[activity.activity_type] || Pencil;
+  const badge = (
+    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted shrink-0">
+      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+    </div>
+  );
+
+  return (
+    <TimelineRow badge={badge} isLast={isLast}>
+      <p className="text-xs text-muted-foreground leading-tight break-words">{activity.description}</p>
+
+      {activity.activity_type === 'stage_changed' && activity.metadata?.from_stage && (
+        <div className="flex items-center gap-1.5 mt-1">
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+            {stageLabel(activity.metadata.from_stage as string)}
+          </Badge>
+          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+            {stageLabel(activity.metadata.to_stage as string)}
+          </Badge>
+        </div>
+      )}
+
+      {activity.activity_type === 'budget_updated' && activity.metadata?.change_summary && (
+        <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
+          {activity.metadata.change_summary as string}
+        </p>
+      )}
+
+      <span className="text-[11px] text-muted-foreground/80" title={fullTime(activity.created_at)}>
+        {relativeTime(activity.created_at)}
+        {activity.creator && ` · ${activity.creator.nome}`}
+      </span>
+    </TimelineRow>
+  );
+}
+
+/** Tipo 2 — comentário manual: avatar colorido + texto completo + anexos. */
+function CommentItem({ comment, isLast }: { comment: LeadInteraction; isLast: boolean }) {
+  const initial = comment.creator?.nome?.charAt(0).toUpperCase() ?? '?';
+  const badge = (
+    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold shrink-0">
+      {initial}
+    </div>
+  );
+  const attachments = comment.attachments ?? [];
+
+  return (
+    <TimelineRow badge={badge} isLast={isLast}>
+      <div className="flex items-center gap-2 flex-wrap">
+        {comment.creator && <span className="text-sm font-medium">{comment.creator.nome}</span>}
+        {comment.channel && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+            {CHANNEL_LABELS[comment.channel] ?? comment.channel}
+          </Badge>
+        )}
+      </div>
+
+      <p className="text-sm leading-snug mt-1 whitespace-pre-wrap break-words">{comment.message}</p>
+
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {attachments.map((att) => (
+            <LeadAttachmentLink key={att.path} attachment={att} />
+          ))}
+        </div>
+      )}
+
+      <span className="text-[11px] text-muted-foreground/80 block mt-1" title={fullTime(comment.created_at)}>
+        {relativeTime(comment.created_at)}
+      </span>
+    </TimelineRow>
+  );
+}
+
+/** Tipo 3 — follow-up: ícone de calendário + badge de status. */
+function FollowUpItem({ followUp, isLast, creatorName }: { followUp: LeadFollowUp; isLast: boolean; creatorName: string | null }) {
+  const status = getFollowUpVisualStatus(followUp);
+  const badge = (
+    <div
+      className={cn(
+        'flex items-center justify-center w-8 h-8 rounded-full shrink-0',
+        FOLLOW_UP_BADGE_CLASSES[status],
+      )}
+    >
+      <CalendarClock className="h-4 w-4" />
+    </div>
+  );
+
+  return (
+    <TimelineRow badge={badge} isLast={isLast}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-medium">Follow-up</span>
+        <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-5', FOLLOW_UP_BADGE_CLASSES[status])}>
+          {FOLLOW_UP_STATUS_LABEL[status]}
+        </Badge>
+      </div>
+      <p className="text-sm leading-snug mt-1 break-words">{followUp.description}</p>
+      <span className="text-[11px] text-muted-foreground block" title={fullTime(followUp.scheduled_at)}>
+        Agendado para {fullTime(followUp.scheduled_at)}
+      </span>
+      <span className="text-[11px] text-muted-foreground/80" title={fullTime(followUp.created_at)}>
+        criado {relativeTime(followUp.created_at)}
+        {creatorName && ` · ${creatorName}`}
+      </span>
+    </TimelineRow>
+  );
+}
+
+function TimelineEntry({
+  item,
+  isLast,
+  nameOf,
+}: {
+  item: TimelineItem;
+  isLast: boolean;
+  nameOf: (id: string | null) => string | null;
+}) {
+  if (item.kind === 'comment') return <CommentItem comment={item.comment} isLast={isLast} />;
+  if (item.kind === 'followup')
+    return <FollowUpItem followUp={item.followUp} isLast={isLast} creatorName={nameOf(item.followUp.created_by)} />;
+  return <AutomaticActivityItem activity={item.activity} isLast={isLast} />;
+}
+
 export function LeadActivityTimeline({ leadId }: LeadActivityTimelineProps) {
-  const { data: activities, isLoading } = useLeadActivities(leadId);
+  const { items, isLoading } = useLeadTimeline(leadId);
+  const { data: employees = [] } = useEmployees();
+  const nameOf = (id: string | null) => (id ? employees.find((e) => e.id === id)?.nome ?? null : null);
 
   if (isLoading) {
     return (
@@ -135,7 +236,7 @@ export function LeadActivityTimeline({ leadId }: LeadActivityTimelineProps) {
     );
   }
 
-  if (!activities || activities.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
         <History className="h-8 w-8 mb-2" />
@@ -146,12 +247,10 @@ export function LeadActivityTimeline({ leadId }: LeadActivityTimelineProps) {
   }
 
   return (
-    <ScrollArea className="max-h-[400px] pr-2">
-      <div className="space-y-0">
-        {activities.map((activity) => (
-          <ActivityItem key={activity.id} activity={activity} />
-        ))}
-      </div>
-    </ScrollArea>
+    <div className="space-y-0 pr-2">
+      {items.map((item, index) => (
+        <TimelineEntry key={`${item.kind}-${item.id}`} item={item} isLast={index === items.length - 1} nameOf={nameOf} />
+      ))}
+    </div>
   );
 }

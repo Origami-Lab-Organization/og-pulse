@@ -9,6 +9,7 @@ import { LeadWithBudget, CRMStage } from '@/types/lead';
 import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
+import { isFollowUpOverdue } from '@/lib/followUps';
 import { useUpdateLead } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
 
@@ -101,10 +102,12 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
     ? services.find((s) => s.id === lead.service_line) ?? null
     : null;
 
-  const now = new Date();
-  const overdueFollowUp = pendingFollowUps.find(f => new Date(f.scheduled_at) < now);
-  const upcomingFollowUp = !overdueFollowUp && pendingFollowUps.length > 0 ? pendingFollowUps[0] : null;
-  const followUpIndicator = overdueFollowUp ? 'overdue' : upcomingFollowUp ? 'upcoming' : null;
+  const hasOverdueFollowUp = pendingFollowUps.some((f) => isFollowUpOverdue(f));
+  const followUpIndicator = hasOverdueFollowUp
+    ? 'overdue'
+    : pendingFollowUps.length > 0
+    ? 'upcoming'
+    : null;
 
   const handleCreateBudget = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -139,10 +142,13 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
           <h4 className="font-medium text-sm line-clamp-1 flex-1">{lead.name}</h4>
           <div className="flex items-center gap-1 flex-shrink-0">
             {followUpIndicator && (
-              <CalendarClock className={cn(
-                'h-3.5 w-3.5',
-                followUpIndicator === 'overdue' ? 'text-red-500' : 'text-amber-500',
-              )} />
+              <CalendarClock
+                aria-label={followUpIndicator === 'overdue' ? 'Follow-up vencido' : 'Follow-up agendado'}
+                className={cn(
+                  'h-3.5 w-3.5',
+                  followUpIndicator === 'overdue' ? 'text-red-500' : 'text-emerald-500',
+                )}
+              />
             )}
             <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
               <Clock className="h-3 w-3" />
