@@ -103,23 +103,22 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Validate JWT locally (same pattern as send-reimbursement-email)
+    // Validate the JWT against the auth server (same pattern as resend-employee-invite)
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } =
-      await userClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      console.error("Error verifying user token:", claimsError);
+    const { data: { user }, error: userError } =
+      await userClient.auth.getUser();
+    if (userError || !user) {
+      console.error("Error verifying user:", userError);
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    const userId = claimsData.claims.sub;
-    console.log("Authenticated user:", userId);
+    const userId = user.id;
+    console.log("Authenticated user");
 
     // Create admin client for privileged operations
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);

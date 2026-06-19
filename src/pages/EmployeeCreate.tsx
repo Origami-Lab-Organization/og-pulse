@@ -255,20 +255,17 @@ const EmployeeCreate = () => {
 
   useEffect(() => {
     if (!payrollProfile) return;
-    const breakdown = calculateEmployeeCost(
-      {
-        tipoContratacao: tipoContratacao as ContractType,
-        salarioMensal,
-        bolsaAuxilio,
-        valorContratoPj,
-        proLabore,
-        dividendos,
-        jornadaMensal: form.getValues("jornadaMensal"),
-        beneficios: localBenefits.reduce((s, b) => s + b.monthlyValue, 0),
-        encargosAdicionais: localTools.reduce((s, t) => s + t.monthlyCost, 0),
-      },
+    const breakdown = calculateEmployeeCost({
+      tipoContratacao: tipoContratacao as ContractType,
+      salarioBruto: salarioMensal,
+      bolsaAuxilio,
+      valorContratoPj,
+      proLabore,
+      dividendos,
+      benefitsTotalMonthly: localBenefits.reduce((s, b) => s + b.monthlyValue, 0),
+      toolsTotalMonthly: localTools.reduce((s, t) => s + t.monthlyCost, 0),
       payrollProfile,
-    );
+    });
     setCostBreakdown(breakdown);
     form.setValue("fgts", breakdown.details.fgts || 0);
     form.setValue("inssEmpresa", breakdown.details.inss || 0);

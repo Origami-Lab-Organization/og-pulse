@@ -222,3 +222,19 @@
 
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: c:\Users\OrigamiLab\Documents\ws-visualcode\og-pulse\src\services\vacationService.ts
+
+### 2026-06-19T19:26:56.703Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível secret hardcoded em /Users/pedromarinho/Documents/origami/og-pulse/supabase/functions/create-employee-user/index.ts
+
+### 2026-06-19T19:26:56.703Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível dado sensível em console.* em /Users/pedromarinho/Documents/origami/og-pulse/supabase/functions/create-employee-user/index.ts
+
+### 2026-06-19T19:27:06.367Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível secret hardcoded em /Users/pedromarinho/Documents/origami/og-pulse/supabase/functions/create-employee-user/index.ts
+
+### 2026-06-19T19:27:06.368Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível dado sensível em console.* em /Users/pedromarinho/Documents/origami/og-pulse/supabase/functions/create-employee-user/index.ts
