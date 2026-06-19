@@ -1,4 +1,12 @@
-export type RevenueModelType = 'fixed' | 'recurring' | 'success_fee' | 'indication' | 'equity';
+export type RevenueModelType =
+  | 'fixed'
+  | 'recurring'
+  | 'success_fee'
+  | 'indication'
+  | 'equity'
+  | 'fixed_success_fee'
+  | 'fixed_recurring'
+  | 'recurring_success_fee';
 
 export const REVENUE_MODEL_TYPES: RevenueModelType[] = [
   'fixed',
@@ -6,6 +14,9 @@ export const REVENUE_MODEL_TYPES: RevenueModelType[] = [
   'success_fee',
   'indication',
   'equity',
+  'fixed_success_fee',
+  'fixed_recurring',
+  'recurring_success_fee',
 ];
 
 export const REVENUE_MODEL_LABELS: Record<RevenueModelType, string> = {
@@ -14,6 +25,9 @@ export const REVENUE_MODEL_LABELS: Record<RevenueModelType, string> = {
   success_fee: 'Taxa de Sucesso',
   indication: 'Indicação',
   equity: 'Equity',
+  fixed_success_fee: 'Escopo Fixo + Taxa de Sucesso',
+  fixed_recurring: 'Escopo Fixo + Recorrência',
+  recurring_success_fee: 'Recorrência + Taxa de Sucesso',
 };
 
 // Modelos cujo valor base é percentual (ex.: % sobre captação / resultado).

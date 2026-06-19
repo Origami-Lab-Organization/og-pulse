@@ -147,8 +147,17 @@ describe('isPercentModel', () => {
 // ─── REVENUE_MODEL_LABELS / TYPES ────────────────────────────────────────────────
 
 describe('catálogo de tipos de modelo', () => {
-  it('tem rótulo pt-BR para os 5 tipos da HU-001', () => {
-    expect(REVENUE_MODEL_TYPES).toEqual(['fixed', 'recurring', 'success_fee', 'indication', 'equity']);
+  it('tem rótulo pt-BR para todos os tipos (5 base + 3 combinados)', () => {
+    expect(REVENUE_MODEL_TYPES).toEqual([
+      'fixed',
+      'recurring',
+      'success_fee',
+      'indication',
+      'equity',
+      'fixed_success_fee',
+      'fixed_recurring',
+      'recurring_success_fee',
+    ]);
     REVENUE_MODEL_TYPES.forEach((t) => {
       expect(REVENUE_MODEL_LABELS[t]).toBeTruthy();
     });

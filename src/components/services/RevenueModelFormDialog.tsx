@@ -44,8 +44,16 @@ const PERIOD_OPTIONS = [
 
 const formSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
-  modelType: z.enum(['fixed', 'recurring', 'success_fee', 'indication', 'equity']),
-  baseValue: z.number().min(0, 'Valor não pode ser negativo').optional(),
+  modelType: z.enum([
+    'fixed',
+    'recurring',
+    'success_fee',
+    'indication',
+    'equity',
+    'fixed_success_fee',
+    'fixed_recurring',
+    'recurring_success_fee',
+  ]),
   period: z.string().optional(),
 });
 
@@ -70,11 +78,10 @@ export function RevenueModelFormDialog({
 }: RevenueModelFormDialogProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: '', modelType: 'fixed', baseValue: undefined, period: 'monthly' },
+    defaultValues: { name: '', modelType: 'fixed', period: 'monthly' },
   });
 
   const modelType = form.watch('modelType') as RevenueModelType;
-  const percent = isPercentModel(modelType);
 
   useEffect(() => {
     if (!open) return;
@@ -82,11 +89,10 @@ export function RevenueModelFormDialog({
       form.reset({
         name: model.name,
         modelType: model.modelType,
-        baseValue: model.baseValue ?? undefined,
         period: model.modelType === 'recurring' ? model.billingUnit ?? 'monthly' : 'monthly',
       });
     } else {
-      form.reset({ name: '', modelType: 'fixed', baseValue: undefined, period: 'monthly' });
+      form.reset({ name: '', modelType: 'fixed', period: 'monthly' });
     }
   }, [open, model]);
 
@@ -111,7 +117,7 @@ export function RevenueModelFormDialog({
       serviceId,
       name: values.name,
       modelType: values.modelType,
-      baseValue: values.baseValue ?? null,
+      baseValue: null,
       billingUnit,
     });
   };
@@ -163,57 +169,32 @@ export function RevenueModelFormDialog({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            {modelType === 'recurring' && (
               <FormField
                 control={form.control}
-                name="baseValue"
+                name="period"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{percent ? 'Valor base (%)' : 'Valor base (R$)'}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={percent ? '0.01' : '1'}
-                        placeholder="Opcional"
-                        value={field.value ?? ''}
-                        onChange={(e) =>
-                          field.onChange(e.target.value === '' ? undefined : Number(e.target.value))
-                        }
-                      />
-                    </FormControl>
+                    <FormLabel>Periodicidade</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PERIOD_OPTIONS.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>
+                            {p.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              {modelType === 'recurring' && (
-                <FormField
-                  control={form.control}
-                  name="period"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Periodicidade</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {PERIOD_OPTIONS.map((p) => (
-                            <SelectItem key={p.value} value={p.value}>
-                              {p.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-            </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>

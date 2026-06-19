@@ -110,3 +110,23 @@
 ### 2026-06-19T13:56:29.818Z
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/pages/Services.tsx
+
+### 2026-06-19T17:35:54.788Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/pages/Services.tsx
+
+### 2026-06-19T17:37:01.046Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/pages/ServiceLineDetail.tsx
+
+### 2026-06-19T18:00:34.268Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/pages/ServiceLineDetail.tsx
+
+### 2026-06-19T18:00:39.304Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/pages/ServiceLineDetail.tsx
+
+### 2026-06-19T18:03:48.038Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/types/serviceRevenueModel.ts
