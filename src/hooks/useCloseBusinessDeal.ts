@@ -108,17 +108,25 @@ export function useCloseBusinessDeal() {
         tenantId
       );
 
-      // 4. Copy suppliers from budget to project
+      // 4. Copy suppliers from budget to project_costs (recorrente) — J9-02
       for (const supplier of budget.suppliers || []) {
-        const { data: projectSupplier, error: supplierError } = await supabase
-          .from('project_suppliers')
+        const plannedTotal = Number(supplier.monthly_value) * budget.duration_months;
+        const { data: projectCost, error: supplierError } = await supabase
+          .from('project_costs')
           .insert({
             project_id: project.id,
-            name: supplier.name,
-            description: supplier.description,
-            monthly_value: supplier.monthly_value,
+            category: 'supplier',
+            is_recurring: true,
+            description: supplier.name,
+            notes: supplier.description,
+            monthly_amount: supplier.monthly_value,
+            monthly_amount_brl: supplier.monthly_value,
             start_month: 1,
             end_month: budget.duration_months,
+            original_currency: 'BRL',
+            exchange_rate: 1,
+            planned_amount: plannedTotal,
+            planned_amount_brl: plannedTotal,
           })
           .select()
           .single();
@@ -131,33 +139,37 @@ export function useCloseBusinessDeal() {
         const monthInserts = [];
         for (let month = 1; month <= budget.duration_months; month++) {
           monthInserts.push({
-            project_supplier_id: projectSupplier.id,
+            cost_id: projectCost.id,
             month_number: month,
-            value: supplier.monthly_value,
+            planned_value: supplier.monthly_value,
           });
         }
 
         if (monthInserts.length > 0) {
           const { error: monthsError } = await supabase
-            .from('project_supplier_months')
+            .from('project_cost_months')
             .insert(monthInserts);
 
           if (monthsError) {
-            console.error('Error creating supplier months:', monthsError);
+            console.error('Error creating supplier cost months:', monthsError);
           }
         }
       }
 
-      // 5. Copy materials from budget to project
+      // 5. Copy materials from budget to project_costs (avulso) — J9-02
       for (const material of budget.materials || []) {
         const { error: materialError } = await supabase
-          .from('project_materials')
+          .from('project_costs')
           .insert({
             project_id: project.id,
+            category: 'material',
+            is_recurring: false,
             description: material.description,
-            value: material.value,
+            planned_amount: material.value,
+            planned_amount_brl: material.value,
             month_number: 1,
-            is_realized: false,
+            original_currency: 'BRL',
+            exchange_rate: 1,
           });
 
         if (materialError) {

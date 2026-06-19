@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { fetchProjectSuppliersRaw, fetchProjectMaterialsRaw } from '@/services/projectCostsService';
 import {
   ProjectDB,
   ProjectMemberDB,
@@ -127,19 +128,9 @@ export const projectService = {
       .eq('project_id', id)
       .order('installment_number', { ascending: true });
 
-    // Fetch suppliers
-    const { data: suppliers } = await supabase
-      .from('project_suppliers')
-      .select('*')
-      .eq('project_id', id)
-      .order('created_at', { ascending: true });
-
-    // Fetch materials
-    const { data: materials } = await supabase
-      .from('project_materials')
-      .select('*')
-      .eq('project_id', id)
-      .order('created_at', { ascending: true });
+    // Fetch suppliers + materials via porta única de custos (J9-02)
+    const suppliers = await fetchProjectSuppliersRaw(id);
+    const materials = await fetchProjectMaterialsRaw(id);
 
     // Fetch service name (service_line is plain text — only query if it looks like a UUID)
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
