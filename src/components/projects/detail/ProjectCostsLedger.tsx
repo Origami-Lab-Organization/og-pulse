@@ -13,7 +13,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -201,7 +200,11 @@ export function ProjectCostsLedger({
             </SelectContent>
           </Select>
           {canManage && visibleRows.length > 0 && filter !== "reimbursement" && (
-            <Button size="sm" onClick={openAdd}>
+            <Button
+              size="sm"
+              onClick={openAdd}
+              className="bg-primary-deep text-primary-deep-foreground hover:bg-primary-deep/90"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Adicionar custo
             </Button>
@@ -250,8 +253,8 @@ export function ProjectCostsLedger({
                           <div className="font-medium flex items-center gap-2">
                             {r.description}
                             <Badge
-                              variant="secondary"
-                              className="text-xs shrink-0"
+                              variant="outline"
+                              className="border-transparent bg-primary-deep/10 text-primary-deep text-xs shrink-0 hover:bg-primary-deep/10"
                             >
                               Reembolso
                             </Badge>
@@ -270,7 +273,7 @@ export function ProjectCostsLedger({
                           ) : null}
                         </TableCell>
                         <TableCell>
-                          <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs hover:bg-emerald-100">
+                          <Badge className="border-0 bg-primary-deep/10 text-primary-deep text-xs hover:bg-primary-deep/10">
                             Pago
                           </Badge>
                         </TableCell>
@@ -337,7 +340,7 @@ export function ProjectCostsLedger({
                       </TableCell>
                       <TableCell>
                         {isPaid ? (
-                          <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs hover:bg-emerald-100">
+                          <Badge className="border-0 bg-primary-deep/10 text-primary-deep text-xs hover:bg-primary-deep/10">
                             Pago
                           </Badge>
                         ) : isCancelled ? (
@@ -388,17 +391,14 @@ export function ProjectCostsLedger({
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => cancelCost.mutate({ id: cost.id, projectId })}
-                                    className="text-muted-foreground focus:text-muted-foreground"
                                   >
                                     <X className="mr-2 h-4 w-4" />
                                     Cancelar
                                   </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => openEdit(cost)}>
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Editar
                                   </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
                                 </>
                               )}
                               <DropdownMenuItem
