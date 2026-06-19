@@ -1,9 +1,8 @@
 # Padrão: Design System & Conformidade de Jornada
 
 > **Regra inegociável:** todo trabalho de UI ou de jornada DEVE ser validado contra:
-> 1. **Design System** — `jornadas/docs/origami-ds.html` (Origami UI v1.1) — referência de **princípios**.
-> 2. **Jornada relevante** — `jornadas/gp-comercial.md` e `jornadas/funcionario.md` — comportamento, nomenclatura e critérios.
->
+> 1. **Design System** — `jornadas/origami-ds.html` (Origami UI v1.1) — referência de **princípios**.
+
 > Antes de criar/alterar tela, componente, rota ou copy: abra os dois docs e confirme princípios, estados, acessibilidade e nomenclatura.
 
 ## Fonte de verdade (decisão — NÃO retokenizar)
@@ -19,7 +18,7 @@ O app já está implementado no tema **v1.0** (`src/index.css` + tokens shadcn).
 
 ## Nomenclatura de domínio (jornadas)
 
-- Comercial: usar **Oportunidade / Pipeline / Orçamentos** — **nunca** "Lead", "CRM" ou "Funil" na interface (ver `gp-comercial.md` J2).
+- Comercial: usar **Oportunidade / Pipeline / Orçamentos** — **nunca** "Lead", "CRM" ou "Funil" na interface.
 - Confirmar termos no `.harness/domain-glossary.md` antes de criar copy.
 
 ## Checklist de conformidade (antes de entregar UI)
