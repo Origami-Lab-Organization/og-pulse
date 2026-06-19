@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Building2, Clock, DollarSign, Lock, FileText, User, CalendarClock } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
-import { LeadWithBudget, CRMStage } from '@/types/lead';
+import { LeadWithBudget, CRMStage, isRecentlyRestored } from '@/types/lead';
 import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
@@ -89,6 +89,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
   const daysInStage = getDaysInStage(lead.created_at, getEndDate());
   const stuckThreshold = ['screening', 'qualification'].includes(currentStage) ? 14 : 7;
   const isStuck = !isLocked && daysInStage > stuckThreshold;
+  const reactivated = isRecentlyRestored(lead);
 
   const linkedServices = leadServices
     .map((ls) => services.find((s) => s.id === ls.service_id))
@@ -151,6 +152,13 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
             {isLocked && <Lock className="h-3.5 w-3.5 text-chart-2" />}
           </div>
         </div>
+
+        {/* Reactivated badge (48h after restore) */}
+        {reactivated && (
+          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium leading-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+            Reativada
+          </span>
+        )}
 
         {/* Company */}
         {lead.company_name && (

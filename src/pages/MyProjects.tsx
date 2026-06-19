@@ -87,7 +87,7 @@ export default function MyProjects() {
     // CA-01: projeto em preparação não abre a view de execução para o consultor
     if (project.portfolioStage === "planning" && isEmployeeOnly) {
       toast.info(
-        "Este projeto ainda está em fase de planejamento. O GP irá notificá-lo quando iniciar."
+        "Este projeto ainda está em fase de planejamento. O gerente de projetos irá notificá-lo quando iniciar."
       );
       return;
     }
