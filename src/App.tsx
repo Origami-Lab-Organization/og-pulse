@@ -7,7 +7,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
+import HomeRedirect from "@/components/auth/HomeRedirect";
 import Index from "./pages/Index";
+import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -74,8 +76,16 @@ const App = () => (
                   </ProtectedRoute>
                 } 
               />
-              {/* Root redirect */}
-              <Route path="/" element={<Navigate to="/inbox" replace />} />
+              {/* Root redirect — admin → /dashboard, demais → /inbox */}
+              <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
+              <Route
+                path="/dashboard"
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <Dashboard />
+                  </RoleProtectedRoute>
+                }
+              />
               <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
               {/* My Timesheet - all authenticated users */}
               <Route 

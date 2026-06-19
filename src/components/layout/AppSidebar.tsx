@@ -52,6 +52,13 @@ interface NavItem {
 
 const navigationGroups = [
   {
+    label: 'Empresa',
+    requiresAdmin: true,
+    items: [
+      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, requiresAdmin: true },
+    ] as NavItem[],
+  },
+  {
     label: 'Meu Espaço',
     items: [
       { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },

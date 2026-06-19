@@ -37,7 +37,7 @@ const Welcome = () => {
             </p>
           </div>
 
-          <Button className="w-full" onClick={() => navigate('/inbox')}>
+          <Button className="w-full" onClick={() => navigate('/')}>
             Acessar o Origami Pulse
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
