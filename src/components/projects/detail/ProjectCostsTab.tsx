@@ -1,10 +1,10 @@
 import { useMemo, useCallback } from 'react';
-import { Users, Truck, Package, DollarSign, Receipt } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProjectLaborSection } from '@/components/projects/detail/ProjectLaborSection';
 import { ProjectSuppliersSection } from '@/components/projects/detail/ProjectSuppliersSection';
 import { ProjectMaterialsSection } from '@/components/projects/detail/ProjectMaterialsSection';
 import { ProjectReimbursementsSection } from '@/components/projects/detail/ProjectReimbursementsSection';
+import { ProjectMonthlyCostChart } from '@/components/projects/detail/ProjectMonthlyCostChart';
 import { ProjectWithRelations } from '@/types/project';
 import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
@@ -13,9 +13,9 @@ import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
 import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
 import { useBudget } from '@/hooks/useBudgets';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import { useFinancialSettings } from '@/hooks/useFinancialSettings';
-import { differenceInMonths, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
+
+import { addMonths, differenceInMonths, format, parseISO, startOfMonth } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { useProjectApprovedReimbursements } from '@/hooks/useReimbursements';
 
 interface ProjectCostsTabProps {
@@ -24,110 +24,41 @@ interface ProjectCostsTabProps {
   canEditActuals?: boolean;
 }
 
-interface CostCardProps {
-  icon: React.ReactNode;
-  iconBg: string;
-  label: string;
-  plannedValue: number;
-  actualValue: number;
-  isPlanningMode?: boolean;
-  budgetedValue?: number;
-}
-
-function CostCard({
-  icon,
-  iconBg,
+function MetricItem({
   label,
-  plannedValue,
-  actualValue,
-  isPlanningMode = false,
-  budgetedValue = 0
-}: CostCardProps) {
-  const formatCurrency = useMaskedCurrency();
-  // In planning mode: show planned vs budgeted
-  // In execution mode: show actual vs planned
-  const baseValue = isPlanningMode ? budgetedValue : plannedValue;
-  const compareValue = isPlanningMode ? plannedValue : actualValue;
-  
+  value,
+  subtitle,
+  dotStatus,
+}: {
+  label: string;
+  value: string;
+  subtitle?: string;
+  dotStatus?: 'ok' | 'alert';
+}) {
   return (
-    <Card>
-      <CardContent className="pt-4">
-        <div className="flex items-center gap-3">
-          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', iconBg)}>
-            {icon}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            {/* Valor principal (planejado ou realizado) */}
-            <p className="text-lg font-semibold">
-              {formatCurrency(compareValue)}
-            </p>
-            {/* Valor de referência (orçado ou planejado) */}
-            <p className="text-xs text-muted-foreground">
-              {isPlanningMode ? 'Orçado' : 'Planejado'}: {formatCurrency(baseValue)}
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Financial Summary Card - combines Total Cost and Gross Margin
-interface FinancialSummaryCardProps {
-  totalPlannedCost: number;
-  totalBudgetedCost: number;
-  contractValue: number;
-  grossMarginTarget: number;
-  isPlanningMode: boolean;
-  totalActualCost: number;
-}
-
-function FinancialSummaryCard({
-  totalPlannedCost,
-  totalBudgetedCost,
-  contractValue,
-  grossMarginTarget,
-  isPlanningMode,
-  totalActualCost,
-}: FinancialSummaryCardProps) {
-  const formatCurrency = useMaskedCurrency();
-  // Determine which cost value to show based on mode
-  const displayCost = isPlanningMode ? totalPlannedCost : totalActualCost;
-  const baseDisplayCost = isPlanningMode ? totalBudgetedCost : totalPlannedCost;
-  
-  // Calculate gross margin: Revenue - Costs
-  const grossMargin = contractValue - displayCost;
-  const marginPercent = contractValue > 0 
-    ? (grossMargin / contractValue) * 100 
-    : 0;
-  
-  const gap = marginPercent - grossMarginTarget;
-  const isPositive = gap >= 0;
-  
-  return (
-    <Card className="bg-primary/5">
-      <CardContent className="pt-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-            <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">Custo Total</p>
-            <p className="text-lg font-semibold">
-              {formatCurrency(displayCost)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {isPlanningMode ? 'Orçado' : 'Planejado'}: {formatCurrency(baseDisplayCost)}
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="relative flex-1 min-w-0 px-5 py-4">
+      {dotStatus === 'alert' && (
+        <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-destructive" />
+      )}
+      {dotStatus === 'ok' && (
+        <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-emerald-500" />
+      )}
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground truncate">
+        {label}
+      </p>
+      <p className="text-2xl font-bold mt-1.5 tabular-nums truncate">
+        {value}
+      </p>
+      {subtitle && (
+        <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>
+      )}
+    </div>
   );
 }
 
 export function ProjectCostsTab({ project, isEditable, canEditActuals = false }: ProjectCostsTabProps) {
+  const formatCurrency = useMaskedCurrency();
+
   // Calculate duration from project dates
   const durationMonths = useMemo(() => {
     const startDate = parseISO(project.start_date);
@@ -144,9 +75,6 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   // Fetch linked budget if exists
   const { data: budget } = useBudget(project.budget_id);
 
-  // Fetch financial settings for gross margin target
-  const { data: financialSettings } = useFinancialSettings();
-
   // Fetch available suppliers from registry
   const { data: availableSuppliers = [] } = useSuppliers();
   const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
@@ -161,10 +89,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
 
   // Fetch approved reimbursements for this project
-  const { data: approvedReimbursements = [] } = useProjectApprovedReimbursements(project.id);
-
-
-
+  const { data: approvedReimbursements = [], isLoading: reimbLoading } = useProjectApprovedReimbursements(project.id);
 
   // Helper to get hourly cost for a member (real employee cost or budget hourly rate as fallback)
   const getMemberHourlyCost = useCallback((member: typeof project.members[0]) => {
@@ -187,7 +112,7 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
       memberMonths
         .filter((mm) => mm.project_member_id === member.id)
         .forEach((mm) => {
-          const cost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
+          const cost = mm.cost_per_hour != null ? Number(mm.cost_per_hour) : fallbackCost;
           total += cost * Number(mm.hours);
         });
     });
@@ -206,8 +131,8 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
     });
 
     return timesheets.reduce((total, ts) => {
-      const cost = (ts as any).cost_per_hour != null
-        ? Number((ts as any).cost_per_hour)
+      const cost = ts.cost_per_hour != null
+        ? Number(ts.cost_per_hour)
         : (memberCostMap.get(ts.project_member_id) || 0);
       return total + cost * Number(ts.hours);
     }, 0);
@@ -245,80 +170,156 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
   const totalPlanned = laborCostsPlanned + supplierCostsPlanned + materialCostsPlanned;
   const totalActual = laborCostsActual + supplierCostsActual + materialCostsActual + reimbursementCostsActual;
 
-  // Calculate BUDGETED costs from linked budget (for planning mode comparison)
-  const budgetedCosts = useMemo(() => {
-    if (!budget) return { labor: 0, suppliers: 0, materials: 0, total: 0 };
-    
-    // Labor: sum of (hours × hourly_rate) for each role
-    const labor = (budget.roles || []).reduce((acc, role) => {
-      const roleHours = (role.months || []).reduce((h, m) => h + Number(m.hours), 0);
-      return acc + roleHours * Number(role.hourly_rate);
-    }, 0);
-    
-    // Suppliers: monthly_value × duration_months
-    const suppliers = (budget.suppliers || []).reduce((acc, s) => 
-      acc + Number(s.monthly_value) * budget.duration_months, 0);
-    
-    // Materials: simple sum
-    const materials = (budget.materials || []).reduce((acc, m) => 
-      acc + Number(m.value), 0);
-    
-    return { labor, suppliers, materials, total: labor + suppliers + materials };
-  }, [budget]);
+  // Desvio % (com sinal) — "—" quando planejado é zero
+  const desvioText = useMemo(() => {
+    if (totalPlanned === 0) return '—';
+    const pct = ((totalActual - totalPlanned) / totalPlanned) * 100;
+    const signal = pct >= 0 ? '+' : '';
+    return `${signal}${pct.toFixed(1).replace('.', ',')}%`;
+  }, [totalActual, totalPlanned]);
+
+  const costDotStatus = totalActual === 0
+    ? undefined
+    : totalActual > totalPlanned ? 'alert' : 'ok';
+  const devDotStatus = totalPlanned === 0
+    ? undefined
+    : totalActual > totalPlanned ? 'alert' : 'ok';
+
+  // Categorias ativas: quantas das 4 categorias têm algum custo
+  const categoriasAtivas = useMemo(() => {
+    let count = 0;
+    if (laborCostsActual > 0 || laborCostsPlanned > 0) count++;
+    if (supplierCostsActual > 0 || supplierCostsPlanned > 0) count++;
+    if (materialCostsActual > 0 || materialCostsPlanned > 0) count++;
+    if (reimbursementCostsActual > 0) count++;
+    return count;
+  }, [laborCostsActual, laborCostsPlanned, supplierCostsActual, supplierCostsPlanned,
+      materialCostsActual, materialCostsPlanned, reimbursementCostsActual]);
+
+  const monthlyChartData = useMemo(() => {
+    const projectStart = startOfMonth(parseISO(project.start_date));
+
+    const memberCostFallback = new Map<string, number>();
+    (project.members || []).forEach(m => memberCostFallback.set(m.id, getMemberHourlyCost(m)));
+
+    const plannedLaborMap = new Map<number, number>();
+    memberMonths.forEach(mm => {
+      const cost = mm.cost_per_hour != null
+        ? Number(mm.cost_per_hour)
+        : (memberCostFallback.get(mm.project_member_id) || 0);
+      plannedLaborMap.set(mm.month_number,
+        (plannedLaborMap.get(mm.month_number) || 0) + cost * Number(mm.hours));
+    });
+
+    const plannedSuppMap = new Map<number, number>();
+    supplierMonths.forEach(sm =>
+      plannedSuppMap.set(sm.month_number,
+        (plannedSuppMap.get(sm.month_number) || 0) + Number(sm.value)));
+
+    const plannedMatMap = new Map<number, number>();
+    (project.materials || []).forEach(m => {
+      const mn = m.month_number || 1;
+      plannedMatMap.set(mn, (plannedMatMap.get(mn) || 0) + Number(m.value));
+    });
+
+    const actualLaborMap = new Map<number, number>();
+    timesheets.forEach(ts => {
+      const mn = differenceInMonths(parseISO(ts.work_date), projectStart) + 1;
+      if (mn < 1 || mn > durationMonths) return;
+      const cost = ts.cost_per_hour != null
+        ? Number(ts.cost_per_hour)
+        : (memberCostFallback.get(ts.project_member_id) || 0);
+      actualLaborMap.set(mn, (actualLaborMap.get(mn) || 0) + cost * Number(ts.hours));
+    });
+
+    const actualSuppMap = new Map<number, number>();
+    supplierActuals.forEach(sa =>
+      actualSuppMap.set(sa.month_number,
+        (actualSuppMap.get(sa.month_number) || 0) + Number(sa.value)));
+
+    const actualMatMap = new Map<number, number>();
+    (project.materials || []).filter(m => m.is_realized).forEach(m => {
+      let mn = m.month_number;
+      if (!mn && m.purchase_date)
+        mn = differenceInMonths(parseISO(m.purchase_date), projectStart) + 1;
+      mn = Math.max(1, Math.min(mn || 1, durationMonths));
+      actualMatMap.set(mn, (actualMatMap.get(mn) || 0) + Number(m.value));
+    });
+
+    const actualReimbMap = new Map<number, number>();
+    approvedReimbursements.forEach(r => {
+      const dateStr = r.paid_at || r.reviewed_at;
+      if (!dateStr) return;
+      const mn = differenceInMonths(parseISO(dateStr), projectStart) + 1;
+      if (mn < 1 || mn > durationMonths) return;
+      actualReimbMap.set(mn, (actualReimbMap.get(mn) || 0) + Number(r.total_amount));
+    });
+
+    return Array.from({ length: durationMonths }, (_, i) => {
+      const mn = i + 1;
+      const monthDate = addMonths(projectStart, i);
+      const pLabor = plannedLaborMap.get(mn) || 0;
+      const pSupp  = plannedSuppMap.get(mn) || 0;
+      const pMat   = plannedMatMap.get(mn) || 0;
+      const aLabor = actualLaborMap.get(mn) || 0;
+      const aSupp  = actualSuppMap.get(mn) || 0;
+      const aMat   = actualMatMap.get(mn) || 0;
+      const aReimb = actualReimbMap.get(mn) || 0;
+      return {
+        month: format(monthDate, 'MMM yyyy', { locale: ptBR }),
+        monthNum: mn,
+        planned: pLabor + pSupp + pMat,
+        realized: aLabor + aSupp + aMat + aReimb,
+        breakdown: {
+          planned:  { labor: pLabor, suppliers: pSupp,  materials: pMat  },
+          realized: { labor: aLabor, suppliers: aSupp,  materials: aMat, reimbursements: aReimb },
+        },
+      };
+    });
+  }, [project, durationMonths, memberMonths, supplierMonths, timesheets,
+      supplierActuals, approvedReimbursements, getMemberHourlyCost]);
 
   return (
     <div className="space-y-6">
-      {/* Costs Summary - 5 cards grid */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <CostCard
-          icon={<Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
-          iconBg="bg-blue-100 dark:bg-blue-900/30"
-          label="Mão de Obra"
-          plannedValue={laborCostsPlanned}
-          actualValue={laborCostsActual}
-          isPlanningMode={isEditable}
-          budgetedValue={budgetedCosts.labor}
-        />
+      {/* Metrics bar — 5 KPIs */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="flex divide-x overflow-x-auto">
+            <MetricItem
+              label="Custo Planejado"
+              value={formatCurrency(totalPlanned)}
+            />
+            <MetricItem
+              label="Custo Realizado"
+              value={formatCurrency(totalActual)}
+              subtitle={totalPlanned > 0
+                ? `${((totalActual / totalPlanned) * 100).toFixed(0)}% do plano`
+                : undefined}
+              dotStatus={costDotStatus}
+            />
+            <MetricItem
+              label="Desvio"
+              value={desvioText}
+              dotStatus={devDotStatus}
+            />
+            <MetricItem
+              label="Lançamentos"
+              value={String(approvedReimbursements.length)}
+              subtitle={`${approvedReimbursements.length} reembolso${approvedReimbursements.length !== 1 ? 's' : ''}`}
+            />
+            <MetricItem
+              label="Categorias Ativas"
+              value={String(categoriasAtivas)}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-        <CostCard
-          icon={<Truck className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
-          iconBg="bg-purple-100 dark:bg-purple-900/30"
-          label="Fornecedores"
-          plannedValue={supplierCostsPlanned}
-          actualValue={supplierCostsActual}
-          isPlanningMode={isEditable}
-          budgetedValue={budgetedCosts.suppliers}
-        />
-
-        <CostCard
-          icon={<Package className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
-          iconBg="bg-amber-100 dark:bg-amber-900/30"
-          label="Materiais"
-          plannedValue={materialCostsPlanned}
-          actualValue={materialCostsActual}
-          isPlanningMode={isEditable}
-          budgetedValue={budgetedCosts.materials}
-        />
-
-        <CostCard
-          icon={<Receipt className="h-5 w-5 text-rose-600 dark:text-rose-400" />}
-          iconBg="bg-rose-100 dark:bg-rose-900/30"
-          label="Reembolsos"
-          plannedValue={0}
-          actualValue={reimbursementCostsActual}
-          isPlanningMode={false}
-          budgetedValue={0}
-        />
-
-        <FinancialSummaryCard
-          totalPlannedCost={totalPlanned}
-          totalBudgetedCost={budgetedCosts.total}
-          totalActualCost={totalActual}
-          contractValue={project.total_value}
-          grossMarginTarget={financialSettings?.gross_margin_target_percent || 0}
-          isPlanningMode={isEditable}
-        />
-      </div>
+      {/* Monthly consolidated chart */}
+      <ProjectMonthlyCostChart
+        data={monthlyChartData}
+        isLoading={reimbLoading}
+      />
 
       {/* Labor Section */}
       <ProjectLaborSection
@@ -355,8 +356,8 @@ export function ProjectCostsTab({ project, isEditable, canEditActuals = false }:
         projectStartDate={project.start_date}
       />
 
-      {/* Reimbursements Section */}
-      <ProjectReimbursementsSection reimbursements={approvedReimbursements} isEditable={canEditActuals || isEditable} />
+      {/* Reimbursements Section — sempre somente leitura */}
+      <ProjectReimbursementsSection reimbursements={approvedReimbursements} />
     </div>
   );
 }
