@@ -321,6 +321,13 @@ export function LeadDetailDialog({
     }
   }
 
+  const handleViewClient = () => {
+    if (lead?.client_id) {
+      onOpenChange(false)
+      navigate(`/clients/${lead.client_id}`)
+    }
+  }
+
   const handleSheetChange = (newOpen: boolean) => {
     if (!newOpen && isEditing && form.formState.isDirty) {
       setConfirmCloseOpen(true)
@@ -933,6 +940,16 @@ export function LeadDetailDialog({
                         </div>,
                         document.body,
                       )}
+                    {lead.client_id && (
+                      <button
+                        type='button'
+                        onClick={handleViewClient}
+                        className='mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline'
+                      >
+                        <ExternalLink className='h-3 w-3' />
+                        Ver perfil do cliente
+                      </button>
+                    )}
                   </FormItem>
 
                   <FormField

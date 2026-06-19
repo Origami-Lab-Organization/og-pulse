@@ -15,6 +15,8 @@ import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import PrimeiroAcesso from "./pages/PrimeiroAcesso";
 import Clients from "./pages/Clients";
+import ClientDetail from "./pages/ClientDetail";
+import ClientFormPage from "./pages/ClientFormPage";
 import NotFound from "./pages/NotFound";
 import JobApplication from "./pages/JobApplication";
 import ProjectDetail from "./pages/ProjectDetail";
@@ -115,16 +117,40 @@ const App = () => (
                   </RoleProtectedRoute>
                 } 
               />
-              <Route 
-                path="/clients" 
+              <Route
+                path="/clients"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Clients />
                   </RoleProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/suppliers" 
+              <Route
+                path="/clients/new"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <ClientFormPage />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/clients/:id/edit"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <ClientFormPage />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/clients/:id"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <ClientDetail />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/suppliers"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Suppliers />
