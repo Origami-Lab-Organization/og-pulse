@@ -72,6 +72,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Meus Projetos", url: "/my-projects", icon: FolderKanban },
       { title: "Timesheet", url: "/my-timesheet", icon: Clock },
       { title: "Reembolsos", url: "/reimbursements", icon: Receipt },
+      { title: "Minhas Férias", url: "/minhas-ferias", icon: Palmtree },
     ],
   },
   {
@@ -188,8 +189,7 @@ const navigationGroups: NavGroup[] = [
         title: "Férias e Afastamentos",
         url: "/rh/ferias",
         icon: Palmtree,
-        requiresAdmin: true,
-        disabled: true,
+        requiresManager: true,
       },
       {
         title: "Desligamentos",
