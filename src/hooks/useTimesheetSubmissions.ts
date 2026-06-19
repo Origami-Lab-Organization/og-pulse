@@ -298,14 +298,17 @@ export const useSubmitAllProjects = () => {
   const { employee } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ 
-      projects, 
+    mutationFn: async ({
+      projects,
       weekStart,
       weekDays,
-    }: { 
-      projects: { projectId: string; totalHours: number; memberIds?: string[] }[]; 
+      suggestions,
+    }: {
+      projects: { projectId: string; totalHours: number; memberIds?: string[] }[];
       weekStart: string;
       weekDays?: string[];
+      /** Pré-preenchimento sugerido por projeto/data — lançado nos dias vazios. */
+      suggestions?: Record<string, Record<string, number>>;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
@@ -333,11 +336,13 @@ export const useSubmitAllProjects = () => {
             const missingDays = weekDays.filter(d => !existingDates.has(d));
 
             if (missingDays.length > 0) {
+              const projectSuggestions = suggestions?.[project.projectId];
               const inserts = missingDays.map(day => ({
                 project_id: project.projectId,
                 project_member_id: memberId,
                 work_date: day,
-                hours: 0,
+                // Dias vazios recebem a sugestão (0 quando não houver).
+                hours: projectSuggestions?.[day] ?? 0,
                 is_locked: true,
               }));
 
