@@ -46,6 +46,13 @@ interface CreateEmployeeRequest {
   fotoUrl: string | null;
   tenantId: string;
   loginUrl: string;
+  // Dados bancários / PIX (opcionais)
+  pixKeyType?: string | null;
+  pixKey?: string | null;
+  bankName?: string | null;
+  bankAgency?: string | null;
+  bankAccount?: string | null;
+  bankAccountType?: string | null;
 }
 
 function generateTempPassword(length = 12): string {
@@ -146,6 +153,12 @@ const handler = async (req: Request): Promise<Response> => {
       fotoUrl,
       tenantId,
       loginUrl,
+      pixKeyType,
+      pixKey,
+      bankName,
+      bankAgency,
+      bankAccount,
+      bankAccountType,
     } = body;
 
     // Verify the requesting user is admin of the tenant
@@ -266,6 +279,12 @@ const handler = async (req: Request): Promise<Response> => {
         breakdown_json: breakdownJson || null,
         data_nascimento: dataNascimento || null,
         foto_url: fotoUrl || null,
+        pix_key_type: pixKeyType || null,
+        pix_key: pixKey || null,
+        bank_name: bankName || null,
+        bank_agency: bankAgency || null,
+        bank_account: bankAccount || null,
+        bank_account_type: bankAccountType || null,
         tenant_id: tenantId,
         auth_id: authUserId,
         must_change_password: !isExistingUser, // Only require change for new users

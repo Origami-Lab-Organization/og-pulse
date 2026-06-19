@@ -1,10 +1,8 @@
 import { useState, useMemo } from 'react';
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useBlockEmployee, useUnblockEmployee, useArchiveEmployee, useResendInvite, Employee, useAddEmployeeBenefit, useAddEmployeeTool } from '@/hooks/useEmployees';
-import { EmployeeFormSubmitData } from '@/components/employees/EmployeeFormDialog';
+import { useEmployees, useBlockEmployee, useUnblockEmployee, useArchiveEmployee, useResendInvite, Employee } from '@/hooks/useEmployees';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DataTable } from '@/components/data-table/DataTable';
 import { createEmployeeColumns } from '@/components/employees/EmployeesTable';
-import EmployeeFormDialog from '@/components/employees/EmployeeFormDialog';
 import BlockEmployeeDialog from '@/components/employees/BlockEmployeeDialog';
 import UnblockEmployeeDialog from '@/components/employees/UnblockEmployeeDialog';
 import ArchiveEmployeeDialog from '@/components/employees/ArchiveEmployeeDialog';
@@ -22,35 +20,27 @@ import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const { data: employees = [], isLoading } = useEmployees();
-  const createEmployee = useCreateEmployee();
-  const updateEmployee = useUpdateEmployee();
   const blockEmployee = useBlockEmployee();
   const unblockEmployee = useUnblockEmployee();
   const archiveEmployee = useArchiveEmployee();
   const resendInvite = useResendInvite();
-  const addBenefit = useAddEmployeeBenefit();
-  const addTool = useAddEmployeeTool();
   const navigate = useNavigate();
   const termination = useInitiateTermination();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [hideValues, setHideValues] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
-  const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [unblockDialogOpen, setUnblockDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
-
   const handleAddEmployee = () => {
-    setSelectedEmployee(null);
-    setFormDialogOpen(true);
+    navigate('/employees/new');
   };
 
   const handleEditEmployee = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setFormDialogOpen(true);
+    navigate(`/employees/${employee.id}`);
   };
 
   const handleBlockEmployee = (employee: Employee) => {
@@ -70,43 +60,6 @@ const Index = () => {
 
   const handleResendInvite = async (employee: Employee) => {
     await resendInvite.mutateAsync({ id: employee.id, nome: employee.nome });
-  };
-
-  const handleFormSubmit = async (data: EmployeeFormSubmitData) => {
-    const { localBenefits, localTools, createNewVersion, effectiveFrom, ...employeeData } = data;
-    
-    if (selectedEmployee) {
-      await updateEmployee.mutateAsync({ 
-        id: selectedEmployee.id, 
-        updates: employeeData,
-        createNewVersion: createNewVersion || false,
-        effectiveFrom,
-      });
-    } else {
-      const newEmployee = await createEmployee.mutateAsync(employeeData);
-      
-      const benefitPromises = (localBenefits || []).map(benefit => 
-        addBenefit.mutateAsync({
-          employeeId: newEmployee.id,
-          name: benefit.name,
-          description: benefit.description || undefined,
-          monthlyValue: benefit.monthlyValue,
-        })
-      );
-      
-      const toolPromises = (localTools || []).map(tool => 
-        addTool.mutateAsync({
-          employeeId: newEmployee.id,
-          name: tool.name,
-          description: tool.description || undefined,
-          monthlyCost: tool.monthlyCost,
-        })
-      );
-      
-      await Promise.all([...benefitPromises, ...toolPromises]);
-    }
-    setFormDialogOpen(false);
-    setSelectedEmployee(null);
   };
 
   const handleBlockConfirm = async () => {
@@ -254,14 +207,6 @@ const Index = () => {
       )}
 
       {/* Dialogs */}
-      <EmployeeFormDialog
-        open={formDialogOpen}
-        onOpenChange={setFormDialogOpen}
-        employee={selectedEmployee}
-        onSubmit={handleFormSubmit}
-        isLoading={createEmployee.isPending || updateEmployee.isPending}
-      />
-
       <BlockEmployeeDialog
         open={blockDialogOpen}
         onOpenChange={setBlockDialogOpen}

@@ -45,6 +45,8 @@ import JobApplicationVaga from "./pages/JobApplicationVaga";
 import Strategy from "./pages/Strategy";
 import MyKanban from "./pages/MyKanban";
 import BenefitsAndTools from "./pages/BenefitsAndTools";
+import EmployeeDetail from "./pages/EmployeeDetail";
+import EmployeeCreate from "./pages/EmployeeCreate";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 2 * 60 * 1000 } },
@@ -97,13 +99,29 @@ const App = () => (
                 } 
               />
               {/* Management routes - Manager or Admin */}
-              <Route 
-                path="/employees" 
+              <Route
+                path="/employees"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Index />
                   </RoleProtectedRoute>
-                } 
+                }
+              />
+              <Route
+                path="/employees/new"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <EmployeeCreate />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/employees/:id"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <EmployeeDetail />
+                  </RoleProtectedRoute>
+                }
               />
               <Route 
                 path="/clients" 
