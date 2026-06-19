@@ -28,6 +28,9 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/primeiro-acesso" replace />;
   }
 
+  // Onboarding (FUNC-J2): tratado como modal sobre a tela principal
+  // (ver OnboardingProvider) — não há mais redirect de rota aqui.
+
   return <>{children}</>;
 };
 

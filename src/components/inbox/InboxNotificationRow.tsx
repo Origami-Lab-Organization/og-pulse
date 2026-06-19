@@ -8,7 +8,11 @@ import {
   Clock,
   DollarSign,
   UserSearch,
-  ArchiveX
+  ArchiveX,
+  FileText,
+  FolderKanban,
+  Bell,
+  RotateCcw
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -31,6 +35,26 @@ const categoryIcon: Record<
     bg: "bg-purple-100 dark:bg-purple-900/30",
     text: "text-purple-600 dark:text-purple-400",
     icon: UserSearch
+  },
+  budget: {
+    bg: "bg-orange-100 dark:bg-orange-900/30",
+    text: "text-orange-600 dark:text-orange-400",
+    icon: FileText
+  },
+  projeto: {
+    bg: "bg-blue-100 dark:bg-blue-900/30",
+    text: "text-blue-600 dark:text-blue-400",
+    icon: FolderKanban
+  },
+  documento: {
+    bg: "bg-sky-100 dark:bg-sky-900/30",
+    text: "text-sky-600 dark:text-sky-400",
+    icon: FileText
+  },
+  system: {
+    bg: "bg-muted",
+    text: "text-muted-foreground",
+    icon: Bell
   }
 };
 
@@ -51,6 +75,8 @@ interface Props {
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onDelete: (id: string) => void;
+  onRestore?: (id: string) => void;
+  isTrash?: boolean;
   hasAnyChecked: boolean;
   isFocused?: boolean;
 }
@@ -65,6 +91,8 @@ export function InboxNotificationRow({
   onArchive,
   onUnarchive,
   onDelete,
+  onRestore,
+  isTrash = false,
   hasAnyChecked,
   isFocused = false
 }: Props) {
@@ -168,45 +196,62 @@ export function InboxNotificationRow({
             "bg-card border rounded-md shadow-sm p-0.5 gap-0.5"
           )}
         >
-          {notification.is_archived ? (
+          {isTrash ? (
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              aria-label="Desarquivar notificação"
+              aria-label="Restaurar notificação"
               onClick={(e) => {
                 e.stopPropagation();
-                onUnarchive(notification.id);
+                onRestore?.(notification.id);
               }}
             >
-              <ArchiveX className="h-3.5 w-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" />
             </Button>
           ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              aria-label="Arquivar notificação"
-              onClick={(e) => {
-                e.stopPropagation();
-                onArchive(notification.id);
-              }}
-            >
-              <Archive className="h-3.5 w-3.5" />
-            </Button>
+            <>
+              {notification.is_archived ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Desarquivar notificação"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnarchive(notification.id);
+                  }}
+                >
+                  <ArchiveX className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Arquivar notificação"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onArchive(notification.id);
+                  }}
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                aria-label="Excluir notificação"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(notification.id);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            aria-label="Excluir notificação"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(notification.id);
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
         </div>
       )}
     </div>
