@@ -1644,6 +1644,7 @@ export type Database = {
           client_id: string | null
           closed_at: string | null
           company_name: string | null
+          competitor_name: string | null
           contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
@@ -1655,6 +1656,7 @@ export type Database = {
           name: string
           notes: string | null
           responsible_id: string | null
+          restored_at: string | null
           service_line: string | null
           source: string | null
           tenant_id: string
@@ -1669,6 +1671,7 @@ export type Database = {
           client_id?: string | null
           closed_at?: string | null
           company_name?: string | null
+          competitor_name?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
@@ -1680,6 +1683,7 @@ export type Database = {
           name: string
           notes?: string | null
           responsible_id?: string | null
+          restored_at?: string | null
           service_line?: string | null
           source?: string | null
           tenant_id: string
@@ -1694,6 +1698,7 @@ export type Database = {
           client_id?: string | null
           closed_at?: string | null
           company_name?: string | null
+          competitor_name?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
@@ -1705,6 +1710,7 @@ export type Database = {
           name?: string
           notes?: string | null
           responsible_id?: string | null
+          restored_at?: string | null
           service_line?: string | null
           source?: string | null
           tenant_id?: string
@@ -3044,6 +3050,67 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_files: {
+        Row: {
+          category: string
+          created_at: string
+          file_name: string
+          file_size: number
+          id: string
+          mime_type: string
+          project_id: string
+          storage_path: string
+          tenant_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          file_name: string
+          file_size: number
+          id?: string
+          mime_type: string
+          project_id: string
+          storage_path: string
+          tenant_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          project_id?: string
+          storage_path?: string
+          tenant_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -5015,6 +5082,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      attach_project_contract: {
+        Args: {
+          p_file_name: string
+          p_file_size: number
+          p_project_id: string
+          p_storage_path: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       calculate_employee_capacity_hours: {
         Args: {
           p_employee_id: string
@@ -5023,6 +5100,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: number
+      }
+      can_view_project_document: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
       }
       complete_password_change: { Args: never; Returns: undefined }
       count_employee_cost_business_days: {
