@@ -62,7 +62,6 @@ const navigationGroups = [
   {
     label: 'Meu Espaço',
     items: [
-      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Meu Kanban', url: '/my-kanban', icon: KanbanSquare },
