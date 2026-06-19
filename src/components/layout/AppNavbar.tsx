@@ -46,6 +46,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { usePwaEnvironment } from "@/hooks/use-pwa-environment";
+import { PWA_BUSINESS_ROUTES } from "@/lib/pwa";
 
 interface NavItem {
   title: string;
@@ -207,6 +209,7 @@ export function AppNavbar() {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isStandalone } = usePwaEnvironment();
 
   const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
@@ -215,12 +218,14 @@ export function AppNavbar() {
 
   const filterItems = (items: NavItem[]) =>
     items.filter((item) => {
+      if (isStandalone && !PWA_BUSINESS_ROUTES.includes(item.url as never)) return false;
       if (item.requiresAdmin && !isAdmin) return false;
       if (item.requiresManager && !isManager && !isAdmin) return false;
       return true;
     });
 
   const isGroupVisible = (group: NavGroup) => {
+    if (isStandalone && group.label !== "Meu Espaço") return false;
     if (group.requiresAdmin && !isAdmin) return false;
     if (group.requiresManager && !isManager && !isAdmin) return false;
     return filterItems(group.items).length > 0;
@@ -237,7 +242,7 @@ export function AppNavbar() {
     <header className="sticky top-0 z-50 flex h-14 items-center border-b bg-background px-4 gap-4">
       {/* Logo */}
       <button
-        onClick={() => navigate("/inbox")}
+        onClick={() => navigate(isStandalone ? "/my-timesheet" : "/inbox")}
         className="flex items-center gap-2 shrink-0 mr-2 hover:opacity-80 transition-opacity"
       >
         <img src={logo} alt="Pulse" className="h-7 w-7" />

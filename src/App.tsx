@@ -47,6 +47,8 @@ import JobOpenings from "./pages/JobOpenings";
 import JobApplicationVaga from "./pages/JobApplicationVaga";
 import Strategy from "./pages/Strategy";
 import MyKanban from "./pages/MyKanban";
+import { PwaRouteGuard } from "@/components/pwa/PwaRouteGuard";
+import { InstallPwaBanner } from "@/components/pwa/InstallPwaBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 2 * 60 * 1000 } },
@@ -60,7 +62,8 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
+            <InstallPwaBanner />
+            <PwaRouteGuard><Routes>
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Navigate to="/login" replace />} />
@@ -288,7 +291,7 @@ const App = () => (
               <Route path="/estrategia" element={<RoleProtectedRoute requireManager><Strategy /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
+            </Routes></PwaRouteGuard>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

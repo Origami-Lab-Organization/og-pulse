@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { MonthlyTimesheetView } from '@/components/timesheets/MonthlyTimesheetView'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card, CardContent } from '@/components/ui/card'
@@ -13,7 +13,9 @@ import {
   CircleAlert,
   ChevronRight,
   AlertCircle,
+  ChevronLeft,
 } from 'lucide-react'
+import { usePwaEnvironment } from '@/hooks/use-pwa-environment'
 import {
   Collapsible,
   CollapsibleContent,
@@ -59,6 +61,8 @@ const MyTimesheet = () => {
   })
   const [projectsOpen, setProjectsOpen] = useState(true)
   const [activitiesOpen, setActivitiesOpen] = useState(true)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const { isMobile, isOnline } = usePwaEnvironment()
 
   // Dialog states
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false)
@@ -91,6 +95,14 @@ const MyTimesheet = () => {
     startDate,
     endDate,
   )
+
+  useEffect(() => {
+    if (!projects.length) { setSelectedProjectId(null); return }
+    if (!projects.some((project) => project.projectId === selectedProjectId)) setSelectedProjectId(projects[0].projectId)
+  }, [projects, selectedProjectId])
+
+  const selectedProjectIndex = Math.max(0, projects.findIndex((project) => project.projectId === selectedProjectId))
+  const visibleProjects = isMobile ? projects.filter((project) => project.projectId === selectedProjectId) : projects
 
   const projectIds = useMemo(() => projects.map((p) => p.projectId), [projects])
   const myMemberIds = useMemo(
@@ -368,7 +380,7 @@ const MyTimesheet = () => {
       ) : (
         <div className='space-y-4'>
           {/* View mode toggle */}
-          <div className='flex gap-1 p-1 bg-muted rounded-lg w-fit'>
+          <div className='hidden gap-1 p-1 bg-muted rounded-lg w-fit md:flex'>
             <Button
               variant={viewMode === 'monthly' ? 'default' : 'ghost'}
               size='sm'
@@ -444,10 +456,23 @@ const MyTimesheet = () => {
                         />
                       </div>
 
-                      <div className='overflow-x-auto'>
-                        <div className='min-w-[520px]'>
+                      {isMobile && projects.length > 0 && (
+                        <div className='mx-3 mb-4 rounded-xl border bg-card p-3'>
+                          <div className='flex items-center gap-2'>
+                            <Button variant='outline' size='icon' className='h-11 w-11 shrink-0' disabled={selectedProjectIndex === 0} onClick={() => setSelectedProjectId(projects[selectedProjectIndex - 1]?.projectId)} aria-label='Projeto anterior'><ChevronLeft className='h-4 w-4' /></Button>
+                            <select className='h-11 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm' value={selectedProjectId ?? ''} onChange={(event) => setSelectedProjectId(event.target.value)} aria-label='Projeto selecionado'>
+                              {projects.map((project) => <option key={project.projectId} value={project.projectId}>{project.projectName}</option>)}
+                            </select>
+                            <Button variant='outline' size='icon' className='h-11 w-11 shrink-0' disabled={selectedProjectIndex >= projects.length - 1} onClick={() => setSelectedProjectId(projects[selectedProjectIndex + 1]?.projectId)} aria-label='Próximo projeto'><ChevronRight className='h-4 w-4' /></Button>
+                          </div>
+                          <p className='mt-2 text-center text-xs text-muted-foreground'>{selectedProjectIndex + 1} de {projects.length}</p>
+                        </div>
+                      )}
+
+                      <div className='md:overflow-x-auto'>
+                        <div className='md:min-w-[520px]'>
                           {/* Cabeçalho dos dias */}
-                          <div className='grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center px-3 pb-1 text-xs font-medium text-muted-foreground'>
+                          <div className='hidden md:grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center px-3 pb-1 text-xs font-medium text-muted-foreground'>
                             <div />
                             {weekDays.map((day) => {
                               const holiday = isHoliday(
@@ -556,7 +581,7 @@ const MyTimesheet = () => {
                               </button>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
-                              {projects.map((project) => {
+                              {visibleProjects.map((project) => {
                                 const member = project.members[0]
                                 const memberEntries = timesheetEntries.filter(
                                   (e) => e.projectMemberId === member.memberId,
@@ -672,6 +697,7 @@ const MyTimesheet = () => {
                               <CollapsibleContent>
                                 <div
                                   className={cn(
+                                    'overflow-x-auto',
                                     projects.length > 0 &&
                                       'bg-muted/20 rounded-md',
                                   )}
@@ -706,7 +732,7 @@ const MyTimesheet = () => {
                           )}
 
                           {/* Daily totals row */}
-                          <div className='grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 border-t bg-muted/50 font-medium'>
+                          <div className='hidden md:grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 border-t bg-muted/50 font-medium'>
                             <div className='text-xs italic text-muted-foreground'>
                               Total/dia
                             </div>
@@ -786,7 +812,8 @@ const MyTimesheet = () => {
                               disabled={
                                 !allWeekDaysReady ||
                                 allProjectsLocked ||
-                                submitAllProjects.isPending
+                                submitAllProjects.isPending ||
+                                !isOnline
                               }
                             >
                               <Send className='h-4 w-4 mr-1.5' />
