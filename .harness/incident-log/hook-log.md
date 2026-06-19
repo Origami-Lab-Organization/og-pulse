@@ -27,6 +27,18 @@
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/projectCostsService.ts
 
+### 2026-06-19T16:39:35.962Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/allocationService.ts
+
+### 2026-06-19T17:10:25.673Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/allocationService.ts
+
+### 2026-06-19T17:38:46.981Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/allocationService.ts
+
 ### 2026-06-19T18:25:45.778Z
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: c:\Users\OrigamiLab\Desktop\projects\og-pulse\src\hooks\useServiceLineSort.ts

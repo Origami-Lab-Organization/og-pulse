@@ -158,7 +158,10 @@ export function ProjectCostFormDialog({
           <DialogDescription>Registre um custo do projeto.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        {/* Anel de foco dos campos no verde escuro da aba (sobrescreve o
+            --ring global apenas aqui, sem retokenizar). Cobre focus (Select
+            Radix) e focus-visible (Input/Textarea). */}
+        <div className="space-y-4 [&_*:focus]:ring-primary-deep [&_*:focus-visible]:ring-primary-deep">
           <div className="space-y-2">
             <Label htmlFor="cost-category">Tipo de custo *</Label>
             <Select
@@ -225,6 +228,7 @@ export function ProjectCostFormDialog({
               id="cost-paid"
               checked={isPaid}
               onCheckedChange={(v) => handlePaidToggle(!!v)}
+              className="border-primary-deep data-[state=checked]:bg-primary-deep data-[state=checked]:border-primary-deep data-[state=checked]:text-primary-deep-foreground"
             />
             <Label htmlFor="cost-paid" className="cursor-pointer font-normal">
               Pago
@@ -282,7 +286,11 @@ export function ProjectCostFormDialog({
           >
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={isSaving}>
+          <Button
+            onClick={handleSubmit}
+            disabled={isSaving}
+            className="bg-primary-deep text-primary-deep-foreground hover:bg-primary-deep/90"
+          >
             {isSaving ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>

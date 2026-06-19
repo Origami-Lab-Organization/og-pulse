@@ -73,7 +73,10 @@ export function ProjectCostPayDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        {/* Anel de foco dos campos no verde escuro da aba (sobrescreve o
+            --ring global apenas aqui, sem retokenizar). Cobre focus (Select
+            Radix) e focus-visible (Input/Textarea). */}
+        <div className="space-y-4 [&_*:focus]:ring-primary-deep [&_*:focus-visible]:ring-primary-deep">
           <div className="rounded-md bg-muted px-4 py-3 text-sm">
             <span className="text-muted-foreground">Valor planejado: </span>
             <span className="font-medium tabular-nums">{brl(plannedBrl)}</span>
@@ -102,7 +105,7 @@ export function ProjectCostPayDialog({
             )}
             <button
               type="button"
-              className="text-xs text-primary underline-offset-2 hover:underline"
+              className="text-xs text-primary-deep underline-offset-2 hover:underline"
               onClick={() => setActualAmount(Number(cost?.planned_amount ?? 0))}
             >
               Usar valor planejado ({brl(plannedBrl)})
@@ -132,6 +135,7 @@ export function ProjectCostPayDialog({
           <Button
             onClick={handleConfirm}
             disabled={updateCost.isPending || actualAmount <= 0 || !paidDate}
+            className="bg-primary-deep text-primary-deep-foreground hover:bg-primary-deep/90"
           >
             {updateCost.isPending ? "Salvando..." : "Confirmar pagamento"}
           </Button>
