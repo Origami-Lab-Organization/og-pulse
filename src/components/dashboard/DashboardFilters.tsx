@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   format,
   addMonths, subMonths,
@@ -7,8 +7,7 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DateInput } from '@/components/ui/date-input';
 import { cn } from '@/lib/utils';
 
 export type Granularity = 'month' | 'quarter' | 'year' | 'custom';
@@ -124,57 +123,21 @@ export function DashboardFilters({
         </div>
       )}
 
-      {/* Seletor de datas personalizado */}
+      {/* Seletor de datas personalizado — digitável (máscara dd/MM/aaaa) + calendário */}
       {granularity === 'custom' && (
-        <>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  'w-[150px] justify-start text-left font-normal',
-                  !customStart && 'text-muted-foreground'
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {customStart ? format(customStart, 'dd/MM/yyyy') : 'Início'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={customStart}
-                onSelect={onCustomStartChange}
-                initialFocus
-                className="p-3 pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  'w-[150px] justify-start text-left font-normal',
-                  !customEnd && 'text-muted-foreground'
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {customEnd ? format(customEnd, 'dd/MM/yyyy') : 'Fim'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={customEnd}
-                onSelect={onCustomEndChange}
-                initialFocus
-                className="p-3 pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-        </>
+        <div className="flex items-center gap-2">
+          <DateInput
+            value={customStart}
+            onChange={onCustomStartChange}
+            ariaLabel="Data de início"
+          />
+          <span className="text-sm text-muted-foreground">até</span>
+          <DateInput
+            value={customEnd}
+            onChange={onCustomEndChange}
+            ariaLabel="Data de fim"
+          />
+        </div>
       )}
     </div>
   );
