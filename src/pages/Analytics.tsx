@@ -1,171 +1,131 @@
-import { useState, useMemo, useEffect } from 'react'
-import {
-  startOfMonth,
-  endOfMonth,
-  startOfQuarter,
-  endOfQuarter,
-  startOfYear,
-  endOfYear,
-  format,
-} from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-import {
-  Loader2,
-  FileText,
-  DollarSign,
-  Target,
-  Users,
-  Building2,
-  Package,
-  Percent,
-  Receipt,
-  FileDown,
-} from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { CalendarIcon, FileDown, Loader2 } from 'lucide-react'
+import { format } from 'date-fns'
 import { AppLayout } from '@/components/layout/AppLayout'
-import {
-  AnalyticsFilters,
-  Granularity,
-} from '@/components/analytics/AnalyticsFilters'
-import { AnalyticsKPIs } from '@/components/analytics/AnalyticsKPIs'
-import { RevenueComparisonChart } from '@/components/analytics/RevenueComparisonChart'
-import { FinancialEvolutionChart } from '@/components/analytics/FinancialEvolutionChart'
-import { OverviewKPIs } from '@/components/analytics/OverviewKPIs'
-import { OverviewEvolutionChart } from '@/components/analytics/OverviewEvolutionChart'
-import { ExecutiveSummaryCard } from '@/components/analytics/ExecutiveSummaryCard'
-import { ProjectContributionChart } from '@/components/analytics/ProjectContributionChart'
-import { ConsolidatedMixChart } from '@/components/analytics/ConsolidatedMixChart'
-import { OverviewAlertsCard } from '@/components/analytics/OverviewAlertsCard'
-import { OverviewExecutiveInsights } from '@/components/analytics/OverviewExecutiveInsights'
-import { OverviewPerformanceTable } from '@/components/analytics/OverviewPerformanceTable'
-import { CostBreakdownChart } from '@/components/analytics/CostBreakdownChart'
-import { RevenueInstallmentsTable } from '@/components/analytics/RevenueInstallmentsTable'
-import { DonutChart } from '@/components/analytics/DonutChart'
-import { RevenueKPIs } from '@/components/analytics/RevenueKPIs'
-import { RevenueConversionInsightCard } from '@/components/analytics/RevenueConversionInsightCard'
-import { RevenueRankingChart } from '@/components/analytics/RevenueRankingChart'
-import { RevenueMixDonut } from '@/components/analytics/RevenueMixDonut'
-import { ReceivablesStatusCard } from '@/components/analytics/ReceivablesStatusCard'
-import { RevenueExecutiveInsights } from '@/components/analytics/RevenueExecutiveInsights'
-import { CostKPIs } from '@/components/analytics/CostKPIs'
-import { BudgetAdherenceInsightCard } from '@/components/analytics/BudgetAdherenceInsightCard'
-import { CostRankingChart } from '@/components/analytics/CostRankingChart'
+import { ProjectMetricsBar } from '@/components/analytics/ProjectMetricsBar'
+import { ReceitaCustoMensalChart } from '@/components/analytics/ReceitaCustoMensalChart'
 import { CostMixDonut } from '@/components/analytics/CostMixDonut'
-import { CostPressureCard } from '@/components/analytics/CostPressureCard'
-import { CostExecutiveInsights } from '@/components/analytics/CostExecutiveInsights'
-import { CostDetailTable } from '@/components/analytics/CostDetailTable'
-import { CostDonutChart } from '@/components/analytics/CostDonutChart'
-import { AllocationChart } from '@/components/analytics/AllocationChart'
-import { ProjectMarginTable } from '@/components/analytics/ProjectMarginTable'
-import { GrossMarginKPIs } from '@/components/analytics/GrossMarginKPIs'
-import { GrossMarginInsightCard } from '@/components/analytics/GrossMarginInsightCard'
-import { MarginRankingChart } from '@/components/analytics/MarginRankingChart'
-import { RevenueCompositionDonut } from '@/components/analytics/RevenueCompositionDonut'
-import { MarginDetailTable } from '@/components/analytics/MarginDetailTable'
-import { StakeholderKPIs } from '@/components/analytics/StakeholderKPIs'
-import { StakeholderDistributionChart } from '@/components/analytics/StakeholderDistributionChart'
-import { DetractorAlertTable } from '@/components/analytics/DetractorAlertTable'
+import { RankingPorMargem } from '@/components/analytics/RankingPorMargem'
+import { PerformancePorLinhaServico } from '@/components/analytics/PerformancePorLinhaServico'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { generateAnalyticsPdf } from '@/components/analytics/AnalyticsPdfGenerator'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useAnalyticsFilterOptions } from '@/hooks/useAnalyticsData'
 import { useFinancialEvolution } from '@/hooks/useFinancialEvolution'
-import { useRevenueAnalytics } from '@/hooks/useRevenueAnalytics'
 import { useProjectFinancials } from '@/hooks/useProjectFinancials'
+import { useRevenueAnalytics } from '@/hooks/useRevenueAnalytics'
 import { useStakeholderAnalytics } from '@/hooks/useStakeholderAnalytics'
-import { useYearlyEvolution } from '@/hooks/useYearlyEvolution'
-import { useAuth } from '@/contexts/AuthContext'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { useAnalyticsFilters, type AnalyticsPreset } from '@/hooks/useAnalyticsFilters'
+import { useNpsAvailability } from '@/hooks/useNpsAvailability'
+import { generateAnalyticsPdf } from '@/components/analytics/AnalyticsPdfGenerator'
+import { startOfMonth, endOfMonth } from 'date-fns'
 import { cn } from '@/lib/utils'
+import type { ProjectMetricCardProps } from '@/components/analytics/ProjectMetricCard'
+import {
+  MOCK_FINANCIAL_EVOLUTION,
+  MOCK_FILTER_OPTIONS,
+  filterMockByManager,
+} from '@/components/analytics/_devMockData'
 
-const FINANCIAL_TABS = [
-  'overview',
-  'revenue',
-  'costs',
-  'margin',
+// Substitua por `false` para usar dados reais do Supabase
+const DEV_MOCK = true
+
+// ── presets ──────────────────────────────────────────────────────────────
+const PRESET_OPTIONS: { value: AnalyticsPreset; label: string }[] = [
+  { value: 'this_month', label: 'Este mês' },
+  { value: 'last_3_months', label: '3 meses' },
+  { value: 'last_6_months', label: '6 meses' },
+  { value: 'this_year', label: 'Este ano' },
+  { value: 'custom', label: 'Personalizado' },
 ]
 
+// ── helpers ───────────────────────────────────────────────────────────────
+function fmtFull(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+
+function calcMargemPonderada(
+  projetos: Array<{ revenue: number; grossMargin: number | null }>,
+): number | null {
+  const total = projetos.reduce((s, p) => s + p.revenue, 0)
+  if (total === 0) return null
+  return projetos.reduce((s, p) => s + (p.grossMargin ?? 0) * p.revenue, 0) / total
+}
+
+function calcPctEmRisco(emRisco: number, ativos: number): number | null {
+  if (ativos === 0) return null
+  return Math.round((emRisco / ativos) * 100)
+}
+
+// ── página ────────────────────────────────────────────────────────────────
 export default function Analytics() {
-  const { employee } = useAuth()
-  const isAdmin = employee?.isAdmin ?? false
-
-  const [granularity, setGranularity] = useState<Granularity>('year')
-  const [currentPeriodDate, setCurrentPeriodDate] = useState(() =>
-    startOfYear(new Date()),
-  )
-  const [customStart, setCustomStart] = useState<Date | undefined>()
-  const [customEnd, setCustomEnd] = useState<Date | undefined>()
-  const [selectedClientId, setSelectedClientId] = useState<string | undefined>()
-  const [selectedManagerId, setSelectedManagerId] = useState<string | undefined>()
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>()
-  const [activeTab, setActiveTab] = useState('overview')
-  const [donutDimension, setDonutDimension] = useState<'client' | 'manager' | 'serviceLine'>('client')
-  const [isRequestingPdf, setIsRequestingPdf] = useState(false)
-
-  const filters = useMemo(() => {
-    let startDate: Date
-    let endDate: Date
-    switch (granularity) {
-      case 'quarter':
-        startDate = startOfQuarter(currentPeriodDate)
-        endDate = endOfQuarter(currentPeriodDate)
-        break
-      case 'year':
-        startDate = startOfYear(currentPeriodDate)
-        endDate = endOfYear(currentPeriodDate)
-        break
-      case 'custom':
-        startDate = customStart || startOfMonth(new Date())
-        endDate = customEnd || endOfMonth(new Date())
-        break
-      default:
-        startDate = startOfMonth(currentPeriodDate)
-        endDate = endOfMonth(currentPeriodDate)
-    }
-    return {
-      startDate,
-      endDate,
-      clientId: selectedClientId,
-      managerId: selectedManagerId,
-      projectId: selectedProjectId,
-    }
-  }, [
-    granularity,
-    currentPeriodDate,
+  const {
+    filters: carteiraFilters,
+    setPreset,
+    setCustomRange,
+    setGpFilter,
     customStart,
     customEnd,
-    selectedClientId,
-    selectedManagerId,
-    selectedProjectId,
-  ])
+    isAdmin,
+  } = useAnalyticsFilters()
 
-  const isFinancialTab = FINANCIAL_TABS.includes(activeTab)
+  const [isRequestingPdf, setIsRequestingPdf] = useState(false)
+  const [devGpFilter, setDevGpFilter] = useState<string | null>(null)
 
-  const { data: financialEvolution, isLoading: isFinancialLoading } =
-    useFinancialEvolution(filters, { enabled: isFinancialTab || isRequestingPdf })
-  const { data: revenueData, isLoading: isRevenueLoading } =
-    useRevenueAnalytics(filters, { enabled: activeTab === 'revenue' || isRequestingPdf })
-  const { data: projectFinancials, isLoading: isProjectFinancialsLoading } =
-    useProjectFinancials(filters, {
-      enabled: activeTab === 'costs' || activeTab === 'margin' || activeTab === 'overview' || isRequestingPdf,
-    })
-  const { data: stakeholderData, isLoading: isStakeholderLoading } =
-    useStakeholderAnalytics(filters, { enabled: activeTab === 'satisfaction' || isRequestingPdf })
-  const { data: yearlyEvolution, isLoading: isYearlyEvolutionLoading } =
-    useYearlyEvolution(filters, { enabled: activeTab === 'costs' })
-  const { data: filterOptions } = useAnalyticsFilterOptions()
+  // No modo DEV_MOCK o usuário pode não ser admin — forçamos visibilidade e filtro local
+  const effectiveIsAdmin  = DEV_MOCK ? true : isAdmin
+  const effectiveGpFilter = DEV_MOCK ? devGpFilter : carteiraFilters.gpFilter
 
+  // data filters para os hooks existentes
+  const filters = useMemo(
+    () => ({
+      startDate: carteiraFilters.startDate,
+      endDate: carteiraFilters.endDate,
+      clientId: undefined as string | undefined,
+      managerId: effectiveGpFilter ?? undefined,
+      projectId: undefined as string | undefined,
+    }),
+    [carteiraFilters, effectiveGpFilter],
+  )
+
+  const { data: _finEvo, isLoading: _isFinLoading } = useFinancialEvolution(filters)
+  const { data: _projFin, isLoading: _isProjFinLoading } = useProjectFinancials(filters)
+  const { data: _filterOpts } = useAnalyticsFilterOptions()
+
+  const { data: _revenueData }     = useRevenueAnalytics(filters)
+  const { data: _stakeholderData } = useStakeholderAnalytics(filters)
+
+  const financialEvolution         = DEV_MOCK ? MOCK_FINANCIAL_EVOLUTION               : _finEvo
+  const isFinancialLoading         = DEV_MOCK ? false                                  : _isFinLoading
+  const projectFinancials          = DEV_MOCK ? filterMockByManager(effectiveGpFilter) : _projFin
+  const isProjectFinancialsLoading = DEV_MOCK ? false                                  : _isProjFinLoading
+  const filterOptions              = DEV_MOCK ? MOCK_FILTER_OPTIONS                    : _filterOpts
+  const revenueData                = _revenueData ?? { overdueNFs: [], overdueReceipts: [], periodNFs: [], periodReceivables: [], byClient: [], byManager: [], byServiceLine: [] }
+  const stakeholderData            = _stakeholderData ?? { totals: { total: 0, promoters: 0, neutrals: 0, detractors: 0 }, byProject: [], highInfluenceDetractors: [] }
+  const { isAvailable: npsAvailable, isLoading: npsLoading } = useNpsAvailability()
+
+  // financial months (meses dentro do range selecionado)
   const financialMonths = useMemo(() => {
     if (!financialEvolution) return []
     return financialEvolution.months.map((m) => {
-      const monthStart = startOfMonth(
-        new Date(financialEvolution.year, m.monthIndex, 1),
-      )
+      const monthStart = startOfMonth(new Date(financialEvolution.year, m.monthIndex, 1))
       const monthEnd = endOfMonth(monthStart)
       return {
         ...m,
-        isHighlighted:
-          monthStart <= filters.endDate && monthEnd >= filters.startDate,
+        isHighlighted: monthStart <= filters.endDate && monthEnd >= filters.startDate,
       }
     })
   }, [financialEvolution, filters])
@@ -173,30 +133,20 @@ export default function Analytics() {
   const financialKPIs = useMemo(() => {
     if (!financialMonths.length || !financialEvolution) return null
     const highlighted = financialMonths.filter((m) => m.isHighlighted)
-    const faturado = highlighted.reduce((s, m) => s + m.faturado, 0)
-    const revenueActual = highlighted.reduce((s, m) => s + m.revenueReal, 0)
+    const faturado         = highlighted.reduce((s, m) => s + m.faturado, 0)
+    const revenueActual    = highlighted.reduce((s, m) => s + m.revenueReal, 0)
     const revenueProjected = highlighted.reduce((s, m) => s + m.revenuePlanned, 0)
-    const totalCosts = highlighted.reduce((s, m) => s + m.totalCosts, 0)
-    const laborCost = highlighted.reduce((s, m) => s + m.laborCost, 0)
-    const supplierCost = highlighted.reduce((s, m) => s + m.supplierCost, 0)
-    const materialCost = highlighted.reduce((s, m) => s + m.materialCost, 0)
-    const commissionCost = highlighted.reduce((s, m) => s + m.commissionCost, 0)
+    const totalCosts       = highlighted.reduce((s, m) => s + m.totalCosts, 0)
+    const laborCost        = highlighted.reduce((s, m) => s + m.laborCost, 0)
+    const supplierCost     = highlighted.reduce((s, m) => s + m.supplierCost, 0)
+    const materialCost     = highlighted.reduce((s, m) => s + m.materialCost, 0)
+    const commissionCost   = highlighted.reduce((s, m) => s + m.commissionCost, 0)
     const reimbursementCost = highlighted.reduce((s, m) => s + m.reimbursementCost, 0)
-    const grossMargin =
-      revenueActual > 0
-        ? ((revenueActual - totalCosts) / revenueActual) * 100
-        : 0
-    const plannedTotalCosts = highlighted.reduce((s, m) => s + m.plannedTotalCosts, 0)
-    const projectedGrossMargin =
-      revenueProjected > 0
-        ? ((revenueProjected - plannedTotalCosts) / revenueProjected) * 100
-        : 0
-
+    const grossMargin      = revenueActual > 0 ? ((revenueActual - totalCosts) / revenueActual) * 100 : 0
     return {
       faturado,
       revenueActual,
       revenueProjected,
-      revenueDiff: revenueActual - revenueProjected,
       totalCosts,
       laborCost,
       supplierCost,
@@ -204,498 +154,292 @@ export default function Analytics() {
       commissionCost,
       reimbursementCost,
       grossMargin,
-      projectedGrossMargin,
       grossMarginTarget: financialEvolution.grossMarginTarget,
     }
   }, [financialMonths, financialEvolution])
 
-  const periodLabel = useMemo(() => {
-    if (granularity === 'year') return format(filters.startDate, 'yyyy')
-    if (granularity === 'quarter')
-      return `${format(filters.startDate, 'QQQ yyyy', { locale: ptBR })}`
-    if (granularity === 'custom')
-      return `${format(filters.startDate, 'dd/MM/yyyy')} – ${format(filters.endDate, 'dd/MM/yyyy')}`
-    return format(filters.startDate, 'MMMM yyyy', { locale: ptBR })
-  }, [granularity, filters])
+  // 6 KPIs da carteira
+  const carteiraKpiCards = useMemo((): ProjectMetricCardProps[] => {
+    const isLoading = isFinancialLoading || isProjectFinancialsLoading
+    const byProject = projectFinancials?.byProject ?? []
+    const target = projectFinancials?.grossMarginTarget ?? 25
+    const receitaRealizada = financialKPIs?.revenueActual ?? 0
+    const receitaProjetada = financialKPIs?.revenueProjected ?? 0
+    const projetadoPct =
+      receitaProjetada > 0 ? Math.round((receitaRealizada / receitaProjetada) * 100) : null
+    const margemMedia = calcMargemPonderada(byProject)
+    const projetosAtivos = byProject.length
+    const projetosEmRisco = byProject.filter(
+      (p) => p.grossMargin !== null && p.grossMargin < target,
+    ).length
+    const pctEmRisco = calcPctEmRisco(projetosEmRisco, projetosAtivos)
 
-  useEffect(() => {
-    if (!isRequestingPdf) return
-    const allLoaded =
-      !isFinancialLoading &&
-      !isRevenueLoading &&
-      !isProjectFinancialsLoading &&
-      !isStakeholderLoading
-    if (!allLoaded) return
-    if (!financialEvolution || !revenueData || !projectFinancials || !stakeholderData || !financialKPIs) return
-
-    generateAnalyticsPdf({
-      periodLabel,
-      year: financialEvolution.year,
-      financialKPIs,
-      financialMonths,
-      projectFinancials,
-      revenueData,
-      stakeholderData,
-    })
-    setIsRequestingPdf(false)
+    return [
+      {
+        label: 'Receita realizada',
+        value: receitaRealizada > 0 ? fmtFull(receitaRealizada) : '—',
+        subtitle: receitaProjetada > 0
+          ? `${fmtFull(receitaProjetada)} projetado`
+          : undefined,
+        delta: DEV_MOCK ? '↑ 8.4% vs 3m atrás' : undefined,
+        deltaPositive: DEV_MOCK ? true : undefined,
+        isLoading,
+      },
+      {
+        label: 'Projetado vs realizado',
+        value: projetadoPct !== null ? `${projetadoPct}%` : '—',
+        subtitle: receitaProjetada > 0
+          ? `${fmtFull(receitaProjetada)} contratados`
+          : undefined,
+        statusColor: projetadoPct !== null && projetadoPct < 80 ? 'amber' : 'default',
+        isLoading,
+      },
+      {
+        label: 'Margem média',
+        value: margemMedia !== null ? `${margemMedia.toFixed(1)}%` : '—',
+        subtitle: `meta ${target}%`,
+        statusColor:
+          margemMedia !== null && margemMedia < target ? 'red' : 'default',
+        tooltip:
+          'Média ponderada por receita. Alerta vermelho quando abaixo da meta configurada.',
+        isLoading,
+      },
+      {
+        label: 'Em risco',
+        value: projetosEmRisco > 0 ? String(projetosEmRisco) : '—',
+        subtitle:
+          pctEmRisco !== null
+            ? `${projetosAtivos} ativos`
+            : projetosAtivos > 0
+              ? `${projetosAtivos} ativos`
+              : undefined,
+        statusColor: projetosEmRisco > 0 ? 'red' : 'default',
+        isLoading,
+      },
+      {
+        label: 'NPS Portfólio',
+        value: '—',
+        tooltip: npsAvailable
+          ? 'NPS agregado dos projetos no período.'
+          : 'NPS disponível após o módulo de Stakeholders e NPS (J10).',
+        isLoading: isLoading || npsLoading,
+      },
+    ]
   }, [
-    isRequestingPdf,
     isFinancialLoading,
-    isRevenueLoading,
     isProjectFinancialsLoading,
-    isStakeholderLoading,
-    financialEvolution,
-    revenueData,
+    npsLoading,
+    npsAvailable,
     projectFinancials,
-    stakeholderData,
     financialKPIs,
-    financialMonths,
-    periodLabel,
   ])
 
-  const clientOptions = useMemo(
-    () => (filterOptions?.clients || []).map((c) => ({ id: c.id, label: c.company_name })),
-    [filterOptions],
-  )
   const managerOptions = useMemo(
     () => (filterOptions?.managers || []).map((m) => ({ id: m.id, label: m.nome })),
     [filterOptions],
   )
-  const projectOptions = useMemo(
-    () => (filterOptions?.projects || []).map((p) => ({ id: p.id, label: p.name })),
-    [filterOptions],
-  )
 
-  const financialLoader = (
-    <div className='flex items-center justify-center h-40'>
-      <Loader2 className='h-6 w-6 animate-spin text-primary' />
-    </div>
-  )
+  const periodLabel = useMemo(() => {
+    const map: Record<AnalyticsPreset, string> = {
+      this_month:     'Este mês',
+      last_3_months:  'Últimos 3 meses',
+      last_6_months:  'Últimos 6 meses',
+      this_year:      'Este ano',
+      custom: `${format(carteiraFilters.startDate, 'dd/MM/yyyy')} – ${format(carteiraFilters.endDate, 'dd/MM/yyyy')}`,
+    }
+    return map[carteiraFilters.preset]
+  }, [carteiraFilters])
+
+  async function handleExportPdf() {
+    if (!financialKPIs || !projectFinancials || !financialEvolution) return
+    setIsRequestingPdf(true)
+    try {
+      generateAnalyticsPdf({
+        periodLabel,
+        year: financialEvolution.year,
+        financialKPIs,
+        financialMonths,
+        projectFinancials,
+        revenueData,
+        stakeholderData,
+      })
+    } finally {
+      setIsRequestingPdf(false)
+    }
+  }
+
+  const isLoading = isFinancialLoading || isProjectFinancialsLoading
 
   return (
     <AppLayout
-      title='Analytics de Projetos'
-      description='Performance, saúde e impacto dos projetos'
+      title="Analytics de Projetos"
+      description="Qual projeto tem a pior margem? Qual linha é mais rentável? Responda em menos de 5 minutos."
       breadcrumbs={[{ label: 'Analytics de Projetos' }]}
       actions={
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={() => setIsRequestingPdf(true)}
-          disabled={isRequestingPdf}
-        >
-          <FileDown className='mr-2 h-4 w-4' />
-          {isRequestingPdf ? 'Gerando...' : 'Exportar PDF'}
+        <Button variant="outline" size="sm" disabled={isRequestingPdf} onClick={handleExportPdf}>
+          {isRequestingPdf
+            ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            : <FileDown className="mr-2 h-4 w-4" />}
+          Exportar PDF
         </Button>
       }
     >
-      <div className='space-y-6'>
-        <AnalyticsFilters
-          granularity={granularity}
-          onGranularityChange={(g) => {
-            setGranularity(g);
-            setCurrentPeriodDate(new Date());
-          }}
-          currentPeriodDate={currentPeriodDate}
-          onPeriodDateChange={setCurrentPeriodDate}
-          customStart={customStart}
-          customEnd={customEnd}
-          onCustomStartChange={setCustomStart}
-          onCustomEndChange={setCustomEnd}
-          clients={clientOptions}
-          managers={managerOptions}
-          projects={projectOptions}
-          selectedClientId={selectedClientId}
-          onClientChange={setSelectedClientId}
-          selectedManagerId={selectedManagerId}
-          onManagerChange={setSelectedManagerId}
-          selectedProjectId={selectedProjectId}
-          onProjectChange={setSelectedProjectId}
-          showManagerFilter={isAdmin}
-        />
+      <div className="space-y-6">
+        {/* ── Filtros ──────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* GP filter — admin only */}
+          <div>
+            {effectiveIsAdmin && (
+              <Select
+                value={effectiveGpFilter ?? 'all'}
+                onValueChange={(v) => {
+                  const id = v === 'all' ? null : v
+                  DEV_MOCK ? setDevGpFilter(id) : setGpFilter(id)
+                }}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="GP Responsável" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os GPs</SelectItem>
+                  {managerOptions.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
 
-        <Tabs defaultValue='overview' onValueChange={setActiveTab}>
-          <TabsList className='flex-wrap h-auto gap-1'>
-            <TabsTrigger value='overview'>Visão Geral</TabsTrigger>
-            <TabsTrigger value='revenue'>Receita</TabsTrigger>
-            <TabsTrigger value='costs'>Custos</TabsTrigger>
-            <TabsTrigger value='margin'>Margem Bruta</TabsTrigger>
-            <TabsTrigger value='satisfaction'>Satisfação</TabsTrigger>
-          </TabsList>
+          {/* Indicador + presets */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground hidden sm:flex items-center gap-1">
+              <span className="text-primary">•</span>
+              atualizado há menos de 1 dia
+            </span>
 
-          {/* ── Visão Geral ──────────────────────────────────────────────── */}
-          <TabsContent value='overview' className='space-y-6 mt-6'>
-            {isFinancialLoading || isProjectFinancialsLoading ? (
-              financialLoader
-            ) : financialKPIs && financialEvolution ? (
-              (() => {
-                const monthlyMargins = financialMonths
-                  .filter((m) => m.isPast)
-                  .map((m) => ({ label: m.label, margin: m.grossMarginPct ?? 0 }));
+            <div className="inline-flex rounded-lg border bg-card p-0.5 gap-0.5">
+              {PRESET_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setPreset(opt.value)}
+                  className={cn(
+                    'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+                    carteiraFilters.preset === opt.value
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
 
-                const projectRows = projectFinancials?.byProject ?? [];
-
-                return (
-                  <>
-                    {/* KPIs */}
-                    <OverviewKPIs
-                      faturado={financialKPIs.faturado}
-                      revenueActual={financialKPIs.revenueActual}
-                      totalCosts={financialKPIs.totalCosts}
-                      grossMargin={financialKPIs.grossMargin}
-                      grossMarginTarget={financialKPIs.grossMarginTarget}
+            {/* Custom pickers */}
+            {carteiraFilters.preset === 'custom' && (
+              <div className="flex items-center gap-1">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-[130px] justify-start text-left font-normal text-sm',
+                        !customStart && 'text-muted-foreground',
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customStart ? format(customStart, 'dd/MM/yy') : 'Início'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={customStart}
+                      onSelect={(d) => d && setCustomRange(d, customEnd ?? d)}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
                     />
+                  </PopoverContent>
+                </Popover>
 
-                    {/* Chart + Executive Summary */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
-                      <div className='lg:col-span-3'>
-                        <OverviewEvolutionChart
-                          data={financialMonths}
-                          year={financialEvolution.year}
-                        />
-                      </div>
-                      <div className='lg:col-span-1'>
-                        <ExecutiveSummaryCard
-                          grossMargin={financialKPIs.grossMargin}
-                          projectedGrossMargin={financialKPIs.projectedGrossMargin}
-                          grossMarginTarget={financialKPIs.grossMarginTarget}
-                          revenueActual={financialKPIs.revenueActual}
-                          faturado={financialKPIs.faturado}
-                          totalCosts={financialKPIs.totalCosts}
-                          monthlyMargins={monthlyMargins}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Contribution + Mix */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
-                      <ProjectContributionChart
-                        byProject={projectRows}
-                        grossMarginTarget={financialKPIs.grossMarginTarget}
-                      />
-                      <ConsolidatedMixChart
-                        faturado={financialKPIs.faturado}
-                        revenueActual={financialKPIs.revenueActual}
-                        totalCosts={financialKPIs.totalCosts}
-                        grossMargin={financialKPIs.grossMargin}
-                      />
-                    </div>
-
-                    {/* Alerts + Executive Insights */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
-                      <OverviewAlertsCard
-                        faturado={financialKPIs.faturado}
-                        revenueActual={financialKPIs.revenueActual}
-                        grossMargin={financialKPIs.grossMargin}
-                        grossMarginTarget={financialKPIs.grossMarginTarget}
-                      />
-                      <OverviewExecutiveInsights
-                        faturado={financialKPIs.faturado}
-                        revenueActual={financialKPIs.revenueActual}
-                        totalCosts={financialKPIs.totalCosts}
-                        grossMargin={financialKPIs.grossMargin}
-                        grossMarginTarget={financialKPIs.grossMarginTarget}
-                      />
-                    </div>
-
-                    {/* Performance Table */}
-                    {projectFinancials && (
-                      <OverviewPerformanceTable
-                        byProject={projectRows}
-                        byClient={projectFinancials.byClient}
-                        byManager={projectFinancials.byManager}
-                        byServiceLine={projectFinancials.byServiceLine}
-                      />
-                    )}
-                  </>
-                );
-              })()
-            ) : null}
-          </TabsContent>
-
-          {/* ── Receita ──────────────────────────────────────────────────── */}
-          <TabsContent value='revenue' className='space-y-6 mt-6'>
-            {isFinancialLoading || isRevenueLoading ? (
-              financialLoader
-            ) : financialKPIs && financialEvolution && revenueData ? (
-              (() => {
-                const nfCount = revenueData.periodNFs.length;
-                const overdueAmount = revenueData.overdueReceipts.reduce((s, o) => s + o.value, 0);
-                const pendingOnTime = revenueData.periodReceivables.reduce((s, r) => s + r.value, 0);
-                const monthlyRevenues = financialMonths
-                  .filter((m) => m.isPast)
-                  .map((m) => ({ label: m.label, revenue: m.revenueReal }));
-
-                return (
-                  <>
-                    {/* KPIs */}
-                    <RevenueKPIs
-                      faturado={financialKPIs.faturado}
-                      revenueActual={financialKPIs.revenueActual}
-                      revenueProjected={financialKPIs.revenueProjected}
-                      nfCount={nfCount}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-[130px] justify-start text-left font-normal text-sm',
+                        !customEnd && 'text-muted-foreground',
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customEnd ? format(customEnd, 'dd/MM/yy') : 'Fim'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={customEnd}
+                      onSelect={(d) => d && setCustomRange(customStart ?? d, d)}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
                     />
-
-                    {/* Chart + Conversion Insight */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
-                      <div className='lg:col-span-3'>
-                        <RevenueComparisonChart
-                          data={financialMonths}
-                          year={financialEvolution.year}
-                        />
-                      </div>
-                      <div className='lg:col-span-1'>
-                        <RevenueConversionInsightCard
-                          revenueActual={financialKPIs.revenueActual}
-                          faturado={financialKPIs.faturado}
-                          revenueProjected={financialKPIs.revenueProjected}
-                          nfCount={nfCount}
-                          overdueAmount={overdueAmount}
-                          monthlyRevenues={monthlyRevenues}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Ranking + Mix */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
-                      <RevenueRankingChart
-                        byClient={revenueData.byClient}
-                        byManager={revenueData.byManager}
-                        byServiceLine={revenueData.byServiceLine}
-                      />
-                      <RevenueMixDonut
-                        byClient={revenueData.byClient}
-                        byManager={revenueData.byManager}
-                        byServiceLine={revenueData.byServiceLine}
-                      />
-                    </div>
-
-                    {/* Status + Executive Insights */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
-                      <ReceivablesStatusCard
-                        received={financialKPIs.revenueActual}
-                        pendingOnTime={pendingOnTime}
-                        overdue={overdueAmount}
-                      />
-                      <RevenueExecutiveInsights
-                        revenueActual={financialKPIs.revenueActual}
-                        faturado={financialKPIs.faturado}
-                        overdueAmount={overdueAmount}
-                        byClient={revenueData.byClient}
-                      />
-                    </div>
-
-                    {/* Pipeline table */}
-                    <RevenueInstallmentsTable
-                      periodNFs={revenueData.periodNFs}
-                      periodReceivables={revenueData.periodReceivables}
-                      overdueNFs={revenueData.overdueNFs}
-                      overdueReceipts={revenueData.overdueReceipts}
-                    />
-                  </>
-                );
-              })()
-            ) : null}
-          </TabsContent>
-
-          {/* ── Custos ───────────────────────────────────────────────────── */}
-          <TabsContent value='costs' className='space-y-6 mt-6'>
-            {isFinancialLoading || isProjectFinancialsLoading ? (
-              financialLoader
-            ) : financialKPIs && financialEvolution && projectFinancials ? (
-              (() => {
-                const plannedCosts = financialMonths
-                  .filter(m => m.isHighlighted)
-                  .reduce((s, m) => s + m.plannedTotalCosts, 0);
-                const monthlyCosts = financialMonths
-                  .filter(m => m.isPast)
-                  .map(m => ({ label: m.label, cost: m.totalCosts }));
-
-                return (
-                  <>
-                    {/* KPIs */}
-                    <CostKPIs
-                      totalCosts={financialKPIs.totalCosts}
-                      plannedCosts={plannedCosts}
-                      laborCost={financialKPIs.laborCost}
-                      supplierCost={financialKPIs.supplierCost}
-                      materialCost={financialKPIs.materialCost}
-                      commissionCost={financialKPIs.commissionCost}
-                      reimbursementCost={financialKPIs.reimbursementCost}
-                    />
-
-                    {/* Chart + Adherence Insight */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
-                      <div className='lg:col-span-3'>
-                        <CostBreakdownChart
-                          data={financialMonths}
-                          year={financialEvolution.year}
-                        />
-                      </div>
-                      <div className='lg:col-span-1'>
-                        <BudgetAdherenceInsightCard
-                          totalCosts={financialKPIs.totalCosts}
-                          plannedCosts={plannedCosts}
-                          laborCost={financialKPIs.laborCost}
-                          supplierCost={financialKPIs.supplierCost}
-                          monthlyCosts={monthlyCosts}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Ranking + Mix */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
-                      <CostRankingChart
-                        byProject={projectFinancials.byProject}
-                        byClient={projectFinancials.byClient}
-                        byManager={projectFinancials.byManager}
-                        byServiceLine={projectFinancials.byServiceLine}
-                      />
-                      <CostMixDonut
-                        laborCost={financialKPIs.laborCost}
-                        supplierCost={financialKPIs.supplierCost}
-                        materialCost={financialKPIs.materialCost}
-                        commissionCost={financialKPIs.commissionCost}
-                        reimbursementCost={financialKPIs.reimbursementCost}
-                      />
-                    </div>
-
-                    {/* Pressure + Executive Insights */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
-                      <CostPressureCard
-                        laborCost={financialKPIs.laborCost}
-                        supplierCost={financialKPIs.supplierCost}
-                        materialCost={financialKPIs.materialCost}
-                        commissionCost={financialKPIs.commissionCost}
-                        reimbursementCost={financialKPIs.reimbursementCost}
-                      />
-                      <CostExecutiveInsights
-                        totalCosts={financialKPIs.totalCosts}
-                        plannedCosts={plannedCosts}
-                        laborCost={financialKPIs.laborCost}
-                        monthlyCosts={monthlyCosts}
-                      />
-                    </div>
-
-                    {/* Detail table */}
-                    <CostDetailTable
-                      byProject={projectFinancials.byProject}
-                      byClient={projectFinancials.byClient}
-                      byManager={projectFinancials.byManager}
-                      byServiceLine={projectFinancials.byServiceLine}
-                      plannedCosts={plannedCosts}
-                    />
-                  </>
-                );
-              })()
-            ) : null}
-          </TabsContent>
-
-          {/* ── Margem Bruta ─────────────────────────────────────────────── */}
-          <TabsContent value='margin' className='space-y-6 mt-6'>
-            {isFinancialLoading || isProjectFinancialsLoading ? (
-              financialLoader
-            ) : financialKPIs && financialEvolution && projectFinancials ? (
-              (() => {
-                const projectRows = projectFinancials.byProject.map((p) => ({
-                  id: p.projectId,
-                  label: p.projectName,
-                  revenue: p.revenue,
-                  costs: p.costs,
-                  grossMargin: p.grossMargin,
-                }));
-                const projectsAboveTarget = projectRows.filter(
-                  (p) => p.grossMargin !== null && p.grossMargin >= (projectFinancials.grossMarginTarget ?? 30),
-                ).length;
-                const monthlyMargins = financialMonths
-                  .filter((m) => m.isPast)
-                  .map((m) => ({ label: m.label, margin: m.grossMarginPct ?? 0 }));
-
-                return (
-                  <>
-                    {/* KPIs */}
-                    <GrossMarginKPIs
-                      grossMargin={financialKPIs.grossMargin}
-                      grossMarginTarget={financialKPIs.grossMarginTarget}
-                      revenueActual={financialKPIs.revenueActual}
-                      totalCosts={financialKPIs.totalCosts}
-                      projectsAboveTarget={projectsAboveTarget}
-                      totalProjects={projectRows.length}
-                    />
-
-                    {/* Chart + Insight Card */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-4'>
-                      <div className='lg:col-span-3'>
-                        <FinancialEvolutionChart
-                          data={financialMonths}
-                          year={financialEvolution.year}
-                          title='Evolução Financeira + Margem'
-                          hideFaturado
-                        />
-                      </div>
-                      <div className='lg:col-span-1'>
-                        <GrossMarginInsightCard
-                          grossMargin={financialKPIs.grossMargin}
-                          grossMarginTarget={financialKPIs.grossMarginTarget}
-                          monthlyMargins={monthlyMargins}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Ranking + Donut */}
-                    <div className='grid gap-4 grid-cols-1 lg:grid-cols-2'>
-                      <MarginRankingChart
-                        byProject={projectRows}
-                        byClient={projectFinancials.byClient}
-                        byManager={projectFinancials.byManager}
-                        byServiceLine={projectFinancials.byServiceLine}
-                        grossMarginTarget={projectFinancials.grossMarginTarget}
-                      />
-                      <RevenueCompositionDonut
-                        byClient={projectFinancials.byClient}
-                        byManager={projectFinancials.byManager}
-                        byServiceLine={projectFinancials.byServiceLine}
-                      />
-                    </div>
-
-                    {/* Detail table */}
-                    <MarginDetailTable
-                      byProject={projectRows}
-                      byClient={projectFinancials.byClient}
-                      byManager={projectFinancials.byManager}
-                      byServiceLine={projectFinancials.byServiceLine}
-                      grossMarginTarget={projectFinancials.grossMarginTarget}
-                    />
-                  </>
-                );
-              })()
-            ) : null}
-          </TabsContent>
-
-          {/* ── Satisfação ───────────────────────────────────────────────── */}
-          <TabsContent value='satisfaction' className='space-y-6 mt-6'>
-            {isStakeholderLoading ? (
-              <div className='flex items-center justify-center h-40'>
-                <Loader2 className='h-6 w-6 animate-spin text-primary' />
+                  </PopoverContent>
+                </Popover>
               </div>
-            ) : stakeholderData ? (
-              <>
-                <StakeholderKPIs
-                  total={stakeholderData.totals.total}
-                  promoters={stakeholderData.totals.promoters}
-                  neutrals={stakeholderData.totals.neutrals}
-                  detractors={stakeholderData.totals.detractors}
-                />
-                <StakeholderDistributionChart
-                  data={stakeholderData.byProject}
-                />
-                <DetractorAlertTable
-                  data={stakeholderData.highInfluenceDetractors}
-                />
-              </>
-            ) : null}
-          </TabsContent>
-        </Tabs>
+            )}
+          </div>
+        </div>
+
+        {/* ── 5 KPIs ───────────────────────────────────────────────────── */}
+        <ProjectMetricsBar cards={carteiraKpiCards} />
+
+        {/* ── Loading ──────────────────────────────────────────────────── */}
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
+            {/* ── Receita × Custo + Custo por categoria ─────────────────── */}
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-4">
+              <div className="lg:col-span-3">
+                <ReceitaCustoMensalChart data={financialMonths} />
+              </div>
+              <div className="lg:col-span-1">
+                {financialKPIs ? (
+                  <CostMixDonut
+                    laborCost={financialKPIs.laborCost}
+                    supplierCost={financialKPIs.supplierCost}
+                    materialCost={financialKPIs.materialCost}
+                    commissionCost={financialKPIs.commissionCost}
+                    reimbursementCost={financialKPIs.reimbursementCost}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Ranking por margem ────────────────────────────────────── */}
+            {projectFinancials && (
+              <RankingPorMargem
+                byProject={projectFinancials.byProject}
+                grossMarginTarget={projectFinancials.grossMarginTarget}
+              />
+            )}
+
+            {/* ── Performance por linha de serviço ─────────────────────── */}
+            {projectFinancials && (
+              <PerformancePorLinhaServico
+                byServiceLine={projectFinancials.byServiceLine}
+                grossMarginTarget={projectFinancials.grossMarginTarget}
+              />
+            )}
+          </>
+        )}
       </div>
     </AppLayout>
   )

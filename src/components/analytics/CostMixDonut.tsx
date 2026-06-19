@@ -80,29 +80,21 @@ export function CostMixDonut({ laborCost, supplierCost, materialCost, commission
                     outerRadius="80%"
                     paddingAngle={2}
                     dataKey="value"
-                    labelLine={false}
-                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                      if (percent < 0.05) return null;
-                      const RADIAN = Math.PI / 180;
-                      const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
-                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                      return (
-                        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>
-                          {formatPercent(percent * 100)}
-                        </text>
-                      );
-                    }}
+                    label={false}
                   >
                     {items.map((entry, idx) => (
                       <Cell key={idx} fill={entry.fill} />
                     ))}
                   </Pie>
                   <ChartTooltip content={<DonutTooltip />} />
-                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="central" className="fill-foreground text-base font-bold">
-                    {formatCurrency(total)}
+                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={700} fill="currentColor">
+                    {total >= 1_000_000
+                      ? `R$${(total / 1_000_000).toFixed(1)}M`
+                      : total >= 1000
+                        ? `R$${Math.round(total / 1000)}k`
+                        : formatCurrency(total)}
                   </text>
-                  <text x="50%" y="54%" textAnchor="middle" dominantBaseline="central" className="fill-muted-foreground text-[11px]">
+                  <text x="50%" y="56%" textAnchor="middle" dominantBaseline="central" fontSize={11} fill="gray">
                     Custos
                   </text>
                 </PieChart>
