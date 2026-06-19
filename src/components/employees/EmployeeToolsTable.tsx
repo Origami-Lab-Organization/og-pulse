@@ -166,8 +166,8 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <Wrench className="h-5 w-5" />
-            Ferramentas e Assinaturas
+            
+             <CardTitle className="text-lg">Ferramentas e Assinaturas</CardTitle>
           </CardTitle>
           <CardDescription>
             Ferramentas pagas para {employeeName}

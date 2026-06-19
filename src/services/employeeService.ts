@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { EmployeeTool, CreateEmployeeToolInput, EmployeeBenefit, CreateEmployeeBenefitInput, ContractType, SystemRole } from '@/types/employee';
+import { EmployeeTool, CreateEmployeeToolInput, EmployeeBenefit, CreateEmployeeBenefitInput, ContractType, SystemRole, PixKeyType, BankAccountType } from '@/types/employee';
 import { employeeVersionService } from './employeeVersionService';
 import { CostBreakdown, calculateEmployeeCost } from '@/lib/employeeCostCalculator';
 import { PayrollProfile, DEFAULT_PAYROLL_PROFILE } from '@/types/payrollProfile';
@@ -40,6 +40,12 @@ export interface EmployeeDB {
   breakdown_json: Json | null;
   data_nascimento: string | null;
   foto_url: string | null;
+  pix_key_type: string | null;
+  pix_key: string | null;
+  bank_name: string | null;
+  bank_agency: string | null;
+  bank_account: string | null;
+  bank_account_type: string | null;
   tenant_id: string;
   auth_id: string | null;
   must_change_password: boolean;
@@ -82,6 +88,12 @@ export interface CreateEmployeeInput {
   breakdownJson?: CostBreakdown;
   dataNascimento?: string;
   fotoUrl?: string;
+  pixKeyType?: PixKeyType | null;
+  pixKey?: string | null;
+  bankName?: string | null;
+  bankAgency?: string | null;
+  bankAccount?: string | null;
+  bankAccountType?: BankAccountType | null;
 }
 
 export const employeeService = {
@@ -187,6 +199,12 @@ export const employeeService = {
     if (updates.breakdownJson !== undefined) dbUpdates.breakdown_json = updates.breakdownJson;
     if (updates.dataNascimento !== undefined) dbUpdates.data_nascimento = updates.dataNascimento;
     if (updates.fotoUrl !== undefined) dbUpdates.foto_url = updates.fotoUrl;
+    if (updates.pixKeyType !== undefined) dbUpdates.pix_key_type = updates.pixKeyType;
+    if (updates.pixKey !== undefined) dbUpdates.pix_key = updates.pixKey;
+    if (updates.bankName !== undefined) dbUpdates.bank_name = updates.bankName;
+    if (updates.bankAgency !== undefined) dbUpdates.bank_agency = updates.bankAgency;
+    if (updates.bankAccount !== undefined) dbUpdates.bank_account = updates.bankAccount;
+    if (updates.bankAccountType !== undefined) dbUpdates.bank_account_type = updates.bankAccountType;
 
     // Capture current cost before update so we can backfill the old version
     let oldTotalMonthlyCost: number | null = null;
