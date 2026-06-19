@@ -114,6 +114,7 @@ interface LeadDetailDialogProps {
   onAdvanceToClose?: () => void
   initialEditMode?: boolean
   highlightField?: 'service_line' | 'budget_id' | null
+  initialTab?: string
 }
 
 const STAGE_ORDER: CRMStage[] = [
@@ -152,6 +153,7 @@ export function LeadDetailDialog({
   onAdvanceToClose,
   initialEditMode,
   highlightField,
+  initialTab,
 }: LeadDetailDialogProps) {
   const navigate = useNavigate()
   const { employee } = useAuth()
@@ -247,7 +249,7 @@ export function LeadDetailDialog({
       })
       setCompanySearch(lead.company_name || '')
       setIsEditing(initialEditMode ?? false)
-      setActiveTab('qualificacao')
+      setActiveTab(initialTab ?? 'qualificacao')
       setFieldHighlight(null)
     }
   }, [open, lead])

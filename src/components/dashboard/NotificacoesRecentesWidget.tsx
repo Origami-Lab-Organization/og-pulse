@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import { parseISO } from 'date-fns';
 import { Bell, Clock, Receipt, FolderKanban, FileText, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInboxNotifications } from '@/hooks/useInboxNotifications';
@@ -20,12 +19,12 @@ function timeAgo(dateStr: string): string {
 }
 
 function CategoryIcon({ category }: { category: string }) {
-  const props = { className: 'h-3.5 w-3.5 shrink-0 text-muted-foreground' };
-  if (category === 'timesheet') return <Clock {...props} />;
-  if (category === 'reimbursement') return <Receipt {...props} />;
-  if (category === 'projeto') return <FolderKanban {...props} />;
-  if (category === 'budget') return <FileText {...props} />;
-  return <Bell {...props} />;
+  const cls = 'h-3.5 w-3.5 shrink-0';
+  if (category === 'timesheet') return <Clock className={cls} />;
+  if (category === 'reimbursement') return <Receipt className={cls} />;
+  if (category === 'projeto') return <FolderKanban className={cls} />;
+  if (category === 'budget') return <FileText className={cls} />;
+  return <Bell className={cls} />;
 }
 
 export function NotificacoesRecentesWidget() {
@@ -61,40 +60,42 @@ export function NotificacoesRecentesWidget() {
           <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
             <Bell className="h-4 w-4 text-muted-foreground" />
             Notificações
-          </CardTitle>
-          <div className="flex items-center gap-2">
             {notifications.length > 0 && (
-              <Badge className="text-xs bg-primary text-primary-foreground border-0">
-                {notifications.length}
-              </Badge>
+              <span className="text-xs font-medium tabular-nums text-muted-foreground ml-0.5">
+                ({notifications.length})
+              </span>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto p-0 text-xs text-muted-foreground gap-1 hover:text-foreground"
-              onClick={() => navigate('/inbox')}
-            >
-              Ver todas
-              <ArrowRight className="h-3 w-3" />
-            </Button>
-          </div>
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto p-0 text-xs text-muted-foreground gap-1 hover:text-foreground"
+            onClick={() => navigate('/inbox')}
+          >
+            Ver todas
+            <ArrowRight className="h-3 w-3" />
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-1">
         {recent.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Bell className="h-8 w-8 text-muted-foreground/40 mb-2" />
+          <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
+            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+              <Bell className="h-5 w-5 text-muted-foreground/60" />
+            </div>
             <p className="text-sm text-muted-foreground">Nenhuma notificação nova.</p>
           </div>
         ) : (
           recent.map((n: Notification) => (
             <div
               key={n.id}
-              className="flex items-start gap-2.5 p-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+              className="flex items-start gap-2.5 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer group"
               onClick={() => (n.action_url ? navigate(n.action_url) : navigate('/inbox'))}
             >
-              <CategoryIcon category={n.category} />
-              <div className="flex-1 min-w-0">
+              <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0 text-muted-foreground group-hover:bg-muted/80 transition-colors">
+                <CategoryIcon category={n.category} />
+              </div>
+              <div className="flex-1 min-w-0 pt-0.5">
                 <p className="text-xs font-medium leading-snug truncate">{n.title}</p>
                 {n.message && (
                   <p className="text-[11px] text-muted-foreground leading-snug truncate mt-0.5">
@@ -102,7 +103,7 @@ export function NotificacoesRecentesWidget() {
                   </p>
                 )}
               </div>
-              <span className="text-[10px] text-muted-foreground shrink-0 pt-0.5">
+              <span className="text-[10px] text-muted-foreground shrink-0 pt-0.5 tabular-nums">
                 {timeAgo(n.created_at)}
               </span>
             </div>

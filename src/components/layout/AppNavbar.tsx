@@ -22,6 +22,7 @@ import {
   Menu,
   ChevronDown,
   Target,
+  Home,
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -67,6 +68,7 @@ const navigationGroups: NavGroup[] = [
   {
     label: "Meu Espaço",
     items: [
+      { title: "Início", url: "/dashboard", icon: Home },
       { title: "Caixa de Entrada", url: "/inbox", icon: Inbox },
       { title: "Meu Kanban", url: "/my-kanban", icon: LucideSquareKanban },
       { title: "Meus Projetos", url: "/my-projects", icon: FolderKanban },
@@ -237,7 +239,7 @@ export function AppNavbar() {
     <header className="sticky top-0 z-50 flex h-14 items-center border-b bg-background px-4 gap-4">
       {/* Logo */}
       <button
-        onClick={() => navigate("/inbox")}
+        onClick={() => navigate("/dashboard")}
         className="flex items-center gap-2 shrink-0 mr-2 hover:opacity-80 transition-opacity"
       >
         <img src={logo} alt="Pulse" className="h-7 w-7" />
