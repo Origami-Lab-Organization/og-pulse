@@ -177,3 +177,7 @@
 
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/types/serviceRevenueModel.ts
+
+### 2026-06-19T19:08:50.416Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/employeeService.ts

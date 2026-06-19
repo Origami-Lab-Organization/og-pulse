@@ -14,10 +14,7 @@ import {
   CostBreakdown,
   calculateEmployeeCost,
 } from "@/lib/employeeCostCalculator";
-import {
-  PayrollProfile,
-  DEFAULT_PAYROLL_PROFILE,
-} from "@/types/payrollProfile";
+import { PayrollProfile } from "@/types/payrollProfile";
 import { Json } from "@/integrations/supabase/types";
 
 export interface EmployeeDB {
