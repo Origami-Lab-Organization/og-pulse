@@ -27,7 +27,7 @@ import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
 import ArchivedLeads from "./pages/ArchivedLeads";
 import Portfolio from "./pages/Portfolio";
-import Timesheets from "./pages/Timesheets";
+import AlocacaoPage from "./pages/AlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import Analytics from "./pages/Analytics";
 import Reimbursements from "./pages/Reimbursements";
@@ -140,7 +140,7 @@ const App = () => (
                 path="/alocacao"
                 element={
                   <RoleProtectedRoute requireManager>
-                    <Timesheets />
+                    <AlocacaoPage />
                   </RoleProtectedRoute>
                 } 
               />
