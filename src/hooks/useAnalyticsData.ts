@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import { countWorkingDays } from '@/lib/workingDays';
+import { fetchSuppliersWithActuals, fetchMaterials } from '@/services/projectCostsService';
 
 export interface AnalyticsFilters {
   startDate: Date;
@@ -143,15 +144,8 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .from('project_members')
           .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria, data_admissao, termination:employee_terminations(termination_date))')
           .in('project_id', projectIds),
-        supabase
-          .from('project_suppliers')
-          .select('id, project_id, actuals:project_supplier_actuals(month_number, value)')
-          .in('project_id', projectIds),
-        supabase
-          .from('project_materials')
-          .select('project_id, month_number, value, is_realized')
-          .in('project_id', projectIds)
-          .eq('is_realized', true),
+        fetchSuppliersWithActuals(projectIds),
+        fetchMaterials(projectIds, { realizedOnly: true }),
         supabase
           .from('financial_settings')
           .select('gross_margin_target_percent')
@@ -184,8 +178,8 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const faturado = faturadoInstallments.reduce((sum: number, i: any) => sum + Number(i.value), 0);
       const timesheets = timesheetsRes.data || [];
       const members = (membersRes.data || []) as any[];
-      const projectSuppliersWithActuals = (suppliersRes.data || []) as any[];
-      const materials = materialsRes.data || [];
+      const projectSuppliersWithActuals = suppliersRes as any[];
+      const materials = materialsRes;
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
       const holidays = holidaysRes.data || [];
       const commissions = commissionsRes.data || [];

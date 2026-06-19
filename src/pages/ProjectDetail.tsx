@@ -1,6 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Edit, Lock, Trash2, MoreVertical, Archive, Eye, EyeOff } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { Edit, Lock, Trash2, MoreVertical, Archive, Eye, EyeOff, Map } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,11 +18,9 @@ import { ProjectCostsTab } from "@/components/projects/detail/ProjectCostsTab";
 import { ProjectFinancialTab } from "@/components/projects/detail/ProjectFinancialTab";
 import { ProjectOKRsTab } from "@/components/projects/detail/ProjectOKRsTab";
 import { ProjectStakeholdersTab } from "@/components/projects/detail/ProjectStakeholdersTab";
-import { ProjectScheduleTab } from "@/components/projects/detail/ProjectScheduleTab";
 import { ProjectExpectedResultTab } from "@/components/projects/detail/ProjectExpectedResultTab";
-import { ProjectCommissionsTab } from "@/components/projects/detail/ProjectCommissionsTab";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
-import { ProjectValueBookUpload } from "@/components/projects/detail/ProjectValueBookUpload";
+import { EquipeTab } from "@/components/projects/detail/EquipeTab";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog";
 import { ProjectRemoveDialog } from "@/components/projects/ProjectRemoveDialog";
 import {
@@ -55,7 +52,6 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { employee, loading: authLoading } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
   const isManager = employee?.is_gerente ?? false;
@@ -155,7 +151,6 @@ export default function ProjectDetail() {
     project.members?.some((m) => m.employee_id === employee?.id) ?? false;
   const canViewActivities =
     isAdmin || isManager || isProjectManager || isMember;
-  const showValueBook = !isPlanning;
   const cancellation = project as typeof project & ProjectCancellationFields;
 
   const showMenu = canAccessFullProject && (canEdit || isAdmin);
@@ -266,19 +261,17 @@ export default function ProjectDetail() {
               {canAccessFullProject && (
                 <>
                   <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-                  <TabsTrigger value="okrs">OKR</TabsTrigger>
+                  <TabsTrigger value="planning">Planejamento</TabsTrigger>
+                  <TabsTrigger value="okrs">Objetivos</TabsTrigger>
+                  <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
+                  <TabsTrigger value="team">Equipe</TabsTrigger>
                   <TabsTrigger value="costs">Custos</TabsTrigger>
-                  <TabsTrigger value="commissions">Comissão</TabsTrigger>
-                  <TabsTrigger value="schedule">Cronograma</TabsTrigger>
-                  <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
                   <TabsTrigger value="financial">Financeiro</TabsTrigger>
+                  <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
                 </>
               )}
               {canViewActivities && (
                 <TabsTrigger value="activities">Atividades</TabsTrigger>
-              )}
-              {canAccessFullProject && showValueBook && (
-                <TabsTrigger value="valuebook">Value Book</TabsTrigger>
               )}
             </TabsList>
           </div>
@@ -286,15 +279,29 @@ export default function ProjectDetail() {
           {canAccessFullProject && (
             <>
               <TabsContent value="overview" className="mt-6">
-                {isPlanning ? (
-                  <ProjectPlanningOverviewTab project={project} />
-                ) : (
-                  <ProjectOverviewTab project={project} />
-                )}
+                <ProjectOverviewTab project={project} />
+              </TabsContent>
+
+              <TabsContent value="planning" className="mt-6">
+                <ProjectPlanningOverviewTab project={project} />
               </TabsContent>
 
               <TabsContent value="okrs" className="mt-6">
                 <ProjectOKRsTab project={project} isReadOnly={isReadOnly} />
+              </TabsContent>
+
+              <TabsContent value="roadmap" className="mt-6">
+                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+                  <Map className="h-8 w-8 text-muted-foreground" aria-hidden />
+                  <p className="text-sm font-medium text-foreground">Roadmap em breve</p>
+                  <p className="text-sm text-muted-foreground">
+                    Esta área ainda está em construção.
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="team" className="mt-6">
+                <EquipeTab project={project} isReadOnly={isReadOnly} />
               </TabsContent>
 
               <TabsContent value="costs" className="mt-6">
@@ -309,24 +316,6 @@ export default function ProjectDetail() {
                 />
               </TabsContent>
 
-              <TabsContent value="commissions" className="mt-6">
-                <ProjectCommissionsTab
-                  project={project}
-                  isReadOnly={isReadOnly}
-                />
-              </TabsContent>
-
-              <TabsContent value="schedule" className="mt-6">
-                <ProjectScheduleTab project={project} isReadOnly={isReadOnly} />
-              </TabsContent>
-
-              <TabsContent value="stakeholders" className="mt-6">
-                <ProjectStakeholdersTab
-                  project={project}
-                  isReadOnly={isReadOnly}
-                />
-              </TabsContent>
-
               <TabsContent value="financial" className="mt-6">
                 {isPlanning ? (
                   <ProjectExpectedResultTab project={project} />
@@ -338,25 +327,19 @@ export default function ProjectDetail() {
                   />
                 )}
               </TabsContent>
+
+              <TabsContent value="stakeholders" className="mt-6">
+                <ProjectStakeholdersTab
+                  project={project}
+                  isReadOnly={isReadOnly}
+                />
+              </TabsContent>
             </>
           )}
 
           {canViewActivities && (
             <TabsContent value="activities" className="mt-6">
               <ProjectActivitiesTab project={project} isReadOnly={isReadOnly} />
-            </TabsContent>
-          )}
-
-          {canAccessFullProject && showValueBook && (
-            <TabsContent value="valuebook" className="mt-6">
-              <ProjectValueBookUpload
-                projectId={project.id}
-                currentUrl={project.value_book_url || null}
-                isReadOnly={isReadOnly}
-                onUploadSuccess={() =>
-                  queryClient.invalidateQueries({ queryKey: ["project", id] })
-                }
-              />
             </TabsContent>
           )}
         </Tabs>

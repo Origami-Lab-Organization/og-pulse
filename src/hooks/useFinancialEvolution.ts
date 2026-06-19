@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AnalyticsFilters } from './useAnalyticsData';
+import { fetchSuppliersWithActualsAndPlanned, fetchMaterials } from '@/services/projectCostsService';
 
 export interface FinancialMonthlyPoint {
   monthIndex: number;
@@ -141,14 +142,8 @@ export function useFinancialEvolution(
           .from('project_members')
           .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_mensal), plannedMonths:project_member_months(month_number, hours, cost_per_hour)')
           .in('project_id', projectIds),
-        supabase
-          .from('project_suppliers')
-          .select('id, project_id, actuals:project_supplier_actuals(month_number, value), plannedMonths:project_supplier_months(month_number, value)')
-          .in('project_id', projectIds),
-        supabase
-          .from('project_materials')
-          .select('project_id, month_number, value, is_realized')
-          .in('project_id', projectIds),
+        fetchSuppliersWithActualsAndPlanned(projectIds),
+        fetchMaterials(projectIds),
         supabase
           .from('project_commissions')
           .select('planned_value, paid_date')
@@ -170,8 +165,8 @@ export function useFinancialEvolution(
       const faturado = faturadoRes.data || [];
       const timesheets = timesheetsRes.data || [];
       const members = (membersRes.data || []) as any[];
-      const projectSuppliersWithActuals = (suppliersRes.data || []) as any[];
-      const materials = materialsRes.data || [];
+      const projectSuppliersWithActuals = suppliersRes as any[];
+      const materials = materialsRes;
       const commissions = commissionsRes.data || [];
       const reimbursements = (reimbursementsRes.data || []) as any[];
 

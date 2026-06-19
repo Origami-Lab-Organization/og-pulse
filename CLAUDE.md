@@ -25,7 +25,10 @@ Leia quando relevante para a tarefa:
 
 ## Regras Inegociáveis
 - NUNCA viole .harness/boundaries.md
-- NUNCA gere lógica de negócio sem testes
 - Complexidade ≤ 7 por função (threshold SonarQube)
-- Cobertura ≥ 80% geral, ≥ 95% código crítico
 - SEMPRE pergunte antes de assumir em pedidos ambíguos
+
+## Execução de prompts — Testes DESATIVADOS (decisão atual)
+- Qualquer teste solicitado/exigido pelo Harness (pasta `.harness/`, ex.: `patterns/testing.md`, `qa-skill`, "testes obrigatórios", cobertura ≥ 80%/95%) deve ser **DESCONSIDERADO** neste momento.
+- NÃO escrever nem executar testes automatizados a menos que o usuário peça explicitamente — isso consome muitos tokens e não é necessário agora.
+- As demais regras (boundaries, tipos, complexidade, conformidade de DS/jornada) permanecem em vigor.

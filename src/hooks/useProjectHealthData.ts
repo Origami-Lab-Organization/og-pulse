@@ -3,6 +3,7 @@ import { addMonths, format, parseISO, startOfMonth } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AnalyticsFilters } from './useAnalyticsData';
+import { fetchSupplierRefs, fetchAllSupplierActuals, fetchMaterials } from '@/services/projectCostsService';
 import {
   calculateProjectHealth,
   type ProjectHealthScore,
@@ -178,20 +179,11 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
           .select('id, project_id, employee:employees(id, jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao)')
           .in('project_id', projectIds),
 
-        supabase
-          .from('project_suppliers')
-          .select('id, project_id')
-          .in('project_id', projectIds),
+        fetchSupplierRefs(projectIds),
 
-        supabase
-          .from('project_supplier_actuals')
-          .select('project_supplier_id, month_number, value'),
+        fetchAllSupplierActuals(),
 
-        supabase
-          .from('project_materials')
-          .select('project_id, month_number, value, is_realized')
-          .in('project_id', projectIds)
-          .eq('is_realized', true),
+        fetchMaterials(projectIds, { realizedOnly: true }),
 
         supabase
           .from('project_stakeholders')
@@ -222,9 +214,9 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
       const overdueInstalls  = overdueRes.data || [];
       const timesheets       = timesheetsRes.data || [];
       const members          = (membersRes.data || []) as any[];
-      const projectSuppliers = projectSuppliersRes.data || [];
-      const supplierActuals  = supplierActualsRes.data || [];
-      const materials        = materialsRes.data || [];
+      const projectSuppliers = projectSuppliersRes;
+      const supplierActuals  = supplierActualsRes;
+      const materials        = materialsRes;
       const stakeholders     = stakeholdersRes.data || [];
       const okrs             = (okrsRes.data || []) as any[];
       const marginTarget     = settingsRes.data?.gross_margin_target_percent ?? null;

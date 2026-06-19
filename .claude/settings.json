@@ -14,5 +14,19 @@
       "Bash(grep -l \"week\\\\|Week\" /Users/vrcouto/Projects/og-pulse/src/pages/*.tsx)",
       "Bash(grep -l \"project_timesheets\" /Users/vrcouto/Projects/og-pulse/supabase/migrations/*.sql)"
     ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "printf '%s\\n' '[CONFORMIDADE ORIGAMI — obrigatório a cada tarefa de UI/componente/rota/copy/jornada] Use os tokens do tema JÁ implementado (src/index.css/shadcn) — sem hex avulso e sem retokenizar. Siga os PRINCÍPIOS de jornadas/origami-ds.html (estados/foco/WCAG AA) e o COMPORTAMENTO documentado em jornadas/sobre-pulse.md. Nomenclatura: Oportunidade/Pipeline — nunca Lead/CRM/Funil. Ref: .harness/patterns/design-system.md | TESTES DESATIVADOS: desconsidere qualquer teste exigido pelo Harness (.harness) — nao escrever nem rodar testes salvo pedido explicito do usuario.'",
+            "statusMessage": "Conformidade Origami (DS + jornada)"
+          }
+        ]
+      }
+    ]
   }
 }
