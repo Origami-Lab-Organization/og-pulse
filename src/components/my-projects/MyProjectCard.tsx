@@ -2,7 +2,7 @@ import {
   Building2,
   Calendar,
   Clock,
-  User,
+  ListTodo,
   AlertTriangle,
   Flag,
   Hourglass,
@@ -274,12 +274,27 @@ export function MyProjectCard({
             {project.name}
           </h3>
 
-          {/* Cliente + função (metadados) */}
+          {/* Cliente + atividades atribuídas (metadados) */}
           <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="flex min-w-0 items-center gap-1.5">
               <Building2 className={cn("h-3.5 w-3.5 shrink-0", META_ICON)} />
               <span className="truncate">{clientName}</span>
             </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex shrink-0 cursor-default items-center gap-1.5">
+                  <ListTodo className={cn("h-3.5 w-3.5 shrink-0", META_ICON)} />
+                  {project.assignedActivitiesCount}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">
+                  {project.assignedActivitiesCount === 1
+                    ? "1 atividade atribuída a você (em aberto)"
+                    : `${project.assignedActivitiesCount} atividades atribuídas a você (em aberto)`}
+                </p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Métricas */}

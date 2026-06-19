@@ -22,6 +22,7 @@ export interface MyProjectSummary {
   totalHoursPlanned: number;
   totalHoursActual: number;
   nextMilestone: { title: string; date: string } | null;
+  assignedActivitiesCount: number;
 }
 
 export const useMyProjects = () => {
@@ -65,8 +66,13 @@ export const useMyProjects = () => {
 
       const allMemberIds = (allMembers || []).map((m: any) => m.id);
 
-      // 3. Buscar horas planejadas, executadas e marcos em paralelo
-      const [{ data: memberMonths }, { data: timesheets }, { data: milestones }] = await Promise.all([
+      // 3. Buscar horas planejadas, executadas, marcos e atividades em paralelo
+      const [
+        { data: memberMonths },
+        { data: timesheets },
+        { data: milestones },
+        { data: myCards },
+      ] = await Promise.all([
         supabase
           .from('project_member_months')
           .select('project_member_id, hours')
@@ -80,6 +86,14 @@ export const useMyProjects = () => {
           .select('project_id, title, end_date, status, completed_date')
           .in('project_id', projectIds)
           .order('end_date', { ascending: true }),
+        // Atividades em aberto atribuídas ao próprio consultor (exclui concluídas/arquivadas)
+        supabase
+          .from('project_activity_cards')
+          .select('project_id')
+          .in('project_id', projectIds)
+          .eq('assignee_id', employeeId)
+          .is('archived_at', null)
+          .neq('column_name', 'done'),
       ]);
 
       // Mapas de agregação por projeto
@@ -105,6 +119,14 @@ export const useMyProjects = () => {
         actualHoursByProject.set(
           ts.project_id,
           (actualHoursByProject.get(ts.project_id) || 0) + Number(ts.hours)
+        );
+      });
+
+      const myActivitiesByProject = new Map<string, number>();
+      (myCards || []).forEach((c: any) => {
+        myActivitiesByProject.set(
+          c.project_id,
+          (myActivitiesByProject.get(c.project_id) || 0) + 1
         );
       });
 
@@ -166,6 +188,7 @@ export const useMyProjects = () => {
           totalHoursPlanned: plannedHoursByProject.get(project.id) || 0,
           totalHoursActual: actualHoursByProject.get(project.id) || 0,
           nextMilestone: nextMilestoneByProject.get(project.id) ?? null,
+          assignedActivitiesCount: myActivitiesByProject.get(project.id) || 0,
         });
       });
 
