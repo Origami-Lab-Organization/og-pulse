@@ -20,6 +20,7 @@ import {
   UserSearch,
   Target,
   KanbanSquare,
+  Home,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,6 +55,7 @@ const navigationGroups = [
   {
     label: 'Meu Espaço',
     items: [
+      { title: 'Início', url: '/dashboard', icon: Home },
       { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Meu Kanban', url: '/my-kanban', icon: KanbanSquare },
