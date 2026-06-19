@@ -226,13 +226,7 @@ export default function Dashboard() {
         {/* ── Linha 3: cards maiores — Saúde Operacional + Aniversariantes ──── */}
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
           <OperationalHealthCard rows={healthRows} loading={isHealthLoading} />
-          <PipelineCard
-            activePipeline={commercial?.activePipeline ?? 0}
-            avgSalesCycleDays={commercial?.avgSalesCycleDays ?? null}
-            pipelineLeadsWithBudgetCount={commercial?.pipelineLeadsWithBudgetCount ?? 0}
-            pipelineByStage={commercial?.pipelineByStage ?? []}
-            loading={isCommercialLoading}
-          />
+          <HeadcountFlowCard data={turnover} loading={isTurnoverLoading} />
         </div>
 
         {/* ── Linha 4: cards maiores — Pipeline + Evolução da Folha ────────── */}
@@ -250,28 +244,18 @@ export default function Dashboard() {
         </div>
 
         {/* ── Linha 5: Fluxo de pessoal — admissões vs. desligamentos ──────── */}
-        <HeadcountFlowCard data={turnover} loading={isTurnoverLoading} />
-
-        {/* ── Blocos que dependem de módulos ainda incompletos — "em breve" ──── */}
         <div>
-          <h2 className="text-sm font-semibold text-muted-foreground mb-3">
-            Próximos blocos (dependem de módulos em desenvolvimento)
-          </h2>
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            <MetricCard
-              label="Alocação por mês"
-              icon={CalendarRange}
-              comingSoon
-              subtitle="Produção vs. administrativo (volume e R$)."
-            />
-            <MetricCard
-              label="Cálculo de provisão"
-              icon={PiggyBank}
-              comingSoon
-              subtitle="Aguardando definição da regra e histórico."
-            />
-          </div>
+          <PipelineCard
+            activePipeline={commercial?.activePipeline ?? 0}
+            avgSalesCycleDays={commercial?.avgSalesCycleDays ?? null}
+            pipelineLeadsWithBudgetCount={commercial?.pipelineLeadsWithBudgetCount ?? 0}
+            pipelineByStage={commercial?.pipelineByStage ?? []}
+            loading={isCommercialLoading}
+          />
         </div>
+
+  
+        
       </div>
     </AppLayout>
   );

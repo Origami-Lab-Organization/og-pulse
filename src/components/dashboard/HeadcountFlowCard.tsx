@@ -98,9 +98,10 @@ export function HeadcountFlowCard({ data, loading }: HeadcountFlowCardProps) {
       }
     >
       {!isEmpty && (
-        <div className="space-y-4">
-          {/* Gráfico mensal */}
-          <ResponsiveContainer width="100%" height={220}>
+        <div className="flex h-full flex-col space-y-4">
+          {/* Gráfico mensal — ocupa toda a altura disponível do card */}
+          <div className="min-h-[220px] flex-1">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={series} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
@@ -133,6 +134,7 @@ export function HeadcountFlowCard({ data, loading }: HeadcountFlowCardProps) {
               />
             </BarChart>
           </ResponsiveContainer>
+          </div>
 
           {/* Desligamentos por tipo */}
           {topTypes.length > 0 && (

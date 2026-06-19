@@ -8,9 +8,13 @@ import { Loader2 } from 'lucide-react';
  * Aguarda o carregamento do perfil para decidir com base no papel real.
  */
 const HomeRedirect = () => {
-  const { employee, loading } = useAuth();
+  const { user, employee, loading } = useAuth();
 
-  if (loading) {
+  // Aguarda loading E o perfil do employee quando há sessão ativa.
+  // Sem essa segunda guarda, loading=false (resolvido pelo getSession inicial)
+  // chega antes do fetchEmployeeData do onAuthStateChange, fazendo employee
+  // ser null e o admin ser redirecionado para /inbox erroneamente.
+  if (loading || (user && !employee)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

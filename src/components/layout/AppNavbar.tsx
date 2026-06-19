@@ -67,6 +67,7 @@ const navigationGroups: NavGroup[] = [
   {
     label: "Meu Espaço",
     items: [
+      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "Caixa de Entrada", url: "/inbox", icon: Inbox },
       { title: "Meu Kanban", url: "/my-kanban", icon: LucideSquareKanban },
       { title: "Meus Projetos", url: "/my-projects", icon: FolderKanban },
