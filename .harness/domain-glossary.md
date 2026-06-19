@@ -14,9 +14,11 @@
 - Reembolso: solicitacao financeira feita por colaborador, com aprovacao e comprovantes.
 - Ferias: 30 dias por aniversario completo de 12 meses desde a admissao (lump, acumulativo); apenas CLT e Menor Aprendiz; aprovacao por todos os gerentes dos projetos ativos do colaborador (qualquer recusa reprova); gerente -> admin; admin -> auto-aprovado. Ver ADR-0003.
 - Desligamento/Termination: processo de saida de colaborador.
+- Turnover/Rotatividade: indice de rotatividade de pessoal no periodo. Formula adotada (SHRM): ((Admissoes + Desligamentos) / 2) / Headcount medio x 100. Headcount medio = (ativos no inicio + ativos no fim) / 2, reconstruido pelas datas (data_admissao e termination_date), nao pelo status atual. Desligamentos cancelados sao ignorados. Sem headcount medio => taxa nula (nao exibir 0% como dado real). Implementacao: src/lib/turnoverCalculator.ts.
 - OKR: objetivo e resultado-chave de estrategia.
 - Iniciativa: acao estrategica ligada a objetivo.
 - Guardrail: limite ou indicador de controle estrategico.
+- Custo de folha (Dashboard): soma do salario base de cada colaborador com status 'ativo', independente do papel (admin/gerente/usuario) ou tipo de contratacao. Salario base por tipo: CLT/Menor Aprendiz = salario mensal; Estagio = bolsa-auxilio; PJ = valor do contrato; Socio = pro-labore + dividendos. Sem encargos/provisoes/beneficios/ferramentas. Implementacao: src/lib/payrollCalculator.ts (getBaseSalary).
 - Margem bruta: diferenca entre receita e custos diretos.
 - Receita reconhecida: valor considerado no periodo conforme regra financeira.
 - Parcela/Installment: item de faturamento/recebimento ligado a projeto ou budget.

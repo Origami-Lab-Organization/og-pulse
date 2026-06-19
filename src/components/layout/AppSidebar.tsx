@@ -53,8 +53,16 @@ interface NavItem {
 
 const navigationGroups = [
   {
+    label: 'Empresa',
+    requiresAdmin: true,
+    items: [
+      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, requiresAdmin: true },
+    ] as NavItem[],
+  },
+  {
     label: 'Meu Espaço',
     items: [
+      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
       { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
       { title: 'Meu Kanban', url: '/my-kanban', icon: KanbanSquare },

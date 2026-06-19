@@ -7,7 +7,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
+import HomeRedirect from "@/components/auth/HomeRedirect";
 import Index from "./pages/Index";
+import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -39,12 +41,15 @@ import Privacy from "./pages/Privacy";
 import TerminatedEmployees from "./pages/TerminatedEmployees";
 import Candidates from "./pages/Candidates";
 import Services from "./pages/Services";
+import ServiceLineDetail from "./pages/ServiceLineDetail";
 import Inbox from "./pages/Inbox";
 import JobOpenings from "./pages/JobOpenings";
 import JobApplicationVaga from "./pages/JobApplicationVaga";
 import Strategy from "./pages/Strategy";
 import MyKanban from "./pages/MyKanban";
 import BenefitsAndTools from "./pages/BenefitsAndTools";
+import EmployeeDetail from "./pages/EmployeeDetail";
+import EmployeeCreate from "./pages/EmployeeCreate";
 import MyVacation from "./pages/MyVacation";
 import VacationManagement from "./pages/VacationManagement";
 
@@ -77,8 +82,16 @@ const App = () => (
                   </ProtectedRoute>
                 } 
               />
-              {/* Root redirect */}
-              <Route path="/" element={<Navigate to="/inbox" replace />} />
+              {/* Root redirect — admin → /dashboard, demais → /inbox */}
+              <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
+              <Route
+                path="/dashboard"
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <Dashboard />
+                  </RoleProtectedRoute>
+                }
+              />
               <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
               {/* My Timesheet - all authenticated users */}
               <Route 
@@ -108,13 +121,29 @@ const App = () => (
                 }
               />
               {/* Management routes - Manager or Admin */}
-              <Route 
-                path="/employees" 
+              <Route
+                path="/employees"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Index />
                   </RoleProtectedRoute>
-                } 
+                }
+              />
+              <Route
+                path="/employees/new"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <EmployeeCreate />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/employees/:id"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <EmployeeDetail />
+                  </RoleProtectedRoute>
+                }
               />
               <Route 
                 path="/clients" 
@@ -201,6 +230,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <Services />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/comercial/servicos/:lineId"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <ServiceLineDetail />
                   </RoleProtectedRoute>
                 }
               />
