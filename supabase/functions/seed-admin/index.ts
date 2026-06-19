@@ -12,14 +12,31 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Gate behind a shared secret token so this bootstrap function isn't callable by anyone.
+    const token = req.headers.get('x-seed-token');
+    const expected = Deno.env.get('SEED_SECRET_TOKEN');
+    if (!expected || token !== expected) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const adminEmail = "adm@origamilab.com.br";
-    const adminPassword = "1310@Origami";
-    const tenantName = "Origami Lab";
+    const adminEmail = Deno.env.get('SEED_ADMIN_EMAIL');
+    const adminPassword = Deno.env.get('SEED_ADMIN_PASSWORD');
+    const tenantName = Deno.env.get('SEED_ADMIN_TENANT') ?? 'Origami Lab';
+
+    if (!adminEmail || !adminPassword) {
+      return new Response(JSON.stringify({ error: 'SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be configured as secrets.' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
 
     // Check if admin already exists
     const { data: existingEmployee } = await adminClient

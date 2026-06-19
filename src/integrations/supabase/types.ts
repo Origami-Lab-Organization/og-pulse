@@ -5137,6 +5137,31 @@ export type Database = {
         }[]
       }
       get_project_tenant_id: { Args: { _project_id: string }; Returns: string }
+      get_public_job_opening: {
+        Args: { p_vaga_id: string }
+        Returns: {
+          area: string
+          beneficios: string
+          diferenciais: string
+          id: string
+          localizacao: string
+          modalidade: string
+          nao_divulgar_salario: boolean
+          prazo_candidaturas: string
+          public_url: string
+          regime_contratacao: string
+          requisitos_obrigatorios: string
+          responsabilidades: string
+          salario_ate: number
+          salario_de: number
+          senioridade: string
+          sobre_a_vaga: string
+          sobre_empresa: string
+          status: string
+          tenant_id: string
+          titulo: string
+        }[]
+      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
