@@ -256,7 +256,7 @@ export default function Reimbursements() {
           </Card>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -267,7 +267,7 @@ export default function Reimbursements() {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filtrar por status" />
             </SelectTrigger>
             <SelectContent>
@@ -280,7 +280,29 @@ export default function Reimbursements() {
           </Select>
         </div>
 
-        <div className="overflow-x-auto rounded-md border">
+        <div className="space-y-3 md:hidden">
+          {isLoading ? <p className="py-8 text-center text-sm text-muted-foreground">Carregando...</p> : paginatedData.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Nenhum pedido encontrado</p> : paginatedData.map((r) => {
+            const cfg = statusConfig[r.status] || statusConfig.pending;
+            return (
+              <button key={r.id} type="button" onClick={() => setSelectedReimbursement(r)} className="w-full rounded-xl border bg-card p-4 text-left shadow-sm transition-colors active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 font-medium">{r.description}</p>
+                    {isManager && <p className="mt-1 truncate text-xs text-muted-foreground">{r.requester_name || 'Desconhecido'}</p>}
+                  </div>
+                  <Badge variant={cfg.variant} className={cfg.className}>{cfg.label}</Badge>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div><p className="text-xs text-muted-foreground">Data</p><p>{(r as any).earliest_expense_date ? format(new Date((r as any).earliest_expense_date + 'T12:00:00'), 'dd/MM/yyyy') : format(new Date(r.created_at), 'dd/MM/yyyy')}</p></div>
+                  <div className="text-right"><p className="text-xs text-muted-foreground">Valor</p><p className="font-semibold">{fmtCurrency(r.total_amount)}</p></div>
+                  <div className="col-span-2"><p className="text-xs text-muted-foreground">Origem</p><p className="truncate">{r.is_internal ? ((r as any).tenant_name || 'Empresa') : r.project_name || 'Projeto'}</p></div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="hidden overflow-x-auto rounded-md border md:block">
           <Table>
             <TableHeader>
               <TableRow>

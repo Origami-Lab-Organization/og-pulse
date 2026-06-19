@@ -17,6 +17,7 @@ import {
 import { Lock } from 'lucide-react';
 import { ReactNode } from 'react';
 import { toast } from 'sonner';
+import { usePwaEnvironment } from '@/hooks/use-pwa-environment';
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
 export interface SaveStatusInfo {
@@ -78,6 +79,7 @@ export function TimesheetWeekRow({
   onSaveStatusChange,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
+  const { isOnline } = usePwaEnvironment();
 
   // Valores editados pelo usuário, mantidos até o servidor confirmar o mesmo
   // valor. Evita o "flick" em que a célula reverte para a sugestão/valor antigo
@@ -232,6 +234,7 @@ export function TimesheetWeekRow({
   }, [saveDate]);
 
   const handleHoursChange = (date: string, value: string) => {
+    if (!isOnline) { toast.error('Sem conexão. Reconecte para salvar.'); return; }
     const raw = value === '' ? 0 : parseFloat(value);
     if (isNaN(raw) || raw < 0) return;
     let numValue = Math.round(raw * 10) / 10;
@@ -304,7 +307,7 @@ export function TimesheetWeekRow({
 
   return (
     <div className={cn(
-      "grid gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md",
+      "flex flex-col gap-2 rounded-xl border bg-muted/20 p-3 md:grid md:items-center md:border-0 md:bg-transparent md:py-2 md:px-3 md:hover:bg-muted/50",
       (statusSlot || actionSlot) ? "grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px]" : "grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px]"
     )}>
       <div className="flex items-center gap-2 min-w-0">
@@ -339,11 +342,11 @@ export function TimesheetWeekRow({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-destructive/10 rounded-md border border-destructive/20 cursor-not-allowed"
+                    className="min-h-12 flex items-center justify-between px-3 text-sm text-muted-foreground bg-destructive/10 rounded-md border border-destructive/20 cursor-not-allowed md:h-8 md:min-h-0 md:justify-center md:px-0"
                     aria-label={`Feriado: ${holiday.name}`}
                     tabIndex={-1}
                   >
-                    --
+                    <span className="capitalize md:hidden">{dayName} · {format(parseISO(day.date), 'dd/MM')}</span><span>--</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -361,12 +364,12 @@ export function TimesheetWeekRow({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-md border cursor-not-allowed"
+                    className="min-h-12 flex items-center justify-between px-3 text-sm text-muted-foreground bg-muted/30 rounded-md border cursor-not-allowed md:h-8 md:min-h-0 md:justify-center md:px-0"
                     aria-label={`${dayName}: dia futuro, lançamento não permitido`}
                     aria-disabled="true"
                     tabIndex={-1}
                   >
-                    —
+                    <span className="capitalize md:hidden">{dayName} · {format(parseISO(day.date), 'dd/MM')}</span><span>—</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -384,12 +387,12 @@ export function TimesheetWeekRow({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className="h-8 flex items-center justify-center text-sm bg-muted/50 rounded-md border cursor-not-allowed gap-1"
+                    className="min-h-12 flex items-center justify-between px-3 text-sm bg-muted/50 rounded-md border cursor-not-allowed gap-1 md:h-8 md:min-h-0 md:justify-center md:px-0"
                     aria-label={`Horas ${dayName}, projeto ${label}: ${hours[day.date] || 0}h — enviado, somente admin pode editar`}
                     aria-readonly="true"
                     tabIndex={-1}
                   >
-                    <span>{hours[day.date] || 0}</span>
+                    <span className="capitalize md:hidden">{dayName} · {format(parseISO(day.date), 'dd/MM')}</span><span>{hours[day.date] || 0}</span>
                     <Lock className="h-3 w-3 text-muted-foreground" />
                   </div>
                 </TooltipTrigger>
@@ -407,7 +410,8 @@ export function TimesheetWeekRow({
         const isSuggested = suggestedDates.has(day.date);
 
         // Mensagem opcional do tooltip. A estrutura (TooltipProvider > Tooltip >
-        // TooltipTrigger > Input) é SEMPRE a mesma — só o conteúdo é condicional —
+        // TooltipTrigger > conteúdo responsivo) é SEMPRE a mesma — só o conteúdo
+        // do tooltip é condicional —
         // para que o <input> nunca seja remontado ao alternar de sugestão para
         // edição, o que faria o campo perder o foco no meio da digitação.
         const tooltipMessage = isOverWorkday
@@ -416,34 +420,46 @@ export function TimesheetWeekRow({
             ? 'Sugestão a partir da sua alocação. Edite ou confirme para lançar.'
             : null;
 
+        const input = (
+          <Input
+            type="number"
+            min={0}
+            max={12}
+            step={0.1}
+            value={hours[day.date] || ''}
+            onChange={(e) => handleHoursChange(day.date, e.target.value)}
+            onBlur={() => handleBlur(day.date)}
+            aria-label={
+              isSuggested
+                ? `Sugestão de horas ${dayName}, projeto ${label}: ${hours[day.date]}h — edite ou confirme para lançar`
+                : `Horas ${dayName}, projeto ${label}`
+            }
+            disabled={!isOnline}
+            inputMode="decimal"
+            className={cn(
+              "h-11 text-center text-base px-2 md:h-8 md:text-sm md:px-1",
+              isToday && "bg-primary/5 ring-1 ring-primary/20",
+              pendingSaves.has(day.date) && "border-primary",
+              isSuggested &&
+                "border-dashed border-primary/40 text-muted-foreground italic",
+              isOverWorkday && "border-amber-500 focus-visible:ring-amber-500"
+            )}
+            placeholder="0"
+          />
+        );
+
+        const responsiveInput = (
+          <div className="flex min-h-14 items-center justify-between gap-3 rounded-lg border bg-background p-2 md:block md:min-h-0 md:border-0 md:bg-transparent md:p-0">
+            <span className="text-sm capitalize md:hidden">{dayName}<small className="ml-1 text-muted-foreground">{format(parseISO(day.date), 'dd/MM')}</small></span>
+            <div className="w-28 md:w-auto">{input}</div>
+          </div>
+        );
+
         return (
           <TooltipProvider key={day.date}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Input
-                  type="number"
-                  min={0}
-                  max={12}
-                  step={0.1}
-                  value={hours[day.date] || ''}
-                  onChange={(e) => handleHoursChange(day.date, e.target.value)}
-                  onBlur={() => handleBlur(day.date)}
-                  aria-label={
-                    isSuggested
-                      ? `Sugestão de horas ${dayName}, projeto ${label}: ${hours[day.date]}h — edite ou confirme para lançar`
-                      : `Horas ${dayName}, projeto ${label}`
-                  }
-                  className={cn(
-                    "h-8 text-center text-sm px-1",
-                    isToday && "bg-primary/5 ring-1 ring-primary/20",
-                    pendingSaves.has(day.date) && "border-primary",
-                    // CA-04: estado de sugestão — valor mais claro + borda tracejada
-                    isSuggested &&
-                      "border-dashed border-primary/40 text-muted-foreground italic",
-                    isOverWorkday && "border-amber-500 focus-visible:ring-amber-500"
-                  )}
-                  placeholder="0"
-                />
+                {responsiveInput}
               </TooltipTrigger>
               {tooltipMessage && (
                 <TooltipContent>
@@ -455,8 +471,8 @@ export function TimesheetWeekRow({
         );
       })}
       
-      <div className="text-right font-medium text-sm pr-2">
-        {totalHours.toFixed(1)}h
+      <div className="flex items-center justify-between border-t pt-3 text-sm font-medium md:block md:border-0 md:pt-0 md:pr-2 md:text-right">
+        <span className="md:hidden">Total da semana</span><span>{totalHours.toFixed(1)}h</span>
       </div>
       {(statusSlot || actionSlot) && (
         <div className="flex items-center justify-center gap-1">

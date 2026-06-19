@@ -29,6 +29,9 @@ import {
 import { PersonalKanbanColumn } from './PersonalKanbanColumn';
 import { PersonalCardDetailDialog } from './PersonalCardDetailDialog';
 import { ProjectCardDetailDialog } from './ProjectCardDetailDialog';
+import { usePwaEnvironment } from '@/hooks/use-pwa-environment';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export function PersonalKanbanBoard() {
   const { data: columnsData, isLoading: colLoading } = usePersonalKanbanColumns();
@@ -37,6 +40,8 @@ export function PersonalKanbanBoard() {
   const updateCard = useUpdatePersonalCard();
   const batchUpdateCards = useBatchUpdateCardPositions();
   const deleteCard = useDeletePersonalCard();
+  const { isMobile, isOnline } = usePwaEnvironment();
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
 
   const columns = useMemo(() => columnsData ?? [], [columnsData]);
   const cards = useMemo(() => cardsData ?? [], [cardsData]);
@@ -51,6 +56,7 @@ export function PersonalKanbanBoard() {
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
 
   useEffect(() => { setLocalColumns(columns); }, [columns]);
+  useEffect(() => { if (!activeColumnId && columns[0]) setActiveColumnId(columns[0].id); }, [activeColumnId, columns]);
   useEffect(() => { setLocalCards(cards); }, [cards]);
 
   const sensors = useSensors(
@@ -137,7 +143,20 @@ export function PersonalKanbanBoard() {
   };
 
   const handleCardDelete = (cardId: string) => {
+    if (!isOnline) { toast.error('Sem conexão. Reconecte para salvar.'); return; }
     deleteCard.mutate(cardId);
+  };
+
+  const handleMobileMove = (cardId: string, columnId: string) => {
+    if (!isOnline) { toast.error('Sem conexão. Reconecte para salvar.'); return; }
+    const card = localCards.find((item) => item.id === cardId);
+    if (!card || card.column_id === columnId) return;
+    const previous = localCards;
+    const position = (byColumn[columnId] ?? []).length;
+    setLocalCards((items) => items.map((item) => item.id === cardId ? { ...item, column_id: columnId, position } : item));
+    updateCard.mutate({ id: cardId, updates: { column_id: columnId, position } }, {
+      onError: () => { setLocalCards(previous); toast.error('Não foi possível mover o card.'); },
+    });
   };
 
   const boardHeight = 'h-[calc(100dvh-220px)]';
@@ -156,16 +175,19 @@ export function PersonalKanbanBoard() {
   return (
     <>
       <DndContext
-        sensors={sensors}
+        sensors={isMobile ? [] : sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
+        {isMobile && <div className="mb-3 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Colunas do Kanban">
+          {localColumns.map((column) => <Button key={column.id} role="tab" aria-selected={activeColumnId === column.id} variant={activeColumnId === column.id ? 'default' : 'outline'} size="sm" className="min-h-10 shrink-0" onClick={() => { setActiveColumnId(column.id); document.getElementById(`kanban-column-${column.id}`)?.scrollIntoView({ behavior: 'smooth', inline: 'center' }); }}>{column.name}</Button>)}
+        </div>}
         <ScrollArea className={`w-full ${boardHeight}`}>
-          <div className={`flex gap-4 pb-4 min-w-max ${boardHeight}`}>
+          <div className={`flex gap-4 pb-4 ${isMobile ? 'snap-x snap-mandatory overflow-x-auto' : 'min-w-max'} ${boardHeight}`}>
             {localColumns.map((col) => (
+              <div key={col.id} id={`kanban-column-${col.id}`} className={isMobile ? 'snap-center' : ''} onPointerEnter={() => isMobile && setActiveColumnId(col.id)}>
               <PersonalKanbanColumn
-                key={col.id}
                 column={col}
                 cards={byColumn[col.id] ?? []}
                 projectCards={byColumnProjectCards[col.id] ?? []}
@@ -175,10 +197,15 @@ export function PersonalKanbanBoard() {
                   setSelectedProjectCard(card);
                   setProjectDialogOpen(true);
                 }}
+                mobile={isMobile}
+                moveTargets={localColumns.map(({ id, name }) => ({ id, name }))}
+                onMoveCard={handleMobileMove}
+                moveDisabled={!isOnline}
               />
+              </div>
             ))}
           </div>
-          <ScrollBar orientation="horizontal" />
+          {!isMobile && <ScrollBar orientation="horizontal" />}
         </ScrollArea>
 
         <DragOverlay>

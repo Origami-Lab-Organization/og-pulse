@@ -1,6 +1,6 @@
 # FUNC-J12 — PWA do Pulse
 
-> Jornada: Funcionário J12 · Estado auditado: ❌ NÃO EXISTE (0%)
+> Jornada: Funcionário J12 · Escopo aprovado: mobile, somente Timesheet, Meu Kanban e Reembolsos
 > Dependências externas: nenhuma bloqueante. Os layouts mobile por funcionalidade dependem das páginas existirem (Ponto J11, Documentos J9, Perfil J10) — coordenar para não bloquear. Adicionar `vite-plugin-pwa` é dependência nova → registrar ADR.
 
 ## Estado Atual (auditado)
@@ -14,11 +14,21 @@
 - Sem ícones (`icon-192`, `icon-512`, `apple-touch-icon`); `vite.config.ts` minimalista.
 - Sem `InstallPWABanner`; sem detecção `display-mode: standalone`; sem service worker/Workbox; sem estratégia offline.
 
+## Escopo aprovado para implementação
+
+- PWA exclusiva para smartphones (`< 768px`) e disponível a toda pessoa autenticada.
+- Em standalone, somente `/my-timesheet`, `/my-kanban` e `/reimbursements` ficam disponíveis; rotas técnicas de autenticação continuam acessíveis.
+- Timesheet semanal com um projeto por vez e cinco dias em cards.
+- Meu Kanban com uma coluna por vez, swipe horizontal e ação explícita para mover apenas cards pessoais.
+- Reembolsos com câmera traseira direta e upload alternativo de imagem/PDF.
+- Leitura offline por até 24 horas; escritas exigem conexão e não possuem fila de sincronização.
+- Layouts mobile aplicados também no navegador abaixo de 768px; desktop preservado.
+
 ## História de Usuário
 
-**Como** Consultor que precisa bater ponto, lançar horas e ver notificações fora do computador,
+**Como** pessoa autenticada que lança horas, organiza tarefas e solicita reembolsos,
 **quero** instalar o Pulse como app no celular,
-**para que** eu use o Meu Espaço completo sem depender do notebook.
+**para que** eu execute essas rotinas sem depender do notebook.
 
 ## Contexto
 
@@ -71,6 +81,8 @@ J12 é transversal: afeta todas as páginas do Meu Espaço. É construção do z
 - Push notifications nativas (apenas Realtime/Inbox no app).
 - Fila de sincronização offline (ações de escrita exigem conexão, inclusive ponto).
 - Publicação nas lojas (App Store / Play Store) — PWA instalável pelo navegador.
+- Ponto, Caixa de Entrada, Meus Projetos, Documentos, Perfil e módulos de GP/Admin no modo standalone.
+- Movimentação de cards vindos de projetos no Meu Kanban.
 
 ## Notas Técnicas
 

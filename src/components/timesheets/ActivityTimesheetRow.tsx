@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { Briefcase, Check, Loader2, Circle, AlertCircle } from 'lucide-react';
 import type { SaveStatus, SaveStatusInfo } from './TimesheetWeekRow';
+import { usePwaEnvironment } from '@/hooks/use-pwa-environment';
 
 interface ActivityTimesheetRowProps {
   activityTypeId: string;
@@ -46,6 +47,7 @@ export function ActivityTimesheetRow({
   onSaveStatusChange,
 }: ActivityTimesheetRowProps) {
   const upsert = useUpsertActivityTimesheet();
+  const { isOnline } = usePwaEnvironment();
   const hasExistingEntries = weekDays.some(day =>
     existingEntries.some(e => e.activity_type_id === activityTypeId && e.work_date === day.date && e.hours > 0)
   );
@@ -170,7 +172,7 @@ export function ActivityTimesheetRow({
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md">
+    <div className="grid min-w-[520px] grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md md:min-w-0">
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
           <Briefcase className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -231,6 +233,7 @@ export function ActivityTimesheetRow({
           <Input
             key={day.date}
             type="number"
+            disabled={!isOnline}
             min={0}
             max={12}
             step={0.1}

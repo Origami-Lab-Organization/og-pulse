@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { clearPrivatePwaCaches } from '@/lib/pwa';
 
 interface EmployeeData {
   id: string;
@@ -12,6 +13,23 @@ interface EmployeeData {
   must_change_password: boolean;
   isAdmin: boolean;
   jornada_diaria: number;
+}
+
+const PWA_EMPLOYEE_SNAPSHOT = 'pulse-pwa-employee-snapshot';
+const SNAPSHOT_TTL = 24 * 60 * 60 * 1000;
+
+function readEmployeeSnapshot(userId: string): EmployeeData | null {
+  try {
+    const snapshot = JSON.parse(localStorage.getItem(PWA_EMPLOYEE_SNAPSHOT) || 'null') as { userId: string; savedAt: number; employee: EmployeeData } | null;
+    if (!snapshot || snapshot.userId !== userId || Date.now() - snapshot.savedAt >= SNAPSHOT_TTL) return null;
+    return snapshot.employee;
+  } catch {
+    return null;
+  }
+}
+
+function saveEmployeeSnapshot(userId: string, employee: EmployeeData) {
+  localStorage.setItem(PWA_EMPLOYEE_SNAPSHOT, JSON.stringify({ userId, savedAt: Date.now(), employee }));
 }
 
 interface AuthContextType {
@@ -45,6 +63,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   const fetchEmployeeData = async (userId: string, opts?: { signOutIfInactive?: boolean }) => {
+    if (!navigator.onLine) return readEmployeeSnapshot(userId);
     // Check if user is in blocked_users table (set by trigger on status change)
     const { data: blocked } = await supabase
       .from('blocked_users')
@@ -95,11 +114,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const isAdmin = roleSet.has('admin');
     const isManager = roleSet.has('manager') || isAdmin;
 
-    return {
+    const employeeData = {
       ...empData,
       is_gerente: isManager, // backward compat — will be removed once all refs migrated
       isAdmin,
     } as EmployeeData;
+    saveEmployeeSnapshot(userId, employeeData);
+    return employeeData;
   };
 
   useEffect(() => {
@@ -204,6 +225,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signOut = async () => {
+    await clearPrivatePwaCaches();
+    localStorage.removeItem(PWA_EMPLOYEE_SNAPSHOT);
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
