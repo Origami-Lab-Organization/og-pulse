@@ -82,6 +82,7 @@ import {
 	type ProjectType,
 } from "@/types/project";
 import type { Service } from "@/types/service";
+import { ProjectContractUpload } from "@/components/projects/ProjectContractUpload";
 
 const PROJECT_TYPE_ICONS: Record<ProjectType, LucideIcon> = {
 	fixed_scope: Target,
@@ -1258,13 +1259,29 @@ export function CloseBusinessDialog({
 							</div>
 						</div>
 					</div>
-					<p className="text-sm text-muted-foreground">
-						Contrato fechado com sucesso. O anexo de contrato pode ser
-						conectado como próximo passo deste fluxo.
-					</p>
-					<Button className="w-full" onClick={() => onOpenChange(false)}>
-						Continuar
-					</Button>
+					<div className="rounded-lg border p-4 text-left">
+						<p className="font-medium">Deseja anexar o contrato agora?</p>
+						<p className="mb-4 mt-1 text-sm text-muted-foreground">
+							PDF de até 10MB. Você também poderá anexá-lo depois na aba
+							Arquivos do projeto.
+						</p>
+						{celebration?.projectId ? (
+							<ProjectContractUpload
+								compact
+								projectId={celebration.projectId}
+								onSkip={() => onOpenChange(false)}
+								onUploadSuccess={() => onOpenChange(false)}
+							/>
+						) : (
+							<Button
+								variant="outline"
+								className="w-full"
+								onClick={() => onOpenChange(false)}
+							>
+								Continuar
+							</Button>
+						)}
+					</div>
 				</div>
 			</DialogContent>
 		</Dialog>

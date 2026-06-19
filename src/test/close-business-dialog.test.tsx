@@ -28,6 +28,12 @@ vi.mock('@/hooks/useClients', () => ({
   useClients: () => ({ data: [] }),
 }));
 
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    employee: { id: 'manager-1', tenant_id: 'tenant-1' },
+  }),
+}));
+
 function makeLead(): LeadWithBudget {
   return {
     id: 'lead-1',
@@ -99,7 +105,9 @@ describe('CloseBusinessDialog', () => {
     expect(screen.getByRole('heading', { name: /cliente alpha fechado/i })).toBeInTheDocument();
     expect(screen.getByText('Resumo do fechamento')).toBeInTheDocument();
     expect(screen.getByText('R$ 1.000,00')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /continuar/i })).toBeInTheDocument();
+    expect(screen.getByText(/deseja anexar o contrato agora/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /fazer upload/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pular por enquanto/i })).toBeInTheDocument();
   });
 
   it('nao mostra parcelas em sem receita', () => {
