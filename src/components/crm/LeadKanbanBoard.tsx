@@ -189,39 +189,34 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     setCloseDialogOpen(true);
   };
 
-  const handleCloseBusinessConfirm = (formData: import('@/components/crm/CloseBusinessDialog').CloseBusinessFormValues) => {
+  const handleCloseBusinessConfirm = async (formData: import('@/components/crm/CloseBusinessDialog').CloseBusinessFormValues) => {
     if (!leadToClose) return;
 
     const budget = budgetForClose || null;
 
-    closeBusinessDeal.mutate(
-      {
-        leadId: leadToClose.id,
-        budget,
-        projectType: formData.projectType,
-        managerId: formData.managerId,
-        paymentMethod: formData.paymentMethod,
-        installmentsCount: formData.installmentsCount,
-        dueDay: formData.dueDay,
-        firstInvoiceDate: formData.firstInvoiceDate,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        renewalDate: formData.renewalDate,
-        successFeePercent: formData.successFeePercent,
-        serviceLine: leadToClose.service_line || undefined,
-        projectName: formData.projectName || leadToClose.name,
-        clientId: formData.clientId || leadToClose.client_id || '',
-        totalValue: formData.totalValue || leadToClose.estimated_value || 0,
-        monthlyValue: formData.monthlyValue,
-      },
-      {
-        onSuccess: () => {
-          updateStage.mutate({ id: leadToClose.id, stage: 'closed', fromStage: leadToClose.crm_stage });
-          setCloseDialogOpen(false);
-          setLeadToClose(null);
-        },
-      }
-    );
+    const project = await closeBusinessDeal.mutateAsync({
+      leadId: leadToClose.id,
+      budget,
+      projectType: formData.projectType,
+      managerId: formData.managerId,
+      paymentMethod: formData.paymentMethod,
+      installmentsCount: formData.installmentsCount,
+      dueDay: formData.dueDay,
+      firstInvoiceDate: formData.firstInvoiceDate,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      renewalDate: formData.renewalDate,
+      successFeePercent: formData.successFeePercent,
+      serviceLine: leadToClose.service_line || undefined,
+      projectName: formData.projectName || leadToClose.name,
+      clientId: formData.clientId || leadToClose.client_id || '',
+      totalValue: formData.totalValue || leadToClose.estimated_value || 0,
+      monthlyValue: formData.monthlyValue,
+      customInstallments: formData.projectType === 'fixed_scope' ? formData.installments : undefined,
+    });
+
+    updateStage.mutate({ id: leadToClose.id, stage: 'closed', fromStage: leadToClose.crm_stage });
+    return project;
   };
 
   return (
