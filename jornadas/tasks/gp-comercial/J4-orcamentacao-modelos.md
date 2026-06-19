@@ -1,86 +1,56 @@
-# GP-J4 — Orçamentação por Modelo de Receita (Indicação, Equity, Combinações + Margem)
+# GP-J4 — Orçamentação por Modelo de Receita (Guarda-chuva)
+
 > Jornada: GP Comercial J4 · Estado auditado: 🟡 PARCIAL (~55%)
-> Dependências externas: validação de **margem mínima** depende de **Admin J4 (Tsuru)** — migration do Catálogo de Serviços (`service_lines`, `service_revenue_models`, `minimum_margin`). Os modelos de receita em si (Indicação, Equity, Combinações) **NÃO** dependem.
+> Esta task foi **quebrada em 6 documentos** (um por modelo de receita). Este arquivo é o **índice/guarda-chuva**: mantém o que é **transversal** (validação de margem) e a **base multi-modelo** compartilhada.
+> Escopo: **6 modelos** (Equity e Indicação **fora**, por decisão do time).
 
-## Estado Atual (auditado)
+## Os 6 modelos (1 doc cada)
 
-**✅ Já desenvolvido:**
-- 4 modelos de alta prioridade funcionando end-to-end: `BillingType = 'fixed_scope' | 'recurring' | 'success_fee' | 'no_revenue'` (`src/types/service.ts`)
-- Wizard de orçamentação adaptado por tipo (`BudgetForm.tsx:54-74`), detalhe (`BudgetDetail.tsx`)
-- Medidor de margem `MarginGauge.tsx` existente (cálculo de margem bruta % na UI)
+| # | Modelo | Estado | Complexidade | Doc |
+|---|--------|--------|--------------|-----|
+| J4.1 | Escopo Fixo | ✅ existe | Baixa | [J4.1](J4.1-escopo-fixo.md) |
+| J4.2 | Recorrente | ✅ existe | Baixa | [J4.2](J4.2-recorrente.md) |
+| J4.3 | Taxa de Sucesso | ✅ existe | Baixa–Média | [J4.3](J4.3-taxa-de-sucesso.md) |
+| J4.4 | Escopo Fixo + Taxa de Sucesso | ❌ novo | **Alta** (introduz a base multi-modelo) | [J4.4](J4.4-escopo-fixo-taxa-sucesso.md) |
+| J4.5 | Escopo Fixo + Recorrência | ❌ novo | Média (reusa base) | [J4.5](J4.5-escopo-fixo-recorrencia.md) |
+| J4.6 | Recorrência + Taxa de Sucesso | ❌ novo | Média (reusa base) | [J4.6](J4.6-recorrencia-taxa-sucesso.md) |
 
-**❌ Pendente:**
-- Modelos de média prioridade: **Indicação**, **Equity**, **Combinações** (multi-modelo na mesma oportunidade)
-- Integração do `MarginGauge` com `minimum_margin` do admin (verde/vermelho contra o limite real) — **depende de Admin J4 (Tsuru)**
-- Fluxo de aprovação quando a margem fica abaixo do mínimo
+> Os 3 modelos base já funcionam end-to-end (`BillingType = 'fixed_scope' | 'recurring' | 'success_fee'`). Os 3 combinados **não existem** e exigem uma **base multi-modelo** (lista de componentes + helper único de soma), introduzida em **J4.4** e reutilizada por J4.5/J4.6.
 
-## História de Usuário
+## Dependências entre as tasks
+- **J4.4 é pré-requisito** de J4.5 e J4.6 (entrega a base multi-modelo).
+- J4.1/J4.2/J4.3 são independentes entre si (modelos já implementados; foco em expor no seletor + refinos).
+- Seletor novo "**Modelo de Receita**" (dropdown "Tipo de modelo") deve listar os 6.
 
-**Como** GP Comercial montando uma proposta,
-**quero** orçar qualquer modelo de receita (inclusive Indicação, Equity e combinações) com a margem validada em tempo real contra o limite do admin,
-**para que** eu feche em menos de 10 minutos com confiança de que a margem está protegida, sem pedir aprovação para o que já está dentro do esperado.
+## Sugestão de divisão para 2 devs (peso equilibrado)
+- **Dev A** (dono da base): **J4.4** (Alta) + **J4.1** + **J4.3** — constrói a base multi-modelo primeiro, que destrava as combinações.
+- **Dev B**: **J4.2** (independente, começa já) + **J4.5** + **J4.6** — pega as duas combinações assim que a base de J4.4 estiver pronta.
+- Peso ~equivalente: A = Alta + Baixa + Baixa-Média; B = Baixa + Média + Média.
 
-## Contexto
+## Transversal — Validação de margem (Parte B) — depende de Admin J4 (Tsuru)
 
-Jornada J4. O wizard cobre os 4 modelos base; faltam os 3 de média prioridade e o vínculo da margem com o catálogo do admin. Os novos modelos são extensões de `BillingType` e do `BudgetForm` — não dependem do catálogo. Já a **validação de margem mínima** lê `minimum_margin` que vem da migration do Admin J4; enquanto a migration não existir, a parte de modelos avança e a de margem fica atrás de feature flag / fallback "sem limite definido". Respeitar `tenant_id`/RLS em qualquer leitura ou gravação de orçamento.
+Aplica-se a **todos** os modelos; não é por modelo. Depende da migration do Catálogo de Serviços (`service_lines`, `service_revenue_models`, `minimum_margin`).
 
-## Critérios de Aceite
+**CA-M1 — Margem contra o mínimo do admin**
+- `MarginGauge.tsx` compara a margem bruta calculada com `minimum_margin` (do catálogo do admin)
+- Verde quando ≥ mínimo, vermelho quando < mínimo; painel mostra receita bruta, custos de labor (encargos do admin), outros custos e margem %
 
-### Parte A — Pendente (desenvolver primeiro)
+**CA-M2 — Fluxo de aprovação abaixo do mínimo**
+- Ao salvar com margem < mínimo: GP escolhe (1) ajustar valor ou (2) enviar para aprovação do admin; **não finaliza** abaixo do mínimo sem aprovação
 
-**CA-01 — Modelo Indicação**
-- Novo valor de `BillingType` `'referral'` (ou equivalente) com campos: % de comissão sobre a indicação e critério de pagamento (quando o indicado fechar / após X meses)
-- Wizard `BudgetForm.tsx` renderiza a seção de campos própria do modelo; `BudgetDetail.tsx` exibe o resumo
+**CA-M3 — Fallback sem mínimo definido**
+- `minimum_margin` ausente/zerado: gauge funciona como hoje (sem bloqueio), sinalizando "limite não definido"
 
-**CA-02 — Modelo Equity**
-- Novo `BillingType` `'equity'` com campos: % de participação societária, cronograma de vesting, cláusulas especiais (texto livre)
-- Modelo **sem cronograma de parcelas**: a seção financeira adapta sem tabela de parcelas
-
-**CA-03 — Combinações (multi-modelo)**
-- GP seleciona mais de um modelo para a mesma oportunidade (ex.: Recorrência + Taxa de Sucesso)
-- Sistema **soma os componentes** para receita bruta total; cada componente preserva seus próprios campos
-- `BudgetDetail.tsx` lista os componentes e o total combinado
-
-**CA-04 — Persistência por modelo**
-- O orçamento grava o(s) modelo(s) selecionado(s) e os campos específicos, respeitando `tenant_id`/RLS
-- Rascunho sem todos os campos é salvo e marcado visualmente como "rascunho" (cenário-limite da jornada)
-
-### Parte B — Melhorias no existente (depois)
-
-**CA-05 — Validação de margem contra o mínimo do admin** — **Depende de Admin J4 (Tsuru)**
-- `MarginGauge.tsx` compara a margem bruta calculada com `minimum_margin` (vindo de `service_revenue_models`/catálogo do admin)
-- Verde quando ≥ mínimo, vermelho quando < mínimo
-- Painel mostra receita bruta, custos de labor (encargos do admin), outros custos estimados e margem bruta %
-
-**CA-06 — Fluxo de aprovação abaixo do mínimo** — **Depende de Admin J4 (Tsuru)**
-- Ao tentar salvar com margem < mínimo: GP escolhe (1) ajustar valor ou (2) enviar para aprovação do admin
-- GP **não consegue finalizar** orçamento abaixo do mínimo sem aprovação
-
-**CA-07 — Fallback sem mínimo definido** — **Depende de Admin J4 (Tsuru)**
-- `minimum_margin` ausente/zerado: gauge funciona como hoje (sem bloqueio), sinalizando "limite não definido" em vez de falsa validação
-
-## Fora do Escopo
-- Migration do Catálogo de Serviços e o campo `minimum_margin` em si (entregue por Admin J4 / Tsuru)
-- Renomeação de nomenclatura "CRM/Lead/Funil" (GP-J2 — task separada)
+## Fora do escopo (de toda a GP-J4)
+- **Equity** e **Indicação** (removidos por decisão do time)
+- Migration do Catálogo de Serviços / `minimum_margin` (entregue por Admin J4 / Tsuru)
+- Renomeação "CRM/Lead/Funil" (GP-J2)
 - Cálculo automático de encargos/labor (vem do admin)
-- Resolução de componentes conflitantes em combinações além de somar (cenário-limite — avaliar depois)
 
-## Notas Técnicas
-- Tipos: `src/types/service.ts` (`BillingType`); ampliar sem quebrar os 4 valores atuais
-- Wizard: `src/components/.../BudgetForm.tsx`; detalhe: `BudgetDetail.tsx`; margem: `MarginGauge.tsx`
-- Combinações: modelar como lista de componentes; centralizar a soma em helper único (não duplicar por tipo)
-- Parte B atrás de checagem da existência do catálogo do admin (feature flag / fallback) para não bloquear a Parte A
-- Adicionar dependência nova só com ADR (boundary do projeto)
-
-## Critérios de Teste
-
-| Cenário | Resultado esperado |
-|---|---|
-| Criar orçamento modelo Indicação | Campos de % comissão + critério de pagamento; salvo e exibido no detalhe |
-| Criar orçamento modelo Equity | Sem tabela de parcelas; % participação + vesting + cláusulas salvos |
-| Combinar Recorrência + Taxa de Sucesso | Componentes preservados; receita bruta = soma; total exibido no detalhe |
-| Rascunho incompleto | Salvo e marcado como "rascunho" |
-| Margem ≥ mínimo (com Admin J4) | Gauge verde; salva sem aprovação |
-| Margem < mínimo (com Admin J4) | Gauge vermelho; salvar exige ajuste ou aprovação do admin |
-| `minimum_margin` não definido | Gauge sem bloqueio; sinaliza "limite não definido" |
-| Tenant diferente | RLS impede ver/salvar orçamento de outro tenant |
+## Notas Técnicas (compartilhadas)
+- Tipos: `src/types/service.ts` (`BillingType`), `src/types/budget.ts` — ampliar para **componentes** sem quebrar os 4 valores atuais
+- Wizard: `src/pages/BudgetForm.tsx` (`WIZARD_STEPS_BY_TYPE`); detalhe: `BudgetDetail.tsx`; margem: `MarginGauge.tsx`
+- Cálculos existentes por modelo: `calculateBudgetTotals` (fixo), `calculateRecurringTotals` (recorrente), `calculateSuccessFeeTotals` (taxa)
+- Combinações: **centralizar a soma em helper único** (não duplicar por tipo)
+- Parte B (margem) atrás de checagem da existência do catálogo do admin (feature flag / fallback) para não bloquear os modelos
+- Respeitar `tenant_id`/RLS em qualquer leitura/gravação de orçamento; dependência nova só com ADR
