@@ -92,6 +92,7 @@ export const employeeTerminationSchema = z.object({
   exit_interview_completed: z.boolean().default(false),
   exit_interview_notes: z.string().nullable().optional(),
   status: z.enum(TERMINATION_STATUSES).default('pending'),
+  is_just_cause: z.boolean().default(false),
 });
 
 export const terminationDocumentSchema = z.object({
@@ -128,6 +129,7 @@ export interface EmployeeTermination {
   exit_interview_completed: boolean;
   exit_interview_notes: string | null;
   status: TerminationStatus;
+  is_just_cause: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
