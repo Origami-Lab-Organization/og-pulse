@@ -2,13 +2,11 @@ import { useMemo, useCallback } from "react";
 import { addMonths, differenceInMonths, format, parseISO, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
-import { ProjectLaborSection } from "@/components/projects/detail/ProjectLaborSection";
-import { ProjectReimbursementsSection } from "@/components/projects/detail/ProjectReimbursementsSection";
 import { ProjectMonthlyCostChart } from "@/components/projects/detail/ProjectMonthlyCostChart";
 import { ProjectCostsLedger } from "@/components/projects/detail/ProjectCostsLedger";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMaskedCurrency } from "@/contexts/HideValuesContext";
-import { useBudget } from "@/hooks/useBudgets";
+
 import { useProjectMemberMonths } from "@/hooks/useProjectMemberMonths";
 import { useProjectCostItems } from "@/hooks/useProjectCostItems";
 import { useTimesheetsByMembers } from "@/hooks/useProjectTimesheets";
@@ -72,7 +70,6 @@ export function ProjectCostsTab({
     return 1;
   }, [project.start_date, project.end_date, project.is_continuous]);
 
-  const { data: budget } = useBudget(project.budget_id);
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
 
@@ -395,24 +392,12 @@ export function ProjectCostsTab({
         isLoading={reimbursementsLoading || projectCostsLoading}
       />
 
-      <ProjectLaborSection
-        projectId={project.id}
-        members={project.members || []}
-        durationMonths={durationMonths}
-        isEditable={isEditable || canEditActuals}
-        budgetRoles={budget?.roles || []}
-        timesheets={timesheets}
-        projectStartDate={project.start_date}
-        serviceLine={project.service_line}
-      />
-
-      <ProjectReimbursementsSection reimbursements={approvedReimbursements} />
-
       <ProjectCostsLedger
         projectId={project.id}
         costs={projectCosts}
         canManage={isEditable || canEditActuals}
         isAdmin={isAdmin}
+        reimbursements={approvedReimbursements}
       />
     </div>
   );

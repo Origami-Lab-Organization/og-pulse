@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Lock } from "lucide-react";
+import { Plus, Lock, MoreHorizontal, CreditCard, Pencil, Trash2, X } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -7,7 +7,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -48,9 +56,13 @@ import {
   canEditCost,
   isCostMonthClosed,
 } from "@/lib/projectCosts";
-import { useDeleteProjectCost } from "@/hooks/useProjectCostItems";
+import { useCancelProjectCost, useDeleteProjectCost } from "@/hooks/useProjectCostItems";
+import type { ReimbursementRequest } from "@/hooks/useReimbursements";
 import { ProjectCostFormDialog } from "./ProjectCostFormDialog";
+import { ProjectCostPayDialog } from "./ProjectCostPayDialog";
 import type { ProjectCostCategory, ProjectCostDB } from "@/types/project";
+
+type EnrichedReimbursement = ReimbursementRequest & { requester_name?: string };
 
 interface ProjectCostsLedgerProps {
   projectId: string;
@@ -59,9 +71,14 @@ interface ProjectCostsLedgerProps {
   canManage: boolean;
   /** Admin edita inclusive em mês fechado. */
   isAdmin: boolean;
+  reimbursements?: EnrichedReimbursement[];
 }
 
-type FilterValue = "all" | ProjectCostCategory;
+type FilterValue = "all" | ProjectCostCategory | "reimbursement";
+
+type LedgerRow =
+  | { kind: "cost"; data: ProjectCostDB; sortDate: string }
+  | { kind: "reimbursement"; data: EnrichedReimbursement; sortDate: string };
 
 const CATEGORY_ICON = Object.fromEntries(
   COST_CATEGORIES.map((c) => [c.value, c.icon]),
@@ -72,30 +89,60 @@ const currencyNote = (cost: ProjectCostDB) =>
     ? `${cost.original_currency} ${Number(cost.planned_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · câmbio ${Number(cost.exchange_rate).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
     : null;
 
+
 export function ProjectCostsLedger({
   projectId,
   costs,
   canManage,
   isAdmin,
+  reimbursements = [],
 }: ProjectCostsLedgerProps) {
   const formatCurrency = useMaskedCurrency();
   const { toast } = useToast();
   const deleteCost = useDeleteProjectCost();
+  const cancelCost = useCancelProjectCost();
 
   const [filter, setFilter] = useState<FilterValue>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ProjectCostDB | null>(null);
   const [toDelete, setToDelete] = useState<ProjectCostDB | null>(null);
+  const [toPay, setToPay] = useState<ProjectCostDB | null>(null);
 
-  const visibleCosts = useMemo(
-    () =>
-      filter === "all" ? costs : costs.filter((c) => c.category === filter),
-    [costs, filter],
-  );
+  const allRows = useMemo<LedgerRow[]>(() => {
+    const costRows: LedgerRow[] = costs.map((c) => ({
+      kind: "cost",
+      data: c,
+      sortDate: c.cost_date ?? c.created_at,
+    }));
+    const rRows: LedgerRow[] = reimbursements.map((r) => ({
+      kind: "reimbursement",
+      data: r,
+      sortDate: r.paid_at ?? r.reviewed_at ?? r.created_at,
+    }));
+    return [...costRows, ...rRows].sort((a, b) =>
+      b.sortDate.localeCompare(a.sortDate),
+    );
+  }, [costs, reimbursements]);
 
-  // Categoria default ao adicionar: a do filtro (se específico) ou Fornecedor.
+  const visibleRows = useMemo<LedgerRow[]>(() => {
+    if (filter === "all") return allRows;
+    if (filter === "reimbursement") {
+      return allRows.filter((r) => r.kind === "reimbursement");
+    }
+    return allRows.filter(
+      (r) => r.kind === "cost" && r.data.category === filter,
+    );
+  }, [allRows, filter]);
+
   const defaultCategory: ProjectCostCategory =
-    filter === "all" ? "supplier" : filter;
+    filter === "all" || filter === "reimbursement" ? "supplier" : filter;
+
+  const emptyLabel =
+    filter === "reimbursement"
+      ? "Nenhum reembolso lançado neste projeto."
+      : filter === "all"
+        ? "Nenhum custo cadastrado."
+        : `Nenhum custo de ${COST_CATEGORY_LABEL[filter].toLowerCase()} cadastrado.`;
 
   const openAdd = () => {
     setEditing(null);
@@ -129,7 +176,7 @@ export function ProjectCostsLedger({
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <div>
-          <CardTitle>Custos</CardTitle>
+          <CardTitle>Custos </CardTitle>
           <CardDescription>
             Fornecedores, assinaturas, aluguéis, materiais, viagens e outros
             custos do projeto.
@@ -150,14 +197,11 @@ export function ProjectCostsLedger({
                   {c.label}
                 </SelectItem>
               ))}
+              <SelectItem value="reimbursement">Reembolsos</SelectItem>
             </SelectContent>
           </Select>
-          {canManage && visibleCosts.length > 0 && (
-            <Button
-              size="sm"
-              onClick={openAdd}
-              className="bg-primary-deep text-primary-deep-foreground hover:bg-primary-deep/90"
-            >
+          {canManage && visibleRows.length > 0 && filter !== "reimbursement" && (
+            <Button size="sm" onClick={openAdd}>
               <Plus className="mr-2 h-4 w-4" />
               Adicionar custo
             </Button>
@@ -165,14 +209,10 @@ export function ProjectCostsLedger({
         </div>
       </CardHeader>
       <CardContent>
-        {visibleCosts.length === 0 ? (
+        {visibleRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-            <p className="text-sm text-muted-foreground">
-              {filter === "all"
-                ? "Nenhum custo cadastrado."
-                : `Nenhum custo de ${COST_CATEGORY_LABEL[filter].toLowerCase()} cadastrado.`}
-            </p>
-            {canManage && (
+            <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+            {canManage && filter !== "reimbursement" && (
               <Button variant="outline" size="sm" onClick={openAdd}>
                 <Plus className="mr-2 h-4 w-4" />
                 Adicionar primeiro custo
@@ -184,25 +224,88 @@ export function ProjectCostsLedger({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-28">Criado em</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-28">Pago em</TableHead>
                   <TableHead className="text-right">Planejado</TableHead>
                   <TableHead className="text-right">Realizado</TableHead>
                   {canManage && (
-                    <TableHead className="w-24 text-right">Ações</TableHead>
+                    <TableHead className="w-12" />
                   )}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleCosts.map((cost) => {
+                {visibleRows.map((row) => {
+                  if (row.kind === "reimbursement") {
+                    const r = row.data;
+                    const paidDateStr = r.paid_at ?? r.reviewed_at;
+                    return (
+                      <TableRow key={r.id}>
+                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                          {formatShortDate(r.created_at)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium flex items-center gap-2">
+                            {r.description}
+                            <Badge
+                              variant="secondary"
+                              className="text-xs shrink-0"
+                            >
+                              Reembolso
+                            </Badge>
+                          </div>
+                          {r.requester_name && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {r.requester_name}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {r.expense_type ? (
+                            <span className="text-sm text-muted-foreground">
+                              {r.expense_type}
+                            </span>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs hover:bg-emerald-100">
+                            Pago
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                          {paidDateStr ? formatShortDate(paidDateStr) : "–"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="text-muted-foreground">—</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(Number(r.total_amount))}
+                        </TableCell>
+                        {canManage && <TableCell />}
+                      </TableRow>
+                    );
+                  }
+
+                  const cost = row.data;
                   const closed = isCostMonthClosed(cost.cost_date ?? "");
+                  const isPaid = cost.status === "paid";
+                  const isCancelled = cost.status === "cancelled";
+                  // Apenas itens "planejado" em mês aberto são editáveis.
+                  // Pago e cancelado são estados terminais — sem ações.
                   const editable =
-                    canManage && canEditCost(cost.cost_date ?? "", isAdmin);
+                    canManage &&
+                    !isPaid &&
+                    !isCancelled &&
+                    canEditCost(cost.cost_date ?? "", isAdmin);
                   const note = currencyNote(cost);
                   const Icon = CATEGORY_ICON[cost.category];
                   return (
                     <TableRow key={cost.id}>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {formatShortDate(cost.created_at)}
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium flex items-center gap-2">
                           {cost.description}
@@ -232,14 +335,33 @@ export function ProjectCostsLedger({
                           {COST_CATEGORY_LABEL[cost.category]}
                         </span>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {cost.cost_date ? formatShortDate(cost.cost_date) : "–"}
+                      <TableCell>
+                        {isPaid ? (
+                          <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs hover:bg-emerald-100">
+                            Pago
+                          </Badge>
+                        ) : isCancelled ? (
+                          <Badge className="bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 border-0 text-xs hover:bg-slate-100">
+                            Cancelado
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 border-0 text-xs hover:bg-slate-200">
+                            Planejado
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {isPaid
+                          ? cost.cost_date
+                            ? formatShortDate(cost.cost_date)
+                            : "–"
+                          : "–"}
                       </TableCell>
                       <TableCell className="text-right">
                         {formatCurrency(Number(cost.planned_amount_brl))}
                       </TableCell>
                       <TableCell className="text-right">
-                        {cost.actual_amount_brl != null ? (
+                        {isPaid ? (
                           formatCurrency(Number(cost.actual_amount_brl))
                         ) : (
                           <span className="text-muted-foreground">—</span>
@@ -247,26 +369,47 @@ export function ProjectCostsLedger({
                       </TableCell>
                       {canManage && (
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEdit(cost)}
-                              disabled={!editable}
-                              aria-label={`Editar ${cost.description}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => requestDelete(cost)}
-                              disabled={!editable}
-                              aria-label={`Excluir ${cost.description}`}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Ações para ${cost.description}`}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {editable && (
+                                <>
+                                  <DropdownMenuItem onClick={() => setToPay(cost)}>
+                                    <CreditCard className="mr-2 h-4 w-4" />
+                                    Pagar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => cancelCost.mutate({ id: cost.id, projectId })}
+                                    className="text-muted-foreground focus:text-muted-foreground"
+                                  >
+                                    <X className="mr-2 h-4 w-4" />
+                                    Cancelar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => openEdit(cost)}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              <DropdownMenuItem
+                                onClick={() => requestDelete(cost)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       )}
                     </TableRow>
@@ -284,6 +427,13 @@ export function ProjectCostsLedger({
         projectId={projectId}
         category={editing ? editing.category : defaultCategory}
         cost={editing}
+      />
+
+      <ProjectCostPayDialog
+        open={!!toPay}
+        onOpenChange={(o) => !o && setToPay(null)}
+        projectId={projectId}
+        cost={toPay}
       />
 
       <AlertDialog

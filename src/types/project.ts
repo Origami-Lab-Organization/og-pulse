@@ -118,6 +118,7 @@ export type ProjectCostCategory =
   | "other";
 
 export type CostCurrency = "BRL" | "USD" | "EUR" | "GBP";
+export type ProjectCostStatus = "planned" | "paid" | "cancelled";
 
 export interface ProjectCostDB {
   id: string;
@@ -131,6 +132,7 @@ export interface ProjectCostDB {
   exchange_rate: number;
   planned_amount_brl: number;
   actual_amount_brl: number | null;
+  status: ProjectCostStatus;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -148,6 +150,7 @@ export interface CreateProjectCostInput {
   currency: CostCurrency;
   exchangeRate: number;
   notes?: string | null;
+  status?: ProjectCostStatus;
 }
 
 export interface UpdateProjectCostInput {
@@ -161,6 +164,7 @@ export interface UpdateProjectCostInput {
   currency?: CostCurrency;
   exchangeRate?: number;
   notes?: string | null;
+  status?: ProjectCostStatus;
 }
 
 export interface CreateProjectInput {

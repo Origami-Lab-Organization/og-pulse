@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,17 +23,12 @@ import {
 import {
   COST_CATEGORIES,
   COST_CATEGORY_LABEL,
-  COST_CURRENCIES,
-  isForeignCurrency,
-  projectCostFormSchema,
-  toBRL,
 } from "@/lib/projectCosts";
 import {
   useAddProjectCost,
   useUpdateProjectCost,
 } from "@/hooks/useProjectCostItems";
 import type {
-  CostCurrency,
   ProjectCostCategory,
   ProjectCostDB,
 } from "@/types/project";
@@ -51,8 +47,7 @@ interface FormState {
   plannedAmount: number;
   actualAmount: number | null;
   costDate: string;
-  currency: CostCurrency;
-  exchangeRate: number;
+  paidDate: string;
   notes: string;
 }
 
@@ -64,13 +59,9 @@ const emptyState = (category: ProjectCostCategory): FormState => ({
   plannedAmount: 0,
   actualAmount: null,
   costDate: todayISO(),
-  currency: "BRL",
-  exchangeRate: 1,
+  paidDate: todayISO(),
   notes: "",
 });
-
-const brl = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function ProjectCostFormDialog({
   open,
@@ -81,58 +72,57 @@ export function ProjectCostFormDialog({
 }: ProjectCostFormDialogProps) {
   const isEdit = !!cost;
   const [form, setForm] = useState<FormState>(() => emptyState(category));
+  const [isPaid, setIsPaid] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const addCost = useAddProjectCost();
   const updateCost = useUpdateProjectCost();
   const isSaving = addCost.isPending || updateCost.isPending;
 
-  // (Re)inicializa o formulário ao abrir / trocar de custo.
   useEffect(() => {
     if (!open) return;
     setErrors({});
-    setForm(
-      cost
-        ? {
-            category: cost.category,
-            description: cost.description,
-            plannedAmount: Number(cost.planned_amount),
-            actualAmount:
-              cost.actual_amount != null ? Number(cost.actual_amount) : null,
-            costDate: cost.cost_date ?? todayISO(),
-            currency: cost.original_currency,
-            exchangeRate: Number(cost.exchange_rate) || 1,
-            notes: cost.notes ?? "",
-          }
-        : emptyState(category),
-    );
+    if (cost) {
+      const paid = cost.status === "paid";
+      setIsPaid(paid);
+      setForm({
+        category: cost.category,
+        description: cost.description,
+        plannedAmount: Number(cost.planned_amount),
+        actualAmount: cost.actual_amount != null ? Number(cost.actual_amount) : null,
+        costDate: cost.cost_date ?? todayISO(),
+        paidDate: cost.cost_date ?? todayISO(),
+        notes: cost.notes ?? "",
+      });
+    } else {
+      setIsPaid(false);
+      setForm(emptyState(category));
+    }
   }, [open, cost, category]);
-
-  const foreign = isForeignCurrency(form.currency);
-
-  const convertedPreview = useMemo(() => {
-    if (!foreign || !form.exchangeRate) return null;
-    return toBRL(form.plannedAmount, form.exchangeRate);
-  }, [foreign, form.plannedAmount, form.exchangeRate]);
 
   const patch = (changes: Partial<FormState>) =>
     setForm((prev) => ({ ...prev, ...changes }));
 
-  const handleCurrencyChange = (currency: CostCurrency) =>
-    patch({
-      currency,
-      exchangeRate: currency === "BRL" ? 1 : form.exchangeRate,
-    });
+  const handlePaidToggle = (checked: boolean) => {
+    setIsPaid(checked);
+    if (checked) {
+      const date = form.costDate || todayISO();
+      patch({ paidDate: date, costDate: date, actualAmount: form.plannedAmount });
+    } else {
+      patch({ actualAmount: null });
+    }
+  };
 
   const handleSubmit = () => {
-    const result = projectCostFormSchema.safeParse(form);
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of result.error.issues) {
-        const key = String(issue.path[0] ?? "form");
-        if (!fieldErrors[key]) fieldErrors[key] = issue.message;
-      }
-      setErrors(fieldErrors);
+    const newErrors: Record<string, string> = {};
+    if (!form.description.trim()) newErrors.description = "Descrição é obrigatória";
+    if (!form.plannedAmount || form.plannedAmount <= 0) newErrors.plannedAmount = "Valor planejado é obrigatório";
+    if (!form.costDate) newErrors.costDate = "Data é obrigatória";
+    if (isPaid && (!form.actualAmount || form.actualAmount <= 0)) newErrors.actualAmount = "Valor realizado é obrigatório";
+    if (isPaid && !form.paidDate) newErrors.paidDate = "Data de pagamento é obrigatória";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
     setErrors({});
@@ -140,12 +130,13 @@ export function ProjectCostFormDialog({
     const payload = {
       category: form.category,
       description: form.description,
-      costDate: form.costDate,
+      costDate: isPaid ? form.paidDate : form.costDate,
       plannedAmount: form.plannedAmount,
-      actualAmount: form.actualAmount,
-      currency: form.currency,
-      exchangeRate: form.currency === "BRL" ? 1 : form.exchangeRate,
+      actualAmount: isPaid ? form.actualAmount : null,
+      currency: "BRL" as const,
+      exchangeRate: 1,
       notes: form.notes,
+      status: isPaid ? ("paid" as const) : ("planned" as const),
     };
 
     const onSuccess = () => onOpenChange(false);
@@ -155,10 +146,6 @@ export function ProjectCostFormDialog({
       addCost.mutate({ projectId, ...payload }, { onSuccess });
     }
   };
-
-  const amountLabel = foreign
-    ? `Valor planejado (${form.currency})`
-    : "Valor planejado";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -176,9 +163,7 @@ export function ProjectCostFormDialog({
             <Label htmlFor="cost-category">Tipo de custo *</Label>
             <Select
               value={form.category}
-              onValueChange={(v) =>
-                patch({ category: v as ProjectCostCategory })
-              }
+              onValueChange={(v) => patch({ category: v as ProjectCostCategory })}
             >
               <SelectTrigger id="cost-category">
                 <SelectValue />
@@ -209,34 +194,17 @@ export function ProjectCostFormDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="cost-planned">{amountLabel} *</Label>
+              <Label htmlFor="cost-planned">Valor planejado *</Label>
               <CurrencyInput
                 id="cost-planned"
                 value={form.plannedAmount}
                 onValueChange={(v) => patch({ plannedAmount: v })}
-                showPrefix={!foreign}
               />
               {errors.plannedAmount && (
-                <p className="text-xs text-destructive">
-                  {errors.plannedAmount}
-                </p>
+                <p className="text-xs text-destructive">{errors.plannedAmount}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cost-actual">
-                Valor realizado {foreign ? `(${form.currency})` : ""}
-              </Label>
-              <CurrencyInput
-                id="cost-actual"
-                value={form.actualAmount ?? 0}
-                onValueChange={(v) => patch({ actualAmount: v > 0 ? v : null })}
-                showPrefix={!foreign}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="cost-date">Data *</Label>
               <Input
@@ -250,55 +218,47 @@ export function ProjectCostFormDialog({
                 <p className="text-xs text-destructive">{errors.costDate}</p>
               )}
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cost-currency">Moeda</Label>
-              <Select
-                value={form.currency}
-                onValueChange={(v) => handleCurrencyChange(v as CostCurrency)}
-              >
-                <SelectTrigger id="cost-currency">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COST_CURRENCIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
-          {foreign && (
-            <div className="space-y-2">
-              <Label htmlFor="cost-rate">
-                Taxa de câmbio (BRL/{form.currency}) *
-              </Label>
-              <Input
-                id="cost-rate"
-                type="number"
-                inputMode="decimal"
-                min={0}
-                step="0.0001"
-                value={form.exchangeRate || ""}
-                onChange={(e) =>
-                  patch({ exchangeRate: parseFloat(e.target.value) || 0 })
-                }
-                placeholder="Ex.: 5,20"
-                aria-invalid={!!errors.exchangeRate}
-              />
-              {errors.exchangeRate && (
-                <p className="text-xs text-destructive">
-                  {errors.exchangeRate}
-                </p>
-              )}
-              {convertedPreview != null && (
-                <p className="text-sm text-muted-foreground" aria-live="polite">
-                  ≈ {brl(convertedPreview)}
-                </p>
-              )}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="cost-paid"
+              checked={isPaid}
+              onCheckedChange={(v) => handlePaidToggle(!!v)}
+            />
+            <Label htmlFor="cost-paid" className="cursor-pointer font-normal">
+              Pago
+            </Label>
+          </div>
+
+          {isPaid && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cost-actual">Valor realizado *</Label>
+                <CurrencyInput
+                  id="cost-actual"
+                  value={form.actualAmount ?? 0}
+                  onValueChange={(v) => patch({ actualAmount: v > 0 ? v : null })}
+                />
+                {errors.actualAmount && (
+                  <p className="text-xs text-destructive">{errors.actualAmount}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cost-paid-date">Pago em *</Label>
+                <Input
+                  id="cost-paid-date"
+                  type="date"
+                  value={form.paidDate}
+                  onChange={(e) => patch({ paidDate: e.target.value, costDate: e.target.value })}
+                  max={todayISO()}
+                  aria-invalid={!!errors.paidDate}
+                />
+                {errors.paidDate && (
+                  <p className="text-xs text-destructive">{errors.paidDate}</p>
+                )}
+              </div>
             </div>
           )}
 

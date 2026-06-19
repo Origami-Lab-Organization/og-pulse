@@ -53,6 +53,7 @@ export const useAddProjectCost = () => {
           actual_amount_brl:
             input.actualAmount != null ? toBRL(input.actualAmount, rate) : null,
           notes: input.notes?.trim() || null,
+          status: input.status ?? 'planned',
         })
         .select()
         .single();
@@ -85,6 +86,7 @@ export const useUpdateProjectCost = () => {
       if (input.description !== undefined) updates.description = input.description.trim();
       if (input.costDate !== undefined) updates.cost_date = input.costDate;
       if (input.notes !== undefined) updates.notes = input.notes?.trim() || null;
+      if (input.status !== undefined) updates.status = input.status;
 
       // Valores monetários e moeda são recalculados juntos para manter
       // os campos *_brl consistentes com a taxa informada.
@@ -129,6 +131,33 @@ export const useUpdateProjectCost = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao atualizar custo',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useCancelProjectCost = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; projectId: string }) => {
+      const { error } = await supabase
+        .from('project_costs')
+        .update({ status: 'cancelled' })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: (_data, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: costsKey(projectId) });
+      toast({ title: 'Custo cancelado' });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao cancelar custo',
         description: error.message,
         variant: 'destructive',
       });

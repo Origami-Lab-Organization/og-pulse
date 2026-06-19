@@ -21,6 +21,7 @@ export interface ReimbursementRequest {
   paid_at: string | null;
   created_at: string;
   updated_at: string;
+  expense_type?: string | null;
   // joined
   requester_name?: string;
   project_name?: string;
