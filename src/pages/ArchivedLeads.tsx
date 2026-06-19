@@ -10,8 +10,10 @@ import {
   ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, ArchiveRestore, Trash2,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { useArchivedLeads, useUnarchiveLead, useDeleteLead } from '@/hooks/useLeads';
+import { useArchivedLeads } from '@/hooks/useLeads';
 import { LeadDetailDialog } from '@/components/crm/LeadDetailDialog';
+import { RestoreLeadDialog } from '@/components/crm/RestoreLeadDialog';
+import { DeleteLeadDialog } from '@/components/crm/DeleteLeadDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { ARCHIVE_REASONS, CRM_LEAD_COLUMNS, LeadWithBudget } from '@/types/lead';
@@ -55,8 +57,6 @@ export default function ArchivedLeads() {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const { data: leads = [], isLoading } = useArchivedLeads();
-  const unarchiveMutation = useUnarchiveLead();
-  const deleteMutation = useDeleteLead();
   const isManager = employee?.is_gerente || employee?.isAdmin;
   const isAdmin = employee?.isAdmin;
 
@@ -67,6 +67,8 @@ export default function ArchivedLeads() {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedLead, setSelectedLead] = useState<LeadWithBudget | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<LeadWithBudget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LeadWithBudget | null>(null);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -304,13 +306,12 @@ export default function ArchivedLeads() {
                                   size="sm"
                                   variant="ghost"
                                   className="h-8 w-8 p-0"
-                                  onClick={() => unarchiveMutation.mutate(lead.id)}
-                                  disabled={unarchiveMutation.isPending}
+                                  onClick={() => setRestoreTarget(lead)}
                                 >
                                   <ArchiveRestore className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Desarquivar</TooltipContent>
+                              <TooltipContent>Restaurar</TooltipContent>
                             </Tooltip>
                             {isAdmin && (
                               <Tooltip>
@@ -319,8 +320,7 @@ export default function ArchivedLeads() {
                                     size="sm"
                                     variant="ghost"
                                     className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                    onClick={() => deleteMutation.mutate(lead.id)}
-                                    disabled={deleteMutation.isPending}
+                                    onClick={() => setDeleteTarget(lead)}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -376,6 +376,19 @@ export default function ArchivedLeads() {
           open={!!selectedLead}
           onOpenChange={(open) => { if (!open) setSelectedLead(null); }}
           lead={selectedLead}
+        />
+
+        <RestoreLeadDialog
+          open={!!restoreTarget}
+          onOpenChange={(open) => { if (!open) setRestoreTarget(null); }}
+          lead={restoreTarget}
+        />
+
+        <DeleteLeadDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+          leadId={deleteTarget?.id ?? null}
+          leadName={deleteTarget?.name ?? ''}
         />
       </AppLayout>
     </TooltipProvider>

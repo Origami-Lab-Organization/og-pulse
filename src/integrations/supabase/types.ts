@@ -1644,6 +1644,7 @@ export type Database = {
           client_id: string | null
           closed_at: string | null
           company_name: string | null
+          competitor_name: string | null
           contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
@@ -1655,6 +1656,7 @@ export type Database = {
           name: string
           notes: string | null
           responsible_id: string | null
+          restored_at: string | null
           service_line: string | null
           source: string | null
           tenant_id: string
@@ -1669,6 +1671,7 @@ export type Database = {
           client_id?: string | null
           closed_at?: string | null
           company_name?: string | null
+          competitor_name?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
@@ -1680,6 +1683,7 @@ export type Database = {
           name: string
           notes?: string | null
           responsible_id?: string | null
+          restored_at?: string | null
           service_line?: string | null
           source?: string | null
           tenant_id: string
@@ -1694,6 +1698,7 @@ export type Database = {
           client_id?: string | null
           closed_at?: string | null
           company_name?: string | null
+          competitor_name?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
@@ -1705,6 +1710,7 @@ export type Database = {
           name?: string
           notes?: string | null
           responsible_id?: string | null
+          restored_at?: string | null
           service_line?: string | null
           source?: string | null
           tenant_id?: string

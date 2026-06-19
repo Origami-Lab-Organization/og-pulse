@@ -3,6 +3,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,17 +20,31 @@ interface ArchiveLeadDialogProps {
 export function ArchiveLeadDialog({ open, onOpenChange, lead }: ArchiveLeadDialogProps) {
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [competitorName, setCompetitorName] = useState('');
   const archiveMutation = useArchiveLead();
 
+  const isCompetitor = reason === 'competitor';
+  const competitorMissing = isCompetitor && !competitorName.trim();
+
+  const reset = () => {
+    setReason('');
+    setNotes('');
+    setCompetitorName('');
+  };
+
   const handleConfirm = () => {
-    if (!lead || !reason) return;
+    if (!lead || !reason || competitorMissing) return;
     archiveMutation.mutate(
-      { id: lead.id, archive_reason: reason, archive_notes: notes || undefined },
+      {
+        id: lead.id,
+        archive_reason: reason,
+        archive_notes: notes || undefined,
+        competitor_name: isCompetitor ? competitorName.trim() : null,
+      },
       {
         onSuccess: () => {
           onOpenChange(false);
-          setReason('');
-          setNotes('');
+          reset();
         },
       }
     );
@@ -39,9 +54,9 @@ export function ArchiveLeadDialog({ open, onOpenChange, lead }: ArchiveLeadDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Arquivar Lead</DialogTitle>
+          <DialogTitle>Arquivar Oportunidade</DialogTitle>
           <DialogDescription>
-            Informe o motivo pelo qual este lead está sendo arquivado.
+            Informe o motivo pelo qual esta oportunidade está sendo arquivada.
           </DialogDescription>
         </DialogHeader>
 
@@ -60,6 +75,18 @@ export function ArchiveLeadDialog({ open, onOpenChange, lead }: ArchiveLeadDialo
             </Select>
           </div>
 
+          {isCompetitor && (
+            <div>
+              <Label htmlFor="competitor-name">Concorrente *</Label>
+              <Input
+                id="competitor-name"
+                value={competitorName}
+                onChange={(e) => setCompetitorName(e.target.value)}
+                placeholder="Nome do concorrente que venceu"
+              />
+            </div>
+          )}
+
           <div>
             <Label>Observações</Label>
             <Textarea
@@ -75,7 +102,7 @@ export function ArchiveLeadDialog({ open, onOpenChange, lead }: ArchiveLeadDialo
           <Button
             variant="destructive"
             onClick={handleConfirm}
-            disabled={!reason || archiveMutation.isPending}
+            disabled={!reason || competitorMissing || archiveMutation.isPending}
           >
             {archiveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Arquivar

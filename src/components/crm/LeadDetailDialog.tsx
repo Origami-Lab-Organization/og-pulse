@@ -63,7 +63,7 @@ import {
   Lock,
   Zap,
 } from 'lucide-react'
-import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead'
+import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage, isRecentlyRestored } from '@/types/lead'
 import { ArchiveLeadDialog } from './ArchiveLeadDialog'
 import { DeleteLeadDialog } from './DeleteLeadDialog'
 import { LeadActivityTimeline } from './LeadActivityTimeline'
@@ -386,6 +386,14 @@ export function LeadDetailDialog({
                   className='bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 shrink-0'
                 >
                   Arquivado
+                </Badge>
+              )}
+              {!isArchived && isRecentlyRestored(lead) && (
+                <Badge
+                  variant='secondary'
+                  className='bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 shrink-0'
+                >
+                  Reativada
                 </Badge>
               )}
             </div>
