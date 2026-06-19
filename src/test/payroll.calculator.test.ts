@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculatePayrollCost,
+  calculateLoadedPersonnelCost,
   getBaseSalary,
+  getLoadedMonthlyCost,
   type PayrollEmployeeInput,
+  type LoadedPersonnelEmployeeInput,
 } from '@/lib/payrollCalculator';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -16,6 +19,16 @@ function emp(overrides: Partial<PayrollEmployeeInput> = {}): PayrollEmployeeInpu
     valorContratoPj: 0,
     proLabore: 0,
     dividendos: 0,
+    ...overrides,
+  };
+}
+
+function empLoaded(
+  overrides: Partial<LoadedPersonnelEmployeeInput> = {},
+): LoadedPersonnelEmployeeInput {
+  return {
+    ...emp(overrides),
+    totalMonthlyCostEstimated: 0,
     ...overrides,
   };
 }
@@ -85,6 +98,50 @@ describe('calculatePayrollCost', () => {
     ];
     const r = calculatePayrollCost(employees);
     expect(r.totalMonthlyCost).toBe(5000);
+    expect(r.headcount).toBe(1);
+  });
+});
+
+// ─── getLoadedMonthlyCost / calculateLoadedPersonnelCost ───────────────────────
+
+describe('getLoadedMonthlyCost', () => {
+  it('usa o custo cheio estimado quando disponível (inclui encargos/benefícios/ferramentas)', () => {
+    expect(
+      getLoadedMonthlyCost(empLoaded({ salarioMensal: 5000, totalMonthlyCostEstimated: 8200 })),
+    ).toBe(8200);
+  });
+
+  it('cai para o salário base quando o custo cheio está zerado (dado legado)', () => {
+    expect(
+      getLoadedMonthlyCost(empLoaded({ salarioMensal: 5000, totalMonthlyCostEstimated: 0 })),
+    ).toBe(5000);
+  });
+});
+
+describe('calculateLoadedPersonnelCost', () => {
+  it('retorna zero quando não há colaboradores', () => {
+    expect(calculateLoadedPersonnelCost([])).toEqual({ totalMonthlyCost: 0, headcount: 0 });
+  });
+
+  it('soma o custo CHEIO dos ativos — maior que a folha base', () => {
+    const employees = [
+      empLoaded({ salarioMensal: 5000, totalMonthlyCostEstimated: 8200 }),
+      empLoaded({ tipoContratacao: 'PJ', valorContratoPj: 9000, totalMonthlyCostEstimated: 9000 }),
+    ];
+    const loaded = calculateLoadedPersonnelCost(employees);
+    const base = calculatePayrollCost(employees);
+    expect(loaded.totalMonthlyCost).toBe(17200); // 8200 + 9000
+    expect(loaded.totalMonthlyCost).toBeGreaterThan(base.totalMonthlyCost); // 17200 > 14000
+    expect(loaded.headcount).toBe(2);
+  });
+
+  it('ignora colaboradores não-ativos', () => {
+    const employees = [
+      empLoaded({ status: 'ativo', totalMonthlyCostEstimated: 8000 }),
+      empLoaded({ status: 'desligado', totalMonthlyCostEstimated: 9999 }),
+    ];
+    const r = calculateLoadedPersonnelCost(employees);
+    expect(r.totalMonthlyCost).toBe(8000);
     expect(r.headcount).toBe(1);
   });
 });

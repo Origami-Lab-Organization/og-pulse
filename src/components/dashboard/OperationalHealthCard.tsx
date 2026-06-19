@@ -32,19 +32,14 @@ const STATUS_STYLES: Record<HealthStatus, { dot: string; badge: string; label: s
 export function OperationalHealthCard({ rows, loading }: OperationalHealthCardProps) {
   const navigate = useNavigate();
 
-  const { counts, alerts } = useMemo(() => {
-    const counts: Record<HealthStatus, number> = { green: 0, amber: 0, red: 0 };
-    for (const r of rows) counts[r.health.overall.status]++;
-
+  const alerts = useMemo(() => {
     // Projetos com alerta: Atenção e Crítico primeiro (crítico no topo)
-    const alerts = rows
+    return rows
       .filter((r) => r.health.overall.status !== 'green')
       .sort((a, b) => {
         const order: Record<HealthStatus, number> = { red: 0, amber: 1, green: 2 };
         return order[a.health.overall.status] - order[b.health.overall.status];
       });
-
-    return { counts, alerts };
   }, [rows]);
 
   return (
@@ -57,24 +52,6 @@ export function OperationalHealthCard({ rows, loading }: OperationalHealthCardPr
       emptyMessage="Cadastre projetos para acompanhar a saúde operacional."
     >
       <div className="space-y-4">
-        {/* Resumo por status */}
-        <div className="grid grid-cols-3 gap-2">
-          {(['green', 'amber', 'red'] as HealthStatus[]).map((status) => {
-            const style = STATUS_STYLES[status];
-            return (
-              <div key={status} className="rounded-lg border p-2 text-center">
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className={cn('h-2 w-2 rounded-full', style.dot)} />
-                  <span className="text-lg font-bold">{counts[status]}</span>
-                </div>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {style.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
         {/* Projetos que precisam de atenção — badge clicável leva ao projeto */}
         {alerts.length > 0 ? (
           <div className="space-y-1.5">

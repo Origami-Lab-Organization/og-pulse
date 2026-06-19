@@ -63,3 +63,38 @@ export function calculatePayrollCost(
 
   return { totalMonthlyCost, headcount: active.length };
 }
+
+// ─── Custo CHEIO de pessoal ─────────────────────────────────────────────────
+// Diferente da folha base, é o custo total de cada colaborador: salário base +
+// encargos + provisões + benefícios + ferramentas (o `total_monthly_cost_estimated`,
+// calculado por employeeCostCalculator). Usado no cálculo de Receita do Dashboard,
+// onde TODOS os custos de pessoal precisam ser abatidos do faturamento.
+
+export interface LoadedPersonnelEmployeeInput extends PayrollEmployeeInput {
+  /**
+   * Custo cheio mensal estimado (salário + encargos + provisões + benefícios +
+   * ferramentas). Vem de `total_monthly_cost_estimated`.
+   */
+  totalMonthlyCostEstimated: number;
+}
+
+/**
+ * Custo mensal CHEIO do colaborador. Usa o total estimado quando disponível;
+ * se estiver zerado (dado legado ainda não recalculado), cai para o salário base
+ * como piso — para nunca subestimar o custo de pessoal abaixo da folha.
+ */
+export function getLoadedMonthlyCost(e: LoadedPersonnelEmployeeInput): number {
+  const loaded = Number(e.totalMonthlyCostEstimated) || 0;
+  return loaded > 0 ? loaded : getBaseSalary(e);
+}
+
+/** Soma do custo cheio mensal dos colaboradores com status 'ativo'. */
+export function calculateLoadedPersonnelCost(
+  employees: LoadedPersonnelEmployeeInput[],
+): PayrollCost {
+  const active = employees.filter((e) => e.status === 'ativo');
+
+  const totalMonthlyCost = active.reduce((sum, e) => sum + getLoadedMonthlyCost(e), 0);
+
+  return { totalMonthlyCost, headcount: active.length };
+}

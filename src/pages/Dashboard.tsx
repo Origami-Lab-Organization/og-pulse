@@ -5,8 +5,7 @@ import {
   startOfYear, endOfYear,
 } from 'date-fns';
 import {
-  DollarSign, Percent, UserCircle, FolderKanban,
-  Wallet, CalendarRange, PiggyBank, UserMinus,
+  DollarSign, Percent, Wallet, TrendingUp, Receipt,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DashboardFilters, type Granularity } from '@/components/dashboard/DashboardFilters';
@@ -22,7 +21,8 @@ import { useProjects } from '@/hooks/useProjects';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useProjectHealthData } from '@/hooks/useProjectHealthData';
 import { useCommercialDashboard } from '@/hooks/useCommercialDashboard';
-import { calculatePayrollCost } from '@/lib/payrollCalculator';
+import { calculatePayrollCost, calculateLoadedPersonnelCost } from '@/lib/payrollCalculator';
+import { calculateDashboardRevenue } from '@/lib/dashboardRevenueCalculator';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
 
 export default function Dashboard() {
@@ -58,7 +58,7 @@ export default function Dashboard() {
   // ── Dados (todos filtram tenant_id internamente via useAuth) ─────────────────
   const { data: financialEvolution, isLoading: isFinancialLoading } =
     useFinancialEvolution(filters, { enabled: true });
-  const { data: projects = [], isLoading: isProjectsLoading } = useProjects();
+  const { data: projects = [] } = useProjects();
   const { data: employees = [], isLoading: isEmployeesLoading } = useEmployees();
   const { data: healthRows = [], isLoading: isHealthLoading } =
     useProjectHealthData(filters, { enabled: true });
@@ -75,36 +75,53 @@ export default function Dashboard() {
       const monthEnd = endOfMonth(monthStart);
       return monthStart <= endDate && monthEnd >= startDate;
     });
-    const revenueActual = highlighted.reduce((s, m) => s + m.revenueReal, 0);
-    const totalCosts = highlighted.reduce((s, m) => s + m.totalCosts, 0);
-    const grossMargin = revenueActual > 0
-      ? ((revenueActual - totalCosts) / revenueActual) * 100
-      : null;
+    // Faturamento total = todos os recebimentos do período.
+    const faturamentoTotal = highlighted.reduce((s, m) => s + m.revenueReal, 0);
+    // Custos de projeto = fornecedores + materiais (realizados), SEM mão de obra:
+    // o pessoal entra só pelo custo cheio de pessoal, para não contar o labor duas
+    // vezes (laborCost de timesheet). Comissões e reembolsos não compõem o custo de
+    // projeto do dashboard (decisão de negócio). Ver calculateDashboardRevenue.
+    const projectCostsExLabor = highlighted.reduce(
+      (s, m) => s + m.supplierCost + m.materialCost,
+      0,
+    );
     return {
-      revenueActual,
-      totalCosts,
-      grossMargin,
-      grossMarginTarget: financialEvolution.grossMarginTarget,
+      faturamentoTotal,
+      projectCostsExLabor,
+      monthsInPeriod: highlighted.length,
     };
   }, [financialEvolution, filters]);
 
   const hasProjects = projects.length > 0;
-  const activeProjects = useMemo(
-    () => projects.filter((p) => p.status === 'active'),
-    [projects],
-  );
-  const headcount = useMemo(
-    () => employees.filter((e) => e.status === 'ativo').length,
-    [employees],
-  );
 
-  // Custo de folha = soma do custo mensal dos funcionários ativos.
-  // É um valor MENSAL vigente (snapshot atual), não agregado pelo período.
+  // Custo da folha = soma do salário BASE dos funcionários ativos (definição do
+  // glossário). Valor MENSAL vigente — exibido no card "Custo da folha".
   const payroll = useMemo(() => calculatePayrollCost(employees), [employees]);
 
-  const revenueActual = financial?.revenueActual ?? 0;
-  const hasRevenue = revenueActual > 0;
-  const revenuePerPerson = hasRevenue && headcount > 0 ? revenueActual / headcount : null;
+  // Custo CHEIO de pessoal = salário + encargos + provisões + benefícios +
+  // ferramentas (total_monthly_cost_estimated). É o que a Receita abate — por
+  // isso a Receita fica menor que "Faturamento − folha base".
+  const personnel = useMemo(() => calculateLoadedPersonnelCost(employees), [employees]);
+
+  // ── Faturamento, Receita e Margem real (regra de negócio em helper testado) ──
+  const faturamentoTotal = financial?.faturamentoTotal ?? 0;
+  const hasFaturamento = faturamentoTotal > 0;
+  const monthsInPeriod = financial?.monthsInPeriod ?? 1;
+  // Custos de projeto realizados (fornecedores + materiais + comissões + reembolsos).
+  const projectCosts = financial?.projectCostsExLabor ?? 0;
+  const revenue = useMemo(
+    () =>
+      calculateDashboardRevenue({
+        faturamentoTotal,
+        projectCostsExLabor: financial?.projectCostsExLabor ?? 0,
+        personnelCostMonthly: personnel.totalMonthlyCost,
+        monthsInPeriod,
+      }),
+    [faturamentoTotal, financial?.projectCostsExLabor, personnel.totalMonthlyCost, monthsInPeriod],
+  );
+
+  // Folha base do período = folha mensal × meses (para o card "Custo da folha").
+  const payrollForPeriod = payroll.totalMonthlyCost * monthsInPeriod;
 
   return (
     <AppLayout
@@ -128,105 +145,97 @@ export default function Dashboard() {
           onCustomEndChange={setCustomEnd}
         />
 
-        {/* ── Linha 1: 3 KPIs ──────────────────────────────────────────────── */}
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        {/* ── Linha 1: Faturamento total + Custo da folha ──────────────────── */}
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <MetricCard
-            label="Receita da empresa"
+            label="Faturamento total"
             icon={DollarSign}
             accentColor="bg-emerald-500"
             valueColor="text-emerald-600 dark:text-emerald-400"
             loading={isFinancialLoading}
-            empty={!hasRevenue}
+            empty={!hasFaturamento}
             emptyMessage={
               hasProjects
-                ? 'Sem receita recebida no período selecionado.'
-                : 'Cadastre projetos para acompanhar a receita.'
+                ? 'Sem recebimentos no período selecionado.'
+                : 'Cadastre projetos para acompanhar o faturamento.'
             }
-            value={formatCurrency(revenueActual)}
-            subtitle="Receita recebida no período"
+            value={formatCurrency(faturamentoTotal)}
+            subtitle="Todos os recebimentos da empresa no período"
           />
           <MetricCard
-            label="Margem"
-            icon={Percent}
-            accentColor="bg-sky-500"
-            loading={isFinancialLoading}
-            empty={financial?.grossMargin == null}
-            emptyMessage={
-              hasProjects
-                ? 'Sem receita no período para calcular a margem.'
-                : 'Cadastre projetos para ver a margem.'
-            }
-            value={formatPercent(financial?.grossMargin ?? 0)}
-            subtitle={
-              financial?.grossMarginTarget != null
-                ? `Meta: ${formatPercent(financial.grossMarginTarget)}`
-                : 'Margem bruta no período'
-            }
-          />
-          <MetricCard
-            label="Receita por pessoa"
-            icon={UserCircle}
-            accentColor="bg-violet-500"
-            loading={isFinancialLoading || isEmployeesLoading}
-            empty={revenuePerPerson == null}
-            emptyMessage={
-              headcount === 0
-                ? 'Cadastre funcionários para calcular a receita por pessoa.'
-                : 'Sem receita no período para calcular.'
-            }
-            value={revenuePerPerson != null ? formatCurrency(revenuePerPerson) : ''}
-            subtitle={`Receita ÷ ${headcount} pessoa(s) ativa(s)`}
-          />
-        </div>
-
-        {/* ── Linha 2: 3 KPIs ──────────────────────────────────────────────── */}
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-          <MetricCard
-            label="Projetos ativos"
-            icon={FolderKanban}
-            accentColor="bg-amber-500"
-            loading={isProjectsLoading}
-            empty={activeProjects.length === 0}
-            emptyMessage={
-              hasProjects
-                ? 'Nenhum projeto ativo no momento.'
-                : 'Cadastre projetos para começar.'
-            }
-            value={String(activeProjects.length)}
-            subtitle={hasProjects ? `de ${projects.length} projeto(s)` : undefined}
-          />
-          <MetricCard
-            label="Custo de folha"
+            label="Custo da folha"
             icon={Wallet}
             accentColor="bg-rose-500"
             valueColor="text-rose-600 dark:text-rose-400"
             loading={isEmployeesLoading}
             empty={payroll.headcount === 0 || payroll.totalMonthlyCost === 0}
-            emptyMessage="Cadastre funcionários (com custo) para ver o custo de folha."
-            value={formatCurrency(payroll.totalMonthlyCost)}
-            subtitle={`Soma dos salários base · ${payroll.headcount} ativo(s)`}
-          />
-          <MetricCard
-            label="Turnover"
-            icon={UserMinus}
-            accentColor="bg-rose-500"
-            valueColor="text-rose-600 dark:text-rose-400"
-            loading={isTurnoverLoading}
-            empty={!turnover || turnover.turnoverRate == null}
-            emptyMessage="Sem quadro de pessoal suficiente no período para calcular a rotatividade."
-            value={turnover?.turnoverRate != null ? formatPercent(turnover.turnoverRate) : ''}
+            emptyMessage="Cadastre funcionários (com custo) para ver o custo da folha."
+            value={formatCurrency(payrollForPeriod)}
             subtitle={
-              turnover?.turnoverRate != null
-                ? `Headcount médio: ${turnover.avgHeadcount.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} · SHRM`
-                : undefined
+              monthsInPeriod > 1
+                ? `${payroll.headcount} ativo(s) · ${formatCurrency(payroll.totalMonthlyCost)}/mês × ${monthsInPeriod} meses`
+                : `Soma dos salários base · ${payroll.headcount} ativo(s)`
             }
           />
         </div>
 
+        {/* ── Linha 2: Receita + Custo total + Margem real ─────────────────── */}
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+          <MetricCard
+            label="Receita"
+            icon={TrendingUp}
+            accentColor="bg-sky-500"
+            valueColor={
+              revenue.receita >= 0
+                ? 'text-sky-600 dark:text-sky-400'
+                : 'text-rose-600 dark:text-rose-400'
+            }
+            loading={isFinancialLoading || isEmployeesLoading}
+            empty={!hasFaturamento}
+            emptyMessage={
+              hasProjects
+                ? 'Sem recebimentos no período para calcular a receita.'
+                : 'Cadastre projetos para calcular a receita.'
+            }
+            value={formatCurrency(revenue.receita)}
+            subtitle="Faturamento − todos os custos do período"
+          />
+          <MetricCard
+            label="Custo total"
+            icon={Receipt}
+            accentColor="bg-rose-500"
+            valueColor="text-rose-600 dark:text-rose-400"
+            loading={isFinancialLoading || isEmployeesLoading}
+            empty={revenue.totalCosts === 0}
+            emptyMessage="Sem custos de pessoal ou de projeto no período."
+            value={formatCurrency(revenue.totalCosts)}
+            subtitle={`Pessoal ${formatCurrency(revenue.personnelCostForPeriod)} · fornecedores/materiais ${formatCurrency(projectCosts)}`}
+          />
+          <MetricCard
+            label="Margem real"
+            icon={Percent}
+            accentColor="bg-violet-500"
+            valueColor={
+              (revenue.margemReal ?? 0) >= 0
+                ? 'text-violet-600 dark:text-violet-400'
+                : 'text-rose-600 dark:text-rose-400'
+            }
+            loading={isFinancialLoading || isEmployeesLoading}
+            empty={revenue.margemReal == null}
+            emptyMessage={
+              hasProjects
+                ? 'Sem faturamento no período para calcular a margem.'
+                : 'Cadastre projetos para ver a margem real.'
+            }
+            value={formatPercent(revenue.margemReal ?? 0)}
+            subtitle="Receita ÷ faturamento total"
+          />
+        </div>
+
         {/* ── Linha 3: cards maiores — Saúde Operacional + Aniversariantes ──── */}
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-1">
           <OperationalHealthCard rows={healthRows} loading={isHealthLoading} />
-          <HeadcountFlowCard data={turnover} loading={isTurnoverLoading} />
+          {/*<HeadcountFlowCard data={turnover} loading={isTurnoverLoading} />*/}
         </div>
 
         {/* ── Linha 4: cards maiores — Pipeline + Evolução da Folha ────────── */}
