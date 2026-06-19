@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Plus,
+  Layers,
   Briefcase,
   Pencil,
+  Trash2,
   Search,
   ChevronDown,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -15,168 +18,121 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ServiceFormDialog } from '@/components/services/ServiceFormDialog';
-import { DeleteServiceDialog } from '@/components/services/DeleteServiceDialog';
+import { ServiceLineFormDialog } from '@/components/services/ServiceLineFormDialog';
+import { RevenueModelFormDialog } from '@/components/services/RevenueModelFormDialog';
+import { DeleteCatalogItemDialog } from '@/components/services/DeleteCatalogItemDialog';
 import {
   useServices,
-  useSeedDefaultServices,
   useCreateService,
   useUpdateService,
   useToggleServiceActive,
   useDeleteService,
 } from '@/hooks/useServices';
-import { Service, CreateServiceInput, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
-import { formatCurrency } from '@/lib/masks';
+import {
+  useServiceLines,
+  useCreateServiceLine,
+  useUpdateServiceLine,
+  useToggleServiceLineActive,
+  useDeleteServiceLine,
+} from '@/hooks/useServiceLines';
+import {
+  useServiceRevenueModels,
+  useCreateServiceRevenueModel,
+  useUpdateServiceRevenueModel,
+  useToggleServiceRevenueModelActive,
+  useDeleteServiceRevenueModel,
+} from '@/hooks/useServiceRevenueModels';
+import { Service, CreateServiceInput } from '@/types/service';
+import { ServiceLine, CreateServiceLineInput } from '@/types/serviceLine';
+import {
+  ServiceRevenueModel,
+  CreateServiceRevenueModelInput,
+  REVENUE_MODEL_LABELS,
+  modelValueText,
+} from '@/types/serviceRevenueModel';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const BILLING_TYPE_ORDER: BillingType[] = ['fixed_scope', 'recurring', 'success_fee', 'no_revenue'];
-
-const TYPE_BADGE_CLASSES: Record<BillingType, string> = {
-  fixed_scope: 'bg-green-100 text-green-800 border-green-200',
-  recurring: 'bg-blue-100 text-blue-800 border-blue-200',
-  success_fee: 'bg-amber-100 text-amber-800 border-amber-200',
-  no_revenue: 'bg-gray-100 text-gray-600 border-gray-200',
-};
-
-const TYPE_HEADER_CLASSES: Record<BillingType, string> = {
-  fixed_scope: 'border-l-green-500',
-  recurring: 'border-l-blue-500',
-  success_fee: 'border-l-amber-500',
-  no_revenue: 'border-l-gray-400',
-};
-
-const PERIOD_LABELS: Record<string, string> = {
-  monthly: '/mês',
-  quarterly: '/trimestre',
-  semiannual: '/semestre',
-  annual: '/ano',
-};
-
 type StatusFilter = 'all' | 'active' | 'inactive';
 
-// ─── Value display helper ─────────────────────────────────────────────────────
+type DeleteTarget =
+  | { kind: 'line'; entity: ServiceLine }
+  | { kind: 'service'; entity: Service }
+  | { kind: 'model'; entity: ServiceRevenueModel };
 
-function ServiceValueBadge({ service }: { service: Service }) {
-  if (service.billingType === 'no_revenue') {
-    return (
-      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 border-gray-200">
-        Sem cobrança
-      </span>
-    );
-  }
+const DELETE_LABELS: Record<DeleteTarget['kind'], string> = {
+  line: 'linha de serviço',
+  service: 'serviço',
+  model: 'modelo de receita',
+};
 
-  if (!service.hasDefaultValue || service.defaultValue == null) {
-    return (
-      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 border-gray-200">
-        Valor definido no lead
-      </span>
-    );
-  }
+// ─── Revenue model row ───────────────────────────────────────────────────────────
 
-  let valueText = '';
-
-  if (service.billingUnit === '%') {
-    valueText = `${service.defaultValue.toFixed(2).replace('.', ',')}%`;
-  } else {
-    valueText = formatCurrency(service.defaultValue);
-  }
-
-  const periodSuffix =
-    service.billingUnit && service.billingUnit !== '%' && service.billingUnit !== 'R$'
-      ? PERIOD_LABELS[service.billingUnit] ?? ''
-      : '';
-
-  const contextSuffix =
-    service.billingType === 'fixed_scope'
-      ? ' por projeto'
-      : periodSuffix
-      ? periodSuffix
-      : '';
-
-  return (
-    <span className="text-sm font-medium text-foreground tabular-nums">
-      {valueText}
-      <span className="text-xs text-muted-foreground font-normal">{contextSuffix}</span>
-    </span>
-  );
-}
-
-// ─── Service card ─────────────────────────────────────────────────────────────
-
-interface ServiceCardProps {
-  service: Service;
+interface ModelRowProps {
+  model: ServiceRevenueModel;
   canManage: boolean;
-  onEdit: (service: Service) => void;
-  onToggleActive: (service: Service) => void;
+  onEdit: (m: ServiceRevenueModel) => void;
+  onToggle: (m: ServiceRevenueModel) => void;
+  onDelete: (m: ServiceRevenueModel) => void;
   isToggling: boolean;
 }
 
-function ServiceCard({ service, canManage, onEdit, onToggleActive, isToggling }: ServiceCardProps) {
+function ModelRow({ model, canManage, onEdit, onToggle, onDelete, isToggling }: ModelRowProps) {
   return (
     <div
       className={cn(
-        'group flex items-center gap-4 rounded-lg border bg-card px-4 py-3 transition-all',
-        'hover:shadow-sm hover:border-border/80 cursor-default',
-        !service.isActive && 'opacity-60'
+        'group flex items-center gap-3 rounded-md border bg-card px-3 py-2 transition-all hover:shadow-sm',
+        !model.isActive && 'opacity-60'
       )}
-      onClick={() => canManage && onEdit(service)}
     >
-      {/* Name + description */}
+      <Badge variant="outline" className="text-xs font-medium shrink-0">
+        {REVENUE_MODEL_LABELS[model.modelType]}
+      </Badge>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold truncate">{service.name}</p>
-          {!service.isActive && (
-            <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs bg-gray-100 text-gray-500 border-gray-200 shrink-0">
-              Inativo
-            </span>
-          )}
-        </div>
-        {service.description && (
-          <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-lg">
-            {service.description}
-          </p>
+        <span className="text-sm font-medium truncate">{model.name}</span>
+        {!model.isActive && (
+          <span className="ml-2 inline-flex items-center rounded-full border px-2 py-0.5 text-xs bg-muted text-muted-foreground">
+            Inativo
+          </span>
         )}
       </div>
+      <span className="shrink-0 text-sm tabular-nums text-foreground">{modelValueText(model)}</span>
 
-      {/* Value */}
-      <div className="shrink-0 text-right min-w-[120px]">
-        <ServiceValueBadge service={service} />
-      </div>
-
-      {/* Actions */}
       {canManage && (
-        <div
-          className="flex items-center gap-2 shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="flex items-center gap-1 shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => onEdit(service)}
-              >
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(model)}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Editar</TooltipContent>
+            <TooltipContent>Editar modelo</TooltipContent>
           </Tooltip>
-
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
                 <Switch
-                  checked={service.isActive}
-                  onCheckedChange={() => onToggleActive(service)}
+                  checked={model.isActive}
+                  onCheckedChange={() => onToggle(model)}
                   disabled={isToggling}
                   className="scale-90"
                 />
               </div>
             </TooltipTrigger>
-            <TooltipContent>{service.isActive ? 'Desativar' : 'Ativar'}</TooltipContent>
+            <TooltipContent>{model.isActive ? 'Desativar' : 'Ativar'}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={() => onDelete(model)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Excluir modelo</TooltipContent>
           </Tooltip>
         </div>
       )}
@@ -188,112 +144,170 @@ function ServiceCard({ service, canManage, onEdit, onToggleActive, isToggling }:
 
 const Services = () => {
   const { employee } = useAuth();
-  const canManage = employee?.is_gerente ?? false;
+  const canManage = employee?.isAdmin ?? false;
 
-  const { data: services = [], isLoading } = useServices();
-  const seedDefaults = useSeedDefaultServices();
+  const { data: serviceLines = [], isLoading: linesLoading } = useServiceLines();
+  const { data: services = [], isLoading: servicesLoading } = useServices();
+  const { data: models = [], isLoading: modelsLoading } = useServiceRevenueModels();
+
+  const createLine = useCreateServiceLine();
+  const updateLine = useUpdateServiceLine();
+  const toggleLine = useToggleServiceLineActive();
+  const deleteLine = useDeleteServiceLine();
+
   const createService = useCreateService();
   const updateService = useUpdateService();
-  const toggleActive = useToggleServiceActive();
+  const toggleService = useToggleServiceActive();
   const deleteService = useDeleteService();
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const createModel = useCreateServiceRevenueModel();
+  const updateModel = useUpdateServiceRevenueModel();
+  const toggleModel = useToggleServiceRevenueModelActive();
+  const deleteModel = useDeleteServiceRevenueModel();
+
+  // Dialog state
+  const [lineFormOpen, setLineFormOpen] = useState(false);
+  const [selectedLine, setSelectedLine] = useState<ServiceLine | null>(null);
+
+  const [serviceFormOpen, setServiceFormOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [serviceFormLineId, setServiceFormLineId] = useState<string | undefined>(undefined);
 
+  const [modelFormOpen, setModelFormOpen] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<ServiceRevenueModel | null>(null);
+  const [modelFormServiceId, setModelFormServiceId] = useState<string>('');
+
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+
+  // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilters, setTypeFilters] = useState<BillingType[]>([]);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
-  const [collapsed, setCollapsed] = useState<Partial<Record<BillingType, boolean>>>({});
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(canManage ? 'active' : 'active');
+  const [collapsedLines, setCollapsedLines] = useState<Record<string, boolean>>({});
+  const [collapsedServices, setCollapsedServices] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    const activeServices = services.filter((s) => s.isActive);
-    if (!isLoading && activeServices.length === 0 && canManage && !seedDefaults.isPending) {
-      seedDefaults.mutate();
-    }
-  }, [isLoading, services.length]);
+  const isLoading = linesLoading || servicesLoading || modelsLoading;
 
-  const handleAdd = () => {
-    setSelectedService(null);
-    setFormOpen(true);
+  const activeLines = useMemo(() => serviceLines.filter((l) => l.isActive), [serviceLines]);
+
+  // Build filtered hierarchy
+  const search = searchTerm.trim().toLowerCase();
+  const isFiltering = search !== '' || statusFilter !== 'all';
+
+  const tree = useMemo(() => {
+    const statusOk = (active: boolean) =>
+      statusFilter === 'all' ? true : statusFilter === 'active' ? active : !active;
+    const matches = (text: string) => search === '' || text.toLowerCase().includes(search);
+
+    return serviceLines
+      .filter((line) => statusOk(line.isActive))
+      .map((line) => {
+        const lineMatch = matches(line.name);
+        const lineServices = services
+          .filter((s) => s.serviceLineId === line.id && statusOk(s.isActive))
+          .map((service) => {
+            const serviceMatch = matches(service.name);
+            const serviceModels = models.filter(
+              (m) => m.serviceId === service.id && statusOk(m.isActive)
+            );
+            const visibleModels =
+              lineMatch || serviceMatch
+                ? serviceModels
+                : serviceModels.filter((m) => matches(m.name) || matches(REVENUE_MODEL_LABELS[m.modelType]));
+            const activeModelCount = models.filter(
+              (m) => m.serviceId === service.id && m.isActive
+            ).length;
+            return { service, models: serviceModels, visibleModels, serviceMatch, activeModelCount };
+          })
+          .filter((s) => lineMatch || s.serviceMatch || s.visibleModels.length > 0);
+        return { line, lineMatch, services: lineServices };
+      })
+      .filter((l) => l.lineMatch || l.services.length > 0);
+  }, [serviceLines, services, models, statusFilter, search]);
+
+  // ─── Handlers ──────────────────────────────────────────────────────────────
+
+  const openNewLine = () => {
+    setSelectedLine(null);
+    setLineFormOpen(true);
   };
-
-  const handleEdit = (service: Service) => {
-    setSelectedService(service);
-    setFormOpen(true);
+  const openEditLine = (line: ServiceLine) => {
+    setSelectedLine(line);
+    setLineFormOpen(true);
   };
-
-  const handleFormSubmit = (data: CreateServiceInput) => {
-    if (selectedService) {
-      updateService.mutate(
-        { id: selectedService.id, updates: data },
-        { onSuccess: () => setFormOpen(false) }
-      );
+  const submitLine = (data: CreateServiceLineInput) => {
+    if (selectedLine) {
+      updateLine.mutate({ id: selectedLine.id, updates: data }, { onSuccess: () => setLineFormOpen(false) });
     } else {
-      createService.mutate(data, { onSuccess: () => setFormOpen(false) });
+      createLine.mutate(data, { onSuccess: () => setLineFormOpen(false) });
     }
   };
 
-  const handleToggleActive = (service: Service) => {
-    toggleActive.mutate({ id: service.id, isActive: !service.isActive });
+  const openNewService = (lineId?: string) => {
+    setSelectedService(null);
+    setServiceFormLineId(lineId);
+    setServiceFormOpen(true);
   };
-
-  const handleDeleteConfirm = () => {
+  const openEditService = (service: Service) => {
+    setSelectedService(service);
+    setServiceFormLineId(service.serviceLineId ?? undefined);
+    setServiceFormOpen(true);
+  };
+  const submitService = (data: CreateServiceInput) => {
     if (selectedService) {
-      deleteService.mutate(
-        { id: selectedService.id },
-        { onSuccess: () => setDeleteOpen(false) }
-      );
+      updateService.mutate({ id: selectedService.id, updates: data }, { onSuccess: () => setServiceFormOpen(false) });
+    } else {
+      createService.mutate(data, { onSuccess: () => setServiceFormOpen(false) });
     }
   };
 
-  const toggleTypeFilter = (type: BillingType) => {
-    setTypeFilters((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
+  const openNewModel = (serviceId: string) => {
+    setSelectedModel(null);
+    setModelFormServiceId(serviceId);
+    setModelFormOpen(true);
+  };
+  const openEditModel = (model: ServiceRevenueModel) => {
+    setSelectedModel(model);
+    setModelFormServiceId(model.serviceId);
+    setModelFormOpen(true);
+  };
+  const submitModel = (data: CreateServiceRevenueModelInput) => {
+    if (selectedModel) {
+      updateModel.mutate({ id: selectedModel.id, updates: data }, { onSuccess: () => setModelFormOpen(false) });
+    } else {
+      createModel.mutate(data, { onSuccess: () => setModelFormOpen(false) });
+    }
   };
 
-  const toggleCollapse = (type: BillingType) => {
-    setCollapsed((prev) => ({ ...prev, [type]: !prev[type] }));
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    const onSuccess = () => setDeleteTarget(null);
+    if (deleteTarget.kind === 'line') deleteLine.mutate({ id: deleteTarget.entity.id }, { onSuccess });
+    if (deleteTarget.kind === 'service') deleteService.mutate({ id: deleteTarget.entity.id }, { onSuccess });
+    if (deleteTarget.kind === 'model') deleteModel.mutate({ id: deleteTarget.entity.id }, { onSuccess });
   };
 
-  const filtered = useMemo(() => {
-    return services.filter((s) => {
-      if (statusFilter === 'active' && !s.isActive) return false;
-      if (statusFilter === 'inactive' && s.isActive) return false;
-      if (typeFilters.length > 0 && !typeFilters.includes(s.billingType)) return false;
-      if (searchTerm && !s.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-      return true;
-    });
-  }, [services, statusFilter, typeFilters, searchTerm]);
+  const toggleLineCollapse = (id: string) =>
+    setCollapsedLines((p) => ({ ...p, [id]: !p[id] }));
+  const toggleServiceCollapse = (id: string) =>
+    setCollapsedServices((p) => ({ ...p, [id]: !p[id] }));
 
-  const grouped = useMemo(() => {
-    return BILLING_TYPE_ORDER.reduce<Record<BillingType, Service[]>>(
-      (acc, type) => {
-        acc[type] = filtered.filter((s) => s.billingType === type);
-        return acc;
-      },
-      {} as Record<BillingType, Service[]>
-    );
-  }, [filtered]);
+  const deleteIsLoading = deleteLine.isPending || deleteService.isPending || deleteModel.isPending;
 
-  const hasAnyResults = filtered.length > 0;
-  const isFiltering = searchTerm !== '' || typeFilters.length > 0 || statusFilter !== 'all';
+  // ─── Render ────────────────────────────────────────────────────────────────
 
-  if (isLoading || seedDefaults.isPending) {
+  if (isLoading) {
     return (
       <AppLayout
         title="Serviços"
-        description="Catálogo de serviços oferecidos pela empresa"
+        description="Catálogo de serviços organizado por Linha → Serviço → Modelo de Receita"
         breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Serviços' }]}
       >
         <div className="space-y-6">
           {[...Array(2)].map((_, g) => (
             <div key={g} className="space-y-2">
-              <Skeleton className="h-10 w-48" />
-              {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-[64px] w-full rounded-lg" />
-              ))}
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-[56px] w-full rounded-lg" />
+              <Skeleton className="h-[56px] w-full rounded-lg" />
             </div>
           ))}
         </div>
@@ -301,142 +315,254 @@ const Services = () => {
     );
   }
 
+  const hasAnyLine = serviceLines.length > 0;
+
   return (
     <AppLayout
       title="Serviços"
-      description="Catálogo de serviços oferecidos pela empresa"
+      description="Catálogo de serviços organizado por Linha → Serviço → Modelo de Receita"
       breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Serviços' }]}
       actions={
         canManage ? (
-          <Button onClick={handleAdd} size="sm">
+          <Button onClick={openNewLine} size="sm">
             <Plus className="h-4 w-4 mr-1.5" />
-            Adicionar Serviço
+            Nova Linha de Serviço
           </Button>
         ) : undefined
       }
     >
-      {/* Search + filters */}
-      <div className="flex flex-col gap-3 mb-6">
-        <div className="relative max-w-sm">
+      {/* Search + status filter */}
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-sm w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar serviços..."
+            placeholder="Buscar linhas, serviços ou modelos..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Status filter */}
-          {(['all', 'active', 'inactive'] as StatusFilter[]).map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                statusFilter === s
-                  ? 'bg-foreground text-background border-foreground'
-                  : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
-              )}
-            >
-              {s === 'all' ? 'Todos' : s === 'active' ? 'Ativos' : 'Inativos'}
-            </button>
-          ))}
-
-          <div className="h-4 w-px bg-border mx-1" />
-
-          {/* Type filter chips */}
-          {BILLING_TYPE_ORDER.map((type) => (
-            <button
-              key={type}
-              onClick={() => toggleTypeFilter(type)}
-              className={cn(
-                'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                typeFilters.includes(type)
-                  ? TYPE_BADGE_CLASSES[type] + ' border-current'
-                  : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
-              )}
-            >
-              {BILLING_TYPE_LABELS[type]}
-            </button>
-          ))}
-        </div>
+        {canManage && (
+          <div className="flex flex-wrap items-center gap-2">
+            {(['all', 'active', 'inactive'] as StatusFilter[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                  statusFilter === s
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
+                )}
+              >
+                {s === 'all' ? 'Todos' : s === 'active' ? 'Ativos' : 'Inativos'}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Empty state */}
-      {services.length === 0 ? (
+      {/* Empty states */}
+      {!hasAnyLine ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <div className="rounded-full bg-muted p-5 mb-4">
-            <Briefcase className="h-8 w-8 text-muted-foreground" />
+            <Layers className="h-8 w-8 text-muted-foreground" />
           </div>
-          <p className="text-base font-semibold">Nenhum serviço cadastrado</p>
+          <p className="text-base font-semibold">Nenhuma linha de serviço cadastrada</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-xs">
             {canManage
-              ? 'Adicione seu primeiro serviço para começar a montar o catálogo da empresa.'
-              : 'Aguarde um administrador cadastrar serviços.'}
+              ? 'Crie sua primeira Linha de Serviço (ex.: Ventures, Product Studio) para começar a organizar o portfólio.'
+              : 'Aguarde um administrador organizar o catálogo de serviços.'}
           </p>
           {canManage && (
-            <Button className="mt-5" onClick={handleAdd}>
+            <Button className="mt-5" onClick={openNewLine}>
               <Plus className="h-4 w-4 mr-1.5" />
-              Adicionar Serviço
+              Nova Linha de Serviço
             </Button>
           )}
         </div>
-      ) : !hasAnyResults && isFiltering ? (
-        /* No results for current filter */
+      ) : tree.length === 0 && isFiltering ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center">
           <Search className="h-8 w-8 text-muted-foreground mb-3" />
-          <p className="text-sm font-medium">Nenhum serviço encontrado</p>
+          <p className="text-sm font-medium">Nenhum resultado encontrado</p>
           <p className="text-xs text-muted-foreground mt-1">Tente ajustar os filtros ou o termo de busca.</p>
         </div>
       ) : (
-        /* Groups */
-        <div className="space-y-6">
-          {BILLING_TYPE_ORDER.map((type) => {
-            const group = grouped[type];
-            if (group.length === 0) return null;
-            const isCollapsed = !!collapsed[type];
-
+        <div className="space-y-5">
+          {tree.map(({ line, services: lineServices }) => {
+            const lineCollapsed = !!collapsedLines[line.id];
             return (
-              <div key={type}>
-                {/* Group header */}
-                <button
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg border-l-4 bg-muted/40 hover:bg-muted/60 transition-colors mb-2',
-                    TYPE_HEADER_CLASSES[type]
-                  )}
-                  onClick={() => toggleCollapse(type)}
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                  )}
-                  <Badge
-                    variant="outline"
-                    className={cn('text-xs font-medium', TYPE_BADGE_CLASSES[type])}
+              <div key={line.id} className="rounded-lg border bg-muted/20">
+                {/* Line header */}
+                <div className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-primary/70">
+                  <button
+                    className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                    onClick={() => toggleLineCollapse(line.id)}
                   >
-                    {BILLING_TYPE_LABELS[type]}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {group.length} serviço{group.length !== 1 ? 's' : ''}
-                  </span>
-                </button>
+                    {lineCollapsed ? (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )}
+                    <Layers className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-sm font-semibold truncate">{line.name}</span>
+                    {!line.isActive && (
+                      <Badge variant="outline" className="text-xs bg-muted text-muted-foreground shrink-0">
+                        Inativa
+                      </Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {lineServices.length} serviço{lineServices.length !== 1 ? 's' : ''}
+                    </span>
+                  </button>
 
-                {/* Cards */}
-                {!isCollapsed && (
-                  <div className="space-y-2">
-                    {group.map((service) => (
-                      <ServiceCard
-                        key={service.id}
-                        service={service}
-                        canManage={canManage}
-                        onEdit={handleEdit}
-                        onToggleActive={handleToggleActive}
-                        isToggling={toggleActive.isPending}
-                      />
-                    ))}
+                  {canManage && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => openNewService(line.id)}>
+                            <Plus className="h-3.5 w-3.5" /> Serviço
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Adicionar serviço a esta linha</TooltipContent>
+                      </Tooltip>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditLine(line)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <Switch
+                              checked={line.isActive}
+                              onCheckedChange={() => toggleLine.mutate({ id: line.id, isActive: !line.isActive })}
+                              disabled={toggleLine.isPending}
+                              className="scale-90"
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>{line.isActive ? 'Desativar linha' : 'Ativar linha'}</TooltipContent>
+                      </Tooltip>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteTarget({ kind: 'line', entity: line })}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Services */}
+                {!lineCollapsed && (
+                  <div className="px-3 pb-3 pt-1 space-y-2">
+                    {lineServices.length === 0 && (
+                      <p className="text-xs text-muted-foreground px-2 py-3">
+                        Nenhum serviço nesta linha.
+                      </p>
+                    )}
+                    {lineServices.map(({ service, visibleModels, activeModelCount }) => {
+                      const serviceCollapsed = !!collapsedServices[service.id];
+                      const noActiveModel = activeModelCount === 0;
+                      return (
+                        <div key={service.id} className="rounded-md border bg-card">
+                          {/* Service header */}
+                          <div className="flex items-center gap-2 px-3 py-2">
+                            <button
+                              className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                              onClick={() => toggleServiceCollapse(service.id)}
+                            >
+                              {serviceCollapsed ? (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                              )}
+                              <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="text-sm font-medium truncate">{service.name}</span>
+                              {!service.isActive && (
+                                <Badge variant="outline" className="text-xs bg-muted text-muted-foreground shrink-0">
+                                  Inativo
+                                </Badge>
+                              )}
+                              {noActiveModel && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs text-amber-800 shrink-0 dark:bg-amber-900/30 dark:text-amber-400">
+                                      <AlertTriangle className="h-3 w-3" /> Sem modelo de receita
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Este serviço não aparece no orçamento até ter um modelo de receita ativo.
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </button>
+
+                            {canManage && (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => openNewModel(service.id)}>
+                                      <Plus className="h-3.5 w-3.5" /> Modelo
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Adicionar modelo de receita</TooltipContent>
+                                </Tooltip>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditService(service)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div>
+                                      <Switch
+                                        checked={service.isActive}
+                                        onCheckedChange={() => toggleService.mutate({ id: service.id, isActive: !service.isActive })}
+                                        disabled={toggleService.isPending}
+                                        className="scale-90"
+                                      />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{service.isActive ? 'Desativar serviço' : 'Ativar serviço'}</TooltipContent>
+                                </Tooltip>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setDeleteTarget({ kind: 'service', entity: service })}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Models */}
+                          {!serviceCollapsed && (
+                            <div className="px-3 pb-3 pl-9 space-y-1.5">
+                              {visibleModels.length === 0 ? (
+                                <p className="text-xs text-muted-foreground py-1">
+                                  Nenhum modelo de receita cadastrado.
+                                </p>
+                              ) : (
+                                visibleModels.map((model) => (
+                                  <ModelRow
+                                    key={model.id}
+                                    model={model}
+                                    canManage={canManage}
+                                    onEdit={openEditModel}
+                                    onToggle={(m) => toggleModel.mutate({ id: m.id, isActive: !m.isActive })}
+                                    onDelete={(m) => setDeleteTarget({ kind: 'model', entity: m })}
+                                    isToggling={toggleModel.isPending}
+                                  />
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -445,20 +571,41 @@ const Services = () => {
         </div>
       )}
 
+      {/* Dialogs */}
+      <ServiceLineFormDialog
+        open={lineFormOpen}
+        onOpenChange={setLineFormOpen}
+        serviceLine={selectedLine}
+        onSubmit={submitLine}
+        isLoading={createLine.isPending || updateLine.isPending}
+      />
+
       <ServiceFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
+        open={serviceFormOpen}
+        onOpenChange={setServiceFormOpen}
         service={selectedService}
-        onSubmit={handleFormSubmit}
+        serviceLines={activeLines}
+        defaultServiceLineId={serviceFormLineId}
+        onSubmit={submitService}
         isLoading={createService.isPending || updateService.isPending}
       />
 
-      <DeleteServiceDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        serviceName={selectedService?.name ?? ''}
-        onConfirm={handleDeleteConfirm}
-        isLoading={deleteService.isPending}
+      <RevenueModelFormDialog
+        open={modelFormOpen}
+        onOpenChange={setModelFormOpen}
+        serviceId={modelFormServiceId}
+        model={selectedModel}
+        onSubmit={submitModel}
+        isLoading={createModel.isPending || updateModel.isPending}
+      />
+
+      <DeleteCatalogItemDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        itemLabel={deleteTarget ? DELETE_LABELS[deleteTarget.kind] : ''}
+        itemName={deleteTarget?.entity.name ?? ''}
+        onConfirm={confirmDelete}
+        isLoading={deleteIsLoading}
       />
     </AppLayout>
   );
