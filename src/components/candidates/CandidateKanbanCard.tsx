@@ -2,12 +2,13 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { JobApplicationDB, VAGA_PRETENDIDA_LABELS } from '@/types/jobApplication';
 import { formatDate } from '@/lib/formatters';
-import { Mail, Phone, FileText, User, Briefcase } from 'lucide-react';
+import { Mail, Phone, FileText, User, Briefcase, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CandidateKanbanCardProps {
   candidate: JobApplicationDB;
   onClick: () => void;
+  onHireClick?: () => void;
 }
 
 function getFirstTwoNames(nome: string): string {
@@ -15,7 +16,7 @@ function getFirstTwoNames(nome: string): string {
   return parts.slice(0, 2).join(' ');
 }
 
-export function CandidateKanbanCard({ candidate, onClick }: CandidateKanbanCardProps) {
+export function CandidateKanbanCard({ candidate, onClick, onHireClick }: CandidateKanbanCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: candidate.id,
   });
@@ -97,6 +98,20 @@ export function CandidateKanbanCard({ candidate, onClick }: CandidateKanbanCardP
           )}
         </div>
       </div>
+
+      {candidate.status === 'aprovado' && onHireClick && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onHireClick();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-md bg-green-600 hover:bg-green-700 text-white text-xs font-medium py-1.5 transition-colors cursor-pointer"
+        >
+          <UserCheck className="h-3.5 w-3.5" />
+          Contratar
+        </button>
+      )}
     </div>
   );
 }

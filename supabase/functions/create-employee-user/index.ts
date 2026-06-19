@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Declare EdgeRuntime for background tasks
 declare const EdgeRuntime: {
@@ -46,6 +46,7 @@ interface CreateEmployeeRequest {
   fotoUrl: string | null;
   tenantId: string;
   loginUrl: string;
+  candidateId?: string | null;
 }
 
 function generateTempPassword(length = 12): string {
@@ -88,25 +89,28 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Create admin client for privileged operations
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Use getUser to verify the token and get user info
+    // Validate JWT locally (same pattern as send-reimbursement-email)
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
     const token = authHeader.replace('Bearer ', '');
-    const { data: userData, error: userError } = await adminClient.auth.getUser(token);
-    
-    if (userError || !userData?.user) {
-      console.error("Error verifying user token:", userError);
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      console.error("Error verifying user token:", claimsError);
       return new Response(
         JSON.stringify({ error: 'Invalid token' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const userId = userData.user.id;
+    const userId = claimsData.claims.sub;
     console.log("Authenticated user:", userId);
+
+    // Create admin client for privileged operations
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: CreateEmployeeRequest = await req.json();
     console.log("Request body:", { ...body, loginUrl: body.loginUrl ? "[REDACTED]" : undefined });
@@ -146,6 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
       fotoUrl,
       tenantId,
       loginUrl,
+      candidateId,
     } = body;
 
     // Verify the requesting user is admin of the tenant
@@ -269,6 +274,7 @@ const handler = async (req: Request): Promise<Response> => {
         tenant_id: tenantId,
         auth_id: authUserId,
         must_change_password: !isExistingUser, // Only require change for new users
+        candidate_id: candidateId || null,
       })
       .select()
       .single();

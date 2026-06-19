@@ -82,6 +82,7 @@ export interface CreateEmployeeInput {
   breakdownJson?: CostBreakdown;
   dataNascimento?: string;
   fotoUrl?: string;
+  candidateId?: string | null;
 }
 
 export const employeeService = {
@@ -120,35 +121,31 @@ export const employeeService = {
   },
 
   async create(input: CreateEmployeeInput, tenantId: string, loginUrl: string): Promise<EmployeeDB> {
-    const { data: sessionData } = await supabase.auth.getSession();
-    
-    if (!sessionData.session) {
-      throw new Error('Not authenticated');
-    }
+    const { data, error } = await supabase.functions.invoke('create-employee-user', {
+      body: {
+        ...input,
+        tenantId,
+        loginUrl,
+      },
+    });
 
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-employee-user`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionData.session.access_token}`,
-        },
-        body: JSON.stringify({
-          ...input,
-          tenantId,
-          loginUrl,
-        }),
+    if (error) {
+      // Extract the actual message from the edge function response body
+      let message = error.message || 'Failed to create employee';
+      try {
+        const body = JSON.parse(message);
+        if (body?.error) message = body.error;
+      } catch {
+        // keep original message if not JSON
       }
-    );
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || 'Failed to create employee');
+      throw new Error(message);
     }
 
-    return result.employee;
+    if (!data?.employee) {
+      throw new Error('Failed to create employee');
+    }
+
+    return data.employee as EmployeeDB;
   },
 
   async update(id: string, updates: Partial<CreateEmployeeInput>, createNewVersion: boolean = false, effectiveFrom?: string): Promise<EmployeeDB> {
