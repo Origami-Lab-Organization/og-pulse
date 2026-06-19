@@ -14,6 +14,7 @@ import { MetricCard } from '@/components/dashboard/MetricCard';
 import { BirthdaysCard } from '@/components/dashboard/BirthdaysCard';
 import { OperationalHealthCard } from '@/components/dashboard/OperationalHealthCard';
 import { PipelineCard } from '@/components/dashboard/PipelineCard';
+import { PayrollEvolutionChart } from '@/components/dashboard/PayrollEvolutionChart';
 import { useFinancialEvolution } from '@/hooks/useFinancialEvolution';
 import { useProjects } from '@/hooks/useProjects';
 import { useEmployees } from '@/hooks/useEmployees';
@@ -124,8 +125,8 @@ export default function Dashboard() {
           onCustomEndChange={setCustomEnd}
         />
 
-        {/* ── Blocos NÚCLEO — KPIs ──────────────────────────────────────────── */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {/* ── Linha 1: 3 KPIs ──────────────────────────────────────────────── */}
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
           <MetricCard
             label="Receita da empresa"
             icon={DollarSign}
@@ -141,7 +142,6 @@ export default function Dashboard() {
             value={formatCurrency(revenueActual)}
             subtitle="Receita recebida no período"
           />
-
           <MetricCard
             label="Margem"
             icon={Percent}
@@ -160,7 +160,6 @@ export default function Dashboard() {
                 : 'Margem bruta no período'
             }
           />
-
           <MetricCard
             label="Receita por pessoa"
             icon={UserCircle}
@@ -175,7 +174,10 @@ export default function Dashboard() {
             value={revenuePerPerson != null ? formatCurrency(revenuePerPerson) : ''}
             subtitle={`Receita ÷ ${headcount} pessoa(s) ativa(s)`}
           />
+        </div>
 
+        {/* ── Linha 2: 2 KPIs ──────────────────────────────────────────────── */}
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <MetricCard
             label="Projetos ativos"
             icon={FolderKanban}
@@ -190,7 +192,6 @@ export default function Dashboard() {
             value={String(activeProjects.length)}
             subtitle={hasProjects ? `de ${projects.length} projeto(s)` : undefined}
           />
-
           <MetricCard
             label="Custo de folha"
             icon={Wallet}
@@ -204,21 +205,29 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* ── Blocos NÚCLEO — listas + comercial ────────────────────────────── */}
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+        {/* ── Linha 3: cards maiores — Saúde Operacional + Aniversariantes ──── */}
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
           <OperationalHealthCard rows={healthRows} loading={isHealthLoading} />
-          <BirthdaysCard
-            employees={employees}
-            startDate={filters.startDate}
-            endDate={filters.endDate}
-            loading={isEmployeesLoading}
-          />
           <PipelineCard
             activePipeline={commercial?.activePipeline ?? 0}
             avgSalesCycleDays={commercial?.avgSalesCycleDays ?? null}
             pipelineLeadsWithBudgetCount={commercial?.pipelineLeadsWithBudgetCount ?? 0}
             pipelineByStage={commercial?.pipelineByStage ?? []}
             loading={isCommercialLoading}
+          />
+        </div>
+
+        {/* ── Linha 4: cards maiores — Pipeline + Evolução da Folha ────────── */}
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+          <BirthdaysCard
+            employees={employees}
+            startDate={filters.startDate}
+            endDate={filters.endDate}
+            loading={isEmployeesLoading}
+          />
+          <PayrollEvolutionChart
+            employees={employees}
+            loading={isEmployeesLoading}
           />
         </div>
 
