@@ -15,6 +15,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import PrimeiroAcesso from "./pages/PrimeiroAcesso";
 import ReenviarPrimeiroAcesso from "./pages/ReenviarPrimeiroAcesso";
+import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
 import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 import JobApplication from "./pages/JobApplication";
@@ -59,6 +60,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <OnboardingProvider>
             <Routes>
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
@@ -266,6 +268,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </OnboardingProvider>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

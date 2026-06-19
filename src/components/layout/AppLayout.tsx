@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { AppNavbar } from './AppNavbar';
+import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -45,6 +46,7 @@ export function AppLayout({
       {/* Main Content */}
       <main className="flex-1 overflow-auto min-w-0">
         <div className="py-4 px-4 sm:py-6 sm:px-6 max-w-full">
+          <OnboardingBanner />
           {children}
         </div>
       </main>

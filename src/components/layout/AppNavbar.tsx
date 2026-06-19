@@ -56,6 +56,15 @@ interface NavItem {
   requiresAdmin?: boolean;
 }
 
+// FUNC-J2 — alvos do coachmark de onboarding (destaque por step no navbar).
+const ONBOARDING_TARGETS: Record<string, string> = {
+  '/inbox': 'inbox',
+  '/my-kanban': 'kanban',
+  '/my-projects': 'projetos',
+  '/my-timesheet': 'timesheet',
+  '/reimbursements': 'reembolsos',
+};
+
 interface NavGroup {
   label: string;
   requiresManager?: boolean;
@@ -258,6 +267,7 @@ export function AppNavbar() {
                 const flatButton = (
                   <NavigationMenuItem key={item.title}>
                     <button
+                      data-onboarding={ONBOARDING_TARGETS[item.url]}
                       disabled={item.disabled}
                       onClick={() => !item.disabled && navigate(item.url)}
                       className={cn(

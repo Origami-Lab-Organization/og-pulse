@@ -1038,6 +1038,8 @@ export type Database = {
           jornada_mensal: number
           invited_at: string | null
           must_change_password: boolean
+          onboarding_completed: boolean
+          onboarding_completed_at: string | null
           nome: string
           pro_labore: number
           provisao_13: number
@@ -1080,6 +1082,8 @@ export type Database = {
           jornada_mensal?: number
           invited_at?: string | null
           must_change_password?: boolean
+          onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
           nome: string
           pro_labore?: number
           provisao_13?: number
@@ -1122,6 +1126,8 @@ export type Database = {
           jornada_mensal?: number
           invited_at?: string | null
           must_change_password?: boolean
+          onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
           nome?: string
           pro_labore?: number
           provisao_13?: number
