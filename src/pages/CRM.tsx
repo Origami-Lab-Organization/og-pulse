@@ -24,7 +24,9 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { LeadKanbanBoard } from '@/components/crm/LeadKanbanBoard';
 import { LeadFormDialog } from '@/components/crm/LeadFormDialog';
 import { LeadDetailDialog } from '@/components/crm/LeadDetailDialog';
-import { useLeads, useArchivedLeads, useUnarchiveLead, useDeleteLead } from '@/hooks/useLeads';
+import { RestoreLeadDialog } from '@/components/crm/RestoreLeadDialog';
+import { DeleteLeadDialog } from '@/components/crm/DeleteLeadDialog';
+import { useLeads, useArchivedLeads } from '@/hooks/useLeads';
 import { useAuth } from '@/contexts/AuthContext';
 import CRMStats from '@/components/crm/CRMStats';
 import { formatCurrency, formatDate, formatShortDate } from '@/lib/formatters';
@@ -97,8 +99,6 @@ export default function CRM() {
   const cancelledSet = useMemo(() => new Set(cancelledLeadIds), [cancelledLeadIds]);
   const activeLeads = useMemo(() => rawActiveLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawActiveLeads, cancelledSet]);
   const archivedLeads = useMemo(() => rawArchivedLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawArchivedLeads, cancelledSet]);
-  const unarchiveMutation = useUnarchiveLead();
-  const deleteMutation = useDeleteLead();
 
   // Archived view state
   const [reasonFilter, setReasonFilter] = useState<string>('all');
@@ -107,6 +107,8 @@ export default function CRM() {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedArchivedLead, setSelectedArchivedLead] = useState<LeadWithBudget | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<LeadWithBudget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LeadWithBudget | null>(null);
   const [selectedActiveLead, setSelectedActiveLead] = useState<LeadWithBudget | null>(null);
 
   // List view sort state
@@ -580,21 +582,19 @@ export default function CRM() {
                                 <TooltipTrigger asChild>
                                   <Button
                                     size="sm" variant="ghost" className="h-8 w-8 p-0"
-                                    onClick={() => unarchiveMutation.mutate(lead.id)}
-                                    disabled={unarchiveMutation.isPending}
+                                    onClick={() => setRestoreTarget(lead)}
                                   >
                                     <ArchiveRestore className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Desarquivar</TooltipContent>
+                                <TooltipContent>Restaurar</TooltipContent>
                               </Tooltip>
                               {isAdmin && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
                                       size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                      onClick={() => deleteMutation.mutate(lead.id)}
-                                      disabled={deleteMutation.isPending}
+                                      onClick={() => setDeleteTarget(lead)}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -656,6 +656,19 @@ export default function CRM() {
           open={!!selectedArchivedLead}
           onOpenChange={(open) => { if (!open) setSelectedArchivedLead(null); }}
           lead={selectedArchivedLead}
+        />
+
+        <RestoreLeadDialog
+          open={!!restoreTarget}
+          onOpenChange={(open) => { if (!open) setRestoreTarget(null); }}
+          lead={restoreTarget}
+        />
+
+        <DeleteLeadDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+          leadId={deleteTarget?.id ?? null}
+          leadName={deleteTarget?.name ?? ''}
         />
       </AppLayout>
     </TooltipProvider>

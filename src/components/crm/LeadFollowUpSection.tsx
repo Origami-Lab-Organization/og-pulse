@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -71,6 +73,8 @@ export function LeadFollowUpSection({ leadId, disabled }: LeadFollowUpSectionPro
   const [assignedTo, setAssignedTo] = useState<string>('');
 
   const activeEmployees = employees.filter(e => e.status === 'ativo');
+  const employeeName = (id: string | null) =>
+    (id ? employees.find(e => e.id === id)?.nome ?? null : null);
 
   const handleCreate = () => {
     if (!description.trim() || !scheduledAt) return;
@@ -209,6 +213,10 @@ export function LeadFollowUpSection({ leadId, disabled }: LeadFollowUpSectionPro
                   )}>
                     {formatScheduledAt(fu.scheduled_at)}
                   </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatDistanceToNow(new Date(fu.created_at), { addSuffix: true, locale: ptBR })}
+                    {employeeName(fu.created_by) && ` · ${employeeName(fu.created_by)}`}
+                  </p>
                 </div>
                 {!disabled && (
                   <div className="flex items-center gap-1 shrink-0">
@@ -260,6 +268,10 @@ export function LeadFollowUpSection({ leadId, disabled }: LeadFollowUpSectionPro
                         {completedByEmployee && (
                           <span className="ml-1">· por {completedByEmployee.nome}</span>
                         )}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatDistanceToNow(new Date(fu.created_at), { addSuffix: true, locale: ptBR })}
+                        {employeeName(fu.created_by) && ` · ${employeeName(fu.created_by)}`}
                       </p>
                     </div>
                     <Badge

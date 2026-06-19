@@ -5,6 +5,7 @@ import { InboxTimesheetDetail } from "./InboxTimesheetDetail";
 import { InboxReimbursementDetail } from "./InboxReimbursementDetail";
 import { InboxBudgetDetail } from "./InboxBudgetDetail";
 import { CorrectionData } from "@/components/reimbursements/ReimbursementFormDialog";
+import { MyProjectsWidget } from "@/components/dashboard/MyProjectsWidget";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -366,6 +367,9 @@ export function InboxDetailEmpty() {
       <p className="text-xs text-muted-foreground mt-1">
         Clique em um item à esquerda para ver os detalhes
       </p>
+      <div className="mt-10 w-full flex justify-center">
+        <MyProjectsWidget />
+      </div>
     </div>
   );
 }

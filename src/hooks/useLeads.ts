@@ -142,6 +142,7 @@ export function useArchiveLead() {
           metadata: {
             reason: variables.archive_reason,
             notes: variables.archive_notes,
+            competitor_name: variables.competitor_name ?? null,
           },
           createdBy: employee.id,
         }).catch(console.warn);
@@ -191,25 +192,26 @@ export function useUnarchiveLead() {
   const qc = useQueryClient();
   const { employee } = useAuth();
   return useMutation({
-    mutationFn: (id: string) => unarchiveLead(id),
-    onSuccess: (_data, _variables, context) => {
+    mutationFn: ({ id, targetStage }: { id: string; targetStage: CRMStage }) => unarchiveLead(id, targetStage),
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['archived-leads'] });
-      toast({ title: 'Lead desarquivado com sucesso' });
+      toast({ title: 'Oportunidade restaurada com sucesso' });
 
       // Log unarchive activity (fire-and-forget)
-      if (employee && typeof _variables === 'string') {
+      if (employee) {
         leadActivityService.log({
           tenantId: employee.tenant_id,
-          leadId: _variables,
+          leadId: variables.id,
           activityType: 'unarchived',
-          description: 'Lead restaurado do arquivo',
+          description: 'Oportunidade restaurada do arquivo',
+          metadata: { to_stage: variables.targetStage },
           createdBy: employee.id,
         }).catch(console.warn);
       }
     },
     onError: (err: any) => {
-      toast({ title: 'Erro ao desarquivar lead', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro ao restaurar oportunidade', description: err.message, variant: 'destructive' });
     },
   });
 }

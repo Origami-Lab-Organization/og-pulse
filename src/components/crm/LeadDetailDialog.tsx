@@ -63,11 +63,13 @@ import {
   Lock,
   Zap,
 } from 'lucide-react'
-import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead'
+import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage, isRecentlyRestored } from '@/types/lead'
 import { ArchiveLeadDialog } from './ArchiveLeadDialog'
 import { DeleteLeadDialog } from './DeleteLeadDialog'
 import { LeadActivityTimeline } from './LeadActivityTimeline'
 import { LeadInteractionsTab } from './LeadInteractionsTab'
+import { LeadFollowUpSection } from './LeadFollowUpSection'
+import { LeadAttachmentsTab } from './LeadAttachmentsTab'
 import { BudgetVersionHistory } from './BudgetVersionHistory'
 import { useUpdateLead, useUpdateLeadStage } from '@/hooks/useLeads'
 import { useApplyServiceTemplate } from '@/hooks/useBudgets'
@@ -362,7 +364,7 @@ export function LeadDetailDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleSheetChange}>
-        <DialogContent className='max-w-[520px] p-0 flex flex-col h-[88vh] overflow-hidden gap-0'>
+        <DialogContent className='max-w-3xl p-0 flex flex-col h-[88vh] overflow-hidden gap-0'>
           {/* ── Header ── */}
           <DialogHeader className='px-5 pt-5 pb-4 space-y-1 pr-20'>
             <div className='flex items-center gap-2 min-w-0'>
@@ -384,6 +386,14 @@ export function LeadDetailDialog({
                   className='bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 shrink-0'
                 >
                   Arquivado
+                </Badge>
+              )}
+              {!isArchived && isRecentlyRestored(lead) && (
+                <Badge
+                  variant='secondary'
+                  className='bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 shrink-0'
+                >
+                  Reativada
                 </Badge>
               )}
             </div>
@@ -464,6 +474,9 @@ export function LeadDetailDialog({
                   </TabsTrigger>
                   <TabsTrigger value='historico' className='flex-1'>
                     Histórico
+                  </TabsTrigger>
+                  <TabsTrigger value='arquivos' className='flex-1'>
+                    Arquivos
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -1017,7 +1030,12 @@ export function LeadDetailDialog({
                   />
                 </TabsContent>
 
-                <TabsContent value='followups' className='px-5 py-4 mt-0'>
+                <TabsContent value='followups' className='px-5 py-4 mt-0 space-y-4'>
+                  <LeadFollowUpSection
+                    leadId={lead.id}
+                    disabled={lead.crm_stage === 'closed' || isArchived}
+                  />
+                  <Separator />
                   <LeadInteractionsTab
                     leadId={lead.id}
                     disabled={lead.crm_stage === 'closed' || isArchived}
@@ -1026,6 +1044,10 @@ export function LeadDetailDialog({
 
                 <TabsContent value='historico' className='px-5 py-4 mt-0'>
                   <LeadActivityTimeline leadId={lead.id} />
+                </TabsContent>
+
+                <TabsContent value='arquivos' className='px-5 py-4 mt-0'>
+                  <LeadAttachmentsTab leadId={lead.id} />
                 </TabsContent>
               </ScrollArea>
             </Tabs>

@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/collapsible'
 import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAllocation'
 import { useMyAllocationData } from '@/hooks/useMyAllocationData'
+import { useTimesheetPrefill } from '@/hooks/useTimesheetPrefill'
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector'
 import { GlobalSaveIndicator } from '@/components/timesheets/GlobalSaveIndicator'
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow'
@@ -111,6 +112,45 @@ const MyTimesheet = () => {
     }
     return set
   }, [allocationData])
+
+  // Pré-preenchimento sugerido (Opção C). Estado de UI — só persiste no envio.
+  const rawPrefill = useTimesheetPrefill(employee?.id, weekDays, projects)
+  // CA-07: semana futura permanece bloqueada e sem sugestão.
+  const prefillByProject = useMemo(
+    () => (isFutureWeek ? {} : rawPrefill),
+    [isFutureWeek, rawPrefill],
+  )
+
+  // Sugestões que de fato serão lançadas no envio: apenas células sem lançamento
+  // salvo (CA-03). Edições viram lançamento real e saem daqui automaticamente.
+  const suggestionEntriesByProject = useMemo(() => {
+    const result: Record<string, Record<string, number>> = {}
+    for (const project of projects) {
+      const member = project.members[0]
+      if (!member) continue
+      const projSug = prefillByProject[project.projectId]
+      if (!projSug) continue
+      const cells: Record<string, number> = {}
+      for (const [date, h] of Object.entries(projSug)) {
+        const hasEntry = timesheetEntries.some(
+          (e) => e.projectMemberId === member.memberId && e.workDate === date,
+        )
+        if (!hasEntry && h > 0) cells[date] = h
+      }
+      if (Object.keys(cells).length > 0) result[project.projectId] = cells
+    }
+    return result
+  }, [projects, prefillByProject, timesheetEntries])
+
+  const totalSuggestedHours = useMemo(() => {
+    let total = 0
+    for (const cells of Object.values(suggestionEntriesByProject)) {
+      for (const h of Object.values(cells)) total += h
+    }
+    return total
+  }, [suggestionEntriesByProject])
+
+  const hasSuggestions = totalSuggestedHours > 0
 
   const submitAllProjects = useSubmitAllProjects()
 
@@ -349,6 +389,8 @@ const MyTimesheet = () => {
         projects: projectsToSubmit,
         weekStart: startDate,
         weekDays: weekDays.map((d) => d.date),
+        // CA-05: sugestões não editadas viram lançamento real no envio.
+        suggestions: suggestionEntriesByProject,
       },
       {
         onSuccess: () => setShowSubmitAllDialog(false),
@@ -532,6 +574,24 @@ const MyTimesheet = () => {
                             </div>
                           )}
 
+                          {/* Legenda do pré-preenchimento sugerido */}
+                          {hasSuggestions && (
+                            <div className='flex items-start gap-2.5 mx-3 mt-2 px-3 py-2.5 rounded-md bg-primary/5 border-l-4 border-primary/40'>
+                              <Info className='h-4 w-4 text-primary mt-0.5 flex-shrink-0' />
+                              <p className='text-sm text-muted-foreground'>
+                                As células{' '}
+                                <span className='italic text-muted-foreground'>
+                                  tracejadas e em itálico
+                                </span>{' '}
+                                são <span className='font-medium'>sugestões</span>{' '}
+                                a partir da sua alocação mensal. Ajuste o que
+                                precisar e clique em{' '}
+                                <span className='font-medium'>Enviar semana</span>{' '}
+                                para lançá-las.
+                              </p>
+                            </div>
+                          )}
+
                           {/* Projetos */}
                           <Collapsible
                             open={projectsOpen}
@@ -613,6 +673,9 @@ const MyTimesheet = () => {
                                     isLocked={isLocked || isFutureWeek}
                                     isAdmin={false}
                                     actionSlot={actionContent}
+                                    suggestions={
+                                      prefillByProject[project.projectId]
+                                    }
                                     allDailyTotals={allDailyTotals}
                                     dailyWorkHours={
                                       employee?.jornada_diaria ?? 8
@@ -811,7 +874,7 @@ const MyTimesheet = () => {
           pendingCount={projects.length}
           weekStart={weekStart}
           weekEnd={weekEnd}
-          totalHours={totalHoursAllProjects}
+          totalHours={totalHoursAllProjects + totalSuggestedHours}
           onConfirm={handleSubmitAll}
           isSubmitting={submitAllProjects.isPending}
         />

@@ -47,6 +47,7 @@ import JobOpenings from "./pages/JobOpenings";
 import JobApplicationVaga from "./pages/JobApplicationVaga";
 import Strategy from "./pages/Strategy";
 import MyKanban from "./pages/MyKanban";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 2 * 60 * 1000 } },
@@ -91,7 +92,8 @@ const App = () => (
                 }
               />
               {/* Root redirect */}
-              <Route path="/" element={<Navigate to="/inbox" replace />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
               {/* My Timesheet - all authenticated users */}
               <Route 

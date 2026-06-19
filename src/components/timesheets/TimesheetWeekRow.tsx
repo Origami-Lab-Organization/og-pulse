@@ -41,6 +41,8 @@ interface TimesheetWeekRowProps {
   isAdmin?: boolean;
   actionSlot?: ReactNode;
   statusSlot?: ReactNode;
+  /** Sugestão de horas por data (pré-preenchimento). Só aparece em células vazias. */
+  suggestions?: Record<string, number>;
   /** Total hours per date from ALL projects (server-side entries) */
   allDailyTotals?: Record<string, number>;
   /** Employee daily work hours (jornada_diaria) for soft limit */
@@ -68,6 +70,7 @@ export function TimesheetWeekRow({
   isAdmin = false,
   actionSlot,
   statusSlot,
+  suggestions = {},
   allDailyTotals = {},
   dailyWorkHours = 8,
   onLocalTotalChange,
@@ -75,22 +78,51 @@ export function TimesheetWeekRow({
   onSaveStatusChange,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
-  
-  // Initialize hours from existing entries
+
+  // Valores editados pelo usuário, mantidos até o servidor confirmar o mesmo
+  // valor. Evita o "flick" em que a célula reverte para a sugestão/valor antigo
+  // enquanto o refetch ainda não reflete o que acabou de ser salvo.
+  const editedValuesRef = useRef<Map<string, number>>(new Map());
+
+  // Helper: célula vazia (sem lançamento salvo) que possui sugestão.
+  const isSuggestedDate = useCallback(
+    (date: string): boolean => {
+      if (editedValuesRef.current.has(date)) return false; // usuário já tocou
+      if ((suggestions[date] ?? 0) <= 0) return false;
+      const entry = existingEntries.find(
+        (e) => e.projectMemberId === memberId && e.workDate === date
+      );
+      return !entry; // CA-03: sugestão só preenche células sem lançamento salvo
+    },
+    [suggestions, existingEntries, memberId]
+  );
+
+  // Initialize hours from existing entries, caindo para a sugestão quando vazio
   const getInitialHours = useCallback(() => {
     const hours: Record<string, number> = {};
     weekDays.forEach((day) => {
       const entry = existingEntries.find(
         (e) => e.projectMemberId === memberId && e.workDate === day.date
       );
-      hours[day.date] = entry?.hours ?? 0;
+      hours[day.date] = entry?.hours ?? (suggestions[day.date] ?? 0);
     });
     return hours;
-  }, [weekDays, existingEntries, memberId]);
+  }, [weekDays, existingEntries, memberId, suggestions]);
+
+  const getInitialSuggested = useCallback(() => {
+    const set = new Set<string>();
+    weekDays.forEach((day) => {
+      if (isSuggestedDate(day.date)) set.add(day.date);
+    });
+    return set;
+  }, [weekDays, isSuggestedDate]);
 
   const [hours, setHours] = useState<Record<string, number>>(getInitialHours);
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
-  
+  // Datas atualmente exibindo sugestão (estado de UI, não persistido).
+  const [suggestedDates, setSuggestedDates] = useState<Set<string>>(getInitialSuggested);
+  const suggestedDatesRef = useRef<Set<string>>(getInitialSuggested());
+
   // Ref to track pending saves for use in effects (avoids stale closure)
   const pendingSavesRef = useRef<Set<string>>(new Set());
   const hoursRef = useRef<Record<string, number>>(hours);
@@ -106,6 +138,10 @@ export function TimesheetWeekRow({
     hoursRef.current = hours;
   }, [hours]);
 
+  useEffect(() => {
+    suggestedDatesRef.current = suggestedDates;
+  }, [suggestedDates]);
+
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
@@ -114,27 +150,42 @@ export function TimesheetWeekRow({
     };
   }, []);
 
-  // Update hours when existingEntries change, preserving fields with pending saves
+  // Update hours when existingEntries/suggestions change, preserving in-flight
+  // edits e mantendo a sugestão nas células ainda vazias (CA-03).
   useEffect(() => {
-    setHours(prev => {
-      const serverHours: Record<string, number> = {};
-      weekDays.forEach((day) => {
-        const entry = existingEntries.find(
-          (e) => e.projectMemberId === memberId && e.workDate === day.date
-        );
-        serverHours[day.date] = entry?.hours ?? 0;
-      });
-      
-      // Preserve values for fields with pending saves
-      const merged = { ...serverHours };
-      pendingSavesRef.current.forEach(date => {
-        if (prev[date] !== undefined) {
-          merged[date] = prev[date];
+    const prev = hoursRef.current;
+    const edited = editedValuesRef.current;
+    const nextHours: Record<string, number> = {};
+    const nextSuggested = new Set<string>();
+
+    weekDays.forEach((day) => {
+      const date = day.date;
+      const entry = existingEntries.find(
+        (e) => e.projectMemberId === memberId && e.workDate === date
+      );
+
+      if (pendingSavesRef.current.has(date)) {
+        nextHours[date] = prev[date] ?? 0; // edição em andamento (salvando)
+      } else if (edited.has(date)) {
+        const editedVal = edited.get(date)!;
+        // Só liberamos o valor editado quando o servidor reflete exatamente ele.
+        if (entry && Math.round(entry.hours * 10) === Math.round(editedVal * 10)) {
+          edited.delete(date);
+          nextHours[date] = entry.hours;
+        } else {
+          nextHours[date] = editedVal; // mantém o que o usuário digitou
         }
-      });
-      return merged;
+      } else if (entry) {
+        nextHours[date] = entry.hours; // lançamento salvo nunca é sobrescrito
+      } else {
+        nextHours[date] = suggestions[date] ?? 0; // sugestão ou vazio
+        if (isSuggestedDate(date)) nextSuggested.add(date);
+      }
     });
-  }, [existingEntries, weekDays, memberId]);
+
+    setHours(nextHours);
+    setSuggestedDates(nextSuggested);
+  }, [existingEntries, weekDays, memberId, suggestions, isSuggestedDate]);
 
   const MAX_HOURS_PER_DAY = 12;
 
@@ -191,7 +242,15 @@ export function TimesheetWeekRow({
     }
     
     setHours((prev) => ({ ...prev, [date]: numValue }));
+    editedValuesRef.current.set(date, numValue); // protege contra flick no refetch
     setPendingSaves((prev) => new Set(prev).add(date));
+    // Ao editar, a célula deixa de ser sugestão e passa a ser lançamento real.
+    setSuggestedDates((prev) => {
+      if (!prev.has(date)) return prev;
+      const next = new Set(prev);
+      next.delete(date);
+      return next;
+    });
     onSaveStatusChange?.(memberId, { status: 'unsaved' });
     scheduleSave(date);
   };
@@ -345,44 +404,55 @@ export function TimesheetWeekRow({
         // Normal editable cell
         const effectiveTotal = getEffectiveDailyTotal(day.date);
         const isOverWorkday = effectiveTotal > dailyWorkHours;
+        const isSuggested = suggestedDates.has(day.date);
 
-        const input = (
-          <Input
-            key={day.date}
-            type="number"
-            min={0}
-            max={12}
-            step={0.1}
-            value={hours[day.date] || ''}
-            onChange={(e) => handleHoursChange(day.date, e.target.value)}
-            onBlur={() => handleBlur(day.date)}
-            aria-label={`Horas ${dayName}, projeto ${label}`}
-            className={cn(
-              "h-8 text-center text-sm px-1",
-              isToday && "bg-primary/5 ring-1 ring-primary/20",
-              pendingSaves.has(day.date) && "border-primary",
-              isOverWorkday && "border-amber-500 focus-visible:ring-amber-500"
-            )}
-            placeholder="0"
-          />
-        );
+        // Mensagem opcional do tooltip. A estrutura (TooltipProvider > Tooltip >
+        // TooltipTrigger > Input) é SEMPRE a mesma — só o conteúdo é condicional —
+        // para que o <input> nunca seja remontado ao alternar de sugestão para
+        // edição, o que faria o campo perder o foco no meio da digitação.
+        const tooltipMessage = isOverWorkday
+          ? 'Volume acima da jornada diária. Tem certeza?'
+          : isSuggested
+            ? 'Sugestão a partir da sua alocação. Edite ou confirme para lançar.'
+            : null;
 
-        if (isOverWorkday) {
-          return (
-            <TooltipProvider key={day.date}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  {input}
-                </TooltipTrigger>
+        return (
+          <TooltipProvider key={day.date}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Input
+                  type="number"
+                  min={0}
+                  max={12}
+                  step={0.1}
+                  value={hours[day.date] || ''}
+                  onChange={(e) => handleHoursChange(day.date, e.target.value)}
+                  onBlur={() => handleBlur(day.date)}
+                  aria-label={
+                    isSuggested
+                      ? `Sugestão de horas ${dayName}, projeto ${label}: ${hours[day.date]}h — edite ou confirme para lançar`
+                      : `Horas ${dayName}, projeto ${label}`
+                  }
+                  className={cn(
+                    "h-8 text-center text-sm px-1",
+                    isToday && "bg-primary/5 ring-1 ring-primary/20",
+                    pendingSaves.has(day.date) && "border-primary",
+                    // CA-04: estado de sugestão — valor mais claro + borda tracejada
+                    isSuggested &&
+                      "border-dashed border-primary/40 text-muted-foreground italic",
+                    isOverWorkday && "border-amber-500 focus-visible:ring-amber-500"
+                  )}
+                  placeholder="0"
+                />
+              </TooltipTrigger>
+              {tooltipMessage && (
                 <TooltipContent>
-                  <p>Volume acima da jornada diária. Tem certeza?</p>
+                  <p>{tooltipMessage}</p>
                 </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          );
-        }
-
-        return input;
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        );
       })}
       
       <div className="text-right font-medium text-sm pr-2">
