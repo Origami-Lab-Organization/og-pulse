@@ -23,10 +23,20 @@ interface ProjectReimbursementsSectionProps {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  // Tokens semânticos do tema (success/warning) — padrão ui-badge do origami-ds:
+  // fundo suave + texto na cor semântica. Sem cores hardcoded.
   if (status === 'paid') {
-    return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100">Pago</Badge>;
+    return (
+      <Badge variant="outline" className="border-transparent bg-primary-deep/10 text-primary-deep hover:bg-primary-deep/10">
+        Pago
+      </Badge>
+    );
   }
-  return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-100">Aprovado</Badge>;
+  return (
+    <Badge variant="outline" className="border-transparent bg-warning/15 text-warning-foreground hover:bg-warning/15">
+      Aprovado
+    </Badge>
+  );
 }
 
 export function ProjectReimbursementsSection({ reimbursements }: ProjectReimbursementsSectionProps) {

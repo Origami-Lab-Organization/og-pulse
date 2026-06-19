@@ -558,7 +558,10 @@ export function ProjectLaborSection({
             </CardDescription>
           </div>
           {isEditable && (
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="bg-primary-deep text-primary-deep-foreground hover:bg-primary-deep/90"
+            >
               <Plus className="mr-2 h-4 w-4" />
               {isFinanciamento ? 'Adicionar Membro' : 'Adicionar Papel'}
             </Button>
@@ -804,7 +807,7 @@ export function ProjectLaborSection({
                                       onClick={() => handleSaveHoursForMember(member.id)}
                                       title="Salvar"
                                     >
-                                      <Check className="h-4 w-4 text-green-600" />
+                                      <Check className="h-4 w-4 text-primary-deep" />
                                     </Button>
                                     <Button
                                       variant="ghost"

@@ -38,7 +38,7 @@ function MetricItem({
         <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-destructive" />
       )}
       {dotStatus === "ok" && (
-        <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-emerald-500" />
+        <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-primary-deep" />
       )}
       <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground truncate">
         {label}

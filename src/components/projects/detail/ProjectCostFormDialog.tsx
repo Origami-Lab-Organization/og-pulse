@@ -99,7 +99,7 @@ export function ProjectCostFormDialog({
             plannedAmount: Number(cost.planned_amount),
             actualAmount:
               cost.actual_amount != null ? Number(cost.actual_amount) : null,
-            costDate: cost.cost_date,
+            costDate: cost.cost_date ?? todayISO(),
             currency: cost.original_currency,
             exchangeRate: Number(cost.exchange_rate) || 1,
             notes: cost.notes ?? "",

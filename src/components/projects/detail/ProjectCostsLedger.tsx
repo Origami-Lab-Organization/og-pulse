@@ -129,7 +129,7 @@ export function ProjectCostsLedger({
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <div>
-          <CardTitle>Custos </CardTitle>
+          <CardTitle>Custos</CardTitle>
           <CardDescription>
             Fornecedores, assinaturas, aluguéis, materiais, viagens e outros
             custos do projeto.
@@ -153,7 +153,11 @@ export function ProjectCostsLedger({
             </SelectContent>
           </Select>
           {canManage && visibleCosts.length > 0 && (
-            <Button size="sm" onClick={openAdd}>
+            <Button
+              size="sm"
+              onClick={openAdd}
+              className="bg-primary-deep text-primary-deep-foreground hover:bg-primary-deep/90"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Adicionar custo
             </Button>

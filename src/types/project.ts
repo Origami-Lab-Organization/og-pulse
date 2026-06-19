@@ -124,7 +124,7 @@ export interface ProjectCostDB {
   project_id: string;
   category: ProjectCostCategory;
   description: string;
-  cost_date: string;
+  cost_date: string | null;
   planned_amount: number;
   actual_amount: number | null;
   original_currency: CostCurrency;

@@ -35,6 +35,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CreateProjectInput } from "@/types/project";
 import { useState } from "react";
 
+// Tab estilo underline para o detalhe do projeto. Anula o visual de pílula do
+// TabsTrigger base (bg/shadow) e aplica sublinhado verde escuro no estado ativo.
+const projectTabClass =
+  "relative rounded-none border-b-2 border-transparent bg-transparent px-3 py-2.5 font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary-deep data-[state=active]:bg-transparent data-[state=active]:text-primary-deep data-[state=active]:shadow-none";
+
 const CANCELLATION_REASON_LABELS: Record<string, string> = {
   client_cancellation: "Cancelamento pelo cliente",
   scope_change: "Mudança de escopo",
@@ -224,7 +229,7 @@ export default function ProjectDetail() {
     <AppLayout title={project.name} hideHeader>
       <HideValuesProvider value={hideValues}>
         <div className="space-y-4">
-          <ProjectHeader project={project} actions={headerActions} />
+          <ProjectHeader project={project} />
 
         {isCancelled && cancellation.cancellation_reason && (
           <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
@@ -256,24 +261,32 @@ export default function ProjectDetail() {
         )}
 
         <Tabs defaultValue={initialTab} className="w-full">
-          <div className="overflow-x-auto">
-            <TabsList className="inline-flex w-max">
-              {canAccessFullProject && (
-                <>
-                  <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-                  <TabsTrigger value="planning">Planejamento</TabsTrigger>
-                  <TabsTrigger value="okrs">Objetivos</TabsTrigger>
-                  <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
-                  <TabsTrigger value="team">Equipe</TabsTrigger>
-                  <TabsTrigger value="costs">Custos</TabsTrigger>
-                  <TabsTrigger value="financial">Financeiro</TabsTrigger>
-                  <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
-                </>
-              )}
-              {canViewActivities && (
-                <TabsTrigger value="activities">Atividades</TabsTrigger>
-              )}
-            </TabsList>
+          {/* Navegação estilo underline (modelo de design): sem pílula, tab
+              ativa sublinhada no verde escuro da marca. As ações (ocultar
+              valores / menu) ficam alinhadas à direita, na mesma linha. */}
+          <div className="flex items-end justify-between gap-3 border-b border-border">
+            <div className="min-w-0 flex-1 overflow-x-auto">
+              <TabsList className="inline-flex h-auto w-max items-stretch gap-1 rounded-none bg-transparent p-0 text-muted-foreground">
+                {canAccessFullProject && (
+                  <>
+                    <TabsTrigger value="overview" className={projectTabClass}>Visão Geral</TabsTrigger>
+                    <TabsTrigger value="planning" className={projectTabClass}>Planejamento</TabsTrigger>
+                    <TabsTrigger value="okrs" className={projectTabClass}>Objetivos</TabsTrigger>
+                    <TabsTrigger value="roadmap" className={projectTabClass}>Roadmap</TabsTrigger>
+                    <TabsTrigger value="team" className={projectTabClass}>Equipe</TabsTrigger>
+                    <TabsTrigger value="costs" className={projectTabClass}>Custos</TabsTrigger>
+                    <TabsTrigger value="financial" className={projectTabClass}>Financeiro</TabsTrigger>
+                    <TabsTrigger value="stakeholders" className={projectTabClass}>Stakeholders</TabsTrigger>
+                  </>
+                )}
+                {canViewActivities && (
+                  <TabsTrigger value="activities" className={projectTabClass}>Atividades</TabsTrigger>
+                )}
+              </TabsList>
+            </div>
+            {headerActions && (
+              <div className="shrink-0 self-center pb-1">{headerActions}</div>
+            )}
           </div>
 
           {canAccessFullProject && (
