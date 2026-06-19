@@ -69,6 +69,7 @@ export default function ProjectDetail() {
   const deleteProject = useDeleteProject();
   const archiveProject = useArchiveProject();
 
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [hideValues, setHideValues] = useHideValuesPreference();
@@ -260,7 +261,7 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        <Tabs defaultValue={initialTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Navegação estilo underline (modelo de design): sem pílula, tab
               ativa sublinhada no verde escuro da marca. As ações (ocultar
               valores / menu) ficam alinhadas à direita, na mesma linha. */}
@@ -296,7 +297,11 @@ export default function ProjectDetail() {
               </TabsContent>
 
               <TabsContent value="planning" className="mt-6">
-                <ProjectPlanningOverviewTab project={project} />
+                <ProjectPlanningOverviewTab
+                  project={project}
+                  canManageProject={canManageProject}
+                  onNavigateToTab={setActiveTab}
+                />
               </TabsContent>
 
               <TabsContent value="okrs" className="mt-6">

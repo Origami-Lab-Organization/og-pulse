@@ -30,6 +30,17 @@
   `MonthlyTimesheetView`, `useProjectTimesheets`, fluxos de correcao/aprovacao e
   relatorios que ainda dependem de `project_member_id`.
 
+- TD-0004: `ProjectPlanningOverviewTab` usa `as any` (suprimido com
+  `eslint-disable-next-line @typescript-eslint/no-explicit-any`) em dois pontos:
+  (1) `.update({ portfolio_stage, status, start_date })` — `portfolio_stage` não consta
+  nos overloads gerados do SDK; (2) `.from('notifications' as any).insert(notifications
+  as any)` — tabela `notifications` sem tipagem gerada. Workaround: comentários
+  `eslint-disable-next-line` nos três locais afetados. Solução definitiva: rodar
+  `supabase gen types` para gerar `Database` atualizado; adicionar `portfolio_stage`
+  ao mapeamento em `projectService.update`. Status: aberto. Prioridade: baixa —
+  sem impacto funcional ou de segurança. Próximo passo: próxima rodada de geração
+  de tipos do Supabase.
+
 ## Resolvido
 
 - Nenhum item registrado ainda.
