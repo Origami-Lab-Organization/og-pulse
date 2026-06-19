@@ -68,6 +68,7 @@ const navigationGroups = [
       { title: 'Meu Kanban', url: '/my-kanban', icon: KanbanSquare },
       { title: 'Meus Projetos', url: '/my-projects', icon: FolderKanban },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
+      { title: 'Minhas Férias', url: '/minhas-ferias', icon: Palmtree },
     ] as NavItem[],
   },
   {
@@ -100,7 +101,7 @@ const navigationGroups = [
       { title: 'Ferramentas e Benefícios', url: '/rh/ferramentas-beneficios', icon: Gift, requiresAdmin: true },
       { title: 'Contratos', url: '/rh/contratos', icon: FileSignature, requiresAdmin: true, disabled: true },
       { title: 'Folha de Pagamento', url: '/rh/folha', icon: DollarSign, requiresAdmin: true, disabled: true },
-      { title: 'Férias e Afastamentos', url: '/rh/ferias', icon: Palmtree, requiresAdmin: true, disabled: true },
+      { title: 'Férias e Afastamentos', url: '/rh/ferias', icon: Palmtree, requiresManager: true },
       { title: 'Desligamentos', url: '/rh/desligamentos', icon: LogOut, requiresAdmin: true },
       { title: 'Relatórios', url: '/rh/relatorios', icon: BarChart3, requiresAdmin: true, disabled: true },
     ] as NavItem[],

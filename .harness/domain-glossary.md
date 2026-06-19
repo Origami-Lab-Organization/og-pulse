@@ -12,6 +12,7 @@
 - Timesheet: apontamento de horas por atividade/projeto/periodo.
 - Activity Type: tipo de atividade usado em apontamentos.
 - Reembolso: solicitacao financeira feita por colaborador, com aprovacao e comprovantes.
+- Ferias: 30 dias por aniversario completo de 12 meses desde a admissao (lump, acumulativo); apenas CLT e Menor Aprendiz; aprovacao por todos os gerentes dos projetos ativos do colaborador (qualquer recusa reprova); gerente -> admin; admin -> auto-aprovado. Ver ADR-0003.
 - Desligamento/Termination: processo de saida de colaborador.
 - Turnover/Rotatividade: indice de rotatividade de pessoal no periodo. Formula adotada (SHRM): ((Admissoes + Desligamentos) / 2) / Headcount medio x 100. Headcount medio = (ativos no inicio + ativos no fim) / 2, reconstruido pelas datas (data_admissao e termination_date), nao pelo status atual. Desligamentos cancelados sao ignorados. Sem headcount medio => taxa nula (nao exibir 0% como dado real). Implementacao: src/lib/turnoverCalculator.ts.
 - OKR: objetivo e resultado-chave de estrategia.

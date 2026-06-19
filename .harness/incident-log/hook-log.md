@@ -178,6 +178,7 @@
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/types/serviceRevenueModel.ts
 
+<<<<<<< HEAD
 ### 2026-06-19T19:08:50.416Z
 
 - **Tipo:** missing-tests
@@ -202,3 +203,20 @@
 
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: C:\hakathon\og-pulse\src\services\employeeService.ts
+=======
+### 2026-06-19T18:11:55.304Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: c:\Users\OrigamiLab\Documents\ws-visualcode\og-pulse\src\services\vacationService.ts
+
+### 2026-06-19T18:13:24.938Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: c:\Users\OrigamiLab\Documents\ws-visualcode\og-pulse\src\services\vacationService.ts
+
+### 2026-06-19T18:13:33.691Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: c:\Users\OrigamiLab\Documents\ws-visualcode\og-pulse\src\services\vacationService.ts
+
+### 2026-06-19T18:13:43.507Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: c:\Users\OrigamiLab\Documents\ws-visualcode\og-pulse\src\services\vacationService.ts
+>>>>>>> origin/RH-Gestão-de-Férias-e-Afastamentos

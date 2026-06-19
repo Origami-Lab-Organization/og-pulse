@@ -50,6 +50,8 @@ import MyKanban from "./pages/MyKanban";
 import BenefitsAndTools from "./pages/BenefitsAndTools";
 import EmployeeDetail from "./pages/EmployeeDetail";
 import EmployeeCreate from "./pages/EmployeeCreate";
+import MyVacation from "./pages/MyVacation";
+import VacationManagement from "./pages/VacationManagement";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 2 * 60 * 1000 } },
@@ -101,13 +103,22 @@ const App = () => (
                 } 
               />
               {/* Reimbursements - all authenticated users */}
-              <Route 
-                path="/reimbursements" 
+              <Route
+                path="/reimbursements"
                 element={
                   <ProtectedRoute>
                     <Reimbursements />
                   </ProtectedRoute>
-                } 
+                }
+              />
+              {/* Minhas Férias - all authenticated users */}
+              <Route
+                path="/minhas-ferias"
+                element={
+                  <ProtectedRoute>
+                    <MyVacation />
+                  </ProtectedRoute>
+                }
               />
               {/* Management routes - Manager or Admin */}
               <Route
@@ -288,6 +299,7 @@ const App = () => (
               <Route path="/trabalhe-conosco/:tenantId/:vagaId" element={<JobApplicationVaga />} />
               <Route path="/estrategia" element={<RoleProtectedRoute requireManager><Strategy /></RoleProtectedRoute>} />
               <Route path="/rh/ferramentas-beneficios" element={<RoleProtectedRoute requireAdmin><BenefitsAndTools /></RoleProtectedRoute>} />
+              <Route path="/rh/ferias" element={<RoleProtectedRoute requireManager><VacationManagement /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
