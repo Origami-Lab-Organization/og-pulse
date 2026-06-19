@@ -19,7 +19,7 @@ import {
   useUpdateEmployeeTool,
   useDeleteEmployeeTool,
 } from '@/hooks/useEmployees';
-import { Plus, Pencil, Trash2, Check, X, Wrench } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Wrench, RefreshCw, ExternalLink } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -38,6 +38,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface EmployeeToolsTableProps {
   employeeId: string;
@@ -46,7 +54,7 @@ interface EmployeeToolsTableProps {
 
 export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTableProps) {
   const { data: tools = [], isLoading } = useEmployeeTools(employeeId);
-  const { data: catalog = [] } = useTools();
+  const { data: catalog = [], refetch: refetchCatalog } = useTools();
   const addTool = useAddEmployeeTool();
   const updateTool = useUpdateEmployeeTool();
   const deleteTool = useDeleteEmployeeTool();
@@ -54,6 +62,15 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteToolId, setDeleteToolId] = useState<string | null>(null);
+  const [emptyCatalogDialogOpen, setEmptyCatalogDialogOpen] = useState(false);
+
+  const handleOpenAdd = () => {
+    if (availableTools.length === 0) {
+      setEmptyCatalogDialogOpen(true);
+    } else {
+      setIsAdding(true);
+    }
+  };
 
   const activeCatalog = catalog.filter((t) => t.isActive);
   const availableTools = activeCatalog.filter(
@@ -173,8 +190,8 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
             Ferramentas pagas para {employeeName}
           </CardDescription>
         </div>
-        {!isAdding && availableTools.length > 0 && (
-          <Button onClick={() => setIsAdding(true)} size="sm">
+        {!isAdding && (
+          <Button onClick={handleOpenAdd} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
           </Button>
@@ -201,18 +218,28 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
                   {isAdding && (
                     <TableRow>
                       <TableCell colSpan={2}>
-                        <Select value={newTool.catalogId} onValueChange={handleSelectCatalog}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Selecione do catálogo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableTools.map((opt) => (
-                              <SelectItem key={opt.id} value={opt.id}>
-                                {opt.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Select value={newTool.catalogId} onValueChange={handleSelectCatalog}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione do catálogo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableTools.map((opt) => (
+                                <SelectItem key={opt.id} value={opt.id}>
+                                  {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => refetchCatalog()}
+                            title="Atualizar catálogo"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -350,6 +377,33 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
           </div>
         )}
       </CardContent>
+
+      {/* Empty catalog dialog */}
+      <Dialog open={emptyCatalogDialogOpen} onOpenChange={setEmptyCatalogDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nenhuma ferramenta disponível</DialogTitle>
+            <DialogDescription>
+              Todas as ferramentas do catálogo já foram adicionadas a este funcionário, ou o catálogo ainda não possui itens cadastrados.
+              Acesse a página de Ferramentas e Benefícios para criar novos itens.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmptyCatalogDialogOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                window.open('/rh/ferramentas-beneficios', '_blank');
+                setEmptyCatalogDialogOpen(false);
+              }}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Ir para Ferramentas e Benefícios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteToolId} onOpenChange={() => setDeleteToolId(null)}>
         <AlertDialogContent>

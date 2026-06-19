@@ -26,7 +26,7 @@ import {
   useAddEmployeeBenefit,
   useDeleteEmployeeBenefit,
 } from '@/hooks/useEmployees';
-import { Plus, Trash2, Check, X, Heart, CalendarIcon } from 'lucide-react';
+import { Plus, Trash2, Check, X, Heart, CalendarIcon, RefreshCw, ExternalLink } from 'lucide-react';
 import { useBenefits } from '@/hooks/useBenefits';
 import {
   AlertDialog,
@@ -63,7 +63,7 @@ type PendingAction =
 
 export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBenefitsTableProps) {
   const { data: benefits = [], isLoading } = useEmployeeBenefits(employeeId);
-  const { data: catalog = [] } = useBenefits();
+  const { data: catalog = [], refetch: refetchCatalog } = useBenefits();
   const addBenefit = useAddEmployeeBenefit();
   const deleteBenefit = useDeleteEmployeeBenefit();
 
@@ -72,6 +72,16 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
   const [effectiveDateDialogOpen, setEffectiveDateDialogOpen] = useState(false);
   const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(new Date());
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+
+  const [emptyCatalogDialogOpen, setEmptyCatalogDialogOpen] = useState(false);
+
+  const handleOpenAdd = () => {
+    if (availableBenefits.length === 0) {
+      setEmptyCatalogDialogOpen(true);
+    } else {
+      setIsAdding(true);
+    }
+  };
 
   const [newBenefit, setNewBenefit] = useState({
     catalogId: '',
@@ -169,8 +179,8 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
             Benefícios mensais de {employeeName}
           </CardDescription>
         </div>
-        {!isAdding && availableBenefits.length > 0 && (
-          <Button type="button" onClick={() => setIsAdding(true)} size="sm" disabled={catalog.length === 0}>
+        {!isAdding && (
+          <Button type="button" onClick={handleOpenAdd} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
           </Button>
@@ -196,18 +206,29 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
                   {isAdding && (
                     <TableRow>
                       <TableCell>
-                        <Select value={newBenefit.catalogId} onValueChange={handleSelectBenefit}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Selecione do catálogo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableBenefits.map((opt) => (
-                              <SelectItem key={opt.id} value={opt.id}>
-                                {opt.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Select value={newBenefit.catalogId} onValueChange={handleSelectBenefit}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione do catálogo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableBenefits.map((opt) => (
+                                <SelectItem key={opt.id} value={opt.id}>
+                                  {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => refetchCatalog()}
+                            title="Atualizar catálogo"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -303,6 +324,33 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Empty catalog dialog */}
+      <Dialog open={emptyCatalogDialogOpen} onOpenChange={setEmptyCatalogDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nenhum benefício disponível</DialogTitle>
+            <DialogDescription>
+              Todos os benefícios do catálogo já foram adicionados a este funcionário, ou o catálogo ainda não possui itens cadastrados.
+              Acesse a página de Ferramentas e Benefícios para criar novos itens.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmptyCatalogDialogOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                window.open('/rh/ferramentas-beneficios', '_blank');
+                setEmptyCatalogDialogOpen(false);
+              }}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Ir para Ferramentas e Benefícios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Effective date dialog */}
       <Dialog open={effectiveDateDialogOpen} onOpenChange={(open) => {
