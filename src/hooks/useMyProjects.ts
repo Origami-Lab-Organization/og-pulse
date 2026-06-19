@@ -18,8 +18,10 @@ export interface MyProjectSummary {
   myRole: string;
   myHoursPerMonth: number;
   membersCount: number;
+  members: { nome: string; cargo: string; fotoUrl: string | null }[];
   totalHoursPlanned: number;
   totalHoursActual: number;
+  nextMilestone: { title: string; date: string } | null;
 }
 
 export const useMyProjects = () => {
@@ -55,16 +57,16 @@ export const useMyProjects = () => {
 
       const projectIds = [...new Set((myMemberships as any[]).map((m) => m.project_id))];
 
-      // 2. Buscar todos os membros desses projetos (para contagem e IDs de horas planejadas)
+      // 2. Buscar todos os membros desses projetos (contagem, IDs de horas planejadas e equipe)
       const { data: allMembers } = await supabase
         .from('project_members')
-        .select('id, project_id, employee_id')
+        .select('id, project_id, employee_id, employees(nome, cargo, foto_url)')
         .in('project_id', projectIds);
 
       const allMemberIds = (allMembers || []).map((m: any) => m.id);
 
-      // 3. Buscar horas planejadas e executadas em paralelo
-      const [{ data: memberMonths }, { data: timesheets }] = await Promise.all([
+      // 3. Buscar horas planejadas, executadas e marcos em paralelo
+      const [{ data: memberMonths }, { data: timesheets }, { data: milestones }] = await Promise.all([
         supabase
           .from('project_member_months')
           .select('project_member_id, hours')
@@ -73,6 +75,11 @@ export const useMyProjects = () => {
           .from('project_timesheets')
           .select('project_id, hours')
           .in('project_id', projectIds),
+        supabase
+          .from('project_milestones')
+          .select('project_id, title, end_date, status, completed_date')
+          .in('project_id', projectIds)
+          .order('end_date', { ascending: true }),
       ]);
 
       // Mapas de agregação por projeto
@@ -101,6 +108,20 @@ export const useMyProjects = () => {
         );
       });
 
+      // Próximo marco relevante por projeto: primeiro marco em aberto com data
+      // futura (marcos já vêm ordenados por end_date asc — basta o primeiro).
+      const today = new Date().toISOString().slice(0, 10);
+      const nextMilestoneByProject = new Map<string, { title: string; date: string }>();
+      (milestones || []).forEach((ms: any) => {
+        if (nextMilestoneByProject.has(ms.project_id)) return;
+        const isOpen = ms.status !== 'completed' && !ms.completed_date;
+        if (!isOpen || !ms.end_date || ms.end_date < today) return;
+        nextMilestoneByProject.set(ms.project_id, {
+          title: ms.title,
+          date: ms.end_date,
+        });
+      });
+
       // 4. Mapear para MyProjectSummary (deduplica por projeto — um funcionário pode ter um único role por projeto)
       const projectMap = new Map<string, MyProjectSummary>();
 
@@ -111,7 +132,13 @@ export const useMyProjects = () => {
         const client = project.clients;
         const manager = project.employees || { nome: '', cargo: '' };
         const projectMembers = membersByProject.get(project.id) || [];
+        const namedMembers = projectMembers.filter((m: any) => !!m.employee_id && !!m.employees);
         const membersCount = projectMembers.filter((m: any) => !!m.employee_id).length;
+        const members = namedMembers.map((m: any) => ({
+          nome: m.employees.nome,
+          cargo: m.employees.cargo,
+          fotoUrl: m.employees.foto_url ?? null,
+        }));
 
         projectMap.set(project.id, {
           id: project.id,
@@ -135,8 +162,10 @@ export const useMyProjects = () => {
           myRole: membership.role,
           myHoursPerMonth: membership.hours_per_month ?? 0,
           membersCount,
+          members,
           totalHoursPlanned: plannedHoursByProject.get(project.id) || 0,
           totalHoursActual: actualHoursByProject.get(project.id) || 0,
+          nextMilestone: nextMilestoneByProject.get(project.id) ?? null,
         });
       });
 
