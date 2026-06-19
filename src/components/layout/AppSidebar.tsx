@@ -20,6 +20,7 @@ import {
   UserSearch,
   Target,
   KanbanSquare,
+  Gift,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -96,6 +97,7 @@ const navigationGroups = [
     items: [
       { title: 'Candidatos', url: '/rh/candidatos', icon: UserSearch, requiresManager: true },
       { title: 'Funcionários', url: '/employees', icon: Users, requiresAdmin: true },
+      { title: 'Ferramentas e Benefícios', url: '/rh/ferramentas-beneficios', icon: Gift, requiresAdmin: true },
       { title: 'Contratos', url: '/rh/contratos', icon: FileSignature, requiresAdmin: true, disabled: true },
       { title: 'Folha de Pagamento', url: '/rh/folha', icon: DollarSign, requiresAdmin: true, disabled: true },
       { title: 'Férias e Afastamentos', url: '/rh/ferias', icon: Palmtree, requiresAdmin: true, disabled: true },

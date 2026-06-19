@@ -158,6 +158,12 @@ const navigationGroups: NavGroup[] = [
         icon: UserSearch,
         requiresManager: true,
       },
+       {
+        title: "Ferramentas/Benefícios",
+        url: "/rh/ferramentas-beneficios",
+        icon: Users,
+        requiresAdmin: true,
+      },
       {
         title: "Vagas",
         url: "/rh/vagas",

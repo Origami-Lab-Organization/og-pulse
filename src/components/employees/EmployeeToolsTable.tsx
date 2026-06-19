@@ -21,6 +21,14 @@ import {
 } from '@/hooks/useEmployees';
 import { Plus, Pencil, Trash2, Check, X, Wrench } from 'lucide-react';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useTools } from '@/hooks/useTools';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -38,6 +46,7 @@ interface EmployeeToolsTableProps {
 
 export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTableProps) {
   const { data: tools = [], isLoading } = useEmployeeTools(employeeId);
+  const { data: catalog = [] } = useTools();
   const addTool = useAddEmployeeTool();
   const updateTool = useUpdateEmployeeTool();
   const deleteTool = useDeleteEmployeeTool();
@@ -45,13 +54,31 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteToolId, setDeleteToolId] = useState<string | null>(null);
-  
+
+  const activeCatalog = catalog.filter((t) => t.isActive);
+  const availableTools = activeCatalog.filter(
+    (opt) => !tools.some((t) => t.name === opt.name)
+  );
+
   const [newTool, setNewTool] = useState({
+    catalogId: '',
     name: '',
     description: '',
     monthlyCost: 0,
     monthlyCostDisplay: '',
   });
+
+  const handleSelectCatalog = (catalogId: string) => {
+    const item = activeCatalog.find((t) => t.id === catalogId);
+    if (!item) return;
+    setNewTool({
+      catalogId,
+      name: item.name,
+      description: item.description || '',
+      monthlyCost: item.value,
+      monthlyCostDisplay: formatCurrencyMask(item.value),
+    });
+  };
 
   const [editData, setEditData] = useState({
     name: '',
@@ -75,7 +102,7 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
       {
         onSuccess: () => {
           setIsAdding(false);
-          setNewTool({ name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
+          setNewTool({ catalogId: '', name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
         },
       }
     );
@@ -146,7 +173,7 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
             Ferramentas pagas para {employeeName}
           </CardDescription>
         </div>
-        {!isAdding && (
+        {!isAdding && availableTools.length > 0 && (
           <Button onClick={() => setIsAdding(true)} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
@@ -173,21 +200,19 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
                 <TableBody>
                   {isAdding && (
                     <TableRow>
-                      <TableCell>
-                        <Input
-                          value={newTool.name}
-                          onChange={(e) => setNewTool({ ...newTool, name: e.target.value })}
-                          placeholder="Ex: Lovable, Figma..."
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={newTool.description}
-                          onChange={(e) => setNewTool({ ...newTool, description: e.target.value })}
-                          placeholder="Descrição (opcional)"
-                          className="w-full"
-                        />
+                      <TableCell colSpan={2}>
+                        <Select value={newTool.catalogId} onValueChange={handleSelectCatalog}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione do catálogo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableTools.map((opt) => (
+                              <SelectItem key={opt.id} value={opt.id}>
+                                {opt.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -219,7 +244,7 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
                             variant="ghost"
                             onClick={() => {
                               setIsAdding(false);
-                              setNewTool({ name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
+                              setNewTool({ catalogId: '', name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
                             }}
                           >
                             <X className="h-4 w-4 text-destructive" />
