@@ -21,8 +21,11 @@ import {
   useArchiveMultipleNotifications,
   useDeleteNotification,
   useDeleteMultipleNotifications,
+  useRestoreNotification,
+  useRestoreMultipleNotifications,
   useMarkMultipleNotificationsRead,
   useMarkMultipleNotificationsUnread,
+  EMPTY_INBOX_COUNTS,
   type InboxFolder
 } from "@/hooks/useInboxNotifications";
 import { InboxSidebar } from "@/components/inbox/InboxSidebar";
@@ -34,7 +37,6 @@ import {
   InboxDetailPanel,
   InboxDetailEmpty
 } from "@/components/inbox/InboxDetailPanel";
-import { InboxNewActionMenu } from "@/components/inbox/InboxNewActionMenu";
 import {
   ReimbursementFormDialog,
   CorrectionData
@@ -57,20 +59,11 @@ export default function InboxPage() {
     null
   );
 
-  const {
-    data: counts = {
-      all: 0,
-      unread: 0,
-      timesheet: 0,
-      reimbursement: 0,
-      budget: 0,
-      candidates: 0,
-      projeto: 0,
-      archived: 0
-    }
-  } = useInboxCounts();
+  const { data: counts = EMPTY_INBOX_COUNTS } = useInboxCounts();
   const { data: notifications = [], isLoading } =
     useInboxNotifications(activeFolder);
+
+  const isTrash = activeFolder === "lixeira";
 
   const markRead = useMarkNotificationRead();
   const archiveNotification = useArchiveNotification();
@@ -78,6 +71,8 @@ export default function InboxPage() {
   const archiveMultiple = useArchiveMultipleNotifications();
   const deleteNotification = useDeleteNotification();
   const deleteMultiple = useDeleteMultipleNotifications();
+  const restoreNotification = useRestoreNotification();
+  const restoreMultiple = useRestoreMultipleNotifications();
   const markMultipleRead = useMarkMultipleNotificationsRead();
   const markMultipleUnread = useMarkMultipleNotificationsUnread();
 
@@ -187,6 +182,15 @@ export default function InboxPage() {
           if (ids.includes(selectedId ?? "")) setSelectedId(null);
         }
       });
+      return;
+    }
+    if (action === "restore") {
+      restoreMultiple.mutate(ids, {
+        onSuccess: () => {
+          clear();
+          if (ids.includes(selectedId ?? "")) setSelectedId(null);
+        }
+      });
     }
   };
 
@@ -202,6 +206,11 @@ export default function InboxPage() {
 
   const handleDelete = (id: string) => {
     deleteNotification.mutate(id);
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const handleRestore = (id: string) => {
+    restoreNotification.mutate(id);
     if (selectedId === id) setSelectedId(null);
   };
 
@@ -225,10 +234,6 @@ export default function InboxPage() {
             activeFolder={activeFolder}
             onFolderChange={handleFolderChange}
             counts={counts}
-            onNewAction={() => {
-              setCorrectionData(null);
-              setReimbursementFormOpen(true);
-            }}
           />
         </div>
 
@@ -249,6 +254,7 @@ export default function InboxPage() {
           onArchive={handleArchive}
           onUnarchive={handleUnarchive}
           onDelete={handleDelete}
+          onRestore={handleRestore}
         />
 
         {/* Column 3: Detail — desktop only */}
@@ -262,6 +268,8 @@ export default function InboxPage() {
               onArchive={() => handleArchive(selected.id)}
               onUnarchive={() => handleUnarchive(selected.id)}
               onDelete={() => handleDelete(selected.id)}
+              onRestore={() => handleRestore(selected.id)}
+              isTrash={isTrash}
             />
           ) : (
             <InboxDetailEmpty />
@@ -310,6 +318,11 @@ export default function InboxPage() {
                     handleDelete(selected.id);
                     setSelectedId(null);
                   }}
+                  onRestore={() => {
+                    handleRestore(selected.id);
+                    setSelectedId(null);
+                  }}
+                  isTrash={isTrash}
                 />
               )}
             </div>

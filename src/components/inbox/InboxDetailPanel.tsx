@@ -16,10 +16,23 @@ import {
   DollarSign,
   UserSearch,
   FileText,
+  FolderKanban,
+  Bell,
+  RotateCcw,
   ArrowRight
 } from "lucide-react";
+
+// Rótulo do botão de ação primária por tipo (usa action_url da notificação).
+const typeActionLabel: Record<string, string> = {
+  document_available: "Ver documento",
+  project_started: "Ver projeto",
+  project_health_alert: "Ver projeto",
+  nps_response_received: "Ver resposta",
+  card_assigned: "Ver atividade"
+};
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 
 const statusBadge: Record<string, { label: string; className: string }> = {
   timesheet_reminder: {
@@ -117,6 +130,29 @@ const categoryConfig: Record<
     badge: "Orçamento",
     badgeClass:
       "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+  },
+  projeto: {
+    bg: "bg-blue-100 dark:bg-blue-900/30",
+    text: "text-blue-600 dark:text-blue-400",
+    icon: FolderKanban,
+    badge: "Projeto",
+    badgeClass:
+      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+  },
+  documento: {
+    bg: "bg-sky-100 dark:bg-sky-900/30",
+    text: "text-sky-600 dark:text-sky-400",
+    icon: FileText,
+    badge: "Documento",
+    badgeClass:
+      "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
+  },
+  system: {
+    bg: "bg-muted",
+    text: "text-muted-foreground",
+    icon: Bell,
+    badge: "Sistema",
+    badgeClass: "bg-muted text-muted-foreground"
   }
 };
 
@@ -127,6 +163,8 @@ interface Props {
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
+  onRestore?: () => void;
+  isTrash?: boolean;
 }
 
 export function InboxDetailPanel({
@@ -135,7 +173,9 @@ export function InboxDetailPanel({
   onOpenCorrectForm,
   onArchive,
   onUnarchive,
-  onDelete
+  onDelete,
+  onRestore,
+  isTrash = false
 }: Props) {
   const navigate = useNavigate();
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
@@ -187,26 +227,40 @@ export function InboxDetailPanel({
               {notification.title}
             </h2>
             <div className="flex gap-1 flex-shrink-0">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                title={notification.is_archived ? "Desarquivar" : "Arquivar"}
-                onClick={notification.is_archived ? onUnarchive : onArchive}
-              >
-                {notification.is_archived
-                  ? <ArchiveX className="h-3.5 w-3.5" />
-                  : <Archive className="h-3.5 w-3.5" />}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                title="Excluir"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              {isTrash ? (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  title="Restaurar"
+                  onClick={onRestore}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7"
+                    title={notification.is_archived ? "Desarquivar" : "Arquivar"}
+                    onClick={notification.is_archived ? onUnarchive : onArchive}
+                  >
+                    {notification.is_archived
+                      ? <ArchiveX className="h-3.5 w-3.5" />
+                      : <Archive className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7"
+                    title="Excluir"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{timestamp}</p>
@@ -221,6 +275,12 @@ export function InboxDetailPanel({
             >
               {catConfig.badge}
             </span>
+            {notification.metadata?.project_name && (
+              <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                <FolderKanban className="h-3 w-3" />
+                {notification.metadata.project_name}
+              </span>
+            )}
             {notification.priority === "high" && (
               <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
                 Urgente
@@ -242,15 +302,29 @@ export function InboxDetailPanel({
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-6 py-5">
-        {notification.message && (
-          <p className="text-sm text-muted-foreground mb-4 whitespace-pre-line">
-            {notification.message}
-          </p>
-        )}
+        {notification.message &&
+          (notification.message.includes("**") ? (
+            <div className="text-sm text-muted-foreground mb-4 [&_p]:m-0 [&_strong]:font-semibold [&_strong]:text-foreground">
+              <ReactMarkdown>{notification.message}</ReactMarkdown>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground mb-4 whitespace-pre-line">
+              {notification.message}
+            </p>
+          ))}
 
         {notification.category === "candidatos" && (
           <Button className="gap-2" onClick={() => navigate("/rh/candidatos")}>
             Ver candidatura
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* Ação primária genérica via action_url (document_available, project_*, card_assigned, nps).
+            Sem action_url (ex.: system) → nenhum botão. */}
+        {notification.action_url && typeActionLabel[notification.type] && (
+          <Button className="gap-2" onClick={() => navigate(notification.action_url!)}>
+            {typeActionLabel[notification.type]}
             <ArrowRight className="h-4 w-4" />
           </Button>
         )}
