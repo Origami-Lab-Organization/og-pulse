@@ -42,6 +42,7 @@ import Privacy from "./pages/Privacy";
 import TerminatedEmployees from "./pages/TerminatedEmployees";
 import Candidates from "./pages/Candidates";
 import Services from "./pages/Services";
+import ServiceLineDetail from "./pages/ServiceLineDetail";
 import Inbox from "./pages/Inbox";
 import JobOpenings from "./pages/JobOpenings";
 import JobApplicationVaga from "./pages/JobApplicationVaga";
@@ -207,6 +208,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <Services />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/comercial/servicos/:lineId"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <ServiceLineDetail />
                   </RoleProtectedRoute>
                 }
               />

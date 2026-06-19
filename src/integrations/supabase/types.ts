@@ -4213,6 +4213,104 @@ export type Database = {
         }
         Relationships: []
       }
+      service_lines: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_revenue_models: {
+        Row: {
+          base_value: number | null
+          billing_unit: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          model_type: string
+          name: string
+          service_id: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_value?: number | null
+          billing_unit?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          model_type: string
+          name: string
+          service_id: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_value?: number | null
+          billing_unit?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          model_type?: string
+          name?: string
+          service_id?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_revenue_models_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_revenue_models_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           billing_type: string | null
@@ -4225,6 +4323,7 @@ export type Database = {
           is_active: boolean
           name: string
           project_type: string
+          service_line_id: string | null
           template_budget_id: string | null
           tenant_id: string
           unit_price: number | null
@@ -4241,6 +4340,7 @@ export type Database = {
           is_active?: boolean
           name: string
           project_type: string
+          service_line_id?: string | null
           template_budget_id?: string | null
           tenant_id: string
           unit_price?: number | null
@@ -4257,12 +4357,20 @@ export type Database = {
           is_active?: boolean
           name?: string
           project_type?: string
+          service_line_id?: string | null
           template_budget_id?: string | null
           tenant_id?: string
           unit_price?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "services_service_line_id_fkey"
+            columns: ["service_line_id"]
+            isOneToOne: false
+            referencedRelation: "service_lines"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "services_template_budget_id_fkey"
             columns: ["template_budget_id"]

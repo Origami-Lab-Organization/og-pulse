@@ -76,7 +76,8 @@ import { useApplyServiceTemplate } from '@/hooks/useBudgets'
 import { useClients } from '@/hooks/useClients'
 import { useEmployees } from '@/hooks/useEmployees'
 import { useServices } from '@/hooks/useServices'
-import { BILLING_TYPE_LABELS, BillingType } from '@/types/service'
+import { useServiceLines } from '@/hooks/useServiceLines'
+import { useServiceRevenueModels } from '@/hooks/useServiceRevenueModels'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency } from '@/lib/formatters'
 import { formatPhone } from '@/lib/masks'
@@ -176,23 +177,27 @@ export function LeadDetailDialog({
   const { data: clients = [] } = useClients()
   const { data: employees = [] } = useEmployees()
   const { data: services = [] } = useServices()
-  const BILLING_TYPES: BillingType[] = [
-    'fixed_scope',
-    'recurring',
-    'success_fee',
-    'no_revenue',
-  ]
+  const { data: serviceLines = [] } = useServiceLines()
+  const { data: revenueModels = [] } = useServiceRevenueModels()
   const activeServices = services.filter((s) => s.isActive)
   const selectedService = services.find((s) => s.id === lead?.service_line)
   const isNoRevenue = selectedService?.billingType === 'no_revenue'
   const serviceHasTemplate = !!(selectedService?.templateBudgetId)
-  const servicesByType = BILLING_TYPES.reduce(
-    (acc, type) => {
-      acc[type] = activeServices.filter((s) => s.billingType === type)
-      return acc
-    },
-    {} as Record<BillingType, typeof services>,
-  )
+
+  // HU-001: dropdown hierárquico Linha → Serviço, apenas itens ativos (Cenário 2).
+  const servicesByLine = serviceLines
+    .filter((line) => line.isActive)
+    .map((line) => ({
+      line,
+      services: activeServices.filter((s) => s.serviceLineId === line.id),
+    }))
+    .filter((group) => group.services.length > 0)
+
+  // Conta modelos de receita ATIVOS por serviço (Cenário 4).
+  const activeModelCount = (serviceId: string) =>
+    revenueModels.filter((m) => m.serviceId === serviceId && m.isActive).length
+  const selectedServiceHasNoModel =
+    !!selectedService && activeModelCount(selectedService.id) === 0
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -520,23 +525,29 @@ export function LeadDetailDialog({
                                   <SelectValue placeholder='Selecione o tipo de serviço' />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {BILLING_TYPES.map(
-                                    (type) =>
-                                      servicesByType[type].length > 0 && (
-                                        <SelectGroup key={type}>
-                                          <SelectLabel>
-                                            {BILLING_TYPE_LABELS[type]}
-                                          </SelectLabel>
-                                          {servicesByType[type].map((svc) => (
-                                            <SelectItem
-                                              key={svc.id}
-                                              value={svc.id}
-                                            >
+                                  {servicesByLine.length === 0 ? (
+                                    <div className='px-3 py-2 text-xs text-muted-foreground'>
+                                      Nenhum serviço disponível no catálogo.
+                                    </div>
+                                  ) : (
+                                    servicesByLine.map(({ line, services: lineServices }) => (
+                                      <SelectGroup key={line.id}>
+                                        <SelectLabel>{line.name}</SelectLabel>
+                                        {lineServices.map((svc) => {
+                                          const noModel = activeModelCount(svc.id) === 0
+                                          return (
+                                            <SelectItem key={svc.id} value={svc.id}>
                                               {svc.name}
+                                              {noModel && (
+                                                <span className='ml-2 text-xs text-amber-600'>
+                                                  (sem modelo de receita)
+                                                </span>
+                                              )}
                                             </SelectItem>
-                                          ))}
-                                        </SelectGroup>
-                                      ),
+                                          )
+                                        })}
+                                      </SelectGroup>
+                                    ))
                                   )}
                                 </SelectContent>
                               </Select>
@@ -697,13 +708,15 @@ export function LeadDetailDialog({
                                   Nenhum orçamento vinculado
                                 </p>
                                 <p className='text-xs text-muted-foreground mt-0.5'>
-                                  Crie um orçamento para definir o valor desta
-                                  proposta
+                                  {selectedServiceHasNoModel
+                                    ? 'O serviço selecionado não possui modelo de receita ativo. Cadastre um modelo no catálogo antes de criar o orçamento.'
+                                    : 'Crie um orçamento para definir o valor desta proposta'}
                                 </p>
                               </div>
                               <Button
                                 type='button'
                                 size='sm'
+                                disabled={selectedServiceHasNoModel}
                                 onClick={() => {
                                   onOpenChange(false)
                                   navigate(`/budgets/new?leadId=${lead.id}`)
