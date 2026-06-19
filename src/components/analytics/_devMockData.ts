@@ -4,6 +4,7 @@
  */
 import type { FinancialEvolutionData } from '@/hooks/useFinancialEvolution'
 import type { ProjectFinancialsData, DimensionFinancialRow } from '@/hooks/useProjectFinancials'
+import type { StakeholderAnalyticsData } from '@/hooks/useStakeholderAnalytics'
 
 export const MOCK_FINANCIAL_EVOLUTION: FinancialEvolutionData = {
   year: 2026,
@@ -74,18 +75,19 @@ export const MOCK_PROJECT_FINANCIALS: ProjectFinancialsData = {
     { projectId: 'p6', projectName: 'Análise de Dados FinCorp', clientId: 'c3', clientName: 'Alfa Group', managerId: 'm2', managerName: 'Bruno Melo', serviceLine: 'consulting', serviceLineLabel: 'Consultoria', revenue: 4000, costs: 3800, grossMargin: 5.0 },
   ],
   byClient: [
-    { id: 'c1', label: 'TechCorp SA',     revenue: 119000, costs: 79000, grossMargin: 33.6 },
-    { id: 'c2', label: 'Criativa Design', revenue: 80000,  costs: 55000, grossMargin: 31.3 },
-    { id: 'c3', label: 'Alfa Group',      revenue: 56000,  costs: 43800, grossMargin: 21.8 },
+    { id: 'c1', label: 'TechCorp SA',     revenue: 119000, costs: 79000, grossMargin: 33.6, numProjetos: 2 },
+    { id: 'c2', label: 'Criativa Design', revenue: 80000,  costs: 55000, grossMargin: 31.3, numProjetos: 2 },
+    { id: 'c3', label: 'Alfa Group',      revenue: 56000,  costs: 43800, grossMargin: 21.8, numProjetos: 2 },
   ],
   byManager: [
-    { id: 'm1', label: 'Ana Lima',   revenue: 159000, costs: 108000, grossMargin: 32.1 },
-    { id: 'm2', label: 'Bruno Melo', revenue: 96000,  costs: 69800,  grossMargin: 27.3 },
+    { id: 'm1', label: 'Ana Lima',   revenue: 159000, costs: 108000, grossMargin: 32.1, numProjetos: 3 },
+    { id: 'm2', label: 'Bruno Melo', revenue: 96000,  costs: 69800,  grossMargin: 27.3, numProjetos: 3 },
   ],
   byServiceLine: [
-    { id: 'tech',       label: 'Tecnologia',  revenue: 119000, costs: 79000, grossMargin: 33.6 },
-    { id: 'design',     label: 'Design',      revenue: 80000,  costs: 55000, grossMargin: 31.3 },
-    { id: 'consulting', label: 'Consultoria', revenue: 56000,  costs: 43800, grossMargin: 21.8 },
+    { id: 'tech',       label: 'Tecnologia',  revenue: 119000, costs: 79000, grossMargin: 33.6, numProjetos: 2 },
+    { id: 'design',     label: 'Design',      revenue: 80000,  costs: 55000, grossMargin: 31.3, numProjetos: 2 },
+    { id: 'consulting', label: 'Consultoria', revenue: 56000,  costs: 43800, grossMargin: 21.8, numProjetos: 2 },
+    { id: 'estrategia', label: 'Estratégia',  revenue: 0,      costs: 0,     grossMargin: null,  numProjetos: 0 },
   ],
 }
 
@@ -102,11 +104,12 @@ export function filterMockByManager(gpFilter: string | null): ProjectFinancialsD
 
   for (const p of byProject) {
     const addTo = (map: Map<string, DimensionFinancialRow>, key: string, label: string) => {
-      if (!map.has(key)) map.set(key, { id: key, label, revenue: 0, costs: 0, grossMargin: null })
+      if (!map.has(key)) map.set(key, { id: key, label, revenue: 0, costs: 0, grossMargin: null, numProjetos: 0 })
       const e = map.get(key)!
       e.revenue += p.revenue
       e.costs   += p.costs
       e.grossMargin = e.revenue > 0 ? ((e.revenue - e.costs) / e.revenue) * 100 : null
+      e.numProjetos += 1
     }
     addTo(clientMap,      p.clientId,   p.clientName)
     addTo(serviceLineMap, p.serviceLine, p.serviceLineLabel)
@@ -121,6 +124,41 @@ export function filterMockByManager(gpFilter: string | null): ProjectFinancialsD
     byManager:     manager ? [manager] : [],
     byServiceLine: [...serviceLineMap.values()],
   }
+}
+
+// NPS Score consolidado: ((17-4)/28)*100 = 46
+export const MOCK_STAKEHOLDER_DATA: StakeholderAnalyticsData = {
+  totals: { total: 28, promoters: 17, neutrals: 7, detractors: 4 },
+  byProject: [
+    {
+      projectId: 'p2', projectName: 'Identidade Visual Criativa',
+      total: 10, promoters: 7, neutrals: 2, detractors: 1,
+      promoterPercent: 70, detractorPercent: 10,
+    },
+    {
+      projectId: 'p1', projectName: 'Plataforma Digital TechCorp',
+      total: 12, promoters: 8, neutrals: 3, detractors: 1,
+      promoterPercent: 66.7, detractorPercent: 8.3,
+    },
+    {
+      projectId: 'p3', projectName: 'Consultoria Estratégica Alfa',
+      total: 6, promoters: 2, neutrals: 2, detractors: 2,
+      promoterPercent: 33.3, detractorPercent: 33.3,
+    },
+    {
+      projectId: 'p4', projectName: 'App Mobile StartupXYZ',
+      total: 3, promoters: 2, neutrals: 1, detractors: 0,
+      promoterPercent: 66.7, detractorPercent: 0,
+    },
+  ],
+  highInfluenceDetractors: [
+    {
+      name: 'Carlos Mendes',
+      projectName: 'Consultoria Estratégica Alfa',
+      jobTitle: 'CFO',
+      action: 'Agendar reunião de alinhamento para renegociar escopo.',
+    },
+  ],
 }
 
 export const MOCK_FILTER_OPTIONS = {

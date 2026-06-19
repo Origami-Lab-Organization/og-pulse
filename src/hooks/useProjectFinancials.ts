@@ -26,6 +26,7 @@ export interface DimensionFinancialRow {
   revenue: number;
   costs: number;
   grossMargin: number | null;
+  numProjetos: number;
 }
 
 export interface ProjectFinancialsData {
@@ -207,11 +208,12 @@ export function useProjectFinancials(
       const serviceLineMap = new Map<string, DimensionFinancialRow>();
 
       const addDim = (map: Map<string, DimensionFinancialRow>, key: string, label: string, rev: number, cost: number) => {
-        if (!map.has(key)) map.set(key, { id: key, label, revenue: 0, costs: 0, grossMargin: null });
+        if (!map.has(key)) map.set(key, { id: key, label, revenue: 0, costs: 0, grossMargin: null, numProjetos: 0 });
         const e = map.get(key)!;
         e.revenue += rev;
         e.costs += cost;
         e.grossMargin = computeMargin(e.revenue, e.costs);
+        e.numProjetos += 1;
       };
 
       for (const proj of projects as any[]) {
@@ -236,6 +238,13 @@ export function useProjectFinancials(
         addDim(clientMap, clientId, clientName, rev, cost);
         addDim(managerMap, managerId, managerName, rev, cost);
         addDim(serviceLineMap, serviceLine, serviceLineLabel, rev, cost);
+      }
+
+      // Decisão #12: garante que todas as linhas do tenant apareçam, mesmo sem projetos no período
+      for (const [svcId, svcName] of serviceNameMap) {
+        if (!serviceLineMap.has(svcId)) {
+          serviceLineMap.set(svcId, { id: svcId, label: svcName, revenue: 0, costs: 0, grossMargin: null, numProjetos: 0 });
+        }
       }
 
       return {

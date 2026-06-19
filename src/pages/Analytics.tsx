@@ -7,6 +7,7 @@ import { ReceitaCustoMensalChart } from '@/components/analytics/ReceitaCustoMens
 import { CostMixDonut } from '@/components/analytics/CostMixDonut'
 import { RankingPorMargem } from '@/components/analytics/RankingPorMargem'
 import { PerformancePorLinhaServico } from '@/components/analytics/PerformancePorLinhaServico'
+import { NpsPortfolioSection } from '@/components/analytics/NpsPortfolioSection'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
@@ -31,6 +32,7 @@ import type { ProjectMetricCardProps } from '@/components/analytics/ProjectMetri
 import {
   MOCK_FINANCIAL_EVOLUTION,
   MOCK_FILTER_OPTIONS,
+  MOCK_STAKEHOLDER_DATA,
   filterMockByManager,
 } from '@/components/analytics/_devMockData'
 
@@ -114,7 +116,7 @@ export default function Analytics() {
   const isProjectFinancialsLoading = DEV_MOCK ? false                                  : _isProjFinLoading
   const filterOptions              = DEV_MOCK ? MOCK_FILTER_OPTIONS                    : _filterOpts
   const revenueData                = _revenueData ?? { overdueNFs: [], overdueReceipts: [], periodNFs: [], periodReceivables: [], byClient: [], byManager: [], byServiceLine: [] }
-  const stakeholderData            = _stakeholderData ?? { totals: { total: 0, promoters: 0, neutrals: 0, detractors: 0 }, byProject: [], highInfluenceDetractors: [] }
+  const stakeholderData            = DEV_MOCK ? MOCK_STAKEHOLDER_DATA : (_stakeholderData ?? { totals: { total: 0, promoters: 0, neutrals: 0, detractors: 0 }, byProject: [], highInfluenceDetractors: [] })
   const { isAvailable: npsAvailable, isLoading: npsLoading } = useNpsAvailability()
 
   // financial months (meses dentro do range selecionado)
@@ -438,6 +440,13 @@ export default function Analytics() {
                 grossMarginTarget={projectFinancials.grossMarginTarget}
               />
             )}
+
+            {/* ── NPS do Portfólio ──────────────────────────────────────── */}
+            <NpsPortfolioSection
+              stakeholderData={stakeholderData}
+              isLoading={isLoading}
+              availabilityOverride={DEV_MOCK ? true : undefined}
+            />
           </>
         )}
       </div>
