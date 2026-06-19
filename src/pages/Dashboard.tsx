@@ -19,6 +19,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useProjectHealthData } from '@/hooks/useProjectHealthData';
 import { useCommercialDashboard } from '@/hooks/useCommercialDashboard';
+import { calculatePayrollCost } from '@/lib/payrollCalculator';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
 
 export default function Dashboard() {
@@ -92,6 +93,10 @@ export default function Dashboard() {
     () => employees.filter((e) => e.status === 'ativo').length,
     [employees],
   );
+
+  // Custo de folha = soma do custo mensal dos funcionários ativos.
+  // É um valor MENSAL vigente (snapshot atual), não agregado pelo período.
+  const payroll = useMemo(() => calculatePayrollCost(employees), [employees]);
 
   const revenueActual = financial?.revenueActual ?? 0;
   const hasRevenue = revenueActual > 0;
@@ -185,6 +190,18 @@ export default function Dashboard() {
             value={String(activeProjects.length)}
             subtitle={hasProjects ? `de ${projects.length} projeto(s)` : undefined}
           />
+
+          <MetricCard
+            label="Custo de folha"
+            icon={Wallet}
+            accentColor="bg-rose-500"
+            valueColor="text-rose-600 dark:text-rose-400"
+            loading={isEmployeesLoading}
+            empty={payroll.headcount === 0 || payroll.totalMonthlyCost === 0}
+            emptyMessage="Cadastre funcionários (com custo) para ver o custo de folha."
+            value={formatCurrency(payroll.totalMonthlyCost)}
+            subtitle={`Custo mensal · ${payroll.headcount} pessoa(s) ativa(s)`}
+          />
         </div>
 
         {/* ── Blocos NÚCLEO — listas + comercial ────────────────────────────── */}
@@ -211,12 +228,6 @@ export default function Dashboard() {
             Próximos blocos (dependem de módulos em desenvolvimento)
           </h2>
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            <MetricCard
-              label="Custo de folha"
-              icon={Wallet}
-              comingSoon
-              subtitle="Depende do módulo de Folha de Pagamento."
-            />
             <MetricCard
               label="Alocação por mês"
               icon={CalendarRange}

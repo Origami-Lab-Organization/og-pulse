@@ -237,7 +237,7 @@ export function AppNavbar() {
     <header className="sticky top-0 z-50 flex h-14 items-center border-b bg-background px-4 gap-4">
       {/* Logo */}
       <button
-        onClick={() => navigate("/inbox")}
+        onClick={() => navigate("/dashboard")}
         className="flex items-center gap-2 shrink-0 mr-2 hover:opacity-80 transition-opacity"
       >
         <img src={logo} alt="Pulse" className="h-7 w-7" />
@@ -356,12 +356,15 @@ export function AppNavbar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-72 p-0">
-            <div className="flex items-center gap-2 px-4 py-4 border-b">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="flex items-center gap-2 px-4 py-4 border-b w-full hover:opacity-80 transition-opacity"
+            >
               <img src={logo} alt="Pulse" className="h-7 w-7" />
               <span className="font-semibold text-foreground text-lg">
                 Pulse
               </span>
-            </div>
+            </button>
             <nav className="overflow-y-auto h-[calc(100%-57px)]">
               {visibleGroups.map((group) => {
                 const visibleItems = filterItems(group.items);

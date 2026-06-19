@@ -4,8 +4,7 @@ import { Loader2 } from 'lucide-react';
 
 /**
  * Destino da raiz "/" e do login sem rota de origem.
- * Admin → /dashboard (tela inicial executiva, HU-002 / Cenário 1).
- * Demais usuários → /inbox (comportamento anterior preservado).
+ * Admin → /dashboard. Demais usuários → /inbox.
  * Aguarda o carregamento do perfil para decidir com base no papel real.
  */
 const HomeRedirect = () => {
