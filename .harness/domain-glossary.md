@@ -17,6 +17,7 @@
 - OKR: objetivo e resultado-chave de estrategia.
 - Iniciativa: acao estrategica ligada a objetivo.
 - Guardrail: limite ou indicador de controle estrategico.
+- Custo de folha (Dashboard): soma do salario base de cada colaborador com status 'ativo', independente do papel (admin/gerente/usuario) ou tipo de contratacao. Salario base por tipo: CLT/Menor Aprendiz = salario mensal; Estagio = bolsa-auxilio; PJ = valor do contrato; Socio = pro-labore + dividendos. Sem encargos/provisoes/beneficios/ferramentas. Implementacao: src/lib/payrollCalculator.ts (getBaseSalary).
 - Margem bruta: diferenca entre receita e custos diretos.
 - Receita reconhecida: valor considerado no periodo conforme regra financeira.
 - Parcela/Installment: item de faturamento/recebimento ligado a projeto ou budget.

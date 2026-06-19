@@ -204,7 +204,7 @@ export default function Dashboard() {
             empty={payroll.headcount === 0 || payroll.totalMonthlyCost === 0}
             emptyMessage="Cadastre funcionários (com custo) para ver o custo de folha."
             value={formatCurrency(payroll.totalMonthlyCost)}
-            subtitle={`Custo mensal · ${payroll.headcount} pessoa(s) ativa(s)`}
+            subtitle={`Soma dos salários base · ${payroll.headcount} ativo(s)`}
           />
           <MetricCard
             label="Turnover"

@@ -1,25 +1,57 @@
 /**
- * Cálculo do custo de folha (payroll) da empresa.
+ * Cálculo do custo de folha (payroll) exibido no Dashboard.
  *
- * Soma o custo mensal estimado de cada funcionário ATIVO. O custo por
- * funcionário (`totalMonthlyCostEstimated`) já é calculado e persistido no
- * cadastro (ver employeeCostCalculator), incluindo salário/encargos/benefícios/
- * ferramentas conforme o tipo de contratação — aqui apenas consolidamos.
- *
- * Considera apenas `status === 'ativo'`: desligados, arquivados, em desligamento,
+ * Regra (decisão de negócio): soma o SALÁRIO BASE de cada colaborador com
+ * `status === 'ativo'`, independentemente do papel no sistema (admin, gerente,
+ * usuário) ou do tipo de contratação. Desligados, arquivados, em desligamento,
  * aguardando confirmação e bloqueados não compõem a folha vigente.
+ *
+ * "Salário base" é a remuneração-base de cada tipo de contratação (sem encargos,
+ * provisões, benefícios ou ferramentas) — espelhando o `baseAmount` do
+ * employeeCostCalculator para manter coerência com as telas de cadastro:
+ *   - CLT / Menor Aprendiz: salário bruto mensal
+ *   - Estágio:              bolsa-auxílio
+ *   - PJ:                   valor mensal do contrato
+ *   - Sócio:                pró-labore + dividendos
  */
+import type { ContractType } from '@/types/employee';
 
 export interface PayrollEmployeeInput {
   status: string;
-  totalMonthlyCostEstimated: number;
+  tipoContratacao: ContractType;
+  /** Salário bruto mensal (base de CLT/Menor Aprendiz). */
+  salarioMensal: number;
+  /** Bolsa-auxílio (base de Estágio). */
+  bolsaAuxilio: number;
+  /** Valor mensal do contrato (base de PJ). */
+  valorContratoPj: number;
+  /** Pró-labore (base de Sócio). */
+  proLabore: number;
+  /** Dividendos (compõe a base de Sócio). */
+  dividendos: number;
 }
 
 export interface PayrollCost {
-  /** Custo mensal total da folha (soma dos ativos). */
+  /** Soma dos salários base dos colaboradores ativos. */
   totalMonthlyCost: number;
-  /** Nº de funcionários ativos considerados. */
+  /** Nº de colaboradores ativos considerados. */
   headcount: number;
+}
+
+/** Salário base do colaborador conforme o tipo de contratação. */
+export function getBaseSalary(e: PayrollEmployeeInput): number {
+  switch (e.tipoContratacao) {
+    case 'ESTAGIO':
+      return e.bolsaAuxilio || 0;
+    case 'PJ':
+      return e.valorContratoPj || 0;
+    case 'SOCIO':
+      return (e.proLabore || 0) + (e.dividendos || 0);
+    case 'CLT':
+    case 'MENOR_APRENDIZ':
+    default:
+      return e.salarioMensal || 0;
+  }
 }
 
 export function calculatePayrollCost(
@@ -27,10 +59,7 @@ export function calculatePayrollCost(
 ): PayrollCost {
   const active = employees.filter((e) => e.status === 'ativo');
 
-  const totalMonthlyCost = active.reduce(
-    (sum, e) => sum + (Number(e.totalMonthlyCostEstimated) || 0),
-    0,
-  );
+  const totalMonthlyCost = active.reduce((sum, e) => sum + getBaseSalary(e), 0);
 
   return { totalMonthlyCost, headcount: active.length };
 }
