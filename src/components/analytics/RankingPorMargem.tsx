@@ -3,6 +3,7 @@ import { CheckCircle2, AlertTriangle, XCircle, ChevronRight } from 'lucide-react
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { ProjectFinancialRow, DimensionFinancialRow } from '@/hooks/useProjectFinancials'
+import { useHideValues } from '@/contexts/HideValuesContext'
 
 // ── tipos ─────────────────────────────────────────────────────────────────
 type ProjetoStatus = 'saudavel' | 'atencao' | 'critico'
@@ -62,6 +63,7 @@ const MARGIN_TEXT: Record<ProjetoStatus, string> = {
 
 // ── componente ────────────────────────────────────────────────────────────
 export function RankingPorMargem({ byProject, grossMarginTarget }: RankingPorMargemProps) {
+  const hideValues = useHideValues()
   const target = grossMarginTarget ?? 25
 
   const sorted = [...byProject]
@@ -105,7 +107,7 @@ export function RankingPorMargem({ byProject, grossMarginTarget }: RankingPorMar
                   {/* Badge */}
                   <span
                     className={cn(
-                      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold shrink-0',
+                      'inline-flex items-center justify-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold shrink-0 w-[88px]',
                       cfg.classes,
                     )}
                   >
@@ -123,8 +125,8 @@ export function RankingPorMargem({ byProject, grossMarginTarget }: RankingPorMar
                   </div>
 
                   {/* Receita */}
-                  <span className="text-sm font-mono text-muted-foreground shrink-0 hidden sm:block">
-                    {formatCompact(project.revenue)}
+                  <span className="text-sm font-mono text-muted-foreground shrink-0 hidden sm:block w-20 text-right">
+                    {hideValues ? '•••' : formatCompact(project.revenue)}
                   </span>
 
                   {/* Margem % + meta + barra */}
@@ -143,9 +145,6 @@ export function RankingPorMargem({ byProject, grossMarginTarget }: RankingPorMar
                       />
                     </div>
                   </div>
-
-                  {/* Seta */}
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 </div>
               )
             })}

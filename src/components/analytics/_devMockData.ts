@@ -126,6 +126,60 @@ export function filterMockByManager(gpFilter: string | null): ProjectFinancialsD
   }
 }
 
+/** Escala os dados mensais proporcionalmente ao share de receita/custo do GP selecionado. */
+export function filterMockFinancialEvolution(gpFilter: string | null): FinancialEvolutionData {
+  if (!gpFilter) return MOCK_FINANCIAL_EVOLUTION
+
+  const managers = MOCK_PROJECT_FINANCIALS.byManager
+  const manager = managers.find((m) => m.id === gpFilter)
+  if (!manager) {
+    return {
+      ...MOCK_FINANCIAL_EVOLUTION,
+      months: MOCK_FINANCIAL_EVOLUTION.months.map((m) => ({
+        ...m,
+        revenueReal: 0, revenuePlanned: 0, faturado: 0,
+        totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
+        commissionCost: 0, reimbursementCost: 0,
+        plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
+        grossMarginPct: null, plannedGrossMarginPct: null,
+      })),
+    }
+  }
+
+  const totalRev  = managers.reduce((s, m) => s + m.revenue, 0)
+  const totalCost = managers.reduce((s, m) => s + m.costs, 0)
+  const revFactor  = totalRev  > 0 ? manager.revenue / totalRev  : 0
+  const costFactor = totalCost > 0 ? manager.costs   / totalCost : 0
+
+  return {
+    ...MOCK_FINANCIAL_EVOLUTION,
+    months: MOCK_FINANCIAL_EVOLUTION.months.map((m) => {
+      const revenueReal    = Math.round(m.revenueReal    * revFactor)
+      const revenuePlanned = Math.round(m.revenuePlanned * revFactor)
+      const faturado       = Math.round(m.faturado       * revFactor)
+      const totalCosts          = Math.round(m.totalCosts          * costFactor)
+      const laborCost           = Math.round(m.laborCost           * costFactor)
+      const supplierCost        = Math.round(m.supplierCost        * costFactor)
+      const materialCost        = Math.round(m.materialCost        * costFactor)
+      const commissionCost      = Math.round(m.commissionCost      * costFactor)
+      const reimbursementCost   = Math.round(m.reimbursementCost   * costFactor)
+      const plannedTotalCosts   = Math.round(m.plannedTotalCosts   * costFactor)
+      const plannedLaborCost    = Math.round(m.plannedLaborCost    * costFactor)
+      const plannedSupplierCost = Math.round(m.plannedSupplierCost * costFactor)
+      const plannedMaterialCost = Math.round(m.plannedMaterialCost * costFactor)
+      const grossMarginPct = revenueReal > 0
+        ? Math.round(((revenueReal - totalCosts) / revenueReal) * 1000) / 10
+        : null
+      return {
+        ...m, revenueReal, revenuePlanned, faturado,
+        totalCosts, laborCost, supplierCost, materialCost, commissionCost, reimbursementCost,
+        plannedTotalCosts, plannedLaborCost, plannedSupplierCost, plannedMaterialCost,
+        grossMarginPct,
+      }
+    }),
+  }
+}
+
 // NPS Score consolidado: ((17-4)/28)*100 = 46
 export const MOCK_STAKEHOLDER_DATA: StakeholderAnalyticsData = {
   totals: { total: 28, promoters: 17, neutrals: 7, detractors: 4 },

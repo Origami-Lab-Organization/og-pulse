@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { CalendarIcon, FileDown, Loader2 } from 'lucide-react'
+import { CalendarIcon, Eye, EyeOff, FileDown, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ProjectMetricsBar } from '@/components/analytics/ProjectMetricsBar'
@@ -30,14 +30,18 @@ import { startOfMonth, endOfMonth } from 'date-fns'
 import { cn } from '@/lib/utils'
 import type { ProjectMetricCardProps } from '@/components/analytics/ProjectMetricCard'
 import {
-  MOCK_FINANCIAL_EVOLUTION,
   MOCK_FILTER_OPTIONS,
   MOCK_STAKEHOLDER_DATA,
   filterMockByManager,
+  filterMockFinancialEvolution,
 } from '@/components/analytics/_devMockData'
+import {
+  HideValuesProvider,
+  useHideValuesPreference,
+} from '@/contexts/HideValuesContext'
 
 // Substitua por `false` para usar dados reais do Supabase
-const DEV_MOCK = true
+const DEV_MOCK = false
 
 // ── presets ──────────────────────────────────────────────────────────────
 const PRESET_OPTIONS: { value: AnalyticsPreset; label: string }[] = [
@@ -86,6 +90,7 @@ export default function Analytics() {
 
   const [isRequestingPdf, setIsRequestingPdf] = useState(false)
   const [devGpFilter, setDevGpFilter] = useState<string | null>(null)
+  const [hideValues, setHideValues] = useHideValuesPreference()
 
   // No modo DEV_MOCK o usuário pode não ser admin — forçamos visibilidade e filtro local
   const effectiveIsAdmin  = DEV_MOCK ? true : isAdmin
@@ -110,7 +115,7 @@ export default function Analytics() {
   const { data: _revenueData }     = useRevenueAnalytics(filters)
   const { data: _stakeholderData } = useStakeholderAnalytics(filters)
 
-  const financialEvolution         = DEV_MOCK ? MOCK_FINANCIAL_EVOLUTION               : _finEvo
+  const financialEvolution         = DEV_MOCK ? filterMockFinancialEvolution(effectiveGpFilter) : _finEvo
   const isFinancialLoading         = DEV_MOCK ? false                                  : _isFinLoading
   const projectFinancials          = DEV_MOCK ? filterMockByManager(effectiveGpFilter) : _projFin
   const isProjectFinancialsLoading = DEV_MOCK ? false                                  : _isProjFinLoading
@@ -278,12 +283,22 @@ export default function Analytics() {
       description="Qual projeto tem a pior margem? Qual linha é mais rentável? Responda em menos de 5 minutos."
       breadcrumbs={[{ label: 'Analytics de Projetos' }]}
       actions={
-        <Button variant="outline" size="sm" disabled={isRequestingPdf} onClick={handleExportPdf}>
-          {isRequestingPdf
-            ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            : <FileDown className="mr-2 h-4 w-4" />}
-          Exportar PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setHideValues((v) => !v)}
+            aria-label={hideValues ? 'Exibir valores' : 'Ocultar valores'}
+          >
+            {hideValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </Button>
+          <Button variant="outline" size="sm" disabled={isRequestingPdf} onClick={handleExportPdf}>
+            {isRequestingPdf
+              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              : <FileDown className="mr-2 h-4 w-4" />}
+            Exportar PDF
+          </Button>
+        </div>
       }
     >
       <div className="space-y-6">
@@ -393,62 +408,74 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* ── 5 KPIs ───────────────────────────────────────────────────── */}
-        <ProjectMetricsBar cards={carteiraKpiCards} />
+        <HideValuesProvider value={hideValues}>
+          {/* ── 5 KPIs ───────────────────────────────────────────────────── */}
+          <ProjectMetricsBar cards={carteiraKpiCards} />
 
-        {/* ── Loading ──────────────────────────────────────────────────── */}
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        ) : (
-          <>
-            {/* ── Receita × Custo + Custo por categoria ─────────────────── */}
-            <div className="grid gap-4 grid-cols-1 lg:grid-cols-4">
-              <div className="lg:col-span-3">
-                <ReceitaCustoMensalChart data={financialMonths} />
-              </div>
-              <div className="lg:col-span-1">
-                {financialKPIs ? (
-                  <CostMixDonut
-                    laborCost={financialKPIs.laborCost}
-                    supplierCost={financialKPIs.supplierCost}
-                    materialCost={financialKPIs.materialCost}
-                    commissionCost={financialKPIs.commissionCost}
-                    reimbursementCost={financialKPIs.reimbursementCost}
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  </div>
-                )}
-              </div>
+          {/* ── Loading ──────────────────────────────────────────────────── */}
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
+          ) : (
+            <>
+              {/* ── Receita × Custo + Custo por categoria ─────────────────── */}
+              <div className="grid gap-4 grid-cols-1 lg:grid-cols-4">
+                <div className="lg:col-span-3">
+                  <ReceitaCustoMensalChart data={financialMonths} />
+                </div>
+                <div className="lg:col-span-1">
+                  {financialKPIs ? (
+                    <CostMixDonut
+                      laborCost={financialKPIs.laborCost}
+                      supplierCost={financialKPIs.supplierCost}
+                      materialCost={financialKPIs.materialCost}
+                      commissionCost={financialKPIs.commissionCost}
+                      reimbursementCost={financialKPIs.reimbursementCost}
+                    />
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    </div>
+                  )}
+                </div>
+              </div>
 
-            {/* ── Ranking por margem ────────────────────────────────────── */}
-            {projectFinancials && (
-              <RankingPorMargem
-                byProject={projectFinancials.byProject}
-                grossMarginTarget={projectFinancials.grossMarginTarget}
+              {/* ── Ranking por margem ────────────────────────────────────── */}
+              {projectFinancials && (
+                <RankingPorMargem
+                  byProject={projectFinancials.byProject}
+                  grossMarginTarget={projectFinancials.grossMarginTarget}
+                />
+              )}
+
+              {/* ── Performance por gerente — admin only ─────────────────── */}
+              {effectiveIsAdmin && projectFinancials && (
+                <PerformancePorLinhaServico
+                  rows={projectFinancials.byManager}
+                  grossMarginTarget={projectFinancials.grossMarginTarget}
+                  title="Performance por gerente"
+                  exportSlug="gerentes"
+                />
+              )}
+
+              {/* ── Performance por linha de serviço ─────────────────────── */}
+              {projectFinancials && (
+                <PerformancePorLinhaServico
+                  rows={projectFinancials.byServiceLine}
+                  grossMarginTarget={projectFinancials.grossMarginTarget}
+                />
+              )}
+
+              {/* ── NPS do Portfólio ──────────────────────────────────────── */}
+              <NpsPortfolioSection
+                stakeholderData={stakeholderData}
+                isLoading={isLoading}
+                availabilityOverride={DEV_MOCK ? true : undefined}
               />
-            )}
-
-            {/* ── Performance por linha de serviço ─────────────────────── */}
-            {projectFinancials && (
-              <PerformancePorLinhaServico
-                byServiceLine={projectFinancials.byServiceLine}
-                grossMarginTarget={projectFinancials.grossMarginTarget}
-              />
-            )}
-
-            {/* ── NPS do Portfólio ──────────────────────────────────────── */}
-            <NpsPortfolioSection
-              stakeholderData={stakeholderData}
-              isLoading={isLoading}
-              availabilityOverride={DEV_MOCK ? true : undefined}
-            />
-          </>
-        )}
+            </>
+          )}
+        </HideValuesProvider>
       </div>
     </AppLayout>
   )

@@ -11,6 +11,10 @@
   Cobrir com Vitest: editar/alocar/desalocar habilitado so para admin ou PM dono;
   somente-leitura para gerente nao-PM. Ref ADR-0002 ("detalhe read-only para gerente
   nao-PM" ja consta como teste esperado).
+- TD-0003: `useAnalyticsFilterOptions` usa cast `as any[]` na resposta do join
+  `projects → employees` porque o Supabase SDK não infere tipos de joins com alias
+  (`manager:employees`). Solução: gerar tipos via `supabase gen types` e tipar o
+  resultado do join explicitamente. Baixa prioridade — sem impacto funcional ou de segurança.
 - TD-0002: "Papel no projeto" no painel de alocacao usa os cargos da equipe como
   sugestao, nao papeis especificos de projeto. Se o time precisar de taxonomia de
   papeis de projeto (ex.: Tech Lead, PO), modelar tabela/enum dedicada no banco —

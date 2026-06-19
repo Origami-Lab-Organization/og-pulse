@@ -401,20 +401,20 @@ export function useAnalyticsFilterOptions() {
     queryFn: async () => {
       if (!tenantId) return { clients: [], managers: [], projects: [] };
 
-      const [clientsRes, managersRes, projectsRes] = await Promise.all([
+      const [clientsRes, managersRawRes, projectsRes] = await Promise.all([
         supabase
           .from('clients')
           .select('id, company_name')
           .eq('tenant_id', tenantId)
           .eq('status', 'active')
           .order('company_name'),
+        // Deriva gerentes diretamente dos projetos — fonte única de verdade, independe do flag is_gerente
         supabase
-          .from('employees')
-          .select('id, nome')
+          .from('projects')
+          .select('manager_id, manager:employees(id, nome)')
           .eq('tenant_id', tenantId)
-          .eq('is_gerente', true)
-          .eq('status', 'ativo')
-          .order('nome'),
+          .not('manager_id', 'is', null)
+          .not('status', 'in', '("cancelled","archived")'),
         supabase
           .from('projects')
           .select('id, name')
@@ -423,9 +423,21 @@ export function useAnalyticsFilterOptions() {
           .order('name'),
       ]);
 
+      // Deduplica gerentes por ID e ordena por nome
+      const seenIds = new Set<string>();
+      const managers = ((managersRawRes.data || []) as any[])
+        .filter((p) => {
+          const id = p.manager?.id;
+          if (!id || seenIds.has(id)) return false;
+          seenIds.add(id);
+          return true;
+        })
+        .map((p) => ({ id: p.manager.id, nome: p.manager.nome as string }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
       return {
         clients: clientsRes.data || [],
-        managers: managersRes.data || [],
+        managers,
         projects: projectsRes.data || [],
       };
     },

@@ -1,171 +1,183 @@
 import { useRef, useCallback } from 'react'
+import { useHideValues } from '@/contexts/HideValuesContext'
 import html2canvas from 'html2canvas'
-import { Download, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
+import {
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ReferenceLine, ResponsiveContainer,
+} from 'recharts'
+import { Download } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import type { DimensionFinancialRow } from '@/hooks/useProjectFinancials'
-import { useServiceLineSort } from '@/hooks/useServiceLineSort'
-import type { ServiceLineSortKey } from '@/hooks/useServiceLineSort'
 
 interface Props {
-  byServiceLine: DimensionFinancialRow[]
+  rows: DimensionFinancialRow[]
   grossMarginTarget?: number | null
+  title?: string
+  exportSlug?: string
 }
 
-function fmtFull(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency', currency: 'BRL',
-    minimumFractionDigits: 0, maximumFractionDigits: 0,
-  }).format(value)
+function fmtCurrency(value: number): string {
+  if (value >= 1_000_000) return `R$${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `R$${(value / 1_000).toFixed(0)}k`
+  return `R$${value}`
 }
 
-function getStatus(margin: number | null, target: number): 'saudavel' | 'atencao' | 'critico' {
-  if (margin === null) return 'atencao'
-  if (margin >= target + 5) return 'saudavel'
-  if (margin >= target - 5) return 'atencao'
-  return 'critico'
+function fmtPct(value: number | null): string {
+  return value !== null ? `${value.toFixed(1)}%` : '—'
 }
 
-const STATUS_CONFIG = {
-  saudavel: { label: 'SAUDÁVEL', icon: CheckCircle2, classes: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800' },
-  atencao:  { label: 'ATENÇÃO',  icon: AlertTriangle, classes: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' },
-  critico:  { label: 'CRÍTICO',  icon: XCircle,       classes: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800' },
+const COLOR_RECEITA = 'hsl(var(--primary-deep))'
+const COLOR_CUSTOS  = 'hsl(var(--muted-foreground) / 0.35)'
+const COLOR_MARGEM  = 'hsl(38, 85%, 52%)'
+
+interface TooltipPayload {
+  name: string
+  value: number | null
+  color: string
 }
 
-const MARGIN_TEXT: Record<string, string> = {
-  saudavel: 'text-emerald-600 dark:text-emerald-400',
-  atencao:  'text-amber-600 dark:text-amber-400',
-  critico:  'text-red-600 dark:text-red-400',
+function makeCustomTooltip(hideValues: boolean) {
+  return function CustomTooltip({ active, payload, label }: {
+    active?: boolean
+    payload?: TooltipPayload[]
+    label?: string
+  }) {
+    if (!active || !payload?.length) return null
+    return (
+      <div className="rounded-lg border bg-popover px-3 py-2 text-sm shadow-md space-y-1">
+        <p className="font-semibold text-popover-foreground mb-1.5">{label}</p>
+        {payload.map((p) => (
+          <div key={p.name} className="flex items-center justify-between gap-6">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
+              {p.name}
+            </span>
+            <span className="font-medium tabular-nums text-popover-foreground">
+              {p.name === 'Margem %'
+                ? fmtPct(p.value)
+                : hideValues ? '•••' : fmtCurrency(p.value ?? 0)}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 }
 
-function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
-  if (!active) return <ArrowUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/50 inline-block" />
-  return dir === 'asc'
-    ? <ArrowUp   className="ml-1 h-3.5 w-3.5 inline-block" />
-    : <ArrowDown className="ml-1 h-3.5 w-3.5 inline-block" />
-}
-
-export function PerformancePorLinhaServico({ byServiceLine, grossMarginTarget }: Props) {
+export function PerformancePorLinhaServico({
+  rows,
+  grossMarginTarget,
+  title = 'Performance por linha de serviço',
+  exportSlug = 'linhas-servico',
+}: Props) {
+  const hideValues = useHideValues()
   const target = grossMarginTarget ?? 25
-  const tableRef = useRef<HTMLDivElement>(null)
-  const { sort, toggleSort, sorted } = useServiceLineSort(byServiceLine)
+  const chartRef = useRef<HTMLDivElement>(null)
 
   const handleExportPng = useCallback(async () => {
-    if (!tableRef.current) return
+    if (!chartRef.current) return
     const now = new Date()
     const mes = String(now.getMonth() + 1).padStart(2, '0')
     const ano = now.getFullYear()
-    const canvas = await html2canvas(tableRef.current, { scale: 2 })
+    const canvas = await html2canvas(chartRef.current, { scale: 2 })
     const link = document.createElement('a')
     link.href = canvas.toDataURL('image/png')
-    link.download = `linhas-servico-${mes}${ano}.png`
+    link.download = `${exportSlug}-${mes}${ano}.png`
     link.click()
-  }, [])
+  }, [exportSlug])
 
-  if (byServiceLine.length === 0) {
+  if (rows.length === 0) {
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Performance por linha de serviço</CardTitle>
+          <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground py-6 text-center">
-            Nenhuma linha de serviço cadastrada.
+            Nenhum dado disponível.
           </p>
         </CardContent>
       </Card>
     )
   }
 
+  const data = [...rows]
+    .sort((a, b) => b.revenue - a.revenue)
+    .map((row) => ({
+      name: row.label,
+      Receita: row.revenue,
+      Custos: row.costs,
+      'Margem %': row.grossMargin,
+      numProjetos: row.numProjetos,
+    }))
+
   return (
     <Card>
       <CardHeader className="pb-2 flex-row items-center justify-between">
-        <CardTitle className="text-base">Performance por linha de serviço</CardTitle>
+        <CardTitle className="text-base">{title}</CardTitle>
         <Button variant="outline" size="sm" onClick={handleExportPng} className="h-7 gap-1.5 text-xs">
           <Download className="h-3.5 w-3.5" />
           Exportar PNG
         </Button>
       </CardHeader>
-      <CardContent className="p-0">
-        <div ref={tableRef} className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/30">
-                <th className="px-6 py-3 text-left font-medium text-muted-foreground">
-                  <button
-                    onClick={() => toggleSort('nome' as ServiceLineSortKey)}
-                    className="flex items-center hover:text-foreground transition-colors"
-                  >
-                    Linha de serviço
-                    <SortIcon active={sort.key === 'nome'} dir={sort.direction} />
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">
-                  Nº de projetos
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                  <button
-                    onClick={() => toggleSort('receita' as ServiceLineSortKey)}
-                    className="flex items-center justify-end w-full hover:text-foreground transition-colors"
-                  >
-                    Receita
-                    <SortIcon active={sort.key === 'receita'} dir={sort.direction} />
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground hidden md:table-cell">
-                  Custos
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                  <button
-                    onClick={() => toggleSort('margemPct' as ServiceLineSortKey)}
-                    className="flex items-center justify-end w-full hover:text-foreground transition-colors"
-                  >
-                    Margem %
-                    <SortIcon active={sort.key === 'margemPct'} dir={sort.direction} />
-                  </button>
-                </th>
-                <th className="px-6 py-3 text-center font-medium text-muted-foreground">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {sorted.map((row) => {
-                const status = getStatus(row.grossMargin, target)
-                const cfg    = STATUS_CONFIG[status]
-                const Icon   = cfg.icon
-                return (
-                  <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-3 font-medium">{row.label}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                      {row.numProjetos > 0 ? row.numProjetos : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                      {row.revenue > 0 ? fmtFull(row.revenue) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground hidden md:table-cell">
-                      {row.costs > 0 ? fmtFull(row.costs) : '—'}
-                    </td>
-                    <td className={cn('px-4 py-3 text-right tabular-nums font-bold', MARGIN_TEXT[status])}>
-                      {row.grossMargin !== null ? `${row.grossMargin.toFixed(1)}%` : '—'}
-                    </td>
-                    <td className="px-6 py-3">
-                      <div className="flex justify-center">
-                        <span className={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold',
-                          cfg.classes,
-                        )}>
-                          <Icon className="h-3 w-3" />
-                          {cfg.label}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+      <CardContent>
+        <div ref={chartRef}>
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 11 }}
+                className="text-muted-foreground"
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                yAxisId="currency"
+                orientation="left"
+                tickFormatter={(v) => hideValues ? '•••' : fmtCurrency(v)}
+                tick={{ fontSize: 11 }}
+                className="text-muted-foreground"
+                tickLine={false}
+                axisLine={false}
+                width={60}
+              />
+              <YAxis
+                yAxisId="pct"
+                orientation="right"
+                tickFormatter={(v) => `${v}%`}
+                tick={{ fontSize: 11 }}
+                className="text-muted-foreground"
+                tickLine={false}
+                axisLine={false}
+                domain={[0, 'auto']}
+                width={42}
+              />
+              <Tooltip content={makeCustomTooltip(hideValues)} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              <ReferenceLine
+                yAxisId="pct"
+                y={target}
+                stroke={COLOR_MARGEM}
+                strokeDasharray="4 3"
+                strokeOpacity={0.5}
+                label={{ value: `Meta ${target}%`, position: 'insideTopRight', fontSize: 10, fill: COLOR_MARGEM }}
+              />
+              <Bar yAxisId="currency" dataKey="Receita" fill={COLOR_RECEITA} radius={[4, 4, 0, 0]} maxBarSize={48} />
+              <Bar yAxisId="currency" dataKey="Custos"  fill={COLOR_CUSTOS}  radius={[4, 4, 0, 0]} maxBarSize={48} />
+              <Line
+                yAxisId="pct"
+                type="monotone"
+                dataKey="Margem %"
+                stroke={COLOR_MARGEM}
+                strokeWidth={2}
+                dot={{ r: 4, fill: COLOR_MARGEM, strokeWidth: 0 }}
+                activeDot={{ r: 6 }}
+                connectNulls={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
       </CardContent>
     </Card>

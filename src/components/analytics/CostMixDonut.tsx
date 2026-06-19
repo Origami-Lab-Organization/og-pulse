@@ -3,13 +3,14 @@ import { PieChart, Pie, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
+import { useHideValues } from '@/contexts/HideValuesContext';
 
 const COLORS = [
-  'hsl(152, 55%, 40%)',
-  'hsl(38, 85%, 52%)',
-  'hsl(0, 70%, 58%)',
-  'hsl(220, 70%, 50%)',
-  'hsl(195, 70%, 45%)',
+  'hsl(var(--primary-deep))',
+  'hsl(var(--primary-deep) / 0.72)',
+  'hsl(var(--primary-deep) / 0.48)',
+  'hsl(var(--primary-deep) / 0.26)',
+  'hsl(var(--primary-deep) / 0.15)',
 ];
 
 interface Props {
@@ -20,24 +21,31 @@ interface Props {
   reimbursementCost: number;
 }
 
-function DonutTooltip({ active, payload }: any) {
-  if (!active || !payload?.length) return null;
-  const entry = payload[0];
-  return (
-    <div className="rounded-lg border bg-popover px-3 py-2 text-sm shadow-md">
-      <div className="flex items-center gap-2">
-        <div className="h-2.5 w-2.5 rounded-[2px]" style={{ backgroundColor: entry.payload.fill }} />
-        <span className="font-medium">{entry.name}</span>
+function makeDonutTooltip(hideValues: boolean) {
+  return function DonutTooltip({ active, payload }: any) {
+    if (!active || !payload?.length) return null;
+    const entry = payload[0];
+    return (
+      <div className="rounded-lg border bg-popover px-3 py-2 text-sm shadow-md">
+        <div className="flex items-center gap-2">
+          <div className="h-2.5 w-2.5 rounded-[2px]" style={{ backgroundColor: entry.payload.fill }} />
+          <span className="font-medium">{entry.name}</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">
+            {hideValues ? '•••' : formatPercent((entry.payload.percent ?? 0) * 100)}
+          </span>
+          <span className="font-mono font-semibold tabular-nums">
+            {hideValues ? '•••••' : formatCurrency(entry.value)}
+          </span>
+        </div>
       </div>
-      <div className="mt-1 flex items-center justify-between gap-4">
-        <span className="text-muted-foreground">{formatPercent((entry.payload.percent ?? 0) * 100)}</span>
-        <span className="font-mono font-semibold tabular-nums">{formatCurrency(entry.value)}</span>
-      </div>
-    </div>
-  );
+    );
+  };
 }
 
 export function CostMixDonut({ laborCost, supplierCost, materialCost, commissionCost, reimbursementCost }: Props) {
+  const hideValues = useHideValues();
   const items = useMemo(() => {
     const raw = [
       { name: 'Mão de Obra', value: laborCost },
@@ -86,9 +94,9 @@ export function CostMixDonut({ laborCost, supplierCost, materialCost, commission
                       <Cell key={idx} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <ChartTooltip content={<DonutTooltip />} />
+                  <ChartTooltip content={makeDonutTooltip(hideValues)} />
                   <text x="50%" y="46%" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={700} fill="currentColor">
-                    {total >= 1_000_000
+                    {hideValues ? '•••' : total >= 1_000_000
                       ? `R$${(total / 1_000_000).toFixed(1)}M`
                       : total >= 1000
                         ? `R$${Math.round(total / 1000)}k`
@@ -107,7 +115,7 @@ export function CostMixDonut({ laborCost, supplierCost, materialCost, commission
                   <div key={i} className="flex items-center gap-2 text-sm">
                     <div className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: item.fill }} />
                     <span className="truncate flex-1">{item.name}</span>
-                    <span className="text-muted-foreground tabular-nums text-xs font-medium">{formatPercent(pct)}</span>
+                    <span className="text-muted-foreground tabular-nums text-xs font-medium">{hideValues ? '•••' : formatPercent(pct)}</span>
                   </div>
                 );
               })}

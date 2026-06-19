@@ -2,6 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useHideValues } from '@/contexts/HideValuesContext'
 
 export type MetricStatusColor = 'default' | 'red' | 'amber' | 'green'
 
@@ -40,6 +41,7 @@ export function ProjectMetricCard({
   delta,
   deltaPositive,
 }: ProjectMetricCardProps) {
+  const hideValues = useHideValues()
   const dotClass = DOT_COLOR[statusColor]
   const valueClass = VALUE_COLOR[statusColor]
   const deltaClass =
@@ -75,16 +77,18 @@ export function ProjectMetricCard({
       {isLoading ? (
         <Skeleton className="h-7 w-20 mb-1.5" />
       ) : (
-        <div className={cn('text-2xl font-bold leading-tight', valueClass)}>{value}</div>
+        <div className={cn('text-2xl font-bold leading-tight', valueClass)}>
+          {hideValues ? '•••••' : value}
+        </div>
       )}
 
       {/* Delta */}
-      {!isLoading && delta && (
+      {!isLoading && !hideValues && delta && (
         <div className={cn('mt-0.5 text-xs font-medium', deltaClass)}>{delta}</div>
       )}
 
       {/* Subtitle */}
-      {!isLoading && subtitle && (
+      {!isLoading && !hideValues && subtitle && (
         <div className={cn('text-xs text-muted-foreground', delta ? '' : 'mt-0.5')}>{subtitle}</div>
       )}
     </div>
