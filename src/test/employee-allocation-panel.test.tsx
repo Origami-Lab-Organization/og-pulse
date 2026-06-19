@@ -21,12 +21,26 @@ vi.mock('@/hooks/useEmployeeAllocationPanel', () => ({
     mutate: mutateMock,
     isPending: false,
   }),
+  useAllocateEmployeeToProject: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
+  useDeallocateEmployeeFromProject: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('@/hooks/useEmployeeAvailability', () => ({
   useEmployeeAvailability: () => ({
     data: { capacityHours: availabilityCapacity },
     isLoading: false,
+  }),
+}));
+
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    employee: { id: 'user-1', isAdmin: false },
   }),
 }));
 
@@ -118,7 +132,12 @@ function renderPanel(person = employee()) {
         months={months}
         monthKey="2026-10"
         projectIdFilter="all"
-        projectOptions={[{ id: 'project-1', name: 'Transformação Digital' }]}
+        projectOptions={[
+          { id: 'project-1', name: 'Transformação Digital', managerId: 'user-1', managerName: 'Cecilia' },
+          { id: 'project-2', name: 'Diagnóstico de Inovação', managerId: 'user-1', managerName: 'Cecilia' },
+          { id: 'project-3', name: 'Financiamento EMBRAPII', managerId: 'user-1', managerName: 'Cecilia' },
+        ]}
+        roleOptions={['Senior Consultant']}
       />
     </MemoryRouter>,
   );
@@ -144,6 +163,7 @@ describe('EmployeeAllocationPanel', () => {
           projects: [
             {
               projectId: 'project-1',
+              allocationId: 'allocation-1',
               projectMemberId: 'member-1',
               monthKey: '2026-10',
               monthNumber: 10,
@@ -155,6 +175,7 @@ describe('EmployeeAllocationPanel', () => {
             },
             {
               projectId: 'project-2',
+              allocationId: 'allocation-2',
               projectMemberId: 'member-2',
               monthKey: '2026-10',
               monthNumber: 10,
@@ -166,6 +187,7 @@ describe('EmployeeAllocationPanel', () => {
             },
             {
               projectId: 'project-3',
+              allocationId: 'allocation-3',
               projectMemberId: 'member-3',
               monthKey: '2026-10',
               monthNumber: 10,
@@ -200,12 +222,12 @@ describe('EmployeeAllocationPanel', () => {
     expect(screen.getByText('Limite')).toBeInTheDocument();
     expect(screen.getAllByText('204h')).not.toHaveLength(0);
 
-    fireEvent.click(screen.getByRole('button', { name: /salvar alterações/i }));
+    fireEvent.click(screen.getByRole('button', { name: /salvar 1 alteração/i }));
 
     expect(mutateMock).toHaveBeenCalledWith([
       {
-        projectMemberId: 'member-2',
-        monthNumber: 10,
+        tenantId: 'tenant-1',
+        allocationId: 'allocation-2',
         hours: 44,
       },
     ]);

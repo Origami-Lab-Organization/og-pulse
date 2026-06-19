@@ -4,8 +4,8 @@ import { AllocationMonth, AllocationPanelData, AllocationPerson } from '@/types/
 import { useToast } from '@/hooks/use-toast';
 
 export interface PlannedHoursChange {
-  projectMemberId: string;
-  monthNumber: number;
+  tenantId: string;
+  allocationId: string;
   hours: number;
 }
 
@@ -16,13 +16,13 @@ function allocationPanelKey(tenantId: string | undefined, employeeId: string | u
 function applyPlannedChanges(data: AllocationPanelData | undefined, changes: PlannedHoursChange[]) {
   if (!data) return data;
 
-  const changesByKey = new Map(changes.map((change) => [`${change.projectMemberId}:${change.monthNumber}`, change.hours]));
+  const changesByKey = new Map(changes.map((change) => [change.allocationId, change.hours]));
 
   return {
     ...data,
     months: data.months.map((monthData) => {
       const projects = monthData.projects.map((project) => {
-        const nextHours = changesByKey.get(`${project.projectMemberId}:${project.monthNumber}`);
+        const nextHours = project.allocationId ? changesByKey.get(project.allocationId) : undefined;
         return nextHours === undefined ? project : { ...project, plannedHours: nextHours };
       });
 
@@ -71,7 +71,7 @@ export function useEmployeeAllocationPanel({
 function invalidateAllocationQueries(queryClient: ReturnType<typeof useQueryClient>, tenantId: string | undefined, employeeId: string | undefined) {
   queryClient.invalidateQueries({ queryKey: ['allocation-panel', tenantId, employeeId] });
   queryClient.invalidateQueries({ queryKey: ['allocation-grid', tenantId] });
-  queryClient.invalidateQueries({ queryKey: ['project-member-months'] });
+  queryClient.invalidateQueries({ queryKey: ['project-allocations'] });
 }
 
 export function useAllocateEmployeeToProject({
@@ -85,7 +85,7 @@ export function useAllocateEmployeeToProject({
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (input: { projectId: string; employeeId: string; role: string; seniority: string; hoursPerMonth: number }) =>
+    mutationFn: (input: { tenantId: string; projectId: string; employeeId: string; role: string; year: number; month: number; plannedHours: number }) =>
       allocationService.allocateToProject(input),
     onSuccess: () => {
       toast({
@@ -115,7 +115,7 @@ export function useDeallocateEmployeeFromProject({
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (input: { projectMemberId: string }) => allocationService.deallocateFromProject(input),
+    mutationFn: (input: { tenantId: string; projectId: string; employeeId: string }) => allocationService.deallocateFromProject(input),
     onSuccess: () => {
       toast({
         title: 'Colaborador desalocado',

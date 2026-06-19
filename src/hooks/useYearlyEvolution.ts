@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +24,35 @@ export interface MonthlyPoint {
 export interface YearlyEvolutionData {
   year: number;
   months: MonthlyPoint[];
+}
+
+interface YearlyTimesheetRow {
+  project_member_id: string;
+  work_date: string;
+  hours: number | null;
+  cost_per_hour: number | null;
+}
+
+interface YearlyEmployeeCostJoin {
+  jornada_mensal: number | null;
+  total_monthly_cost_estimated: number | null;
+}
+
+interface YearlyProjectMemberRow {
+  id: string;
+  employee_id: string;
+  employee: YearlyEmployeeCostJoin | YearlyEmployeeCostJoin[] | null;
+}
+
+interface YearlyPlannedAllocationRow {
+  month: number;
+  planned_hours: number | null;
+}
+
+interface YearlyCapacityEmployeeRow {
+  jornada_diaria: number | null;
+  total_monthly_cost_estimated: number | null;
+  data_admissao: string | null;
 }
 
 export function useYearlyEvolution(
@@ -87,10 +116,8 @@ export function useYearlyEvolution(
       if (!projects || projects.length === 0) return { year, months: emptyMonths };
 
       const projectIds = projects.map(p => p.id);
-      const projectMap = new Map(projects.map(p => [p.id, p as any]));
-
       // 2. Fetch all data for the full year in parallel
-      const [receivedRes, plannedRes, timesheetsRes, membersRes, allEmployeesRes, holidaysRes] = await Promise.all([
+      const [receivedRes, plannedRes, timesheetsRes, membersRes, plannedAllocationsRes, allEmployeesRes, holidaysRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('payment_date, value')
@@ -115,8 +142,13 @@ export function useYearlyEvolution(
 
         supabase
           .from('project_members')
-          .select('id, project_id, employee_id, employee:employees(jornada_mensal, total_monthly_cost_estimated), plannedMonths:project_member_months(month_number, hours, cost_per_hour)')
+          .select('id, project_id, employee_id, employee:employees(jornada_mensal, total_monthly_cost_estimated)')
           .in('project_id', projectIds),
+        supabase
+          .from('project_role_allocations')
+          .select('project_id, employee_id, year, month, planned_hours')
+          .in('project_id', projectIds)
+          .eq('year', year),
 
         // All active tenant employees for capacity calculation
         // No need for employee_terminations join — status='ativo' guarantees they are active
@@ -135,23 +167,25 @@ export function useYearlyEvolution(
 
       const received = receivedRes.data || [];
       const planned = plannedRes.data || [];
-      const timesheets = timesheetsRes.data || [];
-      const members = (membersRes.data || []) as any[];
-      const allEmployees = (allEmployeesRes.data || []) as any[];
+      const timesheets = (timesheetsRes.data || []) as YearlyTimesheetRow[];
+      const members = (membersRes.data || []) as YearlyProjectMemberRow[];
+      const plannedAllocations = (plannedAllocationsRes.data || []) as YearlyPlannedAllocationRow[];
+      const allEmployees = (allEmployeesRes.data || []) as YearlyCapacityEmployeeRow[];
       const holidays = holidaysRes.data || [];
 
       // Build member → employee info map (keyed by project_members.id)
       const memberMap = new Map<string, { employeeId: string; hourlyCost: number }>();
       for (const m of members) {
-        if (!m.employee) continue;
-        const hourlyCost = Number(m.employee.jornada_mensal) > 0
-          ? Number(m.employee.total_monthly_cost_estimated) / Number(m.employee.jornada_mensal)
+        const employee = Array.isArray(m.employee) ? m.employee[0] : m.employee;
+        if (!employee) continue;
+        const hourlyCost = Number(employee.jornada_mensal) > 0
+          ? Number(employee.total_monthly_cost_estimated) / Number(employee.jornada_mensal)
           : 0;
         memberMap.set(m.id, { employeeId: m.employee_id, hourlyCost });
       }
 
       // Build capacity list from ALL active tenant employees (no termination needed — already filtered)
-      const capacityEmployees = allEmployees.map((e: any) => ({
+      const capacityEmployees = allEmployees.map((e) => ({
         jornada_diaria: Number(e.jornada_diaria) || 8,
         monthlyCost: Number(e.total_monthly_cost_estimated) || 0,
         admDate: e.data_admissao ? parseISO(e.data_admissao) : null,
@@ -165,24 +199,19 @@ export function useYearlyEvolution(
         const monthIdx = d.getMonth();
         const info = memberMap.get(ts.project_member_id);
         if (info) {
-          const hourlyCost = (ts as any).cost_per_hour != null
-            ? Number((ts as any).cost_per_hour)
+          const hourlyCost = ts.cost_per_hour != null
+            ? Number(ts.cost_per_hour)
             : info.hourlyCost;
           laborCostByMonth[monthIdx] += Number(ts.hours) * hourlyCost;
         }
       }
 
-      // Pre-compute planned hours per month (index 0–11) from project_member_months
+      // Pre-compute planned hours per month (index 0–11) from project_role_allocations
       const hoursPlannedByMonth = new Array(12).fill(0);
-      for (const m of members) {
-        const project = projectMap.get(m.project_id);
-        if (!project?.start_date) continue;
-        const projStart = parseISO(project.start_date);
-        for (const pm of (m.plannedMonths || [])) {
-          const actualDate = addMonths(startOfMonth(projStart), pm.month_number - 1);
-          if (actualDate.getFullYear() !== year) continue;
-          hoursPlannedByMonth[actualDate.getMonth()] += Number(pm.hours);
-        }
+      for (const allocation of plannedAllocations) {
+        const monthIndex = Number(allocation.month) - 1;
+        if (monthIndex < 0 || monthIndex > 11) continue;
+        hoursPlannedByMonth[monthIndex] += Number(allocation.planned_hours || 0);
       }
 
       const today = new Date();

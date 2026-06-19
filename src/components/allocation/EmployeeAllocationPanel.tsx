@@ -33,7 +33,6 @@ import {
 } from '@/hooks/useEmployeeAllocationPanel';
 import { AllocationMonth, AllocationPanelProjectRow, AllocationPerson, AllocationProjectOption } from '@/types/allocation';
 import { useAuth } from '@/contexts/AuthContext';
-import { SENIORITY_OPTIONS } from '@/types/project';
 
 interface EmployeeAllocationPanelProps {
   open: boolean;
@@ -73,7 +72,7 @@ function currentMonthKey() {
 }
 
 function rowKey(row: AllocationPanelProjectRow) {
-  return `${row.projectMemberId}:${row.monthNumber}`;
+  return `${row.allocationId ?? row.projectId}:${row.monthKey}`;
 }
 
 const PANEL_ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_76px_56px_28px] items-center gap-2';
@@ -175,7 +174,7 @@ export function EmployeeAllocationPanel({
   const [focusedMonthKey, setFocusedMonthKey] = useState(monthKey);
   const [draftHours, setDraftHours] = useState<Record<string, number>>({});
   const [isAddingProject, setIsAddingProject] = useState(false);
-  const [addForm, setAddForm] = useState({ projectId: '', role: '', seniority: 'pleno', hoursPerMonth: 40 });
+  const [addForm, setAddForm] = useState({ projectId: '', role: '', hoursPerMonth: 40 });
   const [rowToRemove, setRowToRemove] = useState<AllocationPanelProjectRow | null>(null);
 
   const panelQuery = useEmployeeAllocationPanel({
@@ -232,6 +231,12 @@ export function EmployeeAllocationPanel({
       ? `Você não é gerente deste projeto. Fale com ${managerName} sobre a alocação.`
       : 'Você não é gerente deste projeto. Fale com o gestor responsável sobre a alocação.';
   };
+  const readOnlyRowMessage = (row: AllocationPanelProjectRow) => {
+    if (!row.allocationId) {
+      return 'Há lançamento realizado neste projeto, mas ainda não existe planejamento editável no modelo novo para este mês.';
+    }
+    return readOnlyMessage(row.projectId);
+  };
 
   const plannedTotal = rows.reduce((sum, row) => sum + row.plannedHours, 0);
   const actualTotal = rows.reduce((sum, row) => sum + row.actualHours, 0);
@@ -242,13 +247,15 @@ export function EmployeeAllocationPanel({
   const statusClasses = getAllocationStatusClasses(status);
   const excessHours = Math.max(plannedTotal - capacityHours, 0);
   const isEmpty = rows.length === 0 && plannedTotal === 0 && actualTotal === 0;
+  const canEditRow = (row: AllocationPanelProjectRow) => Boolean(row.allocationId) && canEditProject(row.projectId);
+
   const changedRows = rows.filter((row) =>
-    canEditProject(row.projectId)
+    canEditRow(row)
     && draftHours[rowKey(row)] !== undefined
     && draftHours[rowKey(row)] !== focusedMonthData?.projects.find((project) => rowKey(project) === rowKey(row))?.plannedHours,
   );
   const suggestedRow = rows
-    .filter((row) => canEditProject(row.projectId) && row.plannedHours > row.actualHours)
+    .filter((row) => canEditRow(row) && row.plannedHours > row.actualHours)
     .sort((left, right) => (right.plannedHours - right.actualHours) - (left.plannedHours - left.actualHours))[0];
 
   useEffect(() => {
@@ -275,11 +282,11 @@ export function EmployeeAllocationPanel({
   }, [panelData]);
 
   const availableProjects = useMemo(() => {
-    const allocatedProjectIds = new Set(rows.map((row) => row.projectId));
+    const allocatedProjectIds = new Set(rows.filter((row) => row.allocationId).map((row) => row.projectId));
     return projectOptions.filter((project) => !allocatedProjectIds.has(project.id) && canEditProject(project.id));
   }, [projectOptions, rows, canEditProject]);
 
-  const hasReadOnlyRows = rows.some((row) => !canEditProject(row.projectId));
+  const hasReadOnlyRows = rows.some((row) => !canEditRow(row));
 
   const roleSuggestions = useMemo(() => {
     const unique = new Set<string>();
@@ -309,9 +316,10 @@ export function EmployeeAllocationPanel({
   };
 
   const saveChanges = () => {
+    if (!tenantId) return;
     const changes: PlannedHoursChange[] = changedRows.map((row) => ({
-      projectMemberId: row.projectMemberId,
-      monthNumber: row.monthNumber,
+      tenantId,
+      allocationId: row.allocationId as string,
       hours: row.plannedHours,
     }));
 
@@ -319,7 +327,7 @@ export function EmployeeAllocationPanel({
   };
 
   const openAddProject = () => {
-    setAddForm({ projectId: '', role: employee?.role ?? '', seniority: 'pleno', hoursPerMonth: 40 });
+    setAddForm({ projectId: '', role: employee?.role ?? '', hoursPerMonth: 40 });
     setIsAddingProject(true);
   };
 
@@ -328,14 +336,16 @@ export function EmployeeAllocationPanel({
   };
 
   const confirmAddProject = () => {
-    if (!addForm.projectId || !addForm.role.trim() || !employee || !canEditProject(addForm.projectId)) return;
+    if (!tenantId || !addForm.projectId || !addForm.role.trim() || !employee || !focusedMonth || !canEditProject(addForm.projectId)) return;
     allocateMutation.mutate(
       {
         projectId: addForm.projectId,
+        tenantId,
         employeeId: employee.id,
         role: addForm.role.trim(),
-        seniority: addForm.seniority,
-        hoursPerMonth: Math.max(0, Math.round(addForm.hoursPerMonth)),
+        year: focusedMonth.year,
+        month: focusedMonth.month,
+        plannedHours: Math.max(0, Math.round(addForm.hoursPerMonth)),
       },
       {
         onSuccess: () => {
@@ -347,9 +357,9 @@ export function EmployeeAllocationPanel({
   };
 
   const confirmDeallocate = () => {
-    if (!rowToRemove || !canEditProject(rowToRemove.projectId)) return;
+    if (!tenantId || !rowToRemove || !employee || !canEditRow(rowToRemove)) return;
     deallocateMutation.mutate(
-      { projectMemberId: rowToRemove.projectMemberId },
+      { tenantId, projectId: rowToRemove.projectId, employeeId: employee.id },
       {
         onSuccess: () => {
           amplitude.track('allocation_member_removed', { employeeId: employee?.id, projectId: rowToRemove.projectId });
@@ -481,7 +491,7 @@ export function EmployeeAllocationPanel({
                             <p className="truncate text-sm font-semibold text-foreground">{row.projectName}</p>
                             <p className="truncate text-xs text-muted-foreground">{row.clientName}</p>
                           </div>
-                          {canEditProject(row.projectId) ? (
+                          {canEditRow(row) ? (
                             <EditableHoursPill
                               value={row.plannedHours}
                               disabled={isFocusedMonthLocked || saveMutation.isPending}
@@ -496,7 +506,7 @@ export function EmployeeAllocationPanel({
                             <ReadOnlyHours value={focusedMonth.key > currentMonthKey() ? null : row.actualHours} />
                           </div>
                           <div className="flex justify-end">
-                            {canEditProject(row.projectId) ? (
+                            {canEditRow(row) ? (
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -514,14 +524,14 @@ export function EmployeeAllocationPanel({
                                   <TooltipTrigger asChild>
                                     <button
                                       type="button"
-                                      aria-label={readOnlyMessage(row.projectId)}
+                                      aria-label={readOnlyRowMessage(row)}
                                       className="flex h-7 w-7 cursor-help items-center justify-center text-muted-foreground"
                                     >
                                       <Lock className="h-3.5 w-3.5" aria-hidden />
                                     </button>
                                   </TooltipTrigger>
                                   <TooltipContent side="top" align="end" className="max-w-[220px]">
-                                    {readOnlyMessage(row.projectId)}
+                                    {readOnlyRowMessage(row)}
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
@@ -567,7 +577,7 @@ export function EmployeeAllocationPanel({
                   {hasReadOnlyRows && (
                     <p className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
                       <Lock className="h-3 w-3 shrink-0" aria-hidden />
-                      Projetos com cadeado são de outro gestor — você visualiza, mas só edita os seus.
+                      Projetos com cadeado estão sem planejamento editável no mês ou pertencem a outro gestor.
                     </p>
                   )}
 
@@ -639,31 +649,16 @@ export function EmployeeAllocationPanel({
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <Label className="ol-label text-muted-foreground">Senioridade</Label>
-                      <Select value={addForm.seniority} onValueChange={(value) => setAddForm((current) => ({ ...current, seniority: value }))}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SENIORITY_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="ol-label text-muted-foreground">Horas/mês</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={addForm.hoursPerMonth}
-                        onChange={(event) => setAddForm((current) => ({ ...current, hoursPerMonth: Number(event.target.value || 0) }))}
-                        className="h-9"
-                      />
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label className="ol-label text-muted-foreground">Horas no mês</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={addForm.hoursPerMonth}
+                      onChange={(event) => setAddForm((current) => ({ ...current, hoursPerMonth: Number(event.target.value || 0) }))}
+                      className="h-9"
+                    />
                   </div>
 
                   <Button

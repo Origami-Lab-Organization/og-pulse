@@ -3507,6 +3507,7 @@ export type Database = {
       project_role_allocations: {
         Row: {
           budget_role_id: string | null
+          cost_per_hour: number | null
           custom_role_name: string | null
           employee_id: string
           id: string
@@ -3518,6 +3519,7 @@ export type Database = {
         }
         Insert: {
           budget_role_id?: string | null
+          cost_per_hour?: number | null
           custom_role_name?: string | null
           employee_id: string
           id?: string
@@ -3529,6 +3531,7 @@ export type Database = {
         }
         Update: {
           budget_role_id?: string | null
+          cost_per_hour?: number | null
           custom_role_name?: string | null
           employee_id?: string
           id?: string
@@ -5174,6 +5177,7 @@ export type Database = {
         }
         Returns: {
           actual_hours: number
+          allocation_id: string | null
           client_name: string
           duration_months: number
           is_continuous: boolean
