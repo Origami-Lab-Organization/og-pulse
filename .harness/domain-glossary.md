@@ -13,6 +13,7 @@
 - Activity Type: tipo de atividade usado em apontamentos.
 - Reembolso: solicitacao financeira feita por colaborador, com aprovacao e comprovantes.
 - Desligamento/Termination: processo de saida de colaborador.
+- Turnover/Rotatividade: indice de rotatividade de pessoal no periodo. Formula adotada (SHRM): ((Admissoes + Desligamentos) / 2) / Headcount medio x 100. Headcount medio = (ativos no inicio + ativos no fim) / 2, reconstruido pelas datas (data_admissao e termination_date), nao pelo status atual. Desligamentos cancelados sao ignorados. Sem headcount medio => taxa nula (nao exibir 0% como dado real). Implementacao: src/lib/turnoverCalculator.ts.
 - OKR: objetivo e resultado-chave de estrategia.
 - Iniciativa: acao estrategica ligada a objetivo.
 - Guardrail: limite ou indicador de controle estrategico.

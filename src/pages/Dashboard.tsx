@@ -15,7 +15,9 @@ import { BirthdaysCard } from '@/components/dashboard/BirthdaysCard';
 import { OperationalHealthCard } from '@/components/dashboard/OperationalHealthCard';
 import { PipelineCard } from '@/components/dashboard/PipelineCard';
 import { PayrollEvolutionChart } from '@/components/dashboard/PayrollEvolutionChart';
+import { HeadcountFlowCard } from '@/components/dashboard/HeadcountFlowCard';
 import { useFinancialEvolution } from '@/hooks/useFinancialEvolution';
+import { useTurnoverStats } from '@/hooks/useTurnoverStats';
 import { useProjects } from '@/hooks/useProjects';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useProjectHealthData } from '@/hooks/useProjectHealthData';
@@ -62,6 +64,7 @@ export default function Dashboard() {
     useProjectHealthData(filters, { enabled: true });
   const { data: commercial, isLoading: isCommercialLoading } =
     useCommercialDashboard(filters.startDate, filters.endDate, 'all', 'all');
+  const { data: turnover, isLoading: isTurnoverLoading } = useTurnoverStats(filters);
 
   // ── KPIs financeiros: agrega os meses dentro do período selecionado ──────────
   const financial = useMemo(() => {
@@ -176,8 +179,8 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* ── Linha 2: 2 KPIs ──────────────────────────────────────────────── */}
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+        {/* ── Linha 2: 3 KPIs ──────────────────────────────────────────────── */}
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
           <MetricCard
             label="Projetos ativos"
             icon={FolderKanban}
@@ -202,6 +205,21 @@ export default function Dashboard() {
             emptyMessage="Cadastre funcionários (com custo) para ver o custo de folha."
             value={formatCurrency(payroll.totalMonthlyCost)}
             subtitle={`Custo mensal · ${payroll.headcount} pessoa(s) ativa(s)`}
+          />
+          <MetricCard
+            label="Turnover"
+            icon={UserMinus}
+            accentColor="bg-rose-500"
+            valueColor="text-rose-600 dark:text-rose-400"
+            loading={isTurnoverLoading}
+            empty={!turnover || turnover.turnoverRate == null}
+            emptyMessage="Sem quadro de pessoal suficiente no período para calcular a rotatividade."
+            value={turnover?.turnoverRate != null ? formatPercent(turnover.turnoverRate) : ''}
+            subtitle={
+              turnover?.turnoverRate != null
+                ? `Headcount médio: ${turnover.avgHeadcount.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} · SHRM`
+                : undefined
+            }
           />
         </div>
 
@@ -231,6 +249,9 @@ export default function Dashboard() {
           />
         </div>
 
+        {/* ── Linha 5: Fluxo de pessoal — admissões vs. desligamentos ──────── */}
+        <HeadcountFlowCard data={turnover} loading={isTurnoverLoading} />
+
         {/* ── Blocos que dependem de módulos ainda incompletos — "em breve" ──── */}
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground mb-3">
@@ -246,12 +267,6 @@ export default function Dashboard() {
             <MetricCard
               label="Cálculo de provisão"
               icon={PiggyBank}
-              comingSoon
-              subtitle="Aguardando definição da regra e histórico."
-            />
-            <MetricCard
-              label="Turnover"
-              icon={UserMinus}
               comingSoon
               subtitle="Aguardando definição da regra e histórico."
             />
