@@ -22,6 +22,7 @@ import {
   Menu,
   ChevronDown,
   Target,
+  Home,
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -46,6 +47,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { usePwaEnvironment } from "@/hooks/use-pwa-environment";
+import { PWA_BUSINESS_ROUTES } from "@/lib/pwa";
 
 interface NavItem {
   title: string;
@@ -76,6 +79,7 @@ const navigationGroups: NavGroup[] = [
   {
     label: "Meu Espaço",
     items: [
+      { title: "Início", url: "/dashboard", icon: Home },
       {
         title: "Dashboard",
         url: "/admin-dashboard",
@@ -228,6 +232,7 @@ export function AppNavbar() {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isStandalone } = usePwaEnvironment();
 
   const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
@@ -238,12 +243,14 @@ export function AppNavbar() {
 
   const filterItems = (items: NavItem[]) =>
     items.filter((item) => {
+      if (isStandalone && !PWA_BUSINESS_ROUTES.includes(item.url as never)) return false;
       if (item.requiresAdmin && !isAdmin) return false;
       if (item.requiresManager && !isManager && !isAdmin) return false;
       return true;
     });
 
   const isGroupVisible = (group: NavGroup) => {
+    if (isStandalone && group.label !== "Meu Espaço") return false;
     if (group.requiresAdmin && !isAdmin) return false;
     if (group.requiresManager && !isManager && !isAdmin) return false;
     return filterItems(group.items).length > 0;

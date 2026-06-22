@@ -115,6 +115,7 @@ interface LeadDetailDialogProps {
   onAdvanceToClose?: () => void
   initialEditMode?: boolean
   highlightField?: 'service_line' | 'budget_id' | null
+  initialTab?: string
 }
 
 const STAGE_ORDER: CRMStage[] = [
@@ -153,6 +154,7 @@ export function LeadDetailDialog({
   onAdvanceToClose,
   initialEditMode,
   highlightField,
+  initialTab,
 }: LeadDetailDialogProps) {
   const navigate = useNavigate()
   const { employee } = useAuth()
@@ -252,7 +254,7 @@ export function LeadDetailDialog({
       })
       setCompanySearch(lead.company_name || '')
       setIsEditing(initialEditMode ?? false)
-      setActiveTab('qualificacao')
+      setActiveTab(initialTab ?? 'qualificacao')
       setFieldHighlight(null)
     }
   }, [open, lead])
@@ -323,6 +325,13 @@ export function LeadDetailDialog({
     if (lead?.budget_id) {
       onOpenChange(false)
       navigate(`/budgets/${lead.budget_id}`)
+    }
+  }
+
+  const handleViewClient = () => {
+    if (lead?.client_id) {
+      onOpenChange(false)
+      navigate(`/clients/${lead.client_id}`)
     }
   }
 
@@ -954,6 +963,16 @@ export function LeadDetailDialog({
                         </div>,
                         document.body,
                       )}
+                    {lead.client_id && (
+                      <button
+                        type='button'
+                        onClick={handleViewClient}
+                        className='mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline'
+                      >
+                        <ExternalLink className='h-3 w-3' />
+                        Ver perfil do cliente
+                      </button>
+                    )}
                   </FormItem>
 
                   <FormField

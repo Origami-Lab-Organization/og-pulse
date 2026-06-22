@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -110,6 +110,21 @@ export default function CRM() {
   const [restoreTarget, setRestoreTarget] = useState<LeadWithBudget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LeadWithBudget | null>(null);
   const [selectedActiveLead, setSelectedActiveLead] = useState<LeadWithBudget | null>(null);
+  const [selectedActiveLeadInitialTab, setSelectedActiveLeadInitialTab] = useState<string>('qualificacao');
+
+  // Deep-link: /crm?lead=<id>&tab=<tab> → abre o dialog na aba correta
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkLeadId = searchParams.get('lead');
+  const deepLinkTab = searchParams.get('tab');
+  useEffect(() => {
+    if (loadingActive || !deepLinkLeadId) return;
+    const lead = activeLeads.find((l) => l.id === deepLinkLeadId);
+    if (lead) {
+      setSelectedActiveLeadInitialTab(deepLinkTab ?? 'qualificacao');
+      setSelectedActiveLead(lead);
+      setSearchParams({}, { replace: true });
+    }
+  }, [loadingActive, deepLinkLeadId, deepLinkTab, activeLeads, setSearchParams]);
 
   // List view sort state
   const [listSortKey, setListSortKey] = useState<SortKey>('name');
@@ -648,8 +663,14 @@ export default function CRM() {
 
         <LeadDetailDialog
           open={!!selectedActiveLead}
-          onOpenChange={(open) => { if (!open) setSelectedActiveLead(null); }}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedActiveLead(null);
+              setSelectedActiveLeadInitialTab('qualificacao');
+            }
+          }}
           lead={selectedActiveLead}
+          initialTab={selectedActiveLeadInitialTab}
         />
 
         <LeadDetailDialog

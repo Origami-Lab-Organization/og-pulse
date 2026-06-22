@@ -1,41 +1,61 @@
 import { useNavigate } from 'react-router-dom';
 import { parseISO, isToday, isPast, isTomorrow } from 'date-fns';
-import { KanbanSquare, ArrowRight } from 'lucide-react';
+import { KanbanSquare, ArrowRight, CheckCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePersonalKanbanColumns, usePersonalKanbanCards } from '@/hooks/usePersonalKanban';
-import { PersonalKanbanCardWithTags } from '@/types/personalKanban';
+import { PersonalKanbanCardWithTags, PersonalKanbanColumnDB } from '@/types/personalKanban';
 import { cn } from '@/lib/utils';
 
 function DueDateChip({ due }: { due: string }) {
   const date = parseISO(due);
   if (isPast(date) && !isToday(date)) {
     return (
-      <span className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded bg-destructive/10 text-destructive shrink-0">
+      <span className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive shrink-0">
         Atrasada
       </span>
     );
   }
   if (isToday(date)) {
     return (
-      <span className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
+      <span className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
         Hoje
       </span>
     );
   }
   if (isTomorrow(date)) {
     return (
-      <span className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+      <span className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
         Amanhã
       </span>
     );
   }
   const [, month, day] = due.split('-');
   return (
-    <span className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+    <span className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
       {day}/{month}
+    </span>
+  );
+}
+
+function ColumnPill({
+  column,
+}: {
+  column: PersonalKanbanColumnDB | undefined;
+}) {
+  if (!column) return null;
+  const isInProgress = column.name === 'Doing';
+  return (
+    <span
+      className={cn(
+        'inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap',
+        isInProgress
+          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+          : 'bg-muted text-muted-foreground',
+      )}
+    >
+      {isInProgress ? 'Em andamento' : column.name === 'To do' ? 'A fazer' : column.name}
     </span>
   );
 }
@@ -69,7 +89,6 @@ export function MinhasTarefasWidget() {
   }
 
   const doneColumn = columns.find((c) => c.name === 'Done');
-  const doingColumn = columns.find((c) => c.name === 'Doing');
 
   const allPending: PersonalKanbanCardWithTags[] = cards
     .filter((c) => c.column_id !== doneColumn?.id)
@@ -93,9 +112,9 @@ export function MinhasTarefasWidget() {
           </CardTitle>
           <div className="flex items-center gap-2">
             {allPending.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
+              <span className="text-xs font-medium text-muted-foreground tabular-nums">
                 {allPending.length} pendente{allPending.length !== 1 ? 's' : ''}
-              </Badge>
+              </span>
             )}
             <Button
               variant="ghost"
@@ -111,13 +130,15 @@ export function MinhasTarefasWidget() {
       </CardHeader>
       <CardContent className="flex-1 flex flex-col">
         {visible.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <KanbanSquare className="h-8 w-8 text-muted-foreground/40 mb-2" />
+          <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
+            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+              <CheckCheck className="h-5 w-5 text-muted-foreground/60" />
+            </div>
             <p className="text-sm text-muted-foreground">Nenhuma tarefa pendente.</p>
             <Button
               variant="ghost"
               size="sm"
-              className="mt-2 gap-1 text-xs"
+              className="gap-1 text-xs"
               onClick={() => navigate('/my-kanban')}
             >
               Abrir Meu Kanban
@@ -125,30 +146,30 @@ export function MinhasTarefasWidget() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {visible.map((card) => {
-              const isInProgress = card.column_id === doingColumn?.id;
+              const col = columns.find((c) => c.id === card.column_id);
               return (
                 <div
                   key={card.id}
-                  className="flex items-center gap-2.5 p-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-md bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer group"
                   onClick={() => navigate('/my-kanban')}
                 >
-                  <div
-                    className={cn(
-                      'w-1.5 h-1.5 rounded-full shrink-0',
-                      isInProgress ? 'bg-primary' : 'bg-muted-foreground/40',
-                    )}
-                  />
-                  <p className="flex-1 text-sm truncate">{card.title}</p>
+                  <p className="flex-1 text-sm truncate group-hover:text-foreground transition-colors">
+                    {card.title}
+                  </p>
                   {card.due_date && <DueDateChip due={card.due_date} />}
+                  <ColumnPill column={col} />
                 </div>
               );
             })}
             {extra > 0 && (
-              <p className="text-xs text-muted-foreground text-center pt-1.5">
+              <button
+                className="w-full text-xs text-muted-foreground text-center py-1.5 hover:text-foreground transition-colors"
+                onClick={() => navigate('/my-kanban')}
+              >
                 +{extra} tarefa{extra !== 1 ? 's' : ''} no kanban
-              </p>
+              </button>
             )}
           </div>
         )}

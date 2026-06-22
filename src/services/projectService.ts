@@ -94,6 +94,26 @@ export const projectService = {
     return (data || []) as unknown as ProjectWithRelations[];
   },
 
+  async getByClient(clientId: string, tenantId: string): Promise<ProjectWithRelations[]> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:clients(id, company_name, trading_name),
+        manager:employees!projects_manager_id_fkey(id, nome, cargo)
+      `)
+      .eq('tenant_id', tenantId)
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching projects by client:', error);
+      throw error;
+    }
+
+    return (data || []) as unknown as ProjectWithRelations[];
+  },
+
   async getById(id: string, tenantId?: string): Promise<ProjectWithRelations | null> {
     let query = supabase
       .from('projects')

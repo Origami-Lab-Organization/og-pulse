@@ -19,6 +19,8 @@ import PrimeiroAcesso from "./pages/PrimeiroAcesso";
 import ReenviarPrimeiroAcesso from "./pages/ReenviarPrimeiroAcesso";
 import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
 import Clients from "./pages/Clients";
+import ClientDetail from "./pages/ClientDetail";
+import ClientFormPage from "./pages/ClientFormPage";
 import NotFound from "./pages/NotFound";
 import JobApplication from "./pages/JobApplication";
 import ProjectDetail from "./pages/ProjectDetail";
@@ -56,6 +58,9 @@ import EmployeeCreate from "./pages/EmployeeCreate";
 import MyVacation from "./pages/MyVacation";
 import VacationManagement from "./pages/VacationManagement";
 import Dashboard from "./pages/Dashboard";
+import DashboardRouter from "./pages/DashboardRouter";
+import { PwaRouteGuard } from "@/components/pwa/PwaRouteGuard";
+import { InstallPwaBanner } from "@/components/pwa/InstallPwaBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 2 * 60 * 1000 } },
@@ -70,7 +75,9 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <OnboardingProvider>
-            <Routes>
+              <InstallPwaBanner />
+              <PwaRouteGuard>
+                <Routes>
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Navigate to="/login" replace />} />
@@ -163,16 +170,40 @@ const App = () => (
                   </RoleProtectedRoute>
                 }
               />
-              <Route 
-                path="/clients" 
+              <Route
+                path="/clients"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Clients />
                   </RoleProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/suppliers" 
+              <Route
+                path="/clients/new"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <ClientFormPage />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/clients/:id/edit"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <ClientFormPage />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/clients/:id"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <ClientDetail />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/suppliers"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Suppliers />
@@ -320,7 +351,8 @@ const App = () => (
               <Route path="/rh/ferias" element={<RoleProtectedRoute requireManager><VacationManagement /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
+                </Routes>
+              </PwaRouteGuard>
             </OnboardingProvider>
           </BrowserRouter>
         </TooltipProvider>

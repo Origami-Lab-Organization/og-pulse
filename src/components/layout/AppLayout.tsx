@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { AppNavbar } from './AppNavbar';
 import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
+import { OfflineBanner } from '@/components/pwa/OfflineBanner';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -21,6 +22,7 @@ export function AppLayout({
   return (
     <div className="min-h-screen flex flex-col w-full">
       <AppNavbar />
+      <OfflineBanner />
 
       {/* Page Header */}
       {!hideHeader && (
