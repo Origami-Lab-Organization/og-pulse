@@ -16,6 +16,7 @@ import {
   DollarSign,
   UserSearch,
   FileText,
+  Building2,
   ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,20 @@ const statusBadge: Record<string, { label: string; className: string }> = {
   budget_margin_rejected: {
     label: "Não aprovado",
     className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+  },
+  installment_nf_alert: {
+    label: "Emissão hoje",
+    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+  },
+  installment_nf_alert_3d: {
+    label: "Emissão em 3 dias",
+    className:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+  },
+  installment_payment_alert: {
+    label: "Pagamento hoje",
+    className:
+      "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
   }
 };
 
@@ -117,6 +132,14 @@ const categoryConfig: Record<
     badge: "Orçamento",
     badgeClass:
       "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+  },
+  projeto: {
+    bg: "bg-blue-100 dark:bg-blue-900/30",
+    text: "text-blue-600 dark:text-blue-400",
+    icon: Building2,
+    badge: "Projeto",
+    badgeClass:
+      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
   }
 };
 
@@ -251,6 +274,13 @@ export function InboxDetailPanel({
         {notification.category === "candidatos" && (
           <Button className="gap-2" onClick={() => navigate("/rh/candidatos")}>
             Ver candidatura
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
+
+        {notification.category === "projeto" && notification.action_url && (
+          <Button className="gap-2" onClick={() => navigate(notification.action_url!)}>
+            Ver projeto
             <ArrowRight className="h-4 w-4" />
           </Button>
         )}
