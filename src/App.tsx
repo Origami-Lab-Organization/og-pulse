@@ -85,7 +85,7 @@ const App = () => (
               {/* Root redirect — admin → /dashboard, demais → /inbox */}
               <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
               <Route
-                path="/dashboard"
+                path="/admin-dashboard"
                 element={
                   <RoleProtectedRoute requireAdmin>
                     <AdminDashboard />

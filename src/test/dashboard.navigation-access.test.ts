@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 describe('Dashboard navigation access', () => {
-  it('protects the dashboard route with admin-only access', () => {
+  it('protects the admin-dashboard route with admin-only access', () => {
     const appSource = readFileSync('src/App.tsx', 'utf8');
 
-    expect(appSource).toMatch(/path="\/dashboard"[\s\S]*?<RoleProtectedRoute requireAdmin>/);
+    expect(appSource).toMatch(/path="\/admin-dashboard"[\s\S]*?<RoleProtectedRoute requireAdmin>/);
   });
 
   it('requires admin to show the dashboard item in the active navbar', () => {
@@ -13,7 +13,7 @@ describe('Dashboard navigation access', () => {
 
     // The "Dashboard" item must be gated by requiresAdmin so collaborators don't see it.
     expect(navbarSource).toMatch(
-      /title:\s*"Dashboard",\s*url:\s*"\/dashboard",\s*icon:\s*LayoutDashboard,\s*requiresAdmin:\s*true,/,
+      /title:\s*"Dashboard",\s*url:\s*"\/admin-dashboard",\s*icon:\s*LayoutDashboard,\s*requiresAdmin:\s*true,/,
     );
   });
 

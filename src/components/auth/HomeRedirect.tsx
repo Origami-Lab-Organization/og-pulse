@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 
 /**
  * Destino da raiz "/" e do login sem rota de origem.
- * Admin → /dashboard. Demais usuários → /inbox.
+ * Admin → /admin-dashboard. Demais usuários → /inbox.
  * Aguarda o carregamento do perfil para decidir com base no papel real.
  */
 const HomeRedirect = () => {
@@ -22,7 +22,7 @@ const HomeRedirect = () => {
     );
   }
 
-  return <Navigate to={employee?.isAdmin ? '/dashboard' : '/inbox'} replace />;
+  return <Navigate to={employee?.isAdmin ? '/admin-dashboard' : '/inbox'} replace />;
 };
 
 export default HomeRedirect;
