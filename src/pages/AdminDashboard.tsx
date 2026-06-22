@@ -8,13 +8,13 @@ import {
   DollarSign, Percent, Wallet, TrendingUp, Receipt,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { DashboardFilters, type Granularity } from '@/components/dashboard/DashboardFilters';
-import { MetricCard } from '@/components/dashboard/MetricCard';
-import { BirthdaysCard } from '@/components/dashboard/BirthdaysCard';
-import { OperationalHealthCard } from '@/components/dashboard/OperationalHealthCard';
-import { PipelineCard } from '@/components/dashboard/PipelineCard';
-import { PayrollEvolutionChart } from '@/components/dashboard/PayrollEvolutionChart';
-import { HeadcountFlowCard } from '@/components/dashboard/HeadcountFlowCard';
+import { AdminDashboardFilters, type Granularity } from '@/components/admin-dashboard/AdminDashboardFilters';
+import { AdminMetricCard } from '@/components/admin-dashboard/AdminMetricCard';
+import { AdminBirthdaysCard } from '@/components/admin-dashboard/AdminBirthdaysCard';
+import { AdminOperationalHealthCard } from '@/components/admin-dashboard/AdminOperationalHealthCard';
+import { AdminPipelineCard } from '@/components/admin-dashboard/AdminPipelineCard';
+import { AdminPayrollEvolutionChart } from '@/components/admin-dashboard/AdminPayrollEvolutionChart';
+import { AdminHeadcountFlowCard } from '@/components/admin-dashboard/AdminHeadcountFlowCard';
 import { useFinancialEvolution } from '@/hooks/useFinancialEvolution';
 import { useTurnoverStats } from '@/hooks/useTurnoverStats';
 import { useProjects } from '@/hooks/useProjects';
@@ -22,10 +22,10 @@ import { useEmployees } from '@/hooks/useEmployees';
 import { useProjectHealthData } from '@/hooks/useProjectHealthData';
 import { useCommercialDashboard } from '@/hooks/useCommercialDashboard';
 import { calculatePayrollCost, calculateLoadedPersonnelCost } from '@/lib/payrollCalculator';
-import { calculateDashboardRevenue } from '@/lib/dashboardRevenueCalculator';
+import { calculateAdminDashboardRevenue } from '@/lib/adminDashboardRevenueCalculator';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
 
-export default function Dashboard() {
+export default function AdminDashboard() {
   const [granularity, setGranularity] = useState<Granularity>('month');
   const [currentPeriodDate, setCurrentPeriodDate] = useState(() => new Date());
   const [customStart, setCustomStart] = useState<Date | undefined>();
@@ -80,7 +80,7 @@ export default function Dashboard() {
     // Custos de projeto = fornecedores + materiais (realizados), SEM mão de obra:
     // o pessoal entra só pelo custo cheio de pessoal, para não contar o labor duas
     // vezes (laborCost de timesheet). Comissões e reembolsos não compõem o custo de
-    // projeto do dashboard (decisão de negócio). Ver calculateDashboardRevenue.
+    // projeto do dashboard (decisão de negócio). Ver calculateAdminDashboardRevenue.
     const projectCostsExLabor = highlighted.reduce(
       (s, m) => s + m.supplierCost + m.materialCost,
       0,
@@ -111,7 +111,7 @@ export default function Dashboard() {
   const projectCosts = financial?.projectCostsExLabor ?? 0;
   const revenue = useMemo(
     () =>
-      calculateDashboardRevenue({
+      calculateAdminDashboardRevenue({
         faturamentoTotal,
         projectCostsExLabor: financial?.projectCostsExLabor ?? 0,
         personnelCostMonthly: personnel.totalMonthlyCost,
@@ -131,7 +131,7 @@ export default function Dashboard() {
     >
       <div className="space-y-6">
         {/* Filtro de período GLOBAL */}
-        <DashboardFilters
+        <AdminDashboardFilters
           granularity={granularity}
           onGranularityChange={(g) => {
             setGranularity(g);
@@ -147,7 +147,7 @@ export default function Dashboard() {
 
         {/* ── Linha 1: Faturamento total + Custo da folha ──────────────────── */}
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-          <MetricCard
+          <AdminMetricCard
             label="Faturamento total"
             icon={DollarSign}
             accentColor="bg-emerald-500"
@@ -162,7 +162,7 @@ export default function Dashboard() {
             value={formatCurrency(faturamentoTotal)}
             subtitle="Todos os recebimentos da empresa no período"
           />
-          <MetricCard
+          <AdminMetricCard
             label="Custo da folha"
             icon={Wallet}
             accentColor="bg-rose-500"
@@ -181,7 +181,7 @@ export default function Dashboard() {
 
         {/* ── Linha 2: Receita + Custo total + Margem real ─────────────────── */}
         <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-          <MetricCard
+          <AdminMetricCard
             label="Receita"
             icon={TrendingUp}
             accentColor="bg-sky-500"
@@ -200,7 +200,7 @@ export default function Dashboard() {
             value={formatCurrency(revenue.receita)}
             subtitle="Faturamento − todos os custos do período"
           />
-          <MetricCard
+          <AdminMetricCard
             label="Custo total"
             icon={Receipt}
             accentColor="bg-rose-500"
@@ -211,7 +211,7 @@ export default function Dashboard() {
             value={formatCurrency(revenue.totalCosts)}
             subtitle={`Pessoal ${formatCurrency(revenue.personnelCostForPeriod)} · fornecedores/materiais ${formatCurrency(projectCosts)}`}
           />
-          <MetricCard
+          <AdminMetricCard
             label="Margem real"
             icon={Percent}
             accentColor="bg-violet-500"
@@ -234,19 +234,19 @@ export default function Dashboard() {
 
         {/* ── Linha 3: cards maiores — Saúde Operacional + Aniversariantes ──── */}
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-1">
-          <OperationalHealthCard rows={healthRows} loading={isHealthLoading} />
-          {/*<HeadcountFlowCard data={turnover} loading={isTurnoverLoading} />*/}
+          <AdminOperationalHealthCard rows={healthRows} loading={isHealthLoading} />
+          {/*<AdminHeadcountFlowCard data={turnover} loading={isTurnoverLoading} />*/}
         </div>
 
         {/* ── Linha 4: cards maiores — Pipeline + Evolução da Folha ────────── */}
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-          <BirthdaysCard
+          <AdminBirthdaysCard
             employees={employees}
             startDate={filters.startDate}
             endDate={filters.endDate}
             loading={isEmployeesLoading}
           />
-          <PayrollEvolutionChart
+          <AdminPayrollEvolutionChart
             employees={employees}
             loading={isEmployeesLoading}
           />
@@ -254,7 +254,7 @@ export default function Dashboard() {
 
         {/* ── Linha 5: Fluxo de pessoal — admissões vs. desligamentos ──────── */}
         <div>
-          <PipelineCard
+          <AdminPipelineCard
             activePipeline={commercial?.activePipeline ?? 0}
             avgSalesCycleDays={commercial?.avgSalesCycleDays ?? null}
             pipelineLeadsWithBudgetCount={commercial?.pipelineLeadsWithBudgetCount ?? 0}
@@ -263,8 +263,8 @@ export default function Dashboard() {
           />
         </div>
 
-  
-        
+
+
       </div>
     </AppLayout>
   );

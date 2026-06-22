@@ -19,7 +19,7 @@ const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
   { value: 'custom', label: 'Personalizado' },
 ];
 
-interface DashboardFiltersProps {
+interface AdminDashboardFiltersProps {
   granularity: Granularity;
   onGranularityChange: (g: Granularity) => void;
   currentPeriodDate: Date;
@@ -65,7 +65,7 @@ function navigatePeriod(granularity: Granularity, date: Date, direction: 1 | -1)
  * Apenas período — sem filtros por cliente/gerente/projeto. O estado vive na
  * página Dashboard e alimenta TODOS os blocos simultaneamente (HU-002 / Cenário 3).
  */
-export function DashboardFilters({
+export function AdminDashboardFilters({
   granularity,
   onGranularityChange,
   currentPeriodDate,
@@ -74,7 +74,7 @@ export function DashboardFilters({
   customEnd,
   onCustomStartChange,
   onCustomEndChange,
-}: DashboardFiltersProps) {
+}: AdminDashboardFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* Granularidade — controle segmentado */}

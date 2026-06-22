@@ -3,7 +3,7 @@ import { Loader2, type LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-interface MetricCardProps {
+interface AdminMetricCardProps {
   label: string;
   icon: LucideIcon;
   /** Valor já formatado (ex.: formatCurrency). Ignorado quando empty/comingSoon/loading. */
@@ -27,7 +27,7 @@ interface MetricCardProps {
  * Card de métrica do Dashboard Executivo com os quatro estados previstos pela
  * HU-002: loading, vazio orientativo, "em breve" e valor real.
  */
-export function MetricCard({
+export function AdminMetricCard({
   label,
   icon: Icon,
   value,
@@ -38,7 +38,7 @@ export function MetricCard({
   empty = false,
   emptyMessage = 'Sem dados para o período selecionado.',
   comingSoon = false,
-}: MetricCardProps) {
+}: AdminMetricCardProps) {
   return (
     <Card className="relative overflow-hidden">
       <div

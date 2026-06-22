@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, ChevronRight } from 'lucide-react';
-import { DashboardSection } from './DashboardSection';
+import { AdminDashboardSection } from './AdminDashboardSection';
 import { cn } from '@/lib/utils';
 import type { ProjectHealthRow } from '@/hooks/useProjectHealthData';
 import type { HealthStatus } from '@/lib/projectHealthCalculator';
 
-interface OperationalHealthCardProps {
+interface AdminOperationalHealthCardProps {
   rows: ProjectHealthRow[];
   loading?: boolean;
 }
@@ -29,7 +29,7 @@ const STATUS_STYLES: Record<HealthStatus, { dot: string; badge: string; label: s
   },
 };
 
-export function OperationalHealthCard({ rows, loading }: OperationalHealthCardProps) {
+export function AdminOperationalHealthCard({ rows, loading }: AdminOperationalHealthCardProps) {
   const navigate = useNavigate();
 
   const alerts = useMemo(() => {
@@ -43,7 +43,7 @@ export function OperationalHealthCard({ rows, loading }: OperationalHealthCardPr
   }, [rows]);
 
   return (
-    <DashboardSection
+    <AdminDashboardSection
       title="Saúde Operacional"
       icon={Activity}
       description="Situação dos projetos no período"
@@ -90,6 +90,6 @@ export function OperationalHealthCard({ rows, loading }: OperationalHealthCardPr
           </p>
         )}
       </div>
-    </DashboardSection>
+    </AdminDashboardSection>
   );
 }

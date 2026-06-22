@@ -9,7 +9,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
 import HomeRedirect from "@/components/auth/HomeRedirect";
 import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -88,7 +88,7 @@ const App = () => (
                 path="/dashboard"
                 element={
                   <RoleProtectedRoute requireAdmin>
-                    <Dashboard />
+                    <AdminDashboard />
                   </RoleProtectedRoute>
                 }
               />

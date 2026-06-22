@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Loader2, type LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-interface DashboardSectionProps {
+interface AdminDashboardSectionProps {
   title: string;
   icon: LucideIcon;
   description?: string;
@@ -21,7 +21,7 @@ interface DashboardSectionProps {
  * (aniversariantes, saúde operacional, pipeline). Trata loading, vazio
  * orientativo e "em breve" de forma consistente — sem inventar dado.
  */
-export function DashboardSection({
+export function AdminDashboardSection({
   title,
   icon: Icon,
   description,
@@ -32,7 +32,7 @@ export function DashboardSection({
   comingSoonMessage = 'Este bloco entra quando o módulo estiver disponível.',
   children,
   headerAction,
-}: DashboardSectionProps) {
+}: AdminDashboardSectionProps) {
   return (
     <Card className="flex flex-col">
       <CardHeader className="pb-3">

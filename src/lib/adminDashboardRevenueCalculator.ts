@@ -29,7 +29,7 @@
  * mensal pela quantidade de meses do período (`monthsInPeriod`).
  */
 
-export interface DashboardRevenueInput {
+export interface AdminDashboardRevenueInput {
   /** Faturamento total do período = soma dos recebimentos (revenueReal). */
   faturamentoTotal: number;
   /**
@@ -46,7 +46,7 @@ export interface DashboardRevenueInput {
   monthsInPeriod: number;
 }
 
-export interface DashboardRevenueResult {
+export interface AdminDashboardRevenueResult {
   /** Custo cheio de pessoal do período = custo mensal × meses do período. */
   personnelCostForPeriod: number;
   /** Soma de todos os custos do período (projeto sem labor + pessoal cheio do período). */
@@ -60,9 +60,9 @@ export interface DashboardRevenueResult {
   margemReal: number | null;
 }
 
-export function calculateDashboardRevenue(
-  input: DashboardRevenueInput,
-): DashboardRevenueResult {
+export function calculateAdminDashboardRevenue(
+  input: AdminDashboardRevenueInput,
+): AdminDashboardRevenueResult {
   const months = Math.max(1, input.monthsInPeriod);
   const personnelCostForPeriod = input.personnelCostMonthly * months;
   const totalCosts = input.projectCostsExLabor + personnelCostForPeriod;

@@ -1,5 +1,5 @@
 import { TrendingUp, Clock } from 'lucide-react';
-import { DashboardSection } from './DashboardSection';
+import { AdminDashboardSection } from './AdminDashboardSection';
 import { formatCurrency } from '@/lib/formatters';
 
 interface PipelineStage {
@@ -8,7 +8,7 @@ interface PipelineStage {
   count: number;
 }
 
-interface PipelineCardProps {
+interface AdminPipelineCardProps {
   activePipeline: number;
   avgSalesCycleDays: number | null;
   pipelineLeadsWithBudgetCount: number;
@@ -20,17 +20,17 @@ interface PipelineCardProps {
  * Pipeline comercial — usa dados reais do módulo comercial quando houver leads
  * em negociação; caso contrário exibe estado vazio orientativo (HU-002).
  */
-export function PipelineCard({
+export function AdminPipelineCard({
   activePipeline,
   avgSalesCycleDays,
   pipelineLeadsWithBudgetCount,
   pipelineByStage,
   loading,
-}: PipelineCardProps) {
+}: AdminPipelineCardProps) {
   const hasPipeline = pipelineLeadsWithBudgetCount > 0 && activePipeline > 0;
 
   return (
-    <DashboardSection
+    <AdminDashboardSection
       title="Pipeline Comercial"
       icon={TrendingUp}
       description="Negociação em aberto e tempo de fechamento"
@@ -84,6 +84,6 @@ export function PipelineCard({
           </div>
         )}
       </div>
-    </DashboardSection>
+    </AdminDashboardSection>
   );
 }

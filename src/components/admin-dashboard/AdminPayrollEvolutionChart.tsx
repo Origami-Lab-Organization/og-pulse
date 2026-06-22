@@ -6,11 +6,11 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { Wallet } from 'lucide-react';
-import { DashboardSection } from './DashboardSection';
+import { AdminDashboardSection } from './AdminDashboardSection';
 import type { Employee } from '@/hooks/useEmployees';
 import { formatCurrency } from '@/lib/formatters';
 
-interface PayrollEvolutionChartProps {
+interface AdminPayrollEvolutionChartProps {
   employees: Employee[];
   loading?: boolean;
 }
@@ -36,7 +36,13 @@ function buildSeries(employees: Employee[]) {
   });
 }
 
-function PayrollTooltip({ active, payload, label }: any) {
+interface PayrollTooltipProps {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string;
+}
+
+function PayrollTooltip({ active, payload, label }: PayrollTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border bg-background px-3 py-2 shadow-md text-sm">
@@ -48,12 +54,12 @@ function PayrollTooltip({ active, payload, label }: any) {
   );
 }
 
-export function PayrollEvolutionChart({ employees, loading }: PayrollEvolutionChartProps) {
+export function AdminPayrollEvolutionChart({ employees, loading }: AdminPayrollEvolutionChartProps) {
   const series = useMemo(() => buildSeries(employees), [employees]);
   const hasData = series.some((d) => d.total > 0);
 
   return (
-    <DashboardSection
+    <AdminDashboardSection
       title="Evolução do Custo de Folha"
       icon={Wallet}
       description="Custo mensal acumulado conforme admissões · últimos 12 meses"
@@ -89,6 +95,6 @@ export function PayrollEvolutionChart({ employees, loading }: PayrollEvolutionCh
           />
         </LineChart>
       </ResponsiveContainer>
-    </DashboardSection>
+    </AdminDashboardSection>
   );
 }

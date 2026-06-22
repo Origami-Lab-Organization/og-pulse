@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { Cake } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DashboardSection } from './DashboardSection';
+import { AdminDashboardSection } from './AdminDashboardSection';
 import { parseDateString } from '@/lib/formatters';
 import type { Employee } from '@/hooks/useEmployees';
 
-interface BirthdaysCardProps {
+interface AdminBirthdaysCardProps {
   employees: Employee[];
   startDate: Date;
   endDate: Date;
@@ -69,7 +69,7 @@ function birthdaysInPeriod(
   return result.sort((a, b) => (a.month - b.month) || (a.day - b.day));
 }
 
-export function BirthdaysCard({ employees, startDate, endDate, loading }: BirthdaysCardProps) {
+export function AdminBirthdaysCard({ employees, startDate, endDate, loading }: AdminBirthdaysCardProps) {
   const people = useMemo(
     () => birthdaysInPeriod(employees, startDate, endDate),
     [employees, startDate, endDate],
@@ -81,7 +81,7 @@ export function BirthdaysCard({ employees, startDate, endDate, loading }: Birthd
   );
 
   return (
-    <DashboardSection
+    <AdminDashboardSection
       title="Aniversariantes"
       icon={Cake}
       description="Aniversários no período selecionado"
@@ -119,6 +119,6 @@ export function BirthdaysCard({ employees, startDate, endDate, loading }: Birthd
           </li>
         ))}
       </ul>
-    </DashboardSection>
+    </AdminDashboardSection>
   );
 }

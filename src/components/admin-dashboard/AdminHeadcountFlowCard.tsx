@@ -6,11 +6,11 @@ import {
   Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { ArrowLeftRight } from 'lucide-react';
-import { DashboardSection } from './DashboardSection';
+import { AdminDashboardSection } from './AdminDashboardSection';
 import { TERMINATION_TYPE_LABELS, type TerminationType } from '@/types/termination';
 import type { TurnoverResult } from '@/lib/turnoverCalculator';
 
-interface HeadcountFlowCardProps {
+interface AdminHeadcountFlowCardProps {
   data?: TurnoverResult;
   loading?: boolean;
 }
@@ -53,7 +53,7 @@ function FlowTooltip({ active, payload, label }: FlowTooltipProps) {
  * A taxa de turnover (SHRM) é exibida no KPI próprio do Dashboard — este card
  * foca no fluxo (entradas/saídas) e na composição dos desligamentos por tipo.
  */
-export function HeadcountFlowCard({ data, loading }: HeadcountFlowCardProps) {
+export function AdminHeadcountFlowCard({ data, loading }: AdminHeadcountFlowCardProps) {
   const series = useMemo(
     () =>
       (data?.byMonth ?? []).map((m) => ({
@@ -77,7 +77,7 @@ export function HeadcountFlowCard({ data, loading }: HeadcountFlowCardProps) {
   const isEmpty = !data || (data.admissions === 0 && data.terminations === 0);
 
   return (
-    <DashboardSection
+    <AdminDashboardSection
       title="Admissões e Desligamentos"
       icon={ArrowLeftRight}
       description="Fluxo de pessoal por mês no período selecionado"
@@ -157,6 +157,6 @@ export function HeadcountFlowCard({ data, loading }: HeadcountFlowCardProps) {
           )}
         </div>
       )}
-    </DashboardSection>
+    </AdminDashboardSection>
   );
 }
