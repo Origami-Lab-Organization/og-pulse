@@ -13,8 +13,17 @@
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: C:\hakathon\og-pulse\src\services\toolService.ts
 
-### 2026-06-19T13:45:54.776Z
+### 2026-06-19T12:47:56.907Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível dado sensível em console.* em C:\Users\luis\Pulse\og-pulse\supabase\functions\request-first-access\index.ts
+### 2026-06-19T16:08:00.256Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /home/specter/Área de Trabalho/Projects/Pulse/og-pulse/src/services/leadService.ts
 
+### 2026-06-19T16:08:03.239Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /home/specter/Área de Trabalho/Projects/Pulse/og-pulse/src/services/leadService.ts
+### 2026-06-19T13:45:54.776Z
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/types/serviceLine.ts
 
@@ -59,7 +68,6 @@
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceService.ts
 
 ### 2026-06-19T13:47:25.191Z
-
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceService.ts
 
@@ -177,6 +185,33 @@
 
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/types/serviceRevenueModel.ts
+### 2026-06-19T17:34:43.203Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/mestanza/Developer/origami/projetos/og-pulse/src/services/clientService.ts
+
+### 2026-06-19T17:34:51.074Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/mestanza/Developer/origami/projetos/og-pulse/src/services/clientService.ts
+
+### 2026-06-19T17:34:56.705Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/mestanza/Developer/origami/projetos/og-pulse/src/services/clientService.ts
+
+### 2026-06-19T17:42:54.957Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/mestanza/Developer/origami/projetos/og-pulse/src/services/leadService.ts
+
+### 2026-06-19T17:43:02.906Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/mestanza/Developer/origami/projetos/og-pulse/src/services/projectService.ts
+
+### 2026-06-19T17:53:11.643Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/mestanza/Developer/origami/projetos/og-pulse/src/services/leadService.ts
+
+### 2026-06-19T18:33:24.112Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/mestanza/Developer/origami/projetos/og-pulse/src/services/clientContactService.ts
 
 ### 2026-06-19T19:08:50.416Z
 

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,20 +30,20 @@ type LoginFormData = z.infer<typeof loginSchema>;
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { signIn } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // '/' resolve o destino por papel (admin → /dashboard, demais → /inbox)
-  // via HomeRedirect, aguardando o perfil carregar. Rotas de origem (deep link)
-  // são preservadas.
+  // Pré-preenche o e-mail quando o acesso vem do link de convite (?email=...).
+  const invitedEmail = searchParams.get('email') ?? '';
   const from = location.state?.from?.pathname || '/';
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      email: invitedEmail,
       password: '',
     },
   });
@@ -50,12 +51,43 @@ const Login = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
 
+    // ANTES de validar a senha: se a conta precisa de primeiro acesso, dispara o
+    // magic link automaticamente (independente do que foi digitado na senha) e leva
+    // para a confirmação de envio. O link de acesso vai por e-mail (não é exposto ao
+    // navegador) — é o caminho seguro para "entrar via magic link".
+    // RPC fora dos tipos gerados — segue o padrão de cast já usado no projeto.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: status } = await (supabase.rpc as any)('first_access_status', {
+        p_email: data.email,
+      });
+
+      if (status === 'pending') {
+        await supabase.functions.invoke('request-first-access', {
+          body: { email: data.email, loginUrl: `${window.location.origin}/login` },
+        });
+        toast({
+          title: 'Primeiro acesso necessário',
+          description:
+            'Você ainda não definiu sua senha. Enviamos um link de primeiro acesso para o seu e-mail — acesse por ele para criar sua senha.',
+        });
+        navigate(
+          `/reenviar-primeiro-acesso?email=${encodeURIComponent(data.email)}&sent=1`,
+          { replace: true },
+        );
+        return;
+      }
+    } catch {
+      // Se a verificação falhar (ex.: RPC indisponível), segue o login normal.
+    }
+
     const { error } = await signIn(data.email, data.password);
 
     if (error) {
       toast({
         title: 'Erro ao fazer login',
-        description: 'Email ou senha incorretos.',
+        description:
+          'Email ou senha incorretos. Se você recebeu um convite, verifique o e-mail de primeiro acesso.',
         variant: 'destructive',
       });
       setIsLoading(false);

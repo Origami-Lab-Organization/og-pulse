@@ -6,6 +6,11 @@ verify_jwt = false
 [functions.create-employee-user]
 verify_jwt = false
 
+# FUNC-J1 — reenvio de primeiro acesso. Público (chamado sem sessão na tela de
+# login/reenvio), por isso verify_jwt = false.
+[functions.request-first-access]
+verify_jwt = false
+
 [functions.seed-admin]
 verify_jwt = false
 

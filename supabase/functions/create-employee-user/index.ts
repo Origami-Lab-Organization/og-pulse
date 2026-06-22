@@ -81,6 +81,19 @@ function generateTempPassword(length = 12): string {
     .join("");
 }
 
+// Deriva a URL de destino do primeiro acesso a partir do loginUrl do app (FUNC-J1).
+function firstAccessRedirect(loginUrl: string): string {
+  try {
+    const url = new URL(loginUrl);
+    url.pathname = "/primeiro-acesso";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return loginUrl.replace(/\/login\/?$/, "") + "/primeiro-acesso";
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -325,6 +338,8 @@ const handler = async (req: Request): Promise<Response> => {
         tenant_id: tenantId,
         auth_id: authUserId,
         must_change_password: !isExistingUser, // Only require change for new users
+        // Marca o envio do convite para validar o TTL de 7 dias no primeiro acesso (FUNC-J1).
+        invited_at: !isExistingUser ? new Date().toISOString() : null,
         candidate_id: candidateId || null,
       })
       .select()
@@ -365,6 +380,36 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send invite email in background (non-blocking) for new users only
     if (!isExistingUser && tempPassword) {
+      console.log("Scheduling invite email to be sent in background to:", email);
+
+      // Nome da empresa para personalizar o convite (FUNC-J1). Falha aqui não
+      // bloqueia o envio — o template usa "Origami Pulse" como fallback.
+      const { data: tenant } = await adminClient
+        .from('tenants')
+        .select('name')
+        .eq('id', tenantId)
+        .maybeSingle();
+      const companyName = tenant?.name ?? undefined;
+
+      // Magic link (FUNC-J1): leva o convidado direto a tela de primeiro acesso ja
+      // autenticado. Se falhar (ex.: redirectTo fora da allowlist), o e-mail usa o
+      // fluxo de fallback.
+      let actionLink: string | undefined;
+      try {
+        const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+          type: 'magiclink',
+          email,
+          options: { redirectTo: firstAccessRedirect(loginUrl) },
+        });
+        if (linkError) {
+          console.error('Could not generate access link, using fallback:', linkError.message);
+        } else {
+          actionLink = linkData?.properties?.action_link ?? undefined;
+        }
+      } catch (e: unknown) {
+        console.error('Access link generation failed, using fallback:', e instanceof Error ? e.message : e);
+      }
+
       console.log(
         "Scheduling invite email to be sent in background to:",
         email,
@@ -375,21 +420,20 @@ const handler = async (req: Request): Promise<Response> => {
         (async () => {
           try {
             console.log("Background: Starting to send invite email to:", email);
-            const emailResponse = await fetch(
-              `${supabaseUrl}/functions/v1/send-invite-email`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  to: email,
-                  nome,
-                  tempPassword,
-                  loginUrl,
-                }),
+            const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
               },
-            );
+              body: JSON.stringify({
+                to: email,
+                nome,
+                tempPassword,
+                loginUrl,
+                companyName,
+                actionLink,
+              }),
+            });
 
             const emailResult = await emailResponse.json();
 

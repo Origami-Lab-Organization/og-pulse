@@ -46,6 +46,15 @@ export function formatPercent(value: number, decimals: number = 1): string {
   return `${value.toFixed(decimals)}%`;
 }
 
+/**
+ * Formata horas removendo casas decimais desnecessárias.
+ * Ex.: 97.80000000 → "97.8h", 473.40 → "473.4h", 100 → "100h".
+ */
+export function formatHours(value: number | null | undefined): string {
+  const n = Number(value ?? 0);
+  return `${Number(n.toFixed(2))}h`;
+}
+
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return '-';
   

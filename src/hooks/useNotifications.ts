@@ -18,6 +18,8 @@ export interface Notification {
   is_read: boolean;
   is_resolved: boolean;
   is_archived: boolean;
+  read_at: string | null;
+  deleted_at: string | null;
   created_at: string;
 }
 
@@ -69,13 +71,15 @@ export function useMarkNotificationRead() {
     mutationFn: async (notificationId: string) => {
       const { error } = await supabase
         .from('notifications' as any)
-        .update({ is_read: true } as any)
+        .update({ is_read: true, read_at: new Date().toISOString() } as any)
         .eq('id', notificationId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+      queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['inbox-counts'] });
     },
   });
 }

@@ -56,6 +56,9 @@ export function useAllPendingFollowUps() {
       return (data || []) as unknown as LeadFollowUp[];
     },
     enabled: !!employee?.tenant_id,
+    // Reusa o mesmo mecanismo de polling (60s) — alimenta o indicador de "vencido"
+    // dos cards do Pipeline sem novo mecanismo (GP-J5 CA-04).
+    refetchInterval: 60000,
   });
 }
 

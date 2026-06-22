@@ -1,4 +1,4 @@
-import { Inbox, Clock, DollarSign, MailOpen, Archive, Search, UserSearch } from 'lucide-react';
+import { Inbox, Clock, DollarSign, MailOpen, Archive, Search, UserSearch, FileText, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { InboxFolder } from '@/hooks/useInboxNotifications';
 
@@ -82,10 +82,24 @@ export function InboxEmptyState({ folder, searchQuery }: Props) {
       bgClassName: 'bg-amber-100 dark:bg-amber-900/30',
       iconClassName: 'text-amber-600 dark:text-amber-400',
     },
+    documentos: {
+      icon: FileText,
+      title: 'Nenhuma notificação de documento',
+      description: 'Avisos de novos documentos (holerites, contratos) aparecerão aqui.',
+      bgClassName: 'bg-sky-100 dark:bg-sky-900/30',
+      iconClassName: 'text-sky-600 dark:text-sky-400',
+    },
     archived: {
       icon: Archive,
       title: 'Nenhuma notificação arquivada',
       description: 'Notificações que você arquivar aparecerão aqui.',
+      bgClassName: 'bg-muted',
+      iconClassName: 'text-muted-foreground',
+    },
+    lixeira: {
+      icon: Trash2,
+      title: 'Lixeira vazia',
+      description: 'Notificações excluídas ficam aqui e podem ser restauradas.',
       bgClassName: 'bg-muted',
       iconClassName: 'text-muted-foreground',
     },

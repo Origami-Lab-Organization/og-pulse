@@ -12,6 +12,12 @@ export interface ClientDB {
   cidade: string | null;
   estado: string | null;
   logo_url: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  segment: string | null;
+  website: string | null;
+  notes: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -31,9 +37,39 @@ export interface Client {
   cidade: string | null;
   estado: string | null;
   logoUrl: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  segment: string | null;
+  website: string | null;
+  notes: string | null;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ClientContactDB {
+  id: string;
+  client_id: string;
+  tenant_id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientContact {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface ClientContactInput {
+  name?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface CreateClientInput {
@@ -48,6 +84,13 @@ export interface CreateClientInput {
   cidade?: string;
   estado?: string;
   logoUrl?: string | null;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  segment?: string;
+  website?: string;
+  notes?: string;
+  contacts?: ClientContactInput[];
   status: 'active' | 'inactive';
 }
 
@@ -65,6 +108,12 @@ export const dbToClient = (db: ClientDB): Client => ({
   cidade: db.cidade,
   estado: db.estado,
   logoUrl: db.logo_url,
+  contactName: db.contact_name,
+  contactEmail: db.contact_email,
+  contactPhone: db.contact_phone,
+  segment: db.segment,
+  website: db.website,
+  notes: db.notes,
   status: db.status as 'active' | 'inactive',
   createdAt: db.created_at,
   updatedAt: db.updated_at,

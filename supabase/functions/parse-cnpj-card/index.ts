@@ -58,7 +58,10 @@ O JSON deve ter exatamente esta estrutura:
   "complemento": "string ou null se não houver (ex: SALA 101, ANDAR 5, BLOCO A)",
   "bairro": "string",
   "cidade": "string",
-  "estado": "string com 2 letras maiúsculas"
+  "estado": "string com 2 letras maiúsculas",
+  "segment": "string ou null - atividade econômica principal (CNAE) descrita no Cartão CNPJ",
+  "email": "string ou null - valor do campo ENDEREÇO ELETRÔNICO",
+  "telefone": "string com apenas números ou null - valor do campo TELEFONE (DDD + número)"
 }
 
 Se algum campo não for encontrado, use null.`,

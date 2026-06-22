@@ -24,6 +24,7 @@ import { ProjectExpectedResultTab } from "@/components/projects/detail/ProjectEx
 import { ProjectCommissionsTab } from "@/components/projects/detail/ProjectCommissionsTab";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
 import { ProjectValueBookUpload } from "@/components/projects/detail/ProjectValueBookUpload";
+import { ProjectContractUpload } from "@/components/projects/ProjectContractUpload";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog";
 import { ProjectRemoveDialog } from "@/components/projects/ProjectRemoveDialog";
 import {
@@ -275,7 +276,10 @@ export default function ProjectDetail() {
                 </>
               )}
               {canViewActivities && (
-                <TabsTrigger value="activities">Atividades</TabsTrigger>
+                <>
+                  <TabsTrigger value="activities">Atividades</TabsTrigger>
+                  <TabsTrigger value="files">Arquivos</TabsTrigger>
+                </>
               )}
               {canAccessFullProject && showValueBook && (
                 <TabsTrigger value="valuebook">Value Book</TabsTrigger>
@@ -342,9 +346,21 @@ export default function ProjectDetail() {
           )}
 
           {canViewActivities && (
-            <TabsContent value="activities" className="mt-6">
-              <ProjectActivitiesTab project={project} isReadOnly={isReadOnly} />
-            </TabsContent>
+			  <>
+				<TabsContent value="activities" className="mt-6">
+				  <ProjectActivitiesTab project={project} isReadOnly={isReadOnly} />
+				</TabsContent>
+				<TabsContent value="files" className="mt-6">
+				  <ProjectContractUpload
+					projectId={project.id}
+					currentPath={project.contract_url}
+					isReadOnly={isReadOnly}
+					onUploadSuccess={() =>
+					  queryClient.invalidateQueries({ queryKey: ["project", id] })
+					}
+				  />
+				</TabsContent>
+			  </>
           )}
 
           {canAccessFullProject && showValueBook && (

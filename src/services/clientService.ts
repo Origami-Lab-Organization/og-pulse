@@ -46,6 +46,12 @@ export const clientService = {
         cidade: input.cidade || null,
         estado: input.estado || null,
         logo_url: input.logoUrl || null,
+        contact_name: input.contactName || null,
+        contact_email: input.contactEmail || null,
+        contact_phone: input.contactPhone || null,
+        segment: input.segment || null,
+        website: input.website || null,
+        notes: input.notes || null,
         status: input.status,
       })
       .select()
@@ -73,6 +79,12 @@ export const clientService = {
     if (updates.cidade !== undefined) updateData.cidade = updates.cidade || null;
     if (updates.estado !== undefined) updateData.estado = updates.estado || null;
     if (updates.logoUrl !== undefined) updateData.logo_url = updates.logoUrl || null;
+    if (updates.contactName !== undefined) updateData.contact_name = updates.contactName || null;
+    if (updates.contactEmail !== undefined) updateData.contact_email = updates.contactEmail || null;
+    if (updates.contactPhone !== undefined) updateData.contact_phone = updates.contactPhone || null;
+    if (updates.segment !== undefined) updateData.segment = updates.segment || null;
+    if (updates.website !== undefined) updateData.website = updates.website || null;
+    if (updates.notes !== undefined) updateData.notes = updates.notes || null;
     if (updates.status !== undefined) updateData.status = updates.status;
 
     const { data, error } = await supabase
@@ -100,6 +112,30 @@ export const clientService = {
       console.error('Error deleting client:', error);
       throw error;
     }
+  },
+
+  async getRelationCounts(
+    clientId: string,
+    tenantId: string,
+  ): Promise<{ opportunities: number; projects: number }> {
+    const [opps, projs] = await Promise.all([
+      supabase
+        .from('leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('client_id', clientId)
+        .eq('archived', false),
+      supabase
+        .from('projects')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('client_id', clientId),
+    ]);
+
+    return {
+      opportunities: opps.count ?? 0,
+      projects: projs.count ?? 0,
+    };
   },
 
   async search(query: string, tenantId: string): Promise<ClientDB[]> {
