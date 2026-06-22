@@ -36,9 +36,9 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const from = location.state?.from?.pathname || '/inbox';
   // Pré-preenche o e-mail quando o acesso vem do link de convite (?email=...).
   const invitedEmail = searchParams.get('email') ?? '';
+  const from = location.state?.from?.pathname || '/';
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),

@@ -69,7 +69,8 @@ const ChangePassword = () => {
       description: 'Você será redirecionado para o sistema.',
     });
 
-    navigate('/inbox', { replace: true });
+    // '/' resolve o destino por papel (admin → /dashboard, demais → /inbox)
+    navigate('/', { replace: true });
   };
 
   return (

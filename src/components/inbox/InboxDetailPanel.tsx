@@ -4,6 +4,7 @@ import { Notification } from "@/hooks/useNotifications";
 import { InboxTimesheetDetail } from "./InboxTimesheetDetail";
 import { InboxReimbursementDetail } from "./InboxReimbursementDetail";
 import { InboxBudgetDetail } from "./InboxBudgetDetail";
+import { InboxVacationDetail } from "./InboxVacationDetail";
 import { CorrectionData } from "@/components/reimbursements/ReimbursementFormDialog";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,6 +17,8 @@ import {
   DollarSign,
   UserSearch,
   FileText,
+  ArrowRight,
+  Palmtree
   FolderKanban,
   Bell,
   RotateCcw,
@@ -86,6 +89,25 @@ const statusBadge: Record<string, { label: string; className: string }> = {
   budget_margin_rejected: {
     label: "Não aprovado",
     className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+  },
+  vacation_pending: {
+    label: "Aprovar/Recusar",
+    className:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+  },
+  vacation_approved: {
+    label: "Aprovada",
+    className:
+      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+  },
+  vacation_rejected: {
+    label: "Recusada",
+    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+  },
+  vacation_partially_approved: {
+    label: "Em análise",
+    className:
+      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
   }
 };
 
@@ -153,6 +175,14 @@ const categoryConfig: Record<
     icon: Bell,
     badge: "Sistema",
     badgeClass: "bg-muted text-muted-foreground"
+  },
+  vacation: {
+    bg: "bg-teal-100 dark:bg-teal-900/30",
+    text: "text-teal-600 dark:text-teal-400",
+    icon: Palmtree,
+    badge: "Férias",
+    badgeClass:
+      "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400"
   }
 };
 
@@ -344,6 +374,13 @@ export function InboxDetailPanel({
 
         {notification.category === "budget" && (
           <InboxBudgetDetail
+            notification={notification}
+            onActionComplete={onActionComplete}
+          />
+        )}
+
+        {notification.category === "vacation" && (
+          <InboxVacationDetail
             notification={notification}
             onActionComplete={onActionComplete}
           />

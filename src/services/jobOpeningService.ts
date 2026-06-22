@@ -17,17 +17,14 @@ export const jobOpeningService = {
     return (data || []) as JobOpeningDB[];
   },
 
-  /** Fetch a single open job publicly (no auth required). */
+  /** Fetch a single open job publicly via SECURITY DEFINER RPC that masks confidential salary. */
   async getPublic(vagaId: string): Promise<JobOpeningDB | null> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
-      .from('job_openings')
-      .select('*')
-      .eq('id', vagaId)
-      .eq('status', 'aberta')
-      .maybeSingle();
+      .rpc('get_public_job_opening', { p_vaga_id: vagaId });
     if (error) throw error;
-    return data as JobOpeningDB | null;
+    const row = Array.isArray(data) ? data[0] : data;
+    return (row ?? null) as JobOpeningDB | null;
   },
 
   async create(

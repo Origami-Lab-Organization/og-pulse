@@ -7,7 +7,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
+import HomeRedirect from "@/components/auth/HomeRedirect";
 import Index from "./pages/Index";
+import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -48,6 +50,11 @@ import JobOpenings from "./pages/JobOpenings";
 import JobApplicationVaga from "./pages/JobApplicationVaga";
 import Strategy from "./pages/Strategy";
 import MyKanban from "./pages/MyKanban";
+import BenefitsAndTools from "./pages/BenefitsAndTools";
+import EmployeeDetail from "./pages/EmployeeDetail";
+import EmployeeCreate from "./pages/EmployeeCreate";
+import MyVacation from "./pages/MyVacation";
+import VacationManagement from "./pages/VacationManagement";
 import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient({
@@ -92,9 +99,17 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              {/* Root redirect */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              {/* Root redirect — admin → /dashboard, demais → /inbox */}
+              <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route
+                path="/admin-dashboard"
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <AdminDashboard />
+                  </RoleProtectedRoute>
+                }
+              />
               <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
               {/* My Timesheet - all authenticated users */}
               <Route 
@@ -106,22 +121,47 @@ const App = () => (
                 } 
               />
               {/* Reimbursements - all authenticated users */}
-              <Route 
-                path="/reimbursements" 
+              <Route
+                path="/reimbursements"
                 element={
                   <ProtectedRoute>
                     <Reimbursements />
                   </ProtectedRoute>
-                } 
+                }
+              />
+              {/* Minhas Férias - all authenticated users */}
+              <Route
+                path="/minhas-ferias"
+                element={
+                  <ProtectedRoute>
+                    <MyVacation />
+                  </ProtectedRoute>
+                }
               />
               {/* Management routes - Manager or Admin */}
-              <Route 
-                path="/employees" 
+              <Route
+                path="/employees"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Index />
                   </RoleProtectedRoute>
-                } 
+                }
+              />
+              <Route
+                path="/employees/new"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <EmployeeCreate />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/employees/:id"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <EmployeeDetail />
+                  </RoleProtectedRoute>
+                }
               />
               <Route 
                 path="/clients" 
@@ -276,6 +316,8 @@ const App = () => (
               <Route path="/trabalhe-conosco/:tenantId" element={<JobApplication />} />
               <Route path="/trabalhe-conosco/:tenantId/:vagaId" element={<JobApplicationVaga />} />
               <Route path="/estrategia" element={<RoleProtectedRoute requireManager><Strategy /></RoleProtectedRoute>} />
+              <Route path="/rh/ferramentas-beneficios" element={<RoleProtectedRoute requireAdmin><BenefitsAndTools /></RoleProtectedRoute>} />
+              <Route path="/rh/ferias" element={<RoleProtectedRoute requireManager><VacationManagement /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

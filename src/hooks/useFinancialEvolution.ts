@@ -3,6 +3,7 @@ import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolveCostMonthIndex } from '@/lib/costRecognition';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface FinancialMonthlyPoint {
@@ -143,11 +144,11 @@ export function useFinancialEvolution(
           .in('project_id', projectIds),
         supabase
           .from('project_suppliers')
-          .select('id, project_id, actuals:project_supplier_actuals(month_number, value), plannedMonths:project_supplier_months(month_number, value)')
+          .select('id, project_id, actuals:project_supplier_actuals(month_number, value, invoice_date), plannedMonths:project_supplier_months(month_number, value)')
           .in('project_id', projectIds),
         supabase
           .from('project_materials')
-          .select('project_id, month_number, value, is_realized')
+          .select('project_id, month_number, value, is_realized, purchase_date')
           .in('project_id', projectIds),
         supabase
           .from('project_commissions')
@@ -233,9 +234,15 @@ export function useFinancialEvolution(
         const projStart = parseISO(project.start_date);
 
         for (const actual of (ps.actuals || [])) {
-          const actualDate = addMonths(startOfMonth(projStart), actual.month_number - 1);
-          if (actualDate.getFullYear() !== year) continue;
-          monthData[actualDate.getMonth()].supplierCost += Number(actual.value);
+          // Fornecedor realizado: reconhece pela data da nota (invoice_date) quando
+          // houver; senão, mês relativo ao projeto.
+          const idx = resolveCostMonthIndex({
+            realDate: actual.invoice_date,
+            projectStartDate: project.start_date,
+            monthNumber: actual.month_number,
+            targetYear: year,
+          });
+          if (idx != null) monthData[idx].supplierCost += Number(actual.value);
         }
 
         for (const pm of (ps.plannedMonths || [])) {
@@ -248,14 +255,26 @@ export function useFinancialEvolution(
       for (const mat of materials) {
         const project = projectMap.get(mat.project_id);
         if (!project?.start_date || !mat.month_number) continue;
-        const projStart = parseISO(project.start_date);
-        const actualDate = addMonths(startOfMonth(projStart), mat.month_number - 1);
-        if (actualDate.getFullYear() !== year) continue;
-        const idx = actualDate.getMonth();
         const val = Number(mat.value);
-        monthData[idx].plannedMaterialCost += val;
+
+        // Planejado: sempre pelo mês relativo ao projeto (início + month_number − 1).
+        const plannedIdx = resolveCostMonthIndex({
+          projectStartDate: project.start_date,
+          monthNumber: mat.month_number,
+          targetYear: year,
+        });
+        if (plannedIdx != null) monthData[plannedIdx].plannedMaterialCost += val;
+
+        // Realizado: reconhece pela data real da compra (purchase_date) quando
+        // houver; senão, cai no mês relativo ao projeto.
         if (mat.is_realized) {
-          monthData[idx].materialCost += val;
+          const realizedIdx = resolveCostMonthIndex({
+            realDate: mat.purchase_date,
+            projectStartDate: project.start_date,
+            monthNumber: mat.month_number,
+            targetYear: year,
+          });
+          if (realizedIdx != null) monthData[realizedIdx].materialCost += val;
         }
       }
 
