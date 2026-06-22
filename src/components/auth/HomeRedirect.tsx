@@ -22,7 +22,13 @@ const HomeRedirect = () => {
     );
   }
 
-  return <Navigate to={employee?.isAdmin ? '/admin-dashboard' : '/inbox'} replace />;
+  const redirectPath = employee?.isAdmin
+    ? '/admin-dashboard'
+    : employee?.is_gerente
+      ? '/inbox'
+      : '/dashboard';
+
+  return <Navigate to={redirectPath} replace />;
 };
 
 export default HomeRedirect;

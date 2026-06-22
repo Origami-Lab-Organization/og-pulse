@@ -232,6 +232,8 @@ export function AppNavbar() {
   const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
 
+  const homeRoute = isAdmin ? '/admin-dashboard' : isManager ? '/inbox' : '/dashboard';
+
   const isActive = (path: string) => location.pathname === path;
 
   const filterItems = (items: NavItem[]) =>
@@ -258,7 +260,7 @@ export function AppNavbar() {
     <header className="sticky top-0 z-50 flex h-14 items-center border-b bg-background px-4 gap-4">
       {/* Logo */}
       <button
-        onClick={() => navigate("/admin-dashboard")}
+        onClick={() => navigate(homeRoute)}
         className="flex items-center gap-2 shrink-0 mr-2 hover:opacity-80 transition-opacity"
       >
         <img src={logo} alt="Pulse" className="h-7 w-7" />
@@ -379,7 +381,7 @@ export function AppNavbar() {
           </SheetTrigger>
           <SheetContent side="left" className="w-72 p-0">
             <button
-              onClick={() => navigate("/admin-dashboard")}
+              onClick={() => navigate(homeRoute)}
               className="flex items-center gap-2 px-4 py-4 border-b w-full hover:opacity-80 transition-opacity"
             >
               <img src={logo} alt="Pulse" className="h-7 w-7" />

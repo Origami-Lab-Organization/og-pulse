@@ -17,8 +17,7 @@ import {
   DollarSign,
   UserSearch,
   FileText,
-  ArrowRight,
-  Palmtree
+  Palmtree,
   FolderKanban,
   Bell,
   RotateCcw,
