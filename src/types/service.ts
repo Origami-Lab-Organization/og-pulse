@@ -14,6 +14,7 @@ export type ProjectType = BillingType;
 export interface ServiceDB {
   id: string;
   tenant_id: string;
+  service_line_id: string | null;
   name: string;
   billing_type: BillingType;
   description: string | null;
@@ -29,6 +30,7 @@ export interface ServiceDB {
 export interface Service {
   id: string;
   tenantId: string;
+  serviceLineId: string | null;
   name: string;
   billingType: BillingType;
   description: string | null;
@@ -42,10 +44,13 @@ export interface Service {
 }
 
 export interface CreateServiceInput {
+  serviceLineId: string;
   name: string;
-  billingType: BillingType;
   description?: string;
-  hasDefaultValue: boolean;
+  // Campos legados (billing_type/project_type): o valor de cobrança migrou para
+  // service_revenue_models. Mantidos opcionais por back-compat das colunas NOT NULL.
+  billingType?: BillingType;
+  hasDefaultValue?: boolean;
   defaultValue?: number;
   billingUnit?: string;
 }
@@ -53,6 +58,7 @@ export interface CreateServiceInput {
 export const dbToService = (db: ServiceDB): Service => ({
   id: db.id,
   tenantId: db.tenant_id,
+  serviceLineId: db.service_line_id ?? null,
   name: db.name,
   billingType: db.billing_type,
   description: db.description,
@@ -65,7 +71,10 @@ export const dbToService = (db: ServiceDB): Service => ({
   updatedAt: db.updated_at,
 });
 
-export const DEFAULT_SERVICES: CreateServiceInput[] = [
+// Seed templates não carregam serviceLineId — a linha é resolvida no momento do seed.
+export type DefaultServiceTemplate = Omit<CreateServiceInput, 'serviceLineId'>;
+
+export const DEFAULT_SERVICES: DefaultServiceTemplate[] = [
   { name: 'Consultoria de Projeto', billingType: 'fixed_scope', hasDefaultValue: false },
   { name: 'Desenvolvimento de Software', billingType: 'fixed_scope', hasDefaultValue: false },
   { name: 'Suporte Técnico Mensal', billingType: 'recurring', hasDefaultValue: false },

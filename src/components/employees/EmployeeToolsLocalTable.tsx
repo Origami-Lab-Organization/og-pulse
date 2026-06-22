@@ -9,10 +9,26 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/formatters';
 import { formatCurrency as formatCurrencyMask, parseCurrency } from '@/lib/masks';
-import { Plus, Pencil, Trash2, Check, X, Wrench } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Wrench, RefreshCw, ExternalLink } from 'lucide-react';
+import { useTools } from '@/hooks/useTools';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export interface LocalTool {
   id: string;
@@ -27,15 +43,28 @@ interface EmployeeToolsLocalTableProps {
   employeeName?: string;
 }
 
-export function EmployeeToolsLocalTable({ 
-  tools, 
-  onChange, 
-  employeeName = 'Funcionário' 
+export function EmployeeToolsLocalTable({
+  tools,
+  onChange,
+  employeeName = 'Funcionário',
 }: EmployeeToolsLocalTableProps) {
+  const { data: catalog = [], refetch: refetchCatalog } = useTools();
+  const activeCatalog = catalog.filter((t) => t.isActive);
+
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  
+  const [emptyCatalogDialogOpen, setEmptyCatalogDialogOpen] = useState(false);
+
+  const handleOpenAdd = () => {
+    if (availableOptions.length === 0) {
+      setEmptyCatalogDialogOpen(true);
+    } else {
+      setIsAdding(true);
+    }
+  };
+
   const [newTool, setNewTool] = useState({
+    catalogId: '',
     name: '',
     description: '',
     monthlyCost: 0,
@@ -49,21 +78,37 @@ export function EmployeeToolsLocalTable({
     monthlyCostDisplay: '',
   });
 
-  const totalCost = tools.reduce((sum, tool) => sum + tool.monthlyCost, 0);
+  const totalCost = tools.reduce((sum, t) => sum + t.monthlyCost, 0);
+
+  const availableOptions = activeCatalog.filter(
+    (opt) => !tools.some((t) => t.name === opt.name)
+  );
+
+  const handleSelectCatalog = (catalogId: string) => {
+    const item = activeCatalog.find((t) => t.id === catalogId);
+    if (!item) return;
+    setNewTool({
+      catalogId,
+      name: item.name,
+      description: item.description || '',
+      monthlyCost: item.value,
+      monthlyCostDisplay: formatCurrencyMask(item.value),
+    });
+  };
 
   const handleAdd = () => {
     if (!newTool.name.trim()) return;
-    
-    const newItem: LocalTool = {
-      id: `temp-${Date.now()}`,
-      name: newTool.name.trim(),
-      description: newTool.description.trim(),
-      monthlyCost: newTool.monthlyCost,
-    };
-    
-    onChange([...tools, newItem]);
+    onChange([
+      ...tools,
+      {
+        id: `temp-${Date.now()}`,
+        name: newTool.name.trim(),
+        description: newTool.description.trim(),
+        monthlyCost: newTool.monthlyCost,
+      },
+    ]);
     setIsAdding(false);
-    setNewTool({ name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
+    setNewTool({ catalogId: '', name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
   };
 
   const startEdit = (tool: LocalTool) => {
@@ -83,18 +128,17 @@ export function EmployeeToolsLocalTable({
 
   const saveEdit = (id: string) => {
     if (!editData.name.trim()) return;
-    
-    onChange(tools.map(t => 
-      t.id === id 
-        ? { ...t, name: editData.name.trim(), description: editData.description.trim(), monthlyCost: editData.monthlyCost }
-        : t
-    ));
+    onChange(
+      tools.map((t) =>
+        t.id === id
+          ? { ...t, name: editData.name.trim(), description: editData.description.trim(), monthlyCost: editData.monthlyCost }
+          : t
+      )
+    );
     setEditingId(null);
   };
 
-  const handleDelete = (id: string) => {
-    onChange(tools.filter(t => t.id !== id));
-  };
+  const handleDelete = (id: string) => onChange(tools.filter((t) => t.id !== id));
 
   return (
     <Card>
@@ -104,12 +148,10 @@ export function EmployeeToolsLocalTable({
             <Wrench className="h-5 w-5" />
             Ferramentas e Assinaturas
           </CardTitle>
-          <CardDescription>
-            Ferramentas pagas para {employeeName}
-          </CardDescription>
+          <CardDescription>Ferramentas pagas para {employeeName}</CardDescription>
         </div>
         {!isAdding && (
-          <Button type="button" onClick={() => setIsAdding(true)} size="sm">
+          <Button type="button" onClick={handleOpenAdd} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
           </Button>
@@ -135,21 +177,30 @@ export function EmployeeToolsLocalTable({
                 <TableBody>
                   {isAdding && (
                     <TableRow>
-                      <TableCell>
-                        <Input
-                          value={newTool.name}
-                          onChange={(e) => setNewTool({ ...newTool, name: e.target.value })}
-                          placeholder="Ex: Lovable, Figma..."
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={newTool.description}
-                          onChange={(e) => setNewTool({ ...newTool, description: e.target.value })}
-                          placeholder="Descrição (opcional)"
-                          className="w-full"
-                        />
+                      <TableCell colSpan={2}>
+                        <div className="flex items-center gap-2">
+                          <Select value={newTool.catalogId} onValueChange={handleSelectCatalog}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione do catálogo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableOptions.map((opt) => (
+                                <SelectItem key={opt.id} value={opt.id}>
+                                  {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => refetchCatalog()}
+                            title="Atualizar catálogo"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -183,7 +234,7 @@ export function EmployeeToolsLocalTable({
                             variant="ghost"
                             onClick={() => {
                               setIsAdding(false);
-                              setNewTool({ name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
+                              setNewTool({ catalogId: '', name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
                             }}
                           >
                             <X className="h-4 w-4 text-destructive" />
@@ -237,39 +288,19 @@ export function EmployeeToolsLocalTable({
                       <TableCell>
                         {editingId === tool.id ? (
                           <div className="flex gap-1">
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => saveEdit(tool.id)}
-                            >
+                            <Button type="button" size="icon" variant="ghost" onClick={() => saveEdit(tool.id)}>
                               <Check className="h-4 w-4 text-green-600" />
                             </Button>
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              onClick={cancelEdit}
-                            >
+                            <Button type="button" size="icon" variant="ghost" onClick={cancelEdit}>
                               <X className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
                         ) : (
                           <div className="flex gap-1">
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => startEdit(tool)}
-                            >
+                            <Button type="button" size="icon" variant="ghost" onClick={() => startEdit(tool)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleDelete(tool.id)}
-                            >
+                            <Button type="button" size="icon" variant="ghost" onClick={() => handleDelete(tool.id)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
@@ -292,6 +323,33 @@ export function EmployeeToolsLocalTable({
           </div>
         )}
       </CardContent>
+
+      {/* Empty catalog dialog */}
+      <Dialog open={emptyCatalogDialogOpen} onOpenChange={setEmptyCatalogDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nenhuma ferramenta disponível</DialogTitle>
+            <DialogDescription>
+              Todas as ferramentas do catálogo já foram adicionadas a este funcionário, ou o catálogo ainda não possui itens cadastrados.
+              Acesse a página de Ferramentas e Benefícios para criar novos itens.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmptyCatalogDialogOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                window.open('/rh/ferramentas-beneficios', '_blank');
+                setEmptyCatalogDialogOpen(false);
+              }}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Ir para Ferramentas e Benefícios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

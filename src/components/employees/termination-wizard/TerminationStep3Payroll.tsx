@@ -8,8 +8,9 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, Trash2, Info } from 'lucide-react';
-import { formatCurrency, parseDateString } from '@/lib/formatters';
+import { Plus, Trash2, Info, AlertTriangle } from 'lucide-react';
+import { formatCurrency } from '@/lib/formatters';
+import { calculateAutoCalcs, AutoCalcItem } from '@/lib/terminationCalcs';
 import { Employee } from '@/hooks/useEmployees';
 import { TerminationWizardData, ManualAdjustment } from './types';
 
@@ -28,6 +29,11 @@ const ADJUSTMENT_OPTIONS = [
   { value: 'other', label: 'Outro' },
 ];
 
+const UNSUPPORTED_TYPE_MESSAGE = {
+  title: 'Tipo de contratação não suportado para cálculo automático',
+  description: 'Este tipo de contratação não possui cálculo automático de rescisão. Consulte o RH ou a área jurídica para apurar os valores devidos. Use os ajustes manuais abaixo para registrar os valores acordados.',
+};
+
 const CONTRACT_TYPE_MESSAGES: Record<string, { title: string; description: string }> = {
   CLT: {
     title: 'Rescisão CLT',
@@ -35,15 +41,15 @@ const CONTRACT_TYPE_MESSAGES: Record<string, { title: string; description: strin
   },
   ESTAGIO: {
     title: 'Encerramento de Estágio',
-    description: 'Conforme Lei 11.788/2008, o estagiário tem direito ao saldo de bolsa-auxílio e recesso remunerado proporcional (30 dias/ano, sem 1/3 constitucional).',
+    description: 'Conforme Lei 11.788/2008: saldo de bolsa-auxílio e recesso remunerado proporcional (30 dias/ano, sem 1/3 constitucional). Sem FGTS ou 13º.',
   },
   PJ: {
     title: 'Rescisão de Contrato PJ',
-    description: 'Não há cálculos trabalhistas automáticos. Os valores devem seguir o previsto no contrato de prestação de serviços. Use os ajustes manuais abaixo.',
+    description: 'Pagamento proporcional ao período trabalhado no mês, conforme valor do contrato. Sem FGTS, INSS patronal ou verbas trabalhistas. Use ajustes manuais para multas ou bônus contratuais.',
   },
   SOCIO: {
-    title: 'Saída de Sócio',
-    description: 'Sócio tem direito ao pró-labore proporcional. Não há férias, 13º ou FGTS. Ajustes de participação societária devem ser feitos manualmente.',
+    title: 'Saída de Sócio — Tratamento via Contrato Social',
+    description: 'A saída de sócio exige formalização via Alteração Contratual ou Ata de Reunião. Nenhum cálculo automático é aplicado. O sistema registra a saída e bloqueia o acesso.',
   },
   MENOR_APRENDIZ: {
     title: 'Rescisão de Menor Aprendiz',
@@ -51,108 +57,12 @@ const CONTRACT_TYPE_MESSAGES: Record<string, { title: string; description: strin
   },
 };
 
-interface AutoCalcItem {
-  desc: string;
-  value: number;
-  isCredit: boolean;
-}
-
-function calculateAutoCalcs(employee: Employee, data: TerminationWizardData): AutoCalcItem[] {
-  const salary = employee.salarioMensal;
-  const termDate = data.termination_date ? parseDateString(data.termination_date) : new Date();
-  const dayOfMonth = termDate.getDate();
-  const daysInMonth = new Date(termDate.getFullYear(), termDate.getMonth() + 1, 0).getDate();
-  let monthsWorked = 0;
-  if (employee.dataAdmissao) {
-    const admDate = parseDateString(employee.dataAdmissao);
-    if (!isNaN(admDate.getTime())) {
-      monthsWorked = (termDate.getFullYear() - admDate.getFullYear()) * 12 + (termDate.getMonth() - admDate.getMonth());
-    }
-  }
-  const monthsInYear = termDate.getMonth() + 1;
-  const contractType = employee.tipoContratacao;
-
-  const items: AutoCalcItem[] = [];
-
-  switch (contractType) {
-    case 'CLT': {
-      const salaryBalance = (salary / daysInMonth) * dayOfMonth;
-      const vacationProp = (salary / 12) * (monthsWorked % 12) * (4 / 3);
-      const thirteenthProp = (salary / 12) * monthsInYear;
-
-      items.push({ desc: `Saldo de salário (${dayOfMonth} dias)`, value: salaryBalance, isCredit: true });
-      items.push({ desc: 'Férias proporcionais + 1/3', value: vacationProp, isCredit: true });
-      items.push({ desc: '13º proporcional', value: thirteenthProp, isCredit: true });
-
-      // FGTS fine based on termination type
-      if (data.termination_type === 'involuntary') {
-        const fgtsFine = employee.fgts * monthsWorked * 0.4;
-        if (fgtsFine > 0) items.push({ desc: 'Multa FGTS 40%', value: fgtsFine, isCredit: true });
-      } else if (data.termination_type === 'mutual_agreement') {
-        const fgtsFine = employee.fgts * monthsWorked * 0.2;
-        if (fgtsFine > 0) items.push({ desc: 'Multa FGTS 20% (acordo)', value: fgtsFine, isCredit: true });
-      }
-
-      // Notice period
-      if (!data.notice_worked && data.notice_period_days > 0) {
-        const noticeValue = (salary / 30) * data.notice_period_days;
-        items.push({
-          desc: `Aviso prévio ${data.notice_indemnified_by_company ? 'indenizado' : '(desconto)'}`,
-          value: noticeValue,
-          isCredit: data.notice_indemnified_by_company,
-        });
-      }
-      break;
-    }
-
-    case 'ESTAGIO': {
-      const stipend = employee.bolsaAuxilio || salary;
-      const stipendBalance = (stipend / daysInMonth) * dayOfMonth;
-      // Recesso: 30 dias por 12 meses, proporcional, sem 1/3
-      const recessDays = (monthsWorked / 12) * 30;
-      const recessValue = (stipend / 30) * recessDays;
-
-      items.push({ desc: `Saldo de bolsa-auxílio (${dayOfMonth} dias)`, value: stipendBalance, isCredit: true });
-      items.push({ desc: `Recesso remunerado proporcional (${Math.round(recessDays)} dias)`, value: recessValue, isCredit: true });
-      break;
-    }
-
-    case 'SOCIO': {
-      const proLaboreBalance = (employee.proLabore / daysInMonth) * dayOfMonth;
-      if (proLaboreBalance > 0) {
-        items.push({ desc: `Pró-labore proporcional (${dayOfMonth} dias)`, value: proLaboreBalance, isCredit: true });
-      }
-      break;
-    }
-
-    case 'MENOR_APRENDIZ': {
-      const salaryBalance = (salary / daysInMonth) * dayOfMonth;
-      const vacationProp = (salary / 12) * (monthsWorked % 12) * (4 / 3);
-      const thirteenthProp = (salary / 12) * monthsInYear;
-      // FGTS 2% instead of 8% - no fine for end of fixed-term contract
-      const fgtsValue = salary * 0.02 * monthsWorked;
-
-      items.push({ desc: `Saldo de salário (${dayOfMonth} dias)`, value: salaryBalance, isCredit: true });
-      items.push({ desc: 'Férias proporcionais + 1/3', value: vacationProp, isCredit: true });
-      items.push({ desc: '13º proporcional', value: thirteenthProp, isCredit: true });
-      items.push({ desc: 'FGTS acumulado (alíquota 2%)', value: fgtsValue, isCredit: true });
-      break;
-    }
-
-    case 'PJ':
-    default:
-      // No automatic calculations for PJ
-      break;
-  }
-
-  return items;
-}
 
 const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
   const [newAdj, setNewAdj] = useState({ type: 'other', description: '', amount: 0, isCredit: true });
 
   const contractType = employee.tipoContratacao;
-  const message = CONTRACT_TYPE_MESSAGES[contractType] || CONTRACT_TYPE_MESSAGES.CLT;
+  const message = CONTRACT_TYPE_MESSAGES[contractType] ?? UNSUPPORTED_TYPE_MESSAGE;
 
   const autoCalcs = useMemo(() => calculateAutoCalcs(employee, data), [employee, data]);
 
@@ -199,6 +109,21 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
           <strong>{message.title}</strong> — {message.description}
         </AlertDescription>
       </Alert>
+
+      {/* CA3 — Sócio: aviso orientativo proeminente */}
+      {contractType === 'SOCIO' && (
+        <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-xs text-amber-900 dark:text-amber-100">
+            <strong>Saída de sócio — nenhum cálculo automático aplicável.</strong>
+            <span className="block mt-1">
+              A saída deve ser formalizada via <em>Alteração Contratual</em> ou <em>Ata de Reunião</em>
+              junto ao cartório / Junta Comercial. O sistema registra a saída e bloqueia o acesso ao usuário.
+              Adicione abaixo os valores acordados pelos sócios, se necessário.
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Auto calculations */}
       {autoCalcs.length > 0 && (
@@ -314,5 +239,5 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
   );
 };
 
-export { calculateAutoCalcs };
+export { calculateAutoCalcs } from '@/lib/terminationCalcs';
 export default TerminationStep3Payroll;

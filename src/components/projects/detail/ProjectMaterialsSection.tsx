@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { format } from 'date-fns';
 import { Plus, Trash2, Package, Check } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,8 +74,14 @@ export function ProjectMaterialsSection({
   }, [durationMonths]);
 
   const handleSubmit = () => {
+    // Material realizado precisa de data real (purchase_date) para cair no mês
+    // correto do dashboard. Default: hoje, se o usuário não informou.
+    const purchaseDate = formData.isRealized
+      ? formData.purchaseDate || format(new Date(), 'yyyy-MM-dd')
+      : formData.purchaseDate;
+
     addMaterial.mutate(
-      { projectId, ...formData },
+      { projectId, ...formData, purchaseDate },
       {
         onSuccess: () => {
           setDialogOpen(false);
@@ -272,12 +279,39 @@ export function ProjectMaterialsSection({
               <Checkbox
                 id="isRealized"
                 checked={formData.isRealized}
-                onCheckedChange={(checked) => setFormData({ ...formData, isRealized: checked === true })}
+                onCheckedChange={(checked) => {
+                  const isRealized = checked === true;
+                  setFormData({
+                    ...formData,
+                    isRealized,
+                    // Ao marcar como realizado, sugere a data de hoje (editável).
+                    purchaseDate: isRealized
+                      ? formData.purchaseDate || format(new Date(), 'yyyy-MM-dd')
+                      : formData.purchaseDate,
+                  });
+                }}
               />
               <Label htmlFor="isRealized" className="text-sm">
                 Já foi realizado/comprado
               </Label>
             </div>
+
+            {formData.isRealized && (
+              <div className="space-y-2">
+                <Label htmlFor="purchaseDate">Data da compra/realização</Label>
+                <Input
+                  id="purchaseDate"
+                  type="date"
+                  value={formData.purchaseDate || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, purchaseDate: e.target.value || undefined })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Define em qual mês o custo entra no dashboard.
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

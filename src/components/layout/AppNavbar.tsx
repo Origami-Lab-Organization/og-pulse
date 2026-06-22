@@ -67,11 +67,18 @@ const navigationGroups: NavGroup[] = [
   {
     label: "Meu Espaço",
     items: [
+      {
+        title: "Dashboard",
+        url: "/admin-dashboard",
+        icon: LayoutDashboard,
+        requiresAdmin: true,
+      },
       { title: "Caixa de Entrada", url: "/inbox", icon: Inbox },
       { title: "Meu Kanban", url: "/my-kanban", icon: LucideSquareKanban },
       { title: "Meus Projetos", url: "/my-projects", icon: FolderKanban },
       { title: "Timesheet", url: "/my-timesheet", icon: Clock },
       { title: "Reembolsos", url: "/reimbursements", icon: Receipt },
+      { title: "Minhas Férias", url: "/minhas-ferias", icon: Palmtree },
     ],
   },
   {
@@ -157,6 +164,12 @@ const navigationGroups: NavGroup[] = [
         icon: UserSearch,
         requiresManager: true,
       },
+       {
+        title: "Ferramentas/Benefícios",
+        url: "/rh/ferramentas-beneficios",
+        icon: Users,
+        requiresAdmin: true,
+      },
       {
         title: "Vagas",
         url: "/rh/vagas",
@@ -182,8 +195,7 @@ const navigationGroups: NavGroup[] = [
         title: "Férias e Afastamentos",
         url: "/rh/ferias",
         icon: Palmtree,
-        requiresAdmin: true,
-        disabled: true,
+        requiresManager: true,
       },
       {
         title: "Desligamentos",
@@ -237,7 +249,7 @@ export function AppNavbar() {
     <header className="sticky top-0 z-50 flex h-14 items-center border-b bg-background px-4 gap-4">
       {/* Logo */}
       <button
-        onClick={() => navigate("/inbox")}
+        onClick={() => navigate("/admin-dashboard")}
         className="flex items-center gap-2 shrink-0 mr-2 hover:opacity-80 transition-opacity"
       >
         <img src={logo} alt="Pulse" className="h-7 w-7" />
@@ -356,12 +368,15 @@ export function AppNavbar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-72 p-0">
-            <div className="flex items-center gap-2 px-4 py-4 border-b">
+            <button
+              onClick={() => navigate("/admin-dashboard")}
+              className="flex items-center gap-2 px-4 py-4 border-b w-full hover:opacity-80 transition-opacity"
+            >
               <img src={logo} alt="Pulse" className="h-7 w-7" />
               <span className="font-semibold text-foreground text-lg">
                 Pulse
               </span>
-            </div>
+            </button>
             <nav className="overflow-y-auto h-[calc(100%-57px)]">
               {visibleGroups.map((group) => {
                 const visibleItems = filterItems(group.items);

@@ -20,6 +20,7 @@ import {
   UserSearch,
   Target,
   KanbanSquare,
+  Gift,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +53,13 @@ interface NavItem {
 
 const navigationGroups = [
   {
+    label: 'Empresa',
+    requiresAdmin: true,
+    items: [
+      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, requiresAdmin: true },
+    ] as NavItem[],
+  },
+  {
     label: 'Meu Espaço',
     items: [
       { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
@@ -59,6 +67,7 @@ const navigationGroups = [
       { title: 'Meu Kanban', url: '/my-kanban', icon: KanbanSquare },
       { title: 'Meus Projetos', url: '/my-projects', icon: FolderKanban },
       { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
+      { title: 'Minhas Férias', url: '/minhas-ferias', icon: Palmtree },
     ] as NavItem[],
   },
   {
@@ -88,9 +97,10 @@ const navigationGroups = [
     items: [
       { title: 'Candidatos', url: '/rh/candidatos', icon: UserSearch, requiresManager: true },
       { title: 'Funcionários', url: '/employees', icon: Users, requiresAdmin: true },
+      { title: 'Ferramentas e Benefícios', url: '/rh/ferramentas-beneficios', icon: Gift, requiresAdmin: true },
       { title: 'Contratos', url: '/rh/contratos', icon: FileSignature, requiresAdmin: true, disabled: true },
       { title: 'Folha de Pagamento', url: '/rh/folha', icon: DollarSign, requiresAdmin: true, disabled: true },
-      { title: 'Férias e Afastamentos', url: '/rh/ferias', icon: Palmtree, requiresAdmin: true, disabled: true },
+      { title: 'Férias e Afastamentos', url: '/rh/ferias', icon: Palmtree, requiresManager: true },
       { title: 'Desligamentos', url: '/rh/desligamentos', icon: LogOut, requiresAdmin: true },
       { title: 'Relatórios', url: '/rh/relatorios', icon: BarChart3, requiresAdmin: true, disabled: true },
     ] as NavItem[],

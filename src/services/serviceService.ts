@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { ServiceDB, CreateServiceInput } from '@/types/service';
+import { ServiceDB, CreateServiceInput, DefaultServiceTemplate } from '@/types/service';
 
 export const serviceService = {
   async getAll(tenantId: string): Promise<ServiceDB[]> {
@@ -22,11 +22,12 @@ export const serviceService = {
       .from('services')
       .insert({
         tenant_id: tenantId,
+        service_line_id: input.serviceLineId,
         name: input.name,
-        project_type: input.billingType,
-        billing_type: input.billingType,
+        project_type: input.billingType ?? 'fixed_scope',
+        billing_type: input.billingType ?? 'fixed_scope',
         description: input.description || null,
-        has_default_value: input.hasDefaultValue,
+        has_default_value: input.hasDefaultValue ?? false,
         default_value: input.hasDefaultValue ? (input.defaultValue ?? null) : null,
         billing_unit: input.hasDefaultValue ? (input.billingUnit ?? null) : null,
       })
@@ -44,6 +45,7 @@ export const serviceService = {
 
   async update(id: string, input: Partial<CreateServiceInput>): Promise<ServiceDB> {
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (input.serviceLineId !== undefined) updates.service_line_id = input.serviceLineId;
     if (input.name !== undefined) updates.name = input.name;
     if (input.billingType !== undefined) {
       updates.billing_type = input.billingType;
@@ -88,22 +90,31 @@ export const serviceService = {
     return data as unknown as ServiceDB;
   },
 
-  async delete(id: string, tenantId: string): Promise<void> {
+  async delete(id: string): Promise<void> {
+    // Guard (Cenário 3): bloquear exclusão se houver modelo de receita ATIVO vinculado.
     const { count, error: countError } = await supabase
-      .from('services')
+      .from('service_revenue_models')
       .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
+      .eq('service_id', id)
       .eq('is_active', true);
 
     if (countError) throw countError;
-    if ((count ?? 0) <= 1) {
-      throw new Error('É necessário ao menos um serviço cadastrado.');
+    if ((count ?? 0) > 0) {
+      throw new Error(
+        'Este serviço possui modelos de receita ativos. Desative os modelos antes de excluir — ou desabilite o serviço.'
+      );
     }
 
     const { error } = await supabase.from('services').delete().eq('id', id);
 
     if (error) {
       console.error('Error deleting service:', error);
+      // 23503 = foreign key violation (serviço referenciado por leads/orçamentos).
+      if (error.code === '23503') {
+        throw new Error(
+          'Este serviço está vinculado a leads ou orçamentos. Desabilite-o em vez de excluir.'
+        );
+      }
       throw error;
     }
   },
@@ -120,12 +131,17 @@ export const serviceService = {
     }
   },
 
-  async seedDefaults(tenantId: string, defaults: CreateServiceInput[]): Promise<void> {
+  async seedDefaults(
+    tenantId: string,
+    serviceLineId: string,
+    defaults: DefaultServiceTemplate[]
+  ): Promise<void> {
     const rows = defaults.map((s) => ({
       tenant_id: tenantId,
+      service_line_id: serviceLineId,
       name: s.name,
-      project_type: s.billingType,
-      billing_type: s.billingType,
+      project_type: s.billingType ?? 'fixed_scope',
+      billing_type: s.billingType ?? 'fixed_scope',
       description: s.description || null,
       has_default_value: false,
     }));
