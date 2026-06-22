@@ -3215,6 +3215,142 @@ export type Database = {
           },
         ]
       }
+      project_cost_months: {
+        Row: {
+          actual_value: number | null
+          cost_id: string
+          created_at: string
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          month_number: number
+          notes: string | null
+          planned_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          actual_value?: number | null
+          cost_id: string
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          month_number: number
+          notes?: string | null
+          planned_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actual_value?: number | null
+          cost_id?: string
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          month_number?: number
+          notes?: string | null
+          planned_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_cost_months_cost_id_fkey"
+            columns: ["cost_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_costs: {
+        Row: {
+          actual_amount: number | null
+          actual_amount_brl: number | null
+          budget_supplier_id: string | null
+          category: string
+          cost_date: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          description: string
+          end_month: number | null
+          exchange_rate: number
+          id: string
+          is_recurring: boolean
+          month_number: number | null
+          monthly_amount: number | null
+          monthly_amount_brl: number | null
+          notes: string | null
+          original_currency: string
+          planned_amount: number
+          planned_amount_brl: number
+          project_id: string
+          start_month: number | null
+          supplier_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_amount?: number | null
+          actual_amount_brl?: number | null
+          budget_supplier_id?: string | null
+          category?: string
+          cost_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description: string
+          end_month?: number | null
+          exchange_rate?: number
+          id?: string
+          is_recurring?: boolean
+          month_number?: number | null
+          monthly_amount?: number | null
+          monthly_amount_brl?: number | null
+          notes?: string | null
+          original_currency?: string
+          planned_amount?: number
+          planned_amount_brl?: number
+          project_id: string
+          start_month?: number | null
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_amount?: number | null
+          actual_amount_brl?: number | null
+          budget_supplier_id?: string | null
+          category?: string
+          cost_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string
+          end_month?: number | null
+          exchange_rate?: number
+          id?: string
+          is_recurring?: boolean
+          month_number?: number | null
+          monthly_amount?: number | null
+          monthly_amount_brl?: number | null
+          notes?: string | null
+          original_currency?: string
+          planned_amount?: number
+          planned_amount_brl?: number
+          project_id?: string
+          start_month?: number | null
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_materials: {
         Row: {
           created_at: string
@@ -3447,6 +3583,7 @@ export type Database = {
       project_role_allocations: {
         Row: {
           budget_role_id: string | null
+          cost_per_hour: number | null
           custom_role_name: string | null
           employee_id: string
           id: string
@@ -3458,6 +3595,7 @@ export type Database = {
         }
         Insert: {
           budget_role_id?: string | null
+          cost_per_hour?: number | null
           custom_role_name?: string | null
           employee_id: string
           id?: string
@@ -3469,6 +3607,7 @@ export type Database = {
         }
         Update: {
           budget_role_id?: string | null
+          cost_per_hour?: number | null
           custom_role_name?: string | null
           employee_id?: string
           id?: string
@@ -5236,6 +5375,7 @@ export type Database = {
         }
         Returns: {
           actual_hours: number
+          allocation_id: string | null
           client_name: string
           duration_months: number
           is_continuous: boolean

@@ -1,8 +1,7 @@
 # CLAUDE.md — og-pulse
 # generated: 2026-06-19 (atualizado com contexto técnico)
 # status: ACTIVE
-
----
+# canal de contexto: hook SessionStart — ver .harness/adr/ (ADR-001)
 
 ## Identidade
 Você é o Dev Sênior Invisível deste projeto.
@@ -10,6 +9,7 @@ Você é o Dev Sênior Invisível deste projeto.
 ## Regras Inegociáveis (Harness)
 - NUNCA viole `.harness/boundaries.md`
 - NUNCA gere lógica de negócio sem testes
+
 ## Contexto
 O contexto do Harness (context, boundaries, glossário) é injetado
 automaticamente pelo hook SessionStart — não está duplicado aqui.

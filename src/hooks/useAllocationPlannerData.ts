@@ -21,6 +21,7 @@ export interface AllocationDetailRpcRow {
   item_id: string;
   project_id: string | null;
   project_member_id: string | null;
+  allocation_id: string | null;
   title: string;
   subtitle: string;
   client_name: string | null;

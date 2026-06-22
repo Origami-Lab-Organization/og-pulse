@@ -39,12 +39,12 @@ const fmtPct = (v: number | null) =>
 const fmtK = (v: number) =>
   v === 0 ? '—' : `R$${(v / 1000).toFixed(0)}k`;
 
-const COLOR_ACCENT = [88, 28, 135] as const;   // purple-900
-const COLOR_GREEN  = [22, 163, 74] as const;
-const COLOR_RED    = [220, 38, 38] as const;
-const COLOR_GRAY   = [107, 114, 128] as const;
-const COLOR_BG     = [245, 243, 255] as const;  // purple-50
-const COLOR_HEADER = [237, 233, 254] as const;  // purple-100
+const COLOR_ACCENT = [32, 111, 74] as const;    // hsl(152,55%,28%) — primary do DS
+const COLOR_GREEN  = [16, 185, 129] as const;   // emerald-500
+const COLOR_RED    = [239, 68, 68] as const;    // red-500
+const COLOR_GRAY   = [107, 114, 128] as const;  // gray-500
+const COLOR_BG     = [235, 249, 243] as const;  // hsl(152,55%,95%) — fundo suave verde
+const COLOR_HEADER = [215, 244, 230] as const;  // hsl(152,55%,90%) — cabeçalho tabela
 
 export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
   const { periodLabel, year, financialKPIs, financialMonths, projectFinancials, revenueData, stakeholderData } = input;
@@ -166,7 +166,7 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
     rowIndex: number,
   ) => {
     if (rowIndex % 2 === 0) {
-      doc.setFillColor(250, 248, 255);
+      doc.setFillColor(245, 252, 248);
       doc.rect(margin, y, contentW, 5.5, 'F');
     }
     let x = margin;
@@ -263,7 +263,7 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
 
     // highlight current month row
     if (kind === 'current') {
-      doc.setFillColor(237, 233, 254);
+      doc.setFillColor(...COLOR_HEADER);
       doc.rect(margin, y, contentW, 5.5, 'F');
     }
 
@@ -392,7 +392,7 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
   if (plannedCosts > 0) {
     const adherencePct = (financialKPIs.totalCosts / plannedCosts) * 100;
     const adherenceOk = adherencePct <= 100;
-    doc.setFillColor(adherenceOk ? 240 : 254, adherenceOk ? 253 : 242, adherenceOk ? 244 : 242);
+    if (adherenceOk) doc.setFillColor(...COLOR_BG); else doc.setFillColor(254, 242, 242);
     doc.roundedRect(margin, y, contentW, 10, 2, 2, 'F');
     doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');

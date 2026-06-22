@@ -8,6 +8,8 @@
 - Nao registrar segredos, tokens, chaves Supabase, dados pessoais completos ou payloads sensiveis em logs.
 - Nao alterar schema Supabase sem migration versionada.
 - Nao alterar regras de negocio financeiro sem teste ou evidencia de validacao manual.
+- Nao criar ou alterar UI/copy/rota sem conformar ao Design System oficial (`jornadas/docs/origami-ds.html`) e a jornada relevante (`jornadas/gp-comercial.md`, `jornadas/funcionario.md`). Ver `patterns/design-system.md`.
+- Nao usar nomenclatura antiga na interface comercial ("Lead", "CRM", "Funil") — usar Oportunidade/Pipeline/Orcamentos.
 - Nao substituir componentes/padroes de UI existentes por biblioteca nova sem decisao registrada.
 - Nao criar ou alterar UI/copy/rota sem conformar ao Design System oficial (`jornadas/docs/origami-ds.html`) e a jornada relevante (`jornadas/gp-comercial.md`, `jornadas/funcionario.md`). Ver `patterns/design-system.md`.
 - Nao usar nomenclatura antiga na interface comercial ("Lead", "CRM", "Funil") — usar Oportunidade/Pipeline/Orcamentos.

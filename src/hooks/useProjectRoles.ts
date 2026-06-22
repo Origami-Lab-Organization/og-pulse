@@ -24,7 +24,7 @@ function groupAllocations(raw: ProjectAllocationWithEmployee[]): ProjectAllocati
         budgetRole: row.budget_role ?? null,
         customRoleName: row.custom_role_name,
         roleName:
-          (row.budget_role as any)?.role_name ??
+          row.budget_role?.role_name ??
           row.custom_role_name ??
           '—',
         monthlyHours: [],
@@ -33,7 +33,12 @@ function groupAllocations(raw: ProjectAllocationWithEmployee[]): ProjectAllocati
     }
     const entry = map.get(key)!;
     const hours = Number(row.planned_hours);
-    entry.monthlyHours.push({ year: row.year, month: row.month, plannedHours: hours });
+    entry.monthlyHours.push({
+      year: row.year,
+      month: row.month,
+      plannedHours: hours,
+      costPerHour: row.cost_per_hour == null ? null : Number(row.cost_per_hour),
+    });
     entry.totalHours += hours;
   }
 

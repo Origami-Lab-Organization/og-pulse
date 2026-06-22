@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
     }).select().single();
     if (emErr) throw new Error(`emp manager: ${emErr.message}`);
 
-    await db.from('user_roles').insert({ user_id: managerAuthId, tenant_id: tid, role: 'admin' });
+    await db.from('user_roles').insert({ user_id: managerAuthId, tenant_id: tid, role: 'manager' });
 
     // Benefits & tools for manager
     await db.from('employee_benefits').insert([
@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
     }).select().single();
     if (euErr) throw new Error(`emp user: ${euErr.message}`);
 
-    await db.from('user_roles').insert({ user_id: userAuthId, tenant_id: tid, role: 'admin' });
+    await db.from('user_roles').insert({ user_id: userAuthId, tenant_id: tid, role: 'user' });
 
     await db.from('employee_benefits').insert([
       { employee_id: empUser.id, name: 'Vale Refeição', monthly_value: 880, origin: 'manual' },

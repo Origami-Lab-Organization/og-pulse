@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveCostMonthIndex } from '@/lib/costRecognition';
 import type { AnalyticsFilters } from './useAnalyticsData';
+import { fetchSuppliersWithActualsAndPlanned, fetchMaterials } from '@/services/projectCostsService';
 
 export interface FinancialMonthlyPoint {
   monthIndex: number;
@@ -37,6 +38,42 @@ export interface FinancialEvolutionData {
   year: number;
   months: FinancialMonthlyPoint[];
   grossMarginTarget: number | null;
+}
+
+interface TimesheetCostRow {
+  project_member_id: string;
+  work_date: string;
+  hours: number | null;
+  cost_per_hour: number | null;
+}
+
+interface EmployeeCostJoin {
+  total_monthly_cost_estimated: number | null;
+  jornada_mensal: number | null;
+}
+
+interface ProjectMemberCostRow {
+  id: string;
+  project_id: string;
+  employee: EmployeeCostJoin | EmployeeCostJoin[] | null;
+}
+
+interface PlannedRoleAllocationRow {
+  month: number;
+  planned_hours: number | null;
+  cost_per_hour: number | null;
+  employee: EmployeeCostJoin | EmployeeCostJoin[] | null;
+}
+
+interface SupplierEvolutionRow {
+  project_id: string;
+  actuals?: { month_number: number; value: number | null }[];
+  plannedMonths?: { month_number: number; value: number | null }[];
+}
+
+interface ReimbursementCostRow {
+  total_amount: number | null;
+  updated_at: string | null;
 }
 
 export function useFinancialEvolution(
@@ -110,7 +147,7 @@ export function useFinancialEvolution(
       const projectIds = projects.map(p => p.id);
       const projectMap = new Map(projects.map(p => [p.id, p]));
 
-      const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, plannedAllocationsRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('payment_date, value')
@@ -140,16 +177,15 @@ export function useFinancialEvolution(
           .lte('work_date', yearEnd),
         supabase
           .from('project_members')
-          .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_mensal), plannedMonths:project_member_months(month_number, hours, cost_per_hour)')
+          .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_mensal)')
           .in('project_id', projectIds),
         supabase
-          .from('project_suppliers')
-          .select('id, project_id, actuals:project_supplier_actuals(month_number, value, invoice_date), plannedMonths:project_supplier_months(month_number, value)')
-          .in('project_id', projectIds),
-        supabase
-          .from('project_materials')
-          .select('project_id, month_number, value, is_realized, purchase_date')
-          .in('project_id', projectIds),
+          .from('project_role_allocations')
+          .select('project_id, employee_id, year, month, planned_hours, cost_per_hour, employee:employees(total_monthly_cost_estimated, jornada_mensal)')
+          .in('project_id', projectIds)
+          .eq('year', year),
+        fetchSuppliersWithActualsAndPlanned(projectIds),
+        fetchMaterials(projectIds),
         supabase
           .from('project_commissions')
           .select('planned_value, paid_date')
@@ -158,7 +194,7 @@ export function useFinancialEvolution(
           .gte('paid_date', yearStart)
           .lte('paid_date', yearEnd),
         supabase
-          .from('reimbursement_requests' as any)
+          .from('reimbursement_requests')
           .select('project_id, total_amount, updated_at')
           .in('project_id', projectIds)
           .in('status', ['approved', 'paid'])
@@ -169,18 +205,20 @@ export function useFinancialEvolution(
       const received = receivedRes.data || [];
       const planned = plannedRes.data || [];
       const faturado = faturadoRes.data || [];
-      const timesheets = timesheetsRes.data || [];
-      const members = (membersRes.data || []) as any[];
-      const projectSuppliersWithActuals = (suppliersRes.data || []) as any[];
-      const materials = materialsRes.data || [];
+      const timesheets = (timesheetsRes.data || []) as TimesheetCostRow[];
+      const members = (membersRes.data || []) as ProjectMemberCostRow[];
+      const plannedAllocations = (plannedAllocationsRes.data || []) as PlannedRoleAllocationRow[];
+      const projectSuppliersWithActuals = suppliersRes as SupplierEvolutionRow[];
+      const materials = materialsRes;
       const commissions = commissionsRes.data || [];
-      const reimbursements = (reimbursementsRes.data || []) as any[];
+      const reimbursements = (reimbursementsRes.data || []) as ReimbursementCostRow[];
 
       const memberCostMap = new Map<string, number>();
       for (const m of members) {
-        if (!m.employee) continue;
-        const hourlyCost = Number(m.employee.jornada_mensal) > 0
-          ? Number(m.employee.total_monthly_cost_estimated) / Number(m.employee.jornada_mensal)
+        const employee = Array.isArray(m.employee) ? m.employee[0] : m.employee;
+        if (!employee) continue;
+        const hourlyCost = Number(employee.jornada_mensal) > 0
+          ? Number(employee.total_monthly_cost_estimated) / Number(employee.jornada_mensal)
           : 0;
         memberCostMap.set(m.id, hourlyCost);
       }
@@ -209,23 +247,21 @@ export function useFinancialEvolution(
       for (const ts of timesheets) {
         const d = parseISO(ts.work_date);
         if (d.getFullYear() !== year) continue;
-        const hourlyCost = (ts as any).cost_per_hour != null
-          ? Number((ts as any).cost_per_hour)
+        const hourlyCost = ts.cost_per_hour != null
+          ? Number(ts.cost_per_hour)
           : (memberCostMap.get(ts.project_member_id) ?? 0);
         monthData[d.getMonth()].laborCost += Number(ts.hours) * hourlyCost;
       }
 
-      for (const m of members) {
-        const project = projectMap.get(m.project_id);
-        if (!project?.start_date || !m.employee) continue;
-        const fallbackCost = memberCostMap.get(m.id) ?? 0;
-        const projStart = parseISO(project.start_date);
-        for (const pm of (m.plannedMonths || [])) {
-          const actualDate = addMonths(startOfMonth(projStart), pm.month_number - 1);
-          if (actualDate.getFullYear() !== year) continue;
-          const hourlyCost = (pm as any).cost_per_hour != null ? Number((pm as any).cost_per_hour) : fallbackCost;
-          monthData[actualDate.getMonth()].plannedLaborCost += Number(pm.hours) * hourlyCost;
-        }
+      for (const allocation of plannedAllocations) {
+        const monthIndex = Number(allocation.month) - 1;
+        if (monthIndex < 0 || monthIndex > 11) continue;
+        const employee = Array.isArray(allocation.employee) ? allocation.employee[0] : allocation.employee;
+        const fallbackCost = employee && Number(employee.jornada_mensal) > 0
+          ? Number(employee.total_monthly_cost_estimated || 0) / Number(employee.jornada_mensal)
+          : 0;
+        const hourlyCost = allocation.cost_per_hour != null ? Number(allocation.cost_per_hour) : fallbackCost;
+        monthData[monthIndex].plannedLaborCost += Number(allocation.planned_hours || 0) * hourlyCost;
       }
 
       for (const ps of projectSuppliersWithActuals) {

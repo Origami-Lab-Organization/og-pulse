@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { addMonths, startOfMonth, parseISO, getYear } from 'date-fns';
+import { fetchSuppliersForReport, fetchMaterials } from '@/services/projectCostsService';
 
 const REPORT_YEAR = 2026;
 
@@ -95,15 +96,9 @@ export async function fetchProjectCosts2026(
       .gte('work_date', `${REPORT_YEAR}-01-01`)
       .lte('work_date', `${REPORT_YEAR}-12-31`),
 
-    supabase
-      .from('project_suppliers')
-      .select('id, project_id, monthly_value, start_month, end_month, actuals:project_supplier_actuals(month_number, value)')
-      .in('project_id', projectIds),
+    fetchSuppliersForReport(projectIds),
 
-    supabase
-      .from('project_materials')
-      .select('project_id, value, is_realized, month_number')
-      .in('project_id', projectIds),
+    fetchMaterials(projectIds),
   ]);
 
   const memberMonths = (memberMonthsRes.data || []) as {
@@ -117,20 +112,8 @@ export async function fetchProjectCosts2026(
     hours: number;
     work_date: string;
   }[];
-  const suppliers = (suppliersRes.data || []) as {
-    id: string;
-    project_id: string;
-    monthly_value: number;
-    start_month: number;
-    end_month: number | null;
-    actuals: { month_number: number; value: number }[];
-  }[];
-  const materials = (materialsRes.data || []) as {
-    project_id: string;
-    value: number;
-    is_realized: boolean;
-    month_number: number | null;
-  }[];
+  const suppliers = suppliersRes;
+  const materials = materialsRes;
 
   // Build member-months lookup: memberId → monthNumber → hours
   const mmMap = new Map<string, Map<number, number>>();

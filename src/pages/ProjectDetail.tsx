@@ -1,6 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Edit, Lock, Trash2, MoreVertical, Archive, Eye, EyeOff } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { Edit, Lock, Trash2, MoreVertical, Archive, Eye, EyeOff, Map } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,11 +18,9 @@ import { ProjectCostsTab } from "@/components/projects/detail/ProjectCostsTab";
 import { ProjectFinancialTab } from "@/components/projects/detail/ProjectFinancialTab";
 import { ProjectOKRsTab } from "@/components/projects/detail/ProjectOKRsTab";
 import { ProjectStakeholdersTab } from "@/components/projects/detail/ProjectStakeholdersTab";
-import { ProjectScheduleTab } from "@/components/projects/detail/ProjectScheduleTab";
 import { ProjectExpectedResultTab } from "@/components/projects/detail/ProjectExpectedResultTab";
-import { ProjectCommissionsTab } from "@/components/projects/detail/ProjectCommissionsTab";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
-import { ProjectValueBookUpload } from "@/components/projects/detail/ProjectValueBookUpload";
+import { EquipeTab } from "@/components/projects/detail/EquipeTab";
 import { ProjectContractUpload } from "@/components/projects/ProjectContractUpload";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog";
 import { ProjectRemoveDialog } from "@/components/projects/ProjectRemoveDialog";
@@ -38,6 +35,12 @@ import { HideValuesProvider, useHideValuesPreference } from "@/contexts/HideValu
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CreateProjectInput } from "@/types/project";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
+// Tab estilo underline para o detalhe do projeto. Anula o visual de pílula do
+// TabsTrigger base (bg/shadow) e aplica sublinhado verde escuro no estado ativo.
+const projectTabClass =
+  "relative rounded-none border-b-2 border-transparent bg-transparent px-3 py-2.5 font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary-deep data-[state=active]:bg-transparent data-[state=active]:text-primary-deep data-[state=active]:shadow-none";
 
 const CANCELLATION_REASON_LABELS: Record<string, string> = {
   client_cancellation: "Cancelamento pelo cliente",
@@ -56,7 +59,6 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { employee, loading: authLoading } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
   const isManager = employee?.is_gerente ?? false;
@@ -69,6 +71,8 @@ export default function ProjectDetail() {
   const deleteProject = useDeleteProject();
   const archiveProject = useArchiveProject();
 
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [hideValues, setHideValues] = useHideValuesPreference();
@@ -156,7 +160,6 @@ export default function ProjectDetail() {
     project.members?.some((m) => m.employee_id === employee?.id) ?? false;
   const canViewActivities =
     isAdmin || isManager || isProjectManager || isMember;
-  const showValueBook = !isPlanning;
   const cancellation = project as typeof project & ProjectCancellationFields;
 
   const showMenu = canAccessFullProject && (canEdit || isAdmin);
@@ -230,7 +233,7 @@ export default function ProjectDetail() {
     <AppLayout title={project.name} hideHeader>
       <HideValuesProvider value={hideValues}>
         <div className="space-y-4">
-          <ProjectHeader project={project} actions={headerActions} />
+          <ProjectHeader project={project} />
 
         {isCancelled && cancellation.cancellation_reason && (
           <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
@@ -261,44 +264,68 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        <Tabs defaultValue={initialTab} className="w-full">
-          <div className="overflow-x-auto">
-            <TabsList className="inline-flex w-max">
-              {canAccessFullProject && (
-                <>
-                  <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-                  <TabsTrigger value="okrs">OKR</TabsTrigger>
-                  <TabsTrigger value="costs">Custos</TabsTrigger>
-                  <TabsTrigger value="commissions">Comissão</TabsTrigger>
-                  <TabsTrigger value="schedule">Cronograma</TabsTrigger>
-                  <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
-                  <TabsTrigger value="financial">Financeiro</TabsTrigger>
-                </>
-              )}
-              {canViewActivities && (
-                <>
-                  <TabsTrigger value="activities">Atividades</TabsTrigger>
-                  <TabsTrigger value="files">Arquivos</TabsTrigger>
-                </>
-              )}
-              {canAccessFullProject && showValueBook && (
-                <TabsTrigger value="valuebook">Value Book</TabsTrigger>
-              )}
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          {/* Navegação estilo underline (modelo de design): sem pílula, tab
+              ativa sublinhada no verde escuro da marca. As ações (ocultar
+              valores / menu) ficam alinhadas à direita, na mesma linha. */}
+          <div className="flex items-end justify-between gap-3 border-b border-border">
+            <div className="min-w-0 flex-1 overflow-x-auto">
+              <TabsList className="inline-flex h-auto w-max items-stretch gap-1 rounded-none bg-transparent p-0 text-muted-foreground">
+                {canAccessFullProject && (
+                  <>
+                    <TabsTrigger value="overview" className={projectTabClass}>Visão Geral</TabsTrigger>
+                    <TabsTrigger value="planning" className={projectTabClass}>Planejamento</TabsTrigger>
+                    <TabsTrigger value="okrs" className={projectTabClass}>Objetivos</TabsTrigger>
+                    <TabsTrigger value="roadmap" className={projectTabClass}>Roadmap</TabsTrigger>
+                    <TabsTrigger value="team" className={projectTabClass}>Equipe</TabsTrigger>
+                    <TabsTrigger value="costs" className={projectTabClass}>Custos</TabsTrigger>
+                    <TabsTrigger value="financial" className={projectTabClass}>Financeiro</TabsTrigger>
+                    <TabsTrigger value="stakeholders" className={projectTabClass}>Stakeholders</TabsTrigger>
+                  </>
+                )}
+                {canViewActivities && (
+                  <>
+                    <TabsTrigger value="activities" className={projectTabClass}>Atividades</TabsTrigger>
+                    <TabsTrigger value="files" className={projectTabClass}>Arquivos</TabsTrigger>
+                  </>
+                )}
+              </TabsList>
+            </div>
+            {headerActions && (
+              <div className="shrink-0 self-center pb-1">{headerActions}</div>
+            )}
           </div>
 
           {canAccessFullProject && (
             <>
               <TabsContent value="overview" className="mt-6">
-                {isPlanning ? (
-                  <ProjectPlanningOverviewTab project={project} />
-                ) : (
-                  <ProjectOverviewTab project={project} />
-                )}
+                <ProjectOverviewTab project={project} />
+              </TabsContent>
+
+              <TabsContent value="planning" className="mt-6">
+                <ProjectPlanningOverviewTab
+                  project={project}
+                  canManageProject={canManageProject}
+                  onNavigateToTab={setActiveTab}
+                />
               </TabsContent>
 
               <TabsContent value="okrs" className="mt-6">
                 <ProjectOKRsTab project={project} isReadOnly={isReadOnly} />
+              </TabsContent>
+
+              <TabsContent value="roadmap" className="mt-6">
+                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+                  <Map className="h-8 w-8 text-muted-foreground" aria-hidden />
+                  <p className="text-sm font-medium text-foreground">Roadmap em breve</p>
+                  <p className="text-sm text-muted-foreground">
+                    Esta área ainda está em construção.
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="team" className="mt-6">
+                <EquipeTab project={project} isReadOnly={isReadOnly} />
               </TabsContent>
 
               <TabsContent value="costs" className="mt-6">
@@ -313,24 +340,6 @@ export default function ProjectDetail() {
                 />
               </TabsContent>
 
-              <TabsContent value="commissions" className="mt-6">
-                <ProjectCommissionsTab
-                  project={project}
-                  isReadOnly={isReadOnly}
-                />
-              </TabsContent>
-
-              <TabsContent value="schedule" className="mt-6">
-                <ProjectScheduleTab project={project} isReadOnly={isReadOnly} />
-              </TabsContent>
-
-              <TabsContent value="stakeholders" className="mt-6">
-                <ProjectStakeholdersTab
-                  project={project}
-                  isReadOnly={isReadOnly}
-                />
-              </TabsContent>
-
               <TabsContent value="financial" className="mt-6">
                 {isPlanning ? (
                   <ProjectExpectedResultTab project={project} />
@@ -341,6 +350,13 @@ export default function ProjectDetail() {
                     canManageInstallments={canManageInstallments}
                   />
                 )}
+              </TabsContent>
+
+              <TabsContent value="stakeholders" className="mt-6">
+                <ProjectStakeholdersTab
+                  project={project}
+                  isReadOnly={isReadOnly}
+                />
               </TabsContent>
             </>
           )}
@@ -361,19 +377,6 @@ export default function ProjectDetail() {
 				  />
 				</TabsContent>
 			  </>
-          )}
-
-          {canAccessFullProject && showValueBook && (
-            <TabsContent value="valuebook" className="mt-6">
-              <ProjectValueBookUpload
-                projectId={project.id}
-                currentUrl={project.value_book_url || null}
-                isReadOnly={isReadOnly}
-                onUploadSuccess={() =>
-                  queryClient.invalidateQueries({ queryKey: ["project", id] })
-                }
-              />
-            </TabsContent>
           )}
         </Tabs>
       </div>

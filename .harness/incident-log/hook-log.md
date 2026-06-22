@@ -1,3 +1,5 @@
+
+### 2026-06-19T13:05:05.145Z
 ### 2026-06-19T13:23:51.114Z
 
 - **Tipo:** missing-tests
@@ -50,55 +52,76 @@
 ### 2026-06-19T13:46:43.762Z
 
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/projectCostsService.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/types/service.ts
 
 ### 2026-06-19T13:46:57.611Z
 
+### 2026-06-19T13:05:21.153Z
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/projectService.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceLineService.ts
 
 ### 2026-06-19T13:47:09.378Z
 
+### 2026-06-19T13:05:30.408Z
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/projectService.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceRevenueModelService.ts
 
 ### 2026-06-19T13:47:18.864Z
 
+### 2026-06-19T13:07:55.462Z
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/projectReportService.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceService.ts
 
+### 2026-06-19T13:08:00.894Z
 ### 2026-06-19T13:47:25.191Z
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/projectReportService.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceService.ts
 
 ### 2026-06-19T13:47:47.033Z
 
+### 2026-06-19T13:08:11.876Z
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/projectReportService.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/types/service.ts
 
 ### 2026-06-19T13:47:53.889Z
 
+### 2026-06-19T13:29:03.109Z
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/projectCostsService.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceService.ts
 
 ### 2026-06-19T13:48:02.120Z
 
+### 2026-06-19T16:39:35.962Z
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/allocationService.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceService.ts
 
 ### 2026-06-19T13:48:14.207Z
 
+### 2026-06-19T17:10:25.673Z
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceService.ts
 
 ### 2026-06-19T13:48:22.622Z
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/allocationService.ts
 
+### 2026-06-19T17:38:46.981Z
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/italocastro/Projects/og-pulse/src/services/allocationService.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/services/serviceService.ts
 
 ### 2026-06-19T13:48:36.089Z
 
+### 2026-06-19T18:25:45.778Z
 - **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: c:\Users\OrigamiLab\Desktop\projects\og-pulse\src\hooks\useServiceLineSort.ts
 - **Detalhe:** Código de negócio sem teste: /Users/pedromarinho/Documents/origami/og-pulse/src/hooks/useServices.ts
 
 ### 2026-06-19T13:48:42.062Z
