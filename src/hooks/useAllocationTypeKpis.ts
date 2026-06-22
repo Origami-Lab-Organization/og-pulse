@@ -16,6 +16,8 @@ export interface AllocationTypeKpis {
   activity_actual_month:   number;
 }
 
+type AllocationTypeKpisRpcRow = Record<keyof AllocationTypeKpis, number | string | null>;
+
 function normalizeId(value: string): string | null {
   return value && value !== 'all' ? value : null;
 }
@@ -29,8 +31,6 @@ export function useAllocationTypeKpis({
   managerId,
   projectId,
   teamId,
-  isAdmin,
-  currentEmployeeId,
 }: {
   tenantId: string | undefined;
   selectedYear: number;
@@ -40,10 +40,8 @@ export function useAllocationTypeKpis({
   managerId: string;
   projectId: string;
   teamId: string;
-  isAdmin: boolean;
-  currentEmployeeId: string | undefined;
 }) {
-  const effectiveManagerId = !isAdmin ? (currentEmployeeId ?? null) : normalizeId(managerId);
+  const effectiveManagerId = normalizeId(managerId);
 
   return useQuery({
     queryKey: [
@@ -66,8 +64,9 @@ export function useAllocationTypeKpis({
       });
 
       if (error) throw error;
-      if (!data || (data as any[]).length === 0) return null;
-      const row = (data as any[])[0];
+      const rows = (data ?? []) as AllocationTypeKpisRpcRow[];
+      if (rows.length === 0) return null;
+      const row = rows[0];
       return {
         project_planned_annual:  Number(row.project_planned_annual)  || 0,
         project_actual_annual:   Number(row.project_actual_annual)   || 0,

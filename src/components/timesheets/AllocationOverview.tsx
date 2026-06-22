@@ -126,6 +126,7 @@ interface ExpandedAllocationItemRow {
   plannedByMonth: number[];
   actualByMonth: number[];
   editableByMonth: boolean[];
+  canEdit: boolean;
 }
 
 export interface AllocationPlannerRow {
@@ -359,7 +360,8 @@ export function AllocationOverview({
   const tenantId = employee?.tenant_id;
   const isAdmin = employee?.isAdmin ?? false;
   const isManager = employee?.is_gerente ?? false;
-  const canEditActual = isAdmin || isManager;
+  const canViewAllocation = isAdmin || isManager;
+  const canEditInternalAllocation = isAdmin;
   const currentEmployeeId = employee?.id;
   const { data: holidaysData } = useHolidays();
   const holidays = useMemo(() => holidaysData ?? [], [holidaysData]);
@@ -382,12 +384,14 @@ export function AllocationOverview({
 
   const currentMonthIndex = useMemo(() => getCurrentMonthIndex(selectedYear), [selectedYear]);
 
-  const { data: projectOptions = [], isLoading: isLoadingOptions } = useAllocationProjectOptions(tenantId, isAdmin, currentEmployeeId);
+  const canEditProjectAllocation = useCallback((project: Pick<ProjectScope, 'managerId'>) => {
+    return isAdmin || (Boolean(currentEmployeeId) && project.managerId === currentEmployeeId);
+  }, [currentEmployeeId, isAdmin]);
+
+  const { data: projectOptions = [], isLoading: isLoadingOptions } = useAllocationProjectOptions(tenantId);
   const { data: summaryRows = [], isLoading: isLoadingSummary } = useAllocationEmployeeMonthSummary({
     tenantId,
     selectedYear,
-    isAdmin,
-    currentEmployeeId,
     managerId: filters.managerId,
     projectId: filters.projectId,
     teamId: filters.teamId,
@@ -396,8 +400,6 @@ export function AllocationOverview({
     tenantId,
     selectedYear,
     employeeId: expandedEmployeeId,
-    isAdmin,
-    currentEmployeeId,
     managerId: filters.managerId,
     projectId: filters.projectId,
     teamId: filters.teamId,
@@ -676,11 +678,13 @@ export function AllocationOverview({
     if (!expandedRow) return [];
     const projectItems: ExpandedAllocationItemRow[] = expandedProjects.map((p) => {
       const ph = detailData.projectsById[p.id] || createEmptyProjectRow(p, null);
+      const canEdit = canEditProjectAllocation(p);
       return {
         id: p.id, type: 'project', title: p.name,
         subtitle: `${p.managerName} · ${p.teamLabel}`,
         plannedByMonth: ph.plannedByMonth, actualByMonth: ph.actualByMonth,
         editableByMonth: MONTH_COLUMNS.map(({ month }) => isProjectMonthEditable(p, selectedYear, month)),
+        canEdit,
       };
     });
     const internalItems: ExpandedAllocationItemRow[] = expandedInternalActivities.map((a) => ({
@@ -688,9 +692,15 @@ export function AllocationOverview({
       subtitle: 'Atividade interna',
       plannedByMonth: a.plannedByMonth, actualByMonth: a.actualByMonth,
       editableByMonth: MONTH_COLUMNS.map(() => true),
+      canEdit: canEditInternalAllocation,
     }));
     return [...projectItems, ...internalItems];
-  }, [detailData, expandedInternalActivities, expandedProjects, expandedRow, selectedYear]);
+  }, [canEditInternalAllocation, canEditProjectAllocation, detailData, expandedInternalActivities, expandedProjects, expandedRow, selectedYear]);
+
+  const canCorrectExpandedActuals = useMemo(() => {
+    if (!expandedRow) return false;
+    return isAdmin || expandedProjects.some((project) => canEditProjectAllocation(project));
+  }, [canEditProjectAllocation, expandedProjects, expandedRow, isAdmin]);
 
   /* ─── Pending changes ─── */
   const pendingChanges = useMemo<ChangeEntry[]>(() => {
@@ -698,6 +708,7 @@ export function AllocationOverview({
     const changes: ChangeEntry[] = [];
 
     expandedProjects.forEach((p) => {
+      if (!canEditProjectAllocation(p)) return;
       MONTH_COLUMNS.forEach(({ month, label }) => {
         if (!isProjectMonthEditable(p, selectedYear, month)) return;
         const key = draftProjectKey(p.id, month);
@@ -708,6 +719,8 @@ export function AllocationOverview({
         }
       });
     });
+
+    if (!canEditInternalAllocation) return changes;
 
     expandedInternalActivities.forEach((a) => {
       MONTH_COLUMNS.forEach(({ month, label }) => {
@@ -721,7 +734,7 @@ export function AllocationOverview({
     });
 
     return changes;
-  }, [expandedRow, expandedProjects, expandedInternalActivities, selectedYear, draftPlanned, originalPlanned]);
+  }, [canEditInternalAllocation, canEditProjectAllocation, expandedRow, expandedProjects, expandedInternalActivities, selectedYear, draftPlanned, originalPlanned]);
 
   const pendingChangesCount = pendingChanges.length;
 
@@ -744,6 +757,7 @@ export function AllocationOverview({
       let persisted = 0;
 
         for (const project of expandedProjects) {
+          if (!canEditProjectAllocation(project)) continue;
           const rowProject = detailData.projectsById[project.id];
           let projectMemberId = rowProject?.projectMemberId || null;
 
@@ -773,7 +787,7 @@ export function AllocationOverview({
           }
         }
 
-        for (const activity of expandedInternalActivities) {
+        if (canEditInternalAllocation) for (const activity of expandedInternalActivities) {
           for (const { month } of MONTH_COLUMNS) {
             const key = draftActivityKey(activity.activityTypeId, month);
             const original = activity.plannedByMonth[month - 1] || 0;
@@ -811,11 +825,11 @@ export function AllocationOverview({
     }
   };
 
-  const beginInlineEdit = (key: string, currentValue: number) => {
+  const beginInlineEdit = useCallback((key: string, currentValue: number) => {
     if (isSaving) return;
     setEditingCellKey(key);
     setEditingCellInitialValue(currentValue);
-  };
+  }, [isSaving]);
 
   const endInlineEdit = () => { setEditingCellKey(null); };
 
@@ -834,7 +848,7 @@ export function AllocationOverview({
       while (nextRow >= 0 && nextRow < expandedItems.length) {
         while (nextCol >= 0 && nextCol < 12) {
           const item = expandedItems[nextRow];
-          if (item.editableByMonth[nextCol]) {
+          if (item.canEdit && item.editableByMonth[nextCol]) {
             const key = item.type === 'project' ? draftProjectKey(item.id, nextCol + 1) : draftActivityKey(item.id, nextCol + 1);
             const val = draftPlanned[key] ?? item.plannedByMonth[nextCol] ?? 0;
             beginInlineEdit(key, val);
@@ -846,12 +860,20 @@ export function AllocationOverview({
         nextCol = direction === 1 ? 0 : 11;
       }
     },
-    [expandedItems, draftPlanned]
+    [beginInlineEdit, expandedItems, draftPlanned]
   );
 
   const totalColumns = 2 + MONTH_COLUMNS.length;
 
   /* ─── Render ─── */
+
+  if (!canViewAllocation) {
+    return (
+      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+        Sem permissão para visualizar a alocação.
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -876,7 +898,7 @@ export function AllocationOverview({
               {/* P2.4 — Scope badge */}
               <Badge variant="outline" className="flex items-center gap-1.5 shrink-0">
                 {isAdmin ? <Building2 className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
-                {isAdmin ? 'Visão da empresa' : 'Meus projetos'}
+                {isAdmin ? 'Visão da empresa' : 'Visão de PM'}
               </Badge>
             </div>
           </CardHeader>
@@ -984,7 +1006,7 @@ export function AllocationOverview({
                                     <div className="space-y-2">
                                       <div className="flex items-center justify-between">
                                         <p className="text-sm font-medium text-foreground">Itens de alocação</p>
-                                        {canEditActual && (
+                                        {canCorrectExpandedActuals && (
                                           <Button
                                             variant="outline"
                                             size="sm"
@@ -1051,6 +1073,7 @@ export function AllocationOverview({
                                                         actual={actualVal}
                                                         original={origVal}
                                                         editable={item.editableByMonth[monthIndex]}
+                                                        readOnly={!item.canEdit}
                                                         isEditing={editingCellKey === key}
                                                         isSaving={isSaving}
                                                         isCurrentMonth={monthIndex === currentMonthIndex}
@@ -1140,6 +1163,8 @@ export function AllocationOverview({
             employeeId={correctionEmployeeId}
             employeeName={correctionEmployeeName}
             tenantId={tenantId}
+            canEditAll={isAdmin}
+            currentEmployeeId={currentEmployeeId}
           />
         )}
       </div>

@@ -9,6 +9,7 @@ import {
   AllocationOverview,
   PlannerFilterOptions,
   PlannerFilters,
+  StatusDualCounts,
 } from '@/components/timesheets/AllocationOverview';
 import { AllocationTypeKPIRow } from '@/components/timesheets/AllocationTypeKPIRow';
 import { useAllocationTypeKpis } from '@/hooks/useAllocationTypeKpis';
@@ -27,19 +28,21 @@ const EMPTY_OPTIONS: PlannerFilterOptions = {
   projects: [],
 };
 
+const EMPTY_COUNTS: StatusDualCounts = {
+  planned: { Sobrealocado: 0, Subalocado: 0, Ocioso: 0, Adequado: 0 },
+  actual: { Sobrealocado: 0, Subalocado: 0, Ocioso: 0, Adequado: 0 },
+};
 
 export default function Timesheets() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchQuery, setSearchQuery] = useState('');
   const [options, setOptions] = useState<PlannerFilterOptions>(EMPTY_OPTIONS);
-  const [kpiData, setKpiData] = useState<{ counts: any; total: number; capacityAnnual: number; capacityCurrentMonth: number; capacityYtd: number }>({
-    counts: {}, total: 0, capacityAnnual: 0, capacityCurrentMonth: 0, capacityYtd: 0,
+  const [kpiData, setKpiData] = useState<{ counts: StatusDualCounts; total: number; capacityAnnual: number; capacityCurrentMonth: number; capacityYtd: number }>({
+    counts: EMPTY_COUNTS, total: 0, capacityAnnual: 0, capacityCurrentMonth: 0, capacityYtd: 0,
   });
 
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
-  const isAdmin = employee?.isAdmin ?? false;
-  const currentEmployeeId = employee?.id;
 
   const now = useMemo(() => new Date(), []);
   const currentMonth = now.getMonth() + 1;
@@ -75,8 +78,6 @@ export default function Timesheets() {
     managerId: filters.managerId,
     projectId: filters.projectId,
     teamId: filters.teamId,
-    isAdmin,
-    currentEmployeeId,
   });
 
   const updateFilter = <K extends keyof PlannerFilters>(key: K, value: PlannerFilters[K]) => {

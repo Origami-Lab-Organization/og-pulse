@@ -34,7 +34,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { TimesheetWeekSelector } from './TimesheetWeekSelector';
 import { getWeekStart, getWeekEnd, getWeekDays, WeekDay } from '@/hooks/useTimesheetData';
 import { useHolidays, isHoliday } from '@/hooks/useHolidays';
@@ -67,6 +66,8 @@ interface AllocationCorrectionDialogProps {
   employeeId: string;
   employeeName: string;
   tenantId: string;
+  canEditAll: boolean;
+  currentEmployeeId?: string;
 }
 
 interface TimesheetRecord {
@@ -77,12 +78,32 @@ interface TimesheetRecord {
   hours: number;
 }
 
+interface ProjectMemberCorrectionRow {
+  id: string;
+  project_id: string;
+  projects: {
+    id: string;
+    name: string;
+    manager_id: string | null;
+    manager?: { nome: string } | null;
+  } | null;
+}
+
+interface ActivityTypeCorrectionRow {
+  id: string;
+  name: string;
+  applies_to_all: boolean;
+  activity_type_employees?: Array<{ employee_id: string }>;
+}
+
 export function AllocationCorrectionDialog({
   open,
   onOpenChange,
   employeeId,
   employeeName,
   tenantId,
+  canEditAll,
+  currentEmployeeId,
 }: AllocationCorrectionDialogProps) {
   const { data: holidaysData } = useHolidays();
   const holidays = useMemo(() => holidaysData ?? [], [holidaysData]);
@@ -104,12 +125,12 @@ export function AllocationCorrectionDialog({
 
   // Fetch employee's projects and activities
   const { data: items } = useQuery({
-    queryKey: ['correction-items', employeeId, tenantId],
+    queryKey: ['correction-items', employeeId, tenantId, canEditAll, currentEmployeeId],
     queryFn: async () => {
       const [membersRes, activitiesRes] = await Promise.all([
         supabase
           .from('project_members')
-          .select('id, employee_id, project_id, projects(id, name, manager:employees!projects_manager_id_fkey(nome))')
+          .select('id, employee_id, project_id, projects(id, name, manager_id, manager:employees!projects_manager_id_fkey(nome))')
           .eq('employee_id', employeeId),
         supabase
           .from('activity_types')
@@ -118,18 +139,21 @@ export function AllocationCorrectionDialog({
           .eq('is_active', true),
       ]);
 
-      const projectItems: CorrectionItem[] = (membersRes.data ?? []).map((m: any) => ({
-        type: 'project' as const,
-        id: m.project_id,
-        referenceId: m.id,
-        projectId: m.project_id,
-        title: m.projects?.name || 'Projeto',
-        subtitle: m.projects?.manager?.nome ? `Gerente: ${m.projects.manager.nome}` : '',
-      }));
+      const projectItems: CorrectionItem[] = ((membersRes.data ?? []) as ProjectMemberCorrectionRow[])
+        .filter((m) => canEditAll || m.projects?.manager_id === currentEmployeeId)
+        .map((m) => ({
+          type: 'project' as const,
+          id: m.project_id,
+          referenceId: m.id,
+          projectId: m.project_id,
+          title: m.projects?.name || 'Projeto',
+          subtitle: m.projects?.manager?.nome ? `Gerente: ${m.projects.manager.nome}` : '',
+        }));
 
-      const activityItems: CorrectionItem[] = (activitiesRes.data ?? [])
-        .filter((a: any) => a.applies_to_all || (a.activity_type_employees ?? []).some((e: any) => e.employee_id === employeeId))
-        .map((a: any) => ({
+      const activityItems: CorrectionItem[] = ((activitiesRes.data ?? []) as ActivityTypeCorrectionRow[])
+        .filter(() => canEditAll)
+        .filter((a) => a.applies_to_all || (a.activity_type_employees ?? []).some((e) => e.employee_id === employeeId))
+        .map((a) => ({
           type: 'internal_activity' as const,
           id: a.id,
           referenceId: a.id,
@@ -170,8 +194,8 @@ export function AllocationCorrectionDialog({
       ]);
 
       return {
-        projectTimesheets: (projectRes.data ?? []) as any[],
-        activityTimesheets: (activityRes.data ?? []) as any[],
+        projectTimesheets: (projectRes.data ?? []) as TimesheetRecord[],
+        activityTimesheets: (activityRes.data ?? []) as TimesheetRecord[],
       };
     },
     enabled: open && !!items && items.length > 0,
@@ -188,12 +212,12 @@ export function AllocationCorrectionDialog({
         let hours = 0;
         if (item.type === 'project') {
           const entry = weekData.projectTimesheets.find(
-            (t: any) => t.project_member_id === item.referenceId && t.work_date === day.date
+            (t) => t.project_member_id === item.referenceId && t.work_date === day.date
           );
           hours = entry?.hours ?? 0;
         } else {
           const entry = weekData.activityTimesheets.find(
-            (t: any) => t.activity_type_id === item.referenceId && t.work_date === day.date
+            (t) => t.activity_type_id === item.referenceId && t.work_date === day.date
           );
           hours = entry?.hours ?? 0;
         }
