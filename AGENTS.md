@@ -1,14 +1,13 @@
 # Harness Engineering — og-pulse
-# harness-version: 629ab63
-# generated: 2026-05-24
+# generated: 2026-06-01
 # status: ACTIVE
 
-## YOU ARE THE INVISIBLE SENIOR DEVELOPER
+## IDENTITY
+You are the Invisible Senior Developer of this project.
 Read ~/.harness-core/skills/harness-skill.md before any response.
-The harness skill is the Maestro — orchestrates all others automatically.
+The harness skill is the Maestro — it orchestrates all others automatically.
 
----
-## Project Context
+## PROJECT SUMMARY
 # Contexto do Projeto
 
 ## Projeto
@@ -62,8 +61,7 @@ O sistema concentra operacoes internas de uma consultoria/empresa de servicos:
 
 Este contexto foi inferido do repositorio porque o discovery humano ainda nao foi preenchido. Ao receber novas respostas do time, atualizar estes artefatos antes de criar novas regras de produto.
 
----
-## Boundaries — NEVER VIOLATE
+## CRITICAL BOUNDARIES — NEVER VIOLATE
 # Boundaries
 
 ## Nunca violar
@@ -91,212 +89,18 @@ Este contexto foi inferido do repositorio porque o discovery humano ainda nao fo
 - Calculos de margem, custo hora, receita, parcelas, budgets, timesheet locks e aprovacao.
 - Telas admin, convites, criacao de usuarios e seed/demo tenant.
 
----
-## Domain Glossary
-# Glossario de Dominio
+## HARNESS REFERENCE
+Read these files when relevant to the task:
+- .harness/domain-glossary.md     — business rules, user types, plans
+- .harness/patterns/              — how the team implements each concern
+- .harness/adr/                   — architectural decisions already made
+- .harness/ai-review-checklist.md — what to verify before PR
 
-- Cliente: organizacao compradora de servicos.
-- Lead: oportunidade comercial em negociacao.
-- CRM: gestao de pipeline, interacoes, follow-ups e conversao.
-- Servico: oferta comercial precificada e associada a projetos/orcamentos.
-- Projeto: entrega contratada, com membros, receitas, parcelas, milestones e status.
-- Portfolio: visao consolidada de projetos e saude operacional.
-- Orcamento/Budget: estimativa comercial com papeis, horas, materiais, fornecedores, margem e versoes.
-- Versao de orcamento: snapshot comparavel de uma proposta.
-- Colaborador/Employee: pessoa interna alocavel, com custos, beneficios, ferramentas e status.
-- Timesheet: apontamento de horas por atividade/projeto/periodo.
-- Activity Type: tipo de atividade usado em apontamentos.
-- Reembolso: solicitacao financeira feita por colaborador, com aprovacao e comprovantes.
-- Desligamento/Termination: processo de saida de colaborador.
-- OKR: objetivo e resultado-chave de estrategia.
-- Iniciativa: acao estrategica ligada a objetivo.
-- Guardrail: limite ou indicador de controle estrategico.
-- Margem bruta: diferenca entre receita e custos diretos.
-- Receita reconhecida: valor considerado no periodo conforme regra financeira.
-- Parcela/Installment: item de faturamento/recebimento ligado a projeto ou budget.
-- Tenant: unidade isolada de dados no sistema.
-- RLS: Row Level Security do Supabase para isolamento e autorizacao.
-
----
-## Patterns
-
-### error-handling.md
-# Pattern: Error Handling
-
-## Frontend
-
-- Tratar loading, empty e error em telas de dados.
-- Usar mensagens claras e acionaveis, sem stack trace.
-- Preservar dados preenchidos pelo usuario quando uma acao falhar.
-- Mutations com TanStack Query devem invalidar queries relevantes apos sucesso.
-
-## Backend/Edge Functions
-
-- Validar metodo HTTP e payload.
-- Retornar status HTTP apropriado.
-- Separar erro de validacao, permissao, dependencia externa e erro inesperado.
-- Sanitizar mensagens retornadas ao cliente.
-
-## Banco
-
-- Constraints e triggers devem falhar com mensagens compreensiveis quando possivel.
-- Migrations precisam ser idempotentes quando houver risco de reexecucao parcial.
-
-### logging.md
-# Pattern: Logging
-
-## Regras
-
-- Logs devem ajudar diagnostico sem expor PII, valores sensiveis, tokens ou payloads completos.
-- Use logs estruturados em Edge Functions quando possivel: evento, tenant/contexto tecnico anonimo, status e erro sanitizado.
-- No frontend, preferir feedback para usuario via toast/estado visual e logs discretos apenas para falhas inesperadas.
-
-## Nunca logar
-
-- Chaves, tokens, cookies, URLs assinadas ou credenciais.
-- Dados pessoais completos de colaboradores/candidatos/clientes.
-- Valores financeiros detalhados quando nao forem indispensaveis ao diagnostico.
-- Respostas completas de APIs externas com dados sensiveis.
-
-### monitoring.md
-# Pattern: Monitoring
-
-## Sinais a acompanhar
-
-- Falhas em Edge Functions de notificacao, convite, seed e processamento financeiro.
-- Erros de RLS/permissao em telas operacionais.
-- Falhas de build, lint e testes.
-- Tempo de resposta de dashboards analiticos e consultas agregadas.
-
-## Praticas
-
-- Toda automacao recorrente deve registrar sucesso/falha de forma rastreavel.
-- Erros de usuario devem ser acionaveis; erros internos devem ter mensagem segura e contexto tecnico suficiente para debug.
-- Mudancas em fluxo financeiro ou timesheet devem incluir plano de rollback ou mitigacao.
-
-### security.md
-# Pattern: Security
-
-## Baseline
-
-- Aplicar LGPD por padrao: minimo necessario, acesso por perfil e sem logs sensiveis.
-- Toda tabela com dados de negocio sensiveis deve usar RLS.
-- Consultas no frontend devem depender das policies do Supabase e filtrar por contexto quando aplicavel.
-- Validar entradas em formulários e Edge Functions com Zod ou validacao equivalente.
-
-## Supabase
-
-- Migrations devem criar ou atualizar policies junto com novas tabelas/colunas sensiveis.
-- `security definer` exige comentario de motivo e revisao cuidadosa de `search_path`.
-- Edge Functions devem tratar CORS de forma consistente e nunca retornar stack traces para o usuario final.
-- Service role keys ficam somente em ambiente de servidor/Edge Function.
-
-## Frontend
-
-- Rotas protegidas devem usar `ProtectedRoute` e `RoleProtectedRoute` quando houver escopo por perfil.
-- Estados de erro nao devem vazar payloads internos.
-- Download/exportacao de PDF/documentos deve respeitar o mesmo nivel de permissao da tela de origem.
-
-### testing.md
-# Pattern: Testing
-
-## Comandos de verificacao
-
-- `npm run lint`
-- `npm run test`
-- `npm run build`
-
-## Estrategia
-
-- Mudanca em regra de negocio compartilhada: adicionar ou atualizar teste unitario.
-- Mudanca em componente critico: testar render, estados vazios, loading, erro e interacoes principais.
-- Mudanca em schema/RLS: validar migration e cobrir caminho feliz + acesso negado quando possivel.
-- Mudanca visual pequena: build e revisao manual podem bastar, desde que sem regra de negocio.
-
-## Areas que exigem cuidado extra
-
-- Calculos financeiros, margem, custos, parcelas e orcamentos.
-- Timesheets, locks, submissao e aprovacoes.
-- Convites, auth, roles e criacao de usuario.
-- Notificacoes automaticas e Edge Functions agendadas.
-
-### troubleshooting.md
-# Pattern: Troubleshooting
-
-## Fluxo rapido
-
-1. Reproduzir o problema localmente ou identificar o fluxo afetado.
-2. Ler componentes/hooks/migrations envolvidos antes de alterar.
-3. Confirmar se ha policy RLS, role ou tenant envolvido.
-4. Corrigir com menor escopo possivel.
-5. Rodar verificacoes proporcionais ao risco.
-6. Registrar ADR se a solucao mudar arquitetura, permissao ou regra central.
-
-## Comandos uteis
-
-- `rg "termo" src supabase`
-- `npm run lint`
-- `npm run test`
-- `npm run build`
-
-## Checklist de debug
-
-- O usuario tem role correta?
-- A query inclui contexto de tenant/projeto/usuario?
-- A policy permite select/insert/update/delete esperado?
-- O cache do TanStack Query foi invalidado apos mutation?
-- A migration existe e esta na ordem correta?
-
----
-## ADRs
-
-### template.md
-# ADR NNNN: Titulo
-
-- Status: proposto
-- Data: YYYY-MM-DD
-- Decisores: 
-
-## Contexto
-
-Descreva o problema, restricoes e alternativas consideradas.
-
-## Decisao
-
-Descreva a escolha feita.
-
-## Consequencias
-
-- Beneficios:
-- Custos:
-- Riscos:
-- Como reverter:
-
-## Evidencias
-
-- Links para PRs, issues, migrations, testes ou documentacao.
-
----
-## Checklist
-# AI Review Checklist
-
-- A mudanca respeita RLS, tenant e roles?
-- Existe risco de vazamento de dados pessoais, financeiros ou comerciais?
-- Regras de negocio alteradas tem teste ou validacao documentada?
-- Migrations Supabase sao versionadas, revisaveis e incluem policies quando necessario?
-- Edge Functions validam entrada e tratam erros de forma segura?
-- Componentes possuem estados de loading, empty e error quando consomem dados?
-- Mutations invalidam ou atualizam cache corretamente?
-- A UI segue padroes existentes de shadcn/Radix/Tailwind?
-- O codigo evita duplicacao relevante e usa helpers/hooks existentes?
-- Lint, test e build foram executados ou a impossibilidade foi registrada?
-
----
-## Rules
+## NON-NEGOTIABLE RULES
+- Read .harness/domain-glossary.md before implementing any business rule
+- Read .harness/adr/ before any architectural decision
 - NEVER violate boundaries above
 - NEVER generate business logic without tests
-- NEVER contradict ADR without proposing a new one
-- ALWAYS cite skill and pattern used
-- ALWAYS explain WHY inline
-- ALWAYS assume junior level
-- ALWAYS ask before assuming
+- Complexity ≤ 7 per function (SonarQube threshold)
+- Coverage ≥ 80% general, ≥ 95% critical code
+- ALWAYS ask before assuming on ambiguous requests
