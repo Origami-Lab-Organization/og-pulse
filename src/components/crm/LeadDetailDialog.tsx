@@ -63,18 +63,21 @@ import {
   Lock,
   Zap,
 } from 'lucide-react'
-import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead'
+import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage, isRecentlyRestored } from '@/types/lead'
 import { ArchiveLeadDialog } from './ArchiveLeadDialog'
 import { DeleteLeadDialog } from './DeleteLeadDialog'
 import { LeadActivityTimeline } from './LeadActivityTimeline'
 import { LeadInteractionsTab } from './LeadInteractionsTab'
+import { LeadFollowUpSection } from './LeadFollowUpSection'
+import { LeadAttachmentsTab } from './LeadAttachmentsTab'
 import { BudgetVersionHistory } from './BudgetVersionHistory'
 import { useUpdateLead, useUpdateLeadStage } from '@/hooks/useLeads'
 import { useApplyServiceTemplate } from '@/hooks/useBudgets'
 import { useClients } from '@/hooks/useClients'
 import { useEmployees } from '@/hooks/useEmployees'
 import { useServices } from '@/hooks/useServices'
-import { BILLING_TYPE_LABELS, BillingType } from '@/types/service'
+import { useServiceLines } from '@/hooks/useServiceLines'
+import { useServiceRevenueModels } from '@/hooks/useServiceRevenueModels'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency } from '@/lib/formatters'
 import { formatPhone } from '@/lib/masks'
@@ -112,6 +115,7 @@ interface LeadDetailDialogProps {
   onAdvanceToClose?: () => void
   initialEditMode?: boolean
   highlightField?: 'service_line' | 'budget_id' | null
+  initialTab?: string
 }
 
 const STAGE_ORDER: CRMStage[] = [
@@ -150,6 +154,7 @@ export function LeadDetailDialog({
   onAdvanceToClose,
   initialEditMode,
   highlightField,
+  initialTab,
 }: LeadDetailDialogProps) {
   const navigate = useNavigate()
   const { employee } = useAuth()
@@ -174,23 +179,27 @@ export function LeadDetailDialog({
   const { data: clients = [] } = useClients()
   const { data: employees = [] } = useEmployees()
   const { data: services = [] } = useServices()
-  const BILLING_TYPES: BillingType[] = [
-    'fixed_scope',
-    'recurring',
-    'success_fee',
-    'no_revenue',
-  ]
+  const { data: serviceLines = [] } = useServiceLines()
+  const { data: revenueModels = [] } = useServiceRevenueModels()
   const activeServices = services.filter((s) => s.isActive)
   const selectedService = services.find((s) => s.id === lead?.service_line)
   const isNoRevenue = selectedService?.billingType === 'no_revenue'
   const serviceHasTemplate = !!(selectedService?.templateBudgetId)
-  const servicesByType = BILLING_TYPES.reduce(
-    (acc, type) => {
-      acc[type] = activeServices.filter((s) => s.billingType === type)
-      return acc
-    },
-    {} as Record<BillingType, typeof services>,
-  )
+
+  // HU-001: dropdown hierárquico Linha → Serviço, apenas itens ativos (Cenário 2).
+  const servicesByLine = serviceLines
+    .filter((line) => line.isActive)
+    .map((line) => ({
+      line,
+      services: activeServices.filter((s) => s.serviceLineId === line.id),
+    }))
+    .filter((group) => group.services.length > 0)
+
+  // Conta modelos de receita ATIVOS por serviço (Cenário 4).
+  const activeModelCount = (serviceId: string) =>
+    revenueModels.filter((m) => m.serviceId === serviceId && m.isActive).length
+  const selectedServiceHasNoModel =
+    !!selectedService && activeModelCount(selectedService.id) === 0
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -245,7 +254,7 @@ export function LeadDetailDialog({
       })
       setCompanySearch(lead.company_name || '')
       setIsEditing(initialEditMode ?? false)
-      setActiveTab('qualificacao')
+      setActiveTab(initialTab ?? 'qualificacao')
       setFieldHighlight(null)
     }
   }, [open, lead])
@@ -319,6 +328,13 @@ export function LeadDetailDialog({
     }
   }
 
+  const handleViewClient = () => {
+    if (lead?.client_id) {
+      onOpenChange(false)
+      navigate(`/clients/${lead.client_id}`)
+    }
+  }
+
   const handleSheetChange = (newOpen: boolean) => {
     if (!newOpen && isEditing && form.formState.isDirty) {
       setConfirmCloseOpen(true)
@@ -362,7 +378,7 @@ export function LeadDetailDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleSheetChange}>
-        <DialogContent className='max-w-[520px] p-0 flex flex-col h-[88vh] overflow-hidden gap-0'>
+        <DialogContent className='max-w-3xl p-0 flex flex-col h-[88vh] overflow-hidden gap-0'>
           {/* ── Header ── */}
           <DialogHeader className='px-5 pt-5 pb-4 space-y-1 pr-20'>
             <div className='flex items-center gap-2 min-w-0'>
@@ -384,6 +400,14 @@ export function LeadDetailDialog({
                   className='bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 shrink-0'
                 >
                   Arquivado
+                </Badge>
+              )}
+              {!isArchived && isRecentlyRestored(lead) && (
+                <Badge
+                  variant='secondary'
+                  className='bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 shrink-0'
+                >
+                  Reativada
                 </Badge>
               )}
             </div>
@@ -465,6 +489,9 @@ export function LeadDetailDialog({
                   <TabsTrigger value='historico' className='flex-1'>
                     Histórico
                   </TabsTrigger>
+                  <TabsTrigger value='arquivos' className='flex-1'>
+                    Arquivos
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
@@ -507,23 +534,29 @@ export function LeadDetailDialog({
                                   <SelectValue placeholder='Selecione o tipo de serviço' />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {BILLING_TYPES.map(
-                                    (type) =>
-                                      servicesByType[type].length > 0 && (
-                                        <SelectGroup key={type}>
-                                          <SelectLabel>
-                                            {BILLING_TYPE_LABELS[type]}
-                                          </SelectLabel>
-                                          {servicesByType[type].map((svc) => (
-                                            <SelectItem
-                                              key={svc.id}
-                                              value={svc.id}
-                                            >
+                                  {servicesByLine.length === 0 ? (
+                                    <div className='px-3 py-2 text-xs text-muted-foreground'>
+                                      Nenhum serviço disponível no catálogo.
+                                    </div>
+                                  ) : (
+                                    servicesByLine.map(({ line, services: lineServices }) => (
+                                      <SelectGroup key={line.id}>
+                                        <SelectLabel>{line.name}</SelectLabel>
+                                        {lineServices.map((svc) => {
+                                          const noModel = activeModelCount(svc.id) === 0
+                                          return (
+                                            <SelectItem key={svc.id} value={svc.id}>
                                               {svc.name}
+                                              {noModel && (
+                                                <span className='ml-2 text-xs text-amber-600'>
+                                                  (sem modelo de receita)
+                                                </span>
+                                              )}
                                             </SelectItem>
-                                          ))}
-                                        </SelectGroup>
-                                      ),
+                                          )
+                                        })}
+                                      </SelectGroup>
+                                    ))
                                   )}
                                 </SelectContent>
                               </Select>
@@ -684,13 +717,15 @@ export function LeadDetailDialog({
                                   Nenhum orçamento vinculado
                                 </p>
                                 <p className='text-xs text-muted-foreground mt-0.5'>
-                                  Crie um orçamento para definir o valor desta
-                                  proposta
+                                  {selectedServiceHasNoModel
+                                    ? 'O serviço selecionado não possui modelo de receita ativo. Cadastre um modelo no catálogo antes de criar o orçamento.'
+                                    : 'Crie um orçamento para definir o valor desta proposta'}
                                 </p>
                               </div>
                               <Button
                                 type='button'
                                 size='sm'
+                                disabled={selectedServiceHasNoModel}
                                 onClick={() => {
                                   onOpenChange(false)
                                   navigate(`/budgets/new?leadId=${lead.id}`)
@@ -928,6 +963,16 @@ export function LeadDetailDialog({
                         </div>,
                         document.body,
                       )}
+                    {lead.client_id && (
+                      <button
+                        type='button'
+                        onClick={handleViewClient}
+                        className='mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline'
+                      >
+                        <ExternalLink className='h-3 w-3' />
+                        Ver perfil do cliente
+                      </button>
+                    )}
                   </FormItem>
 
                   <FormField
@@ -1017,7 +1062,12 @@ export function LeadDetailDialog({
                   />
                 </TabsContent>
 
-                <TabsContent value='followups' className='px-5 py-4 mt-0'>
+                <TabsContent value='followups' className='px-5 py-4 mt-0 space-y-4'>
+                  <LeadFollowUpSection
+                    leadId={lead.id}
+                    disabled={lead.crm_stage === 'closed' || isArchived}
+                  />
+                  <Separator />
                   <LeadInteractionsTab
                     leadId={lead.id}
                     disabled={lead.crm_stage === 'closed' || isArchived}
@@ -1026,6 +1076,10 @@ export function LeadDetailDialog({
 
                 <TabsContent value='historico' className='px-5 py-4 mt-0'>
                   <LeadActivityTimeline leadId={lead.id} />
+                </TabsContent>
+
+                <TabsContent value='arquivos' className='px-5 py-4 mt-0'>
+                  <LeadAttachmentsTab leadId={lead.id} />
                 </TabsContent>
               </ScrollArea>
             </Tabs>

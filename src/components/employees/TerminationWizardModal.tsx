@@ -158,6 +158,7 @@ const TerminationWizardModal = ({
         notice_worked: skipNotice ? false : wizardData.notice_worked,
         exit_interview_completed: wizardData.exit_interview_completed,
         exit_interview_notes: wizardData.exit_interview_notes || null,
+        is_just_cause: wizardData.is_just_cause,
         status,
       });
 

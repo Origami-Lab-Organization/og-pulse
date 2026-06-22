@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Employee, useEmployeeVersions } from '@/hooks/useEmployees';
 import { CreateEmployeeInput } from '@/services/employeeService';
-import { ContractType, CONTRACT_TYPE_LABELS, SystemRole, SYSTEM_ROLE_LABELS } from '@/types/employee';
+import { ContractType, CONTRACT_TYPE_LABELS, SystemRole, SYSTEM_ROLE_LABELS, PixKeyType, PIX_KEY_TYPE_LABELS, BankAccountType, BANK_ACCOUNT_TYPE_LABELS } from '@/types/employee';
 import { usePayrollProfile } from '@/hooks/usePayrollProfile';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,6 +62,7 @@ import { EmployeeBenefitsTable } from './EmployeeBenefitsTable';
 import { EmployeeBenefitsLocalTable, LocalBenefit } from './EmployeeBenefitsLocalTable';
 import { EmployeeToolsLocalTable, LocalTool } from './EmployeeToolsLocalTable';
 import { EmployeeVersionsTable } from './EmployeeVersionsTable';
+import { BankSelect } from './BankSelect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -95,6 +96,12 @@ const baseFormSchema = z.object({
   ferias: z.number().min(0),
   beneficios: z.number().min(0),
   encargos: z.number().min(0),
+  pixKeyType: z.enum(['cpf', 'cnpj', 'telefone', 'email', 'aleatoria']).nullable().optional(),
+  pixKey: z.string().nullable().optional(),
+  bankName: z.string().nullable().optional(),
+  bankAgency: z.string().nullable().optional(),
+  bankAccount: z.string().nullable().optional(),
+  bankAccountType: z.enum(['corrente', 'poupanca']).nullable().optional(),
 });
 
 const formSchema = baseFormSchema.refine((data) => {
@@ -219,6 +226,12 @@ const EmployeeFormDialog = ({
       ferias: 0,
       beneficios: 0,
       encargos: 0,
+      pixKeyType: null,
+      pixKey: null,
+      bankName: null,
+      bankAgency: null,
+      bankAccount: null,
+      bankAccountType: null,
     },
   });
 
@@ -328,6 +341,12 @@ const EmployeeFormDialog = ({
         ferias: employee.ferias || 0,
         beneficios: employee.beneficios,
         encargos: employee.encargos,
+        pixKeyType: employee.pixKeyType ?? null,
+        pixKey: employee.pixKey ?? null,
+        bankName: employee.bankName ?? null,
+        bankAgency: employee.bankAgency ?? null,
+        bankAccount: employee.bankAccount ?? null,
+        bankAccountType: employee.bankAccountType ?? null,
       });
       // Set display values and photo preview
       setFotoPreview(employee.fotoUrl || null);
@@ -694,6 +713,9 @@ const EmployeeFormDialog = ({
           onCropComplete={handleCropComplete}
         />
       )}
+        <Card className="mt-6">
+        <CardContent className="space-y-4">
+          <div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField
@@ -833,6 +855,130 @@ const EmployeeFormDialog = ({
           )}
         />
       </div>
+
+      {/* Dados Bancários / PIX */}
+     <CardHeader className="pb-3">
+          <CardTitle className="text-base">Dados Bancários / PIX</CardTitle>
+          <CardDescription>Onde o funcionário receberá seu salário</CardDescription>
+        </CardHeader>
+            <p className="text-xs font-medium text-muted-foreground mb-3">Chave PIX</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="pixKeyType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Chave</FormLabel>
+                    <Select onValueChange={(v) => field.onChange(v || null)} value={field.value ?? ''}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(Object.keys(PIX_KEY_TYPE_LABELS) as PixKeyType[]).map((type) => (
+                          <SelectItem key={type} value={type}>{PIX_KEY_TYPE_LABELS[type]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="pixKey"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Chave PIX</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex: 11999999999 ou email@empresa.com"
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value || null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-3">Conta Bancária (TED/DOC)</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="bankName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banco</FormLabel>
+                    <FormControl>
+                      <BankSelect value={field.value} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bankAccountType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Conta</FormLabel>
+                    <Select onValueChange={(v) => field.onChange(v || null)} value={field.value ?? ''}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(Object.keys(BANK_ACCOUNT_TYPE_LABELS) as BankAccountType[]).map((type) => (
+                          <SelectItem key={type} value={type}>{BANK_ACCOUNT_TYPE_LABELS[type]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bankAgency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Agência</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="0001"
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value || null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bankAccount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Conta</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="12345-6"
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value || null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 

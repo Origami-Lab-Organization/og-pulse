@@ -1,7 +1,8 @@
-import { LogOut, KeyRound, Moon, Sun, Shield } from 'lucide-react';
+import { LogOut, KeyRound, Moon, Sun, Shield, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOnboardingModal } from '@/components/onboarding/OnboardingProvider';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,6 +20,7 @@ export function UserMenu() {
   const { employee, signOut } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const { openOnboarding } = useOnboardingModal();
 
   if (!employee) return null;
 
@@ -90,6 +92,10 @@ export function UserMenu() {
         <DropdownMenuItem onClick={() => navigate('/change-password')}>
           <KeyRound className="mr-2 h-4 w-4" />
           <span>Alterar Senha</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openOnboarding()}>
+          <Sparkles className="mr-2 h-4 w-4" />
+          <span>Refazer onboarding</span>
         </DropdownMenuItem>
         {employee.isAdmin && (
           <>

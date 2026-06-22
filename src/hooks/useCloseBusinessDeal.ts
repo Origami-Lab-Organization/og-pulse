@@ -6,6 +6,8 @@ import { projectService } from '@/services/projectService';
 import { BudgetWithDetails } from '@/types/budget';
 import { supabase } from '@/integrations/supabase/client';
 import { leadActivityService } from '@/services/leadActivityService';
+import { calculateCloseBusinessTotal, CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
+import { ProjectType } from '@/types/project';
 
 interface CloseBusinessInput {
   leadId: string;
@@ -22,6 +24,7 @@ interface CloseBusinessInput {
   renewalDate?: string;
   successFeePercent?: number;
   monthlyValue?: number;
+  customInstallments?: CloseBusinessInstallment[];
   // No-budget mode fields
   projectName?: string;
   clientId?: string;
@@ -44,7 +47,13 @@ export function useCloseBusinessDeal() {
       if (!budget) {
         const projectName = input.projectName;
         const clientId = input.clientId;
-        const totalValue = input.totalValue || 0;
+        const totalValue = calculateCloseBusinessTotal({
+          projectType: (input.projectType || 'fixed_scope') as ProjectType,
+          installments: input.customInstallments,
+          totalValue: input.totalValue || 0,
+          monthlyValue: input.monthlyValue,
+          successFeePercent: input.successFeePercent,
+        });
 
         if (!projectName || !clientId) {
           throw new Error('Nome do projeto e cliente são obrigatórios');
@@ -58,16 +67,19 @@ export function useCloseBusinessDeal() {
             budgetId: undefined,
             startDate,
             endDate,
-            isContinuous: false,
+            isContinuous: input.projectType === 'continuous',
             totalValue,
             paymentMethod,
             installmentsCount,
             dueDay,
-            firstInvoiceDate: undefined, // No installments generated
+            firstInvoiceDate: input.projectType === 'continuous' ? firstInvoiceDate : undefined,
             status: 'planning',
             durationMonths: 1,
+            renewalDate: input.renewalDate || undefined,
+            successFeePercent: input.successFeePercent,
             serviceLine: serviceLine || undefined,
             leadId: input.leadId,
+            customInstallments: input.customInstallments,
           },
           tenantId
         );
@@ -86,6 +98,14 @@ export function useCloseBusinessDeal() {
         throw new Error('Cliente é obrigatório para criar o projeto');
       }
 
+      const projectTotalValue = calculateCloseBusinessTotal({
+        projectType: (input.projectType || 'fixed_scope') as ProjectType,
+        installments: input.customInstallments,
+        totalValue: budget.final_total,
+        monthlyValue: input.monthlyValue,
+        successFeePercent: input.successFeePercent,
+      });
+
       const project = await projectService.create(
         {
           name: budget.title,
@@ -94,16 +114,19 @@ export function useCloseBusinessDeal() {
           budgetId: budget.id,
           startDate,
           endDate,
-          isContinuous: false,
-          totalValue: budget.final_total,
+          isContinuous: input.projectType === 'continuous',
+          totalValue: projectTotalValue,
           paymentMethod,
           installmentsCount,
           dueDay,
           firstInvoiceDate: firstInvoiceDate || undefined,
           status: 'planning',
           durationMonths: budget.duration_months,
+          renewalDate: input.renewalDate || undefined,
+          successFeePercent: input.successFeePercent,
           serviceLine: serviceLine || undefined,
           leadId: input.leadId,
+          customInstallments: input.customInstallments,
         },
         tenantId
       );
@@ -230,7 +253,13 @@ export function useCloseBusinessDeal() {
 
       // Log deal closed activity (fire-and-forget)
       if (employee && tenantId) {
-        const finalValue = input.budget?.final_total ?? input.totalValue ?? 0;
+        const finalValue = calculateCloseBusinessTotal({
+          projectType: (input.projectType || 'fixed_scope') as ProjectType,
+          installments: input.customInstallments,
+          totalValue: input.budget?.final_total ?? input.totalValue ?? 0,
+          monthlyValue: input.monthlyValue,
+          successFeePercent: input.successFeePercent,
+        });
         leadActivityService.logDealClosed(
           tenantId,
           input.leadId,

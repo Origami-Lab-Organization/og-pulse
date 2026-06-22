@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collaborator Dashboard - Data Sources</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; background: #f8f9fa; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #1a1a1a; margin-bottom: 8px; font-size: 28px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 30px; }
+    .section { background: white; padding: 24px; margin-bottom: 24px; border-radius: 8px; border-left: 4px solid #007bff; }
+    .section h2 { color: #007bff; font-size: 20px; margin-bottom: 16px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; }
+    .section h3 { color: #333; font-size: 16px; margin-top: 20px; margin-bottom: 12px; font-weight: 600; }
+    .section p { color: #555; margin-bottom: 8px; }
+    .code-block { background: #f4f4f4; border: 1px solid #ddd; border-radius: 4px; padding: 12px; margin: 8px 0; font-family: 'Monaco', monospace; font-size: 12px; overflow-x: auto; }
+    .file-path { background: #fffbea; border-left: 3px solid #ffc107; padding: 8px 12px; margin: 8px 0; border-radius: 3px; font-size: 12px; color: #333; }
+    .interface-def { background: #f0f7ff; border-left: 3px solid #0066cc; padding: 12px; margin: 8px 0; border-radius: 3px; font-family: 'Monaco', monospace; font-size: 11px; }
+    .hook-list, .type-list { margin-left: 16px; }
+    .hook-item, .type-item { margin: 8px 0; padding: 8px; background: #f9f9f9; border-radius: 3px; border-left: 2px solid #666; }
+    .hook-item code, .type-item code { background: #e8e8e8; padding: 2px 6px; border-radius: 3px; }
+    .data-flow { background: #e8f5e9; border-left: 3px solid #4caf50; padding: 12px; margin: 8px 0; border-radius: 3px; }
+    .highlight { background: #fff3cd; padding: 2px 6px; border-radius: 3px; }
+    .category-badge { display: inline-block; background: #007bff; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-right: 6px; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; }
+    th { background: #f5f5f5; font-weight: 600; }
+    tr:hover { background: #fafafa; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 Collaborator Dashboard - Complete Data Sources</h1>
+    <p class="subtitle">Data models, types, hooks, and API patterns for building a smart collaborator dashboard</p>
+
+    <!-- 1. DATABASE SCHEMA & TYPES -->
+    <div class="section">
+      <h2>1. Database Schema & Supabase Types</h2>
+      <p>Core database file with all table definitions and relationships:</p>
+      <div class="file-path">/src/integrations/supabase/types.ts (160,852 bytes)</div>
+      
+      <h3>Key Tables for Collaborator Data:</h3>
+      <table>
+        <tr>
+          <th>Table</th>
+          <th>Purpose</th>
+          <th>Key Fields</th>
+        </tr>
+        <tr>
+          <td><code>employees</code></td>
+          <td>Employee master data</td>
+          <td>id, nome, email, cargo, status, tenant_id, jornada_mensal, total_monthly_cost_estimated</td>
+        </tr>
+        <tr>
+          <td><code>activity_timesheets</code></td>
+          <td>Hours logged per activity per date</td>
+          <td>id, employee_id, activity_type_id, hours, work_date, is_locked, tenant_id</td>
+        </tr>
+        <tr>
+          <td><code>project_members</code></td>
+          <td>Employee assignments to projects</td>
+          <td>id, employee_id, project_id, role, seniority, hours_per_month, hourly_rate</td>
+        </tr>
+        <tr>
+          <td><code>projects</code></td>
+          <td>Project definitions</td>
+          <td>id, name, client_id, manager_id, status, start_date, end_date, is_continuous</td>
+        </tr>
+        <tr>
+          <td><code>project_activity_tasks</code></td>
+          <td>Individual tasks assigned to collaborators</td>
+          <td>id, card_id, assignee_id, description, due_date, completed_at, created_by</td>
+        </tr>
+        <tr>
+          <td><code>project_activity_cards</code></td>
+          <td>Activity/story cards with sprints and status</td>
+          <td>id, project_id, assignee_id, title, card_type, column_name, is_blocked, sprint_id</td>
+        </tr>
+        <tr>
+          <td><code>timesheet_submissions</code></td>
+          <td>Weekly timesheet submissions</td>
+          <td>id, week_start, status, submitted_at, submitted_by, total_hours, tenant_id</td>
+        </tr>
+        <tr>
+          <td><code>notifications</code></td>
+          <td>System notifications and alerts</td>
+          <td>id, recipient_id, type, category, priority, title, message, is_read, is_resolved</td>
+        </tr>
+        <tr>
+          <td><code>personal_kanban_cards</code></td>
+          <td>Personal to-do items</td>
+          <td>id, column_id, title, description, due_date, employee_id, tenant_id</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- 2. TYPE DEFINITIONS -->
+    <div class="section">
+      <h2>2. Type Definitions (Frontend Models)</h2>
+      
+      <h3>Employee/Collaborator Types</h3>
+      <div class="file-path">/src/types/employee.ts</div>
+      <p>Defines <code>Employee</code>, <code>EmployeeTool</code>, <code>EmployeeBenefit</code>, and contract types (CLT, PJ, etc.)</p>
+      
+      <h3>Timesheet Submission Types</h3>
+      <div class="file-path">/src/types/timesheetSubmission.ts</div>
+      <div class="interface-def">
+export interface TimesheetSubmission {
+  id, tenant_id, week_start, status: 'draft' | 'submitted',
+  submitted_at, submitted_by, total_hours, created_at, updated_at,
+  submitted_by_employee?: { nome }
+}
+
+export interface ProjectTimesheetSubmission {
+  id, project_id, week_start, status, submitted_at, total_hours
+}
+      </div>
+      
+      <h3>Project & Assignment Types</h3>
+      <div class="file-path">/src/types/project.ts</div>
+      <div class="interface-def">
+export interface ProjectDB {
+  id, name, client_id, manager_id, status, start_date, end_date,
+  is_continuous, total_value, duration_months, service_line
+}
+
+export interface ProjectMemberDB {
+  id, project_id, employee_id, role, seniority, hours_per_month,
+  hourly_rate, budget_role_id
+}
+      </div>
+
+      <h3>Activity & Task Types</h3>
+      <div class="file-path">/src/types/projectActivity.ts</div>
+      <div class="interface-def">
+export type ActivityCardType = 'story' | 'bug' | 'tech_debt' | 'task'
+export type ActivityColumnName = 'product_backlog' | 'sprint_backlog' | 'in_dev' | 'in_test' | 'in_deploy' | 'done'
+
+export interface ActivityTaskDB {
+  id, card_id, description, assignee_id, due_date, completed_at, created_by
+}
+
+export interface ProjectActivityCardDB {
+  id, project_id, title, card_type, assignee_id, column_name, sprint_id, points
+}
+      </div>
+
+      <h3>Personal Kanban Types</h3>
+      <div class="file-path">/src/types/personalKanban.ts</div>
+      <div class="interface-def">
+export interface PersonalKanbanCardDB {
+  id, column_id, employee_id, title, description, due_date, position
+}
+
+export interface AssignedProjectCard {
+  id, projectCardId, project_id, title, card_type, column_name, points
+}
+      </div>
+    </div>
+
+    <!-- 3. HOOKS FOR DATA FETCHING -->
+    <div class="section">
+      <h2>3. React Query Hooks (Data Fetching Patterns)</h2>
+      <p>All hooks use <code>@tanstack/react-query</code> for caching and invalidation. Located in <code>/src/hooks/</code></p>
+
+      <h3 style="color: #d9534f;">Collaborator Personal Data</h3>
+      <div class="hook-list">
+        <div class="hook-item">
+          <code>useMyProjects()</code> - Employee's assigned projects with hours, client, manager
+          <div class="file-path">/src/hooks/useMyProjects.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: <code>MyProjectSummary[]</code> with name, client, role, hours_per_month, members_count</p>
+        </div>
+        
+        <div class="hook-item">
+          <code>useMyAllocationData(employeeId, monthKey)</code> - Planned vs actual hours per project
+          <div class="file-path">/src/hooks/useMyAllocationData.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: projects with plannedHours, actualHours, totalActivityHours, monthlyCapacity</p>
+        </div>
+
+        <div class="hook-item">
+          <code>useMyTimesheetData(employeeId, weekStart, weekEnd)</code> - Weekly hours breakdown
+          <div class="file-path">/src/hooks/useMyTimesheetData.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: project memberships for the week with employee details</p>
+        </div>
+
+        <div class="hook-item">
+          <code>useMyProjectMemberships(employeeId, weekStart?, weekEnd?)</code> - Current active assignments
+          <div class="file-path">/src/hooks/useMyTimesheetData.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: ProjectWithMembers[] with role, project details, client name</p>
+        </div>
+      </div>
+
+      <h3 style="color: #5cb85c;">Assignments & Allocations</h3>
+      <div class="hook-list">
+        <div class="hook-item">
+          <code>useAllocationEmployeeDetail({tenantId, selectedYear, employeeId, ...})</code> - RPC call for detailed allocation
+          <div class="file-path">/src/hooks/useAllocationPlannerData.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">RPC: <code>get_allocation_employee_detail</code> returns AllocationDetailRpcRow[] with planned/actual hours per project</p>
+        </div>
+
+        <div class="hook-item">
+          <code>useAllocationEmployeeMonthSummary({...})</code> - Summary allocation data
+          <div class="file-path">/src/hooks/useAllocationPlannerData.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">RPC: <code>get_allocation_employee_month_summary</code> returns aggregated hours per month</p>
+        </div>
+
+        <div class="hook-item">
+          <code>useProjectAssignableMembers(projectId)</code> - Available team members for assignment
+          <div class="file-path">/src/hooks/useProjectAssignableMembers.ts</div>
+        </div>
+      </div>
+
+      <h3 style="color: #0275d8;">Tasks & Activities</h3>
+      <div class="hook-list">
+        <div class="hook-item">
+          <code>useCardTasks(cardId)</code> - Tasks assigned to a specific card/activity
+          <div class="file-path">/src/hooks/useCardTasks.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: ActivityTaskWithRelations[] with assignee info and completion status</p>
+        </div>
+
+        <div class="hook-item">
+          <code>useProjectActivities(projectId)</code> - All activity cards in a project
+          <div class="file-path">/src/hooks/useProjectActivities.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: ProjectActivityCardWithRelations[] grouped by column, with tags and checklists</p>
+        </div>
+
+        <div class="hook-item">
+          <code>useCreateTask()</code>, <code>useUpdateTask()</code>, <code>useToggleTask()</code>, <code>useDeleteTask()</code>
+          <div class="file-path">/src/hooks/useCardTasks.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Mutation hooks for task lifecycle management</p>
+        </div>
+      </div>
+
+      <h3 style="color: #17a2b8;">Timesheet Submissions</h3>
+      <div class="hook-list">
+        <div class="hook-item">
+          <code>useWeekSubmission(weekStart, tenantId)</code> - Get submission status for a week
+          <div class="file-path">/src/hooks/useTimesheetSubmissions.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: TimesheetSubmission with status, submitted_at, submitted_by_employee</p>
+        </div>
+
+        <div class="hook-item">
+          <code>useSubmitWeek()</code> - Submit or draft a week's timesheet
+          <div class="file-path">/src/hooks/useTimesheetSubmissions.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Mutation: marks timesheet as submitted and locks entries</p>
+        </div>
+
+        <div class="hook-item">
+          <code>useTimesheetData(filters)</code> - Get all timesheets with project breakdown
+          <div class="file-path">/src/hooks/useTimesheetData.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: timesheets grouped by project with activity type details</p>
+        </div>
+      </div>
+
+      <h3 style="color: #6f42c1;">Personal Tasks & Kanban</h3>
+      <div class="hook-list">
+        <div class="hook-item">
+          <code>usePersonalKanbanColumns()</code> - Get employee's personal kanban board columns
+          <div class="file-path">/src/hooks/usePersonalKanban.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: PersonalKanbanColumnDB[] ('To do', 'Doing', 'Done')</p>
+        </div>
+
+        <div class="hook-item">
+          <code>usePersonalKanbanCards()</code> - Get all personal kanban cards
+          <div class="file-path">/src/hooks/usePersonalKanban.ts</div>
+          <p style="font-size: 12px; margin-top: 6px;">Returns: PersonalKanbanCardWithTags[] with tags and due dates</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. NOTIFICATION SYSTEM -->
+    <div class="section">
+      <h2>4. Notification & Alert System</h2>
+      <p>Comprehensive notification infrastructure for alerts and reminders:</p>
+      
+      <div class="file-path">/src/hooks/useNotifications.ts</div>
+      <div class="file-path">/src/hooks/useInboxNotifications.ts</div>
+
+      <h3>Notification Hooks:</h3>
+      <div class="hook-list">
+        <div class="hook-item">
+          <code>useNotifications()</code> - Fetch all notifications for current user
+        </div>
+        <div class="hook-item">
+          <code>useUnreadNotificationsCount()</code> - Get count of unread notifications
+        </div>
+        <div class="hook-item">
+          <code>useInboxNotifications(folder: InboxFolder)</code> - Filter by category: 'timesheet' | 'reimbursement' | 'budget' | 'projeto' | 'archived'
+        </div>
+        <div class="hook-item">
+          <code>useMarkNotificationRead()</code>, <code>useMarkAllNotificationsRead()</code>
+        </div>
+        <div class="hook-item">
+          <code>useResolveNotification()</code>, <code>useArchiveNotification()</code>
+        </div>
+      </div>
+
+      <h3>Notification Schema:</h3>
+      <div class="interface-def">
+notifications table:
+  id, tenant_id, recipient_id, type, category, priority,
+  action_type, action_url, metadata,
+  title, message, reference_id,
+  is_read, is_resolved, is_archived, created_at
+
+Categories: 'timesheet', 'reimbursement', 'budget', 'candidatos', 'projeto'
+Priority levels: configurable via metadata
+      </div>
+
+      <h3>Supported Notifications:</h3>
+      <p style="margin-top: 12px;"><span class="category-badge">Timesheet</span> Submission reminders, pending reviews, locked weeks</p>
+      <p style="margin-top: 8px;"><span class="category-badge">Project</span> New assignments, task assignments, blocked cards, sprint changes</p>
+      <p style="margin-top: 8px;"><span class="category-badge">Tasks</span> Task due dates, completion requests, comments</p>
+      <p style="margin-top: 8px;"><span class="category-badge">Allocation</span> Over/under allocation warnings</p>
+    </div>
+
+    <!-- 5. SERVICE LAYER -->
+    <div class="section">
+      <h2>5. Service Layer (Business Logic)</h2>
+      <p>Services handle complex operations and data transformations. Located in <code>/src/services/</code></p>
+
+      <div class="hook-list">
+        <div class="hook-item">
+          <code>projectService.ts</code> - Project CRUD, member assignment, financial calculations
+          <p style="font-size: 12px; margin-top: 6px;">Exports: createProject, updateProject, getProjectWithRelations, addProjectMember</p>
+        </div>
+        
+        <div class="hook-item">
+          <code>employeeService.ts</code> - Employee data, costs, terminations
+          <p style="font-size: 12px; margin-top: 6px;">Exports: employee CRUD, tool/benefit management, cost breakdowns</p>
+        </div>
+
+        <div class="hook-item">
+          <code>personalKanbanService.ts</code> - Personal task board management
+          <p style="font-size: 12px; margin-top: 6px;">Exports: getColumns, getCards, createColumn, createCard, updateCard</p>
+        </div>
+
+        <div class="hook-item">
+          <code>projectReportService.ts</code> - Project analytics and reporting
+          <p style="font-size: 12px; margin-top: 6px;">Exports: financial reports, health metrics, member allocation summaries</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. DATA FLOW DIAGRAM -->
+    <div class="section">
+      <h2>6. Data Flow for Collaborator Dashboard</h2>
+      
+      <h3>Flow: My Hours This Week</h3>
+      <div class="data-flow">
+        <strong>useMyTimesheetData(employeeId, weekStart, weekEnd)</strong><br>
+        ↓<br>
+        Queries: project_members, projects, clients<br>
+        ↓<br>
+        Returns: ProjectWithMembers[] with employee role, hours_per_month<br>
+        ↓<br>
+        Dashboard displays: Project name → Role → Planned hours → Actual hours entered
+      </div>
+
+      <h3>Flow: My Allocations This Month</h3>
+      <div class="data-flow">
+        <strong>useMyAllocationData(employeeId, monthKey)</strong><br>
+        ↓<br>
+        RPC: get_allocation_employee_detail() with date range<br>
+        ↓<br>
+        Returns: planned_hours, actual_hours per project<br>
+        ↓<br>
+        Dashboard displays: Project allocation % vs capacity, activity hours breakdown
+      </div>
+
+      <h3>Flow: My Tasks & Deadlines</h3>
+      <div class="data-flow">
+        <strong>useProjectActivities(projectId) + useCardTasks(cardId)</strong><br>
+        ↓<br>
+        Queries: project_activity_cards (assigned to me), project_activity_tasks (assigned to me)<br>
+        ↓<br>
+        Returns: cards with column_name (status), tasks with due_date, completed_at<br>
+        ↓<br>
+        Dashboard displays: Cards by status → Tasks by due date
+      </div>
+
+      <h3>Flow: Timesheet Submission Status</h3>
+      <div class="data-flow">
+        <strong>useWeekSubmission(weekStart, tenantId)</strong><br>
+        ↓<br>
+        Queries: timesheet_submissions + project_timesheets (is_locked)<br>
+        ↓<br>
+        Returns: status ('draft' | 'submitted'), submitted_at, submitted_by<br>
+        ↓<br>
+        Dashboard displays: "Week of [date]: [status]" badge with submit button
+      </div>
+
+      <h3>Flow: Pending Notifications</h3>
+      <div class="data-flow">
+        <strong>useInboxNotifications('all')</strong><br>
+        ↓<br>
+        Queries: notifications WHERE recipient_id = me AND is_read = false AND is_archived = false<br>
+        ↓<br>
+        Returns: Notification[] with category, priority, title, message, action_url<br>
+        ↓<br>
+        Dashboard displays: Notification badge (count), inbox list with filter tabs
+      </div>
+    </div>
+
+    <!-- 7. BUSINESS RULES & TERMINOLOGY -->
+    <div class="section">
+      <h2>7. Business Rules & Terminology</h2>
+      <div class="file-path">.harness/domain-glossary.md</div>
+
+      <h3>Key Concepts:</h3>
+      <div class="hook-list">
+        <div class="hook-item" style="border-left: 2px solid #d9534f;">
+          <strong>Colaborador/Employee:</strong> Person internal to org, allocable to projects, with costs & benefits
+        </div>
+        <div class="hook-item" style="border-left: 2px solid #5cb85c;">
+          <strong>Timesheet:</strong> Hour allocation by activity/project/period. Apontamento de horas.
+        </div>
+        <div class="hook-item" style="border-left: 2px solid #0275d8;">
+          <strong>Activity Type:</strong> Category used in hour logs (e.g., "Development", "Testing", "Design")
+        </div>
+        <div class="hook-item" style="border-left: 2px solid #17a2b8;">
+          <strong>Projeto:</strong> Delivery contract with members, revenues, installments, milestones, status
+        </div>
+        <div class="hook-item" style="border-left: 2px solid #6f42c1;">
+          <strong>Alocação:</strong> Assignment of employee hours to project/activity for period (planned vs actual)
+        </div>
+        <div class="hook-item" style="border-left: 2px solid #ffc107;">
+          <strong>Tenant:</strong> Isolated data unit in system (multi-tenant architecture with RLS)
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. EXISTING PAGES & COMPONENTS -->
+    <div class="section">
+      <h2>8. Existing Dashboard Pages</h2>
+      <p>Reference implementations to understand patterns:</p>
+
+      <h3>Personal Views:</h3>
+      <div class="hook-list">
+        <div class="hook-item">
+          <code>MyTimesheet.tsx</code> - Personal weekly timesheet entry
+          <p style="font-size: 12px; margin-top: 6px;">Uses: useMyTimesheetData, useSubmitWeek, project_timesheets</p>
+        </div>
+        <div class="hook-item">
+          <code>MyProjectAllocationTab.tsx</code> - Allocation view per project
+          <p style="font-size: 12px; margin-top: 6px;">Uses: useMyAllocationData, allocation visualizations</p>
+        </div>
+      </div>
+
+      <h3>Admin/Manager Views:</h3>
+      <div class="hook-list">
+        <div class="hook-item">
+          <code>Timesheets.tsx</code> - Global timesheet management & submission locking
+        </div>
+        <div class="hook-item">
+          <code>EmployeeTimesheetPage.tsx</code> - Admin view of specific employee's timesheets
+        </div>
+        <div class="hook-item">
+          <code>AllocationOverview.tsx</code> - Team allocation heatmap view
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. KEY CONSIDERATIONS FOR DASHBOARD -->
+    <div class="section" style="border-left-color: #ff9800;">
+      <h2>9. Key Considerations for Smart Dashboard</h2>
+
+      <h3>✅ Available Data:</h3>
+      <ul style="margin-left: 20px; margin-top: 12px;">
+        <li style="margin: 8px 0;"><strong>Hourly Data:</strong> Actual hours logged by activity, weekly submissions, planned allocations</li>
+        <li style="margin: 8px 0;"><strong>Projects:</strong> Full project metadata, dates, status, members, manager</li>
+        <li style="margin: 8px 0;"><strong>Tasks:</strong> Activity cards, tasks, sprint membership, due dates, completion status</li>
+        <li style="margin: 8px 0;"><strong>Notifications:</strong> System-wide alert infrastructure with categories and priority</li>
+        <li style="margin: 8px 0;"><strong>Capacity:</strong> RPC functions for calculating employee capacity by date range</li>
+        <li style="margin: 8px 0;"><strong>Personal Items:</strong> Personal kanban board for individual tasks</li>
+      </ul>
+
+      <h3>🎯 Smart Dashboard Features Possible:</h3>
+      <ul style="margin-left: 20px; margin-top: 12px;">
+        <li style="margin: 8px 0;">📊 <strong>Allocation Summary:</strong> Planned vs actual hours for current month with capacity utilization %</li>
+        <li style="margin: 8px 0;">📝 <strong>Weekly Timesheet Widget:</strong> Quick entry/submit for current week</li>
+        <li style="margin: 8px 0;">✅ <strong>My Tasks:</strong> Cards assigned to me with status and due dates (from project_activity_cards + tasks)</li>
+        <li style="margin: 8px 0;">🔔 <strong>Alerts & Reminders:</strong> Pending timesheet submissions, task deadlines, blocked cards</li>
+        <li style="margin: 8px 0;">📈 <strong>Quick Stats:</strong> Total hours this week, projects assigned, pending tasks count</li>
+        <li style="margin: 8px 0;">🎯 <strong>Personal Kanban:</strong> Integration with personal to-do board</li>
+        <li style="margin: 8px 0;">💼 <strong>Project Overview:</strong> List of active projects with progress % and next milestone</li>
+        <li style="margin: 8px 0;">⚠️ <strong>Over-allocation Alert:</strong> When allocated hours exceed capacity</li>
+      </ul>
+
+      <h3>🔧 Technical Patterns:</h3>
+      <ul style="margin-left: 20px; margin-top: 12px;">
+        <li style="margin: 8px 0;">All data fetching uses <code>@tanstack/react-query</code> with queryKey invalidation</li>
+        <li style="margin: 8px 0;">Multi-tenant isolation via RLS (Row Level Security) - automatic tenant_id filtering</li>
+        <li style="margin: 8px 0;">RPC functions for aggregated data (allocation summary, capacity calculation)</li>
+        <li style="margin: 8px 0;">Supabase real-time subscriptions available for live updates</li>
+        <li style="margin: 8px 0;">Auth context (useAuth) provides current employee data</li>
+      </ul>
+    </div>
+
+    <!-- 10. FILE STRUCTURE SUMMARY -->
+    <div class="section" style="border-left-color: #28a745;">
+      <h2>10. Core File Paths Reference</h2>
+      
+      <table>
+        <tr>
+          <th>Category</th>
+          <th>Location</th>
+          <th>Files</th>
+        </tr>
+        <tr>
+          <td><strong>Type Definitions</strong></td>
+          <td>/src/types/</td>
+          <td>timesheetSubmission.ts, project.ts, employee.ts, projectActivity.ts, personalKanban.ts</td>
+        </tr>
+        <tr>
+          <td><strong>Hooks (Data)</strong></td>
+          <td>/src/hooks/</td>
+          <td>useMyProjects.ts, useMyAllocationData.ts, useTimesheetSubmissions.ts, useInboxNotifications.ts, useCardTasks.ts, useProjectActivities.ts</td>
+        </tr>
+        <tr>
+          <td><strong>Services</strong></td>
+          <td>/src/services/</td>
+          <td>projectService.ts, employeeService.ts, personalKanbanService.ts, projectReportService.ts</td>
+        </tr>
+        <tr>
+          <td><strong>Supabase Config</strong></td>
+          <td>/src/integrations/supabase/</td>
+          <td>types.ts (schema), client.ts (Supabase instance)</td>
+        </tr>
+        <tr>
+          <td><strong>Auth Context</strong></td>
+          <td>/src/contexts/</td>
+          <td>AuthContext.tsx (provides employee & permissions)</td>
+        </tr>
+        <tr>
+          <td><strong>Business Rules</strong></td>
+          <td>/.harness/</td>
+          <td>domain-glossary.md</td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+</body>
+</html>

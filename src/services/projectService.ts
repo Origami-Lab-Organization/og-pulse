@@ -35,7 +35,7 @@ function generateInstallments(
     valuePerInstallment = totalValue; // Full monthly value per installment
   }
 
-  let currentDate = new Date(firstInvoiceDate);
+  const currentDate = new Date(firstInvoiceDate);
 
   for (let i = 1; i <= count; i++) {
     const year = currentDate.getFullYear();
@@ -89,6 +89,26 @@ export const projectService = {
 
     if (error) {
       console.error('Error fetching projects:', error);
+      throw error;
+    }
+
+    return (data || []) as unknown as ProjectWithRelations[];
+  },
+
+  async getByClient(clientId: string, tenantId: string): Promise<ProjectWithRelations[]> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:clients(id, company_name, trading_name),
+        manager:employees!projects_manager_id_fkey(id, nome, cargo)
+      `)
+      .eq('tenant_id', tenantId)
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching projects by client:', error);
       throw error;
     }
 
@@ -181,7 +201,7 @@ export const projectService = {
         service_line: input.serviceLine || null,
         success_fee_percent: input.successFeePercent ?? null,
         lead_id: input.leadId || null,
-      } as any)
+      })
       .select()
       .single();
 
@@ -190,8 +210,28 @@ export const projectService = {
       throw projectError;
     }
 
-    // Generate installments (skip for financiamento_inovacao - manual installments)
-    if (input.firstInvoiceDate && input.serviceLine !== 'financiamento_inovacao') {
+    const customInstallments = input.customInstallments?.map((installment) => ({
+      project_id: project.id,
+      installment_number: installment.installmentNumber,
+      value: installment.value,
+      due_date: installment.dueDate,
+      status: 'pending' as InstallmentStatus,
+      invoice_number: null,
+      invoice_date: installment.invoiceDate || null,
+      payment_date: null,
+      notes: null,
+    }));
+
+    if (customInstallments?.length) {
+      const { error: installmentsError } = await supabase
+        .from('project_installments')
+        .insert(customInstallments);
+
+      if (installmentsError) {
+        console.error('Error creating custom installments:', installmentsError);
+      }
+    } else if (input.firstInvoiceDate && input.serviceLine !== 'financiamento_inovacao') {
+      // Generate installments (skip for financiamento_inovacao - manual installments)
       const isContinuous = input.isContinuous || false;
       const installmentsCount = isContinuous ? 1 : input.installmentsCount;
       
@@ -331,7 +371,7 @@ export const projectService = {
             const valuePerNewInstallment = remainingValue / newInstallmentsCount;
 
             const installments = [];
-            let currentDate = new Date(projectFirstInvoiceDate);
+            const currentDate = new Date(projectFirstInvoiceDate);
             currentDate.setMonth(currentDate.getMonth() + remainingInstallments);
 
             for (let i = 1; i <= newInstallmentsCount; i++) {
@@ -407,8 +447,14 @@ export const projectService = {
     if ((commissionCount ?? 0) > 0) return true;
 
     // Check key results
-    const { count: krCount } = await (supabase
-      .from('project_key_results') as any)
+    const { count: krCount } = await (supabase.from as (relation: string) => {
+      select: (
+        columns: string,
+        options: { count: 'exact'; head: true }
+      ) => {
+        eq: (column: string, value: string) => PromiseLike<{ count: number | null }>;
+      };
+    })('project_key_results')
       .select('*', { count: 'exact', head: true })
       .eq('project_id', projectId);
     if ((krCount ?? 0) > 0) return true;
@@ -461,7 +507,7 @@ export const projectService = {
         cancellation_notes: input.notes,
         cancelled_at: new Date().toISOString(),
         cancelled_by: input.cancelledBy,
-      } as any)
+      })
       .eq('id', id);
 
     if (error) {
@@ -564,7 +610,10 @@ export const projectService = {
    */
   async recalculateMemberCosts(employeeId: string): Promise<void> {
     try {
-      const { error } = await (supabase as any).rpc('recalculate_employee_cost_snapshots', {
+      const { error } = await (supabase.rpc as (
+        fn: string,
+        args: { p_employee_id: string }
+      ) => Promise<{ error: Error | null }>)('recalculate_employee_cost_snapshots', {
         p_employee_id: employeeId,
       });
 

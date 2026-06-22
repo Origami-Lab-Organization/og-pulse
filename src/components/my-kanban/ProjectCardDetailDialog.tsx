@@ -19,7 +19,7 @@ export function ProjectCardDetailDialog({ card, open, onOpenChange }: ProjectCar
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-y-auto rounded-none sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-lg">
         <DialogHeader>
           <DialogTitle className="leading-snug pr-4">{card.title}</DialogTitle>
         </DialogHeader>

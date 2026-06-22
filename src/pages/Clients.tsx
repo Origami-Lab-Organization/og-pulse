@@ -1,56 +1,45 @@
 import { useState, useMemo } from 'react';
-import { Loader2, Plus, Search, Building2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Building2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/data-table/DataTable';
 import { createClientColumns } from '@/components/clients/ClientsTable';
 import ClientStats from '@/components/clients/ClientStats';
-import ClientFormDialog from '@/components/clients/ClientFormDialog';
 import DeleteClientDialog from '@/components/clients/DeleteClientDialog';
-import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients';
-import { Client, CreateClientInput } from '@/types/client';
+import {
+  useClients,
+  useDeleteClient,
+  useClientRelationCounts,
+} from '@/hooks/useClients';
+import { Client } from '@/types/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Clients = () => {
+  const navigate = useNavigate();
   const { employee } = useAuth();
   const { data: clients = [], isLoading } = useClients();
-  const createClient = useCreateClient();
-  const updateClient = useUpdateClient();
   const deleteClient = useDeleteClient();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
+  const { data: relationCounts } = useClientRelationCounts(
+    deleteDialogOpen ? selectedClient?.id : undefined,
+  );
+
   const canManage = employee?.is_gerente ?? false;
 
-  const handleAddClient = () => {
-    setSelectedClient(null);
-    setFormDialogOpen(true);
-  };
-
-  const handleEditClient = (client: Client) => {
-    setSelectedClient(client);
-    setFormDialogOpen(true);
-  };
+  const handleOpenClient = (client: Client) => navigate(`/clients/${client.id}`);
+  const handleAddClient = () => navigate('/clients/new');
+  const handleEditClient = (client: Client) => navigate(`/clients/${client.id}/edit`);
 
   const handleDeleteClient = (client: Client) => {
     setSelectedClient(client);
     setDeleteDialogOpen(true);
-  };
-
-  const handleFormSubmit = (data: CreateClientInput) => {
-    if (selectedClient) {
-      updateClient.mutate(
-        { id: selectedClient.id, updates: data },
-        { onSuccess: () => setFormDialogOpen(false) }
-      );
-    } else {
-      createClient.mutate(data, { onSuccess: () => setFormDialogOpen(false) });
-    }
   };
 
   const handleDeleteConfirm = () => {
@@ -129,7 +118,7 @@ const Clients = () => {
           data={clients}
           searchKey="companyName"
           searchValue={searchQuery}
-          onRowClick={canManage ? handleEditClient : undefined}
+          onRowClick={handleOpenClient}
         />
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-card">
@@ -153,18 +142,12 @@ const Clients = () => {
         </div>
       )}
 
-      <ClientFormDialog
-        open={formDialogOpen}
-        onOpenChange={setFormDialogOpen}
-        client={selectedClient}
-        onSubmit={handleFormSubmit}
-        isLoading={createClient.isPending || updateClient.isPending}
-      />
-
       <DeleteClientDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         clientName={selectedClient?.companyName || ''}
+        opportunitiesCount={relationCounts?.opportunities ?? 0}
+        projectsCount={relationCounts?.projects ?? 0}
         onConfirm={handleDeleteConfirm}
         isLoading={deleteClient.isPending}
       />

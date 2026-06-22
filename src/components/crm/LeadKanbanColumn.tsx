@@ -4,6 +4,7 @@ import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadWithBudget, CRMStage } from '@/types/lead';
 import { Service } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
+import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
 import { cn } from '@/lib/utils';
 
 interface ColumnConfig {
@@ -18,9 +19,10 @@ interface LeadKanbanColumnProps {
   onCardClick: (lead: LeadWithBudget) => void;
   services: Service[];
   leadServicesMap: Record<string, LeadServiceRow[]>;
+  followUpsByLead: Record<string, LeadFollowUp[]>;
 }
 
-export function LeadKanbanColumn({ column, leads, onCardClick, services, leadServicesMap }: LeadKanbanColumnProps) {
+export function LeadKanbanColumn({ column, leads, onCardClick, services, leadServicesMap, followUpsByLead }: LeadKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
@@ -48,6 +50,7 @@ export function LeadKanbanColumn({ column, leads, onCardClick, services, leadSer
               onClick={() => onCardClick(lead)}
               services={services}
               leadServices={leadServicesMap[lead.id] ?? []}
+              pendingFollowUps={followUpsByLead[lead.id] ?? []}
             />
           ))}
           {leads.length === 0 && (

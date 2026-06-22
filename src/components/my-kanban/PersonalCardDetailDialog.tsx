@@ -80,7 +80,7 @@ export function PersonalCardDetailDialog({ card, open, onOpenChange }: PersonalC
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-y-auto rounded-none sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-lg">
         <DialogHeader>
           <DialogTitle>Editar card</DialogTitle>
         </DialogHeader>
