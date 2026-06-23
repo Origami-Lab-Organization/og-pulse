@@ -4,12 +4,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
-  "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
+  // DS Origami UI: o "vinco" — borda esquerda de 3px na cor semântica + fundo subtle
+  "relative w-full rounded-md border border-l-[3px] p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4",
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
-        destructive: "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+        default: "bg-card border-border text-foreground [&>svg]:text-foreground",
+        info: "bg-info-subtle border-info text-foreground [&>svg]:text-info",
+        success: "bg-success-subtle border-success text-foreground [&>svg]:text-success",
+        warning: "bg-warning-subtle border-warning text-foreground [&>svg]:text-warning",
+        destructive: "bg-destructive-subtle border-destructive text-foreground [&>svg]:text-destructive",
       },
     },
     defaultVariants: {
