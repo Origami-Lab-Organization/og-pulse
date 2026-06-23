@@ -1,6 +1,27 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, Pencil, Ban, Unlock, Archive, Mail, Phone, Clock, Send, UserMinus, Eye } from 'lucide-react';
 import { Employee } from '@/hooks/useEmployees';
+
+const getBaseSalary = (e: Employee): number => {
+  switch (e.tipoContratacao) {
+    case 'CLT':
+    case 'MENOR_APRENDIZ':
+      return e.salarioMensal;
+    case 'ESTAGIO':
+      return e.bolsaAuxilio || e.salarioMensal;
+    case 'PJ':
+      return e.valorContratoPj || e.salarioMensal;
+    case 'SOCIO':
+      return (e.proLabore || 0) + (e.dividendos || 0) || e.salarioMensal;
+    default:
+      return e.salarioMensal;
+  }
+};
+
+const getProvisoes = (e: Employee): number => {
+  if (e.breakdownJson) return e.breakdownJson.provisionsAmount;
+  return (e.provisao13 || 0) + (e.provisaoFerias || 0) + (e.provisaoRecesso || 0);
+};
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -122,13 +143,86 @@ export const createEmployeeColumns = ({
     },
   },
   {
-    accessorKey: 'status',
+    accessorKey: 'dataAdmissao',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
+      <DataTableColumnHeader column={column} title="Admissão" />
     ),
     cell: ({ row }) => {
-      const status = row.getValue('status') as string;
-      return getStatusBadge(status);
+      const date = row.getValue('dataAdmissao') as string;
+      if (!date) return <span className="text-muted-foreground">-</span>;
+      return <span className="text-sm">{formatDate(date)}</span>;
+    },
+  },
+  {
+    accessorKey: 'salarioMensal',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Salário" />
+    ),
+    cell: ({ row }) => {
+      const value = getBaseSalary(row.original);
+      return (
+        <span className="font-medium">
+          {hideValues ? '•••••' : formatCurrency(value)}
+        </span>
+      );
+    },
+    sortingFn: (rowA, rowB) => getBaseSalary(rowA.original) - getBaseSalary(rowB.original),
+  },
+  {
+    accessorKey: 'encargos',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Encargos" />
+    ),
+    cell: ({ row }) => {
+      const value = row.original.encargos || 0;
+      return (
+        <span className="font-medium">
+          {hideValues ? '•••••' : formatCurrency(value)}
+        </span>
+      );
+    },
+  },
+  {
+    id: 'provisoes',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Provisões" />
+    ),
+    cell: ({ row }) => {
+      const value = getProvisoes(row.original);
+      return (
+        <span className="font-medium">
+          {hideValues ? '•••••' : formatCurrency(value)}
+        </span>
+      );
+    },
+    sortingFn: (rowA, rowB) => getProvisoes(rowA.original) - getProvisoes(rowB.original),
+  },
+  {
+    accessorKey: 'totalBenefitsCost',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Benefícios" />
+    ),
+    cell: ({ row }) => {
+      const value = row.original.totalBenefitsCost || 0;
+      return (
+        <span className="font-medium">
+          {hideValues ? '•••••' : formatCurrency(value)}
+        </span>
+      );
+    },
+  },
+  {
+    accessorKey: 'totalToolsCost',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Ferramentas" />
+    ),
+    cell: ({ row }) => {
+      const value = row.original.totalToolsCost || 0;
+      return (
+        <span className="font-medium">
+          {hideValues ? '•••••' : formatCurrency(value)}
+        </span>
+      );
     },
   },
   {
@@ -183,18 +277,18 @@ export const createEmployeeColumns = ({
     },
   },
   {
-    accessorKey: 'dataAdmissao',
+    accessorKey: 'status',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Admissão" />
+      <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
-      const date = row.getValue('dataAdmissao') as string;
-      if (!date) return <span className="text-muted-foreground">-</span>;
-      return <span className="text-sm">{formatDate(date)}</span>;
+      const status = row.getValue('status') as string;
+      return getStatusBadge(status);
     },
   },
   {
     id: 'actions',
+    header: 'Ações',
     cell: ({ row }) => {
       const employee = row.original;
       const isBlocked = employee.status === 'bloqueado';
