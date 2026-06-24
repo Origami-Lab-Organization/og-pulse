@@ -34,7 +34,7 @@ const SupplierStats = ({ suppliers }: SupplierStatsProps) => {
       label: 'Taxa de Ativação',
       value: totalSuppliers > 0 ? `${Math.round((activeSuppliers / totalSuppliers) * 100)}%` : '0%',
       icon: TrendingUp,
-      color: 'bg-secondary/10 text-secondary',
+      color: 'bg-info/10 text-info',
     },
   ];
 

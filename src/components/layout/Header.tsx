@@ -24,14 +24,14 @@ const Header = () => {
         <nav className="flex items-center gap-6">
           <a 
             href="/" 
-            className="text-sm font-medium text-foreground transition-colors hover:text-secondary"
+            className="text-sm font-medium text-foreground transition-colors hover:text-primary"
           >
             Funcionários
           </a>
           {employee?.is_gerente && (
             <a 
               href="/clients" 
-              className="text-sm font-medium text-foreground transition-colors hover:text-secondary"
+              className="text-sm font-medium text-foreground transition-colors hover:text-primary"
             >
               Clientes
             </a>

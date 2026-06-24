@@ -45,7 +45,7 @@ const EmployeeCard = ({ employee, onEdit, onDelete, onTerminate, onViewTerminati
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-foreground">{employee.nome}</h3>
                 {employee.isGerente && (
-                  <Crown className="h-4 w-4 text-secondary" />
+                  <Crown className="h-4 w-4 text-info" />
                 )}
               </div>
               <p className="text-sm text-muted-foreground">{employee.cargo}</p>

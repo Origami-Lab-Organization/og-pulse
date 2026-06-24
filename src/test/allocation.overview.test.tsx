@@ -6,6 +6,14 @@ import { AllocationOverview, PlannerFilters } from '@/components/timesheets/Allo
 
 const supabaseFrom = vi.hoisted(() => vi.fn());
 const supabaseRpc = vi.hoisted(() => vi.fn());
+const supabaseEqLog = vi.hoisted(() => [] as Array<{ table: string; column: string; value: unknown }>);
+const upsertMemberMonthMock = vi.hoisted(() => vi.fn());
+const mockEmployee = vi.hoisted(() => ({
+  id: 'admin-1',
+  tenant_id: 'tenant-1',
+  isAdmin: true,
+  is_gerente: true,
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -16,18 +24,13 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
-    employee: {
-      id: 'admin-1',
-      tenant_id: 'tenant-1',
-      isAdmin: true,
-      is_gerente: true,
-    },
+    employee: mockEmployee,
   }),
 }));
 
 vi.mock('@/hooks/useProjectMemberMonths', () => ({
   useUpsertMemberMonth: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: upsertMemberMonthMock,
     isPending: false,
   }),
 }));
@@ -206,10 +209,16 @@ function detailProject(
 }
 
 class SupabaseQueryMock {
+  eqCalls: Array<[string, unknown]> = [];
+
   constructor(private table: string) {}
 
   select() { return this; }
-  eq() { return this; }
+  eq(column: string, value: unknown) {
+    this.eqCalls.push([column, value]);
+    supabaseEqLog.push({ table: this.table, column, value });
+    return this;
+  }
   in() { return this; }
   order() { return this; }
 
@@ -255,10 +264,16 @@ function projectRow(projectName: string) {
 
 describe('AllocationOverview', () => {
   beforeEach(() => {
+    mockEmployee.id = 'admin-1';
+    mockEmployee.tenant_id = 'tenant-1';
+    mockEmployee.isAdmin = true;
+    mockEmployee.is_gerente = true;
     includeActualOnly = false;
     includeActivity = false;
     includeLargeActual = false;
     includeKauanyCapacity = false;
+    supabaseEqLog.length = 0;
+    upsertMemberMonthMock.mockReset();
     supabaseFrom.mockImplementation((table: string) => new SupabaseQueryMock(table));
     supabaseRpc.mockImplementation((fn: string, args: Record<string, unknown>) => {
       if (fn === 'get_allocation_employee_month_summary') {
@@ -361,5 +376,73 @@ describe('AllocationOverview', () => {
     expect(within(kauanyRow).getAllByText('Cap: 130h').length).toBeGreaterThan(0);
     expect(within(kauanyRow).getAllByText('Cap: 160h').length).toBeGreaterThan(0);
     expect(within(kauanyRow).getAllByText('Cap: 168h').length).toBeGreaterThan(0);
+  });
+
+  it('PM visualiza alocacao completa sem escopo automatico pelo proprio gerente', async () => {
+    mockEmployee.id = 'manager-1';
+    mockEmployee.isAdmin = false;
+    mockEmployee.is_gerente = true;
+
+    renderAllocation();
+
+    await screen.findByText('Italo Cesar Castro');
+
+    expect(supabaseRpc).toHaveBeenCalledWith(
+      'get_allocation_employee_month_summary',
+      expect.objectContaining({ p_manager_id: null })
+    );
+    expect(supabaseEqLog).not.toContainEqual({ table: 'projects', column: 'manager_id', value: 'manager-1' });
+
+    await expandItalo();
+
+    expect(screen.getByText('Clube de Benefícios')).toBeInTheDocument();
+    expect(screen.getByText('Plataforma Bry')).toBeInTheDocument();
+    expect(screen.getByText('Prumo Obras - Fase 2')).toBeInTheDocument();
+    expect(supabaseRpc).toHaveBeenCalledWith(
+      'get_allocation_employee_detail',
+      expect.objectContaining({ p_manager_id: null })
+    );
+  });
+
+  it('PM edita horas planejadas apenas dos projetos em que e gerente', async () => {
+    mockEmployee.id = 'manager-1';
+    mockEmployee.isAdmin = false;
+    mockEmployee.is_gerente = true;
+    includeActivity = true;
+
+    renderAllocation();
+    await expandItalo();
+
+    expect(within(projectRow('Plataforma Bry')).getAllByRole('button').length).toBeGreaterThan(0);
+    expect(within(projectRow('Plataforma de Perícias')).getAllByRole('button').length).toBeGreaterThan(0);
+    expect(within(projectRow('Clube de Benefícios')).queryAllByRole('button')).toHaveLength(0);
+    expect(within(projectRow('Prumo Obras - Fase 2')).queryAllByRole('button')).toHaveLength(0);
+    expect(within(projectRow('Administrativo')).queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('admin mantem edicao de projetos e atividades internas', async () => {
+    includeActivity = true;
+
+    renderAllocation();
+    await expandItalo();
+
+    expect(within(projectRow('Clube de Benefícios')).getAllByRole('button').length).toBeGreaterThan(0);
+    expect(within(projectRow('Plataforma Bry')).getAllByRole('button').length).toBeGreaterThan(0);
+    expect(within(projectRow('Administrativo')).getAllByRole('button').length).toBeGreaterThan(0);
+  });
+
+  it('PM ve botao de correcao apenas quando ha projeto proprio no detalhe expandido', async () => {
+    mockEmployee.id = 'manager-1';
+    mockEmployee.isAdmin = false;
+    mockEmployee.is_gerente = true;
+
+    const firstRender = renderAllocation({ ...defaultFilters, projectId: 'p-bry' });
+    await expandItalo();
+    expect(screen.getByRole('button', { name: /corrigir lançamentos/i })).toBeInTheDocument();
+    firstRender.unmount();
+
+    renderAllocation({ ...defaultFilters, projectId: 'p-clube' });
+    await expandItalo();
+    expect(screen.queryByRole('button', { name: /corrigir lançamentos/i })).not.toBeInTheDocument();
   });
 });

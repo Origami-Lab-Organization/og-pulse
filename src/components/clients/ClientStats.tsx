@@ -34,7 +34,7 @@ const ClientStats = ({ clients }: ClientStatsProps) => {
       label: 'Taxa de Ativação',
       value: totalClients > 0 ? `${Math.round((activeClients / totalClients) * 100)}%` : '0%',
       icon: TrendingUp,
-      color: 'bg-secondary/10 text-secondary',
+      color: 'bg-info/10 text-info',
     },
   ];
 

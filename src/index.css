@@ -1,30 +1,57 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Origami Lab Design System v1.0 */
+/* ============================================================
+   ORIGAMI UI — DESIGN SYSTEM DE PRODUTO v1.1
+   Sistema oficial para aplicações e sistemas digitais.
+   · Light-first (aplicações corporativas)
+   · Acento dual: Sea Green #0E895D (claro) / Verde Neon #2EE8A8 (escuro)
+   · Neutros derivados de Carbon Black com calor do Ivory
+   · Camada semântica completa (success/warning/error/info)
+   · Estados interativos: hover ESCURECE (nunca opacity)
+   · Elevação restrita a 3 níveis (só para o que flutua)
+   ============================================================ */
 
 @layer base {
   :root {
-    /* === Origami Lab Brand Tokens === */
-    --ol-green: 168 76% 50%;
-    --ol-green-dark: 169 60% 28%;
-    --ol-cyan: 199 89% 48%;
+    /* ── 1. PRIMITIVOS — escala da marca (estáticos nos dois temas) ── */
+    --green-50:  150 46.7% 94.1%;
+    --green-100: 152 45.9% 85.5%;
+    --green-200: 153 52.1% 72.2%;
+    --green-300: 159 80.2% 54.5%;   /* Verde Neon — acento p/ superfícies escuras */
+    --green-400: 159 77.3% 39.8%;
+    --green-500: 159 81.5% 29.6%;   /* Sea Green — acento p/ superfícies claras */
+    --green-600: 159 82.8% 22.7%;
+    --green-700: 160 82.2% 17.6%;
+    --green-800: 160 82.1% 13.1%;
+    --green-900: 161 82.6% 9%;
 
-    --background: 0 0% 98%;
-    --foreground: 222 20% 12%;
+    --neutral-0:   0 0% 100%;
+    --neutral-25:  60 33.3% 97.6%;  /* fundo de app (Ivory diluído) */
+    --neutral-50:  65 42.9% 94.5%;  /* Ivory oficial */
+    --neutral-100: 65 25% 90.6%;
+    --neutral-200: 67 20.5% 84.7%;
+    --neutral-300: 68 11.9% 73.7%;
+    --neutral-400: 69 6.6% 58.4%;
+    --neutral-500: 72 4.6% 42.4%;
+    --neutral-600: 75 4.9% 32.2%;
+    --neutral-700: 60 3.6% 22%;
+    --neutral-800: 60 2.2% 18%;
+    --neutral-900: 0 0% 14.5%;      /* Carbon Black */
+    --neutral-950: 0 0% 10.2%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 20% 12%;
+    --brand-slate: 182 25% 23.5%;   /* gradiente / dataviz */
+    --brand-palm:  67 17.4% 47.5%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 20% 12%;
+    /* ── 2. TOKENS SEMÂNTICOS — TEMA CLARO (padrão) ── */
+    --background: var(--neutral-25);
+    --foreground: var(--neutral-900);
 
-    /* Primary = Origami Green vibrante */
-    --primary: 168 76% 50%;
-    --primary-foreground: 169 60% 10%;
+    --card: var(--neutral-0);
+    --card-foreground: var(--neutral-900);
 
     /* Verde escuro da marca (Sea Green/green-600 do origami-ds) — usado em
        superfícies de ênfase como o stepper de estágio ativo. Token único,
@@ -32,116 +59,180 @@
     --primary-deep: 162 82% 23%;
     --primary-deep-foreground: 0 0% 100%;
 
-    /* Secondary = Origami Cyan */
-    --secondary: 199 89% 48%;
-    --secondary-foreground: 0 0% 100%;
+    --popover: var(--neutral-0);
+    --popover-foreground: var(--neutral-900);
 
-    /* Muted - neutro claro */
-    --muted: 220 14% 93%;
-    --muted-foreground: 220 10% 45%;
+    /* Acento = Sea Green */
+    --primary: var(--green-500);
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: var(--green-600);     /* hover escurece */
+    --primary-active: var(--green-700);
 
-    /* Accent - tint verde claro para hover */
-    --accent: 168 76% 94%;
-    --accent-foreground: 169 60% 20%;
+    /* Secondary = superfície neutra de suporte */
+    --secondary: var(--neutral-100);
+    --secondary-foreground: var(--neutral-900);
+    --secondary-hover: var(--neutral-200);
 
-    /* Success states */
-    --success: 168 76% 45%;
+    --muted: var(--neutral-100);
+    --muted-foreground: var(--neutral-500);
+
+    /* Accent (hover de itens/menus) = neutro, fiel ao DS */
+    --accent: var(--neutral-100);
+    --accent-foreground: var(--neutral-900);
+    --accent-subtle: var(--green-50);      /* tint de marca p/ estado ativo */
+
+    /* Semântica de feedback */
+    --success: var(--green-500);
     --success-foreground: 0 0% 100%;
+    --success-subtle: var(--green-50);
+    --success-emphasis: var(--green-600);
 
-    /* Warning states */
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 92% 20%;
+    --warning: 26 90.5% 37.1%;             /* amber-500 #B45309 */
+    --warning-foreground: 0 0% 100%;
+    --warning-subtle: 43 87.5% 90.6%;      /* amber-100 */
+    --warning-emphasis: 23 82.5% 31.4%;    /* amber-600 */
 
-    --destructive: 0 72% 51%;
+    --destructive: 17 88.3% 40.4%;         /* red-500 #C2410C */
     --destructive-foreground: 0 0% 100%;
+    --destructive-hover: 15 79.1% 33.7%;   /* red-600 */
+    --destructive-subtle: 12 78.9% 92.5%;  /* red-100 */
+    --destructive-emphasis: 15 79.1% 33.7%;
 
-    --border: 220 14% 88%;
-    --input: 220 14% 88%;
-    --ring: 168 76% 50%;
+    --info: 200 67.6% 35.1%;               /* blue-500 #1D6E96 */
+    --info-foreground: 0 0% 100%;
+    --info-subtle: 205 45.8% 90.6%;        /* blue-100 */
+    --info-emphasis: 200 71% 28.4%;        /* blue-600 */
 
-    --radius: 0.75rem;
+    --border: var(--neutral-200);          /* border-default */
+    --input: var(--neutral-300);           /* border-strong (inputs) */
+    --ring: var(--green-500);
 
-    /* Sidebar - dark navy */
-    --sidebar-background: 222 18% 10%;
-    --sidebar-foreground: 0 0% 92%;
-    --sidebar-primary: 168 76% 50%;
+    --radius: 0.5rem;                      /* base 8px — botões; cards usam rounded-lg=12px */
+
+    /* Sidebar — light-first, com o "vinco" verde no item ativo */
+    --sidebar-background: var(--neutral-0);
+    --sidebar-foreground: var(--neutral-600);
+    --sidebar-primary: var(--green-500);
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 14% 17%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 222 14% 16%;
-    --sidebar-ring: 168 76% 50%;
+    --sidebar-accent: var(--green-50);
+    --sidebar-accent-foreground: var(--green-600);
+    --sidebar-border: var(--neutral-200);
+    --sidebar-ring: var(--green-500);
 
-    /* Chart colors */
-    --chart-1: 168 76% 40%;   /* Origami Green */
-    --chart-2: 199 89% 48%;   /* Origami Cyan */
-    --chart-3: 45 100% 50%;   /* Amber Gold */
-    --chart-4: 343 78% 58%;   /* Magenta Bloom */
-    --chart-5: 271 58% 60%;   /* Violet */
+    /* Dataviz — paleta categórica oficial (ordem fixa) */
+    --chart-1: var(--green-500);           /* Sea Green */
+    --chart-2: var(--brand-slate);         /* Slate Grey */
+    --chart-3: var(--brand-palm);          /* Palm Leaf */
+    --chart-4: var(--green-400);
+    --chart-5: var(--neutral-400);
+    --chart-6: 26 90.5% 37.1%;             /* Amber — usar por último */
 
-    /* Custom gradients */
-    --gradient-brand: linear-gradient(135deg, hsl(168 76% 50%), hsl(199 89% 48%));
-    --gradient-primary: linear-gradient(135deg, hsl(168 76% 50%) 0%, hsl(199 89% 48%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(168 76% 50%) 0%, hsl(168 76% 70%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 98%) 0%, hsl(220 14% 95%) 100%);
+    /* Elevação — exceção controlada ao "zero sombras" (só p/ flutuantes) */
+    --shadow-1: 0 1px 2px hsl(0 0% 14.5% / 0.07);
+    --shadow-2: 0 4px 12px hsl(0 0% 14.5% / 0.10), 0 1px 3px hsl(0 0% 14.5% / 0.06);
+    --shadow-3: 0 16px 40px hsl(0 0% 14.5% / 0.18), 0 4px 12px hsl(0 0% 14.5% / 0.08);
+
+    /* Foco visível — obrigatório e global */
+    --focus-ring: 0 0 0 3px hsl(var(--green-500) / 0.35);
+
+    /* Marca legada (ol-*) repontada para o Sea Green */
+    --ol-green: var(--green-500);
+    --ol-green-dark: var(--green-700);
+    --ol-cyan: var(--green-400);
+
+    /* Gradientes da marca (verdes) */
+    --gradient-brand: linear-gradient(135deg, hsl(var(--green-500)), hsl(var(--green-400)));
+    --gradient-primary: linear-gradient(135deg, hsl(var(--green-500)) 0%, hsl(var(--green-400)) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--green-500)) 0%, hsl(var(--green-300)) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--neutral-25)) 0%, hsl(var(--neutral-50)) 100%);
   }
 
+  /* ── 2b. TOKENS SEMÂNTICOS — TEMA ESCURO ── */
   .dark {
-    /* Backgrounds neutros navy */
-    --background: 222 14% 7%;
-    --foreground: 210 17% 95%;
+    --background: var(--neutral-950);
+    --foreground: 65 42.9% 94.5%;          /* text-primary (Ivory) */
 
-    --card: 222 13% 10%;
-    --card-foreground: 210 17% 95%;
+    --card: var(--neutral-900);
+    --card-foreground: 65 42.9% 94.5%;
 
-    --popover: 222 13% 12%;
-    --popover-foreground: 210 17% 95%;
+    --popover: var(--neutral-800);
+    --popover-foreground: 65 42.9% 94.5%;
 
-    /* Verde vibrante como cor de ação no dark */
-    --primary: 168 76% 50%;
-    --primary-foreground: 222 14% 7%;
+    /* Acento = Verde Neon (12,2:1 sobre #252525) */
+    --primary: var(--green-300);
+    --primary-foreground: var(--neutral-900);   /* neon pede texto escuro */
+    --primary-hover: 159 82.2% 64.7%;           /* #5BEFBB (clareia no escuro) */
+    --primary-active: 153 52.1% 72.2%;          /* #93DDBC */
 
     /* Verde profundo de ênfase no dark — mais luminoso que no claro para
        manter contraste sobre superfícies escuras. */
     --primary-deep: 162 70% 30%;
     --primary-deep-foreground: 0 0% 100%;
 
-    /* Cyan como secondary no dark */
-    --secondary: 199 89% 48%;
-    --secondary-foreground: 222 14% 7%;
+    --secondary: var(--neutral-800);
+    --secondary-foreground: 65 42.9% 94.5%;
+    --secondary-hover: var(--neutral-700);
 
-    --muted: 220 11% 13%;
-    --muted-foreground: 215 12% 52%;
+    --muted: var(--neutral-800);
+    --muted-foreground: 69 5.7% 52.2%;          /* text-tertiary dark */
 
-    --accent: 222 14% 17%;
-    --accent-foreground: 210 17% 95%;
+    --accent: var(--neutral-800);
+    --accent-foreground: 65 42.9% 94.5%;
+    --accent-subtle: 159 45% 14%;
 
-    /* Warning states */
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 92% 90%;
+    --success: var(--green-300);
+    --success-foreground: var(--neutral-900);
+    --success-subtle: 159 45% 14%;
+    --success-emphasis: var(--green-300);
 
-    --destructive: 0 65% 50%;
-    --destructive-foreground: 0 0% 100%;
+    --warning: 36 89.6% 62.2%;                  /* #F5B048 */
+    --warning-foreground: var(--neutral-900);
+    --warning-subtle: 36 50% 16%;
+    --warning-emphasis: 36 89.6% 62.2%;
 
-    --border: 220 11% 17%;
-    --input: 220 11% 14%;
-    --ring: 168 76% 50%;
+    --destructive: 16 84.7% 61.6%;              /* #F0764A */
+    --destructive-foreground: var(--neutral-900);
+    --destructive-hover: 17 85.8% 69.6%;        /* #F4946F */
+    --destructive-subtle: 16 50% 16%;
+    --destructive-emphasis: 16 84.7% 61.6%;
 
-    /* Sidebar — navy ainda mais escuro que o fundo */
-    --sidebar-background: 222 20% 5%;
-    --sidebar-foreground: 0 0% 88%;
-    --sidebar-primary: 168 76% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 14% 11%;
-    --sidebar-accent-foreground: 0 0% 90%;
-    --sidebar-border: 222 14% 10%;
-    --sidebar-ring: 168 76% 50%;
+    --info: 199 52.6% 57.8%;                    /* #5BA8CC */
+    --info-foreground: var(--neutral-900);
+    --info-subtle: 199 40% 18%;
+    --info-emphasis: 199 52.6% 57.8%;
 
-    /* Chart colors */
-    --chart-1: 168 76% 52%;   /* Verde marca vibrante */
-    --chart-2: 199 89% 55%;   /* Cyan */
-    --chart-3: 45 100% 55%;   /* Amber */
-    --chart-4: 343 78% 62%;   /* Magenta */
-    --chart-5: 271 58% 65%;   /* Violet */
+    --border: 60 3.6% 22%;                      /* border-default dark #3A3A36 */
+    --input: 75 4.9% 32.2%;                     /* border-strong dark #54564E */
+    --ring: var(--green-300);
+
+    /* Sidebar escura — superfície neutral-900 + vinco neon */
+    --sidebar-background: var(--neutral-900);
+    --sidebar-foreground: 64 9.2% 70.2%;        /* text-secondary dark */
+    --sidebar-primary: var(--green-300);
+    --sidebar-primary-foreground: var(--neutral-900);
+    --sidebar-accent: 159 45% 14%;
+    --sidebar-accent-foreground: var(--green-300);
+    --sidebar-border: 60 3.6% 22%;
+    --sidebar-ring: var(--green-300);
+
+    /* Dataviz — paleta clareia no escuro */
+    --chart-1: var(--green-300);
+    --chart-2: 181 19.6% 58%;
+    --chart-3: 67 24.1% 65.9%;
+    --chart-4: 153 52.1% 72.2%;
+    --chart-5: 69 5.7% 52.2%;
+    --chart-6: 36 89.6% 62.2%;
+
+    --focus-ring: 0 0 0 3px hsl(var(--green-300) / 0.40);
+
+    --ol-green: var(--green-300);
+    --ol-green-dark: var(--green-200);
+    --ol-cyan: var(--green-400);
+
+    --gradient-brand: linear-gradient(135deg, hsl(var(--green-300)), hsl(var(--green-400)));
+    --gradient-primary: linear-gradient(135deg, hsl(var(--green-300)) 0%, hsl(var(--green-400)) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--green-300)) 0%, hsl(var(--green-200)) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--neutral-900)) 0%, hsl(var(--neutral-800)) 100%);
   }
 }
 
@@ -152,10 +243,17 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.55;
   }
 
-  /* Remove spinners from number inputs */
+  /* Foco visível global em elementos interativos (DS: obrigatório) */
+  [data-focus-ring]:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  /* Remove spinners de inputs numéricos */
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -166,66 +264,66 @@
     -moz-appearance: textfield;
     appearance: textfield;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer utilities {
-  .gradient-primary {
-    background: var(--gradient-primary);
-  }
+  .gradient-primary { background: var(--gradient-primary); }
+  .gradient-accent  { background: var(--gradient-accent); }
+  .gradient-subtle  { background: var(--gradient-subtle); }
+  .bg-gradient-brand { background: var(--gradient-brand); }
 
-  .gradient-accent {
-    background: var(--gradient-accent);
-  }
+  /* ── Tipografia de PRODUTO — escala fixa em rem (sem clamp) ── */
+  .ui-display { font-size: 1.875rem; font-weight: 800; line-height: 1.2;  letter-spacing: -0.02em; }
+  .ui-h1      { font-size: 1.5rem;   font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; }
+  .ui-h2      { font-size: 1.125rem; font-weight: 700; line-height: 1.35; }
+  .ui-h3      { font-size: 1rem;     font-weight: 600; line-height: 1.4; }
+  .ui-body    { font-size: 0.875rem; font-weight: 400; line-height: 1.55; }
+  .ui-body-sm { font-size: 0.8125rem;font-weight: 400; line-height: 1.5; }
+  .ui-caption { font-size: 0.75rem;  font-weight: 400; line-height: 1.45; color: hsl(var(--muted-foreground)); }
+  .ui-label   { font-size: 0.6875rem;font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+  .ui-mono    { font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace; font-variant-numeric: tabular-nums; }
 
-  .gradient-subtle {
-    background: var(--gradient-subtle);
-  }
-
-  .bg-gradient-brand {
-    background: var(--gradient-brand);
-  }
-
-  /* Origami Lab typography scale */
+  /* ── Tipografia INSTITUCIONAL (marketing/auth) — fluida com clamp ── */
   .ol-display {
     font-weight: 800;
     font-size: clamp(2.25rem, 5vw, 4rem);
     line-height: 1.05;
     letter-spacing: -0.02em;
   }
-
   .ol-h1 {
     font-weight: 800;
     font-size: clamp(1.75rem, 4vw, 3rem);
     line-height: 1.1;
     letter-spacing: -0.02em;
   }
-
   .ol-h2 {
     font-weight: 700;
     font-size: clamp(1.35rem, 3vw, 2.25rem);
     line-height: 1.2;
   }
-
   .ol-h3 {
     font-weight: 700;
     font-size: clamp(1.1rem, 2vw, 1.5rem);
     line-height: 1.3;
   }
-
   .ol-label {
     font-weight: 600;
     font-size: 0.6875rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
-
   .ol-text-accent {
     color: hsl(var(--ol-green));
   }
 
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -234,18 +332,12 @@
 
 /* Animation for scale-in */
 @keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 .animate-scale-in {
-  animation: scale-in 0.2s ease-out;
+  animation: scale-in 0.2s cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* Thin overlay scrollbar */
@@ -254,20 +346,12 @@
   scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
 }
 
-*::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
   background-color: hsl(var(--muted-foreground) / 0.2);
   border-radius: 9999px;
 }
-
 *::-webkit-scrollbar-thumb:hover {
   background-color: hsl(var(--muted-foreground) / 0.4);
 }

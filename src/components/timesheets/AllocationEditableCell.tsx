@@ -13,6 +13,7 @@ interface AllocationEditableCellProps {
   actual: number;
   original: number;
   editable: boolean;
+  readOnly?: boolean;
   isEditing: boolean;
   isSaving: boolean;
   isCurrentMonth: boolean;
@@ -34,6 +35,7 @@ export function AllocationEditableCell({
   actual,
   original,
   editable,
+  readOnly = false,
   isEditing,
   isSaving,
   isCurrentMonth,
@@ -77,6 +79,21 @@ export function AllocationEditableCell({
         )}
       >
         —
+      </div>
+    );
+  }
+
+  if (readOnly) {
+    return (
+      <div
+        className={cn(
+          'mx-auto inline-flex h-7 min-w-[92px] items-center justify-center gap-1 rounded border border-border bg-muted/30 px-2 text-xs',
+          isCurrentMonth && 'bg-primary/5'
+        )}
+      >
+        <span className="font-medium">{draft > 0 ? fmt(draft) : '—'}</span>
+        <span className="text-muted-foreground">|</span>
+        <span className="text-muted-foreground">{actual > 0 ? fmt(actual) : '—'}</span>
       </div>
     );
   }

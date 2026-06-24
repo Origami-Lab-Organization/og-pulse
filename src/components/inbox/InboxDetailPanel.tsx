@@ -30,7 +30,10 @@ const typeActionLabel: Record<string, string> = {
   project_started: "Ver projeto",
   project_health_alert: "Ver projeto",
   nps_response_received: "Ver resposta",
-  card_assigned: "Ver atividade"
+  card_assigned: "Ver atividade",
+  installment_nf_alert: "Ver projeto",
+  installment_nf_alert_3d: "Ver projeto",
+  installment_payment_alert: "Ver projeto"
 };
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -107,6 +110,20 @@ const statusBadge: Record<string, { label: string; className: string }> = {
     label: "Em análise",
     className:
       "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+  },
+  installment_nf_alert: {
+    label: "Emissão hoje",
+    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+  },
+  installment_nf_alert_3d: {
+    label: "Emissão em 3 dias",
+    className:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+  },
+  installment_payment_alert: {
+    label: "Pagamento hoje",
+    className:
+      "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
   }
 };
 
@@ -349,7 +366,7 @@ export function InboxDetailPanel({
           </Button>
         )}
 
-        {/* Ação primária genérica via action_url (document_available, project_*, card_assigned, nps).
+        {/* Ação primária genérica via action_url (document_available, project_*, card_assigned, nps, installment_*).
             Sem action_url (ex.: system) → nenhum botão. */}
         {notification.action_url && typeActionLabel[notification.type] && (
           <Button className="gap-2" onClick={() => navigate(notification.action_url!)}>
