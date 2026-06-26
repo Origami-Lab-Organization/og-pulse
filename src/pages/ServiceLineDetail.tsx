@@ -3,21 +3,26 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Plus,
   Briefcase,
-  Pencil,
-  Trash2,
   Search,
   ChevronDown,
   ChevronRight,
-  AlertTriangle,
   ArrowLeft,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ServiceFormDialog } from '@/components/services/ServiceFormDialog';
 import { RevenueModelFormDialog } from '@/components/services/RevenueModelFormDialog';
 import { DeleteCatalogItemDialog } from '@/components/services/DeleteCatalogItemDialog';
@@ -33,7 +38,6 @@ import {
   useServiceRevenueModels,
   useCreateServiceRevenueModel,
   useUpdateServiceRevenueModel,
-  useToggleServiceRevenueModelActive,
   useDeleteServiceRevenueModel,
 } from '@/hooks/useServiceRevenueModels';
 import { Service, CreateServiceInput } from '@/types/service';
@@ -44,8 +48,6 @@ import {
 } from '@/types/serviceRevenueModel';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-
-type StatusFilter = 'all' | 'active' | 'inactive';
 
 type DeleteTarget =
   | { kind: 'service'; entity: Service }
@@ -62,67 +64,46 @@ interface ModelRowProps {
   model: ServiceRevenueModel;
   canManage: boolean;
   onEdit: (m: ServiceRevenueModel) => void;
-  onToggle: (m: ServiceRevenueModel) => void;
   onDelete: (m: ServiceRevenueModel) => void;
-  isToggling: boolean;
 }
 
-function ModelRow({ model, canManage, onEdit, onToggle, onDelete, isToggling }: ModelRowProps) {
+function ModelRow({ model, canManage, onEdit, onDelete }: ModelRowProps) {
   return (
     <div
       className={cn(
-        'group flex items-center gap-3 rounded-md border bg-card px-3 py-2 transition-all hover:shadow-sm',
+        'flex items-center gap-3 rounded-md border bg-card px-3 py-2 transition-opacity',
         !model.isActive && 'opacity-60'
       )}
     >
-      <Badge variant="outline" className="text-xs font-medium shrink-0">
-        {REVENUE_MODEL_LABELS[model.modelType]}
-      </Badge>
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium truncate">{model.name}</span>
+      <div className="flex flex-1 items-center gap-2 min-w-0">
+        <Badge variant="outline" className="text-xs font-medium shrink-0">
+          {REVENUE_MODEL_LABELS[model.modelType]}
+        </Badge>
         {!model.isActive && (
-          <span className="ml-2 inline-flex items-center rounded-full border px-2 py-0.5 text-xs bg-muted text-muted-foreground">
+          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs bg-muted text-muted-foreground shrink-0">
             Inativo
           </span>
         )}
       </div>
 
       {canManage && (
-        <div className="flex items-center gap-1 shrink-0">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(model)}>
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Editar modelo</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div>
-                <Switch
-                  checked={model.isActive}
-                  onCheckedChange={() => onToggle(model)}
-                  disabled={isToggling}
-                  className="scale-90"
-                />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>{model.isActive ? 'Desativar' : 'Ativar'}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                onClick={() => onDelete(model)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Excluir modelo</TooltipContent>
-          </Tooltip>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={() => onEdit(model)}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(model)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       )}
     </div>
@@ -148,7 +129,6 @@ const ServiceLineDetail = () => {
 
   const createModel = useCreateServiceRevenueModel();
   const updateModel = useUpdateServiceRevenueModel();
-  const toggleModel = useToggleServiceRevenueModelActive();
   const deleteModel = useDeleteServiceRevenueModel();
 
   const [serviceFormOpen, setServiceFormOpen] = useState(false);
@@ -161,23 +141,30 @@ const ServiceLineDetail = () => {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [collapsedServices, setCollapsedServices] = useState<Record<string, boolean>>({});
 
   const isLoading = linesLoading || servicesLoading || modelsLoading;
   const line = serviceLines.find((l) => l.id === lineId);
 
+  const lineName =
+    line?.name === 'Serviços Gerais' ? 'Serviços Prestados' : line?.name ?? '';
+
+  const lineDescription = (() => {
+    if (!line?.description) return 'Serviços e modelos de cobrança desta linha.';
+    if (line.description === 'Linha padrão criada na migração do catálogo (HU-001).')
+      return 'Serviços entregues pela empresa. Cada serviço possui um modelo de cobrança que define como é precificado.';
+    return line.description;
+  })();
+
   const tree = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
-    const statusOk = (active: boolean) =>
-      statusFilter === 'all' ? true : statusFilter === 'active' ? active : !active;
     const matches = (text: string) => search === '' || text.toLowerCase().includes(search);
 
     return services
-      .filter((s) => s.serviceLineId === lineId && statusOk(s.isActive))
+      .filter((s) => s.serviceLineId === lineId)
       .map((service) => {
         const serviceMatch = matches(service.name);
-        const serviceModels = models.filter((m) => m.serviceId === service.id && statusOk(m.isActive));
+        const serviceModels = models.filter((m) => m.serviceId === service.id);
         const visibleModels = serviceMatch
           ? serviceModels
           : serviceModels.filter((m) => matches(m.name) || matches(REVENUE_MODEL_LABELS[m.modelType]));
@@ -185,9 +172,9 @@ const ServiceLineDetail = () => {
         return { service, visibleModels, serviceMatch, activeModelCount };
       })
       .filter((s) => s.serviceMatch || s.visibleModels.length > 0);
-  }, [services, models, lineId, statusFilter, searchTerm]);
+  }, [services, models, lineId, searchTerm]);
 
-  const isFiltering = searchTerm !== '' || statusFilter !== 'all';
+  const isFiltering = searchTerm !== '';
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -201,7 +188,10 @@ const ServiceLineDetail = () => {
   };
   const submitService = (data: CreateServiceInput) => {
     if (selectedService) {
-      updateService.mutate({ id: selectedService.id, updates: data }, { onSuccess: () => setServiceFormOpen(false) });
+      updateService.mutate(
+        { id: selectedService.id, updates: data },
+        { onSuccess: () => setServiceFormOpen(false) }
+      );
     } else {
       createService.mutate(data, { onSuccess: () => setServiceFormOpen(false) });
     }
@@ -219,7 +209,10 @@ const ServiceLineDetail = () => {
   };
   const submitModel = (data: CreateServiceRevenueModelInput) => {
     if (selectedModel) {
-      updateModel.mutate({ id: selectedModel.id, updates: data }, { onSuccess: () => setModelFormOpen(false) });
+      updateModel.mutate(
+        { id: selectedModel.id, updates: data },
+        { onSuccess: () => setModelFormOpen(false) }
+      );
     } else {
       createModel.mutate(data, { onSuccess: () => setModelFormOpen(false) });
     }
@@ -241,7 +234,13 @@ const ServiceLineDetail = () => {
 
   if (isLoading) {
     return (
-      <AppLayout title="Serviços" breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Serviços', href: '/comercial/servicos' }]}>
+      <AppLayout
+        title="Serviços"
+        breadcrumbs={[
+          { label: 'Comercial', href: '/comercial' },
+          { label: 'Linhas de Serviço', href: '/comercial/servicos' },
+        ]}
+      >
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-[56px] w-full rounded-lg" />
@@ -253,7 +252,13 @@ const ServiceLineDetail = () => {
 
   if (!line) {
     return (
-      <AppLayout title="Linha não encontrada" breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Serviços', href: '/comercial/servicos' }]}>
+      <AppLayout
+        title="Linha não encontrada"
+        breadcrumbs={[
+          { label: 'Comercial', href: '/comercial' },
+          { label: 'Linhas de Serviço', href: '/comercial/servicos' },
+        ]}
+      >
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <p className="text-base font-semibold">Linha de serviço não encontrada</p>
           <p className="text-sm text-muted-foreground mt-1">Ela pode ter sido removida.</p>
@@ -268,12 +273,12 @@ const ServiceLineDetail = () => {
 
   return (
     <AppLayout
-      title={line.name}
-      description={line.description ?? 'Serviços e modelos de receita desta linha'}
+      title={lineName}
+      description={lineDescription}
       breadcrumbs={[
         { label: 'Comercial', href: '/comercial' },
-        { label: 'Serviços', href: '/comercial/servicos' },
-        { label: line.name },
+        { label: 'Linhas de Serviço', href: '/comercial/servicos' },
+        { label: lineName },
       ]}
       actions={
         canManage ? (
@@ -285,14 +290,19 @@ const ServiceLineDetail = () => {
       }
     >
       <div className="mb-4">
-        <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground" onClick={() => navigate('/comercial/servicos')}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 -ml-2 text-muted-foreground"
+          onClick={() => navigate('/comercial/servicos')}
+        >
           <ArrowLeft className="h-4 w-4" />
           Linhas de Serviço
         </Button>
       </div>
 
-      {/* Search + status filter */}
-      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
+      {/* Search */}
+      <div className="mb-6">
         <div className="relative max-w-sm w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -302,24 +312,6 @@ const ServiceLineDetail = () => {
             className="pl-9"
           />
         </div>
-        {canManage && (
-          <div className="flex flex-wrap items-center gap-2">
-            {(['all', 'active', 'inactive'] as StatusFilter[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                  statusFilter === s
-                    ? 'bg-foreground text-background border-foreground'
-                    : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
-                )}
-              >
-                {s === 'all' ? 'Todos' : s === 'active' ? 'Ativos' : 'Inativos'}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Empty states */}
@@ -333,7 +325,7 @@ const ServiceLineDetail = () => {
           </p>
           <p className="text-sm text-muted-foreground mt-1 max-w-xs">
             {isFiltering
-              ? 'Tente ajustar os filtros ou o termo de busca.'
+              ? 'Tente ajustar o termo de busca.'
               : canManage
               ? 'Adicione o primeiro serviço desta linha.'
               : 'Aguarde um administrador cadastrar serviços nesta linha.'}
@@ -347,11 +339,16 @@ const ServiceLineDetail = () => {
         </div>
       ) : (
         <div className="space-y-2">
-          {tree.map(({ service, visibleModels, activeModelCount }) => {
+          {tree.map(({ service, visibleModels }) => {
             const serviceCollapsed = !!collapsedServices[service.id];
-            const noActiveModel = activeModelCount === 0;
             return (
-              <div key={service.id} className="rounded-md border bg-card">
+              <div
+                key={service.id}
+                className={cn(
+                  'rounded-md border bg-card transition-opacity',
+                  !service.isActive && 'opacity-60'
+                )}
+              >
                 {/* Service header */}
                 <div className="flex items-center gap-2 px-3 py-2">
                   <button
@@ -366,58 +363,52 @@ const ServiceLineDetail = () => {
                     <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="text-sm font-medium truncate">{service.name}</span>
                     {!service.isActive && (
-                      <Badge variant="outline" className="text-xs bg-muted text-muted-foreground shrink-0">
+                      <Badge
+                        variant="outline"
+                        className="text-xs bg-muted text-muted-foreground shrink-0"
+                      >
                         Inativo
                       </Badge>
-                    )}
-                    {noActiveModel && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs text-amber-800 shrink-0 dark:bg-amber-900/30 dark:text-amber-400">
-                            <AlertTriangle className="h-3 w-3" /> Sem modelo de receita
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Este serviço não aparece no orçamento até ter um modelo de receita ativo.
-                        </TooltipContent>
-                      </Tooltip>
                     )}
                   </button>
 
                   {canManage && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => openNewModel(service.id)}>
-                            <Plus className="h-3.5 w-3.5" /> Modelo
+                    <div
+                      className="flex items-center gap-1 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Adicionar modelo de receita</TooltipContent>
-                      </Tooltip>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditService(service)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div>
-                            <Switch
-                              checked={service.isActive}
-                              onCheckedChange={() => toggleService.mutate({ id: service.id, isActive: !service.isActive })}
-                              disabled={toggleService.isPending}
-                              className="scale-90"
-                            />
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>{service.isActive ? 'Desativar serviço' : 'Ativar serviço'}</TooltipContent>
-                      </Tooltip>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => setDeleteTarget({ kind: 'service', entity: service })}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openNewModel(service.id)}>
+                            Adicionar modelo
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditService(service)}>
+                            Editar serviço
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() =>
+                              toggleService.mutate({ id: service.id, isActive: !service.isActive })
+                            }
+                          >
+                            {service.isActive ? 'Desativar serviço' : 'Ativar serviço'}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() =>
+                              setDeleteTarget({ kind: 'service', entity: service })
+                            }
+                          >
+                            Excluir serviço
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   )}
                 </div>
@@ -426,7 +417,17 @@ const ServiceLineDetail = () => {
                 {!serviceCollapsed && (
                   <div className="px-3 pb-3 pl-9 space-y-1.5">
                     {visibleModels.length === 0 ? (
-                      <p className="text-xs text-muted-foreground py-1">Nenhum modelo de receita cadastrado.</p>
+                      <div className="flex items-center gap-2 py-1">
+                        <p className="text-xs text-muted-foreground">Nenhum modelo de receita cadastrado para este serviço.</p>
+                        {canManage && (
+                          <button
+                            onClick={() => openNewModel(service.id)}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Adicionar agora
+                          </button>
+                        )}
+                      </div>
                     ) : (
                       visibleModels.map((model) => (
                         <ModelRow
@@ -434,9 +435,7 @@ const ServiceLineDetail = () => {
                           model={model}
                           canManage={canManage}
                           onEdit={openEditModel}
-                          onToggle={(m) => toggleModel.mutate({ id: m.id, isActive: !m.isActive })}
                           onDelete={(m) => setDeleteTarget({ kind: 'model', entity: m })}
-                          isToggling={toggleModel.isPending}
                         />
                       ))
                     )}

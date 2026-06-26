@@ -1,13 +1,28 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Layers, Pencil, Trash2, Search, ChevronRight } from 'lucide-react';
+import { Plus, Layers, Loader2, MoreHorizontal, Search, ChevronRight, PencilLine } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Table,
   TableBody,
@@ -17,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ServiceLineFormDialog } from '@/components/services/ServiceLineFormDialog';
+import { ServiceSetupWizard } from '@/components/services/ServiceSetupWizard';
 import { DeleteCatalogItemDialog } from '@/components/services/DeleteCatalogItemDialog';
 import {
   useServiceLines,
@@ -26,6 +42,8 @@ import {
   useDeleteServiceLine,
 } from '@/hooks/useServiceLines';
 import { useServices } from '@/hooks/useServices';
+import { useWizardDraft } from '@/hooks/useWizardDraft';
+import { WizardDraft } from '@/components/services/wizard/types';
 import { ServiceLine, CreateServiceLineInput } from '@/types/serviceLine';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -36,6 +54,7 @@ const Services = () => {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const canManage = employee?.isAdmin ?? false;
+  const tenantId = employee?.tenant_id;
 
   const { data: serviceLines = [], isLoading: linesLoading } = useServiceLines();
   const { data: services = [], isLoading: servicesLoading } = useServices();
@@ -45,9 +64,15 @@ const Services = () => {
   const toggleLine = useToggleServiceLineActive();
   const deleteLine = useDeleteServiceLine();
 
+  const { getDraft, saveDraft, clearDraft } = useWizardDraft(tenantId);
+  const [wizardDraft, setWizardDraft] = useState<WizardDraft | null>(() => getDraft());
+  const [wizardInitialDraft, setWizardInitialDraft] = useState<WizardDraft | null>(null);
+
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedLine, setSelectedLine] = useState<ServiceLine | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ServiceLine | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<ServiceLine | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
@@ -76,8 +101,8 @@ const Services = () => {
   const isFiltering = searchTerm !== '' || statusFilter !== 'all';
 
   const openNew = () => {
-    setSelectedLine(null);
-    setFormOpen(true);
+    setWizardInitialDraft(null);
+    setWizardOpen(true);
   };
   const openEdit = (line: ServiceLine) => {
     setSelectedLine(line);
@@ -96,12 +121,21 @@ const Services = () => {
     }
   };
 
+  const confirmDeactivate = () => {
+    if (deactivateTarget) {
+      toggleLine.mutate(
+        { id: deactivateTarget.id, isActive: false },
+        { onSuccess: () => setDeactivateTarget(null) }
+      );
+    }
+  };
+
   if (isLoading) {
     return (
       <AppLayout
-        title="Serviços"
-        description="Catálogo organizado por Linhas de Serviço"
-        breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Serviços' }]}
+        title="Linhas de Serviço"
+        description="O catálogo de tudo que a empresa vende, organizado em Linhas de Serviço. Cada linha agrupa serviços com modelos de cobrança definidos."
+        breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Linhas de Serviço' }]}
       >
         <div className="space-y-2">
           <Skeleton className="h-10 w-64" />
@@ -115,9 +149,9 @@ const Services = () => {
 
   return (
     <AppLayout
-      title="Serviços"
-      description="Catálogo organizado por Linhas de Serviço"
-      breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Serviços' }]}
+      title="Linhas de Serviço"
+      description="O catálogo de tudo que a empresa vende, organizado em Linhas de Serviço. Cada linha agrupa serviços com modelos de cobrança definidos."
+      breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Linhas de Serviço' }]}
       actions={
         canManage ? (
           <Button onClick={openNew} size="sm">
@@ -127,6 +161,44 @@ const Services = () => {
         ) : undefined
       }
     >
+      {/* Draft banner */}
+      {wizardDraft && canManage && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-4 dark:bg-amber-950/20 dark:border-amber-800">
+          <PencilLine className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              Rascunho não publicado — &quot;{wizardDraft.lineData?.name}&quot;
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              Serviços em rascunho não estão disponíveis em oportunidades ou orçamentos.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30"
+              onClick={() => {
+                clearDraft();
+                setWizardDraft(null);
+              }}
+            >
+              Descartar
+            </Button>
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setWizardInitialDraft(wizardDraft);
+                setWizardOpen(true);
+              }}
+            >
+              Continuar configuração
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Search + status filter */}
       <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-sm w-full">
@@ -191,8 +263,7 @@ const Services = () => {
                 <TableHead>Linha de Serviço</TableHead>
                 <TableHead className="w-28 text-center">Serviços</TableHead>
                 <TableHead className="w-24">Status</TableHead>
-                {canManage && <TableHead className="w-32 text-right">Ações</TableHead>}
-                <TableHead className="w-10" />
+                <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -229,38 +300,43 @@ const Services = () => {
                       {line.isActive ? 'Ativa' : 'Inativa'}
                     </Badge>
                   </TableCell>
-                  {canManage && (
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(line)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div>
-                              <Switch
-                                checked={line.isActive}
-                                onCheckedChange={() => toggleLine.mutate({ id: line.id, isActive: !line.isActive })}
-                                disabled={toggleLine.isPending}
-                                className="scale-90"
-                              />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>{line.isActive ? 'Desativar' : 'Ativar'}</TooltipContent>
-                        </Tooltip>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteTarget(line)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right">
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                      {canManage && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(line)}>
+                              Editar nome
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {line.isActive ? (
+                              <DropdownMenuItem onClick={() => setDeactivateTarget(line)}>
+                                Desativar linha
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => toggleLine.mutate({ id: line.id, isActive: true })}
+                              >
+                                Ativar linha
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteTarget(line)}
+                            >
+                              Excluir linha
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground pointer-events-none" />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -268,6 +344,24 @@ const Services = () => {
           </Table>
         </div>
       )}
+
+      <ServiceSetupWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        initialDraft={wizardInitialDraft}
+        onDraftSaved={(draft) => {
+          saveDraft(draft);
+          setWizardDraft(draft);
+        }}
+        onDraftAbandoned={() => {
+          clearDraft();
+          setWizardDraft(null);
+        }}
+        onCompleted={() => {
+          clearDraft();
+          setWizardDraft(null);
+        }}
+      />
 
       <ServiceLineFormDialog
         open={formOpen}
@@ -285,6 +379,29 @@ const Services = () => {
         onConfirm={confirmDelete}
         isLoading={deleteLine.isPending}
       />
+
+      <AlertDialog
+        open={!!deactivateTarget}
+        onOpenChange={(open) => !open && setDeactivateTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desativar &quot;{deactivateTarget?.name}&quot;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A linha ficará oculta do portfólio ativo e não poderá ser usada em novos orçamentos.
+              Linhas já em andamento em oportunidades não são afetadas. Você pode reativá-la a
+              qualquer momento na aba Inativas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeactivate} disabled={toggleLine.isPending}>
+              {toggleLine.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Desativar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

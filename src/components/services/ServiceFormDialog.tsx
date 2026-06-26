@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Layers, Loader2 } from 'lucide-react';
 import { Service, CreateServiceInput } from '@/types/service';
 import { ServiceLine } from '@/types/serviceLine';
 
@@ -98,30 +98,42 @@ export function ServiceFormDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="serviceLineId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Linha de serviço</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma linha" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {serviceLines.map((line) => (
-                        <SelectItem key={line.id} value={line.id}>
-                          {line.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {defaultServiceLineId ? (
+              <FormItem>
+                <FormLabel>Linha de serviço</FormLabel>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  <Layers className="h-4 w-4 shrink-0" />
+                  <span className="font-medium text-foreground">
+                    {serviceLines.find((l) => l.id === defaultServiceLineId)?.name ?? '—'}
+                  </span>
+                </div>
+              </FormItem>
+            ) : (
+              <FormField
+                control={form.control}
+                name="serviceLineId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Linha de serviço</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma linha" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {serviceLines.map((line) => (
+                          <SelectItem key={line.id} value={line.id}>
+                            {line.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}

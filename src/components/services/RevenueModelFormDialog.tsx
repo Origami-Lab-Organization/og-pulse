@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Form,
@@ -16,7 +17,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -34,6 +34,8 @@ import {
   REVENUE_MODEL_LABELS,
   isPercentModel,
 } from '@/types/serviceRevenueModel';
+import { MODEL_META } from '@/components/services/revenueModelMeta';
+import { cn } from '@/lib/utils';
 
 const PERIOD_OPTIONS = [
   { value: 'monthly', label: 'Por mês' },
@@ -43,7 +45,6 @@ const PERIOD_OPTIONS = [
 ];
 
 const formSchema = z.object({
-  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   modelType: z.enum([
     'fixed',
     'recurring',
@@ -78,7 +79,7 @@ export function RevenueModelFormDialog({
 }: RevenueModelFormDialogProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: '', modelType: 'fixed', period: 'monthly' },
+    defaultValues: { modelType: 'fixed', period: 'monthly' },
   });
 
   const modelType = form.watch('modelType') as RevenueModelType;
@@ -87,21 +88,13 @@ export function RevenueModelFormDialog({
     if (!open) return;
     if (model) {
       form.reset({
-        name: model.name,
         modelType: model.modelType,
         period: model.modelType === 'recurring' ? model.billingUnit ?? 'monthly' : 'monthly',
       });
     } else {
-      form.reset({ name: '', modelType: 'fixed', period: 'monthly' });
+      form.reset({ modelType: 'fixed', period: 'monthly' });
     }
   }, [open, model]);
-
-  // Sugere um nome a partir do tipo quando o campo está vazio (apenas na criação).
-  useEffect(() => {
-    if (open && !model && !form.getValues('name')) {
-      form.setValue('name', REVENUE_MODEL_LABELS[modelType]);
-    }
-  }, [modelType, open, model]);
 
   const handleSubmit = (values: FormValues) => {
     let billingUnit: string | null = null;
@@ -115,7 +108,7 @@ export function RevenueModelFormDialog({
 
     onSubmit({
       serviceId,
-      name: values.name,
+      name: REVENUE_MODEL_LABELS[values.modelType as RevenueModelType],
       modelType: values.modelType,
       baseValue: null,
       billingUnit,
@@ -124,50 +117,49 @@ export function RevenueModelFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{model ? 'Editar Modelo de Receita' : 'Novo Modelo de Receita'}</DialogTitle>
+          <DialogTitle>
+            {model ? 'Editar Modelo de Receita' : 'Novo Modelo de Receita'}
+          </DialogTitle>
+          <DialogDescription>
+            Escolha como este serviço será cobrado. O modelo de cobrança define a forma de
+            precificação aplicada aos serviços.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="modelType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de modelo</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {REVENUE_MODEL_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {REVENUE_MODEL_LABELS[t]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome do modelo</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex.: Escopo Fixo" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div>
+              <p className="text-sm font-medium mb-2">Tipo de modelo</p>
+              <div className="grid grid-cols-2 gap-2">
+                {REVENUE_MODEL_TYPES.map((type) => {
+                  const { icon: Icon, description } = MODEL_META[type];
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => form.setValue('modelType', type, { shouldValidate: true })}
+                      className={cn(
+                        'flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50',
+                        modelType === type
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : 'border-border'
+                      )}
+                    >
+                      <Icon className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium leading-tight">
+                          {REVENUE_MODEL_LABELS[type]}
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                          {description}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             {modelType === 'recurring' && (
               <FormField
@@ -197,7 +189,12 @@ export function RevenueModelFormDialog({
             )}
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+              >
                 Cancelar
               </Button>
               <Button type="submit" disabled={isLoading}>
