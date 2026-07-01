@@ -8,7 +8,6 @@ import {
   BarChart3,
   Truck,
   Kanban,
-  Receipt,
   LogOut,
   FileSignature,
   DollarSign,
@@ -57,6 +56,7 @@ interface NavItem {
   disabled?: boolean;
   requiresManager?: boolean;
   requiresAdmin?: boolean;
+  hideForAdmin?: boolean;
 }
 
 // FUNC-J2 — alvos do coachmark de onboarding (destaque por step no navbar).
@@ -65,7 +65,6 @@ const ONBOARDING_TARGETS: Record<string, string> = {
   '/my-kanban': 'kanban',
   '/my-projects': 'projetos',
   '/my-timesheet': 'timesheet',
-  '/reimbursements': 'reembolsos',
 };
 
 interface NavGroup {
@@ -79,7 +78,7 @@ const navigationGroups: NavGroup[] = [
   {
     label: "Meu Espaço",
     items: [
-      { title: "Início", url: "/dashboard", icon: Home },
+      { title: "Início", url: "/dashboard", icon: Home, hideForAdmin: true },
       {
         title: "Dashboard",
         url: "/admin-dashboard",
@@ -87,14 +86,13 @@ const navigationGroups: NavGroup[] = [
         requiresAdmin: true,
       },
       { title: "Caixa de Entrada", url: "/inbox", icon: Inbox },
-      { title: "Meu Kanban", url: "/my-kanban", icon: LucideSquareKanban },
+      // { title: "Meu Kanban", url: "/my-kanban", icon: LucideSquareKanban },
       { title: "Meus Projetos", url: "/my-projects", icon: FolderKanban },
       { title: "Timesheet", url: "/my-timesheet", icon: Clock },
-      { title: "Reembolsos", url: "/reimbursements", icon: Receipt },
-      { title: "Minhas Férias", url: "/minhas-ferias", icon: Palmtree },
+      // { title: "Minhas Férias", url: "/minhas-ferias", icon: Palmtree },
     ],
   },
-  {
+  /*{
     label: "Estratégia",
     requiresAdmin: true,
     items: [
@@ -105,7 +103,7 @@ const navigationGroups: NavGroup[] = [
         requiresAdmin: true,
       },
     ],
-  },
+  },*/
   {
     label: "Comercial",
     requiresManager: true,
@@ -117,18 +115,6 @@ const navigationGroups: NavGroup[] = [
         requiresManager: true,
       },
       { title: "CRM", url: "/crm", icon: Kanban, requiresManager: true },
-      {
-        title: "Serviços",
-        url: "/comercial/servicos",
-        icon: Briefcase,
-        requiresManager: true,
-      },
-      {
-        title: "Clientes",
-        url: "/clients",
-        icon: Building2,
-        requiresManager: true,
-      },
     ],
   },
   {
@@ -147,12 +133,12 @@ const navigationGroups: NavGroup[] = [
         icon: Clock,
         requiresManager: true,
       },
-      {
+      /*{
         title: "Fornecedores",
         url: "/suppliers",
         icon: Truck,
         requiresManager: true,
-      },
+      },*/
       {
         title: "Analytics",
         url: "/analytics",
@@ -190,7 +176,7 @@ const navigationGroups: NavGroup[] = [
         requiresManager: true,
       },
 
-      {
+      /*{
         title: "Contratos",
         url: "/rh/contratos",
         icon: FileSignature,
@@ -203,7 +189,7 @@ const navigationGroups: NavGroup[] = [
         icon: DollarSign,
         requiresAdmin: true,
         disabled: true,
-      },
+      },*/
       {
         title: "Férias e Afastamentos",
         url: "/rh/ferias",
@@ -216,12 +202,30 @@ const navigationGroups: NavGroup[] = [
         icon: LogOut,
         requiresAdmin: true,
       },
-      {
+      /*{
         title: "Relatórios",
         url: "/rh/relatorios",
         icon: BarChart3,
         requiresAdmin: true,
         disabled: true,
+      },*/
+    ],
+  },
+  {
+    label: "Admin",
+    requiresAdmin: true,
+    items: [
+      {
+        title: "Serviços",
+        url: "/comercial/servicos",
+        icon: Briefcase,
+        requiresAdmin: true,
+      },
+      {
+        title: "Clientes",
+        url: "/clients",
+        icon: Building2,
+        requiresAdmin: true,
       },
     ],
   },
@@ -246,6 +250,7 @@ export function AppNavbar() {
       if (isStandalone && !PWA_BUSINESS_ROUTES.includes(item.url as never)) return false;
       if (item.requiresAdmin && !isAdmin) return false;
       if (item.requiresManager && !isManager && !isAdmin) return false;
+      if (item.hideForAdmin && isAdmin) return false;
       return true;
     });
 

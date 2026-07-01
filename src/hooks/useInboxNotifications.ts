@@ -8,7 +8,6 @@ export type InboxFolder =
   | 'all'
   | 'unread'
   | 'timesheet'
-  | 'reimbursement'
   | 'budget'
   | 'candidates'
   | 'projeto'
@@ -20,7 +19,6 @@ export interface InboxCounts {
   all: number;
   unread: number;
   timesheet: number;
-  reimbursement: number;
   budget: number;
   candidates: number;
   projeto: number;
@@ -33,7 +31,6 @@ export const EMPTY_INBOX_COUNTS: InboxCounts = {
   all: 0,
   unread: 0,
   timesheet: 0,
-  reimbursement: 0,
   budget: 0,
   candidates: 0,
   projeto: 0,
@@ -73,7 +70,6 @@ export function useInboxNotifications(folder: InboxFolder = 'all') {
           query = query.neq('is_archived', true);
           if (folder === 'unread') query = query.eq('is_read', false);
           if (folder === 'timesheet') query = query.eq('category', 'timesheet');
-          if (folder === 'reimbursement') query = query.eq('category', 'reimbursement');
           if (folder === 'candidates') query = query.eq('category', 'candidatos');
           if (folder === 'budget') query = query.eq('category', 'budget');
           if (folder === 'projeto') query = query.eq('category', 'projeto');
@@ -113,7 +109,6 @@ export function useInboxCounts() {
       const [
         totalRes,
         timesheetRes,
-        reimbursementRes,
         budgetRes,
         candidatesRes,
         projetoRes,
@@ -123,7 +118,6 @@ export function useInboxCounts() {
       ] = await Promise.all([
         unreadActive(),
         unreadActive().eq('category', 'timesheet'),
-        unreadActive().eq('category', 'reimbursement'),
         unreadActive().eq('category', 'budget'),
         unreadActive().eq('category', 'candidatos'),
         unreadActive().eq('category', 'projeto'),
@@ -145,7 +139,6 @@ export function useInboxCounts() {
         all: totalRes.count || 0,
         unread: totalRes.count || 0,
         timesheet: timesheetRes.count || 0,
-        reimbursement: reimbursementRes.count || 0,
         budget: budgetRes.count || 0,
         candidates: candidatesRes.count || 0,
         projeto: projetoRes.count || 0,

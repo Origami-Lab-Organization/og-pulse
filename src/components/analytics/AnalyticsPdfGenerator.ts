@@ -15,7 +15,6 @@ export interface AnalyticsPdfFinancialKPIs {
   supplierCost: number;
   materialCost: number;
   commissionCost: number;
-  reimbursementCost: number;
   grossMargin: number;
   grossMarginTarget: number | null;
 }
@@ -381,11 +380,10 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
   drawKpiCard(margin + (costKpiW + 3) * 3,    y, costKpiW, kpiH, 'Fornecedores', fmtCurrency(financialKPIs.supplierCost));
   y += kpiH + 3;
 
-  // Row 2: 3 cards
-  const costKpiW2 = (contentW - 2 * 3) / 3;
+  // Row 2: 2 cards
+  const costKpiW2 = (contentW - 1 * 3) / 2;
   drawKpiCard(margin,                           y, costKpiW2, kpiH, 'Materiais', fmtCurrency(financialKPIs.materialCost));
   drawKpiCard(margin + costKpiW2 + 3,           y, costKpiW2, kpiH, 'Comissões', fmtCurrency(financialKPIs.commissionCost));
-  drawKpiCard(margin + (costKpiW2 + 3) * 2,    y, costKpiW2, kpiH, 'Reembolsos', fmtCurrency(financialKPIs.reimbursementCost));
   y += kpiH + 6;
 
   // Adherence alert

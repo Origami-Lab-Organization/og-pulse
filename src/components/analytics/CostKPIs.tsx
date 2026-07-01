@@ -9,7 +9,6 @@ interface Props {
   supplierCost: number;
   materialCost: number;
   commissionCost: number;
-  reimbursementCost: number;
 }
 
 function StatusAccent({ status }: { status: 'good' | 'warning' | 'danger' | 'info' }) {
@@ -35,11 +34,11 @@ function SmallBadge({ children, variant = 'info' }: { children: React.ReactNode;
   );
 }
 
-export function CostKPIs({ totalCosts, plannedCosts, laborCost, supplierCost, materialCost, commissionCost, reimbursementCost }: Props) {
+export function CostKPIs({ totalCosts, plannedCosts, laborCost, supplierCost, materialCost, commissionCost }: Props) {
   const adherence = plannedCosts > 0 ? (totalCosts / plannedCosts) * 100 : 0;
   const laborPct = totalCosts > 0 ? (laborCost / totalCosts) * 100 : 0;
   const supplierPct = totalCosts > 0 ? (supplierCost / totalCosts) * 100 : 0;
-  const variableCost = materialCost + commissionCost + reimbursementCost;
+  const variableCost = materialCost + commissionCost;
   const variablePct = totalCosts > 0 ? (variableCost / totalCosts) * 100 : 0;
 
   return (
@@ -96,7 +95,7 @@ export function CostKPIs({ totalCosts, plannedCosts, laborCost, supplierCost, ma
             <span className="text-3xl font-bold tracking-tight">{formatCurrency(variableCost)}</span>
             <SmallBadge variant={variablePct > 15 ? 'warning' : 'info'}>{formatPercent(variablePct)} do total</SmallBadge>
           </div>
-          <p className="text-xs text-muted-foreground mt-1.5">Materiais, comissões e reembolsos</p>
+          <p className="text-xs text-muted-foreground mt-1.5">Materiais e comissões</p>
         </CardContent>
       </Card>
     </div>

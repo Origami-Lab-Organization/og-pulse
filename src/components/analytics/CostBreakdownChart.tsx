@@ -15,7 +15,6 @@ const LABOR_COLOR = 'hsl(var(--chart-2))';
 const SUPPLIER_COLOR = 'hsl(var(--chart-3))';
 const MATERIAL_COLOR = 'hsl(var(--chart-4))';
 const COMMISSION_COLOR = 'hsl(var(--chart-5))';
-const REIMBURSEMENT_COLOR = 'hsl(var(--chart-1))';
 
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -76,15 +75,9 @@ export function CostBreakdownChart({ data, year }: Props) {
                 ))}
               </Bar>
 
-              <Bar dataKey="commissionCost" name="Comissões" stackId="costs" fill={COMMISSION_COLOR}>
+              <Bar dataKey="commissionCost" name="Comissões" stackId="costs" fill={COMMISSION_COLOR} radius={[3, 3, 0, 0]}>
                 {data.map((d) => (
                   <Cell key={d.monthIndex} fill={COMMISSION_COLOR} fillOpacity={d.isHighlighted ? 1 : 0.35} />
-                ))}
-              </Bar>
-
-              <Bar dataKey="reimbursementCost" name="Reembolsos" stackId="costs" fill={REIMBURSEMENT_COLOR} radius={[3, 3, 0, 0]}>
-                {data.map((d) => (
-                  <Cell key={d.monthIndex} fill={REIMBURSEMENT_COLOR} fillOpacity={d.isHighlighted ? 1 : 0.35} />
                 ))}
               </Bar>
 

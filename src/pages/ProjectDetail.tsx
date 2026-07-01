@@ -274,9 +274,9 @@ export default function ProjectDetail() {
                 {canAccessFullProject && (
                   <>
                     <TabsTrigger value="overview" className={projectTabClass}>Visão Geral</TabsTrigger>
-                    <TabsTrigger value="planning" className={projectTabClass}>Planejamento</TabsTrigger>
+                    {/* <TabsTrigger value="planning" className={projectTabClass}>Planejamento</TabsTrigger> */}
                     <TabsTrigger value="okrs" className={projectTabClass}>Objetivos</TabsTrigger>
-                    <TabsTrigger value="roadmap" className={projectTabClass}>Roadmap</TabsTrigger>
+                    {/* <TabsTrigger value="roadmap" className={projectTabClass}>Roadmap</TabsTrigger> */}
                     <TabsTrigger value="team" className={projectTabClass}>Equipe</TabsTrigger>
                     <TabsTrigger value="costs" className={projectTabClass}>Custos</TabsTrigger>
                     <TabsTrigger value="financial" className={projectTabClass}>Financeiro</TabsTrigger>
@@ -302,19 +302,19 @@ export default function ProjectDetail() {
                 <ProjectOverviewTab project={project} />
               </TabsContent>
 
-              <TabsContent value="planning" className="mt-6">
+              {/* <TabsContent value="planning" className="mt-6">
                 <ProjectPlanningOverviewTab
                   project={project}
                   canManageProject={canManageProject}
                   onNavigateToTab={setActiveTab}
                 />
-              </TabsContent>
+              </TabsContent> */}
 
               <TabsContent value="okrs" className="mt-6">
                 <ProjectOKRsTab project={project} isReadOnly={isReadOnly} />
               </TabsContent>
 
-              <TabsContent value="roadmap" className="mt-6">
+              {/*<TabsContent value="roadmap" className="mt-6">
                 <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
                   <Map className="h-8 w-8 text-muted-foreground" aria-hidden />
                   <p className="text-sm font-medium text-foreground">Roadmap em breve</p>
@@ -322,7 +322,7 @@ export default function ProjectDetail() {
                     Esta área ainda está em construção.
                   </p>
                 </div>
-              </TabsContent>
+              </TabsContent>*/}
 
               <TabsContent value="team" className="mt-6">
                 <EquipeTab project={project} isReadOnly={isReadOnly} />

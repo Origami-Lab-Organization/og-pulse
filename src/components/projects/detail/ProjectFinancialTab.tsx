@@ -235,7 +235,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {/* Receita */}
         <Card>
           <CardContent className="pt-4 pb-4 px-4">
@@ -264,7 +264,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
           </CardContent>
         </Card>
 
-        {/* Comissão */}
+        {/* Comissão 
         <Card>
           <CardContent className="pt-4 pb-4 px-4">
             <div className="flex items-center gap-2 mb-3">
@@ -291,6 +291,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
             </div>
           </CardContent>
         </Card>
+        */}
 
         {/* Custos */}
         <Card>

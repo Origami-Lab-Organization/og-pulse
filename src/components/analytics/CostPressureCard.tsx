@@ -7,20 +7,19 @@ interface Props {
   supplierCost: number;
   materialCost: number;
   commissionCost: number;
-  reimbursementCost: number;
 }
 
-export function CostPressureCard({ laborCost, supplierCost, materialCost, commissionCost, reimbursementCost }: Props) {
+export function CostPressureCard({ laborCost, supplierCost, materialCost, commissionCost }: Props) {
   const structural = laborCost;
   const thirdParty = supplierCost;
-  const variable = materialCost + commissionCost + reimbursementCost;
+  const variable = materialCost + commissionCost;
   const total = structural + thirdParty + variable;
   const pct = (v: number) => total > 0 ? (v / total) * 100 : 0;
 
   const items = [
     { label: 'Estruturais', subtitle: 'Mão de obra', value: structural, pct: pct(structural), color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400' },
     { label: 'Terceiros', subtitle: 'Fornecedores', value: thirdParty, pct: pct(thirdParty), color: 'bg-amber-500', textColor: 'text-amber-600 dark:text-amber-400' },
-    { label: 'Variáveis / Extraordinários', subtitle: 'Materiais, comissões, reembolsos', value: variable, pct: pct(variable), color: 'bg-blue-500', textColor: 'text-blue-600 dark:text-blue-400' },
+    { label: 'Variáveis / Extraordinários', subtitle: 'Materiais, comissões', value: variable, pct: pct(variable), color: 'bg-blue-500', textColor: 'text-blue-600 dark:text-blue-400' },
   ];
 
   return (

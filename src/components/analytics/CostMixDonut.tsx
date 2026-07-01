@@ -18,7 +18,6 @@ interface Props {
   supplierCost: number;
   materialCost: number;
   commissionCost: number;
-  reimbursementCost: number;
 }
 
 function makeDonutTooltip(hideValues: boolean) {
@@ -44,7 +43,7 @@ function makeDonutTooltip(hideValues: boolean) {
   };
 }
 
-export function CostMixDonut({ laborCost, supplierCost, materialCost, commissionCost, reimbursementCost }: Props) {
+export function CostMixDonut({ laborCost, supplierCost, materialCost, commissionCost }: Props) {
   const hideValues = useHideValues();
   const items = useMemo(() => {
     const raw = [
@@ -52,12 +51,11 @@ export function CostMixDonut({ laborCost, supplierCost, materialCost, commission
       { name: 'Fornecedores', value: supplierCost },
       { name: 'Materiais', value: materialCost },
       { name: 'Comissões', value: commissionCost },
-      { name: 'Reembolsos', value: reimbursementCost },
     ];
     return raw
       .filter(d => d.value > 0)
       .map((d, i) => ({ ...d, fill: COLORS[i % COLORS.length] }));
-  }, [laborCost, supplierCost, materialCost, commissionCost, reimbursementCost]);
+  }, [laborCost, supplierCost, materialCost, commissionCost]);
 
   const total = useMemo(() => items.reduce((s, i) => s + i.value, 0), [items]);
 

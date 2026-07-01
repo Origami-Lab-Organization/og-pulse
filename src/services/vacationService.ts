@@ -15,8 +15,8 @@ import {
   resolveRequestStatus,
 } from '@/lib/vacationApproval';
 
-// As tabelas de férias ainda não estão no types.ts gerado — casts `as any` seguem o
-// mesmo padrão do reembolso até a regeneração dos tipos do Supabase.
+// As tabelas de férias ainda não estão no types.ts gerado — casts `as any` são
+// temporários até a regeneração dos tipos do Supabase.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export interface VacationRequester {

@@ -37,7 +37,6 @@ import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import Analytics from "./pages/Analytics";
-import Reimbursements from "./pages/Reimbursements";
 import MyTimesheet from "./pages/MyTimesheet";
 import CommercialDashboard from "./pages/CommercialDashboard";
 import Welcome from "./pages/Welcome";
@@ -126,15 +125,6 @@ const App = () => (
                     <MyTimesheet />
                   </ProtectedRoute>
                 } 
-              />
-              {/* Reimbursements - all authenticated users */}
-              <Route
-                path="/reimbursements"
-                element={
-                  <ProtectedRoute>
-                    <Reimbursements />
-                  </ProtectedRoute>
-                }
               />
               {/* Minhas Férias - all authenticated users */}
               <Route

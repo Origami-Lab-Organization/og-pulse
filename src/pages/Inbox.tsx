@@ -37,10 +37,6 @@ import {
   InboxDetailPanel,
   InboxDetailEmpty
 } from "@/components/inbox/InboxDetailPanel";
-import {
-  ReimbursementFormDialog,
-  CorrectionData
-} from "@/components/reimbursements/ReimbursementFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,10 +50,6 @@ export default function InboxPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
-  const [reimbursementFormOpen, setReimbursementFormOpen] = useState(false);
-  const [correctionData, setCorrectionData] = useState<CorrectionData | null>(
-    null
-  );
 
   const { data: counts = EMPTY_INBOX_COUNTS } = useInboxCounts();
   const { data: notifications = [], isLoading } =
@@ -216,12 +208,6 @@ export default function InboxPage() {
 
   const handleActionComplete = () => setSelectedId(null);
 
-  const handleOpenCorrectForm = (data: CorrectionData) => {
-    setCorrectionData(data);
-    setReimbursementFormOpen(true);
-    setSelectedId(null);
-  };
-
   return (
     <AppLayout title="Caixa de entrada" hideHeader>
       <div
@@ -264,7 +250,6 @@ export default function InboxPage() {
               key={selected.id}
               notification={selected}
               onActionComplete={handleActionComplete}
-              onOpenCorrectForm={handleOpenCorrectForm}
               onArchive={() => handleArchive(selected.id)}
               onUnarchive={() => handleUnarchive(selected.id)}
               onDelete={() => handleDelete(selected.id)}
@@ -305,7 +290,6 @@ export default function InboxPage() {
                   key={selected.id}
                   notification={selected}
                   onActionComplete={handleActionComplete}
-                  onOpenCorrectForm={handleOpenCorrectForm}
                   onArchive={() => {
                     handleArchive(selected.id);
                     setSelectedId(null);
@@ -329,15 +313,6 @@ export default function InboxPage() {
           </DialogContent>
         </Dialog>
       )}
-
-      <ReimbursementFormDialog
-        open={reimbursementFormOpen}
-        onOpenChange={(open) => {
-          setReimbursementFormOpen(open);
-          if (!open) setCorrectionData(null);
-        }}
-        correctionData={correctionData}
-      />
     </AppLayout>
   );
 }

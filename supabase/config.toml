@@ -26,9 +26,6 @@ verify_jwt = false
 [functions.parse-cnpj-card]
 verify_jwt = false
 
-[functions.send-reimbursement-email]
-verify_jwt = false
-
 [functions.market-analysis-start]
 verify_jwt = false
 

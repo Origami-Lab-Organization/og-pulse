@@ -71,7 +71,7 @@ describe('calculateAdminDashboardRevenue', () => {
     const r = calculateAdminDashboardRevenue(
       input({
         faturamentoTotal: 100_000,
-        projectCostsExLabor: 10_000, // fornecedores + materiais + comissões + reembolsos
+        projectCostsExLabor: 10_000, // fornecedores + materiais + comissões
         personnelCostMonthly: 40_000,
         monthsInPeriod: 1,
       }),

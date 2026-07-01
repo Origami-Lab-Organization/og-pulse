@@ -148,7 +148,6 @@ export default function Analytics() {
     const supplierCost     = highlighted.reduce((s, m) => s + m.supplierCost, 0)
     const materialCost     = highlighted.reduce((s, m) => s + m.materialCost, 0)
     const commissionCost   = highlighted.reduce((s, m) => s + m.commissionCost, 0)
-    const reimbursementCost = highlighted.reduce((s, m) => s + m.reimbursementCost, 0)
     const grossMargin      = revenueActual > 0 ? ((revenueActual - totalCosts) / revenueActual) * 100 : 0
     return {
       faturado,
@@ -159,7 +158,6 @@ export default function Analytics() {
       supplierCost,
       materialCost,
       commissionCost,
-      reimbursementCost,
       grossMargin,
       grossMarginTarget: financialEvolution.grossMarginTarget,
     }
@@ -431,7 +429,6 @@ export default function Analytics() {
                       supplierCost={financialKPIs.supplierCost}
                       materialCost={financialKPIs.materialCost}
                       commissionCost={financialKPIs.commissionCost}
-                      reimbursementCost={financialKPIs.reimbursementCost}
                     />
                   ) : (
                     <div className="h-full flex items-center justify-center">

@@ -12,7 +12,7 @@ const ALLOWED_TABLES = new Set([
   'activity_timesheets', 'activity_types', 'clients', 'company_holidays', 'employees',
   'personal_kanban_card_tags', 'personal_kanban_cards', 'personal_kanban_columns', 'personal_kanban_tags',
   'project_activity_cards', 'project_members', 'project_timesheets', 'projects',
-  'reimbursement_attachments', 'reimbursement_items', 'reimbursement_requests', 'tenants', 'user_roles',
+  'tenants', 'user_roles',
 ]);
 
 cleanupOutdatedCaches();

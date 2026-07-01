@@ -310,3 +310,7 @@
 
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: C:\hakathon\og-pulse\src\services\terminationService.ts
+
+### 2026-07-01T11:48:02.545Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: c:\Users\OrigamiLab\Documents\ws-visualcode\og-pulse\src\services\vacationService.ts

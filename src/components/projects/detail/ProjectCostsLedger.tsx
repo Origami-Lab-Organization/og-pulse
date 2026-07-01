@@ -56,12 +56,9 @@ import {
   isCostMonthClosed,
 } from "@/lib/projectCosts";
 import { useCancelProjectCost, useDeleteProjectCost } from "@/hooks/useProjectCostItems";
-import type { ReimbursementRequest } from "@/hooks/useReimbursements";
 import { ProjectCostFormDialog } from "./ProjectCostFormDialog";
 import { ProjectCostPayDialog } from "./ProjectCostPayDialog";
 import type { ProjectCostCategory, ProjectCostDB } from "@/types/project";
-
-type EnrichedReimbursement = ReimbursementRequest & { requester_name?: string };
 
 interface ProjectCostsLedgerProps {
   projectId: string;
@@ -70,14 +67,11 @@ interface ProjectCostsLedgerProps {
   canManage: boolean;
   /** Admin edita inclusive em mês fechado. */
   isAdmin: boolean;
-  reimbursements?: EnrichedReimbursement[];
 }
 
-type FilterValue = "all" | ProjectCostCategory | "reimbursement";
+type FilterValue = "all" | ProjectCostCategory;
 
-type LedgerRow =
-  | { kind: "cost"; data: ProjectCostDB; sortDate: string }
-  | { kind: "reimbursement"; data: EnrichedReimbursement; sortDate: string };
+type LedgerRow = { kind: "cost"; data: ProjectCostDB; sortDate: string };
 
 const CATEGORY_ICON = Object.fromEntries(
   COST_CATEGORIES.map((c) => [c.value, c.icon]),
@@ -94,7 +88,6 @@ export function ProjectCostsLedger({
   costs,
   canManage,
   isAdmin,
-  reimbursements = [],
 }: ProjectCostsLedgerProps) {
   const formatCurrency = useMaskedCurrency();
   const { toast } = useToast();
@@ -113,35 +106,23 @@ export function ProjectCostsLedger({
       data: c,
       sortDate: c.cost_date ?? c.created_at,
     }));
-    const rRows: LedgerRow[] = reimbursements.map((r) => ({
-      kind: "reimbursement",
-      data: r,
-      sortDate: r.paid_at ?? r.reviewed_at ?? r.created_at,
-    }));
-    return [...costRows, ...rRows].sort((a, b) =>
+    return [...costRows].sort((a, b) =>
       b.sortDate.localeCompare(a.sortDate),
     );
-  }, [costs, reimbursements]);
+  }, [costs]);
 
   const visibleRows = useMemo<LedgerRow[]>(() => {
     if (filter === "all") return allRows;
-    if (filter === "reimbursement") {
-      return allRows.filter((r) => r.kind === "reimbursement");
-    }
-    return allRows.filter(
-      (r) => r.kind === "cost" && r.data.category === filter,
-    );
+    return allRows.filter((r) => r.data.category === filter);
   }, [allRows, filter]);
 
   const defaultCategory: ProjectCostCategory =
-    filter === "all" || filter === "reimbursement" ? "supplier" : filter;
+    filter === "all" ? "supplier" : filter;
 
   const emptyLabel =
-    filter === "reimbursement"
-      ? "Nenhum reembolso lançado neste projeto."
-      : filter === "all"
-        ? "Nenhum custo cadastrado."
-        : `Nenhum custo de ${COST_CATEGORY_LABEL[filter].toLowerCase()} cadastrado.`;
+    filter === "all"
+      ? "Nenhum custo cadastrado."
+      : `Nenhum custo de ${COST_CATEGORY_LABEL[filter].toLowerCase()} cadastrado.`;
 
   const openAdd = () => {
     setEditing(null);
@@ -196,10 +177,9 @@ export function ProjectCostsLedger({
                   {c.label}
                 </SelectItem>
               ))}
-              <SelectItem value="reimbursement">Reembolsos</SelectItem>
             </SelectContent>
           </Select>
-          {canManage && visibleRows.length > 0 && filter !== "reimbursement" && (
+          {canManage && visibleRows.length > 0 && (
             <Button
               size="sm"
               onClick={openAdd}
@@ -215,7 +195,7 @@ export function ProjectCostsLedger({
         {visibleRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
             <p className="text-sm text-muted-foreground">{emptyLabel}</p>
-            {canManage && filter !== "reimbursement" && (
+            {canManage && (
               <Button variant="outline" size="sm" onClick={openAdd}>
                 <Plus className="mr-2 h-4 w-4" />
                 Adicionar primeiro custo
@@ -241,56 +221,6 @@ export function ProjectCostsLedger({
               </TableHeader>
               <TableBody>
                 {visibleRows.map((row) => {
-                  if (row.kind === "reimbursement") {
-                    const r = row.data;
-                    const paidDateStr = r.paid_at ?? r.reviewed_at;
-                    return (
-                      <TableRow key={r.id}>
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                          {formatShortDate(r.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium flex items-center gap-2">
-                            {r.description}
-                            <Badge
-                              variant="outline"
-                              className="border-transparent bg-primary-deep/10 text-primary-deep text-xs shrink-0 hover:bg-primary-deep/10"
-                            >
-                              Reembolso
-                            </Badge>
-                          </div>
-                          {r.requester_name && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {r.requester_name}
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {r.expense_type ? (
-                            <span className="text-sm text-muted-foreground">
-                              {r.expense_type}
-                            </span>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="border-0 bg-primary-deep/10 text-primary-deep text-xs hover:bg-primary-deep/10">
-                            Pago
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                          {paidDateStr ? formatShortDate(paidDateStr) : "–"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className="text-muted-foreground">—</span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(Number(r.total_amount))}
-                        </TableCell>
-                        {canManage && <TableCell />}
-                      </TableRow>
-                    );
-                  }
-
                   const cost = row.data;
                   const closed = isCostMonthClosed(cost.cost_date ?? "");
                   const isPaid = cost.status === "paid";

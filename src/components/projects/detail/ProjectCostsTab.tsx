@@ -10,7 +10,6 @@ import { useMaskedCurrency } from "@/contexts/HideValuesContext";
 import { useProjectMemberMonths } from "@/hooks/useProjectMemberMonths";
 import { useProjectCostItems } from "@/hooks/useProjectCostItems";
 import { useTimesheetsByMembers } from "@/hooks/useProjectTimesheets";
-import { useProjectApprovedReimbursements } from "@/hooks/useReimbursements";
 import { useProjectPlannedLaborCost } from "@/hooks/useProjectPlannedLaborCost";
 import { ProjectWithRelations } from "@/types/project";
 
@@ -81,8 +80,6 @@ export function ProjectCostsTab({
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
-  const { data: approvedReimbursements = [], isLoading: reimbursementsLoading } =
-    useProjectApprovedReimbursements(project.id);
   const { data: projectCosts = [], isLoading: projectCostsLoading } =
     useProjectCostItems(project.id);
   const plannedLaborFromAllocations = useProjectPlannedLaborCost(
@@ -169,18 +166,8 @@ export function ProjectCostsTab({
     [projectCosts],
   );
 
-  const reimbursementCostsActual = useMemo(
-    () =>
-      approvedReimbursements.reduce(
-        (sum, reimbursement) => sum + Number(reimbursement.total_amount),
-        0,
-      ),
-    [approvedReimbursements],
-  );
-
   const totalPlanned = laborCostsPlanned + costsPlannedBrl;
-  const totalActual =
-    laborCostsActual + costsActualBrl + reimbursementCostsActual;
+  const totalActual = laborCostsActual + costsActualBrl;
 
   const desvioText = useMemo(() => {
     if (totalPlanned === 0) return "-";
@@ -205,13 +192,11 @@ export function ProjectCostsTab({
         count++;
       }
     });
-    if (reimbursementCostsActual > 0) count++;
     return count;
   }, [
     laborCostsActual,
     laborCostsPlanned,
     projectCosts,
-    reimbursementCostsActual,
   ]);
 
   const monthlyChartData = useMemo(() => {
@@ -319,19 +304,6 @@ export function ProjectCostsTab({
       }
     });
 
-    const actualReimbursementMap = new Map<number, number>();
-    approvedReimbursements.forEach((reimbursement) => {
-      const dateStr = reimbursement.paid_at || reimbursement.reviewed_at;
-      if (!dateStr) return;
-      const monthNumber = differenceInMonths(parseISO(dateStr), projectStart) + 1;
-      if (monthNumber < 1 || monthNumber > durationMonths) return;
-      actualReimbursementMap.set(
-        monthNumber,
-        (actualReimbursementMap.get(monthNumber) || 0) +
-          Number(reimbursement.total_amount),
-      );
-    });
-
     return Array.from({ length: durationMonths }, (_, index) => {
       const monthNumber = index + 1;
       const monthDate = addMonths(projectStart, index);
@@ -341,15 +313,12 @@ export function ProjectCostsTab({
       const actualLabor = actualLaborMap.get(monthNumber) || 0;
       const actualExtra = actualExtraMap.get(monthNumber) || 0;
       const actualMaterials = actualMaterialMap.get(monthNumber) || 0;
-      const actualReimbursements =
-        actualReimbursementMap.get(monthNumber) || 0;
 
       return {
         month: format(monthDate, "MMM yyyy", { locale: ptBR }),
         monthNum: monthNumber,
         planned: plannedLabor + plannedExtra + plannedMaterials,
-        realized:
-          actualLabor + actualExtra + actualMaterials + actualReimbursements,
+        realized: actualLabor + actualExtra + actualMaterials,
         breakdown: {
           planned: {
             labor: plannedLabor,
@@ -360,13 +329,11 @@ export function ProjectCostsTab({
             labor: actualLabor,
             suppliers: actualExtra,
             materials: actualMaterials,
-            reimbursements: actualReimbursements,
           },
         },
       };
     });
   }, [
-    approvedReimbursements,
     durationMonths,
     getMemberHourlyCost,
     memberMonths,
@@ -398,13 +365,7 @@ export function ProjectCostsTab({
               dotStatus={costDotStatus}
             />
             <MetricItem label="Desvio" value={desvioText} dotStatus={devDotStatus} />
-            <MetricItem
-              label="Lançamentos"
-              value={String(projectCosts.length + approvedReimbursements.length)}
-              subtitle={`${approvedReimbursements.length} reembolso${
-                approvedReimbursements.length !== 1 ? "s" : ""
-              }`}
-            />
+            <MetricItem label="Lançamentos" value={String(projectCosts.length)} />
             <MetricItem label="Categorias Ativas" value={String(activeCategories)} />
           </div>
         </CardContent>
@@ -413,7 +374,6 @@ export function ProjectCostsTab({
       <ProjectMonthlyCostChart
         data={monthlyChartData}
         isLoading={
-          reimbursementsLoading ||
           projectCostsLoading ||
           plannedLaborFromAllocations.isLoading
         }
@@ -424,7 +384,6 @@ export function ProjectCostsTab({
         costs={projectCosts}
         canManage={isEditable || canEditActuals}
         isAdmin={isAdmin}
-        reimbursements={approvedReimbursements}
       />
     </div>
   );

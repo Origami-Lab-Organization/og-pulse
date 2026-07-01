@@ -489,15 +489,6 @@ async function run() {
   ]);
   console.log('   ✓ 9 leads criados (8 ativos + 1 arquivado)');
 
-  // ─── Reimbursements ───────────────────────────────────────────────────────
-  console.log('14/14 Criando pedidos de reembolso...');
-  await db.from('reimbursement_requests').insert([
-    { tenant_id: tid, requested_by: empUser.id, project_id: proj1.id, client_id: cliTech.id, description: 'Transporte e alimentação — visita ao cliente TechVision (Nov/2025)', total_amount: 485.50, status: 'approved', reviewed_by: empManager.id, reviewed_at: '2025-12-02', is_internal: false },
-    { tenant_id: tid, requested_by: empManager.id, project_id: proj1.id, client_id: cliTech.id, description: 'Hotel e passagem aérea — workshop presencial São Paulo (Dez/2025)', total_amount: 2840.00, status: 'pending', is_internal: false },
-    { tenant_id: tid, requested_by: empDev1?.id ?? empUser.id, description: 'Material de escritório — Q4/2025', total_amount: 320.00, status: 'approved', reviewed_by: empAdmin.id, reviewed_at: '2025-12-10', is_internal: true },
-  ]);
-  console.log('   ✓ 3 reembolsos criados');
-
   console.log('\n✅ Tenant demo criado com sucesso!\n');
   printCredentials();
 }
@@ -527,7 +518,6 @@ function printCredentials() {
   console.log('  • 66 lançamentos de timesheet');
   console.log('  • 8 leads ativos no CRM (todas as etapas)');
   console.log('  • 1 lead arquivado');
-  console.log('  • 3 pedidos de reembolso');
   console.log('  • Feriados, Configurações financeiras');
   console.log('═'.repeat(60) + '\n');
 }

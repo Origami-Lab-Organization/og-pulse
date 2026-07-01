@@ -4,7 +4,6 @@ import { TimesheetStatusWidget } from '@/components/dashboard/TimesheetStatusWid
 import { MinhasTarefasWidget } from '@/components/dashboard/MinhasTarefasWidget';
 import { NotificacoesRecentesWidget } from '@/components/dashboard/NotificacoesRecentesWidget';
 import { MeusProjetosWidget } from '@/components/dashboard/MeusProjetosWidget';
-import { ReembolsosPendentesWidget } from '@/components/dashboard/ReembolsosPendentesWidget';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -34,9 +33,6 @@ export default function Dashboard() {
             <MeusProjetosWidget />
           </div>
         </div>
-
-        {/* Linha 3: Reembolsos (apenas se houver pendências) */}
-        <ReembolsosPendentesWidget />
       </div>
     </AppLayout>
   );

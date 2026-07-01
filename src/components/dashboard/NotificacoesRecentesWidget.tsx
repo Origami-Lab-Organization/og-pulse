@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { parseISO } from 'date-fns';
-import { Bell, Clock, Receipt, FolderKanban, FileText, ArrowRight } from 'lucide-react';
+import { Bell, Clock, FolderKanban, FileText, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,7 +21,6 @@ function timeAgo(dateStr: string): string {
 function CategoryIcon({ category }: { category: string }) {
   const cls = 'h-3.5 w-3.5 shrink-0';
   if (category === 'timesheet') return <Clock className={cls} />;
-  if (category === 'reimbursement') return <Receipt className={cls} />;
   if (category === 'projeto') return <FolderKanban className={cls} />;
   if (category === 'budget') return <FileText className={cls} />;
   return <Bell className={cls} />;

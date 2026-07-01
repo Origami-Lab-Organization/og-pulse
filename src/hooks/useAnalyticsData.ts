@@ -43,7 +43,6 @@ export interface AnalyticsData {
   laborCost: number;
   supplierCost: number;
   materialCost: number;
-  reimbursementCost: number;
   commissionValue: number;
   grossMargin: number;
   grossMarginTarget: number | null;
@@ -100,7 +99,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         return {
           revenueActual: 0, revenueProjected: 0, revenueDiff: 0,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
-          reimbursementCost: 0, commissionValue: 0,
+          commissionValue: 0,
           grossMargin: 0, grossMarginTarget: null, costsByProject: [], employeeUtilization: [],
           idleHours: 0, idleCost: 0, totalCapacity: 0,
         } as AnalyticsData;
@@ -108,11 +107,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       const projectIds = projects.map(p => p.id);
 
-      const dayAfterEnd = new Date(filters.endDate);
-      dayAfterEnd.setDate(dayAfterEnd.getDate() + 1);
-      const dayAfterEndStr = format(dayAfterEnd, 'yyyy-MM-dd');
-
-      const [installmentsRes, projectedInstallmentsRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, settingsRes, holidaysRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [installmentsRes, projectedInstallmentsRes, faturadoRes, timesheetsRes, membersRes, suppliersRes, materialsRes, settingsRes, holidaysRes, commissionsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('project_id, value, payment_date')
@@ -163,13 +158,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .eq('is_paid', true)
           .gte('paid_date', startStr)
           .lte('paid_date', endStr),
-        supabase
-          .from('reimbursement_requests' as any)
-          .select('project_id, total_amount')
-          .in('project_id', projectIds)
-          .in('status', ['approved', 'paid'])
-          .gte('updated_at', startStr)
-          .lt('updated_at', dayAfterEndStr),
       ]);
 
       const installments = installmentsRes.data || [];
@@ -183,7 +171,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
       const holidays = holidaysRes.data || [];
       const commissions = commissionsRes.data || [];
-      const reimbursements = (reimbursementsRes.data || []) as any[];
       const workingDays = countWorkingDays(filters.startDate, filters.endDate, holidays);
 
       const projectMap = new Map(projects.map(p => [p.id, p]));
@@ -283,8 +270,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
 
       costsByProject.sort((a, b) => b.totalCost - a.totalCost);
 
-      const totalReimbursementCost = reimbursements.reduce((sum: number, r: any) => sum + (Number(r.total_amount) || 0), 0);
-      const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost + totalReimbursementCost;
+      const totalCosts = totalLaborCost + totalSupplierCost + totalMaterialCost;
 
       const totalCommissions = commissions
         .filter((c: any) => !c.approval_status || c.approval_status === 'approved')
@@ -377,7 +363,6 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         laborCost: totalLaborCost,
         supplierCost: totalSupplierCost,
         materialCost: totalMaterialCost,
-        reimbursementCost: totalReimbursementCost,
         commissionValue: totalCommissions,
         grossMargin,
         grossMarginTarget,

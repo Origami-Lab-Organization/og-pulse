@@ -849,44 +849,6 @@ Deno.serve(async (req) => {
     });
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 14. REIMBURSEMENT REQUESTS
-    // ═══════════════════════════════════════════════════════════════════════
-    await db.from('reimbursement_requests').insert([
-      {
-        tenant_id: tid,
-        requested_by: empUser.id,
-        project_id: proj1.id,
-        client_id: cliTech.id,
-        description: 'Transporte e alimentação — visita ao cliente TechVision (Nov/2025)',
-        total_amount: 485.50,
-        status: 'approved',
-        reviewed_by: empManager.id,
-        reviewed_at: '2025-12-02',
-        is_internal: false,
-      },
-      {
-        tenant_id: tid,
-        requested_by: empManager.id,
-        project_id: proj1.id,
-        client_id: cliTech.id,
-        description: 'Hotel e passagem aérea — workshop presencial São Paulo (Dez/2025)',
-        total_amount: 2840.00,
-        status: 'pending',
-        is_internal: false,
-      },
-      {
-        tenant_id: tid,
-        requested_by: empDev1?.id ?? empUser.id,
-        description: 'Material de escritório — Q4/2025',
-        total_amount: 320.00,
-        status: 'approved',
-        reviewed_by: empAdmin.id,
-        reviewed_at: '2025-12-10',
-        is_internal: true,
-      },
-    ]);
-
-    // ═══════════════════════════════════════════════════════════════════════
     // DONE
     // ═══════════════════════════════════════════════════════════════════════
     return new Response(
@@ -905,7 +867,6 @@ Deno.serve(async (req) => {
           suppliers: 3,
           projects: 4,
           leads: 9,
-          reimbursements: 3,
           role_rates: 10,
         },
       }),

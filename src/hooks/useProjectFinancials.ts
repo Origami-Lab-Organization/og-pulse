@@ -53,7 +53,6 @@ export function useProjectFinancials(
 
   const startStr = format(filters.startDate, 'yyyy-MM-dd');
   const endStr = format(filters.endDate, 'yyyy-MM-dd');
-  const dayAfterEnd = format(new Date(filters.endDate.getTime() + 86400000), 'yyyy-MM-dd');
 
   return useQuery({
     queryKey: [
@@ -112,7 +111,7 @@ export function useProjectFinancials(
       const projectIds = projects.map((p: any) => p.id);
       const projectMap = new Map(projects.map((p: any) => [p.id, p]));
 
-      const [receivedRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [receivedRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('project_id, value')
@@ -144,14 +143,6 @@ export function useProjectFinancials(
           .eq('is_paid', true)
           .gte('paid_date', startStr)
           .lte('paid_date', endStr),
-
-        supabase
-          .from('reimbursement_requests' as any)
-          .select('project_id, total_amount')
-          .in('project_id', projectIds)
-          .in('status', ['approved', 'paid'])
-          .gte('updated_at', startStr)
-          .lt('updated_at', dayAfterEnd),
       ]);
 
       const revenue = new Map<string, number>();
@@ -200,7 +191,6 @@ export function useProjectFinancials(
       }
 
       for (const c of (commissionsRes.data || []) as any[]) add(costs, c.project_id, Number(c.planned_value) || 0);
-      for (const r of (reimbursementsRes.data || []) as any[]) add(costs, r.project_id, Number(r.total_amount) || 0);
 
       const byProject: ProjectFinancialRow[] = [];
       const clientMap = new Map<string, DimensionFinancialRow>();

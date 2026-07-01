@@ -1,6 +1,5 @@
 -- FUNC-J3 — Notificações MOCKADAS para testar a Caixa de Entrada
 -- (abas/categorias variadas + agrupamento por data + Arquivadas + Lixeira).
--- Reembolsos trazem o valor em **negrito** no texto e o projeto via metadata.project_name (vira badge).
 --
 -- Pré-requisito: rodar antes a migration 20260618160000 (read_at/deleted_at).
 -- Como usar: troque o e-mail abaixo e rode no SQL Editor.
@@ -20,13 +19,11 @@ FROM me, (VALUES
   -- ───────── ESTA SEMANA ─────────
   ('timesheet_reminder',     'timesheet',     'high',   '/my-timesheet',   'Lance suas horas da semana',        'Você ainda não confirmou as horas desta semana.',                          false, false, NULL::timestamptz, now() - interval '2 hours', NULL::jsonb),
   ('card_assigned',          'projeto',       'normal', '/my-kanban',      'Nova atividade atribuída',          'Você foi designado para "Revisar protótipo".',                             false, false, NULL::timestamptz, now() - interval '5 hours', NULL::jsonb),
-  ('reimbursement_approved', 'reimbursement', 'normal', '/reimbursements', 'Reembolso aprovado',                'Seu reembolso de **R$ 250,00** foi aprovado — aguardando pagamento.',       false, false, NULL::timestamptz, now() - interval '1 day',  '{"amount": 250.00, "project_name": "Plataforma Bry"}'::jsonb),
   ('document_available',     'documento',     'normal', '/documentos',     'Novo holerite disponível',          'Seu holerite de junho já está disponível.',                                false, false, NULL::timestamptz, now() - interval '2 days', NULL::jsonb),
 
   -- ───────── SEMANA PASSADA ─────────
   ('project_started',        'projeto',       'normal', '/my-projects',    'Projeto iniciado',                  'O projeto "Plataforma Bry" entrou em execução.',                           false, false, NULL::timestamptz, now() - interval '8 days',  NULL::jsonb),
   ('budget_margin_pending',  'budget',        'high',   '/crm',            'Aprovação de margem pendente',      'Um orçamento aguarda sua aprovação de margem.',                            false, false, NULL::timestamptz, now() - interval '9 days',  NULL::jsonb),
-  ('reimbursement_paid',     'reimbursement', 'normal', '/reimbursements', 'Reembolso pago',                    'Seu reembolso de **R$ 120,50** foi pago. Verifique sua conta.',            true,  false, NULL::timestamptz, now() - interval '10 days', '{"amount": 120.50, "project_name": "Verifica"}'::jsonb),
 
   -- ───────── ESTE MÊS (início do mês) ─────────
   ('nps_response_received',  'projeto',       'normal', '/comercial',      'Nova resposta de NPS',              'Um stakeholder respondeu à pesquisa de NPS.',                              true,  false, NULL::timestamptz, now() - interval '14 days', NULL::jsonb),
@@ -39,7 +36,6 @@ FROM me, (VALUES
 
   -- ───────── MESES ANTERIORES (nome do mês) ─────────
   ('timesheet_submitted',    'timesheet',     'normal', '/my-timesheet',   'Horas enviadas',                    'Suas horas do mês foram enviadas com sucesso.',                            true,  false, NULL::timestamptz, now() - interval '70 days',  NULL::jsonb),
-  ('reimbursement_approved', 'reimbursement', 'normal', '/reimbursements', 'Reembolso aprovado',                'Reembolso de viagem de **R$ 980,00** aprovado.',                           true,  false, NULL::timestamptz, now() - interval '74 days',  '{"amount": 980.00, "project_name": "Assina"}'::jsonb),
   ('card_assigned',          'projeto',       'normal', '/my-kanban',      'Atividade concluída',               'Atividade "Documentação" marcada como concluída.',                         true,  false, NULL::timestamptz, now() - interval '100 days', NULL::jsonb),
 
   -- ───────── ARQUIVADAS (aba Arquivadas) ─────────
@@ -47,7 +43,6 @@ FROM me, (VALUES
   ('budget_margin_approved', 'budget',        'normal', '/crm',            'Margem aprovada',                   'A margem do orçamento foi aprovada.',                                      true,  true,  NULL::timestamptz, now() - interval '45 days', NULL::jsonb),
 
   -- ───────── LIXEIRA (soft-deleted, datas variadas) ─────────
-  ('reimbursement_rejected', 'reimbursement', 'normal', '/reimbursements', 'Reembolso rejeitado',               'Reembolso de **R$ 75,00** rejeitado — recibo ilegível.',                   true,  false, now() - interval '1 day',  now() - interval '11 days', '{"amount": 75.00, "project_name": "Plataforma Bry"}'::jsonb),
   ('timesheet_reminder',     'timesheet',     'normal', '/my-timesheet',   'Lembrete antigo de timesheet',      'Notificação antiga, movida para a lixeira.',                               true,  false, now() - interval '3 days',  now() - interval '50 days', NULL::jsonb),
   ('document_available',     'documento',     'normal', '/documentos',     'Documento antigo',                  'Documento antigo movido para a lixeira.',                                  true,  false, now() - interval '10 days', now() - interval '80 days', NULL::jsonb)
 ) AS v(type, category, priority, action_url, title, message, is_read, is_archived, deleted_at, created_at, metadata);
