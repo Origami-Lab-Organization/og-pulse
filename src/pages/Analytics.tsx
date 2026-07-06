@@ -41,7 +41,8 @@ import {
 } from '@/contexts/HideValuesContext'
 
 // Substitua por `false` para usar dados reais do Supabase
-const DEV_MOCK = false
+const DEV_MOCK = true
+
 
 // ── presets ──────────────────────────────────────────────────────────────
 const PRESET_OPTIONS: { value: AnalyticsPreset; label: string }[] = [

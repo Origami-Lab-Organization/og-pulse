@@ -71,7 +71,6 @@ export function EquipeTab({ project, isReadOnly = false }: EquipeTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Users className="w-5 h-5 text-muted-foreground" />
           <h2 className="text-lg font-semibold">Equipe</h2>
           {allocations.length > 0 && (
             <Badge variant="secondary">

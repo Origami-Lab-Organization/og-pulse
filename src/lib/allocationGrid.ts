@@ -113,25 +113,33 @@ export function getPlanVariance(cell: AllocationCell) {
 export function calculateMetrics(people: AllocationPerson[], referenceMonthKey: string): AllocationMetrics {
   if (people.length === 0) {
     return {
-      plannedHours: null,
-      loggedHours: null,
-      varianceHours: null,
-      offPlanMembers: null,
-      missingLogs: null,
+      overloaded: null,
+      unallocated: null,
+      avgUtilization: null,
+      availableHours: null,
+      activeMembers: null,
     };
   }
 
   const referenceCells = people.map((person) => person.cells[referenceMonthKey] ?? emptyAllocationCell(referenceMonthKey));
-  const plannedHours = referenceCells.reduce((sum, cell) => sum + Number(cell.plannedHours || 0), 0);
-  const loggedHours = referenceCells.reduce((sum, cell) => sum + getLoggedHours(cell), 0);
 
-  return {
-    plannedHours: Math.round(plannedHours),
-    loggedHours: Math.round(loggedHours),
-    varianceHours: Math.round(loggedHours - plannedHours),
-    offPlanMembers: referenceCells.filter((cell) => Math.abs(getPlanVariance(cell)) >= 1).length,
-    missingLogs: referenceCells.filter((cell) => Number(cell.plannedHours || 0) > 0 && getLoggedHours(cell) === 0).length,
-  };
+  const overloaded = referenceCells.filter((cell) => cell.status === 'critical').length;
+  const unallocated = referenceCells.filter((cell) => cell.status === 'unallocated').length;
+  const activeMembers = people.length;
+
+  const cellsWithUtil = referenceCells.filter((cell) => cell.utilization !== null);
+  const avgUtilization = cellsWithUtil.length > 0
+    ? Math.round(cellsWithUtil.reduce((sum, cell) => sum + (cell.utilization ?? 0), 0) / cellsWithUtil.length)
+    : null;
+
+  const availableHours = Math.round(
+    referenceCells.reduce((sum, cell) => {
+      const spare = Number(cell.capacityHours || 0) - Number(cell.plannedHours || 0);
+      return sum + Math.max(0, spare);
+    }, 0),
+  );
+
+  return { overloaded, unallocated, avgUtilization, availableHours, activeMembers };
 }
 
 export function filterAllocationPeople(
@@ -154,7 +162,9 @@ export function filterAllocationPeople(
     const matchesStatus =
       filters.status === 'all' ||
       (filters.status === 'abovePlan' && loggedHours > plannedHours) ||
-      (filters.status === 'missingLogs' && plannedHours > 0 && loggedHours === 0);
+      (filters.status === 'missingLogs' && plannedHours > 0 && loggedHours === 0) ||
+      (filters.status === 'overloaded' && cell.status === 'critical') ||
+      (filters.status === 'unallocated' && cell.status === 'unallocated');
 
     return matchesTerminated && matchesRole && matchesProject && matchesSearch && matchesStatus;
   });

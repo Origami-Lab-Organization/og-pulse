@@ -1,24 +1,10 @@
 import { useMemo } from 'react';
-import {
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Target,
-  DollarSign,
-  Building2,
-  User,
-  Calendar,
-  FileText,
-  Clock,
-  CreditCard,
-  Receipt,
-  Percent,
-} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
-import { useMaskedCurrency, useMaskedPercent } from '@/contexts/HideValuesContext';
+import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { ProjectTeamSection } from './ProjectTeamSection';
+import { ProjectKPIBar } from './ProjectKPIBar';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
@@ -35,7 +21,6 @@ interface ProjectOverviewTabProps {
 
 export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
   const formatCurrency = useMaskedCurrency();
-  const formatPercent = useMaskedPercent();
   const memberIds = useMemo(
     () => (project.members || []).map((m) => m.id),
     [project.members]
@@ -72,7 +57,6 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
       if (memberEntries.length === 0) {
         return acc + fallbackCost * Number(member.hours_per_month || 0) * project.duration_months;
       }
-
       return acc + memberEntries.reduce((sum, mm) => {
         const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
         return sum + hourlyCost * Number(mm.hours);
@@ -118,7 +102,6 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     const revenueActual = metrics.receivedValue;
     const revenueExecuted = revenuePlanned > 0 ? (revenueActual / revenuePlanned) * 100 : 0;
 
-    // Commission
     const commissionPlanned = budget
       ? (budget.commission_percent / 100) * budget.total_with_fees
       : 0;
@@ -148,103 +131,88 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Row 1: Informações do Projeto + Financeiras */}
+      {/* Informações do projeto e financeiras */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Informações do Projeto</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Informações do Projeto</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Cliente</p>
-                <p className="font-medium">
-                  {project.client?.trading_name || project.client?.company_name || 'Não definido'}
-                </p>
-              </div>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="ol-label text-muted-foreground mb-0.5">Cliente</p>
+              <p className="text-sm font-medium text-foreground">
+                {project.client?.trading_name || project.client?.company_name || 'Não definido'}
+              </p>
             </div>
-            <div className="flex items-start gap-3">
-              <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Gerente do Projeto</p>
-                <p className="font-medium">{project.manager?.nome || 'Não definido'}</p>
-              </div>
+            <div>
+              <p className="ol-label text-muted-foreground mb-0.5">Gerente</p>
+              <p className="text-sm font-medium text-foreground">
+                {project.manager?.nome || 'Não definido'}
+              </p>
             </div>
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Período</p>
-                <p className="font-medium">
-                  {format(new Date(project.start_date), 'dd/MM/yyyy', { locale: ptBR })}
-                  {project.end_date && (
-                    <> a {format(new Date(project.end_date), 'dd/MM/yyyy', { locale: ptBR })}</>
-                  )}
-                  {project.is_continuous && <Badge variant="outline" className="ml-2">Contínuo</Badge>}
-                </p>
-              </div>
+            <div>
+              <p className="ol-label text-muted-foreground mb-0.5">Período</p>
+              <p className="text-sm font-medium text-foreground">
+                {format(new Date(project.start_date), 'dd/MM/yyyy', { locale: ptBR })}
+                {project.end_date && (
+                  <> a {format(new Date(project.end_date), 'dd/MM/yyyy', { locale: ptBR })}</>
+                )}
+                {project.is_continuous && (
+                  <Badge variant="outline" className="ml-2">Contínuo</Badge>
+                )}
+              </p>
             </div>
             {project.description && (
-              <div className="flex items-start gap-3">
-                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Descrição</p>
-                  <p className="text-sm">{project.description}</p>
-                </div>
+              <div>
+                <p className="ol-label text-muted-foreground mb-0.5">Descrição</p>
+                <p className="text-sm text-foreground">{project.description}</p>
               </div>
             )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Informações Financeiras</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Informações Financeiras</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Valor Total do Contrato</p>
-                <p className="text-2xl font-bold">{formatCurrency(project.total_value)}</p>
-              </div>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="ol-label text-muted-foreground mb-1">Valor do Contrato</p>
+              <p className="font-mono text-[1.75rem] font-semibold leading-none tabular-nums text-foreground">
+                {formatCurrency(project.total_value)}
+              </p>
             </div>
             {project.service_line === 'financiamento_inovacao' ? (
               <>
-                <div className="flex items-start gap-3">
-                  <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Prazo de Pagamento</p>
-                    <p className="font-medium">Pagamento em {project.due_day} dias após NF</p>
-                  </div>
+                <div>
+                  <p className="ol-label text-muted-foreground mb-0.5">Prazo de Pagamento</p>
+                  <p className="text-sm font-medium text-foreground">
+                    Pagamento em {project.due_day} dias após NF
+                  </p>
                 </div>
                 {(project as any).success_fee_percent != null && (
-                  <div className="flex items-start gap-3">
-                    <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Percentual de Sucesso</p>
-                      <p className="font-medium">{(project as any).success_fee_percent}%</p>
-                    </div>
+                  <div>
+                    <p className="ol-label text-muted-foreground mb-0.5">Percentual de Sucesso</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {(project as any).success_fee_percent}%
+                    </p>
                   </div>
                 )}
               </>
             ) : (
               <>
-                <div className="flex items-start gap-3">
-                  <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Forma de Pagamento</p>
-                    <p className="font-medium">{getPaymentMethodLabel(project.payment_method)}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {project.installments_count} parcela(s)
-                    </p>
-                  </div>
+                <div>
+                  <p className="ol-label text-muted-foreground mb-0.5">Forma de Pagamento</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {getPaymentMethodLabel(project.payment_method)}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {project.installments_count} parcela(s)
+                  </p>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Dia de Vencimento</p>
-                    <p className="font-medium">Dia {project.due_day}</p>
-                  </div>
+                <div>
+                  <p className="ol-label text-muted-foreground mb-0.5">Dia de Vencimento</p>
+                  <p className="text-sm font-medium text-foreground">Dia {project.due_day}</p>
                 </div>
               </>
             )}
@@ -252,137 +220,16 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         </Card>
       </div>
 
-      {/* Row 2: KPI Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Receita */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <DollarSign className="h-4 w-4 text-primary" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Receita</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.revenueActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.revenuePlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.revenueExecuted.toFixed(1)}%
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Barra de KPIs financeiros */}
+      <ProjectKPIBar {...kpiData} />
 
-        {/* Comissão */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-                <Percent className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Comissão</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.commissionActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.commissionPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.commissionExecuted.toFixed(1)}%
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Custos */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Custos</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.costActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.costPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.costExecuted.toFixed(1)}%
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Margem */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                kpiData.marginActual >= 30 ? 'bg-green-100 dark:bg-green-900/30' :
-                kpiData.marginActual >= 15 ? 'bg-muted' : 'bg-red-100 dark:bg-red-900/30'
-              }`}>
-                {kpiData.marginActual >= 30 ? (
-                  <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-                ) : kpiData.marginActual < 15 ? (
-                  <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
-                ) : (
-                  <Minus className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Margem</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className={`text-xl font-bold ${
-                  kpiData.marginActual >= 30 ? 'text-green-600 dark:text-green-400' :
-                  kpiData.marginActual < 15 ? 'text-red-600 dark:text-red-400' : ''
-                }`}>
-                  {formatPercent(kpiData.marginActual)}
-                </p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatPercent(kpiData.marginPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className={`text-xs font-semibold ${kpiData.marginVar >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {kpiData.marginVar >= 0 ? '+' : ''}{kpiData.marginVar.toFixed(1)}pp
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">variação</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Row 3: Team */}
-      <ProjectTeamSection members={project.members || []} projectId={project.id} memberMonths={memberMonths} timesheets={timesheets} />
+      {/* Equipe */}
+      <ProjectTeamSection
+        members={project.members || []}
+        projectId={project.id}
+        memberMonths={memberMonths}
+        timesheets={timesheets}
+      />
     </div>
   );
 }

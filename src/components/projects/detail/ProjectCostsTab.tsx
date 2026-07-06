@@ -38,10 +38,10 @@ function MetricItem({
       {dotStatus === "ok" && (
         <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-primary-deep" />
       )}
-      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground truncate">
+      <p className="ol-label text-muted-foreground truncate">
         {label}
       </p>
-      <p className="text-2xl font-bold mt-1.5 tabular-nums truncate">
+      <p className="font-mono text-[1.75rem] font-semibold leading-none tabular-nums truncate mt-1">
         {value}
       </p>
       {subtitle && (

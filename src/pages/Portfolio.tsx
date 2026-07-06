@@ -13,7 +13,7 @@ import {
   PortfolioProject,
 } from '@/hooks/usePortfolioProjects'
 import { useDeleteProject, useArchiveProject } from '@/hooks/useProjects'
-import { Search, Building2, User, Kanban, List, Eye, EyeOff } from 'lucide-react'
+import { Search, Eye, EyeOff } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth } from '@/contexts/AuthContext'
 import { useHideValuesPreference } from '@/contexts/HideValuesContext'
@@ -74,11 +74,10 @@ export default function Portfolio() {
     <Badge
       variant='outline'
       className={isAdmin
-        ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800 gap-1'
-        : 'bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700 gap-1'
+        ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+        : 'bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700'
       }
     >
-      {isAdmin ? <Building2 className='h-3 w-3' /> : <User className='h-3 w-3' />}
       {scopeBadgeLabel}
     </Badge>
   )
@@ -110,6 +109,7 @@ export default function Portfolio() {
   return (
     <AppLayout
       title='Portfólio de Projetos'
+      description='Acompanhe os projetos por status, cliente e gerente.'
       actions={headerActions}
     >
       <div className='flex flex-col gap-4 h-[calc(100vh-10rem)]'>
@@ -153,18 +153,18 @@ export default function Portfolio() {
                 <Button
                   variant={viewMode === 'kanban' ? 'default' : 'ghost'}
                   size='sm'
-                  className='rounded-none h-9 px-3'
+                  className='rounded-none h-9 px-3 text-sm'
                   onClick={() => setViewMode('kanban')}
                 >
-                  <Kanban className='h-4 w-4' />
+                  Kanban
                 </Button>
                 <Button
                   variant={viewMode === 'table' ? 'default' : 'ghost'}
                   size='sm'
-                  className='rounded-none h-9 px-3'
+                  className='rounded-none h-9 px-3 text-sm'
                   onClick={() => setViewMode('table')}
                 >
-                  <List className='h-4 w-4' />
+                  Lista
                 </Button>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as amplitude from '@amplitude/analytics-browser';
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, HelpCircle, Lock, PlusCircle, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, HelpCircle, Lock, PlusCircle, Wrench, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +34,7 @@ import {
 import { AllocationMonth, AllocationPanelProjectRow, AllocationPerson, AllocationProjectOption } from '@/types/allocation';
 import { useAuth } from '@/contexts/AuthContext';
 import { SENIORITY_OPTIONS } from '@/types/project';
+import { AllocationCorrectionDialog } from '@/components/timesheets/AllocationCorrectionDialog';
 
 interface EmployeeAllocationPanelProps {
   open: boolean;
@@ -76,7 +77,7 @@ function rowKey(row: AllocationPanelProjectRow) {
   return `${row.projectMemberId}:${row.monthNumber}`;
 }
 
-const PANEL_ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_76px_56px_28px] items-center gap-2';
+const PANEL_ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_84px_84px_28px] items-center gap-2';
 
 function titleCaseStatus(label: string) {
   return label
@@ -177,6 +178,8 @@ export function EmployeeAllocationPanel({
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [addForm, setAddForm] = useState({ projectId: '', role: '', seniority: 'pleno', hoursPerMonth: 40 });
   const [rowToRemove, setRowToRemove] = useState<AllocationPanelProjectRow | null>(null);
+  const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
+  const canCorrectActuals = Boolean(currentUser?.isAdmin || currentUser?.is_gerente);
 
   const panelQuery = useEmployeeAllocationPanel({
     tenantId,
@@ -396,7 +399,7 @@ export function EmployeeAllocationPanel({
                     </div>
                   </div>
                   <span className="font-mono text-xs font-semibold tabular-nums">
-                    {formatHours(plannedTotal)} / {formatHours(capacityHours)} cap.
+                    {formatHours(plannedTotal)} / {formatHours(capacityHours)} capacidade
                   </span>
                 </div>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-background/70">
@@ -440,25 +443,46 @@ export function EmployeeAllocationPanel({
               ) : (
                 <>
                   <section className="overflow-hidden rounded-lg border bg-card">
-                    <div className="flex items-center justify-between border-b bg-muted px-4 py-3">
+                    <div className="flex items-center justify-between gap-2 border-b bg-muted px-4 py-3">
                       <p className="ol-label text-muted-foreground">Projetos ativos & planejamento</p>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
-                            <HelpCircle className="h-3.5 w-3.5" />
-                            Ajuda
+                      <div className="flex items-center gap-1">
+                        {canCorrectActuals && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1.5 px-2 text-xs"
+                            onClick={() => setCorrectionDialogOpen(true)}
+                          >
+                            <Wrench className="h-3.5 w-3.5" />
+                            Corrigir lançamentos
                           </Button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" className="w-72 text-sm">
+                        )}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
+                              <HelpCircle className="h-3.5 w-3.5" />
+                              Ajuda
+                            </Button>
+                          </PopoverTrigger>
+                        <PopoverContent align="end" className="w-80 text-sm">
                           <p className="font-semibold text-foreground">Como ler esta tabela</p>
                           <dl className="mt-3 space-y-2.5 text-muted-foreground">
                             <div>
-                              <dt className="font-medium text-foreground">Planej.</dt>
-                              <dd>Horas que você planeja alocar no mês. Editável — clique no valor para ajustar e salve as alterações.</dd>
+                              <dt className="font-medium text-foreground">Planejado</dt>
+                              <dd>Horas que você planeja alocar no mês neste projeto. Editável — clique no valor para ajustar e salve as alterações.</dd>
                             </div>
                             <div>
-                              <dt className="font-medium text-foreground">Lançad.</dt>
-                              <dd>Horas já registradas no timesheet. Somente leitura.</dd>
+                              <dt className="font-medium text-foreground">Realizado</dt>
+                              <dd>
+                                Horas já lançadas no timesheet pelo colaborador. Somente leitura aqui — depois de
+                                submetido, apenas o gerente do projeto pode corrigir um lançamento, pelo botão
+                                "Corrigir lançamentos".
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="font-medium text-foreground">Capacidade</dt>
+                              <dd>Total de horas disponíveis do colaborador no mês, considerando jornada e dias úteis. É o limite de referência usado para calcular a utilização.</dd>
                             </div>
                             <div>
                               <dt className="font-medium text-foreground">Total Planejado</dt>
@@ -466,12 +490,13 @@ export function EmployeeAllocationPanel({
                             </div>
                           </dl>
                         </PopoverContent>
-                      </Popover>
+                        </Popover>
+                      </div>
                     </div>
                     <div className={cn(PANEL_ROW_GRID, 'border-b bg-muted/50 px-4 py-2 ol-label text-muted-foreground')}>
                       <span>Projeto</span>
-                      <span className="text-right">Planej.</span>
-                      <span className="text-right">Lançad.</span>
+                      <span className="text-right">Planejado</span>
+                      <span className="text-right">Realizado</span>
                       <span className="sr-only">Ações</span>
                     </div>
                     <div className="divide-y">
@@ -721,6 +746,16 @@ export function EmployeeAllocationPanel({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            {canCorrectActuals && tenantId && (
+              <AllocationCorrectionDialog
+                open={correctionDialogOpen}
+                onOpenChange={setCorrectionDialogOpen}
+                employeeId={employee.id}
+                employeeName={employee.name}
+                tenantId={tenantId}
+              />
+            )}
           </>
         )}
       </SheetContent>

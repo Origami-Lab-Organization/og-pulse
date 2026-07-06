@@ -52,8 +52,8 @@ export function AllocationFilters({
               className="max-w-full justify-start overflow-x-auto rounded-md border bg-background p-1 scrollbar-hide"
             >
               <ToggleGroupItem value="all" className={statusItemClass}>Todos</ToggleGroupItem>
-              <ToggleGroupItem value="abovePlan" className={statusItemClass}>Acima do plano</ToggleGroupItem>
-              <ToggleGroupItem value="missingLogs" className={statusItemClass}>Sem lançamento</ToggleGroupItem>
+              <ToggleGroupItem value="overloaded" className={statusItemClass}>Sobrecarregados</ToggleGroupItem>
+              <ToggleGroupItem value="unallocated" className={statusItemClass}>Desalocados</ToggleGroupItem>
             </ToggleGroup>
           </div>
 

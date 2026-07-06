@@ -93,9 +93,8 @@ const JOAOZINHO_VISUAL_PROJECTS: AllocationProjectPill[] = [
 ];
 
 function readStatusFilter(value: string | null): AllocationStatusFilter {
-  if (value === 'abovePlan' || value === 'missingLogs') return value;
-  if (value === 'overallocated') return 'abovePlan';
-  if (value === 'unallocated') return 'missingLogs';
+  if (value === 'abovePlan' || value === 'missingLogs' || value === 'overloaded' || value === 'unallocated') return value;
+  if (value === 'overallocated') return 'overloaded';
   return DEFAULT_FILTERS.status;
 }
 
@@ -287,8 +286,8 @@ export default function AlocacaoPage() {
       <div className="space-y-6">
         <AllocationMetricsBar
           metrics={metrics}
-          referenceLabel={referenceLabel}
           isLoading={isLoading}
+          activeFilter={filters.status}
           onStatusSelect={(status) => updateFilter('status', status)}
         />
 

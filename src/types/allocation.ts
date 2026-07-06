@@ -5,7 +5,7 @@ export type AllocationStatusKey =
   | 'limit'
   | 'critical';
 
-export type AllocationStatusFilter = 'all' | 'abovePlan' | 'missingLogs';
+export type AllocationStatusFilter = 'all' | 'abovePlan' | 'missingLogs' | 'overloaded' | 'unallocated';
 
 export interface AllocationMonth {
   key: string;
@@ -72,11 +72,11 @@ export interface AllocationGridData {
 }
 
 export interface AllocationMetrics {
-  plannedHours: number | null;
-  loggedHours: number | null;
-  varianceHours: number | null;
-  offPlanMembers: number | null;
-  missingLogs: number | null;
+  overloaded: number | null;
+  unallocated: number | null;
+  avgUtilization: number | null;
+  availableHours: number | null;
+  activeMembers: number | null;
 }
 
 export interface AllocationPanelProjectRow {
