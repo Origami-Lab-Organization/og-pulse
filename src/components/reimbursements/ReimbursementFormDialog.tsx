@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { X, Upload, FileText, Plus, CalendarIcon, AlertTriangle } from 'lucide-react';
+import { X, Upload, FileText, Plus, CalendarIcon, AlertTriangle, Camera } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +39,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { usePwaEnvironment } from '@/hooks/use-pwa-environment';
 
 export interface CorrectionData {
   correctedFromId: string;
@@ -98,6 +99,7 @@ function isOlderThanDays(date: Date, days: number): boolean {
 export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: Props) {
   const { employee } = useAuth();
   const createMutation = useCreateReimbursement();
+  const { isOnline } = usePwaEnvironment();
 
   const [type, setType] = useState<'project' | 'internal'>('project');
   const [clientId, setClientId] = useState('');
@@ -349,6 +351,10 @@ export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: 
   }, [type, clientId, projectId, files, items]);
 
   const handleSubmit = async () => {
+    if (!isOnline) {
+      toast({ title: 'Sem conexão. Reconecte para salvar.', variant: 'destructive' });
+      return;
+    }
     setAttempted(true);
     const { fieldErrors, itemErrs } = validate();
     setErrors(fieldErrors);
@@ -419,7 +425,7 @@ export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: 
   return (
     <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) { handleClose(); return; } onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-y-auto rounded-none sm:h-auto sm:max-h-[90vh] sm:max-w-[600px] sm:rounded-lg">
         <DialogHeader>
           <DialogTitle>{correctionData ? 'Corrigir e Reenviar Reembolso' : 'Novo Pedido de Reembolso'}</DialogTitle>
         </DialogHeader>
@@ -620,18 +626,26 @@ export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: 
                 ) : (
                   <>
                     <Upload className="h-8 w-8 text-muted-foreground" />
-                    <Button type="button" variant="outline" size="sm" asChild>
+                    <div className="flex w-full flex-col justify-center gap-2 sm:flex-row">
+                    <Button type="button" className="min-h-11" asChild>
                       <label className="cursor-pointer">
-                        Anexar arquivo
+                        <Camera className="mr-2 h-4 w-4" /> Tirar foto
                         <Input
                           type="file"
-                          multiple
-                          accept=".jpg,.jpeg,.png,.pdf"
+                          accept="image/*"
+                          capture="environment"
                           className="hidden"
                           onChange={handleFileChange}
                         />
                       </label>
                     </Button>
+                    <Button type="button" variant="outline" className="min-h-11" asChild>
+                      <label className="cursor-pointer">
+                        <Upload className="mr-2 h-4 w-4" /> Anexar arquivo
+                        <Input type="file" multiple accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleFileChange} />
+                      </label>
+                    </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground text-center">
                       ou arraste e solte aqui<br />
                       JPG, PNG, PDF — máx. 5MB — até {MAX_FILES} arquivos
@@ -677,7 +691,7 @@ export function ReimbursementFormDialog({ open, onOpenChange, correctionData }: 
           <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={createMutation.isPending}>
+          <Button onClick={handleSubmit} disabled={createMutation.isPending || !isOnline}>
             {createMutation.isPending ? 'Enviando...' : 'Enviar Pedido'}
           </Button>
         </DialogFooter>

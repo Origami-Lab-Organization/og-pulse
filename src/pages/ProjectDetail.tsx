@@ -21,6 +21,7 @@ import { ProjectStakeholdersTab } from "@/components/projects/detail/ProjectStak
 import { ProjectExpectedResultTab } from "@/components/projects/detail/ProjectExpectedResultTab";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
 import { EquipeTab } from "@/components/projects/detail/EquipeTab";
+import { ProjectContractUpload } from "@/components/projects/ProjectContractUpload";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog";
 import { ProjectRemoveDialog } from "@/components/projects/ProjectRemoveDialog";
 import {
@@ -34,6 +35,7 @@ import { HideValuesProvider, useHideValuesPreference } from "@/contexts/HideValu
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CreateProjectInput } from "@/types/project";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Tab estilo underline para o detalhe do projeto. Anula o visual de pílula do
 // TabsTrigger base (bg/shadow) e aplica sublinhado verde escuro no estado ativo.
@@ -69,6 +71,8 @@ export default function ProjectDetail() {
   const deleteProject = useDeleteProject();
   const archiveProject = useArchiveProject();
 
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [hideValues, setHideValues] = useHideValuesPreference();
@@ -260,7 +264,7 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        <Tabs defaultValue={initialTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Navegação estilo underline (modelo de design): sem pílula, tab
               ativa sublinhada no verde escuro da marca. As ações (ocultar
               valores / menu) ficam alinhadas à direita, na mesma linha. */}
@@ -280,7 +284,10 @@ export default function ProjectDetail() {
                   </>
                 )}
                 {canViewActivities && (
-                  <TabsTrigger value="activities" className={projectTabClass}>Atividades</TabsTrigger>
+                  <>
+                    <TabsTrigger value="activities" className={projectTabClass}>Atividades</TabsTrigger>
+                    <TabsTrigger value="files" className={projectTabClass}>Arquivos</TabsTrigger>
+                  </>
                 )}
               </TabsList>
             </div>
@@ -296,7 +303,11 @@ export default function ProjectDetail() {
               </TabsContent>
 
               <TabsContent value="planning" className="mt-6">
-                <ProjectPlanningOverviewTab project={project} />
+                <ProjectPlanningOverviewTab
+                  project={project}
+                  canManageProject={canManageProject}
+                  onNavigateToTab={setActiveTab}
+                />
               </TabsContent>
 
               <TabsContent value="okrs" className="mt-6">
@@ -351,9 +362,21 @@ export default function ProjectDetail() {
           )}
 
           {canViewActivities && (
-            <TabsContent value="activities" className="mt-6">
-              <ProjectActivitiesTab project={project} isReadOnly={isReadOnly} />
-            </TabsContent>
+			  <>
+				<TabsContent value="activities" className="mt-6">
+				  <ProjectActivitiesTab project={project} isReadOnly={isReadOnly} />
+				</TabsContent>
+				<TabsContent value="files" className="mt-6">
+				  <ProjectContractUpload
+					projectId={project.id}
+					currentPath={project.contract_url}
+					isReadOnly={isReadOnly}
+					onUploadSuccess={() =>
+					  queryClient.invalidateQueries({ queryKey: ["project", id] })
+					}
+				  />
+				</TabsContent>
+			  </>
           )}
         </Tabs>
       </div>

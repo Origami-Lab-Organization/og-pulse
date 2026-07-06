@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceService } from '@/services/serviceService';
-import { dbToService, CreateServiceInput, DEFAULT_SERVICES } from '@/types/service';
+import { dbToService, CreateServiceInput } from '@/types/service';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,22 +16,6 @@ export const useServices = () => {
       return data.map(dbToService);
     },
     enabled: !!tenantId,
-  });
-};
-
-export const useSeedDefaultServices = () => {
-  const queryClient = useQueryClient();
-  const { employee } = useAuth();
-  const tenantId = employee?.tenant_id;
-
-  return useMutation({
-    mutationFn: async () => {
-      if (!tenantId) throw new Error('No tenant ID');
-      await serviceService.seedDefaults(tenantId, DEFAULT_SERVICES);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
-    },
   });
 };
 
@@ -111,17 +95,15 @@ export const useLinkServiceTemplate = () => {
 
 export const useDeleteService = () => {
   const queryClient = useQueryClient();
-  const { employee } = useAuth();
   const { toast } = useToast();
-  const tenantId = employee?.tenant_id;
 
   return useMutation({
     mutationFn: async ({ id }: { id: string }) => {
-      if (!tenantId) throw new Error('No tenant ID');
-      await serviceService.delete(id, tenantId);
+      await serviceService.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['service-revenue-models'] });
       toast({ title: 'Serviço excluído', description: 'O serviço foi excluído com sucesso.' });
     },
     onError: (error: Error) => {

@@ -11,6 +11,7 @@ import { useProjectMemberMonths } from "@/hooks/useProjectMemberMonths";
 import { useProjectCostItems } from "@/hooks/useProjectCostItems";
 import { useTimesheetsByMembers } from "@/hooks/useProjectTimesheets";
 import { useProjectApprovedReimbursements } from "@/hooks/useReimbursements";
+import { useProjectPlannedLaborCost } from "@/hooks/useProjectPlannedLaborCost";
 import { ProjectWithRelations } from "@/types/project";
 
 interface ProjectCostsTabProps {
@@ -84,6 +85,10 @@ export function ProjectCostsTab({
     useProjectApprovedReimbursements(project.id);
   const { data: projectCosts = [], isLoading: projectCostsLoading } =
     useProjectCostItems(project.id);
+  const plannedLaborFromAllocations = useProjectPlannedLaborCost(
+    project,
+    durationMonths,
+  );
 
   const getMemberHourlyCost = useCallback(
     (member: (typeof project.members)[0]) => {
@@ -100,6 +105,10 @@ export function ProjectCostsTab({
   );
 
   const laborCostsPlanned = useMemo(() => {
+    if (plannedLaborFromAllocations.hasRoleAllocations) {
+      return plannedLaborFromAllocations.total;
+    }
+
     if (!project.members || project.members.length === 0) return 0;
 
     let total = 0;
@@ -117,7 +126,13 @@ export function ProjectCostsTab({
     });
 
     return total;
-  }, [project.members, memberMonths, getMemberHourlyCost]);
+  }, [
+    getMemberHourlyCost,
+    memberMonths,
+    plannedLaborFromAllocations.hasRoleAllocations,
+    plannedLaborFromAllocations.total,
+    project.members,
+  ]);
 
   const laborCostsActual = useMemo(() => {
     if (!project.members || project.members.length === 0) return 0;
@@ -207,17 +222,23 @@ export function ProjectCostsTab({
     );
 
     const plannedLaborMap = new Map<number, number>();
-    memberMonths.forEach((month) => {
-      const cost =
-        (month as any).cost_per_hour != null
-          ? Number((month as any).cost_per_hour)
-          : memberCostFallback.get(month.project_member_id) || 0;
-      plannedLaborMap.set(
-        month.month_number,
-        (plannedLaborMap.get(month.month_number) || 0) +
-          cost * Number(month.hours),
-      );
-    });
+    if (plannedLaborFromAllocations.hasRoleAllocations) {
+      plannedLaborFromAllocations.byMonth.forEach((value, monthNumber) => {
+        plannedLaborMap.set(monthNumber, value);
+      });
+    } else {
+      memberMonths.forEach((month) => {
+        const cost =
+          (month as any).cost_per_hour != null
+            ? Number((month as any).cost_per_hour)
+            : memberCostFallback.get(month.project_member_id) || 0;
+        plannedLaborMap.set(
+          month.month_number,
+          (plannedLaborMap.get(month.month_number) || 0) +
+            cost * Number(month.hours),
+        );
+      });
+    }
 
     const actualLaborMap = new Map<number, number>();
     timesheets.forEach((timesheet) => {
@@ -349,6 +370,8 @@ export function ProjectCostsTab({
     durationMonths,
     getMemberHourlyCost,
     memberMonths,
+    plannedLaborFromAllocations.byMonth,
+    plannedLaborFromAllocations.hasRoleAllocations,
     project.members,
     project.start_date,
     projectCosts,
@@ -389,7 +412,11 @@ export function ProjectCostsTab({
 
       <ProjectMonthlyCostChart
         data={monthlyChartData}
-        isLoading={reimbursementsLoading || projectCostsLoading}
+        isLoading={
+          reimbursementsLoading ||
+          projectCostsLoading ||
+          plannedLaborFromAllocations.isLoading
+        }
       />
 
       <ProjectCostsLedger

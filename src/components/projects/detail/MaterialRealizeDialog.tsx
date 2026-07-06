@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { format } from 'date-fns';
 import { ProjectMaterialDB } from '@/types/project';
 import { getProjectMonthLabel } from '@/lib/formatters';
 import { useMaskedCurrency } from '@/contexts/HideValuesContext';
@@ -71,14 +72,22 @@ export function MaterialRealizeDialog({
     if (selectedIds.size === 0) return;
 
     setIsSaving(true);
-    
+
+    // Data de realização = hoje. É o que posiciona o custo no mês correto do
+    // dashboard (reconhecimento pela data real). Só define quando ainda não há.
+    const today = format(new Date(), 'yyyy-MM-dd');
+
     try {
       // Update each selected material in sequence to avoid race conditions
       for (const id of selectedIds) {
+        const material = materials.find((m) => m.id === id);
         await updateMaterial.mutateAsync({
           id,
           projectId,
-          updates: { isRealized: true },
+          updates: {
+            isRealized: true,
+            purchaseDate: material?.purchase_date || today,
+          },
         });
       }
       onOpenChange(false);

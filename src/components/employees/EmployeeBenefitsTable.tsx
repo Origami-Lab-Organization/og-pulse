@@ -26,7 +26,8 @@ import {
   useAddEmployeeBenefit,
   useDeleteEmployeeBenefit,
 } from '@/hooks/useEmployees';
-import { Plus, Trash2, Check, X, Heart, CalendarIcon } from 'lucide-react';
+import { Plus, Trash2, Check, X, Heart, CalendarIcon, RefreshCw, ExternalLink } from 'lucide-react';
+import { useBenefits } from '@/hooks/useBenefits';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,21 +51,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 
-const BENEFIT_OPTIONS = [
-  { value: 'vale_refeicao', label: 'Vale Refeição' },
-  { value: 'vale_alimentacao', label: 'Vale Alimentação' },
-  { value: 'vale_transporte', label: 'Vale Transporte' },
-  { value: 'plano_saude', label: 'Plano de Saúde' },
-  { value: 'plano_odontologico', label: 'Plano Odontológico' },
-  { value: 'seguro_vida', label: 'Seguro de Vida' },
-  { value: 'auxilio_creche', label: 'Auxílio Creche' },
-  { value: 'auxilio_educacao', label: 'Auxílio Educação' },
-  { value: 'gympass', label: 'Gympass/Wellhub' },
-  { value: 'auxilio_home_office', label: 'Auxílio Home Office' },
-  { value: 'bonus', label: 'Bônus' },
-  { value: 'participacao_lucros', label: 'PLR' },
-  { value: 'outros', label: 'Outros' },
-];
 
 interface EmployeeBenefitsTableProps {
   employeeId: string;
@@ -77,6 +63,7 @@ type PendingAction =
 
 export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBenefitsTableProps) {
   const { data: benefits = [], isLoading } = useEmployeeBenefits(employeeId);
+  const { data: catalog = [], refetch: refetchCatalog } = useBenefits();
   const addBenefit = useAddEmployeeBenefit();
   const deleteBenefit = useDeleteEmployeeBenefit();
 
@@ -85,9 +72,19 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
   const [effectiveDateDialogOpen, setEffectiveDateDialogOpen] = useState(false);
   const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(new Date());
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
-  
+
+  const [emptyCatalogDialogOpen, setEmptyCatalogDialogOpen] = useState(false);
+
+  const handleOpenAdd = () => {
+    if (availableBenefits.length === 0) {
+      setEmptyCatalogDialogOpen(true);
+    } else {
+      setIsAdding(true);
+    }
+  };
+
   const [newBenefit, setNewBenefit] = useState({
-    selectedValue: '',
+    catalogId: '',
     name: '',
     monthlyValue: 0,
     monthlyValueDisplay: '',
@@ -95,16 +92,19 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
 
   const totalValue = benefits.reduce((sum, benefit) => sum + Number(benefit.monthly_value), 0);
 
-  const availableBenefits = BENEFIT_OPTIONS.filter(
-    opt => !benefits.some(b => b.name === opt.label)
+  const activeCatalog = catalog.filter((b) => b.isActive);
+  const availableBenefits = activeCatalog.filter(
+    (opt) => !benefits.some((b) => b.name === opt.name)
   );
 
-  const handleSelectBenefit = (value: string) => {
-    const option = BENEFIT_OPTIONS.find(o => o.value === value);
-    setNewBenefit({ 
-      ...newBenefit, 
-      selectedValue: value,
-      name: option?.label || value 
+  const handleSelectBenefit = (catalogId: string) => {
+    const item = activeCatalog.find((b) => b.id === catalogId);
+    if (!item) return;
+    setNewBenefit({
+      catalogId,
+      name: item.name,
+      monthlyValue: item.value,
+      monthlyValueDisplay: formatCurrencyMask(item.value),
     });
   };
 
@@ -144,7 +144,7 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
         {
           onSuccess: () => {
             setIsAdding(false);
-            setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
+            setNewBenefit({ catalogId: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
             setEffectiveDateDialogOpen(false);
             setPendingAction(null);
           },
@@ -172,15 +172,15 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <Heart className="h-5 w-5" />
-            Benefícios
+            <CardTitle className="text-lg">Benefícios</CardTitle>
+            
           </CardTitle>
           <CardDescription>
             Benefícios mensais de {employeeName}
           </CardDescription>
         </div>
-        {!isAdding && availableBenefits.length > 0 && (
-          <Button type="button" onClick={() => setIsAdding(true)} size="sm">
+        {!isAdding && (
+          <Button type="button" onClick={handleOpenAdd} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
           </Button>
@@ -206,21 +206,29 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
                   {isAdding && (
                     <TableRow>
                       <TableCell>
-                        <Select
-                          value={newBenefit.selectedValue}
-                          onValueChange={handleSelectBenefit}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Selecione o benefício" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableBenefits.map(option => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Select value={newBenefit.catalogId} onValueChange={handleSelectBenefit}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione do catálogo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableBenefits.map((opt) => (
+                                <SelectItem key={opt.id} value={opt.id}>
+                                  {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => refetchCatalog()}
+                            title="Atualizar catálogo"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -254,7 +262,7 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
                             variant="ghost"
                             onClick={() => {
                               setIsAdding(false);
-                              setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
+                              setNewBenefit({ catalogId: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
                             }}
                           >
                             <X className="h-4 w-4 text-destructive" />
@@ -316,6 +324,33 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Empty catalog dialog */}
+      <Dialog open={emptyCatalogDialogOpen} onOpenChange={setEmptyCatalogDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nenhum benefício disponível</DialogTitle>
+            <DialogDescription>
+              Todos os benefícios do catálogo já foram adicionados a este funcionário, ou o catálogo ainda não possui itens cadastrados.
+              Acesse a página de Ferramentas e Benefícios para criar novos itens.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmptyCatalogDialogOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                window.open('/rh/ferramentas-beneficios', '_blank');
+                setEmptyCatalogDialogOpen(false);
+              }}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Ir para Ferramentas e Benefícios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Effective date dialog */}
       <Dialog open={effectiveDateDialogOpen} onOpenChange={(open) => {

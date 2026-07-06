@@ -30,6 +30,7 @@ export interface ProjectAllocationDB {
   employee_id: string;
   budget_role_id: string | null;
   custom_role_name: string | null;
+  cost_per_hour: number | null;
   year: number;
   month: number;
   planned_hours: number;
@@ -51,6 +52,7 @@ export interface MonthlyHours {
   year: number;
   month: number; // 1-12
   plannedHours: number;
+  costPerHour: number | null;
 }
 
 /** One row in the Equipe table = one employee in the project */

@@ -20,6 +20,7 @@ interface AllocationDetailRpcRow {
   item_type: 'project' | 'internal_activity';
   item_id: string;
   project_id: string | null;
+  allocation_id?: string | null;
   project_member_id?: string | null;
   title: string;
   subtitle?: string | null;
@@ -265,17 +266,19 @@ export const allocationService = {
       const year = years[index];
 
       rows
-        .filter((row) => row.item_type === 'project' && row.project_id && row.project_member_id)
+        .filter((row) => row.item_type === 'project' && row.project_id)
         .forEach((row) => {
           const monthKey = yearMonthKey(year, row.month);
           const month = monthByKey.get(monthKey);
           if (!month) return;
 
-          const projectMemberId = row.project_member_id as string;
+          const allocationId = row.allocation_id ?? null;
+          const projectMemberId = row.project_member_id ?? null;
           const projectIdValue = row.project_id as string;
-          const key = `${projectMemberId}:${monthKey}`;
+          const key = `${allocationId ?? projectIdValue}:${monthKey}`;
           const current = projectRowsByKey.get(key) ?? {
             projectId: projectIdValue,
+            allocationId,
             projectMemberId,
             monthKey,
             monthNumber: monthNumberFromProjectStart(row.project_start_date, year, row.month),
@@ -286,6 +289,8 @@ export const allocationService = {
             actualHours: 0,
           };
 
+          current.allocationId = current.allocationId ?? allocationId;
+          current.projectMemberId = current.projectMemberId ?? projectMemberId;
           current.plannedHours += Number(row.planned_hours || 0);
           current.actualHours += Number(row.actual_hours || 0);
           projectRowsByKey.set(key, current);
@@ -325,61 +330,75 @@ export const allocationService = {
   },
 
   async allocateToProject({
+    tenantId,
     projectId,
     employeeId,
     role,
-    seniority,
-    hoursPerMonth,
+    year,
+    month,
+    plannedHours,
   }: {
+    tenantId: string;
     projectId: string;
     employeeId: string;
     role: string;
-    seniority: string;
-    hoursPerMonth: number;
+    year: number;
+    month: number;
+    plannedHours: number;
   }) {
     const { data, error } = await supabase
-      .from('project_members')
-      .insert({
+      .from('project_role_allocations')
+      .upsert({
+        tenant_id: tenantId,
         project_id: projectId,
         employee_id: employeeId,
-        role,
-        seniority,
-        hours_per_month: Math.max(0, hoursPerMonth),
-        hourly_rate: 0,
-      })
-      .select('id, project_id, employee_id')
+        budget_role_id: null,
+        custom_role_name: role,
+        year,
+        month,
+        planned_hours: Math.max(0, plannedHours),
+      }, { onConflict: 'employee_id,project_id,year,month' })
+      .select('id, project_id, employee_id, year, month, planned_hours')
       .single();
 
     if (error) throw error;
     return data;
   },
 
-  async deallocateFromProject({ projectMemberId }: { projectMemberId: string }) {
-    const { error } = await supabase.from('project_members').delete().eq('id', projectMemberId);
+  async deallocateFromProject({
+    tenantId,
+    projectId,
+    employeeId,
+  }: {
+    tenantId: string;
+    projectId: string;
+    employeeId: string;
+  }) {
+    const { error } = await supabase
+      .from('project_role_allocations')
+      .delete()
+      .eq('tenant_id', tenantId)
+      .eq('project_id', projectId)
+      .eq('employee_id', employeeId);
 
     if (error) throw error;
   },
 
   async updatePlannedHours({
-    projectMemberId,
-    monthNumber,
+    tenantId,
+    allocationId,
     hours,
   }: {
-    projectMemberId: string;
-    monthNumber: number;
+    tenantId: string;
+    allocationId: string;
     hours: number;
   }) {
     const { data, error } = await supabase
-      .from('project_member_months')
-      .upsert(
-        {
-          project_member_id: projectMemberId,
-          month_number: monthNumber,
-          hours: Math.max(0, hours),
-        },
-        { onConflict: 'project_member_id,month_number' },
-      )
-      .select('id, project_member_id, month_number, hours')
+      .from('project_role_allocations')
+      .update({ planned_hours: Math.max(0, hours) })
+      .eq('tenant_id', tenantId)
+      .eq('id', allocationId)
+      .select('id, project_id, employee_id, year, month, planned_hours')
       .single();
 
     if (error) throw error;

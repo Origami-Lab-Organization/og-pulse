@@ -3,6 +3,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -164,6 +166,38 @@ const TerminationStep1Info = ({ data, onChange, contractType, showErrors = false
           </SelectContent>
         </Select>
       </div>
+
+      {/* Justa causa — apenas CLT/MENOR_APRENDIZ + involuntário */}
+      {data.termination_type === 'involuntary' && (contractType === 'CLT' || contractType === 'MENOR_APRENDIZ') && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+            <div>
+              <Label htmlFor="just-cause" className="cursor-pointer font-medium">Demissão por Justa Causa</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">Art. 482 CLT — comportamento grave do empregado</p>
+            </div>
+            <Switch
+              id="just-cause"
+              checked={data.is_just_cause}
+              onCheckedChange={v => onChange({ is_just_cause: v })}
+            />
+          </div>
+          {data.is_just_cause && (
+            <Alert variant="destructive" className="border-amber-400 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-xs">
+                <strong>Atenção — direitos rescisórios removidos por justa causa:</strong>
+                <ul className="mt-1 list-disc list-inside space-y-0.5">
+                  <li>Férias proporcionais</li>
+                  <li>13º proporcional</li>
+                  <li>Aviso prévio indenizado</li>
+                  <li>Multa FGTS (40%)</li>
+                </ul>
+                <span className="block mt-1">Mantém apenas o saldo de salário do período trabalhado.</span>
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
 
       {/* Detailed reason */}
       <div className="space-y-2">

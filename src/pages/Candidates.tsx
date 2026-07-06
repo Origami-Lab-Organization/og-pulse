@@ -21,13 +21,14 @@ import {
 } from "@/types/jobApplication";
 import { formatDate } from "@/lib/formatters";
 
-type ActiveTab = "ativos" | "descartados" | "banco_de_talentos";
+type ActiveTab = "ativos" | "descartados" | "banco_de_talentos" | "contratados";
 
 const STATUS_BADGE: Record<JobApplicationStatus, string> = {
   triagem: "bg-blue-100 text-blue-700 border-blue-200",
   entrevista: "bg-yellow-100 text-yellow-700 border-yellow-200",
   prova_tecnica: "bg-orange-100 text-orange-700 border-orange-200",
   aprovado: "bg-green-100 text-green-700 border-green-200",
+  contratado: "bg-teal-100 text-teal-700 border-teal-200",
   descartado: "bg-red-100 text-red-700 border-red-200",
   banco_de_talentos: "bg-purple-100 text-purple-700 border-purple-200"
 };
@@ -80,13 +81,20 @@ const Candidates = () => {
     [candidates]
   );
 
+  const contratados = useMemo(
+    () => candidates.filter((c) => c.status === "contratado"),
+    [candidates]
+  );
+
   const currentList = useMemo(() => {
     const base =
       activeTab === "ativos"
         ? ativos
         : activeTab === "descartados"
           ? descartados
-          : bancoDeTalentos;
+          : activeTab === "contratados"
+            ? contratados
+            : bancoDeTalentos;
     if (!search.trim()) return base;
     const q = search.toLowerCase();
     return base.filter(
@@ -236,6 +244,11 @@ const Candidates = () => {
                 key: "banco_de_talentos",
                 label: "Banco de Talentos",
                 count: bancoDeTalentos.length
+              },
+              {
+                key: "contratados",
+                label: "Contratados",
+                count: contratados.length
               }
             ] as { key: ActiveTab; label: string; count: number }[]
           ).map(({ key, label, count }) => (
@@ -306,6 +319,8 @@ const Candidates = () => {
           onStatusChange={handleStatusChange}
         />
       ) : activeTab === "ativos" ? (
+        renderTable(currentList)
+      ) : activeTab === "contratados" ? (
         renderTable(currentList)
       ) : (
         renderTable(currentList, true)

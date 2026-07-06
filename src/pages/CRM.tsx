@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,9 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { LeadKanbanBoard } from '@/components/crm/LeadKanbanBoard';
 import { LeadFormDialog } from '@/components/crm/LeadFormDialog';
 import { LeadDetailDialog } from '@/components/crm/LeadDetailDialog';
-import { useLeads, useArchivedLeads, useUnarchiveLead, useDeleteLead } from '@/hooks/useLeads';
+import { RestoreLeadDialog } from '@/components/crm/RestoreLeadDialog';
+import { DeleteLeadDialog } from '@/components/crm/DeleteLeadDialog';
+import { useLeads, useArchivedLeads } from '@/hooks/useLeads';
 import { useAuth } from '@/contexts/AuthContext';
 import CRMStats from '@/components/crm/CRMStats';
 import { formatCurrency, formatDate, formatShortDate } from '@/lib/formatters';
@@ -97,8 +99,6 @@ export default function CRM() {
   const cancelledSet = useMemo(() => new Set(cancelledLeadIds), [cancelledLeadIds]);
   const activeLeads = useMemo(() => rawActiveLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawActiveLeads, cancelledSet]);
   const archivedLeads = useMemo(() => rawArchivedLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawArchivedLeads, cancelledSet]);
-  const unarchiveMutation = useUnarchiveLead();
-  const deleteMutation = useDeleteLead();
 
   // Archived view state
   const [reasonFilter, setReasonFilter] = useState<string>('all');
@@ -107,7 +107,24 @@ export default function CRM() {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedArchivedLead, setSelectedArchivedLead] = useState<LeadWithBudget | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<LeadWithBudget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LeadWithBudget | null>(null);
   const [selectedActiveLead, setSelectedActiveLead] = useState<LeadWithBudget | null>(null);
+  const [selectedActiveLeadInitialTab, setSelectedActiveLeadInitialTab] = useState<string>('qualificacao');
+
+  // Deep-link: /crm?lead=<id>&tab=<tab> → abre o dialog na aba correta
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkLeadId = searchParams.get('lead');
+  const deepLinkTab = searchParams.get('tab');
+  useEffect(() => {
+    if (loadingActive || !deepLinkLeadId) return;
+    const lead = activeLeads.find((l) => l.id === deepLinkLeadId);
+    if (lead) {
+      setSelectedActiveLeadInitialTab(deepLinkTab ?? 'qualificacao');
+      setSelectedActiveLead(lead);
+      setSearchParams({}, { replace: true });
+    }
+  }, [loadingActive, deepLinkLeadId, deepLinkTab, activeLeads, setSearchParams]);
 
   // List view sort state
   const [listSortKey, setListSortKey] = useState<SortKey>('name');
@@ -580,21 +597,19 @@ export default function CRM() {
                                 <TooltipTrigger asChild>
                                   <Button
                                     size="sm" variant="ghost" className="h-8 w-8 p-0"
-                                    onClick={() => unarchiveMutation.mutate(lead.id)}
-                                    disabled={unarchiveMutation.isPending}
+                                    onClick={() => setRestoreTarget(lead)}
                                   >
                                     <ArchiveRestore className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Desarquivar</TooltipContent>
+                                <TooltipContent>Restaurar</TooltipContent>
                               </Tooltip>
                               {isAdmin && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
                                       size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                      onClick={() => deleteMutation.mutate(lead.id)}
-                                      disabled={deleteMutation.isPending}
+                                      onClick={() => setDeleteTarget(lead)}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -648,14 +663,33 @@ export default function CRM() {
 
         <LeadDetailDialog
           open={!!selectedActiveLead}
-          onOpenChange={(open) => { if (!open) setSelectedActiveLead(null); }}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedActiveLead(null);
+              setSelectedActiveLeadInitialTab('qualificacao');
+            }
+          }}
           lead={selectedActiveLead}
+          initialTab={selectedActiveLeadInitialTab}
         />
 
         <LeadDetailDialog
           open={!!selectedArchivedLead}
           onOpenChange={(open) => { if (!open) setSelectedArchivedLead(null); }}
           lead={selectedArchivedLead}
+        />
+
+        <RestoreLeadDialog
+          open={!!restoreTarget}
+          onOpenChange={(open) => { if (!open) setRestoreTarget(null); }}
+          lead={restoreTarget}
+        />
+
+        <DeleteLeadDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+          leadId={deleteTarget?.id ?? null}
+          leadName={deleteTarget?.name ?? ''}
         />
       </AppLayout>
     </TooltipProvider>

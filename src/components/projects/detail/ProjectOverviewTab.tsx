@@ -12,6 +12,7 @@ import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
+import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -34,6 +35,10 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
+  const plannedLaborFromAllocations = useProjectPlannedLaborCost(
+    project,
+    project.duration_months,
+  );
 
   const metrics = useMemo(() => {
     const contractValue = Number(project.total_value || 0);
@@ -51,17 +56,20 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
       return workHours > 0 ? totalCost / workHours : 0;
     };
 
-    const laborPlanned = (project.members || []).reduce((acc, member) => {
-      const fallbackCost = fallbackHourlyCost(member);
-      const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
-      if (memberEntries.length === 0) {
-        return acc + fallbackCost * Number(member.hours_per_month || 0) * project.duration_months;
-      }
-      return acc + memberEntries.reduce((sum, mm) => {
-        const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
-        return sum + hourlyCost * Number(mm.hours);
-      }, 0);
-    }, 0);
+    const laborPlanned = plannedLaborFromAllocations.hasRoleAllocations
+      ? plannedLaborFromAllocations.total
+      : (project.members || []).reduce((acc, member) => {
+          const fallbackCost = fallbackHourlyCost(member);
+          const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
+          if (memberEntries.length === 0) {
+            return acc + fallbackCost * Number(member.hours_per_month || 0) * project.duration_months;
+          }
+
+          return acc + memberEntries.reduce((sum, mm) => {
+            const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
+            return sum + hourlyCost * Number(mm.hours);
+          }, 0);
+        }, 0);
 
     const laborActual = (project.members || []).reduce((acc, member) => {
       const fallbackCost = fallbackHourlyCost(member);
@@ -91,7 +99,15 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     const totalActual = laborActual + supplierActualTotal + materialActual;
 
     return { totalPlanned, totalActual };
-  }, [project, memberMonths, timesheets, supplierMonths, supplierActuals]);
+  }, [
+    project,
+    memberMonths,
+    timesheets,
+    supplierMonths,
+    supplierActuals,
+    plannedLaborFromAllocations.hasRoleAllocations,
+    plannedLaborFromAllocations.total,
+  ]);
 
   const { data: financialSettings } = useFinancialSettings();
   const { data: budget } = useBudget(project.budget_id);

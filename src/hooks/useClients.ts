@@ -1,5 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientService } from '@/services/clientService';
+import { clientContactService } from '@/services/clientContactService';
+import { fetchLeadsByClient } from '@/services/leadService';
+import { projectService } from '@/services/projectService';
 import { dbToClient, CreateClientInput } from '@/types/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +19,65 @@ export const useClients = () => {
       return data.map(dbToClient);
     },
     enabled: !!tenantId,
+  });
+};
+
+export const useClient = (id: string | undefined) => {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['client', id, tenantId],
+    queryFn: async () => {
+      if (!id || !tenantId) return null;
+      const data = await clientService.getById(id, tenantId);
+      return data ? dbToClient(data) : null;
+    },
+    enabled: !!id && !!tenantId,
+  });
+};
+
+export const useClientOpportunities = (clientId: string | undefined) => {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['client-opportunities', clientId, tenantId],
+    queryFn: () => fetchLeadsByClient(tenantId!, clientId!),
+    enabled: !!clientId && !!tenantId,
+  });
+};
+
+export const useClientContacts = (clientId: string | undefined) => {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['client-contacts', clientId, tenantId],
+    queryFn: () => clientContactService.listByClient(clientId!, tenantId!),
+    enabled: !!clientId && !!tenantId,
+  });
+};
+
+export const useClientProjects = (clientId: string | undefined) => {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['client-projects', clientId, tenantId],
+    queryFn: () => projectService.getByClient(clientId!, tenantId!),
+    enabled: !!clientId && !!tenantId,
+  });
+};
+
+export const useClientRelationCounts = (clientId: string | undefined) => {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['client-relation-counts', clientId, tenantId],
+    queryFn: () => clientService.getRelationCounts(clientId!, tenantId!),
+    enabled: !!clientId && !!tenantId,
   });
 };
 
@@ -43,10 +105,15 @@ export const useCreateClient = () => {
   return useMutation({
     mutationFn: async (input: CreateClientInput) => {
       if (!tenantId) throw new Error('No tenant ID');
-      return clientService.create(input, tenantId);
+      const client = await clientService.create(input, tenantId);
+      if (input.contacts) {
+        await clientContactService.replaceForClient(client.id, tenantId, input.contacts);
+      }
+      return client;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client-contacts'] });
       toast({
         title: 'Cliente cadastrado',
         description: 'O cliente foi cadastrado com sucesso.',
@@ -65,14 +132,22 @@ export const useCreateClient = () => {
 
 export const useUpdateClient = () => {
   const queryClient = useQueryClient();
+  const { employee } = useAuth();
   const { toast } = useToast();
+  const tenantId = employee?.tenant_id;
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<CreateClientInput> }) => {
-      return clientService.update(id, updates);
+      const client = await clientService.update(id, updates);
+      if (updates.contacts !== undefined && tenantId) {
+        await clientContactService.replaceForClient(id, tenantId, updates.contacts);
+      }
+      return client;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['client-contacts'] });
       toast({
         title: 'Cliente atualizado',
         description: 'O cliente foi atualizado com sucesso.',

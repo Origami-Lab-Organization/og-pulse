@@ -18,6 +18,27 @@ export async function fetchLeads(tenantId: string): Promise<LeadWithBudget[]> {
   return (data as any) || [];
 }
 
+export async function fetchLeadsByClient(
+  tenantId: string,
+  clientId: string,
+): Promise<LeadWithBudget[]> {
+  const { data, error } = await supabase
+    .from('leads')
+    .select(`
+      *,
+      budget:budgets!leads_budget_id_fkey(id, budget_number, final_total, status, title, subtotal, total_with_fees, discount_value, duration_months, start_date, monthly_value, is_recurring),
+      creator:employees!leads_created_by_fkey(id, nome),
+      responsible:employees!leads_responsible_id_fkey(id, nome)
+    `)
+    .eq('tenant_id', tenantId)
+    .eq('client_id', clientId)
+    .eq('archived', false)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data as unknown as LeadWithBudget[]) || [];
+}
+
 export async function fetchLeadById(id: string): Promise<LeadWithBudget | null> {
   const { data, error } = await supabase
     .from('leads')
@@ -99,6 +120,7 @@ export interface ArchiveLeadInput {
   id: string;
   archive_reason: string;
   archive_notes?: string;
+  competitor_name?: string | null;
 }
 
 export async function archiveLead(input: ArchiveLeadInput) {
@@ -109,6 +131,8 @@ export async function archiveLead(input: ArchiveLeadInput) {
       archived_at: new Date().toISOString(),
       archive_reason: input.archive_reason,
       archive_notes: input.archive_notes || null,
+      competitor_name: input.competitor_name ?? null,
+      restored_at: null,
     })
     .eq('id', input.id);
 
@@ -132,7 +156,7 @@ export async function fetchArchivedLeads(tenantId: string): Promise<LeadWithBudg
   return (data as any) || [];
 }
 
-export async function unarchiveLead(id: string) {
+export async function unarchiveLead(id: string, targetStage: CRMStage) {
   const { error } = await supabase
     .from('leads')
     .update({
@@ -140,6 +164,9 @@ export async function unarchiveLead(id: string) {
       archived_at: null,
       archive_reason: null,
       archive_notes: null,
+      competitor_name: null,
+      crm_stage: targetStage,
+      restored_at: new Date().toISOString(),
     })
     .eq('id', id);
 

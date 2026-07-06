@@ -17,6 +17,7 @@ import {
 import { Lock } from 'lucide-react';
 import { ReactNode } from 'react';
 import { toast } from 'sonner';
+import { usePwaEnvironment } from '@/hooks/use-pwa-environment';
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
 export interface SaveStatusInfo {
@@ -41,6 +42,8 @@ interface TimesheetWeekRowProps {
   isAdmin?: boolean;
   actionSlot?: ReactNode;
   statusSlot?: ReactNode;
+  /** Sugestão de horas por data (pré-preenchimento). Só aparece em células vazias. */
+  suggestions?: Record<string, number>;
   /** Total hours per date from ALL projects (server-side entries) */
   allDailyTotals?: Record<string, number>;
   /** Employee daily work hours (jornada_diaria) for soft limit */
@@ -68,6 +71,7 @@ export function TimesheetWeekRow({
   isAdmin = false,
   actionSlot,
   statusSlot,
+  suggestions = {},
   allDailyTotals = {},
   dailyWorkHours = 8,
   onLocalTotalChange,
@@ -75,22 +79,52 @@ export function TimesheetWeekRow({
   onSaveStatusChange,
 }: TimesheetWeekRowProps) {
   const upsertTimesheet = useUpsertTimesheet();
-  
-  // Initialize hours from existing entries
+  const { isOnline } = usePwaEnvironment();
+
+  // Valores editados pelo usuário, mantidos até o servidor confirmar o mesmo
+  // valor. Evita o "flick" em que a célula reverte para a sugestão/valor antigo
+  // enquanto o refetch ainda não reflete o que acabou de ser salvo.
+  const editedValuesRef = useRef<Map<string, number>>(new Map());
+
+  // Helper: célula vazia (sem lançamento salvo) que possui sugestão.
+  const isSuggestedDate = useCallback(
+    (date: string): boolean => {
+      if (editedValuesRef.current.has(date)) return false; // usuário já tocou
+      if ((suggestions[date] ?? 0) <= 0) return false;
+      const entry = existingEntries.find(
+        (e) => e.projectMemberId === memberId && e.workDate === date
+      );
+      return !entry; // CA-03: sugestão só preenche células sem lançamento salvo
+    },
+    [suggestions, existingEntries, memberId]
+  );
+
+  // Initialize hours from existing entries, caindo para a sugestão quando vazio
   const getInitialHours = useCallback(() => {
     const hours: Record<string, number> = {};
     weekDays.forEach((day) => {
       const entry = existingEntries.find(
         (e) => e.projectMemberId === memberId && e.workDate === day.date
       );
-      hours[day.date] = entry?.hours ?? 0;
+      hours[day.date] = entry?.hours ?? (suggestions[day.date] ?? 0);
     });
     return hours;
-  }, [weekDays, existingEntries, memberId]);
+  }, [weekDays, existingEntries, memberId, suggestions]);
+
+  const getInitialSuggested = useCallback(() => {
+    const set = new Set<string>();
+    weekDays.forEach((day) => {
+      if (isSuggestedDate(day.date)) set.add(day.date);
+    });
+    return set;
+  }, [weekDays, isSuggestedDate]);
 
   const [hours, setHours] = useState<Record<string, number>>(getInitialHours);
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
-  
+  // Datas atualmente exibindo sugestão (estado de UI, não persistido).
+  const [suggestedDates, setSuggestedDates] = useState<Set<string>>(getInitialSuggested);
+  const suggestedDatesRef = useRef<Set<string>>(getInitialSuggested());
+
   // Ref to track pending saves for use in effects (avoids stale closure)
   const pendingSavesRef = useRef<Set<string>>(new Set());
   const hoursRef = useRef<Record<string, number>>(hours);
@@ -106,6 +140,10 @@ export function TimesheetWeekRow({
     hoursRef.current = hours;
   }, [hours]);
 
+  useEffect(() => {
+    suggestedDatesRef.current = suggestedDates;
+  }, [suggestedDates]);
+
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
@@ -114,27 +152,42 @@ export function TimesheetWeekRow({
     };
   }, []);
 
-  // Update hours when existingEntries change, preserving fields with pending saves
+  // Update hours when existingEntries/suggestions change, preserving in-flight
+  // edits e mantendo a sugestão nas células ainda vazias (CA-03).
   useEffect(() => {
-    setHours(prev => {
-      const serverHours: Record<string, number> = {};
-      weekDays.forEach((day) => {
-        const entry = existingEntries.find(
-          (e) => e.projectMemberId === memberId && e.workDate === day.date
-        );
-        serverHours[day.date] = entry?.hours ?? 0;
-      });
-      
-      // Preserve values for fields with pending saves
-      const merged = { ...serverHours };
-      pendingSavesRef.current.forEach(date => {
-        if (prev[date] !== undefined) {
-          merged[date] = prev[date];
+    const prev = hoursRef.current;
+    const edited = editedValuesRef.current;
+    const nextHours: Record<string, number> = {};
+    const nextSuggested = new Set<string>();
+
+    weekDays.forEach((day) => {
+      const date = day.date;
+      const entry = existingEntries.find(
+        (e) => e.projectMemberId === memberId && e.workDate === date
+      );
+
+      if (pendingSavesRef.current.has(date)) {
+        nextHours[date] = prev[date] ?? 0; // edição em andamento (salvando)
+      } else if (edited.has(date)) {
+        const editedVal = edited.get(date)!;
+        // Só liberamos o valor editado quando o servidor reflete exatamente ele.
+        if (entry && Math.round(entry.hours * 10) === Math.round(editedVal * 10)) {
+          edited.delete(date);
+          nextHours[date] = entry.hours;
+        } else {
+          nextHours[date] = editedVal; // mantém o que o usuário digitou
         }
-      });
-      return merged;
+      } else if (entry) {
+        nextHours[date] = entry.hours; // lançamento salvo nunca é sobrescrito
+      } else {
+        nextHours[date] = suggestions[date] ?? 0; // sugestão ou vazio
+        if (isSuggestedDate(date)) nextSuggested.add(date);
+      }
     });
-  }, [existingEntries, weekDays, memberId]);
+
+    setHours(nextHours);
+    setSuggestedDates(nextSuggested);
+  }, [existingEntries, weekDays, memberId, suggestions, isSuggestedDate]);
 
   const MAX_HOURS_PER_DAY = 12;
 
@@ -181,6 +234,7 @@ export function TimesheetWeekRow({
   }, [saveDate]);
 
   const handleHoursChange = (date: string, value: string) => {
+    if (!isOnline) { toast.error('Sem conexão. Reconecte para salvar.'); return; }
     const raw = value === '' ? 0 : parseFloat(value);
     if (isNaN(raw) || raw < 0) return;
     let numValue = Math.round(raw * 10) / 10;
@@ -191,7 +245,15 @@ export function TimesheetWeekRow({
     }
     
     setHours((prev) => ({ ...prev, [date]: numValue }));
+    editedValuesRef.current.set(date, numValue); // protege contra flick no refetch
     setPendingSaves((prev) => new Set(prev).add(date));
+    // Ao editar, a célula deixa de ser sugestão e passa a ser lançamento real.
+    setSuggestedDates((prev) => {
+      if (!prev.has(date)) return prev;
+      const next = new Set(prev);
+      next.delete(date);
+      return next;
+    });
     onSaveStatusChange?.(memberId, { status: 'unsaved' });
     scheduleSave(date);
   };
@@ -245,7 +307,7 @@ export function TimesheetWeekRow({
 
   return (
     <div className={cn(
-      "grid gap-2 items-center py-2 px-3 hover:bg-muted/50 rounded-md",
+      "flex flex-col gap-2 rounded-xl border bg-muted/20 p-3 md:grid md:items-center md:border-0 md:bg-transparent md:py-2 md:px-3 md:hover:bg-muted/50",
       (statusSlot || actionSlot) ? "grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px]" : "grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px]"
     )}>
       <div className="flex items-center gap-2 min-w-0">
@@ -280,11 +342,11 @@ export function TimesheetWeekRow({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-destructive/10 rounded-md border border-destructive/20 cursor-not-allowed"
+                    className="min-h-12 flex items-center justify-between px-3 text-sm text-muted-foreground bg-destructive/10 rounded-md border border-destructive/20 cursor-not-allowed md:h-8 md:min-h-0 md:justify-center md:px-0"
                     aria-label={`Feriado: ${holiday.name}`}
                     tabIndex={-1}
                   >
-                    --
+                    <span className="capitalize md:hidden">{dayName} · {format(parseISO(day.date), 'dd/MM')}</span><span>--</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -302,12 +364,12 @@ export function TimesheetWeekRow({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className="h-8 flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-md border cursor-not-allowed"
+                    className="min-h-12 flex items-center justify-between px-3 text-sm text-muted-foreground bg-muted/30 rounded-md border cursor-not-allowed md:h-8 md:min-h-0 md:justify-center md:px-0"
                     aria-label={`${dayName}: dia futuro, lançamento não permitido`}
                     aria-disabled="true"
                     tabIndex={-1}
                   >
-                    —
+                    <span className="capitalize md:hidden">{dayName} · {format(parseISO(day.date), 'dd/MM')}</span><span>—</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -325,12 +387,12 @@ export function TimesheetWeekRow({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className="h-8 flex items-center justify-center text-sm bg-muted/50 rounded-md border cursor-not-allowed gap-1"
+                    className="min-h-12 flex items-center justify-between px-3 text-sm bg-muted/50 rounded-md border cursor-not-allowed gap-1 md:h-8 md:min-h-0 md:justify-center md:px-0"
                     aria-label={`Horas ${dayName}, projeto ${label}: ${hours[day.date] || 0}h — enviado, somente admin pode editar`}
                     aria-readonly="true"
                     tabIndex={-1}
                   >
-                    <span>{hours[day.date] || 0}</span>
+                    <span className="capitalize md:hidden">{dayName} · {format(parseISO(day.date), 'dd/MM')}</span><span>{hours[day.date] || 0}</span>
                     <Lock className="h-3 w-3 text-muted-foreground" />
                   </div>
                 </TooltipTrigger>
@@ -345,10 +407,21 @@ export function TimesheetWeekRow({
         // Normal editable cell
         const effectiveTotal = getEffectiveDailyTotal(day.date);
         const isOverWorkday = effectiveTotal > dailyWorkHours;
+        const isSuggested = suggestedDates.has(day.date);
+
+        // Mensagem opcional do tooltip. A estrutura (TooltipProvider > Tooltip >
+        // TooltipTrigger > conteúdo responsivo) é SEMPRE a mesma — só o conteúdo
+        // do tooltip é condicional —
+        // para que o <input> nunca seja remontado ao alternar de sugestão para
+        // edição, o que faria o campo perder o foco no meio da digitação.
+        const tooltipMessage = isOverWorkday
+          ? 'Volume acima da jornada diária. Tem certeza?'
+          : isSuggested
+            ? 'Sugestão a partir da sua alocação. Edite ou confirme para lançar.'
+            : null;
 
         const input = (
           <Input
-            key={day.date}
             type="number"
             min={0}
             max={12}
@@ -356,37 +429,50 @@ export function TimesheetWeekRow({
             value={hours[day.date] || ''}
             onChange={(e) => handleHoursChange(day.date, e.target.value)}
             onBlur={() => handleBlur(day.date)}
-            aria-label={`Horas ${dayName}, projeto ${label}`}
+            aria-label={
+              isSuggested
+                ? `Sugestão de horas ${dayName}, projeto ${label}: ${hours[day.date]}h — edite ou confirme para lançar`
+                : `Horas ${dayName}, projeto ${label}`
+            }
+            disabled={!isOnline}
+            inputMode="decimal"
             className={cn(
-              "h-8 text-center text-sm px-1",
+              "h-11 text-center text-base px-2 md:h-8 md:text-sm md:px-1",
               isToday && "bg-primary/5 ring-1 ring-primary/20",
               pendingSaves.has(day.date) && "border-primary",
+              isSuggested &&
+                "border-dashed border-primary/40 text-muted-foreground italic",
               isOverWorkday && "border-amber-500 focus-visible:ring-amber-500"
             )}
             placeholder="0"
           />
         );
 
-        if (isOverWorkday) {
-          return (
-            <TooltipProvider key={day.date}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  {input}
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Volume acima da jornada diária. Tem certeza?</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          );
-        }
+        const responsiveInput = (
+          <div className="flex min-h-14 items-center justify-between gap-3 rounded-lg border bg-background p-2 md:block md:min-h-0 md:border-0 md:bg-transparent md:p-0">
+            <span className="text-sm capitalize md:hidden">{dayName}<small className="ml-1 text-muted-foreground">{format(parseISO(day.date), 'dd/MM')}</small></span>
+            <div className="w-28 md:w-auto">{input}</div>
+          </div>
+        );
 
-        return input;
+        return (
+          <TooltipProvider key={day.date}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {responsiveInput}
+              </TooltipTrigger>
+              {tooltipMessage && (
+                <TooltipContent>
+                  <p>{tooltipMessage}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        );
       })}
       
-      <div className="text-right font-medium text-sm pr-2">
-        {totalHours.toFixed(1)}h
+      <div className="flex items-center justify-between border-t pt-3 text-sm font-medium md:block md:border-0 md:pt-0 md:pr-2 md:text-right">
+        <span className="md:hidden">Total da semana</span><span>{totalHours.toFixed(1)}h</span>
       </div>
       {(statusSlot || actionSlot) && (
         <div className="flex items-center justify-center gap-1">

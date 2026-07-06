@@ -189,6 +189,12 @@ export interface CreateProjectInput {
   successFeePercent?: number;
   leadId?: string;
   valueBookUrl?: string;
+  customInstallments?: {
+    installmentNumber: number;
+    value: number;
+    dueDate: string;
+    invoiceDate?: string;
+  }[];
 }
 
 export interface CreateProjectMemberInput {

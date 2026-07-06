@@ -4,7 +4,7 @@ import { employeeVersionService, EmployeeVersionDB } from '@/services/employeeVe
 import { projectService } from '@/services/projectService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CreateEmployeeToolInput, CreateEmployeeBenefitInput, ContractType, SystemRole } from '@/types/employee';
+import { CreateEmployeeToolInput, CreateEmployeeBenefitInput, ContractType, SystemRole, PixKeyType, BankAccountType } from '@/types/employee';
 import { CostBreakdown } from '@/lib/employeeCostCalculator';
 
 // Type for employee with tools and benefits from DB
@@ -64,6 +64,12 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     breakdownJson: db.breakdown_json as unknown as CostBreakdown | null,
     dataNascimento: db.data_nascimento || undefined,
     fotoUrl: db.foto_url || undefined,
+    pixKeyType: (db.pix_key_type || null) as PixKeyType | null,
+    pixKey: db.pix_key || null,
+    bankName: db.bank_name || null,
+    bankAgency: db.bank_agency || null,
+    bankAccount: db.bank_account || null,
+    bankAccountType: (db.bank_account_type || null) as BankAccountType | null,
     totalToolsCost,
     totalBenefitsCost,
     tenantId: db.tenant_id,
@@ -522,6 +528,21 @@ export const useDeleteEmployeeBenefit = () => {
 };
 
 // Employee Versions hooks
+export const useEmployeeById = (id: string | undefined) => {
+  const { employee: currentEmployee } = useAuth();
+  const tenantId = currentEmployee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['employee', id, tenantId],
+    queryFn: async () => {
+      const data = await employeeService.getById(id!, tenantId);
+      if (!data) return null;
+      return dbToEmployee(data as EmployeeWithRelations);
+    },
+    enabled: !!id && !!tenantId,
+  });
+};
+
 export const useEmployeeVersions = (employeeId: string | undefined) => {
   return useQuery({
     queryKey: ['employee-versions', employeeId],

@@ -81,7 +81,8 @@ export interface AllocationMetrics {
 
 export interface AllocationPanelProjectRow {
   projectId: string;
-  projectMemberId: string;
+  allocationId: string | null;
+  projectMemberId: string | null;
   monthKey: string;
   monthNumber: number;
   projectName: string;
