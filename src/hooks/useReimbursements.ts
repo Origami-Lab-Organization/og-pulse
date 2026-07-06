@@ -17,8 +17,11 @@ export interface ReimbursementRequest {
   reviewed_at: string | null;
   rejection_reason: string | null;
   corrected_from_id: string | null;
+  paid_by: string | null;
+  paid_at: string | null;
   created_at: string;
   updated_at: string;
+  expense_type?: string | null;
   // joined
   requester_name?: string;
   project_name?: string;

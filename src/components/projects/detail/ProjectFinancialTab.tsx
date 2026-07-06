@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, Target, DollarSign, Receipt, Wallet, Percent } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { getProjectMonthLabel } from '@/lib/formatters';
 import { useMaskedCurrency, useMaskedPercent, useHideValues } from '@/contexts/HideValuesContext';
+import { ProjectKPIBar } from './ProjectKPIBar';
 import { ProjectFinancialChart } from './ProjectFinancialChart';
 import { ProjectTrendChart } from './ProjectTrendChart';
 import { ProjectInstallmentsTable } from '@/components/projects/ProjectInstallmentsTable';
@@ -15,6 +15,7 @@ import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { parseISO, differenceInMonths, startOfMonth, addMonths } from 'date-fns';
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
+import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
 
 interface ProjectFinancialTabProps {
   project: ProjectWithRelations;
@@ -51,6 +52,10 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     const end = parseISO(project.end_date);
     return Math.max(1, differenceInMonths(end, start) + 1);
   }, [project]);
+  const plannedLaborFromAllocations = useProjectPlannedLaborCost(
+    project,
+    projectDuration,
+  );
 
   const fallbackHourlyCost = (member: NonNullable<typeof project.members>[number]) => {
     if (!member.employee) return Number((member as any).hourly_rate) || 0;
@@ -61,18 +66,20 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
 
   // Aggregate cost data (same logic as OverviewTab)
   const costData = useMemo(() => {
-    const laborPlanned = (project.members || []).reduce((acc, member) => {
-      const fallbackCost = fallbackHourlyCost(member);
-      const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
-      if (memberEntries.length === 0) {
-        return acc + fallbackCost * Number(member.hours_per_month || 0) * projectDuration;
-      }
+    const laborPlanned = plannedLaborFromAllocations.hasRoleAllocations
+      ? plannedLaborFromAllocations.total
+      : (project.members || []).reduce((acc, member) => {
+          const fallbackCost = fallbackHourlyCost(member);
+          const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
+          if (memberEntries.length === 0) {
+            return acc + fallbackCost * Number(member.hours_per_month || 0) * projectDuration;
+          }
 
-      return acc + memberEntries.reduce((sum, mm) => {
-        const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
-        return sum + hourlyCost * Number(mm.hours);
-      }, 0);
-    }, 0);
+          return acc + memberEntries.reduce((sum, mm) => {
+            const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
+            return sum + hourlyCost * Number(mm.hours);
+          }, 0);
+        }, 0);
 
     const laborActual = (project.members || []).reduce((acc, member) => {
       const fallbackCost = fallbackHourlyCost(member);
@@ -102,7 +109,16 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     const totalActual = laborActual + supplierActualTotal + materialActual;
 
     return { totalPlanned, totalActual, laborPlanned, laborActual, supplierPlanned, supplierActualTotal, materialPlanned, materialActual };
-  }, [project, memberMonths, timesheets, supplierMonths, supplierActuals, projectDuration]);
+  }, [
+    project,
+    memberMonths,
+    timesheets,
+    supplierMonths,
+    supplierActuals,
+    projectDuration,
+    plannedLaborFromAllocations.hasRoleAllocations,
+    plannedLaborFromAllocations.total,
+  ]);
 
   // KPI data (same logic as OverviewTab)
   const kpiData = useMemo(() => {
@@ -146,15 +162,17 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
       const monthNum = i + 1;
 
       // Planned labor for this month
-      const laborPlan = (project.members || []).reduce((acc, member) => {
-        const fallbackCost = fallbackHourlyCost(member);
-        const monthEntry = memberMonths.find((mm) => mm.project_member_id === member.id && mm.month_number === monthNum);
-        const hourlyCost = (monthEntry as any)?.cost_per_hour != null
-          ? Number((monthEntry as any).cost_per_hour)
-          : fallbackCost;
-        const hours = monthEntry ? monthEntry.hours : Number(member.hours_per_month || 0);
-        return acc + hourlyCost * hours;
-      }, 0);
+      const laborPlan = plannedLaborFromAllocations.hasRoleAllocations
+        ? plannedLaborFromAllocations.byMonth.get(monthNum) || 0
+        : (project.members || []).reduce((acc, member) => {
+            const fallbackCost = fallbackHourlyCost(member);
+            const monthEntry = memberMonths.find((mm) => mm.project_member_id === member.id && mm.month_number === monthNum);
+            const hourlyCost = (monthEntry as any)?.cost_per_hour != null
+              ? Number((monthEntry as any).cost_per_hour)
+              : fallbackCost;
+            const hours = monthEntry ? monthEntry.hours : Number(member.hours_per_month || 0);
+            return acc + hourlyCost * hours;
+          }, 0);
 
       // Actual labor for this month (map timesheet dates to project month)
       const monthStart = startOfMonth(addMonths(startDate, i));
@@ -203,144 +221,35 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
         realizado: laborReal + supplierReal + materialReal,
       };
     });
-  }, [project, memberMonths, timesheets, supplierMonths, supplierActuals, projectDuration]);
+  }, [
+    project,
+    memberMonths,
+    timesheets,
+    supplierMonths,
+    supplierActuals,
+    projectDuration,
+    plannedLaborFromAllocations.byMonth,
+    plannedLaborFromAllocations.hasRoleAllocations,
+  ]);
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Receita */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <DollarSign className="h-4 w-4 text-primary" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Receita</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.revenueActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.revenuePlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {hideValues ? '•••' : `${kpiData.revenueExecuted.toFixed(1)}%`}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Comissão */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-                <Percent className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Comissão</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.commissionActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.commissionPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {hideValues ? '•••' : `${kpiData.commissionExecuted.toFixed(1)}%`}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Custos */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Custos</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.costActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.costPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {hideValues ? '•••' : `${kpiData.costExecuted.toFixed(1)}%`}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Margem */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                kpiData.marginActual >= marginTarget ? 'bg-green-100 dark:bg-green-900/30' :
-                kpiData.marginActual < marginTarget * 0.5 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-muted'
-              }`}>
-                {kpiData.marginActual >= marginTarget ? (
-                  <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-                ) : kpiData.marginActual < marginTarget * 0.5 ? (
-                  <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
-                ) : (
-                  <Minus className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Margem</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className={`text-xl font-bold ${
-                  kpiData.marginActual >= marginTarget ? 'text-green-600 dark:text-green-400' :
-                  kpiData.marginActual < marginTarget * 0.5 ? 'text-red-600 dark:text-red-400' : ''
-                }`}>
-                  {formatPercent(kpiData.marginActual)}
-                </p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatPercent(kpiData.marginPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatPercent(marginTarget)}</p>
-                <span className="text-xs text-muted-foreground">Meta</span>
-              </div>
-              <div className="pt-1">
-                <span className={`text-xs font-semibold ${kpiData.marginVar >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {hideValues
-                    ? '••• pp'
-                    : `${kpiData.marginVar >= 0 ? '+' : ''}${kpiData.marginVar.toFixed(1)}pp`}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">variação</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Barra de KPIs financeiros */}
+      <ProjectKPIBar
+        revenuePlanned={kpiData.revenuePlanned}
+        revenueActual={kpiData.revenueActual}
+        revenueExecuted={kpiData.revenueExecuted}
+        commissionPlanned={kpiData.commissionPlanned}
+        commissionActual={kpiData.commissionActual}
+        commissionExecuted={kpiData.commissionExecuted}
+        costPlanned={kpiData.costPlanned}
+        costActual={kpiData.costActual}
+        costExecuted={kpiData.costExecuted}
+        marginPlanned={kpiData.marginPlanned}
+        marginActual={kpiData.marginActual}
+        marginVar={kpiData.marginVar}
+        marginTarget={marginTarget}
+      />
 
       {/* Installments Table */}
       <Card>

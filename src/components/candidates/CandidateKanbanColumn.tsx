@@ -9,6 +9,7 @@ interface CandidateKanbanColumnProps {
   candidates: JobApplicationDB[];
   color: string;
   onCardClick: (candidate: JobApplicationDB) => void;
+  onHireClick?: (candidate: JobApplicationDB) => void;
 }
 
 export function CandidateKanbanColumn({
@@ -17,6 +18,7 @@ export function CandidateKanbanColumn({
   candidates,
   color,
   onCardClick,
+  onHireClick,
 }: CandidateKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
@@ -51,6 +53,7 @@ export function CandidateKanbanColumn({
                 key={candidate.id}
                 candidate={candidate}
                 onClick={() => onCardClick(candidate)}
+                onHireClick={onHireClick ? () => onHireClick(candidate) : undefined}
               />
             ))
           )}

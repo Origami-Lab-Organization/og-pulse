@@ -22,6 +22,7 @@ import {
   Menu,
   ChevronDown,
   Target,
+  Home,
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -46,6 +47,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { usePwaEnvironment } from "@/hooks/use-pwa-environment";
+import { PWA_BUSINESS_ROUTES } from "@/lib/pwa";
 
 interface NavItem {
   title: string;
@@ -55,6 +58,15 @@ interface NavItem {
   requiresManager?: boolean;
   requiresAdmin?: boolean;
 }
+
+// FUNC-J2 — alvos do coachmark de onboarding (destaque por step no navbar).
+const ONBOARDING_TARGETS: Record<string, string> = {
+  '/inbox': 'inbox',
+  '/my-kanban': 'kanban',
+  '/my-projects': 'projetos',
+  '/my-timesheet': 'timesheet',
+  '/reimbursements': 'reembolsos',
+};
 
 interface NavGroup {
   label: string;
@@ -67,11 +79,19 @@ const navigationGroups: NavGroup[] = [
   {
     label: "Meu Espaço",
     items: [
+      { title: "Início", url: "/dashboard", icon: Home },
+      {
+        title: "Dashboard",
+        url: "/admin-dashboard",
+        icon: LayoutDashboard,
+        requiresAdmin: true,
+      },
       { title: "Caixa de Entrada", url: "/inbox", icon: Inbox },
       { title: "Meu Kanban", url: "/my-kanban", icon: LucideSquareKanban },
       { title: "Meus Projetos", url: "/my-projects", icon: FolderKanban },
       { title: "Timesheet", url: "/my-timesheet", icon: Clock },
       { title: "Reembolsos", url: "/reimbursements", icon: Receipt },
+      { title: "Minhas Férias", url: "/minhas-ferias", icon: Palmtree },
     ],
   },
   {
@@ -157,6 +177,12 @@ const navigationGroups: NavGroup[] = [
         icon: UserSearch,
         requiresManager: true,
       },
+       {
+        title: "Ferramentas/Benefícios",
+        url: "/rh/ferramentas-beneficios",
+        icon: Users,
+        requiresAdmin: true,
+      },
       {
         title: "Vagas",
         url: "/rh/vagas",
@@ -182,8 +208,7 @@ const navigationGroups: NavGroup[] = [
         title: "Férias e Afastamentos",
         url: "/rh/ferias",
         icon: Palmtree,
-        requiresAdmin: true,
-        disabled: true,
+        requiresManager: true,
       },
       {
         title: "Desligamentos",
@@ -207,20 +232,25 @@ export function AppNavbar() {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isStandalone } = usePwaEnvironment();
 
   const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
+
+  const homeRoute = isAdmin ? '/admin-dashboard' : isManager ? '/inbox' : '/dashboard';
 
   const isActive = (path: string) => location.pathname === path;
 
   const filterItems = (items: NavItem[]) =>
     items.filter((item) => {
+      if (isStandalone && !PWA_BUSINESS_ROUTES.includes(item.url as never)) return false;
       if (item.requiresAdmin && !isAdmin) return false;
       if (item.requiresManager && !isManager && !isAdmin) return false;
       return true;
     });
 
   const isGroupVisible = (group: NavGroup) => {
+    if (isStandalone && group.label !== "Meu Espaço") return false;
     if (group.requiresAdmin && !isAdmin) return false;
     if (group.requiresManager && !isManager && !isAdmin) return false;
     return filterItems(group.items).length > 0;
@@ -237,7 +267,7 @@ export function AppNavbar() {
     <header className="sticky top-0 z-50 flex h-14 items-center border-b bg-background px-4 gap-4">
       {/* Logo */}
       <button
-        onClick={() => navigate("/inbox")}
+        onClick={() => navigate(homeRoute)}
         className="flex items-center gap-2 shrink-0 mr-2 hover:opacity-80 transition-opacity"
       >
         <img src={logo} alt="Pulse" className="h-7 w-7" />
@@ -258,6 +288,7 @@ export function AppNavbar() {
                 const flatButton = (
                   <NavigationMenuItem key={item.title}>
                     <button
+                      data-onboarding={ONBOARDING_TARGETS[item.url]}
                       disabled={item.disabled}
                       onClick={() => !item.disabled && navigate(item.url)}
                       className={cn(
@@ -356,12 +387,15 @@ export function AppNavbar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-72 p-0">
-            <div className="flex items-center gap-2 px-4 py-4 border-b">
+            <button
+              onClick={() => navigate(homeRoute)}
+              className="flex items-center gap-2 px-4 py-4 border-b w-full hover:opacity-80 transition-opacity"
+            >
               <img src={logo} alt="Pulse" className="h-7 w-7" />
               <span className="font-semibold text-foreground text-lg">
                 Pulse
               </span>
-            </div>
+            </button>
             <nav className="overflow-y-auto h-[calc(100%-57px)]">
               {visibleGroups.map((group) => {
                 const visibleItems = filterItems(group.items);

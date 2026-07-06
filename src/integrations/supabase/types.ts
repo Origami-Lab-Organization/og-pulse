@@ -1036,7 +1036,10 @@ export type Database = {
           is_gerente: boolean
           jornada_diaria: number
           jornada_mensal: number
+          invited_at: string | null
           must_change_password: boolean
+          onboarding_completed: boolean
+          onboarding_completed_at: string | null
           nome: string
           pro_labore: number
           provisao_13: number
@@ -1077,7 +1080,10 @@ export type Database = {
           is_gerente?: boolean
           jornada_diaria?: number
           jornada_mensal?: number
+          invited_at?: string | null
           must_change_password?: boolean
+          onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
           nome: string
           pro_labore?: number
           provisao_13?: number
@@ -1118,7 +1124,10 @@ export type Database = {
           is_gerente?: boolean
           jornada_diaria?: number
           jornada_mensal?: number
+          invited_at?: string | null
           must_change_password?: boolean
+          onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
           nome?: string
           pro_labore?: number
           provisao_13?: number
@@ -1641,6 +1650,7 @@ export type Database = {
           client_id: string | null
           closed_at: string | null
           company_name: string | null
+          competitor_name: string | null
           contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
@@ -1652,6 +1662,7 @@ export type Database = {
           name: string
           notes: string | null
           responsible_id: string | null
+          restored_at: string | null
           service_line: string | null
           source: string | null
           tenant_id: string
@@ -1666,6 +1677,7 @@ export type Database = {
           client_id?: string | null
           closed_at?: string | null
           company_name?: string | null
+          competitor_name?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
@@ -1677,6 +1689,7 @@ export type Database = {
           name: string
           notes?: string | null
           responsible_id?: string | null
+          restored_at?: string | null
           service_line?: string | null
           source?: string | null
           tenant_id: string
@@ -1691,6 +1704,7 @@ export type Database = {
           client_id?: string | null
           closed_at?: string | null
           company_name?: string | null
+          competitor_name?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
@@ -1702,6 +1716,7 @@ export type Database = {
           name?: string
           notes?: string | null
           responsible_id?: string | null
+          restored_at?: string | null
           service_line?: string | null
           source?: string | null
           tenant_id?: string
@@ -3045,6 +3060,67 @@ export type Database = {
           },
         ]
       }
+      project_files: {
+        Row: {
+          category: string
+          created_at: string
+          file_name: string
+          file_size: number
+          id: string
+          mime_type: string
+          project_id: string
+          storage_path: string
+          tenant_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          file_name: string
+          file_size: number
+          id?: string
+          mime_type: string
+          project_id: string
+          storage_path: string
+          tenant_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          project_id?: string
+          storage_path?: string
+          tenant_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_installments: {
         Row: {
           created_at: string
@@ -3135,6 +3211,142 @@ export type Database = {
             columns: ["okr_id"]
             isOneToOne: false
             referencedRelation: "project_okrs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_cost_months: {
+        Row: {
+          actual_value: number | null
+          cost_id: string
+          created_at: string
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          month_number: number
+          notes: string | null
+          planned_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          actual_value?: number | null
+          cost_id: string
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          month_number: number
+          notes?: string | null
+          planned_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actual_value?: number | null
+          cost_id?: string
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          month_number?: number
+          notes?: string | null
+          planned_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_cost_months_cost_id_fkey"
+            columns: ["cost_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_costs: {
+        Row: {
+          actual_amount: number | null
+          actual_amount_brl: number | null
+          budget_supplier_id: string | null
+          category: string
+          cost_date: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          description: string
+          end_month: number | null
+          exchange_rate: number
+          id: string
+          is_recurring: boolean
+          month_number: number | null
+          monthly_amount: number | null
+          monthly_amount_brl: number | null
+          notes: string | null
+          original_currency: string
+          planned_amount: number
+          planned_amount_brl: number
+          project_id: string
+          start_month: number | null
+          supplier_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_amount?: number | null
+          actual_amount_brl?: number | null
+          budget_supplier_id?: string | null
+          category?: string
+          cost_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description: string
+          end_month?: number | null
+          exchange_rate?: number
+          id?: string
+          is_recurring?: boolean
+          month_number?: number | null
+          monthly_amount?: number | null
+          monthly_amount_brl?: number | null
+          notes?: string | null
+          original_currency?: string
+          planned_amount?: number
+          planned_amount_brl?: number
+          project_id: string
+          start_month?: number | null
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_amount?: number | null
+          actual_amount_brl?: number | null
+          budget_supplier_id?: string | null
+          category?: string
+          cost_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string
+          end_month?: number | null
+          exchange_rate?: number
+          id?: string
+          is_recurring?: boolean
+          month_number?: number | null
+          monthly_amount?: number | null
+          monthly_amount_brl?: number | null
+          notes?: string | null
+          original_currency?: string
+          planned_amount?: number
+          planned_amount_brl?: number
+          project_id?: string
+          start_month?: number | null
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -3371,6 +3583,7 @@ export type Database = {
       project_role_allocations: {
         Row: {
           budget_role_id: string | null
+          cost_per_hour: number | null
           custom_role_name: string | null
           employee_id: string
           id: string
@@ -3382,6 +3595,7 @@ export type Database = {
         }
         Insert: {
           budget_role_id?: string | null
+          cost_per_hour?: number | null
           custom_role_name?: string | null
           employee_id: string
           id?: string
@@ -3393,6 +3607,7 @@ export type Database = {
         }
         Update: {
           budget_role_id?: string | null
+          cost_per_hour?: number | null
           custom_role_name?: string | null
           employee_id?: string
           id?: string
@@ -4137,6 +4352,104 @@ export type Database = {
         }
         Relationships: []
       }
+      service_lines: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_revenue_models: {
+        Row: {
+          base_value: number | null
+          billing_unit: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          model_type: string
+          name: string
+          service_id: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_value?: number | null
+          billing_unit?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          model_type: string
+          name: string
+          service_id: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_value?: number | null
+          billing_unit?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          model_type?: string
+          name?: string
+          service_id?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_revenue_models_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_revenue_models_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           billing_type: string | null
@@ -4149,6 +4462,7 @@ export type Database = {
           is_active: boolean
           name: string
           project_type: string
+          service_line_id: string | null
           template_budget_id: string | null
           tenant_id: string
           unit_price: number | null
@@ -4165,6 +4479,7 @@ export type Database = {
           is_active?: boolean
           name: string
           project_type: string
+          service_line_id?: string | null
           template_budget_id?: string | null
           tenant_id: string
           unit_price?: number | null
@@ -4181,12 +4496,20 @@ export type Database = {
           is_active?: boolean
           name?: string
           project_type?: string
+          service_line_id?: string | null
           template_budget_id?: string | null
           tenant_id?: string
           unit_price?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "services_service_line_id_fkey"
+            columns: ["service_line_id"]
+            isOneToOne: false
+            referencedRelation: "service_lines"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "services_template_budget_id_fkey"
             columns: ["template_budget_id"]
@@ -5012,6 +5335,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      attach_project_contract: {
+        Args: {
+          p_file_name: string
+          p_file_size: number
+          p_project_id: string
+          p_storage_path: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       calculate_employee_capacity_hours: {
         Args: {
           p_employee_id: string
@@ -5020,6 +5353,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: number
+      }
+      can_view_project_document: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
       }
       complete_password_change: { Args: never; Returns: undefined }
       count_employee_cost_business_days: {
@@ -5038,6 +5375,7 @@ export type Database = {
         }
         Returns: {
           actual_hours: number
+          allocation_id: string | null
           client_name: string
           duration_months: number
           is_continuous: boolean

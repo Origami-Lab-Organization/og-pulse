@@ -4,7 +4,43 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Notification } from './useNotifications';
 
-export type InboxFolder = 'all' | 'unread' | 'timesheet' | 'reimbursement' | 'budget' | 'candidates' | 'projeto' | 'archived';
+export type InboxFolder =
+  | 'all'
+  | 'unread'
+  | 'timesheet'
+  | 'reimbursement'
+  | 'budget'
+  | 'candidates'
+  | 'projeto'
+  | 'documentos'
+  | 'archived'
+  | 'lixeira';
+
+export interface InboxCounts {
+  all: number;
+  unread: number;
+  timesheet: number;
+  reimbursement: number;
+  budget: number;
+  candidates: number;
+  projeto: number;
+  documentos: number;
+  archived: number;
+  lixeira: number;
+}
+
+export const EMPTY_INBOX_COUNTS: InboxCounts = {
+  all: 0,
+  unread: 0,
+  timesheet: 0,
+  reimbursement: 0,
+  budget: 0,
+  candidates: 0,
+  projeto: 0,
+  documentos: 0,
+  archived: 0,
+  lixeira: 0,
+};
 
 function invalidateAll(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['inbox-notifications'] });
@@ -25,16 +61,24 @@ export function useInboxNotifications(folder: InboxFolder = 'all') {
         .select('*')
         .eq('recipient_id', employee.id);
 
-      if (folder === 'archived') {
-        query = query.eq('is_archived', true);
+      if (folder === 'lixeira') {
+        // Lixeira: somente as soft-deletadas.
+        query = query.not('deleted_at', 'is', null);
       } else {
-        query = query.neq('is_archived', true);
-        if (folder === 'unread') query = query.eq('is_read', false);
-        if (folder === 'timesheet') query = query.eq('category', 'timesheet');
-        if (folder === 'reimbursement') query = query.eq('category', 'reimbursement');
-        if (folder === 'candidates') query = query.eq('category', 'candidatos');
-        if (folder === 'budget') query = query.eq('category', 'budget');
-        if (folder === 'projeto') query = query.eq('category', 'projeto');
+        // Demais pastas: nunca mostram itens na Lixeira.
+        query = query.is('deleted_at', null);
+        if (folder === 'archived') {
+          query = query.eq('is_archived', true);
+        } else {
+          query = query.neq('is_archived', true);
+          if (folder === 'unread') query = query.eq('is_read', false);
+          if (folder === 'timesheet') query = query.eq('category', 'timesheet');
+          if (folder === 'reimbursement') query = query.eq('category', 'reimbursement');
+          if (folder === 'candidates') query = query.eq('category', 'candidatos');
+          if (folder === 'budget') query = query.eq('category', 'budget');
+          if (folder === 'projeto') query = query.eq('category', 'projeto');
+          if (folder === 'documentos') query = query.eq('category', 'documento');
+        }
       }
 
       const { data, error } = await query
@@ -53,56 +97,50 @@ export function useInboxCounts() {
 
   return useQuery({
     queryKey: ['inbox-counts', employee?.id],
-    queryFn: async () => {
-      if (!employee) return { all: 0, unread: 0, timesheet: 0, reimbursement: 0, budget: 0, candidates: 0, projeto: 0, archived: 0 };
-      const [totalRes, timesheetRes, reimbursementRes, budgetRes, candidatesRes, projetoRes, archivedRes] = await Promise.all([
+    queryFn: async (): Promise<InboxCounts> => {
+      if (!employee) return EMPTY_INBOX_COUNTS;
+
+      // Contagem de NÃO LIDAS por categoria, ignorando arquivadas e Lixeira.
+      const unreadActive = () =>
         (supabase as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('recipient_id', employee.id)
           .eq('is_read', false)
-          .eq('is_archived', false),
+          .eq('is_archived', false)
+          .is('deleted_at', null);
+
+      const [
+        totalRes,
+        timesheetRes,
+        reimbursementRes,
+        budgetRes,
+        candidatesRes,
+        projetoRes,
+        documentosRes,
+        archivedRes,
+        lixeiraRes,
+      ] = await Promise.all([
+        unreadActive(),
+        unreadActive().eq('category', 'timesheet'),
+        unreadActive().eq('category', 'reimbursement'),
+        unreadActive().eq('category', 'budget'),
+        unreadActive().eq('category', 'candidatos'),
+        unreadActive().eq('category', 'projeto'),
+        unreadActive().eq('category', 'documento'),
         (supabase as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('recipient_id', employee.id)
-          .eq('is_read', false)
-          .eq('category', 'timesheet')
-          .eq('is_archived', false),
+          .eq('is_archived', true)
+          .is('deleted_at', null),
         (supabase as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('recipient_id', employee.id)
-          .eq('is_read', false)
-          .eq('category', 'reimbursement')
-          .eq('is_archived', false),
-        (supabase as any)
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('recipient_id', employee.id)
-          .eq('is_read', false)
-          .eq('category', 'budget')
-          .eq('is_archived', false),
-        (supabase as any)
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('recipient_id', employee.id)
-          .eq('is_read', false)
-          .eq('category', 'candidatos')
-          .eq('is_archived', false),
-        (supabase as any)
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('recipient_id', employee.id)
-          .eq('is_read', false)
-          .eq('category', 'projeto')
-          .eq('is_archived', false),
-        (supabase as any)
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('recipient_id', employee.id)
-          .eq('is_archived', true),
+          .not('deleted_at', 'is', null),
       ]);
+
       return {
         all: totalRes.count || 0,
         unread: totalRes.count || 0,
@@ -111,7 +149,9 @@ export function useInboxCounts() {
         budget: budgetRes.count || 0,
         candidates: candidatesRes.count || 0,
         projeto: projetoRes.count || 0,
+        documentos: documentosRes.count || 0,
         archived: archivedRes.count || 0,
+        lixeira: lixeiraRes.count || 0,
       };
     },
     enabled: !!employee,
@@ -128,9 +168,10 @@ export function useMarkAllInboxRead() {
       if (!employee) return;
       const { error } = await (supabase as any)
         .from('notifications')
-        .update({ is_read: true })
+        .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('recipient_id', employee.id)
-        .eq('is_read', false);
+        .eq('is_read', false)
+        .is('deleted_at', null);
       if (error) throw error;
     },
     onSuccess: () => invalidateAll(queryClient),
@@ -197,6 +238,8 @@ export function useArchiveMultipleNotifications() {
   });
 }
 
+// "Excluir" = soft delete (move para a Lixeira). A RLS de notifications não
+// permite DELETE físico, e isto preserva o histórico para restauração.
 export function useDeleteNotification() {
   const queryClient = useQueryClient();
 
@@ -204,7 +247,7 @@ export function useDeleteNotification() {
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any)
         .from('notifications')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },
@@ -219,7 +262,38 @@ export function useDeleteMultipleNotifications() {
     mutationFn: async (ids: string[]) => {
       const { error } = await (supabase as any)
         .from('notifications')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+// Restaura da Lixeira (limpa deleted_at).
+export function useRestoreNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .update({ deleted_at: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+export function useRestoreMultipleNotifications() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .update({ deleted_at: null })
         .in('id', ids);
       if (error) throw error;
     },
@@ -234,7 +308,7 @@ export function useMarkMultipleNotificationsRead() {
     mutationFn: async (ids: string[]) => {
       const { error } = await (supabase as any)
         .from('notifications')
-        .update({ is_read: true })
+        .update({ is_read: true, read_at: new Date().toISOString() })
         .in('id', ids);
       if (error) throw error;
     },
@@ -249,7 +323,7 @@ export function useMarkMultipleNotificationsUnread() {
     mutationFn: async (ids: string[]) => {
       const { error } = await (supabase as any)
         .from('notifications')
-        .update({ is_read: false })
+        .update({ is_read: false, read_at: null })
         .in('id', ids);
       if (error) throw error;
     },

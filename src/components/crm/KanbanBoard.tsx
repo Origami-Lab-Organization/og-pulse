@@ -3,6 +3,7 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, u
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanCard } from './KanbanCard';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
+import type { CloseBusinessFormValues } from './CloseBusinessDialog';
 import { BudgetWithDetails, BudgetStatus, CRM_COLUMNS } from '@/types/budget';
 import { useUpdateBudgetStatus } from '@/hooks/useBudgets';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
@@ -104,15 +105,7 @@ export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
     updateStatus.mutate({ id: budgetId, status: newStatus });
   };
 
-  const handleCloseBusinessConfirm = (formData: {
-    managerId: string;
-    paymentMethod: string;
-    installmentsCount: number;
-    dueDay: number;
-    firstInvoiceDate: string;
-    startDate: string;
-    endDate: string;
-  }) => {
+  const handleCloseBusinessConfirm = async (formData: CloseBusinessFormValues) => {
     if (!budgetToClose) return;
 
     // Check if budget has a client_id (required for project creation)
@@ -121,19 +114,12 @@ export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
       // For now, we'll proceed but the project creation might fail
     }
 
-    closeBusinessDeal.mutate(
-      {
-        leadId: '',
-        budget: budgetToClose,
-        ...formData,
-      },
-      {
-        onSuccess: () => {
-          setCloseDialogOpen(false);
-          setBudgetToClose(null);
-        },
-      }
-    );
+    return closeBusinessDeal.mutateAsync({
+      leadId: '',
+      budget: budgetToClose,
+      ...formData,
+      customInstallments: formData.projectType === 'fixed_scope' ? formData.installments : undefined,
+    });
   };
 
   return (

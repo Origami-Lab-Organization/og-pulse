@@ -19,7 +19,16 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/formatters';
 import { formatCurrency as formatCurrencyMask, parseCurrency } from '@/lib/masks';
-import { Plus, Trash2, Check, X, Heart } from 'lucide-react';
+import { Plus, Trash2, Check, X, Heart, RefreshCw, ExternalLink } from 'lucide-react';
+import { useBenefits } from '@/hooks/useBenefits';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export interface LocalBenefit {
   id: string;
@@ -28,75 +37,73 @@ export interface LocalBenefit {
   monthlyValue: number;
 }
 
-const BENEFIT_OPTIONS = [
-  { value: 'vale_refeicao', label: 'Vale Refeição' },
-  { value: 'vale_alimentacao', label: 'Vale Alimentação' },
-  { value: 'vale_transporte', label: 'Vale Transporte' },
-  { value: 'plano_saude', label: 'Plano de Saúde' },
-  { value: 'plano_odontologico', label: 'Plano Odontológico' },
-  { value: 'seguro_vida', label: 'Seguro de Vida' },
-  { value: 'auxilio_creche', label: 'Auxílio Creche' },
-  { value: 'auxilio_educacao', label: 'Auxílio Educação' },
-  { value: 'gympass', label: 'Gympass/Wellhub' },
-  { value: 'auxilio_home_office', label: 'Auxílio Home Office' },
-  { value: 'bonus', label: 'Bônus' },
-  { value: 'participacao_lucros', label: 'PLR' },
-  { value: 'outros', label: 'Outros' },
-];
-
 interface EmployeeBenefitsLocalTableProps {
   benefits: LocalBenefit[];
   onChange: (benefits: LocalBenefit[]) => void;
   employeeName?: string;
 }
 
-export function EmployeeBenefitsLocalTable({ 
-  benefits, 
-  onChange, 
-  employeeName = 'Funcionário' 
+export function EmployeeBenefitsLocalTable({
+  benefits,
+  onChange,
+  employeeName = 'Funcionário',
 }: EmployeeBenefitsLocalTableProps) {
+  const { data: catalog = [], refetch: refetchCatalog } = useBenefits();
+  const activeCatalog = catalog.filter((b) => b.isActive);
+
   const [isAdding, setIsAdding] = useState(false);
-  
+  const [emptyCatalogDialogOpen, setEmptyCatalogDialogOpen] = useState(false);
+
+  const handleOpenAdd = () => {
+    if (availableOptions.length === 0) {
+      setEmptyCatalogDialogOpen(true);
+    } else {
+      setIsAdding(true);
+    }
+  };
+
   const [newBenefit, setNewBenefit] = useState({
-    selectedValue: '',
+    catalogId: '',
     name: '',
+    description: '',
     monthlyValue: 0,
     monthlyValueDisplay: '',
   });
 
-  const totalValue = benefits.reduce((sum, benefit) => sum + benefit.monthlyValue, 0);
+  const totalValue = benefits.reduce((sum, b) => sum + b.monthlyValue, 0);
 
-  // Filter out benefits that are already added
-  const availableBenefits = BENEFIT_OPTIONS.filter(
-    opt => !benefits.some(b => b.name === opt.label)
+  const availableOptions = activeCatalog.filter(
+    (opt) => !benefits.some((b) => b.name === opt.name)
   );
+
+  const handleSelectCatalog = (catalogId: string) => {
+    const item = activeCatalog.find((b) => b.id === catalogId);
+    if (!item) return;
+    setNewBenefit({
+      catalogId,
+      name: item.name,
+      description: item.description || '',
+      monthlyValue: item.value,
+      monthlyValueDisplay: formatCurrencyMask(item.value),
+    });
+  };
 
   const handleAdd = () => {
     if (!newBenefit.name.trim()) return;
-    
-    const newItem: LocalBenefit = {
-      id: `temp-${Date.now()}`,
-      name: newBenefit.name.trim(),
-      monthlyValue: newBenefit.monthlyValue,
-    };
-    
-    onChange([...benefits, newItem]);
+    onChange([
+      ...benefits,
+      {
+        id: `temp-${Date.now()}`,
+        name: newBenefit.name.trim(),
+        description: newBenefit.description || undefined,
+        monthlyValue: newBenefit.monthlyValue,
+      },
+    ]);
     setIsAdding(false);
-    setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
+    setNewBenefit({ catalogId: '', name: '', description: '', monthlyValue: 0, monthlyValueDisplay: '' });
   };
 
-  const handleDelete = (id: string) => {
-    onChange(benefits.filter(b => b.id !== id));
-  };
-
-  const handleSelectBenefit = (value: string) => {
-    const option = BENEFIT_OPTIONS.find(o => o.value === value);
-    setNewBenefit({ 
-      ...newBenefit, 
-      selectedValue: value,
-      name: option?.label || value 
-    });
-  };
+  const handleDelete = (id: string) => onChange(benefits.filter((b) => b.id !== id));
 
   return (
     <Card>
@@ -106,12 +113,10 @@ export function EmployeeBenefitsLocalTable({
             <Heart className="h-5 w-5" />
             Benefícios
           </CardTitle>
-          <CardDescription>
-            Benefícios mensais de {employeeName}
-          </CardDescription>
+          <CardDescription>Benefícios mensais de {employeeName}</CardDescription>
         </div>
-        {!isAdding && availableBenefits.length > 0 && (
-          <Button type="button" onClick={() => setIsAdding(true)} size="sm">
+        {!isAdding && (
+          <Button type="button" onClick={handleOpenAdd} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
           </Button>
@@ -137,21 +142,29 @@ export function EmployeeBenefitsLocalTable({
                   {isAdding && (
                     <TableRow>
                       <TableCell>
-                        <Select
-                          value={newBenefit.selectedValue}
-                          onValueChange={handleSelectBenefit}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Selecione o benefício" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableBenefits.map(option => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Select value={newBenefit.catalogId} onValueChange={handleSelectCatalog}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione do catálogo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableOptions.map((opt) => (
+                                <SelectItem key={opt.id} value={opt.id}>
+                                  {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => refetchCatalog()}
+                            title="Atualizar catálogo"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -185,7 +198,7 @@ export function EmployeeBenefitsLocalTable({
                             variant="ghost"
                             onClick={() => {
                               setIsAdding(false);
-                              setNewBenefit({ selectedValue: '', name: '', monthlyValue: 0, monthlyValueDisplay: '' });
+                              setNewBenefit({ catalogId: '', name: '', description: '', monthlyValue: 0, monthlyValueDisplay: '' });
                             }}
                           >
                             <X className="h-4 w-4 text-destructive" />
@@ -229,6 +242,33 @@ export function EmployeeBenefitsLocalTable({
           </div>
         )}
       </CardContent>
+
+      {/* Empty catalog dialog */}
+      <Dialog open={emptyCatalogDialogOpen} onOpenChange={setEmptyCatalogDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nenhum benefício disponível</DialogTitle>
+            <DialogDescription>
+              Todos os benefícios do catálogo já foram adicionados a este funcionário, ou o catálogo ainda não possui itens cadastrados.
+              Acesse a página de Ferramentas e Benefícios para criar novos itens.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmptyCatalogDialogOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                window.open('/rh/ferramentas-beneficios', '_blank');
+                setEmptyCatalogDialogOpen(false);
+              }}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Ir para Ferramentas e Benefícios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

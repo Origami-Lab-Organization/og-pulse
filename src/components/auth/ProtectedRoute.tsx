@@ -23,10 +23,13 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If user must change password and is not on the change-password page
-  if (employee?.must_change_password && location.pathname !== '/change-password') {
-    return <Navigate to="/change-password" replace />;
+  // If user must change password, trap navigation on the first-access screen
+  if (employee?.must_change_password && location.pathname !== '/primeiro-acesso') {
+    return <Navigate to="/primeiro-acesso" replace />;
   }
+
+  // Onboarding (FUNC-J2): tratado como modal sobre a tela principal
+  // (ver OnboardingProvider) — não há mais redirect de rota aqui.
 
   return <>{children}</>;
 };

@@ -6,6 +6,8 @@ import { projectService } from '@/services/projectService';
 import { BudgetWithDetails } from '@/types/budget';
 import { supabase } from '@/integrations/supabase/client';
 import { leadActivityService } from '@/services/leadActivityService';
+import { calculateCloseBusinessTotal, CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
+import { ProjectType } from '@/types/project';
 
 interface CloseBusinessInput {
   leadId: string;
@@ -22,6 +24,7 @@ interface CloseBusinessInput {
   renewalDate?: string;
   successFeePercent?: number;
   monthlyValue?: number;
+  customInstallments?: CloseBusinessInstallment[];
   // No-budget mode fields
   projectName?: string;
   clientId?: string;
@@ -44,7 +47,13 @@ export function useCloseBusinessDeal() {
       if (!budget) {
         const projectName = input.projectName;
         const clientId = input.clientId;
-        const totalValue = input.totalValue || 0;
+        const totalValue = calculateCloseBusinessTotal({
+          projectType: (input.projectType || 'fixed_scope') as ProjectType,
+          installments: input.customInstallments,
+          totalValue: input.totalValue || 0,
+          monthlyValue: input.monthlyValue,
+          successFeePercent: input.successFeePercent,
+        });
 
         if (!projectName || !clientId) {
           throw new Error('Nome do projeto e cliente são obrigatórios');
@@ -58,16 +67,19 @@ export function useCloseBusinessDeal() {
             budgetId: undefined,
             startDate,
             endDate,
-            isContinuous: false,
+            isContinuous: input.projectType === 'continuous',
             totalValue,
             paymentMethod,
             installmentsCount,
             dueDay,
-            firstInvoiceDate: undefined, // No installments generated
+            firstInvoiceDate: input.projectType === 'continuous' ? firstInvoiceDate : undefined,
             status: 'planning',
             durationMonths: 1,
+            renewalDate: input.renewalDate || undefined,
+            successFeePercent: input.successFeePercent,
             serviceLine: serviceLine || undefined,
             leadId: input.leadId,
+            customInstallments: input.customInstallments,
           },
           tenantId
         );
@@ -86,6 +98,14 @@ export function useCloseBusinessDeal() {
         throw new Error('Cliente é obrigatório para criar o projeto');
       }
 
+      const projectTotalValue = calculateCloseBusinessTotal({
+        projectType: (input.projectType || 'fixed_scope') as ProjectType,
+        installments: input.customInstallments,
+        totalValue: budget.final_total,
+        monthlyValue: input.monthlyValue,
+        successFeePercent: input.successFeePercent,
+      });
+
       const project = await projectService.create(
         {
           name: budget.title,
@@ -94,31 +114,42 @@ export function useCloseBusinessDeal() {
           budgetId: budget.id,
           startDate,
           endDate,
-          isContinuous: false,
-          totalValue: budget.final_total,
+          isContinuous: input.projectType === 'continuous',
+          totalValue: projectTotalValue,
           paymentMethod,
           installmentsCount,
           dueDay,
           firstInvoiceDate: firstInvoiceDate || undefined,
           status: 'planning',
           durationMonths: budget.duration_months,
+          renewalDate: input.renewalDate || undefined,
+          successFeePercent: input.successFeePercent,
           serviceLine: serviceLine || undefined,
           leadId: input.leadId,
+          customInstallments: input.customInstallments,
         },
         tenantId
       );
 
-      // 4. Copy suppliers from budget to project
+      // 4. Copy suppliers from budget to project_costs (recorrente) — J9-02
       for (const supplier of budget.suppliers || []) {
-        const { data: projectSupplier, error: supplierError } = await supabase
-          .from('project_suppliers')
+        const plannedTotal = Number(supplier.monthly_value) * budget.duration_months;
+        const { data: projectCost, error: supplierError } = await supabase
+          .from('project_costs')
           .insert({
             project_id: project.id,
-            name: supplier.name,
-            description: supplier.description,
-            monthly_value: supplier.monthly_value,
+            category: 'supplier',
+            is_recurring: true,
+            description: supplier.name,
+            notes: supplier.description,
+            monthly_amount: supplier.monthly_value,
+            monthly_amount_brl: supplier.monthly_value,
             start_month: 1,
             end_month: budget.duration_months,
+            original_currency: 'BRL',
+            exchange_rate: 1,
+            planned_amount: plannedTotal,
+            planned_amount_brl: plannedTotal,
           })
           .select()
           .single();
@@ -131,33 +162,37 @@ export function useCloseBusinessDeal() {
         const monthInserts = [];
         for (let month = 1; month <= budget.duration_months; month++) {
           monthInserts.push({
-            project_supplier_id: projectSupplier.id,
+            cost_id: projectCost.id,
             month_number: month,
-            value: supplier.monthly_value,
+            planned_value: supplier.monthly_value,
           });
         }
 
         if (monthInserts.length > 0) {
           const { error: monthsError } = await supabase
-            .from('project_supplier_months')
+            .from('project_cost_months')
             .insert(monthInserts);
 
           if (monthsError) {
-            console.error('Error creating supplier months:', monthsError);
+            console.error('Error creating supplier cost months:', monthsError);
           }
         }
       }
 
-      // 5. Copy materials from budget to project
+      // 5. Copy materials from budget to project_costs (avulso) — J9-02
       for (const material of budget.materials || []) {
         const { error: materialError } = await supabase
-          .from('project_materials')
+          .from('project_costs')
           .insert({
             project_id: project.id,
+            category: 'material',
+            is_recurring: false,
             description: material.description,
-            value: material.value,
+            planned_amount: material.value,
+            planned_amount_brl: material.value,
             month_number: 1,
-            is_realized: false,
+            original_currency: 'BRL',
+            exchange_rate: 1,
           });
 
         if (materialError) {
@@ -218,7 +253,13 @@ export function useCloseBusinessDeal() {
 
       // Log deal closed activity (fire-and-forget)
       if (employee && tenantId) {
-        const finalValue = input.budget?.final_total ?? input.totalValue ?? 0;
+        const finalValue = calculateCloseBusinessTotal({
+          projectType: (input.projectType || 'fixed_scope') as ProjectType,
+          installments: input.customInstallments,
+          totalValue: input.budget?.final_total ?? input.totalValue ?? 0,
+          monthlyValue: input.monthlyValue,
+          successFeePercent: input.successFeePercent,
+        });
         leadActivityService.logDealClosed(
           tenantId,
           input.leadId,

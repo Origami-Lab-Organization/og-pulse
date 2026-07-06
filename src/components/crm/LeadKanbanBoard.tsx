@@ -21,6 +21,7 @@ import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
 import { useServices } from '@/hooks/useServices';
 import { useLeadServicesMap } from '@/hooks/useLeadServices';
+import { useAllPendingFollowUps, LeadFollowUp } from '@/hooks/useLeadFollowUps';
 import { useToast } from '@/hooks/use-toast';
 
 interface LeadKanbanBoardProps {
@@ -40,7 +41,18 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const closeBusinessDeal = useCloseBusinessDeal();
   const { data: services = [] } = useServices();
   const leadServicesMap = useLeadServicesMap();
+  const { data: pendingFollowUps = [] } = useAllPendingFollowUps();
   const { toast } = useToast();
+
+  // Agrupa os follow-ups pendentes do tenant por oportunidade — alimenta o indicador
+  // de "vencido" nos cards (GP-J5 CA-01). Reage ao polling de 60s do hook.
+  const followUpsByLead = useMemo(() => {
+    const map: Record<string, LeadFollowUp[]> = {};
+    for (const followUp of pendingFollowUps) {
+      (map[followUp.lead_id] ??= []).push(followUp);
+    }
+    return map;
+  }, [pendingFollowUps]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -177,39 +189,34 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     setCloseDialogOpen(true);
   };
 
-  const handleCloseBusinessConfirm = (formData: import('@/components/crm/CloseBusinessDialog').CloseBusinessFormValues) => {
+  const handleCloseBusinessConfirm = async (formData: import('@/components/crm/CloseBusinessDialog').CloseBusinessFormValues) => {
     if (!leadToClose) return;
 
     const budget = budgetForClose || null;
 
-    closeBusinessDeal.mutate(
-      {
-        leadId: leadToClose.id,
-        budget,
-        projectType: formData.projectType,
-        managerId: formData.managerId,
-        paymentMethod: formData.paymentMethod,
-        installmentsCount: formData.installmentsCount,
-        dueDay: formData.dueDay,
-        firstInvoiceDate: formData.firstInvoiceDate,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        renewalDate: formData.renewalDate,
-        successFeePercent: formData.successFeePercent,
-        serviceLine: leadToClose.service_line || undefined,
-        projectName: formData.projectName || leadToClose.name,
-        clientId: formData.clientId || leadToClose.client_id || '',
-        totalValue: formData.totalValue || leadToClose.estimated_value || 0,
-        monthlyValue: formData.monthlyValue,
-      },
-      {
-        onSuccess: () => {
-          updateStage.mutate({ id: leadToClose.id, stage: 'closed', fromStage: leadToClose.crm_stage });
-          setCloseDialogOpen(false);
-          setLeadToClose(null);
-        },
-      }
-    );
+    const project = await closeBusinessDeal.mutateAsync({
+      leadId: leadToClose.id,
+      budget,
+      projectType: formData.projectType,
+      managerId: formData.managerId,
+      paymentMethod: formData.paymentMethod,
+      installmentsCount: formData.installmentsCount,
+      dueDay: formData.dueDay,
+      firstInvoiceDate: formData.firstInvoiceDate,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      renewalDate: formData.renewalDate,
+      successFeePercent: formData.successFeePercent,
+      serviceLine: leadToClose.service_line || undefined,
+      projectName: formData.projectName || leadToClose.name,
+      clientId: formData.clientId || leadToClose.client_id || '',
+      totalValue: formData.totalValue || leadToClose.estimated_value || 0,
+      monthlyValue: formData.monthlyValue,
+      customInstallments: formData.projectType === 'fixed_scope' ? formData.installments : undefined,
+    });
+
+    updateStage.mutate({ id: leadToClose.id, stage: 'closed', fromStage: leadToClose.crm_stage });
+    return project;
   };
 
   return (
@@ -225,6 +232,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
               onCardClick={handleCardClick}
               services={services}
               leadServicesMap={leadServicesMap}
+              followUpsByLead={followUpsByLead}
             />
           ))}
         </div>

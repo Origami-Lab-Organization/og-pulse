@@ -19,7 +19,15 @@ import {
   useUpdateEmployeeTool,
   useDeleteEmployeeTool,
 } from '@/hooks/useEmployees';
-import { Plus, Pencil, Trash2, Check, X, Wrench } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Wrench, RefreshCw, ExternalLink } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useTools } from '@/hooks/useTools';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +38,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface EmployeeToolsTableProps {
   employeeId: string;
@@ -38,6 +54,7 @@ interface EmployeeToolsTableProps {
 
 export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTableProps) {
   const { data: tools = [], isLoading } = useEmployeeTools(employeeId);
+  const { data: catalog = [], refetch: refetchCatalog } = useTools();
   const addTool = useAddEmployeeTool();
   const updateTool = useUpdateEmployeeTool();
   const deleteTool = useDeleteEmployeeTool();
@@ -45,13 +62,40 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteToolId, setDeleteToolId] = useState<string | null>(null);
-  
+  const [emptyCatalogDialogOpen, setEmptyCatalogDialogOpen] = useState(false);
+
+  const handleOpenAdd = () => {
+    if (availableTools.length === 0) {
+      setEmptyCatalogDialogOpen(true);
+    } else {
+      setIsAdding(true);
+    }
+  };
+
+  const activeCatalog = catalog.filter((t) => t.isActive);
+  const availableTools = activeCatalog.filter(
+    (opt) => !tools.some((t) => t.name === opt.name)
+  );
+
   const [newTool, setNewTool] = useState({
+    catalogId: '',
     name: '',
     description: '',
     monthlyCost: 0,
     monthlyCostDisplay: '',
   });
+
+  const handleSelectCatalog = (catalogId: string) => {
+    const item = activeCatalog.find((t) => t.id === catalogId);
+    if (!item) return;
+    setNewTool({
+      catalogId,
+      name: item.name,
+      description: item.description || '',
+      monthlyCost: item.value,
+      monthlyCostDisplay: formatCurrencyMask(item.value),
+    });
+  };
 
   const [editData, setEditData] = useState({
     name: '',
@@ -75,7 +119,7 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
       {
         onSuccess: () => {
           setIsAdding(false);
-          setNewTool({ name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
+          setNewTool({ catalogId: '', name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
         },
       }
     );
@@ -139,15 +183,15 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <Wrench className="h-5 w-5" />
-            Ferramentas e Assinaturas
+            
+             <CardTitle className="text-lg">Ferramentas e Assinaturas</CardTitle>
           </CardTitle>
           <CardDescription>
             Ferramentas pagas para {employeeName}
           </CardDescription>
         </div>
         {!isAdding && (
-          <Button onClick={() => setIsAdding(true)} size="sm">
+          <Button onClick={handleOpenAdd} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar
           </Button>
@@ -173,21 +217,29 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
                 <TableBody>
                   {isAdding && (
                     <TableRow>
-                      <TableCell>
-                        <Input
-                          value={newTool.name}
-                          onChange={(e) => setNewTool({ ...newTool, name: e.target.value })}
-                          placeholder="Ex: Lovable, Figma..."
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={newTool.description}
-                          onChange={(e) => setNewTool({ ...newTool, description: e.target.value })}
-                          placeholder="Descrição (opcional)"
-                          className="w-full"
-                        />
+                      <TableCell colSpan={2}>
+                        <div className="flex items-center gap-2">
+                          <Select value={newTool.catalogId} onValueChange={handleSelectCatalog}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione do catálogo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableTools.map((opt) => (
+                                <SelectItem key={opt.id} value={opt.id}>
+                                  {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => refetchCatalog()}
+                            title="Atualizar catálogo"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -219,7 +271,7 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
                             variant="ghost"
                             onClick={() => {
                               setIsAdding(false);
-                              setNewTool({ name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
+                              setNewTool({ catalogId: '', name: '', description: '', monthlyCost: 0, monthlyCostDisplay: '' });
                             }}
                           >
                             <X className="h-4 w-4 text-destructive" />
@@ -325,6 +377,33 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
           </div>
         )}
       </CardContent>
+
+      {/* Empty catalog dialog */}
+      <Dialog open={emptyCatalogDialogOpen} onOpenChange={setEmptyCatalogDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nenhuma ferramenta disponível</DialogTitle>
+            <DialogDescription>
+              Todas as ferramentas do catálogo já foram adicionadas a este funcionário, ou o catálogo ainda não possui itens cadastrados.
+              Acesse a página de Ferramentas e Benefícios para criar novos itens.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmptyCatalogDialogOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                window.open('/rh/ferramentas-beneficios', '_blank');
+                setEmptyCatalogDialogOpen(false);
+              }}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Ir para Ferramentas e Benefícios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteToolId} onOpenChange={() => setDeleteToolId(null)}>
         <AlertDialogContent>

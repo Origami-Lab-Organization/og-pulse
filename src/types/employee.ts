@@ -1,5 +1,22 @@
 export type ContractType = 'SOCIO' | 'CLT' | 'PJ' | 'MENOR_APRENDIZ' | 'ESTAGIO';
 
+export type PixKeyType = 'cpf' | 'cnpj' | 'telefone' | 'email' | 'aleatoria';
+
+export const PIX_KEY_TYPE_LABELS: Record<PixKeyType, string> = {
+  cpf: 'CPF',
+  cnpj: 'CNPJ',
+  telefone: 'Telefone',
+  email: 'E-mail',
+  aleatoria: 'Chave Aleatória',
+};
+
+export type BankAccountType = 'corrente' | 'poupanca';
+
+export const BANK_ACCOUNT_TYPE_LABELS: Record<BankAccountType, string> = {
+  corrente: 'Conta Corrente',
+  poupanca: 'Conta Poupança',
+};
+
 export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
   SOCIO: 'Sócio',
   CLT: 'CLT',

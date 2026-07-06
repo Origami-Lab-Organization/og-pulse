@@ -18,9 +18,13 @@ interface PersonalKanbanColumnProps {
   onCardClick: (card: PersonalKanbanCardWithTags) => void;
   onCardDelete: (cardId: string) => void;
   onProjectCardClick: (card: AssignedProjectCard) => void;
+  mobile?: boolean;
+  moveTargets?: { id: string; name: string }[];
+  onMoveCard?: (cardId: string, columnId: string) => void;
+  moveDisabled?: boolean;
 }
 
-export function PersonalKanbanColumn({ column, cards, projectCards, onCardClick, onCardDelete, onProjectCardClick }: PersonalKanbanColumnProps) {
+export function PersonalKanbanColumn({ column, cards, projectCards, onCardClick, onCardDelete, onProjectCardClick, mobile, moveTargets, onMoveCard, moveDisabled }: PersonalKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const createCard = useCreatePersonalCard();
 
@@ -48,7 +52,7 @@ export function PersonalKanbanColumn({ column, cards, projectCards, onCardClick,
   };
 
   return (
-    <div className="min-w-[280px] flex-shrink-0 flex flex-col gap-3" style={{ height: '100%' }}>
+    <div className={cn("flex-shrink-0 flex flex-col gap-3", mobile ? "w-[calc(100vw-2rem)] snap-center" : "min-w-[280px]")} style={{ height: '100%' }}>
       {/* ── Column header ── */}
       <div className="flex items-center justify-between shrink-0 gap-2">
         <span className="text-sm font-medium text-foreground select-none truncate">
@@ -74,6 +78,9 @@ export function PersonalKanbanColumn({ column, cards, projectCards, onCardClick,
               card={card}
               onClick={() => onCardClick(card)}
               onDelete={() => onCardDelete(card.id)}
+              moveTargets={mobile ? moveTargets : undefined}
+              onMove={mobile ? (columnId) => onMoveCard?.(card.id, columnId) : undefined}
+              moveDisabled={moveDisabled}
             />
           ))}
         </SortableContext>

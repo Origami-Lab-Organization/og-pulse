@@ -42,13 +42,68 @@ export interface TerminationDetail extends TerminationWithEmployee {
   payroll_adjustments: PayrollAdjustment[];
 }
 
+async function deallocateEmployee(employeeId: string, terminationDate: string): Promise<void> {
+  const { data: members, error: membersError } = await supabase
+    .from('project_members')
+    .select('id, project_id, projects!inner(id, name, start_date, manager_id, tenant_id)')
+    .eq('employee_id', employeeId);
+
+  if (membersError || !members || members.length === 0) return;
+
+  const termDate = new Date(terminationDate);
+  const notifiedManagers = new Set<string>();
+  const notifications: object[] = [];
+
+  for (const pm of members as any[]) {
+    const project = pm.projects;
+    if (!project?.start_date) continue;
+
+    const startDate = new Date(project.start_date);
+    // month_number é relativo ao start_date do projeto (base 1)
+    const currentMonthNum =
+      (termDate.getFullYear() - startDate.getFullYear()) * 12 +
+      (termDate.getMonth() - startDate.getMonth()) + 1;
+
+    const { error: deleteError } = await supabase
+      .from('project_member_months')
+      .delete()
+      .eq('project_member_id', pm.id)
+      .gt('month_number', currentMonthNum);
+
+    if (deleteError) {
+      console.error(`Erro ao remover meses futuros do membro ${pm.id}:`, deleteError);
+    }
+
+    if (project.manager_id && !notifiedManagers.has(project.manager_id)) {
+      notifiedManagers.add(project.manager_id);
+      notifications.push({
+        tenant_id: project.tenant_id,
+        recipient_id: project.manager_id,
+        type: 'alert',
+        category: 'project',
+        priority: 'high',
+        title: 'Funcionário desligado — alocação atualizada',
+        message: `Um membro foi desligado. Os meses futuros no projeto "${project.name}" foram removidos automaticamente.`,
+        action_url: `/projetos/${project.id}`,
+        reference_id: project.id,
+      });
+    }
+  }
+
+  if (notifications.length > 0) {
+    const { error: notifError } = await supabase.from('notifications').insert(notifications);
+    if (notifError) {
+      console.error('Erro ao notificar GPs sobre desligamento:', notifError);
+    }
+  }
+}
+
 export const terminationService = {
   // 1. POST - Iniciar processo de desligamento
   async create(
     data: EmployeeTerminationFormData,
     createdBy?: string
   ): Promise<EmployeeTermination> {
-    // Insert termination record
     const { data: termination, error } = await supabase
       .from('employee_terminations')
       .insert({
@@ -63,6 +118,7 @@ export const terminationService = {
         exit_interview_completed: data.exit_interview_completed,
         exit_interview_notes: data.exit_interview_notes || null,
         status: data.status || 'pending',
+        is_just_cause: data.is_just_cause ?? false,
         created_by: createdBy || null,
       })
       .select()
@@ -73,7 +129,6 @@ export const terminationService = {
       throw new Error('Falha ao iniciar processo de desligamento');
     }
 
-    // Update employee status to 'em_desligamento' and link termination
     const { data: updatedEmp, error: empError } = await supabase
       .from('employees')
       .update({
@@ -88,6 +143,11 @@ export const terminationService = {
       console.error('Erro ao atualizar status do funcionário (possível bloqueio por RLS):', empError);
       throw new Error('Falha ao atualizar status do funcionário. O desligamento foi criado, mas o status não foi alterado.');
     }
+
+    // CA2: desalocar meses futuros e notificar GPs (best-effort, não bloqueia)
+    deallocateEmployee(data.employee_id, data.termination_date).catch(e =>
+      console.error('Erro na desalocação automática:', e)
+    );
 
     return termination as unknown as EmployeeTermination;
   },
@@ -169,6 +229,7 @@ export const terminationService = {
     if (updates.exit_interview_completed !== undefined) dbUpdates.exit_interview_completed = updates.exit_interview_completed;
     if (updates.exit_interview_notes !== undefined) dbUpdates.exit_interview_notes = updates.exit_interview_notes;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.is_just_cause !== undefined) dbUpdates.is_just_cause = updates.is_just_cause;
     if (updates.final_payroll_adjustments !== undefined) dbUpdates.final_payroll_adjustments = updates.final_payroll_adjustments;
 
     const { data, error } = await supabase

@@ -51,7 +51,8 @@ import {
   UserX,
   Star,
   Loader2,
-  RotateCcw
+  RotateCcw,
+  UserCheck
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -60,6 +61,7 @@ import {
   useManagers,
   useUpdateJobApplicationResponsavel
 } from "@/hooks/useJobApplications";
+import { CandidateHireDialog } from "@/components/candidates/CandidateHireDialog";
 import { cn } from "@/lib/utils";
 
 interface CandidateDetailDialogProps {
@@ -74,6 +76,7 @@ const STATUS_BADGE: Record<JobApplicationStatus, string> = {
   entrevista: "bg-yellow-100 text-yellow-700 border-yellow-200",
   prova_tecnica: "bg-orange-100 text-orange-700 border-orange-200",
   aprovado: "bg-green-100 text-green-700 border-green-200",
+  contratado: "bg-teal-100 text-teal-700 border-teal-200",
   descartado: "bg-red-100 text-red-700 border-red-200",
   banco_de_talentos: "bg-purple-100 text-purple-700 border-purple-200"
 };
@@ -113,6 +116,7 @@ export function CandidateDetailDialog({
     null
   );
   const [justificativa, setJustificativa] = useState("");
+  const [hireOpen, setHireOpen] = useState(false);
 
   if (!candidate) return null;
 
@@ -420,17 +424,32 @@ export function CandidateDetailDialog({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {nextStatus && (
+                {candidate.status === "aprovado" ? (
+                  <Button
+                    onClick={() => setHireOpen(true)}
+                    className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    Contratar
+                  </Button>
+                ) : nextStatus ? (
                   <Button onClick={handleAdvance} className="gap-2">
                     {NEXT_STATUS_LABEL[nextStatus]}
                     <ArrowRight className="h-4 w-4" />
                   </Button>
-                )}
+                ) : null}
               </div>
             )}
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <CandidateHireDialog
+        candidate={candidate}
+        open={hireOpen}
+        onOpenChange={setHireOpen}
+        onSuccess={() => onOpenChange(false)}
+      />
 
       <Dialog
         open={!!archiveAction}

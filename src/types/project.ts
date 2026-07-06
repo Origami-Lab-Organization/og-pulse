@@ -1,21 +1,30 @@
-export type ProjectType = 'fixed_scope' | 'continuous' | 'success_fee' | 'non_revenue';
+export type ProjectType =
+  | "fixed_scope"
+  | "continuous"
+  | "success_fee"
+  | "non_revenue";
 
 export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
-  fixed_scope: 'Escopo Fechado',
-  continuous: 'Receita Recorrente',
-  success_fee: 'Taxa de Sucesso',
-  non_revenue: 'Sem Receita',
+  fixed_scope: "Escopo Fechado",
+  continuous: "Receita Recorrente",
+  success_fee: "Taxa de Sucesso",
+  non_revenue: "Sem Receita",
 };
 
 export const PROJECT_TYPE_DESCRIPTIONS: Record<ProjectType, string> = {
-  fixed_scope: 'Projeto com escopo e valor definidos',
-  continuous: 'Contrato recorrente com faturamento mensal',
-  success_fee: 'Remuneração atrelada ao resultado',
-  non_revenue: 'Projeto interno sem geração de receita',
+  fixed_scope: "Projeto com escopo e valor definidos",
+  continuous: "Contrato recorrente com faturamento mensal",
+  success_fee: "Remuneração atrelada ao resultado",
+  non_revenue: "Projeto interno sem geração de receita",
 };
 
-export type ProjectStatus = 'planning' | 'active' | 'paused' | 'completed' | 'cancelled';
-export type InstallmentStatus = 'pending' | 'invoiced' | 'received' | 'overdue';
+export type ProjectStatus =
+  | "planning"
+  | "active"
+  | "paused"
+  | "completed"
+  | "cancelled";
+export type InstallmentStatus = "pending" | "invoiced" | "received" | "overdue";
 
 export interface ProjectDB {
   id: string;
@@ -99,6 +108,65 @@ export interface ProjectMaterialDB {
   created_at: string;
 }
 
+// Project Costs (J9-01) — custos  em 6 categorias com moeda/conversão
+export type ProjectCostCategory =
+  | "supplier"
+  | "subscription"
+  | "equipment_rental"
+  | "material"
+  | "travel"
+  | "other";
+
+export type CostCurrency = "BRL" | "USD" | "EUR" | "GBP";
+export type ProjectCostStatus = "planned" | "paid" | "cancelled";
+
+export interface ProjectCostDB {
+  id: string;
+  project_id: string;
+  category: ProjectCostCategory;
+  description: string;
+  cost_date: string | null;
+  planned_amount: number;
+  actual_amount: number | null;
+  original_currency: CostCurrency;
+  exchange_rate: number;
+  planned_amount_brl: number;
+  actual_amount_brl: number | null;
+  status: ProjectCostStatus;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface CreateProjectCostInput {
+  projectId: string;
+  category: ProjectCostCategory;
+  description: string;
+  costDate: string;
+  plannedAmount: number;
+  actualAmount?: number | null;
+  currency: CostCurrency;
+  exchangeRate: number;
+  notes?: string | null;
+  status?: ProjectCostStatus;
+}
+
+export interface UpdateProjectCostInput {
+  id: string;
+  projectId: string;
+  category?: ProjectCostCategory;
+  description?: string;
+  costDate?: string;
+  plannedAmount?: number;
+  actualAmount?: number | null;
+  currency?: CostCurrency;
+  exchangeRate?: number;
+  notes?: string | null;
+  status?: ProjectCostStatus;
+}
+
 export interface CreateProjectInput {
   clientId: string;
   managerId: string;
@@ -121,6 +189,12 @@ export interface CreateProjectInput {
   successFeePercent?: number;
   leadId?: string;
   valueBookUrl?: string;
+  customInstallments?: {
+    installmentNumber: number;
+    value: number;
+    dueDate: string;
+    invoiceDate?: string;
+  }[];
 }
 
 export interface CreateProjectMemberInput {
@@ -204,18 +278,18 @@ export interface ProjectWithRelations extends ProjectDB {
 }
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
-  planning: 'Em Planejamento',
-  active: 'Em Andamento',
-  paused: 'Pausado',
-  completed: 'Concluído',
-  cancelled: 'Cancelado',
+  planning: "Em Planejamento",
+  active: "Em Andamento",
+  paused: "Pausado",
+  completed: "Concluído",
+  cancelled: "Cancelado",
 };
 
 export const INSTALLMENT_STATUS_LABELS: Record<InstallmentStatus, string> = {
-  pending: 'Pendente',
-  invoiced: 'NF Emitida',
-  received: 'Recebido',
-  overdue: 'Atrasado',
+  pending: "Pendente",
+  invoiced: "NF Emitida",
+  received: "Recebido",
+  overdue: "Atrasado",
 };
 
 // Project Member Months (hours per month)
@@ -261,14 +335,14 @@ export interface ProjectCommissionDB {
 }
 
 export const SENIORITY_OPTIONS = [
-  { value: 'junior', label: 'Júnior' },
-  { value: 'pleno', label: 'Pleno' },
-  { value: 'senior', label: 'Sênior' },
+  { value: "junior", label: "Júnior" },
+  { value: "pleno", label: "Pleno" },
+  { value: "senior", label: "Sênior" },
 ];
 
 export const PAYMENT_METHOD_OPTIONS = [
-  { value: 'mensal', label: 'Mensal' },
-  { value: 'por_entrega', label: 'Por Entrega' },
-  { value: 'unico', label: 'Pagamento Único' },
-  { value: 'personalizado', label: 'Personalizado' },
+  { value: "mensal", label: "Mensal" },
+  { value: "por_entrega", label: "Por Entrega" },
+  { value: "unico", label: "Pagamento Único" },
+  { value: "personalizado", label: "Personalizado" },
 ];

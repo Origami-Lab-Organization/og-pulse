@@ -26,6 +26,12 @@
     --primary: 168 76% 50%;
     --primary-foreground: 169 60% 10%;
 
+    /* Verde escuro da marca (Sea Green/green-600 do origami-ds) — usado em
+       superfícies de ênfase como o stepper de estágio ativo. Token único,
+       derivado; não re-tokeniza o app. */
+    --primary-deep: 162 82% 23%;
+    --primary-deep-foreground: 0 0% 100%;
+
     /* Secondary = Origami Cyan */
     --secondary: 199 89% 48%;
     --secondary-foreground: 0 0% 100%;
@@ -93,6 +99,11 @@
     /* Verde vibrante como cor de ação no dark */
     --primary: 168 76% 50%;
     --primary-foreground: 222 14% 7%;
+
+    /* Verde profundo de ênfase no dark — mais luminoso que no claro para
+       manter contraste sobre superfícies escuras. */
+    --primary-deep: 162 70% 30%;
+    --primary-deep-foreground: 0 0% 100%;
 
     /* Cyan como secondary no dark */
     --secondary: 199 89% 48%;

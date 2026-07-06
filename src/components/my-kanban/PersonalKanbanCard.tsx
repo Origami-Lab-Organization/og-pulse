@@ -6,11 +6,15 @@ import { ptBR } from 'date-fns/locale';
 import { PersonalKanbanCardWithTags } from '@/types/personalKanban';
 import { TagBadge } from '@/components/projects/activities/TagBadge';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PersonalKanbanCardProps {
   card: PersonalKanbanCardWithTags;
   onClick: () => void;
   onDelete: (e: React.MouseEvent) => void;
+  moveTargets?: { id: string; name: string }[];
+  onMove?: (columnId: string) => void;
+  moveDisabled?: boolean;
 }
 
 function DueDateBadge({ dueDate }: { dueDate: string }) {
@@ -42,7 +46,7 @@ function DueDateBadge({ dueDate }: { dueDate: string }) {
   );
 }
 
-export function PersonalKanbanCard({ card, onClick, onDelete }: PersonalKanbanCardProps) {
+export function PersonalKanbanCard({ card, onClick, onDelete, moveTargets, onMove, moveDisabled }: PersonalKanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -96,6 +100,17 @@ export function PersonalKanbanCard({ card, onClick, onDelete }: PersonalKanbanCa
         {card.due_date && (
           <div>
             <DueDateBadge dueDate={card.due_date} />
+          </div>
+        )}
+
+        {moveTargets && onMove && (
+          <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+            <Select value={card.column_id} onValueChange={onMove} disabled={moveDisabled}>
+              <SelectTrigger className="h-10 w-full text-xs" aria-label="Mover card para">
+                <SelectValue placeholder="Mover para" />
+              </SelectTrigger>
+              <SelectContent>{moveTargets.map((target) => <SelectItem key={target.id} value={target.id}>{target.name}</SelectItem>)}</SelectContent>
+            </Select>
           </div>
         )}
 

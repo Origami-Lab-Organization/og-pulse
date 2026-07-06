@@ -48,6 +48,8 @@ export interface LeadDB {
   archived_at: string | null;
   archive_reason: string | null;
   archive_notes: string | null;
+  competitor_name: string | null;
+  restored_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -79,4 +81,16 @@ export interface LeadWithBudget extends LeadDB {
     id: string;
     nome: string;
   } | null;
+}
+
+/** Janela do badge "Reativada" após a restauração de uma oportunidade (GP-J7 CA-04). */
+export const REACTIVATED_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * Indica se a oportunidade foi restaurada há menos de 48h (badge "Reativada").
+ * Derivado em runtime a partir de `restored_at` — sem job agendado.
+ */
+export function isRecentlyRestored(lead: { restored_at?: string | null; archived?: boolean }): boolean {
+  if (lead.archived || !lead.restored_at) return false;
+  return Date.now() - new Date(lead.restored_at).getTime() < REACTIVATED_BADGE_WINDOW_MS;
 }

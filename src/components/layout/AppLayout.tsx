@@ -1,5 +1,7 @@
 import { ReactNode } from 'react';
 import { AppNavbar } from './AppNavbar';
+import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
+import { OfflineBanner } from '@/components/pwa/OfflineBanner';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -20,6 +22,7 @@ export function AppLayout({
   return (
     <div className="min-h-screen flex flex-col w-full">
       <AppNavbar />
+      <OfflineBanner />
 
       {/* Page Header */}
       {!hideHeader && (
@@ -45,6 +48,7 @@ export function AppLayout({
       {/* Main Content */}
       <main className="flex-1 overflow-auto min-w-0">
         <div className="py-4 px-4 sm:py-6 sm:px-6 max-w-full">
+          <OnboardingBanner />
           {children}
         </div>
       </main>

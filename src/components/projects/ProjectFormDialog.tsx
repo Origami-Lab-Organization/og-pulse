@@ -214,7 +214,10 @@ export function ProjectFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6 [&_*:focus]:ring-primary-deep [&_*:focus-visible]:ring-primary-deep"
+          >
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
@@ -356,6 +359,7 @@ export function ProjectFormDialog({
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
+                          className="border-primary-deep data-[state=checked]:bg-primary-deep data-[state=checked]:border-primary-deep data-[state=checked]:text-primary-deep-foreground"
                         />
                       </FormControl>
                       <FormLabel className="font-normal cursor-pointer">Projeto Contínuo</FormLabel>
@@ -568,7 +572,11 @@ export function ProjectFormDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting || (requireJustification && justification.trim().length < 10)}>
+              <Button
+                type="submit"
+                disabled={isSubmitting || (requireJustification && justification.trim().length < 10)}
+                className="bg-primary-deep text-primary-deep-foreground hover:bg-primary-deep/90"
+              >
                 {isSubmitting ? 'Salvando...' : project ? 'Atualizar' : 'Criar Projeto'}
               </Button>
             </div>

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { leadActivityService } from '@/services/leadActivityService';
+import type { LeadAttachment } from '@/lib/leadAttachments';
 
 export interface LeadInteraction {
   id: string;
@@ -10,6 +11,7 @@ export interface LeadInteraction {
   message: string;
   interaction_date: string;
   channel: string;
+  attachments: LeadAttachment[];
   created_by: string | null;
   updated_by: string | null;
   created_at: string;
@@ -49,7 +51,7 @@ export function useCreateInteraction() {
   const qc = useQueryClient();
   const { employee } = useAuth();
   return useMutation({
-    mutationFn: async (input: { lead_id: string; message: string; interaction_date: string; channel: string }) => {
+    mutationFn: async (input: { lead_id: string; message: string; interaction_date: string; channel: string; attachments?: LeadAttachment[] }) => {
       const { data, error } = await supabase
         .from('lead_interactions' as any)
         .insert({
@@ -58,6 +60,7 @@ export function useCreateInteraction() {
           message: input.message,
           interaction_date: input.interaction_date,
           channel: input.channel,
+          attachments: input.attachments ?? [],
           created_by: employee!.id,
         } as any)
         .select()
@@ -79,6 +82,7 @@ export function useCreateInteraction() {
             channel: variables.channel,
             interaction_date: variables.interaction_date,
             message_preview: variables.message.slice(0, 100),
+            attachment_count: variables.attachments?.length ?? 0,
           },
           createdBy: employee.id,
         }).catch(console.warn);

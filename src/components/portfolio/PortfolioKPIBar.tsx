@@ -1,23 +1,25 @@
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Layers, DollarSign, TrendingUp, Clock } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/formatters';
 import { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import { differenceInDays, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface PortfolioKPIBarProps {
   projects: PortfolioProject[];
   hideValues?: boolean;
+  isLoading?: boolean;
 }
 
-export function PortfolioKPIBar({ projects, hideValues }: PortfolioKPIBarProps) {
+const CELL_BASE =
+  'flex min-h-[104px] flex-col items-start justify-between border-b p-5 last:border-b-0 sm:[&:nth-child(odd)]:border-r sm:[&:nth-child(n+3)]:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0';
+
+export function PortfolioKPIBar({ projects, hideValues, isLoading }: PortfolioKPIBarProps) {
   const planningProjects = projects.filter(p => p.portfolio_stage === 'planning');
   const stalePlanningCount = planningProjects.filter(p => {
     if (!p.start_date) return false;
     return differenceInDays(new Date(), parseISO(p.start_date)) > 30;
   }).length;
-
-  const totalProjects = projects.length;
 
   const portfolioValue = projects.reduce((sum, p) => {
     const installments = p.installments || [];
@@ -33,65 +35,96 @@ export function PortfolioKPIBar({ projects, hideValues }: PortfolioKPIBarProps) 
   }, 0);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-      {/* Em Planejamento */}
-      <Card>
-        <CardContent className="flex items-center gap-3 p-4">
-          <div className="bg-primary/10 rounded-lg p-2 shrink-0">
-            <Clock className="h-4 w-4 text-primary" />
+    <div className="grid grid-cols-1 overflow-hidden rounded-lg border bg-card sm:grid-cols-2 lg:grid-cols-4">
+      <div className={cn(CELL_BASE)}>
+        <div className="flex w-full items-center justify-between gap-3">
+          <span className="ol-label text-muted-foreground">Em Planejamento</span>
+          <span className="h-2 w-2 rounded-full bg-warning" />
+        </div>
+        {isLoading ? (
+          <div className="w-full space-y-2">
+            <Skeleton className="h-7 w-16" />
+            <Skeleton className="h-3 w-24" />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-2xl font-bold text-foreground">{planningProjects.length}</p>
+        ) : (
+          <div className="space-y-1">
+            <div className="flex items-end gap-2">
+              <p className="font-mono text-[1.75rem] font-semibold leading-none tabular-nums text-foreground">
+                {planningProjects.length}
+              </p>
               {stalePlanningCount > 0 && (
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[10px] px-1.5 py-0">
+                <Badge
+                  variant="outline"
+                  className="mb-1 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800 text-[10px] px-1.5 py-0"
+                >
                   {stalePlanningCount} &gt; 30 dias
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">Em Planejamento</p>
+            <p className="text-xs text-muted-foreground">aguardando início</p>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
-      {/* Total de Projetos */}
-      <Card>
-        <CardContent className="flex items-center gap-3 p-4">
-          <div className="bg-primary/10 rounded-lg p-2 shrink-0">
-            <Layers className="h-4 w-4 text-primary" />
+      <div className={cn(CELL_BASE)}>
+        <div className="flex w-full items-center justify-between gap-3">
+          <span className="ol-label text-muted-foreground">Total de Projetos</span>
+          <span className="h-2 w-2 rounded-full bg-muted-foreground" />
+        </div>
+        {isLoading ? (
+          <div className="w-full space-y-2">
+            <Skeleton className="h-7 w-16" />
+            <Skeleton className="h-3 w-24" />
           </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">{totalProjects}</p>
-            <p className="text-xs text-muted-foreground">Total de Projetos</p>
+        ) : (
+          <div className="space-y-1">
+            <p className="font-mono text-[1.75rem] font-semibold leading-none tabular-nums text-foreground">
+              {projects.length}
+            </p>
+            <p className="text-xs text-muted-foreground">no portfólio</p>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
-      {/* Valor do Portfólio */}
-      <Card>
-        <CardContent className="flex items-center gap-3 p-4">
-          <div className="bg-primary/10 rounded-lg p-2 shrink-0">
-            <DollarSign className="h-4 w-4 text-primary" />
+      <div className={cn(CELL_BASE)}>
+        <div className="flex w-full items-center justify-between gap-3">
+          <span className="ol-label text-muted-foreground">Valor do Portfólio</span>
+          <span className="h-2 w-2 rounded-full bg-primary" />
+        </div>
+        {isLoading ? (
+          <div className="w-full space-y-2">
+            <Skeleton className="h-7 w-16" />
+            <Skeleton className="h-3 w-24" />
           </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">{hideValues ? '•••••' : formatCurrency(portfolioValue)}</p>
-            <p className="text-xs text-muted-foreground">Valor do Portfólio</p>
+        ) : (
+          <div className="space-y-1">
+            <p className="font-mono text-[1.75rem] font-semibold leading-none tabular-nums text-foreground">
+              {hideValues ? '•••••' : formatCurrency(portfolioValue)}
+            </p>
+            <p className="text-xs text-muted-foreground">valor total contratado</p>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
-      {/* Recebidos até o momento */}
-      <Card>
-        <CardContent className="flex items-center gap-3 p-4">
-          <div className="bg-primary/10 rounded-lg p-2 shrink-0">
-            <TrendingUp className="h-4 w-4 text-primary" />
+      <div className={cn(CELL_BASE)}>
+        <div className="flex w-full items-center justify-between gap-3">
+          <span className="ol-label text-muted-foreground">Recebidos</span>
+          <span className="h-2 w-2 rounded-full bg-success" />
+        </div>
+        {isLoading ? (
+          <div className="w-full space-y-2">
+            <Skeleton className="h-7 w-16" />
+            <Skeleton className="h-3 w-24" />
           </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">{hideValues ? '•••••' : formatCurrency(totalReceived)}</p>
-            <p className="text-xs text-muted-foreground">Recebidos até o momento</p>
+        ) : (
+          <div className="space-y-1">
+            <p className="font-mono text-[1.75rem] font-semibold leading-none tabular-nums text-foreground">
+              {hideValues ? '•••••' : formatCurrency(totalReceived)}
+            </p>
+            <p className="text-xs text-muted-foreground">até o momento</p>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }

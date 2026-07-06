@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
 import type { AnalyticsFilters } from './useAnalyticsData';
+import { fetchSuppliersWithActuals, fetchMaterials } from '@/services/projectCostsService';
 
 export interface ProjectFinancialRow {
   projectId: string;
@@ -25,6 +26,7 @@ export interface DimensionFinancialRow {
   revenue: number;
   costs: number;
   grossMargin: number | null;
+  numProjetos: number;
 }
 
 export interface ProjectFinancialsData {
@@ -131,16 +133,9 @@ export function useProjectFinancials(
           .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_mensal)')
           .in('project_id', projectIds),
 
-        supabase
-          .from('project_suppliers')
-          .select('id, project_id, actuals:project_supplier_actuals(month_number, value)')
-          .in('project_id', projectIds),
+        fetchSuppliersWithActuals(projectIds),
 
-        supabase
-          .from('project_materials')
-          .select('project_id, month_number, value')
-          .in('project_id', projectIds)
-          .eq('is_realized', true),
+        fetchMaterials(projectIds, { realizedOnly: true }),
 
         supabase
           .from('project_commissions')
@@ -181,7 +176,7 @@ export function useProjectFinancials(
         add(costs, ts.project_id, Number(ts.hours) * hourlyCost);
       }
 
-      for (const ps of (suppliersRes.data || []) as any[]) {
+      for (const ps of (suppliersRes as any[])) {
         const proj = projectMap.get(ps.project_id) as any;
         if (!proj?.start_date) continue;
         const projStart = parseISO(proj.start_date);
@@ -193,7 +188,7 @@ export function useProjectFinancials(
         }
       }
 
-      for (const mat of (materialsRes.data || []) as any[]) {
+      for (const mat of (materialsRes as any[])) {
         if (!mat.month_number) continue;
         const proj = projectMap.get(mat.project_id) as any;
         if (!proj?.start_date) continue;
@@ -213,11 +208,12 @@ export function useProjectFinancials(
       const serviceLineMap = new Map<string, DimensionFinancialRow>();
 
       const addDim = (map: Map<string, DimensionFinancialRow>, key: string, label: string, rev: number, cost: number) => {
-        if (!map.has(key)) map.set(key, { id: key, label, revenue: 0, costs: 0, grossMargin: null });
+        if (!map.has(key)) map.set(key, { id: key, label, revenue: 0, costs: 0, grossMargin: null, numProjetos: 0 });
         const e = map.get(key)!;
         e.revenue += rev;
         e.costs += cost;
         e.grossMargin = computeMargin(e.revenue, e.costs);
+        e.numProjetos += 1;
       };
 
       for (const proj of projects as any[]) {
@@ -242,6 +238,13 @@ export function useProjectFinancials(
         addDim(clientMap, clientId, clientName, rev, cost);
         addDim(managerMap, managerId, managerName, rev, cost);
         addDim(serviceLineMap, serviceLine, serviceLineLabel, rev, cost);
+      }
+
+      // Decisão #12: garante que todas as linhas do tenant apareçam, mesmo sem projetos no período
+      for (const [svcId, svcName] of serviceNameMap) {
+        if (!serviceLineMap.has(svcId)) {
+          serviceLineMap.set(svcId, { id: svcId, label: svcName, revenue: 0, costs: 0, grossMargin: null, numProjetos: 0 });
+        }
       }
 
       return {

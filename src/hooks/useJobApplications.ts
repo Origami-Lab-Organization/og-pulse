@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { jobApplicationService } from '@/services/jobApplicationService';
-import { CreateJobApplicationInput, JobApplicationStatus } from '@/types/jobApplication';
+import { CreateJobApplicationInput, JobApplicationDB, JobApplicationStatus } from '@/types/jobApplication';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useJobApplications = () => {
@@ -113,6 +113,74 @@ export const useArchiveJobApplication = () => {
     },
     onError: () => {
       toast({ title: 'Erro ao mover candidato', variant: 'destructive' });
+    },
+  });
+};
+
+export const useHireCandidate = () => {
+  const queryClient = useQueryClient();
+  const { employee } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (candidate: JobApplicationDB) => {
+      if (!employee?.tenant_id) throw new Error('tenant_id ausente');
+
+      const today = new Date().toISOString().split('T')[0];
+
+      // Insert directly — bypasses the edge function (workaround for deployed JWT bug).
+      // auth_id is null: employee exists in the system but login is set up separately.
+      const { error: insertError } = await (supabase as any)
+        .from('employees')
+        .insert({
+          nome: candidate.nome,
+          email: candidate.email,
+          telefone: candidate.telefone ?? '',
+          cargo: candidate.vaga_titulo || 'A definir',
+          cpf: '',
+          data_admissao: today,
+          is_gerente: false,
+          system_role: 'user',
+          status: 'aguardando_confirmacao',
+          tipo_contratacao: 'CLT',
+          jornada_mensal: 176,
+          jornada_diaria: 8,
+          salario_mensal: 0,
+          salario_liquido: 0,
+          beneficios: 0,
+          encargos: 0,
+          fgts: 0,
+          inss_empresa: 0,
+          decimo_terceiro: 0,
+          ferias: 0,
+          pro_labore: 0,
+          bolsa_auxilio: 0,
+          valor_contrato_pj: 0,
+          dividendos: 0,
+          provisao_13: 0,
+          provisao_ferias: 0,
+          provisao_recesso: 0,
+          total_monthly_cost_estimated: 0,
+          total_annual_cost_estimated: 0,
+          breakdown_json: null,
+          data_nascimento: null,
+          foto_url: null,
+          tenant_id: employee.tenant_id,
+          auth_id: null,
+          must_change_password: true,
+        });
+
+      if (insertError) throw new Error(insertError.message);
+
+      await jobApplicationService.updateStatus(candidate.id, 'contratado');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job_applications', employee?.tenant_id] });
+      queryClient.invalidateQueries({ queryKey: ['employees', employee?.tenant_id] });
+      toast({ title: 'Candidato contratado com sucesso!' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao contratar candidato', description: err.message, variant: 'destructive' });
     },
   });
 };

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { MonthlyTimesheetView } from '@/components/timesheets/MonthlyTimesheetView'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card, CardContent } from '@/components/ui/card'
@@ -13,7 +13,9 @@ import {
   CircleAlert,
   ChevronRight,
   AlertCircle,
+  ChevronLeft,
 } from 'lucide-react'
+import { usePwaEnvironment } from '@/hooks/use-pwa-environment'
 import {
   Collapsible,
   CollapsibleContent,
@@ -21,6 +23,7 @@ import {
 } from '@/components/ui/collapsible'
 import { MyTimesheetAllocation } from '@/components/timesheets/MyTimesheetAllocation'
 import { useMyAllocationData } from '@/hooks/useMyAllocationData'
+import { useTimesheetPrefill } from '@/hooks/useTimesheetPrefill'
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector'
 import { GlobalSaveIndicator } from '@/components/timesheets/GlobalSaveIndicator'
 import { TimesheetWeekRow } from '@/components/timesheets/TimesheetWeekRow'
@@ -59,6 +62,8 @@ const MyTimesheet = () => {
   })
   const [projectsOpen, setProjectsOpen] = useState(true)
   const [activitiesOpen, setActivitiesOpen] = useState(true)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const { isMobile, isOnline } = usePwaEnvironment()
 
   // Dialog states
   const [showSubmitAllDialog, setShowSubmitAllDialog] = useState(false)
@@ -92,6 +97,14 @@ const MyTimesheet = () => {
     endDate,
   )
 
+  useEffect(() => {
+    if (!projects.length) { setSelectedProjectId(null); return }
+    if (!projects.some((project) => project.projectId === selectedProjectId)) setSelectedProjectId(projects[0].projectId)
+  }, [projects, selectedProjectId])
+
+  const selectedProjectIndex = Math.max(0, projects.findIndex((project) => project.projectId === selectedProjectId))
+  const visibleProjects = isMobile ? projects.filter((project) => project.projectId === selectedProjectId) : projects
+
   const projectIds = useMemo(() => projects.map((p) => p.projectId), [projects])
   const myMemberIds = useMemo(
     () => projects.flatMap((p) => p.members.map((m) => m.memberId)),
@@ -111,6 +124,45 @@ const MyTimesheet = () => {
     }
     return set
   }, [allocationData])
+
+  // Pré-preenchimento sugerido (Opção C). Estado de UI — só persiste no envio.
+  const rawPrefill = useTimesheetPrefill(employee?.id, weekDays, projects)
+  // CA-07: semana futura permanece bloqueada e sem sugestão.
+  const prefillByProject = useMemo(
+    () => (isFutureWeek ? {} : rawPrefill),
+    [isFutureWeek, rawPrefill],
+  )
+
+  // Sugestões que de fato serão lançadas no envio: apenas células sem lançamento
+  // salvo (CA-03). Edições viram lançamento real e saem daqui automaticamente.
+  const suggestionEntriesByProject = useMemo(() => {
+    const result: Record<string, Record<string, number>> = {}
+    for (const project of projects) {
+      const member = project.members[0]
+      if (!member) continue
+      const projSug = prefillByProject[project.projectId]
+      if (!projSug) continue
+      const cells: Record<string, number> = {}
+      for (const [date, h] of Object.entries(projSug)) {
+        const hasEntry = timesheetEntries.some(
+          (e) => e.projectMemberId === member.memberId && e.workDate === date,
+        )
+        if (!hasEntry && h > 0) cells[date] = h
+      }
+      if (Object.keys(cells).length > 0) result[project.projectId] = cells
+    }
+    return result
+  }, [projects, prefillByProject, timesheetEntries])
+
+  const totalSuggestedHours = useMemo(() => {
+    let total = 0
+    for (const cells of Object.values(suggestionEntriesByProject)) {
+      for (const h of Object.values(cells)) total += h
+    }
+    return total
+  }, [suggestionEntriesByProject])
+
+  const hasSuggestions = totalSuggestedHours > 0
 
   const submitAllProjects = useSubmitAllProjects()
 
@@ -349,6 +401,8 @@ const MyTimesheet = () => {
         projects: projectsToSubmit,
         weekStart: startDate,
         weekDays: weekDays.map((d) => d.date),
+        // CA-05: sugestões não editadas viram lançamento real no envio.
+        suggestions: suggestionEntriesByProject,
       },
       {
         onSuccess: () => setShowSubmitAllDialog(false),
@@ -368,7 +422,7 @@ const MyTimesheet = () => {
       ) : (
         <div className='space-y-4'>
           {/* View mode toggle */}
-          <div className='flex gap-1 p-1 bg-muted rounded-lg w-fit'>
+          <div className='hidden gap-1 p-1 bg-muted rounded-lg w-fit md:flex'>
             <Button
               variant={viewMode === 'monthly' ? 'default' : 'ghost'}
               size='sm'
@@ -444,10 +498,23 @@ const MyTimesheet = () => {
                         />
                       </div>
 
-                      <div className='overflow-x-auto'>
-                        <div className='min-w-[520px]'>
+                      {isMobile && projects.length > 0 && (
+                        <div className='mx-3 mb-4 rounded-xl border bg-card p-3'>
+                          <div className='flex items-center gap-2'>
+                            <Button variant='outline' size='icon' className='h-11 w-11 shrink-0' disabled={selectedProjectIndex === 0} onClick={() => setSelectedProjectId(projects[selectedProjectIndex - 1]?.projectId)} aria-label='Projeto anterior'><ChevronLeft className='h-4 w-4' /></Button>
+                            <select className='h-11 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm' value={selectedProjectId ?? ''} onChange={(event) => setSelectedProjectId(event.target.value)} aria-label='Projeto selecionado'>
+                              {projects.map((project) => <option key={project.projectId} value={project.projectId}>{project.projectName}</option>)}
+                            </select>
+                            <Button variant='outline' size='icon' className='h-11 w-11 shrink-0' disabled={selectedProjectIndex >= projects.length - 1} onClick={() => setSelectedProjectId(projects[selectedProjectIndex + 1]?.projectId)} aria-label='Próximo projeto'><ChevronRight className='h-4 w-4' /></Button>
+                          </div>
+                          <p className='mt-2 text-center text-xs text-muted-foreground'>{selectedProjectIndex + 1} de {projects.length}</p>
+                        </div>
+                      )}
+
+                      <div className='md:overflow-x-auto'>
+                        <div className='md:min-w-[520px]'>
                           {/* Cabeçalho dos dias */}
-                          <div className='grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center px-3 pb-1 text-xs font-medium text-muted-foreground'>
+                          <div className='hidden md:grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center px-3 pb-1 text-xs font-medium text-muted-foreground'>
                             <div />
                             {weekDays.map((day) => {
                               const holiday = isHoliday(
@@ -532,6 +599,24 @@ const MyTimesheet = () => {
                             </div>
                           )}
 
+                          {/* Legenda do pré-preenchimento sugerido */}
+                          {hasSuggestions && (
+                            <div className='flex items-start gap-2.5 mx-3 mt-2 px-3 py-2.5 rounded-md bg-primary/5 border-l-4 border-primary/40'>
+                              <Info className='h-4 w-4 text-primary mt-0.5 flex-shrink-0' />
+                              <p className='text-sm text-muted-foreground'>
+                                As células{' '}
+                                <span className='italic text-muted-foreground'>
+                                  tracejadas e em itálico
+                                </span>{' '}
+                                são <span className='font-medium'>sugestões</span>{' '}
+                                a partir da sua alocação mensal. Ajuste o que
+                                precisar e clique em{' '}
+                                <span className='font-medium'>Enviar semana</span>{' '}
+                                para lançá-las.
+                              </p>
+                            </div>
+                          )}
+
                           {/* Projetos */}
                           <Collapsible
                             open={projectsOpen}
@@ -556,7 +641,7 @@ const MyTimesheet = () => {
                               </button>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
-                              {projects.map((project) => {
+                              {visibleProjects.map((project) => {
                                 const member = project.members[0]
                                 const memberEntries = timesheetEntries.filter(
                                   (e) => e.projectMemberId === member.memberId,
@@ -613,6 +698,9 @@ const MyTimesheet = () => {
                                     isLocked={isLocked || isFutureWeek}
                                     isAdmin={false}
                                     actionSlot={actionContent}
+                                    suggestions={
+                                      prefillByProject[project.projectId]
+                                    }
                                     allDailyTotals={allDailyTotals}
                                     dailyWorkHours={
                                       employee?.jornada_diaria ?? 8
@@ -672,6 +760,7 @@ const MyTimesheet = () => {
                               <CollapsibleContent>
                                 <div
                                   className={cn(
+                                    'overflow-x-auto',
                                     projects.length > 0 &&
                                       'bg-muted/20 rounded-md',
                                   )}
@@ -706,7 +795,7 @@ const MyTimesheet = () => {
                           )}
 
                           {/* Daily totals row */}
-                          <div className='grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 border-t bg-muted/50 font-medium'>
+                          <div className='hidden md:grid grid-cols-[minmax(0,1.5fr)_repeat(5,68px)_72px_90px] gap-2 items-center py-2 px-3 border-t bg-muted/50 font-medium'>
                             <div className='text-xs italic text-muted-foreground'>
                               Total/dia
                             </div>
@@ -786,7 +875,8 @@ const MyTimesheet = () => {
                               disabled={
                                 !allWeekDaysReady ||
                                 allProjectsLocked ||
-                                submitAllProjects.isPending
+                                submitAllProjects.isPending ||
+                                !isOnline
                               }
                             >
                               <Send className='h-4 w-4 mr-1.5' />
@@ -811,7 +901,7 @@ const MyTimesheet = () => {
           pendingCount={projects.length}
           weekStart={weekStart}
           weekEnd={weekEnd}
-          totalHours={totalHoursAllProjects}
+          totalHours={totalHoursAllProjects + totalSuggestedHours}
           onConfirm={handleSubmitAll}
           isSubmitting={submitAllProjects.isPending}
         />
