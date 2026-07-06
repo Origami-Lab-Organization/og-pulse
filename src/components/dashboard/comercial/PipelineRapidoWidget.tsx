@@ -156,7 +156,7 @@ export function PipelineRapidoWidget({ leads, isLoading }: Props) {
             variant="ghost"
             size="sm"
             className="h-auto p-0 text-xs text-muted-foreground gap-1 hover:text-foreground shrink-0 mt-0.5"
-            onClick={() => navigate('/crm')}
+            onClick={() => navigate('/pipeline')}
           >
             Abrir CRM
             <ArrowRight className="h-3 w-3" />

@@ -20,7 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-const HOME_ROUTE = '/inbox';
+const HOME_ROUTE = '/dashboard';
 const CARD_WIDTH = 360;
 
 interface OnboardingModalProps {

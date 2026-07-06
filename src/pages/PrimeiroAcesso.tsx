@@ -22,7 +22,7 @@ import logo from '@/assets/logo.png';
 
 // Destino após o primeiro acesso → home. O onboarding (FUNC-J2) abre como modal
 // sobre a tela principal automaticamente quando está pendente.
-const POST_FIRST_ACCESS_ROUTE = '/inbox';
+const POST_FIRST_ACCESS_ROUTE = '/dashboard';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 

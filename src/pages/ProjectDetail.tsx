@@ -89,7 +89,7 @@ export default function ProjectDetail() {
     if (!project) return;
     deleteProject.mutate(
       { id: project.id, name: project.name, withCascade: true },
-      { onSuccess: () => navigate("/portfolio") },
+      { onSuccess: () => navigate("/projetos") },
     );
   };
 
@@ -100,7 +100,7 @@ export default function ProjectDetail() {
       {
         onSuccess: () => {
           setRemoveDialogOpen(false);
-          navigate("/portfolio");
+          navigate("/projetos");
         },
       },
     );
@@ -111,7 +111,7 @@ export default function ProjectDetail() {
       <AppLayout
         title="Carregando..."
         breadcrumbs={[
-          { label: "Portfólio", href: "/portfolio" },
+          { label: "Portfólio", href: "/projetos" },
           { label: "Carregando..." },
         ]}
       >
@@ -129,7 +129,7 @@ export default function ProjectDetail() {
       <AppLayout
         title="Projeto não encontrado"
         breadcrumbs={[
-          { label: "Portfólio", href: "/portfolio" },
+          { label: "Portfólio", href: "/projetos" },
           { label: "Não encontrado" },
         ]}
       >
@@ -137,7 +137,7 @@ export default function ProjectDetail() {
           <p className="text-muted-foreground">
             O projeto solicitado não foi encontrado.
           </p>
-          <Button onClick={() => navigate("/portfolio")}>
+          <Button onClick={() => navigate("/projetos")}>
             Voltar para Portfólio
           </Button>
         </div>

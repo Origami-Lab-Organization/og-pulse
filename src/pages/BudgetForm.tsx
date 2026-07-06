@@ -189,10 +189,10 @@ export default function BudgetForm() {
     if (!isEditing && !leadId && !templateForServiceId) {
       toast({
         title: 'Aviso',
-        description: 'Orçamentos devem ser criados a partir de um lead no CRM',
+        description: 'orçamentos devem ser criados a partir de um lead no Pipeline',
         variant: 'destructive',
       });
-      navigate('/crm');
+      navigate('/pipeline');
     }
   }, [isEditing, leadId, templateForServiceId, navigate, toast]);
 
@@ -436,7 +436,7 @@ export default function BudgetForm() {
           if (isFromLead && leadId && data?.id) {
             linkBudgetToLead.mutate(
               { leadId, budgetId: data.id },
-              { onSuccess: () => navigate('/crm') }
+              { onSuccess: () => navigate('/pipeline') }
             );
           } else {
             navigate('/budgets');
@@ -485,7 +485,7 @@ export default function BudgetForm() {
     return (
       <AppLayout
         title="Carregando..."
-        breadcrumbs={[{ label: 'CRM', href: '/crm' }, { label: 'Carregando...' }]}
+        breadcrumbs={[{ label: 'Pipeline', href: '/pipeline' }, { label: 'Carregando...' }]}
       >
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -1291,7 +1291,7 @@ export default function BudgetForm() {
       description={isTemplateMode ? 'Defina a composição de custos para calcular o preço fixo do serviço' : isEditing ? `Editando: ${budget?.title}` : 'Crie uma nova proposta comercial'}
       breadcrumbs={isTemplateMode
         ? [{ label: 'Serviços', href: '/services' }, { label: 'Composição de Custos' }]
-        : [{ label: 'CRM', href: '/crm' }, { label: isEditing ? 'Editar' : 'Novo' }]
+        : [{ label: 'Pipeline', href: '/pipeline' }, { label: isEditing ? 'Editar' : 'Novo' }]
       }
     >
       <Form {...form}>
@@ -1336,7 +1336,7 @@ export default function BudgetForm() {
                 isSaveDisabled={isSaveBlocked}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
-                onCancel={() => navigate('/crm')}
+                onCancel={() => navigate('/pipeline')}
                 onSubmit={() => form.handleSubmit(handleSubmit, (errors) => {
                   console.error('Form validation errors:', errors);
                   toast({

@@ -106,7 +106,7 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
           <ol className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             <li>
               <Link
-                to="/portfolio"
+                to="/projetos"
                 className="rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Portfólio

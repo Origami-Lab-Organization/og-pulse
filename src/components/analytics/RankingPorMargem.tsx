@@ -77,7 +77,7 @@ export function RankingPorMargem({ byProject, grossMarginTarget }: RankingPorMar
       <CardHeader className="pb-3 flex-row items-center justify-between">
         <CardTitle className="text-base">Ranking por margem</CardTitle>
         <Link
-          to="/portfolio"
+          to="/projetos"
           className="text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-0.5"
         >
           Ver carteira <ChevronRight className="h-4 w-4" />
