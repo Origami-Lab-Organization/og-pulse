@@ -197,7 +197,7 @@ export function RecentLeadsTable({ leads }: Props) {
               variant="link"
               size="sm"
               className="text-primary gap-1 px-0"
-              onClick={() => navigate('/crm')}
+              onClick={() => navigate('/pipeline')}
             >
               Ver todos os leads
               <ArrowRight className="h-4 w-4" />
@@ -317,11 +317,11 @@ export function RecentLeadsTable({ leads }: Props) {
                     className="w-full"
                     onClick={() => {
                       setSelectedLead(null);
-                      navigate('/crm');
+                      navigate('/pipeline');
                     }}
                   >
                     <Edit className="h-4 w-4 mr-2" />
-                    Editar no CRM
+                    Editar no Pipeline
                   </Button>
 
                   {selectedLead.budget_id && (

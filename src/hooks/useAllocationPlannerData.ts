@@ -48,6 +48,15 @@ export interface AllocationProjectOptionRow {
   portfolioStage: string | null;
 }
 
+interface AllocationProjectQueryRow {
+  id: string;
+  name: string;
+  manager_id: string;
+  service_line: string | null;
+  portfolio_stage: string | null;
+  manager: { id: string; nome: string } | null;
+}
+
 function normalizeFilterId(value: string | undefined): string | null {
   return value && value !== 'all' ? value : null;
 }
@@ -59,15 +68,13 @@ function resolveServiceLine(raw: string | null, serviceNameMap: Map<string, stri
 
 export function useAllocationProjectOptions(
   tenantId: string | undefined,
-  isAdmin: boolean,
-  currentEmployeeId: string | undefined,
 ) {
   return useQuery({
-    queryKey: ['allocation-project-options', tenantId, isAdmin, currentEmployeeId],
+    queryKey: ['allocation-project-options', tenantId],
     queryFn: async (): Promise<AllocationProjectOptionRow[]> => {
       if (!tenantId) return [];
 
-      let projectsQuery = supabase
+      const projectsQuery = supabase
         .from('projects')
         .select(`
           id, name, manager_id, service_line, portfolio_stage,
@@ -75,17 +82,13 @@ export function useAllocationProjectOptions(
         `)
         .eq('tenant_id', tenantId);
 
-      if (!isAdmin && currentEmployeeId) {
-        projectsQuery = projectsQuery.eq('manager_id', currentEmployeeId);
-      }
-
       const { data: projects, error } = await projectsQuery;
       if (error) throw error;
 
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const serviceLineIds = Array.from(new Set(
-        (projects ?? [])
-          .map((project: any) => project.service_line)
+        ((projects ?? []) as AllocationProjectQueryRow[])
+          .map((project) => project.service_line)
           .filter((serviceLine: string | null): serviceLine is string => Boolean(serviceLine) && uuidRegex.test(serviceLine))
       ));
 
@@ -99,7 +102,7 @@ export function useAllocationProjectOptions(
         serviceNameMap = new Map((services ?? []).map((service: { id: string; name: string }) => [service.id, service.name]));
       }
 
-      return (projects ?? []).map((project: any) => {
+      return ((projects ?? []) as AllocationProjectQueryRow[]).map((project) => {
         const serviceLine = resolveServiceLine(project.service_line, serviceNameMap);
         return {
           id: project.id,
@@ -119,21 +122,17 @@ export function useAllocationProjectOptions(
 export function useAllocationEmployeeMonthSummary({
   tenantId,
   selectedYear,
-  isAdmin,
-  currentEmployeeId,
   managerId,
   projectId,
   teamId,
 }: {
   tenantId: string | undefined;
   selectedYear: number;
-  isAdmin: boolean;
-  currentEmployeeId: string | undefined;
   managerId: string;
   projectId: string;
   teamId: string;
 }) {
-  const effectiveManagerId = !isAdmin ? currentEmployeeId ?? null : normalizeFilterId(managerId);
+  const effectiveManagerId = normalizeFilterId(managerId);
   const effectiveTeamId = normalizeFilterId(teamId);
 
   return useQuery({
@@ -160,8 +159,6 @@ export function useAllocationEmployeeDetail({
   tenantId,
   selectedYear,
   employeeId,
-  isAdmin,
-  currentEmployeeId,
   managerId,
   projectId,
   teamId,
@@ -169,13 +166,11 @@ export function useAllocationEmployeeDetail({
   tenantId: string | undefined;
   selectedYear: number;
   employeeId: string | null;
-  isAdmin: boolean;
-  currentEmployeeId: string | undefined;
   managerId: string;
   projectId: string;
   teamId: string;
 }) {
-  const effectiveManagerId = !isAdmin ? currentEmployeeId ?? null : normalizeFilterId(managerId);
+  const effectiveManagerId = normalizeFilterId(managerId);
   const effectiveTeamId = normalizeFilterId(teamId);
 
   return useQuery({

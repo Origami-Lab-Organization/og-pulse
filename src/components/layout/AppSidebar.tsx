@@ -1,235 +1,251 @@
-import { useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Users,
-  Building2,
   Clock,
-  FileText,
   BarChart3,
-  Truck,
   Kanban,
-  Receipt,
-  ChevronDown,
-  FileSignature,
-  DollarSign,
-  Palmtree,
-  LogOut,
-  Briefcase,
-  Inbox,
   FolderKanban,
-  UserSearch,
-  Target,
-  KanbanSquare,
-  Gift,
-  Home,
+  FolderOpen,
+  ChevronDown,
+  Database,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
+import { cn } from '@/lib/utils';
+import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import logo from '@/assets/logo.png';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
 
-interface NavItem {
+type LinkItem = {
+  kind: 'link';
   title: string;
   url: string;
   icon: React.ElementType;
-  disabled?: boolean;
   requiresManager?: boolean;
   requiresAdmin?: boolean;
-}
+  employeeOnly?: boolean;
+  notForAdmin?: boolean;
+};
 
-const navigationGroups = [
+type GroupItem = {
+  kind: 'group';
+  title: string;
+  url: string;
+  icon: React.ElementType;
+  requiresManager?: boolean;
+  requiresAdmin?: boolean;
+  children: { title: string; url: string; requiresAdmin?: boolean }[];
+};
+
+type SidebarNavItem = LinkItem | GroupItem;
+
+const NAV_ITEMS: SidebarNavItem[] = [
+  { kind: 'link', title: 'Dashboard', url: '/admin-dashboard', icon: LayoutDashboard, requiresAdmin: true },
+  { kind: 'link', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, notForAdmin: true },
+  { kind: 'link', title: 'Timesheet', url: '/my-timesheet', icon: Clock },
+  { kind: 'link', title: 'Meus Projetos', url: '/my-projects', icon: FolderOpen, employeeOnly: true },
+  { kind: 'link', title: 'Pipeline', url: '/pipeline', icon: Kanban, requiresManager: true },
+  { kind: 'link', title: 'Projetos', url: '/projetos', icon: FolderKanban, requiresManager: true },
   {
-    label: 'Empresa',
-    requiresAdmin: true,
-    items: [
-      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, requiresAdmin: true },
-    ] as NavItem[],
-  },
-  {
-    label: 'Meu Espaço',
-    items: [
-      { title: 'Início', url: '/dashboard', icon: Home },
-      { title: 'Caixa de Entrada', url: '/inbox', icon: Inbox },
-      { title: 'Timesheet', url: '/my-timesheet', icon: Clock },
-      { title: 'Meu Kanban', url: '/my-kanban', icon: KanbanSquare },
-      { title: 'Meus Projetos', url: '/my-projects', icon: FolderKanban },
-      { title: 'Reembolsos', url: '/reimbursements', icon: Receipt },
-      { title: 'Minhas Férias', url: '/minhas-ferias', icon: Palmtree },
-    ] as NavItem[],
-  },
-  {
-    label: 'Comercial',
+    kind: 'group',
+    title: 'Análises',
+    url: '/analises/alocacoes',
+    icon: BarChart3,
     requiresManager: true,
-    items: [
-      { title: 'Dashboard', url: '/comercial', icon: LayoutDashboard, requiresManager: true },
-      { title: 'CRM', url: '/crm', icon: Kanban, requiresManager: true },
-      { title: 'Serviços', url: '/comercial/servicos', icon: Briefcase, requiresManager: true },
-      { title: 'Clientes', url: '/clients', icon: Building2, requiresManager: true },
-    ] as NavItem[],
+    children: [
+      { title: 'Alocações', url: '/analises/alocacoes' },
+      { title: 'Financeiro', url: '/analises/financeiro' },
+      { title: 'Comercial', url: '/analises/comercial' },
+    ],
   },
   {
-    label: 'Projetos',
+    kind: 'group',
+    title: 'Cadastros',
+    url: '/clients',
+    icon: Database,
     requiresManager: true,
-    items: [
-      { title: 'Portfólio de Projetos', url: '/portfolio', icon: Kanban, requiresManager: true },
-      { title: 'Alocação da Equipe', url: '/alocacao', icon: Clock, requiresManager: true },
-      { title: 'Fornecedores', url: '/suppliers', icon: Truck, requiresManager: true },
-      { title: 'Analytics', url: '/analytics', icon: BarChart3, requiresManager: true },
-      { title: 'Estratégia', url: '/estrategia', icon: Target, requiresManager: true },
-    ] as NavItem[],
-  },
-  {
-    label: 'Recursos Humanos',
-    requiresManager: true,
-    items: [
-      { title: 'Candidatos', url: '/rh/candidatos', icon: UserSearch, requiresManager: true },
-      { title: 'Funcionários', url: '/employees', icon: Users, requiresAdmin: true },
-      { title: 'Ferramentas e Benefícios', url: '/rh/ferramentas-beneficios', icon: Gift, requiresAdmin: true },
-      { title: 'Contratos', url: '/rh/contratos', icon: FileSignature, requiresAdmin: true, disabled: true },
-      { title: 'Folha de Pagamento', url: '/rh/folha', icon: DollarSign, requiresAdmin: true, disabled: true },
-      { title: 'Férias e Afastamentos', url: '/rh/ferias', icon: Palmtree, requiresManager: true },
-      { title: 'Desligamentos', url: '/rh/desligamentos', icon: LogOut, requiresAdmin: true },
-      { title: 'Relatórios', url: '/rh/relatorios', icon: BarChart3, requiresAdmin: true, disabled: true },
-    ] as NavItem[],
+    children: [
+      { title: 'Funcionários', url: '/employees', requiresAdmin: true },
+      { title: 'Serviços', url: '/comercial/servicos', requiresAdmin: true },
+      { title: 'Clientes', url: '/clients' },
+    ],
   },
 ];
 
+function isChildActive(url: string, pathname: string) {
+  return pathname === url || pathname.startsWith(url + '/');
+}
+
+function isGroupActive(item: GroupItem, pathname: string) {
+  return item.children.some((c) => isChildActive(c.url, pathname));
+}
+
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
+  const navigate = useNavigate();
   const { employee } = useAuth();
 
-  const isActive = (path: string) => location.pathname === path;
   const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
 
-  const renderNavItem = (item: NavItem) => {
-    // Hide items that require admin if user is not an admin
-    if (item.requiresAdmin && !isAdmin) {
-      return null;
-    }
+  const homeRoute = isAdmin ? '/admin-dashboard' : '/dashboard';
 
-    // Hide items that require manager if user is not a manager or admin
-    if (item.requiresManager && !isManager && !isAdmin) {
-      return null;
-    }
+  const isVisible = (item: SidebarNavItem): boolean => {
+    if (item.requiresAdmin && !isAdmin) return false;
+    if (item.requiresManager && !isManager && !isAdmin) return false;
+    if (item.kind === 'link' && item.employeeOnly && (isManager || isAdmin)) return false;
+    if (item.kind === 'link' && item.notForAdmin && isAdmin) return false;
+    return true;
+  };
 
-    const content = (
-      <SidebarMenuButton
-        asChild={!item.disabled}
-        isActive={isActive(item.url)}
-        className={cn(
-          item.disabled && 'opacity-50 cursor-not-allowed'
-        )}
-      >
-        {item.disabled ? (
-          <div className="flex items-center gap-3">
-            <item.icon className="h-4 w-4" />
-            {!collapsed && <span>{item.title}</span>}
-          </div>
-        ) : (
-          <NavLink 
-            to={item.url} 
-            className="flex items-center gap-3"
-            activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
-          >
-            <item.icon className="h-4 w-4" />
-            {!collapsed && <span>{item.title}</span>}
-          </NavLink>
-        )}
-      </SidebarMenuButton>
+  const visibleItems = NAV_ITEMS.filter(isVisible);
+
+  // Controlled open state for group collapsibles — initialized from current route
+  const [openGroups, setOpenGroups] = useState<string[]>(() =>
+    NAV_ITEMS.filter((item): item is GroupItem => item.kind === 'group')
+      .filter((item) => isGroupActive(item, location.pathname))
+      .map((item) => item.title)
+  );
+
+  // When navigating directly to a URL inside a group (e.g. via browser back), open that group
+  useEffect(() => {
+    const activeGroupTitles = NAV_ITEMS.filter((item): item is GroupItem => item.kind === 'group')
+      .filter((item) => isGroupActive(item, location.pathname))
+      .map((item) => item.title);
+
+    if (activeGroupTitles.length > 0) {
+      setOpenGroups((prev) => [...new Set([...prev, ...activeGroupTitles])]);
+    }
+  }, [location.pathname]);
+
+  const toggleGroup = (title: string, open: boolean) => {
+    setOpenGroups((prev) =>
+      open ? [...new Set([...prev, title])] : prev.filter((g) => g !== title)
     );
-
-    if (item.disabled) {
-      return (
-        <Tooltip key={item.title}>
-          <TooltipTrigger asChild>
-            {content}
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <p>Em breve</p>
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return content;
   };
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-3 px-2 py-3">
-          <img src={logo} alt="Origami Pulse" className="h-8 w-8 flex-shrink-0" />
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="font-semibold text-sidebar-foreground">Origami Pulse</span>
-              <span className="text-xs text-sidebar-foreground/70">Gestão de Equipes</span>
-            </div>
-          )}
+      <SidebarHeader className="border-b border-sidebar-border p-0">
+        {/* px-2.5 = 10px — centra ícone de 28px perfeitamente nos 48px colapsados (10+28+10) */}
+        <div className="flex h-12 items-center px-2.5 gap-2 overflow-hidden">
+          <button
+            onClick={() => navigate(homeRoute)}
+            className="shrink-0 flex items-center gap-2 hover:opacity-80 transition-opacity focus-visible:outline-none rounded-md"
+          >
+            <img src={logo} alt="Pulse" className="h-7 w-7 flex-shrink-0" />
+            <span className={cn(
+              'font-semibold text-sidebar-foreground whitespace-nowrap overflow-hidden',
+              'transition-[max-width,opacity] duration-300 ease-in-out',
+              collapsed ? 'max-w-0 opacity-0' : 'max-w-[160px] opacity-100'
+            )}>
+              Pulse
+            </span>
+          </button>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
-        {navigationGroups.map((group) => {
-          // Check group-level permissions
-          const groupConfig = group as { requiresAdmin?: boolean; requiresManager?: boolean };
-          if (groupConfig.requiresAdmin && !isAdmin) return null;
-          if (groupConfig.requiresManager && !isManager && !isAdmin) return null;
-          
-          // Filter out items that require manager or admin access
-          const visibleItems = group.items.filter((item) => {
-            if (item.requiresAdmin && !isAdmin) return false;
-            if (item.requiresManager && !isManager && !isAdmin) return false;
-            return true;
-          });
-          
-          if (visibleItems.length === 0) return null;
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {visibleItems.map((item) => {
+                if (item.kind === 'link') {
+                  const active = isChildActive(item.url, location.pathname);
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
+                        <NavLink to={item.url} className="flex items-center gap-3">
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
 
-          return (
-            <Collapsible key={group.label} defaultOpen className="group/collapsible">
-              <SidebarGroup>
-                {!collapsed && (
-                  <SidebarGroupLabel asChild className="ol-label text-sidebar-foreground/50">
-                    <CollapsibleTrigger className="flex w-full items-center justify-between">
-                      {group.label}
-                      <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-                    </CollapsibleTrigger>
-                  </SidebarGroupLabel>
-                )}
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {visibleItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          {renderNavItem(item)}
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-          );
-        })}
+                const groupActive = isGroupActive(item, location.pathname);
+
+                if (collapsed) {
+                  // Collapsed + group: expand sidebar and open this group (no navigation)
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        isActive={groupActive}
+                        tooltip={item.title}
+                        onClick={() => {
+                          toggleGroup(item.title, true);
+                          setOpen(true);
+                        }}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <Collapsible
+                      open={openGroups.includes(item.title)}
+                      onOpenChange={(open) => toggleGroup(item.title, open)}
+                      className="group/collapsible"
+                    >
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                          tooltip={item.title}
+                          className={cn(groupActive && 'text-sidebar-accent-foreground font-medium')}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                          <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+                        <SidebarMenuSub>
+                          {item.children.filter((child) => !child.requiresAdmin || isAdmin).map((child) => (
+                            <SidebarMenuSubItem key={child.url}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={isChildActive(child.url, location.pathname)}
+                              >
+                                <NavLink to={child.url}>{child.title}</NavLink>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        <UserMenu />
+      </SidebarFooter>
     </Sidebar>
   );
 }

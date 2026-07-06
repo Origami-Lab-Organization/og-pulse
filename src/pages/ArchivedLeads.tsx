@@ -161,7 +161,7 @@ export default function ArchivedLeads() {
         title="Leads Arquivados"
         description="Leads removidos do funil de vendas"
         breadcrumbs={[
-          { label: 'CRM', href: '/crm' },
+          { label: 'Pipeline', href: '/pipeline' },
           { label: 'Arquivados' },
         ]}
       >

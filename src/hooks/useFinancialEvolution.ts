@@ -23,7 +23,6 @@ export interface FinancialMonthlyPoint {
   supplierCost: number;
   materialCost: number;
   commissionCost: number;
-  reimbursementCost: number;
   // Planned costs
   plannedTotalCosts: number;
   plannedLaborCost: number;
@@ -69,11 +68,6 @@ interface SupplierEvolutionRow {
   project_id: string;
   actuals?: { month_number: number; value: number | null }[];
   plannedMonths?: { month_number: number; value: number | null }[];
-}
-
-interface ReimbursementCostRow {
-  total_amount: number | null;
-  updated_at: string | null;
 }
 
 export function useFinancialEvolution(
@@ -127,7 +121,7 @@ export function useFinancialEvolution(
           isCurrent: false,
           revenueReal: 0, revenuePlanned: 0, faturado: 0,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
-          commissionCost: 0, reimbursementCost: 0,
+          commissionCost: 0,
           plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
           grossMarginPct: null, plannedGrossMarginPct: null,
         }));
@@ -147,7 +141,7 @@ export function useFinancialEvolution(
       const projectIds = projects.map(p => p.id);
       const projectMap = new Map(projects.map(p => [p.id, p]));
 
-      const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, plannedAllocationsRes, suppliersRes, materialsRes, commissionsRes, reimbursementsRes] = await Promise.all([
+      const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, plannedAllocationsRes, suppliersRes, materialsRes, commissionsRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('payment_date, value')
@@ -193,13 +187,6 @@ export function useFinancialEvolution(
           .eq('is_paid', true)
           .gte('paid_date', yearStart)
           .lte('paid_date', yearEnd),
-        supabase
-          .from('reimbursement_requests')
-          .select('project_id, total_amount, updated_at')
-          .in('project_id', projectIds)
-          .in('status', ['approved', 'paid'])
-          .gte('updated_at', yearStart)
-          .lt('updated_at', `${year + 1}-01-01`),
       ]);
 
       const received = receivedRes.data || [];
@@ -211,7 +198,6 @@ export function useFinancialEvolution(
       const projectSuppliersWithActuals = suppliersRes as SupplierEvolutionRow[];
       const materials = materialsRes;
       const commissions = commissionsRes.data || [];
-      const reimbursements = (reimbursementsRes.data || []) as ReimbursementCostRow[];
 
       const memberCostMap = new Map<string, number>();
       for (const m of members) {
@@ -321,19 +307,12 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].commissionCost += Number(c.planned_value) || 0;
       }
 
-      for (const r of reimbursements) {
-        if (!r.updated_at) continue;
-        const d = parseISO(r.updated_at);
-        if (d.getFullYear() !== year) continue;
-        monthData[d.getMonth()].reimbursementCost += Number(r.total_amount) || 0;
-      }
-
       const today = new Date();
       for (const m of monthData) {
         m.isPast = startOfMonth(new Date(year, m.monthIndex, 1)) <= today;
         m.isCurrent = m.monthIndex === today.getMonth() && year === today.getFullYear();
 
-        m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost + m.reimbursementCost;
+        m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost;
         m.plannedTotalCosts = m.plannedLaborCost + m.plannedSupplierCost + m.plannedMaterialCost;
         m.grossMarginPct = m.isPast && m.revenueReal > 0
           ? ((m.revenueReal - m.totalCosts) / m.revenueReal) * 100

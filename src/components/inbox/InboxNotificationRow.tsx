@@ -6,7 +6,6 @@ import {
   Archive,
   Trash2,
   Clock,
-  DollarSign,
   UserSearch,
   ArchiveX,
   FileText,
@@ -25,11 +24,6 @@ const categoryIcon: Record<
     bg: "bg-amber-100 dark:bg-amber-900/30",
     text: "text-amber-600 dark:text-amber-400",
     icon: Clock
-  },
-  reimbursement: {
-    bg: "bg-green-100 dark:bg-green-900/30",
-    text: "text-green-600 dark:text-green-400",
-    icon: DollarSign
   },
   candidatos: {
     bg: "bg-purple-100 dark:bg-purple-900/30",

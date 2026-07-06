@@ -26,7 +26,7 @@ export interface MonthlyChartItem {
   realized: number;
   breakdown: {
     planned: { labor: number; suppliers: number; materials: number };
-    realized: { labor: number; suppliers: number; materials: number; reimbursements: number };
+    realized: { labor: number; suppliers: number; materials: number };
   };
 }
 
@@ -103,8 +103,7 @@ export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMont
 
   const hasData = data.some(d => d.planned > 0 || d.realized > 0);
 
-  // Acumula os totais por categoria para os dois modos do donut. Reembolsos
-  // só existem como valor realizado, então no modo "planejado" ficam zerados.
+  // Acumula os totais por categoria para os dois modos do donut.
   const totals = data.reduce(
     (acc, d) => ({
       planned: {
@@ -113,25 +112,23 @@ export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMont
         materials: acc.planned.materials + d.breakdown.planned.materials,
       },
       realized: {
-        labor:          acc.realized.labor          + d.breakdown.realized.labor,
-        suppliers:      acc.realized.suppliers      + d.breakdown.realized.suppliers,
-        materials:      acc.realized.materials      + d.breakdown.realized.materials,
-        reimbursements: acc.realized.reimbursements + d.breakdown.realized.reimbursements,
+        labor:     acc.realized.labor     + d.breakdown.realized.labor,
+        suppliers: acc.realized.suppliers + d.breakdown.realized.suppliers,
+        materials: acc.realized.materials + d.breakdown.realized.materials,
       },
     }),
     {
       planned: { labor: 0, suppliers: 0, materials: 0 },
-      realized: { labor: 0, suppliers: 0, materials: 0, reimbursements: 0 },
+      realized: { labor: 0, suppliers: 0, materials: 0 },
     }
   );
 
   const pieData = (
     pieMode === 'realized'
       ? [
-          { name: 'Mão de Obra',  value: totals.realized.labor,          color: CATEGORY_COLORS[0] },
-          { name: 'Fornecedores', value: totals.realized.suppliers,      color: CATEGORY_COLORS[1] },
-          { name: 'Materiais',    value: totals.realized.materials,      color: CATEGORY_COLORS[2] },
-          { name: 'Reembolsos',   value: totals.realized.reimbursements, color: CATEGORY_COLORS[3] },
+          { name: 'Mão de Obra',  value: totals.realized.labor,     color: CATEGORY_COLORS[0] },
+          { name: 'Fornecedores', value: totals.realized.suppliers, color: CATEGORY_COLORS[1] },
+          { name: 'Materiais',    value: totals.realized.materials, color: CATEGORY_COLORS[2] },
         ]
       : [
           { name: 'Mão de Obra',  value: totals.planned.labor,     color: CATEGORY_COLORS[0] },

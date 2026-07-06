@@ -13,57 +13,57 @@ export const MOCK_FINANCIAL_EVOLUTION: FinancialEvolutionData = {
     {
       monthIndex: 0, label: 'jan', isHighlighted: false, isPast: true, isCurrent: false,
       revenueReal: 38000, revenuePlanned: 40000, faturado: 35000,
-      totalCosts: 28000, laborCost: 18000, supplierCost: 6000, materialCost: 2500, commissionCost: 1000, reimbursementCost: 500,
+      totalCosts: 28000, laborCost: 18000, supplierCost: 6000, materialCost: 2500, commissionCost: 1000,
       plannedTotalCosts: 29000, plannedLaborCost: 19000, plannedSupplierCost: 7000, plannedMaterialCost: 3000,
       grossMarginPct: 26.3, plannedGrossMarginPct: 27.5,
     },
     {
       monthIndex: 1, label: 'fev', isHighlighted: false, isPast: true, isCurrent: false,
       revenueReal: 55000, revenuePlanned: 52000, faturado: 55000,
-      totalCosts: 38000, laborCost: 24000, supplierCost: 8000, materialCost: 3500, commissionCost: 1500, reimbursementCost: 1000,
+      totalCosts: 38000, laborCost: 24000, supplierCost: 8000, materialCost: 3500, commissionCost: 1500,
       plannedTotalCosts: 37000, plannedLaborCost: 23000, plannedSupplierCost: 8500, plannedMaterialCost: 5500,
       grossMarginPct: 30.9, plannedGrossMarginPct: 28.8,
     },
     {
       monthIndex: 2, label: 'mar', isHighlighted: false, isPast: true, isCurrent: false,
       revenueReal: 72000, revenuePlanned: 70000, faturado: 65000,
-      totalCosts: 52000, laborCost: 32000, supplierCost: 12000, materialCost: 5000, commissionCost: 2000, reimbursementCost: 1000,
+      totalCosts: 52000, laborCost: 32000, supplierCost: 12000, materialCost: 5000, commissionCost: 2000,
       plannedTotalCosts: 51000, plannedLaborCost: 31000, plannedSupplierCost: 12000, plannedMaterialCost: 8000,
       grossMarginPct: 27.8, plannedGrossMarginPct: 27.1,
     },
     {
       monthIndex: 3, label: 'abr', isHighlighted: true, isPast: true, isCurrent: false,
       revenueReal: 88000, revenuePlanned: 85000, faturado: 80000,
-      totalCosts: 63000, laborCost: 40000, supplierCost: 14000, materialCost: 5500, commissionCost: 2000, reimbursementCost: 1500,
+      totalCosts: 63000, laborCost: 40000, supplierCost: 14000, materialCost: 5500, commissionCost: 2000,
       plannedTotalCosts: 60000, plannedLaborCost: 38000, plannedSupplierCost: 14000, plannedMaterialCost: 8000,
       grossMarginPct: 28.4, plannedGrossMarginPct: 29.4,
     },
     {
       monthIndex: 4, label: 'mai', isHighlighted: true, isPast: true, isCurrent: false,
       revenueReal: 95000, revenuePlanned: 90000, faturado: 90000,
-      totalCosts: 72000, laborCost: 45000, supplierCost: 16000, materialCost: 7000, commissionCost: 3000, reimbursementCost: 1000,
+      totalCosts: 72000, laborCost: 45000, supplierCost: 16000, materialCost: 7000, commissionCost: 3000,
       plannedTotalCosts: 67000, plannedLaborCost: 42000, plannedSupplierCost: 15000, plannedMaterialCost: 10000,
       grossMarginPct: 24.2, plannedGrossMarginPct: 25.6,
     },
     {
       monthIndex: 5, label: 'jun', isHighlighted: true, isPast: true, isCurrent: true,
       revenueReal: 72000, revenuePlanned: 95000, faturado: 55000,
-      totalCosts: 43000, laborCost: 28000, supplierCost: 9000, materialCost: 4000, commissionCost: 1500, reimbursementCost: 500,
+      totalCosts: 43000, laborCost: 28000, supplierCost: 9000, materialCost: 4000, commissionCost: 1500,
       plannedTotalCosts: 70000, plannedLaborCost: 44000, plannedSupplierCost: 16000, plannedMaterialCost: 10000,
       grossMarginPct: 40.3, plannedGrossMarginPct: 26.3,
     },
     // Jul–Dez: meses futuros sem dados
-    { monthIndex: 6,  label: 'jul', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, reimbursementCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
-    { monthIndex: 7,  label: 'ago', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, reimbursementCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
-    { monthIndex: 8,  label: 'set', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, reimbursementCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
-    { monthIndex: 9,  label: 'out', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, reimbursementCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
-    { monthIndex: 10, label: 'nov', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, reimbursementCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
-    { monthIndex: 11, label: 'dez', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, reimbursementCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
+    { monthIndex: 6,  label: 'jul', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
+    { monthIndex: 7,  label: 'ago', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
+    { monthIndex: 8,  label: 'set', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
+    { monthIndex: 9,  label: 'out', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
+    { monthIndex: 10, label: 'nov', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
+    { monthIndex: 11, label: 'dez', isHighlighted: false, isPast: false, isCurrent: false, revenueReal: 0, revenuePlanned: 0, faturado: 0, totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0, commissionCost: 0, plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0, grossMarginPct: null, plannedGrossMarginPct: null },
   ],
 }
 
 // abr+mai+jun: receita=255k, custos=178k, margem ponderada≈30%
-// donut: labor 113k · supplier 39k · material 16.5k · commission 6.5k · reimb 3k
+// donut: labor 113k · supplier 39k · material 16.5k · commission 6.5k
 export const MOCK_PROJECT_FINANCIALS: ProjectFinancialsData = {
   grossMarginTarget: 25,
   byProject: [
@@ -139,7 +139,7 @@ export function filterMockFinancialEvolution(gpFilter: string | null): Financial
         ...m,
         revenueReal: 0, revenuePlanned: 0, faturado: 0,
         totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
-        commissionCost: 0, reimbursementCost: 0,
+        commissionCost: 0,
         plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
         grossMarginPct: null, plannedGrossMarginPct: null,
       })),
@@ -162,7 +162,6 @@ export function filterMockFinancialEvolution(gpFilter: string | null): Financial
       const supplierCost        = Math.round(m.supplierCost        * costFactor)
       const materialCost        = Math.round(m.materialCost        * costFactor)
       const commissionCost      = Math.round(m.commissionCost      * costFactor)
-      const reimbursementCost   = Math.round(m.reimbursementCost   * costFactor)
       const plannedTotalCosts   = Math.round(m.plannedTotalCosts   * costFactor)
       const plannedLaborCost    = Math.round(m.plannedLaborCost    * costFactor)
       const plannedSupplierCost = Math.round(m.plannedSupplierCost * costFactor)
@@ -172,7 +171,7 @@ export function filterMockFinancialEvolution(gpFilter: string | null): Financial
         : null
       return {
         ...m, revenueReal, revenuePlanned, faturado,
-        totalCosts, laborCost, supplierCost, materialCost, commissionCost, reimbursementCost,
+        totalCosts, laborCost, supplierCost, materialCost, commissionCost,
         plannedTotalCosts, plannedLaborCost, plannedSupplierCost, plannedMaterialCost,
         grossMarginPct,
       }

@@ -1,5 +1,5 @@
 # Harness Engineering — og-pulse
-# generated: 2026-06-19
+# generated: 2026-06-23
 # status: ACTIVE
 
 ## IDENTITY
@@ -75,6 +75,8 @@ Este contexto foi inferido do repositorio porque o discovery humano ainda nao fo
 - Nao criar ou alterar UI/copy/rota sem conformar ao Design System oficial (`jornadas/docs/origami-ds.html`) e a jornada relevante (`jornadas/gp-comercial.md`, `jornadas/funcionario.md`). Ver `patterns/design-system.md`.
 - Nao usar nomenclatura antiga na interface comercial ("Lead", "CRM", "Funil") — usar Oportunidade/Pipeline/Orcamentos.
 - Nao substituir componentes/padroes de UI existentes por biblioteca nova sem decisao registrada.
+- Nao criar ou alterar UI/copy/rota sem conformar ao Design System oficial (`jornadas/docs/origami-ds.html`) e a jornada relevante (`jornadas/gp-comercial.md`, `jornadas/funcionario.md`). Ver `patterns/design-system.md`.
+- Nao usar nomenclatura antiga na interface comercial ("Lead", "CRM", "Funil") — usar Oportunidade/Pipeline/Orcamentos.
 - Nao commitar arquivos gerados volumosos, builds ou credenciais.
 
 ## Regras de manutencao

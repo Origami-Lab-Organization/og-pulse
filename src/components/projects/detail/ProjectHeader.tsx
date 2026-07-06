@@ -106,7 +106,7 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
           <ol className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             <li>
               <Link
-                to="/portfolio"
+                to="/projetos"
                 className="rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Portfólio
@@ -122,7 +122,8 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
           <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-foreground">
             {project.name}
           </h1>
-          <span
+          {/* Status do projeto (ex.: "Em Planejamento") ocultado a pedido — comentado, não removido. */}
+          {/* <span
             className={cn(
               'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold',
               tone === 'ok' && 'bg-primary-deep/10 text-primary-deep',
@@ -132,7 +133,7 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
           >
             {tone === 'ok' && <Check className="h-3.5 w-3.5" aria-hidden />}
             {PROJECT_STATUS_LABELS[status]}
-          </span>
+          </span> */}
         </div>
 
         {/* Metadados */}

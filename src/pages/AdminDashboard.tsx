@@ -79,8 +79,8 @@ export default function AdminDashboard() {
     const faturamentoTotal = highlighted.reduce((s, m) => s + m.revenueReal, 0);
     // Custos de projeto = fornecedores + materiais (realizados), SEM mão de obra:
     // o pessoal entra só pelo custo cheio de pessoal, para não contar o labor duas
-    // vezes (laborCost de timesheet). Comissões e reembolsos não compõem o custo de
-    // projeto do dashboard (decisão de negócio). Ver calculateAdminDashboardRevenue.
+    // vezes (laborCost de timesheet). Comissões não compõem o custo de projeto do
+    // dashboard (decisão de negócio). Ver calculateAdminDashboardRevenue.
     const projectCostsExLabor = highlighted.reduce(
       (s, m) => s + m.supplierCost + m.materialCost,
       0,
@@ -107,7 +107,7 @@ export default function AdminDashboard() {
   const faturamentoTotal = financial?.faturamentoTotal ?? 0;
   const hasFaturamento = faturamentoTotal > 0;
   const monthsInPeriod = financial?.monthsInPeriod ?? 1;
-  // Custos de projeto realizados (fornecedores + materiais + comissões + reembolsos).
+  // Custos de projeto realizados (fornecedores + materiais + comissões).
   const projectCosts = financial?.projectCostsExLabor ?? 0;
   const revenue = useMemo(
     () =>

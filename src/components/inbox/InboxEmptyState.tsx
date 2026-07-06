@@ -1,4 +1,4 @@
-import { Inbox, Clock, DollarSign, MailOpen, Archive, Search, UserSearch, FileText, Trash2 } from 'lucide-react';
+import { Inbox, Clock, MailOpen, Archive, Search, UserSearch, FileText, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { InboxFolder } from '@/hooks/useInboxNotifications';
 
@@ -51,13 +51,6 @@ export function InboxEmptyState({ folder, searchQuery }: Props) {
       icon: Clock,
       title: 'Nenhum lembrete de timesheet',
       description: 'Lembretes de horas aparecerão aqui.',
-      bgClassName: 'bg-muted',
-      iconClassName: 'text-muted-foreground',
-    },
-    reimbursement: {
-      icon: DollarSign,
-      title: 'Nenhuma notificação de reembolso',
-      description: 'Atualizações de reembolsos aparecerão aqui.',
       bgClassName: 'bg-muted',
       iconClassName: 'text-muted-foreground',
     },

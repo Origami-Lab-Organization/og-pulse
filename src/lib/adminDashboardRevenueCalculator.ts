@@ -8,7 +8,7 @@
  *
  *   Receita           = Faturamento total − TODOS os custos do período, onde
  *                       custos = custos de projeto (fornecedores + materiais +
- *                       comissões + reembolsos) + custo CHEIO de pessoal do período.
+ *                       comissões) + custo CHEIO de pessoal do período.
  *
  *   Margem real (%)   = Receita ÷ Faturamento total × 100.
  *
@@ -34,7 +34,7 @@ export interface AdminDashboardRevenueInput {
   faturamentoTotal: number;
   /**
    * Custos de projeto do período, EXCLUINDO mão de obra de timesheet:
-   * fornecedores + materiais + comissões + reembolsos.
+   * fornecedores + materiais + comissões.
    */
   projectCostsExLabor: number;
   /**

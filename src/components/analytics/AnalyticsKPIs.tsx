@@ -85,7 +85,7 @@ export function AnalyticsKPIs({
         <CardContent>
           <div className="text-2xl font-bold">{formatCurrency(totalCosts)}</div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Mão de obra, fornecedores, materiais, comissões e reembolsos
+            Mão de obra, fornecedores, materiais e comissões
           </p>
         </CardContent>
       </Card>

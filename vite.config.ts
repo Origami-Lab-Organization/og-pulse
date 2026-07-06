@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: "Origami Pulse",
         short_name: "Pulse",
-        description: "Timesheet, tarefas e reembolsos da Origami Lab",
+        description: "Timesheet e tarefas da Origami Lab",
         start_url: "/my-timesheet",
         display: "standalone",
         orientation: "portrait",

@@ -114,7 +114,7 @@ export function FollowUpsUrgentesWidget({ followUps, leads, isLoading }: Props) 
             variant="ghost"
             size="sm"
             className="h-auto p-0 text-xs text-muted-foreground gap-1 hover:text-foreground"
-            onClick={() => navigate('/crm')}
+            onClick={() => navigate('/pipeline')}
           >
             Ver CRM
             <ArrowRight className="h-3 w-3" />
@@ -164,7 +164,7 @@ export function FollowUpsUrgentesWidget({ followUps, leads, isLoading }: Props) 
             {extra > 0 && (
               <button
                 className="w-full text-xs text-muted-foreground text-center py-1.5 hover:text-foreground transition-colors"
-                onClick={() => navigate('/crm')}
+                onClick={() => navigate('/pipeline')}
               >
                 +{extra} follow-up{extra !== 1 ? 's' : ''} no CRM
               </button>

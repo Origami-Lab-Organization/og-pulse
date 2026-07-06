@@ -59,7 +59,7 @@ const CRMStats = ({ leads }: CRMStatsProps) => {
       label: 'Recebido no Ano',
       value: formatCurrency(receivedValue),
       icon: Wallet,
-      color: 'bg-secondary/10 text-secondary',
+      color: 'bg-info/10 text-info',
     },
   ];
 

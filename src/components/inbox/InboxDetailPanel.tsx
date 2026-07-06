@@ -1,11 +1,8 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Notification } from "@/hooks/useNotifications";
 import { InboxTimesheetDetail } from "./InboxTimesheetDetail";
-import { InboxReimbursementDetail } from "./InboxReimbursementDetail";
 import { InboxBudgetDetail } from "./InboxBudgetDetail";
 import { InboxVacationDetail } from "./InboxVacationDetail";
-import { CorrectionData } from "@/components/reimbursements/ReimbursementFormDialog";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -14,7 +11,6 @@ import {
   Trash2,
   Inbox,
   Clock,
-  DollarSign,
   UserSearch,
   FileText,
   Palmtree,
@@ -30,7 +26,10 @@ const typeActionLabel: Record<string, string> = {
   project_started: "Ver projeto",
   project_health_alert: "Ver projeto",
   nps_response_received: "Ver resposta",
-  card_assigned: "Ver atividade"
+  card_assigned: "Ver atividade",
+  installment_nf_alert: "Ver projeto",
+  installment_nf_alert_3d: "Ver projeto",
+  installment_payment_alert: "Ver projeto"
 };
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -55,25 +54,6 @@ const statusBadge: Record<string, { label: string; className: string }> = {
     label: "Enviado",
     className:
       "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-  },
-  reimbursement_pending: {
-    label: "Aprovar/Rejeitar",
-    className:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-  },
-  reimbursement_approved: {
-    label: "Aprovado",
-    className:
-      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-  },
-  reimbursement_rejected: {
-    label: "Rejeitado",
-    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-  },
-  reimbursement_paid: {
-    label: "Pago",
-    className:
-      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
   },
   budget_margin_pending: {
     label: "Aprovar/Rejeitar",
@@ -107,6 +87,20 @@ const statusBadge: Record<string, { label: string; className: string }> = {
     label: "Em análise",
     className:
       "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+  },
+  installment_nf_alert: {
+    label: "Emissão hoje",
+    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+  },
+  installment_nf_alert_3d: {
+    label: "Emissão em 3 dias",
+    className:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+  },
+  installment_payment_alert: {
+    label: "Pagamento hoje",
+    className:
+      "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
   }
 };
 
@@ -127,14 +121,6 @@ const categoryConfig: Record<
     badge: "Timesheet",
     badgeClass:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-  },
-  reimbursement: {
-    bg: "bg-green-100 dark:bg-green-900/30",
-    text: "text-green-600 dark:text-green-400",
-    icon: DollarSign,
-    badge: "Reembolso",
-    badgeClass:
-      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
   },
   candidatos: {
     bg: "bg-purple-100 dark:bg-purple-900/30",
@@ -188,7 +174,6 @@ const categoryConfig: Record<
 interface Props {
   notification: Notification;
   onActionComplete: () => void;
-  onOpenCorrectForm: (data: CorrectionData) => void;
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
@@ -199,7 +184,6 @@ interface Props {
 export function InboxDetailPanel({
   notification,
   onActionComplete,
-  onOpenCorrectForm,
   onArchive,
   onUnarchive,
   onDelete,
@@ -207,20 +191,7 @@ export function InboxDetailPanel({
   isTrash = false
 }: Props) {
   const navigate = useNavigate();
-  const [liveStatus, setLiveStatus] = useState<string | null>(null);
-  // Reset when notification changes
-  const [lastNotifId, setLastNotifId] = useState(notification.id);
-  if (notification.id !== lastNotifId) {
-    setLastNotifId(notification.id);
-    setLiveStatus(null);
-  }
-
-  const liveReimbursementBadgeKey = liveStatus
-    ? `reimbursement_${liveStatus}`
-    : null;
-  const badge =
-    (liveReimbursementBadgeKey && statusBadge[liveReimbursementBadgeKey]) ??
-    statusBadge[notification.type];
+  const badge = statusBadge[notification.type];
   const catConfig =
     categoryConfig[notification.category] ?? categoryConfig.timesheet;
   const CatIcon = catConfig.icon;
@@ -349,7 +320,7 @@ export function InboxDetailPanel({
           </Button>
         )}
 
-        {/* Ação primária genérica via action_url (document_available, project_*, card_assigned, nps).
+        {/* Ação primária genérica via action_url (document_available, project_*, card_assigned, nps, installment_*).
             Sem action_url (ex.: system) → nenhum botão. */}
         {notification.action_url && typeActionLabel[notification.type] && (
           <Button className="gap-2" onClick={() => navigate(notification.action_url!)}>
@@ -360,15 +331,6 @@ export function InboxDetailPanel({
 
         {notification.category === "timesheet" && (
           <InboxTimesheetDetail notification={notification} />
-        )}
-
-        {notification.category === "reimbursement" && (
-          <InboxReimbursementDetail
-            notification={notification}
-            onActionComplete={onActionComplete}
-            onOpenCorrectForm={onOpenCorrectForm}
-            onLiveStatusLoaded={setLiveStatus}
-          />
         )}
 
         {notification.category === "budget" && (

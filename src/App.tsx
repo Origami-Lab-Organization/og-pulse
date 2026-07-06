@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -37,7 +37,6 @@ import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import Analytics from "./pages/Analytics";
-import Reimbursements from "./pages/Reimbursements";
 import MyTimesheet from "./pages/MyTimesheet";
 import CommercialDashboard from "./pages/CommercialDashboard";
 import Welcome from "./pages/Welcome";
@@ -65,6 +64,11 @@ import { InstallPwaBanner } from "@/components/pwa/InstallPwaBanner";
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 2 * 60 * 1000 } },
 });
+
+function RedirectAlocacaoEmployee() {
+  const { employeeId } = useParams();
+  return <Navigate to={`/analises/alocacoes/${employeeId}`} replace />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -126,15 +130,6 @@ const App = () => (
                     <MyTimesheet />
                   </ProtectedRoute>
                 } 
-              />
-              {/* Reimbursements - all authenticated users */}
-              <Route
-                path="/reimbursements"
-                element={
-                  <ProtectedRoute>
-                    <Reimbursements />
-                  </ProtectedRoute>
-                }
               />
               {/* Minhas Férias - all authenticated users */}
               <Route
@@ -210,13 +205,14 @@ const App = () => (
                   </RoleProtectedRoute>
                 } 
               />
-              <Route 
-                path="/portfolio" 
+              {/* Projetos */}
+              <Route
+                path="/projetos"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Portfolio />
                   </RoleProtectedRoute>
-                } 
+                }
               />
               <Route
                 path="/projects/:id"
@@ -226,54 +222,57 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route 
-                path="/alocacao"
+              {/* Análises */}
+              <Route
+                path="/analises/alocacoes"
                 element={
                   <RoleProtectedRoute requireManager>
                     <AlocacaoPage />
                   </RoleProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/alocacao/:employeeId"
+              <Route
+                path="/analises/alocacoes/:employeeId"
                 element={
                   <RoleProtectedRoute requireManager>
                     <EmployeeTimesheetPage />
                   </RoleProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/analytics" 
+              <Route
+                path="/analises/financeiro"
                 element={
                   <RoleProtectedRoute requireManager>
                     <Analytics />
                   </RoleProtectedRoute>
-                } 
+                }
               />
               <Route
-                path="/comercial"
+                path="/analises/comercial"
                 element={
                   <RoleProtectedRoute requireManager>
                     <CommercialDashboard />
                   </RoleProtectedRoute>
                 }
               />
+              {/* Pipeline */}
               <Route
-                path="/crm" 
+                path="/pipeline"
                 element={
                   <RoleProtectedRoute requireManager>
                     <CRM />
                   </RoleProtectedRoute>
-                } 
+                }
               />
               <Route
-                path="/crm/archived"
+                path="/pipeline/archived"
                 element={
                   <RoleProtectedRoute requireManager>
                     <ArchivedLeads />
                   </RoleProtectedRoute>
                 }
               />
+              {/* Cadastros */}
               <Route
                 path="/comercial/servicos"
                 element={
@@ -290,7 +289,15 @@ const App = () => (
                   </RoleProtectedRoute>
                 }
               />
-              <Route path="/budgets" element={<Navigate to="/crm" replace />} />
+              {/* Backward compat redirects */}
+              <Route path="/crm" element={<Navigate to="/pipeline" replace />} />
+              <Route path="/crm/archived" element={<Navigate to="/pipeline/archived" replace />} />
+              <Route path="/portfolio" element={<Navigate to="/projetos" replace />} />
+              <Route path="/alocacao" element={<Navigate to="/analises/alocacoes" replace />} />
+              <Route path="/alocacao/:employeeId" element={<RedirectAlocacaoEmployee />} />
+              <Route path="/analytics" element={<Navigate to="/analises/financeiro" replace />} />
+              <Route path="/comercial" element={<Navigate to="/analises/comercial" replace />} />
+              <Route path="/budgets" element={<Navigate to="/pipeline" replace />} />
               <Route 
                 path="/budgets/new" 
                 element={

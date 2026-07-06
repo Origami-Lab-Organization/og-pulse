@@ -20,7 +20,7 @@ export function LossReasonsChart({ data }: Props) {
             <Archive className="h-10 w-10 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">Nenhum lead arquivado no período</p>
             <Button variant="outline" size="sm" asChild>
-              <Link to="/crm">Ir para o CRM</Link>
+              <Link to="/pipeline">Ir para o Pipeline</Link>
             </Button>
           </div>
         </CardContent>

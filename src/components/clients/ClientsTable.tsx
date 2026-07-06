@@ -48,7 +48,7 @@ export const createClientColumns = ({
               {client.logoUrl && (
                 <AvatarImage src={client.logoUrl} alt={client.companyName} className="object-cover" />
               )}
-              <AvatarFallback className="bg-secondary/10 text-secondary text-sm font-medium">
+              <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
                 {initials}
               </AvatarFallback>
             </Avatar>

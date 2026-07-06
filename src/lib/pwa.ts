@@ -1,4 +1,4 @@
-export const PWA_BUSINESS_ROUTES = ['/my-timesheet', '/my-kanban', '/reimbursements'] as const;
+export const PWA_BUSINESS_ROUTES = ['/my-timesheet', '/my-kanban'] as const;
 
 export const PWA_SYSTEM_ROUTES = [
   '/login',

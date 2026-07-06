@@ -16,12 +16,11 @@ import {
   Kanban,
   Inbox as InboxIcon,
   FolderKanban,
-  Receipt,
   CheckCircle2,
   type LucideIcon,
 } from 'lucide-react';
 
-const HOME_ROUTE = '/inbox';
+const HOME_ROUTE = '/dashboard';
 const CARD_WIDTH = 360;
 
 interface OnboardingModalProps {
@@ -47,7 +46,7 @@ const SLIDES: Slide[] = [
     subtitle: 'Suas notificações',
     title: 'Caixa de Entrada',
     description:
-      'Aprovações de reembolso, novos documentos, alertas e lembretes aparecem aqui em tempo real.',
+      'Aprovações, novos documentos, alertas e lembretes aparecem aqui em tempo real.',
   },
   {
     kind: 'feature',
@@ -75,15 +74,6 @@ const SLIDES: Slide[] = [
     title: 'Timesheet',
     description:
       'Toda semana você confirma as horas dos seus projetos. Os campos já vêm pré-preenchidos pela sua alocação — é só revisar.',
-  },
-  {
-    kind: 'feature',
-    target: 'reembolsos',
-    icon: Receipt,
-    subtitle: 'Suas despesas',
-    title: 'Reembolsos',
-    description:
-      'Solicite reembolsos com a foto do recibo e acompanhe o status, do envio até o pagamento.',
   },
   { kind: 'final' },
 ];

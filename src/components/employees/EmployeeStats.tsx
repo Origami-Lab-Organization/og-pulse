@@ -1,7 +1,28 @@
 import { Employee } from '@/hooks/useEmployees';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, UserCheck, Crown, DollarSign } from 'lucide-react';
+import { Wallet, Banknote, Gift, Wrench, PiggyBank } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+
+const getBaseSalary = (e: Employee): number => {
+  switch (e.tipoContratacao) {
+    case 'CLT':
+    case 'MENOR_APRENDIZ':
+      return e.salarioMensal;
+    case 'ESTAGIO':
+      return e.bolsaAuxilio || e.salarioMensal;
+    case 'PJ':
+      return e.valorContratoPj || e.salarioMensal;
+    case 'SOCIO':
+      return (e.proLabore || 0) + (e.dividendos || 0) || e.salarioMensal;
+    default:
+      return e.salarioMensal;
+  }
+};
+
+const getProvisoes = (e: Employee): number => {
+  if (e.breakdownJson) return e.breakdownJson.provisionsAmount;
+  return (e.provisao13 || 0) + (e.provisaoFerias || 0) + (e.provisaoRecesso || 0);
+};
 
 interface EmployeeStatsProps {
   employees: Employee[];
@@ -17,85 +38,57 @@ interface StatItem {
 }
 
 const EmployeeStats = ({ employees, hideValues }: EmployeeStatsProps) => {
-  const totalEmployees = employees.length;
-  const activeEmployees = employees.filter((e) => e.status === 'ativo').length;
-  const managers = employees.filter((e) => e.isGerente).length;
-  
-  // Calculate total monthly cost considering contract types (exclude archived)
-  const totalMonthlyCost = employees
-    .filter((e) => e.status !== 'arquivado' && e.status !== 'bloqueado')
-    .reduce((sum, e) => {
-      // Use saved cost if available
-      if (e.totalMonthlyCostEstimated > 0) {
-        return sum + e.totalMonthlyCostEstimated;
-      }
-      
-      // Fallback: calculate based on contract type
-      let baseCost = 0;
-      switch (e.tipoContratacao) {
-        case 'CLT':
-        case 'MENOR_APRENDIZ':
-          baseCost = e.salarioMensal;
-          break;
-        case 'ESTAGIO':
-          baseCost = e.bolsaAuxilio || e.salarioMensal;
-          break;
-        case 'PJ':
-          baseCost = e.valorContratoPj || e.salarioMensal;
-          break;
-        case 'SOCIO':
-          baseCost = (e.proLabore || 0) + (e.dividendos || 0) || e.salarioMensal;
-          break;
-        default:
-          baseCost = e.salarioMensal;
-      }
-      
-      return sum + baseCost + e.encargos + (e.totalBenefitsCost || 0) + (e.totalToolsCost || 0);
-    }, 0);
+  const activeList = employees.filter(
+    (e) => e.status !== 'arquivado' && e.status !== 'bloqueado',
+  );
 
-  // Calculate total monthly provisions (exclude archived and blocked)
-  const totalMonthlyProvision = employees
-    .filter((e) => e.status !== 'arquivado' && e.status !== 'bloqueado')
-    .reduce((sum, e) => {
-      // Use breakdown if available
-      const breakdown = e.breakdownJson;
-      if (breakdown && typeof breakdown === 'object' && 'provisionsAmount' in breakdown) {
-        return sum + (breakdown.provisionsAmount as number);
-      }
-      // Fallback: use individual fields
-      return sum + (e.provisao13 || 0) + (e.provisaoFerias || 0) + (e.provisaoRecesso || 0);
-    }, 0);
+  const totalMonthlyCost = activeList.reduce((sum, e) => {
+    if (e.totalMonthlyCostEstimated > 0) return sum + e.totalMonthlyCostEstimated;
+    return sum + getBaseSalary(e) + e.encargos + (e.totalBenefitsCost || 0) + (e.totalToolsCost || 0);
+  }, 0);
+
+  const totalSalario = activeList.reduce((sum, e) => sum + getBaseSalary(e), 0);
+  const totalBeneficios = activeList.reduce((sum, e) => sum + (e.totalBenefitsCost || 0), 0);
+  const totalFerramentas = activeList.reduce((sum, e) => sum + (e.totalToolsCost || 0), 0);
+  const totalProvisoes = activeList.reduce((sum, e) => sum + getProvisoes(e), 0);
+
+  const fmt = (v: number) => (hideValues ? '•••••' : formatCurrency(v));
 
   const stats: StatItem[] = [
     {
-      label: 'Total de Funcionários',
-      value: totalEmployees,
-      icon: Users,
+      label: 'Total da Folha',
+      value: fmt(totalMonthlyCost),
+      icon: Wallet,
       color: 'bg-primary/10 text-primary',
     },
     {
-      label: 'Ativos',
-      value: activeEmployees,
-      icon: UserCheck,
-      color: 'bg-success/10 text-success',
+      label: 'Salário',
+      value: fmt(totalSalario),
+      icon: Banknote,
+      color: 'bg-blue-500/10 text-blue-600',
     },
     {
-      label: 'Gerentes',
-      value: managers,
-      icon: Crown,
-      color: 'bg-secondary/10 text-secondary-foreground',
+      label: 'Benefícios',
+      value: fmt(totalBeneficios),
+      icon: Gift,
+      color: 'bg-green-500/10 text-green-600',
     },
     {
-      label: 'Custo Mensal Total',
-      value: hideValues ? '•••••' : formatCurrency(totalMonthlyCost),
-      subValue: hideValues ? '•••••' : `Provisão Mensal: ${formatCurrency(totalMonthlyProvision)}`,
-      icon: DollarSign,
-      color: 'bg-accent/20 text-foreground',
+      label: 'Ferramentas',
+      value: fmt(totalFerramentas),
+      icon: Wrench,
+      color: 'bg-orange-500/10 text-orange-600',
+    },
+    {
+      label: 'Provisões',
+      value: fmt(totalProvisoes),
+      icon: PiggyBank,
+      color: 'bg-purple-500/10 text-purple-600',
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
       {stats.map((stat) => (
         <Card key={stat.label} className="animate-scale-in">
           <CardContent className="flex items-center gap-4 p-4">
