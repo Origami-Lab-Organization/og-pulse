@@ -57,30 +57,6 @@ interface CreateEmployeeRequest {
   candidateId?: string | null;
 }
 
-function generateTempPassword(length = 12): string {
-  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lowercase = "abcdefghijklmnopqrstuvwxyz";
-  const numbers = "0123456789";
-  const all = uppercase + lowercase + numbers;
-
-  let password = "";
-  // Ensure at least one of each required type
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-
-  // Fill the rest randomly
-  for (let i = 3; i < length; i++) {
-    password += all[Math.floor(Math.random() * all.length)];
-  }
-
-  // Shuffle the password
-  return password
-    .split("")
-    .sort(() => Math.random() - 0.5)
-    .join("");
-}
-
 // Deriva a URL de destino do primeiro acesso a partir do loginUrl do app (FUNC-J1).
 function firstAccessRedirect(loginUrl: string): string {
   try {
@@ -93,6 +69,7 @@ function firstAccessRedirect(loginUrl: string): string {
     return loginUrl.replace(/\/login\/?$/, "") + "/primeiro-acesso";
   }
 }
+
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
