@@ -21,7 +21,7 @@ interface ResendInviteRequest {
 const PUBLIC_APP_ORIGIN = "https://origamipulse.com.br";
 
 // Destino do primeiro acesso a partir do loginUrl do app (FUNC-J1).
-function firstAccessRedirect(loginUrl: string): string {
+function firstAccessRedirect(_loginUrl: string): string {
   // Links de Auth abertos fora do preview precisam cair no domínio público do
   // produto. `window.location.origin` no preview gera URLs *.lovable.app e, em
   // alguns clientes de e-mail, o Auth também pode cair no Site URL padrão.
