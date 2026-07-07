@@ -60,7 +60,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey);
 
     const normalized = email.trim().toLowerCase();
 
@@ -80,17 +82,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     const redirectTo = firstAccessRedirect(loginUrl || `${supabaseUrl}/login`);
 
-    // Envia link de recuperação via SMTP do Auth. Mesmo canal que já entrega o
-    // reset de senha — não passa mais pelo Resend. O link autentica e redireciona
-    // para /primeiro-acesso, onde o funcionário define a senha.
-    const { error: linkError } = await adminClient.auth.admin.generateLink({
-      type: "recovery",
-      email: employee.email,
-      options: { redirectTo },
-    });
+    // Envia link de recuperação via endpoint /recover — mesmo caminho que o
+    // reset de senha usa e que sabemos que dispara o SMTP. admin.generateLink
+    // apenas GERA o link, não envia o e-mail.
+    const { error: linkError } = await anonClient.auth.resetPasswordForEmail(
+      employee.email,
+      { redirectTo },
+    );
 
     if (linkError) {
-      console.error("request-first-access: falha ao gerar/enviar link de acesso");
+      console.error("request-first-access: falha ao enviar link de acesso:", linkError.message);
       return genericOk();
     }
 
