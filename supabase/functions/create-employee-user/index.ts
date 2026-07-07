@@ -57,30 +57,6 @@ interface CreateEmployeeRequest {
   candidateId?: string | null;
 }
 
-function generateTempPassword(length = 12): string {
-  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lowercase = "abcdefghijklmnopqrstuvwxyz";
-  const numbers = "0123456789";
-  const all = uppercase + lowercase + numbers;
-
-  let password = "";
-  // Ensure at least one of each required type
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-
-  // Fill the rest randomly
-  for (let i = 3; i < length; i++) {
-    password += all[Math.floor(Math.random() * all.length)];
-  }
-
-  // Shuffle the password
-  return password
-    .split("")
-    .sort(() => Math.random() - 0.5)
-    .join("");
-}
-
 // Deriva a URL de destino do primeiro acesso a partir do loginUrl do app (FUNC-J1).
 function firstAccessRedirect(loginUrl: string): string {
   try {
@@ -93,6 +69,7 @@ function firstAccessRedirect(loginUrl: string): string {
     return loginUrl.replace(/\/login\/?$/, "") + "/primeiro-acesso";
   }
 }
+
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -253,11 +230,11 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     let authUserId: string;
-    let tempPassword: string | null = null;
     let isExistingUser = false;
+    const redirectTo = firstAccessRedirect(loginUrl);
 
     if (existingEmployee?.auth_id) {
-      // User already exists in another tenant - reuse their auth_id
+      // User already exists in another tenant - reuse their auth_id (sem novo convite).
       console.log(
         "Email already exists in another tenant, reusing auth_id:",
         existingEmployee.auth_id,
@@ -265,22 +242,19 @@ const handler = async (req: Request): Promise<Response> => {
       authUserId = existingEmployee.auth_id;
       isExistingUser = true;
     } else {
-      // Create new user in Supabase Auth
-      tempPassword = generateTempPassword();
-      console.log("Generated temp password for new user:", email);
-
-      const { data: authUser, error: authError } =
-        await adminClient.auth.admin.createUser({
-          email,
-          password: tempPassword,
-          email_confirm: true, // Auto-confirm since we're inviting
+      // Novo funcionário: convite via SMTP do Auth do Supabase (não usa mais Resend).
+      // `inviteUserByEmail` cria o usuário e envia o e-mail do template "Invite user"
+      // configurado no Auth, contendo o link que autentica e cai em /primeiro-acesso.
+      const { data: invited, error: inviteError } =
+        await adminClient.auth.admin.inviteUserByEmail(email, {
+          redirectTo,
         });
 
-      if (authError) {
-        console.error("Error creating auth user:", authError);
+      if (inviteError || !invited?.user) {
+        console.error("Error inviting user via Auth SMTP:", inviteError);
         return new Response(
           JSON.stringify({
-            error: `Erro ao criar usuário: ${authError.message}`,
+            error: `Erro ao enviar convite: ${inviteError?.message ?? "unknown"}`,
           }),
           {
             status: 400,
@@ -289,8 +263,8 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      authUserId = authUser.user.id;
-      console.log("New auth user created:", authUserId);
+      authUserId = invited.user.id;
+      console.log("New auth user invited via SMTP:", authUserId);
     }
 
     // Create employee record with all new fields
@@ -378,95 +352,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("User role created");
 
-    // Send invite email in background (non-blocking) for new users only
-    if (!isExistingUser && tempPassword) {
-      console.log("Scheduling invite email to be sent in background to:", email);
-
-      // Nome da empresa para personalizar o convite (FUNC-J1). Falha aqui não
-      // bloqueia o envio — o template usa "Origami Pulse" como fallback.
-      const { data: tenant } = await adminClient
-        .from('tenants')
-        .select('name')
-        .eq('id', tenantId)
-        .maybeSingle();
-      const companyName = tenant?.name ?? undefined;
-
-      // Magic link (FUNC-J1): leva o convidado direto a tela de primeiro acesso ja
-      // autenticado. Se falhar (ex.: redirectTo fora da allowlist), o e-mail usa o
-      // fluxo de fallback.
-      let actionLink: string | undefined;
-      try {
-        const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-          type: 'magiclink',
-          email,
-          options: { redirectTo: firstAccessRedirect(loginUrl) },
-        });
-        if (linkError) {
-          console.error('Could not generate access link, using fallback:', linkError.message);
-        } else {
-          actionLink = linkData?.properties?.action_link ?? undefined;
-        }
-      } catch (e: unknown) {
-        console.error('Access link generation failed, using fallback:', e instanceof Error ? e.message : e);
-      }
-
-      console.log(
-        "Scheduling invite email to be sent in background to:",
-        email,
-      );
-
-      // Background task - does not block the response
-      EdgeRuntime.waitUntil(
-        (async () => {
-          try {
-            console.log("Background: Starting to send invite email to:", email);
-            const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                to: email,
-                nome,
-                tempPassword,
-                loginUrl,
-                companyName,
-                actionLink,
-              }),
-            });
-
-            const emailResult = await emailResponse.json();
-
-            if (!emailResponse.ok) {
-              console.error(
-                "Background: Error sending invite email:",
-                emailResult.error || "Unknown error",
-              );
-              console.error(
-                'Background: User can use "Reenviar Convite" to retry',
-              );
-            } else {
-              console.log(
-                "Background: Invite email sent successfully to:",
-                email,
-              );
-            }
-          } catch (error: unknown) {
-            console.error(
-              "Background: Error calling send-invite-email:",
-              error instanceof Error ? error.message : error,
-            );
-            console.error(
-              'Background: User can use "Reenviar Convite" to retry',
-            );
-          }
-        })(),
-      );
-    } else if (isExistingUser) {
+    if (isExistingUser) {
       console.log(
         "Skipping invite email - user already exists and can use existing credentials",
       );
     }
+
 
     console.log("Employee created successfully:", employee.id);
 
