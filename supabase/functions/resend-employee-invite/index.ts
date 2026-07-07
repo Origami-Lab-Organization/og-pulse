@@ -116,13 +116,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     const redirectTo = firstAccessRedirect(loginUrl);
 
-    // Envia link de acesso via SMTP do Auth (mesmo canal do reset de senha).
-    // Type `recovery` funciona para usuários existentes e envia via SMTP configurado.
-    const { error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "recovery",
-      email: employee.email,
-      options: { redirectTo },
-    });
+    // Usa o endpoint /recover (resetPasswordForEmail) — mesmo caminho do reset
+    // de senha que sabemos que dispara o SMTP configurado. admin.generateLink
+    // apenas gera a URL e NÃO envia o e-mail em muitos setups.
+    const anonSupabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { error: linkError } = await anonSupabase.auth.resetPasswordForEmail(
+      employee.email,
+      { redirectTo },
+    );
 
     if (linkError) {
       console.error("Error sending invite via Auth SMTP:", linkError);
