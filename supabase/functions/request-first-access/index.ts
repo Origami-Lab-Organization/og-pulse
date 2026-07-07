@@ -24,16 +24,21 @@ interface RequestFirstAccessBody {
   loginUrl: string;
 }
 
+const PUBLIC_APP_ORIGIN = "https://origamipulse.com.br";
+
 // Destino do primeiro acesso a partir do loginUrl do app (FUNC-J1).
-function firstAccessRedirect(loginUrl: string): string {
+function firstAccessRedirect(_loginUrl: string): string {
+  // Links de Auth abertos fora do preview precisam cair no domínio público do
+  // produto. `window.location.origin` no preview gera URLs *.lovable.app e, em
+  // alguns clientes de e-mail, o Auth também pode cair no Site URL padrão.
   try {
-    const url = new URL(loginUrl);
+    const url = new URL(PUBLIC_APP_ORIGIN);
     url.pathname = "/primeiro-acesso";
     url.search = "";
     url.hash = "";
     return url.toString();
   } catch {
-    return (loginUrl || "").replace(/\/login\/?$/, "") + "/primeiro-acesso";
+    return `${PUBLIC_APP_ORIGIN}/primeiro-acesso`;
   }
 }
 
