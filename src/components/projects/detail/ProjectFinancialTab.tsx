@@ -9,9 +9,8 @@ import { ProjectFinancialChart } from './ProjectFinancialChart';
 import { ProjectTrendChart } from './ProjectTrendChart';
 import { ProjectInstallmentsTable } from '@/components/projects/ProjectInstallmentsTable';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
-import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
-import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
+import { useProjectCostItems } from '@/hooks/useProjectCostItems';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { parseISO, differenceInMonths, startOfMonth, addMonths } from 'date-fns';
 import { useBudget } from '@/hooks/useBudgets';
@@ -32,15 +31,10 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     () => (project.members || []).map((m) => m.id),
     [project.members]
   );
-  const supplierIds = useMemo(
-    () => (project.suppliers || []).map((s) => s.id),
-    [project.suppliers]
-  );
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
-  const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
-  const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
+  const { data: projectCosts = [] } = useProjectCostItems(project.id);
   const { data: financialSettings } = useFinancialSettings();
   const { data: budget } = useBudget(project.budget_id);
   const { data: commissions = [] } = useProjectCommissions(project.id);
@@ -93,29 +87,26 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
       return acc + memberActualCost;
     }, 0);
 
-    const supplierPlanned = supplierMonths.reduce((s, sm) => s + sm.value, 0) ||
-      (project.suppliers || []).reduce((acc, sup) => {
-        const months = sup.end_month ? sup.end_month - sup.start_month + 1 : projectDuration;
-        return acc + Number(sup.monthly_value || 0) * months;
-      }, 0);
+    // Custos extras (fornecedores, materiais, etc.) vêm da fonte unificada
+    // `project_costs` — mesma origem usada pela aba Custos.
+    const extraPlanned = projectCosts.reduce(
+      (sum, cost) => sum + Number(cost.planned_amount_brl || 0),
+      0,
+    );
+    const extraActual = projectCosts.reduce(
+      (sum, cost) => sum + Number(cost.actual_amount_brl || 0),
+      0,
+    );
 
-    const supplierActualTotal = supplierActuals.reduce((s, sa) => s + sa.value, 0);
+    const totalPlanned = laborPlanned + extraPlanned;
+    const totalActual = laborActual + extraActual;
 
-    const materialPlanned = (project.materials || []).reduce((s, m) => s + Number(m.value || 0), 0);
-    const materialActual = (project.materials || [])
-      .filter((m) => m.is_realized)
-      .reduce((s, m) => s + Number(m.value || 0), 0);
-
-    const totalPlanned = laborPlanned + supplierPlanned + materialPlanned;
-    const totalActual = laborActual + supplierActualTotal + materialActual;
-
-    return { totalPlanned, totalActual, laborPlanned, laborActual, supplierPlanned, supplierActualTotal, materialPlanned, materialActual };
+    return { totalPlanned, totalActual, laborPlanned, laborActual, extraPlanned, extraActual };
   }, [
     project,
     memberMonths,
     timesheets,
-    supplierMonths,
-    supplierActuals,
+    projectCosts,
     projectDuration,
     plannedLaborFromAllocations.hasRoleAllocations,
     plannedLaborFromAllocations.total,
@@ -159,6 +150,55 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
   const monthlyChartData = useMemo(() => {
     const startDate = parseISO(project.start_date);
 
+    // Mapeia custos extras (fornecedores/materiais) por mês do projeto,
+    // usando a mesma fonte unificada da aba Custos.
+    const extraPlannedByMonth = new Map<number, number>();
+    const extraActualByMonth = new Map<number, number>();
+    projectCosts.forEach((cost) => {
+      const isRecurring = Boolean((cost as any).is_recurring);
+      if (isRecurring) {
+        const startMonth = Number((cost as any).start_month || 1);
+        const endMonth = Math.min(
+          Number((cost as any).end_month || projectDuration),
+          projectDuration,
+        );
+        const monthly = Number(
+          (cost as any).monthly_amount_brl ||
+            (cost as any).monthly_amount ||
+            0,
+        );
+        for (let m = startMonth; m <= endMonth; m++) {
+          if (m < 1 || m > projectDuration) continue;
+          extraPlannedByMonth.set(m, (extraPlannedByMonth.get(m) || 0) + monthly);
+        }
+        if (cost.actual_amount_brl != null) {
+          extraActualByMonth.set(
+            startMonth,
+            (extraActualByMonth.get(startMonth) || 0) + Number(cost.actual_amount_brl),
+          );
+        }
+        return;
+      }
+
+      const stored = Number((cost as any).month_number || 0);
+      const monthNumber =
+        stored ||
+        (cost.cost_date
+          ? differenceInMonths(parseISO(cost.cost_date), startOfMonth(startDate)) + 1
+          : 1);
+      const clamped = Math.max(1, Math.min(monthNumber, projectDuration));
+      extraPlannedByMonth.set(
+        clamped,
+        (extraPlannedByMonth.get(clamped) || 0) + Number(cost.planned_amount_brl || 0),
+      );
+      if (cost.actual_amount_brl != null) {
+        extraActualByMonth.set(
+          clamped,
+          (extraActualByMonth.get(clamped) || 0) + Number(cost.actual_amount_brl || 0),
+        );
+      }
+    });
+
     return Array.from({ length: projectDuration }, (_, i) => {
       const monthNum = i + 1;
 
@@ -192,42 +232,20 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
         return acc + memberActualCost;
       }, 0);
 
-      // Planned suppliers for this month
-      const supplierPlan = supplierMonths
-        .filter((sm) => sm.month_number === monthNum)
-        .reduce((s, sm) => s + sm.value, 0) ||
-        (project.suppliers || []).reduce((acc, sup) => {
-          if (monthNum >= sup.start_month && (!sup.end_month || monthNum <= sup.end_month)) {
-            return acc + Number(sup.monthly_value || 0);
-          }
-          return acc;
-        }, 0);
-
-      // Actual suppliers for this month
-      const supplierReal = supplierActuals
-        .filter((sa) => sa.month_number === monthNum)
-        .reduce((s, sa) => s + sa.value, 0);
-
-      // Materials for this month
-      const materialPlan = (project.materials || [])
-        .filter((m) => (m.month_number || 1) === monthNum)
-        .reduce((s, m) => s + Number(m.value || 0), 0);
-      const materialReal = (project.materials || [])
-        .filter((m) => m.is_realized && (m.month_number || 1) === monthNum)
-        .reduce((s, m) => s + Number(m.value || 0), 0);
+      const extraPlan = extraPlannedByMonth.get(monthNum) || 0;
+      const extraReal = extraActualByMonth.get(monthNum) || 0;
 
       return {
         name: getProjectMonthLabel(monthNum, project.start_date),
-        planejado: laborPlan + supplierPlan + materialPlan,
-        realizado: laborReal + supplierReal + materialReal,
+        planejado: laborPlan + extraPlan,
+        realizado: laborReal + extraReal,
       };
     });
   }, [
     project,
     memberMonths,
     timesheets,
-    supplierMonths,
-    supplierActuals,
+    projectCosts,
     projectDuration,
     plannedLaborFromAllocations.byMonth,
     plannedLaborFromAllocations.hasRoleAllocations,
