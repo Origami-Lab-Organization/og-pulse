@@ -137,24 +137,24 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
         </div>
 
         {/* Metadados */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground sm:flex-nowrap sm:gap-x-6">
-          <span className="flex min-w-0 items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
             <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="font-medium text-foreground whitespace-nowrap">{clientName}</span>
+            <span className="font-medium text-foreground">{clientName}</span>
           </span>
           {project.service?.name && (
-            <span className="flex min-w-0 items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
               <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span className="whitespace-nowrap">{project.service.name}</span>
+              <span>{project.service.name}</span>
             </span>
           )}
-          <span className="flex min-w-0 items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
             <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="whitespace-nowrap">{managerName}</span>
+            <span>{managerName}</span>
           </span>
-          <span className="flex min-w-0 items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
             <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="whitespace-nowrap">{formatPeriod()}</span>
+            <span>{formatPeriod()}</span>
           </span>
         </div>
 
