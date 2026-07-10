@@ -147,24 +147,24 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
       </div>
 
       {/* Metadados */}
-      <div className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
-        <span className="inline-flex min-w-0 items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
           <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="truncate font-medium text-foreground" title={clientName}>{clientName}</span>
+          <span className="whitespace-nowrap font-medium text-foreground" title={clientName}>{clientName}</span>
         </span>
         {project.service?.name && (
-          <span className="inline-flex min-w-0 items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="truncate" title={project.service.name}>{project.service.name}</span>
+            <span className="whitespace-nowrap" title={project.service.name}>{project.service.name}</span>
           </span>
         )}
-        <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="inline-flex items-center gap-1.5">
           <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="truncate" title={managerName}>{managerName}</span>
+          <span className="whitespace-nowrap" title={managerName}>{managerName}</span>
         </span>
-        <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="inline-flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="truncate" title={formatPeriod()}>{formatPeriod()}</span>
+          <span className="whitespace-nowrap" title={formatPeriod()}>{formatPeriod()}</span>
         </span>
       </div>
     </div>
