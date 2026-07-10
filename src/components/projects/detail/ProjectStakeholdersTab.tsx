@@ -126,6 +126,35 @@ export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectS
         )}
       </div>
 
+      {stakeholders.length > 0 && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="flex divide-x overflow-x-auto">
+              <StakeholderMetric label="Total" value={stakeholders.length} />
+              <StakeholderMetric
+                label="Promotores"
+                value={stakeholders.filter((s) => s.sponsorship_level === 'promoter').length}
+                dotStatus="ok"
+                subtitle={pctLabel(stakeholders.filter((s) => s.sponsorship_level === 'promoter').length, stakeholders.length)}
+              />
+              <StakeholderMetric
+                label="Neutros"
+                value={stakeholders.filter((s) => s.sponsorship_level === 'neutral').length}
+                dotStatus="neutral"
+                subtitle={pctLabel(stakeholders.filter((s) => s.sponsorship_level === 'neutral').length, stakeholders.length)}
+              />
+              <StakeholderMetric
+                label="Detratores"
+                value={stakeholders.filter((s) => s.sponsorship_level === 'detractor').length}
+                dotStatus="alert"
+                subtitle={pctLabel(stakeholders.filter((s) => s.sponsorship_level === 'detractor').length, stakeholders.length)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
       {stakeholders.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -283,3 +312,40 @@ export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectS
     </div>
   );
 }
+
+function pctLabel(n: number, total: number): string {
+  if (total === 0) return '0%';
+  return `${((n / total) * 100).toFixed(0)}% do total`;
+}
+
+function StakeholderMetric({
+  label,
+  value,
+  subtitle,
+  dotStatus,
+}: {
+  label: string;
+  value: number;
+  subtitle?: string;
+  dotStatus?: 'ok' | 'alert' | 'neutral';
+}) {
+  const dotClass =
+    dotStatus === 'alert'
+      ? 'bg-destructive'
+      : dotStatus === 'ok'
+        ? 'bg-primary-deep'
+        : dotStatus === 'neutral'
+          ? 'bg-muted-foreground'
+          : null;
+  return (
+    <div className="relative flex-1 min-w-0 px-5 py-4">
+      {dotClass && <span className={cn('absolute top-3 right-3 w-2 h-2 rounded-full', dotClass)} />}
+      <p className="ol-label text-muted-foreground truncate">{label}</p>
+      <p className="font-mono text-[1.75rem] font-semibold leading-none tabular-nums truncate mt-1">
+        {value}
+      </p>
+      {subtitle && <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>}
+    </div>
+  );
+}
+
