@@ -137,31 +137,27 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
         </div>
 
         {/* Metadados */}
-        <div className="flex flex-wrap md:flex-nowrap items-center gap-x-2 md:gap-x-3 gap-y-1 text-sm text-muted-foreground">
+        <div className="flex flex-wrap md:flex-nowrap items-center justify-start md:justify-between w-full gap-x-4 md:gap-x-6 gap-y-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <Building2 className="h-3.5 w-3.5" aria-hidden />
-            <span className="font-medium text-foreground">{clientName}</span>
+            <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="font-medium text-foreground truncate">{clientName}</span>
           </span>
           {project.service?.name && (
-            <>
-              <span className="text-muted-foreground/40" aria-hidden>·</span>
-              <span className="flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5" aria-hidden />
-                <span>{project.service.name}</span>
-              </span>
-            </>
+            <span className="flex items-center gap-1.5">
+              <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="truncate">{project.service.name}</span>
+            </span>
           )}
-          <span className="text-muted-foreground/40" aria-hidden>·</span>
           <span className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5" aria-hidden />
-            <span>{managerName}</span>
+            <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{managerName}</span>
           </span>
-          <span className="text-muted-foreground/40" aria-hidden>·</span>
           <span className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" aria-hidden />
-            <span>{formatPeriod()}</span>
+            <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{formatPeriod()}</span>
           </span>
         </div>
+
       </div>
 
       {/* Bloco direito: stepper de estágios + ações, alinhados à direita */}
