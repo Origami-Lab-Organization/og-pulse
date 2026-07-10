@@ -31,15 +31,10 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     () => (project.members || []).map((m) => m.id),
     [project.members]
   );
-  const supplierIds = useMemo(
-    () => (project.suppliers || []).map((s) => s.id),
-    [project.suppliers]
-  );
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
-  const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
-  const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
+  const { data: projectCosts = [] } = useProjectCostItems(project.id);
   const { data: financialSettings } = useFinancialSettings();
   const { data: budget } = useBudget(project.budget_id);
   const { data: commissions = [] } = useProjectCommissions(project.id);
