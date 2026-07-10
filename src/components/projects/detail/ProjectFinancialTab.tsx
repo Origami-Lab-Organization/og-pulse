@@ -87,29 +87,26 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
       return acc + memberActualCost;
     }, 0);
 
-    const supplierPlanned = supplierMonths.reduce((s, sm) => s + sm.value, 0) ||
-      (project.suppliers || []).reduce((acc, sup) => {
-        const months = sup.end_month ? sup.end_month - sup.start_month + 1 : projectDuration;
-        return acc + Number(sup.monthly_value || 0) * months;
-      }, 0);
+    // Custos extras (fornecedores, materiais, etc.) vêm da fonte unificada
+    // `project_costs` — mesma origem usada pela aba Custos.
+    const extraPlanned = projectCosts.reduce(
+      (sum, cost) => sum + Number(cost.planned_amount_brl || 0),
+      0,
+    );
+    const extraActual = projectCosts.reduce(
+      (sum, cost) => sum + Number(cost.actual_amount_brl || 0),
+      0,
+    );
 
-    const supplierActualTotal = supplierActuals.reduce((s, sa) => s + sa.value, 0);
+    const totalPlanned = laborPlanned + extraPlanned;
+    const totalActual = laborActual + extraActual;
 
-    const materialPlanned = (project.materials || []).reduce((s, m) => s + Number(m.value || 0), 0);
-    const materialActual = (project.materials || [])
-      .filter((m) => m.is_realized)
-      .reduce((s, m) => s + Number(m.value || 0), 0);
-
-    const totalPlanned = laborPlanned + supplierPlanned + materialPlanned;
-    const totalActual = laborActual + supplierActualTotal + materialActual;
-
-    return { totalPlanned, totalActual, laborPlanned, laborActual, supplierPlanned, supplierActualTotal, materialPlanned, materialActual };
+    return { totalPlanned, totalActual, laborPlanned, laborActual, extraPlanned, extraActual };
   }, [
     project,
     memberMonths,
     timesheets,
-    supplierMonths,
-    supplierActuals,
+    projectCosts,
     projectDuration,
     plannedLaborFromAllocations.hasRoleAllocations,
     plannedLaborFromAllocations.total,
