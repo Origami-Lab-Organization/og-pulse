@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { DollarSign, Target, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
@@ -13,6 +14,7 @@ import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
+import { formatPercent } from '@/lib/formatters';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
