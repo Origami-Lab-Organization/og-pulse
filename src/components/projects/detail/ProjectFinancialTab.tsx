@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { DollarSign, Target, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { getProjectMonthLabel } from '@/lib/formatters';
