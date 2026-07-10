@@ -252,7 +252,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         marginPlanned={kpiData.marginPlanned}
         marginActual={kpiData.marginActual}
         marginVar={kpiData.marginVar}
-        marginTarget={financialSettings?.minimum_gross_margin_percent ?? undefined}
+        marginTarget={financialSettings?.gross_margin_target_percent ?? undefined}
       />
 
       {/* Row 3: Team */}
