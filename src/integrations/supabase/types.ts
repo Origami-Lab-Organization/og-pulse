@@ -3744,6 +3744,7 @@ export type Database = {
           deliverables: string | null
           end_date: string
           id: string
+          milestone_type: string
           project_id: string
           start_date: string
           status: string | null
@@ -3755,6 +3756,7 @@ export type Database = {
           deliverables?: string | null
           end_date: string
           id?: string
+          milestone_type?: string
           project_id: string
           start_date: string
           status?: string | null
@@ -3766,6 +3768,7 @@ export type Database = {
           deliverables?: string | null
           end_date?: string
           id?: string
+          milestone_type?: string
           project_id?: string
           start_date?: string
           status?: string | null
@@ -3821,6 +3824,47 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_role_allocation_edit_logs: {
+        Row: {
+          allocation_id: string
+          created_at: string
+          edited_by: string
+          id: string
+          justification: string | null
+          new_hours: number
+          previous_hours: number
+          reason_code: string | null
+        }
+        Insert: {
+          allocation_id: string
+          created_at?: string
+          edited_by: string
+          id?: string
+          justification?: string | null
+          new_hours: number
+          previous_hours: number
+          reason_code?: string | null
+        }
+        Update: {
+          allocation_id?: string
+          created_at?: string
+          edited_by?: string
+          id?: string
+          justification?: string | null
+          new_hours?: number
+          previous_hours?: number
+          reason_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_role_allocation_edit_logs_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "project_role_allocations"
             referencedColumns: ["id"]
           },
         ]
@@ -4145,6 +4189,108 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_team_row_months: {
+        Row: {
+          id: string
+          month: number
+          planned_hours: number
+          row_id: string
+          year: number
+        }
+        Insert: {
+          id?: string
+          month: number
+          planned_hours?: number
+          row_id: string
+          year: number
+        }
+        Update: {
+          id?: string
+          month?: number
+          planned_hours?: number
+          row_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_team_row_months_row_id_fkey"
+            columns: ["row_id"]
+            isOneToOne: false
+            referencedRelation: "project_team_rows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_team_rows: {
+        Row: {
+          budget_role_id: string | null
+          created_at: string
+          custom_role_name: string | null
+          deallocated_at: string | null
+          deallocated_by: string | null
+          employee_id: string | null
+          id: string
+          project_id: string
+          reactivated_at: string | null
+          row_type: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          budget_role_id?: string | null
+          created_at?: string
+          custom_role_name?: string | null
+          deallocated_at?: string | null
+          deallocated_by?: string | null
+          employee_id?: string | null
+          id?: string
+          project_id: string
+          reactivated_at?: string | null
+          row_type: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          budget_role_id?: string | null
+          created_at?: string
+          custom_role_name?: string | null
+          deallocated_at?: string | null
+          deallocated_by?: string | null
+          employee_id?: string | null
+          id?: string
+          project_id?: string
+          reactivated_at?: string | null
+          row_type?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_team_rows_budget_role_id_fkey"
+            columns: ["budget_role_id"]
+            isOneToOne: false
+            referencedRelation: "budget_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_team_rows_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_team_rows_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -5745,6 +5891,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_employee_to_vacancy_row: {
+        Args: { p_employee_id: string; p_row_id: string }
+        Returns: undefined
+      }
       attach_project_contract: {
         Args: {
           p_file_name: string
@@ -5785,6 +5935,10 @@ export type Database = {
       count_employee_cost_business_days: {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
         Returns: number
+      }
+      deallocate_project_member: {
+        Args: { p_employee_id: string; p_project_id: string }
+        Returns: undefined
       }
       first_access_status: { Args: { p_email: string }; Returns: string }
       generate_budget_number: { Args: { p_tenant_id: string }; Returns: string }
@@ -5948,6 +6102,14 @@ export type Database = {
       project_child_tenant_matches: {
         Args: { _project_id: string; _tenant_id: string }
         Returns: boolean
+      }
+      project_employee_has_actual_hours: {
+        Args: { p_employee_id: string; p_project_id: string }
+        Returns: boolean
+      }
+      reactivate_project_member: {
+        Args: { p_employee_id: string; p_project_id: string }
+        Returns: undefined
       }
       recalculate_employee_cost_snapshots: {
         Args: { p_employee_id: string }
