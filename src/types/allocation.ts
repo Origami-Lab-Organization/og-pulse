@@ -101,6 +101,7 @@ export interface AllocationPanelMonthData {
   projects: AllocationPanelProjectRow[];
   plannedHours: number;
   actualHours: number;
+  internalHours: number;
 }
 
 export interface AllocationPanelData {

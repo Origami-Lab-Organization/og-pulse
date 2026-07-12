@@ -229,16 +229,20 @@ export function EmployeeAllocationPanel({
     return readOnlyMessage(row.projectId);
   };
 
+  const internalHours = focusedMonthData?.internalHours ?? 0;
   const plannedTotal = rows.reduce((sum, row) => sum + row.plannedHours, 0);
-  const actualTotal = rows.reduce((sum, row) => sum + row.actualHours, 0);
+  const actualTotal = rows.reduce((sum, row) => sum + row.actualHours, 0) + internalHours;
   const fallbackCapacityHours = focusedMonth && employee ? Number(employee.cells[focusedMonth.key]?.capacityHours || 0) : 0;
   const capacityHours = Number(availabilityQuery.data?.capacityHours ?? fallbackCapacityHours);
-  const utilization = capacityHours > 0 ? Math.round((plannedTotal / capacityHours) * 100) : null;
+  const isPastMonth = Boolean(focusedMonth && focusedMonth.key < currentMonthKey());
+  const isCurrentMonth = focusedMonth?.key === currentMonthKey();
+  // Mês fechado avalia o que foi realizado; mês atual/futuro avalia o planejado.
+  const utilizationBasisHours = isPastMonth ? actualTotal : plannedTotal;
+  const utilization = capacityHours > 0 ? Math.round((utilizationBasisHours / capacityHours) * 100) : null;
   const status = getAllocationStatus(utilization);
   const statusClasses = getAllocationStatusClasses(status);
-  const excessHours = Math.max(plannedTotal - capacityHours, 0);
+  const excessHours = isPastMonth ? 0 : Math.max(plannedTotal - capacityHours, 0);
   const isEmpty = rows.length === 0 && plannedTotal === 0 && actualTotal === 0;
-  const isCurrentMonth = focusedMonth?.key === currentMonthKey();
   const expectedHours = focusedMonth ? getExpectedHoursToDate(plannedTotal, focusedMonth) : 0;
   const paceVarianceHours = actualTotal - expectedHours;
   const canEditRow = (row: AllocationPanelProjectRow) => Boolean(row.allocationId) && canEditProject(row.projectId);
@@ -391,7 +395,7 @@ export function EmployeeAllocationPanel({
               <section className={cn('rounded-lg border p-4', statusClasses.soft)}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="ol-label">Status de utilização</p>
+                    <p className="ol-label">{isPastMonth ? 'Utilização realizada' : 'Utilização planejada'}</p>
                     <div className="mt-2 flex flex-wrap items-baseline gap-2">
                       <span className="font-mono text-2xl font-semibold leading-none tabular-nums">
                         {statusCopy(utilization)}
@@ -400,7 +404,7 @@ export function EmployeeAllocationPanel({
                     </div>
                   </div>
                   <span className="font-mono text-xs font-semibold tabular-nums">
-                    {formatHours(plannedTotal)} / {formatHours(capacityHours)} capacidade
+                    {formatHours(utilizationBasisHours)} / {formatHours(capacityHours)} capacidade
                   </span>
                 </div>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-background/70">
@@ -566,6 +570,21 @@ export function EmployeeAllocationPanel({
                           </div>
                         </div>
                       ))}
+
+                      {internalHours > 0 && (
+                        <div className={cn(PANEL_ROW_GRID, 'bg-muted/20 px-4 py-3')}>
+                          <div className="min-w-0">
+                            <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-foreground">
+                              <span className="h-2 w-2 shrink-0 rounded-sm bg-brand-slate" />
+                              Atividades internas
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">Administrativo · não billable</p>
+                          </div>
+                          <div className="text-right"><ReadOnlyHours value={null} muted /></div>
+                          <div className="text-right"><ReadOnlyHours value={internalHours} /></div>
+                          <span aria-hidden />
+                        </div>
+                      )}
 
                       {previousMonthData && (
                         <div className={cn(PANEL_ROW_GRID, 'bg-muted/35 px-4 py-3 text-muted-foreground')}>

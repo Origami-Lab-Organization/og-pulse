@@ -5,10 +5,11 @@ import { countWorkingDays } from '@/lib/workingDays';
 
 const DEFAULT_MINIMUM_UTILIZATION = 40;
 
-// Deduzido comparando linha a linha os números do mockup de "Alocação com foco em
-// aderência": um desvio de ritmo (lançado vs. esperado até hoje) só entra em "Fora do
-// plano" a partir de 15h — ajustável se o critério de negócio mudar.
-export const PACE_VARIANCE_THRESHOLD_HOURS = 15;
+// Tolerância de ritmo do protótipo "Alocação com foco em aderência": desvio
+// (lançado vs. esperado até hoje) só vira "fora do plano" acima do maior entre um piso
+// fixo e uma fração do esperado — evita alarme falso cedo no mês (esperado baixo).
+export const PACE_TOLERANCE_FLOOR_HOURS = 10;
+export const PACE_TOLERANCE_RATIO = 0.25;
 
 interface HolidayLike {
   holiday_type: string;
@@ -128,12 +129,30 @@ export function getPaceVarianceHours(cell: AllocationCell, month: Pick<Allocatio
   return getLoggedHours(cell) - getExpectedHoursToDate(cell.plannedHours, month);
 }
 
-export function isOutOfPace(cell: AllocationCell, month: Pick<AllocationMonth, 'workingDays' | 'workingDaysElapsed'>) {
-  return Math.abs(getPaceVarianceHours(cell, month)) >= PACE_VARIANCE_THRESHOLD_HOURS;
+export function getPaceTolerance(expectedHours: number) {
+  return Math.max(PACE_TOLERANCE_FLOOR_HOURS, PACE_TOLERANCE_RATIO * expectedHours);
 }
 
-export function hasUnplannedLogging(cell: AllocationCell) {
-  return Number(cell.plannedHours || 0) === 0 && getLoggedHours(cell) > 0;
+export type PaceKind = 'none' | 'ok' | 'over' | 'under';
+
+// Espelha a classificação do protótipo: sem plano e sem lançamento é neutro; lançar
+// sem nenhum planejamento é sempre "over" (fora do plano), mesmo que poucas horas;
+// caso contrário, o desvio de ritmo entra na tolerância relativa/absoluta.
+export function getPaceKind(cell: AllocationCell, month: Pick<AllocationMonth, 'workingDays' | 'workingDaysElapsed'>): PaceKind {
+  const plannedHours = Number(cell.plannedHours || 0);
+  const loggedHours = getLoggedHours(cell);
+  if (plannedHours === 0 && loggedHours === 0) return 'none';
+  if (plannedHours === 0) return 'over';
+
+  const variance = getPaceVarianceHours(cell, month);
+  const tolerance = getPaceTolerance(getExpectedHoursToDate(plannedHours, month));
+  if (Math.abs(variance) <= tolerance) return 'ok';
+  return variance > 0 ? 'over' : 'under';
+}
+
+export function isOutOfPace(cell: AllocationCell, month: Pick<AllocationMonth, 'workingDays' | 'workingDaysElapsed'>) {
+  const kind = getPaceKind(cell, month);
+  return kind === 'over' || kind === 'under';
 }
 
 export function formatSignedHours(value: number) {
@@ -232,6 +251,16 @@ export function sortByReferencePlanVariance(people: AllocationPerson[], referenc
     const rightCell = right.cells[referenceMonthKey] ?? emptyAllocationCell(referenceMonthKey);
     const leftVariance = Math.abs(getPlanVariance(leftCell));
     const rightVariance = Math.abs(getPlanVariance(rightCell));
+    return rightVariance - leftVariance || left.name.localeCompare(right.name, 'pt-BR');
+  });
+}
+
+export function sortByReferencePaceVariance(people: AllocationPerson[], referenceMonth: AllocationMonth) {
+  return [...people].sort((left, right) => {
+    const leftCell = left.cells[referenceMonth.key] ?? emptyAllocationCell(referenceMonth.key);
+    const rightCell = right.cells[referenceMonth.key] ?? emptyAllocationCell(referenceMonth.key);
+    const leftVariance = Math.abs(getPaceVarianceHours(leftCell, referenceMonth));
+    const rightVariance = Math.abs(getPaceVarianceHours(rightCell, referenceMonth));
     return rightVariance - leftVariance || left.name.localeCompare(right.name, 'pt-BR');
   });
 }

@@ -2,17 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import * as amplitude from '@amplitude/analytics-browser';
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
-import { AlertCircle, CalendarDays } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AllocationGrid } from '@/components/allocation/AllocationGrid';
 import { AllocationToolbar } from '@/components/allocation/AllocationToolbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAllocationGrid } from '@/hooks/useAllocationGrid';
-import { calculateMetrics, filterAllocationPeople, getAllocationStatus, getLoggedHours, sortByReferencePlanVariance } from '@/lib/allocationGrid';
+import { calculateMetrics, filterAllocationPeople, getAllocationStatus } from '@/lib/allocationGrid';
 import { formatDate } from '@/lib/formatters';
 import { AllocationFiltersState, AllocationMonth, AllocationPerson, AllocationProjectPill, AllocationStatusFilter } from '@/types/allocation';
 
@@ -43,42 +41,6 @@ function activeFiltersCount(filters: AllocationFiltersState) {
     filters.search.trim().length > 0,
     filters.showTerminated,
   ].filter(Boolean).length;
-}
-
-function csvEscape(value: string | number | null) {
-  const raw = value === null ? '' : String(value);
-  return `"${raw.replace(/"/g, '""')}"`;
-}
-
-function buildCsv(people: AllocationPerson[], months: AllocationMonth[]) {
-  const headers = [
-    'Nome',
-    'Cargo',
-    ...months.flatMap((month) => [
-      `${month.label} planejado`,
-      `${month.label} lançado`,
-      `${month.label} capacidade`,
-      `${month.label} aderência`,
-    ]),
-  ];
-
-  const rows = people.map((person) => [
-    person.name,
-    person.role,
-    ...months.flatMap((month) => {
-      const cell = person.cells[month.key];
-      const loggedHours = getLoggedHours(cell);
-      const adherence = cell.plannedHours > 0 ? Math.round((loggedHours / cell.plannedHours) * 100) : null;
-      return [
-        Math.round(cell.plannedHours),
-        Math.round(loggedHours),
-        Math.round(cell.capacityHours),
-        adherence === null ? '—' : `${adherence}%`,
-      ];
-    }),
-  ]);
-
-  return [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
 }
 
 const JOAOZINHO_VISUAL_PROJECTS: AllocationProjectPill[] = [
@@ -191,10 +153,8 @@ export default function AlocacaoPage() {
   const filteredPeople = useMemo(() => {
     if (!data || !referenceMonth) return [];
     const sourcePeople = applyVisualFixture(data.people, referenceMonthKey, visualFixture);
-    return sortByReferencePlanVariance(
-      filterAllocationPeople(sourcePeople, filters, referenceMonth),
-      referenceMonthKey,
-    );
+    return [...filterAllocationPeople(sourcePeople, filters, referenceMonth)]
+      .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'));
   }, [data, filters, referenceMonth, referenceMonthKey, visualFixture]);
 
   const metrics = useMemo(
@@ -262,64 +222,13 @@ export default function AlocacaoPage() {
     amplitude.track('allocation_employee_opened', { employeeId });
   };
 
-  const exportCsv = () => {
-    if (!data) return;
-    const csv = buildCsv(filteredPeople, data.months);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const period = data.months.map((month) => month.key).join('_');
-    link.href = url;
-    link.download = `alocacao-equipe-${period}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   const emptyMessage = data?.people.length === 0
     ? 'Nenhum funcionário cadastrado'
     : 'Nenhum funcionário encontrado com os filtros aplicados';
 
   return (
-    <AppLayout
-      title="Alocação da Equipe"
-      description="Compare o que foi planejado com o que foi lançado no timesheet, sem misturar custo."
-      breadcrumbs={[{ label: 'Alocação da Equipe' }]}
-      actions={
-        <>
-          <div className="flex flex-col items-end gap-0.5">
-            <Select value={`${offsetStart}:${periodLength}`} onValueChange={(value) => {
-              const [nextOffset, nextLength] = value.split(':').map(Number);
-              updatePeriod(nextOffset, nextLength);
-            }}>
-              <SelectTrigger className="h-9 w-auto gap-2 px-3">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value="0:1">Somente mês atual</SelectItem>
-                <SelectItem value="-1:4">Anterior + atual + 2 próximos</SelectItem>
-                <SelectItem value="0:4">Mês atual + 3 próximos</SelectItem>
-                <SelectItem value="-1:5">1 passado + atual + 3 próximos</SelectItem>
-                <SelectItem value="-2:6">2 passados + atual + 3 próximos</SelectItem>
-                <SelectItem value="1:4">Próximos 4 meses</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-xs text-muted-foreground">
-              {formatDate(periodBounds.startDate)} - {formatDate(periodBounds.endDate)}
-            </span>
-          </div>
-
-          <label className="flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground transition-colors hover:border-ring/50">
-            <Switch
-              checked={filters.showTerminated}
-              onCheckedChange={(value) => updateFilter('showTerminated', value)}
-            />
-            Desligados
-          </label>
-        </>
-      }
-    >
-      <div className="space-y-6">
+    <AppLayout title="Alocação da Equipe" hideHeader>
+      <div className="space-y-4">
         <AllocationToolbar
           filters={filters}
           roles={data?.roles ?? []}
@@ -328,9 +237,12 @@ export default function AlocacaoPage() {
           isLoading={isLoading}
           activeFiltersCount={filterCount}
           referenceLabel={referenceLabel}
+          offsetStart={offsetStart}
+          periodLength={periodLength}
+          periodLabel={`${formatDate(periodBounds.startDate)} - ${formatDate(periodBounds.endDate)}`}
           onFilterChange={updateFilter}
           onClear={clearFilters}
-          onExport={exportCsv}
+          onPeriodChange={updatePeriod}
         />
 
         {isError && (

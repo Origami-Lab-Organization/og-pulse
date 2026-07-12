@@ -9,11 +9,11 @@ import { cn } from '@/lib/utils';
 import {
   getAllocationStatusClasses,
   getExpectedHoursToDate,
-  getLoggedHours,
-  hasUnplannedLogging,
+  getPaceKind,
+  getPaceVarianceHours,
   formatSignedHours,
   snapWidthClass,
-  PACE_VARIANCE_THRESHOLD_HOURS,
+  PaceKind,
 } from '@/lib/allocationGrid';
 import { EmployeeAllocationPanel } from '@/components/allocation/EmployeeAllocationPanel';
 import { AllocationCell, AllocationMonth, AllocationPerson, AllocationProjectOption, AllocationStatusKey } from '@/types/allocation';
@@ -66,14 +66,12 @@ function monthHeaderSubtitle(monthKey: string, isReference: boolean) {
   return isFutureMonth(monthKey) ? '% alocação · planejado / cap.' : '% alocação · realizado / cap.';
 }
 
-function paceStatusClasses(varianceHours: number) {
-  if (Math.abs(varianceHours) < PACE_VARIANCE_THRESHOLD_HOURS) {
-    return { bar: 'bg-success', badge: 'bg-success/10 text-success' };
-  }
-  return varianceHours > 0
-    ? { bar: 'bg-warning', badge: 'bg-warning/10 text-warning' }
-    : { bar: 'bg-destructive', badge: 'bg-destructive/10 text-destructive' };
-}
+const PACE_KIND_CLASSES: Record<PaceKind, { bar: string; badge: string }> = {
+  none: { bar: 'bg-muted-foreground/20', badge: 'bg-muted text-muted-foreground' },
+  ok: { bar: 'bg-success', badge: 'bg-success/10 text-success' },
+  over: { bar: 'bg-warning', badge: 'bg-warning/10 text-warning' },
+  under: { bar: 'bg-destructive', badge: 'bg-destructive/10 text-destructive' },
+};
 
 function AllocationGridSkeleton({ months }: { months: AllocationMonth[] }) {
   return (
@@ -233,16 +231,26 @@ function ReferenceMonthCell({
   month: AllocationMonth;
   onOpen: () => void;
 }) {
-  const loggedHours = getLoggedHours(cell);
+  const projectHours = Number(cell.actualProjectHours || 0);
+  const internalHours = Number(cell.internalHours || 0);
+  const loggedHours = projectHours + internalHours;
   const plannedHours = Number(cell.plannedHours || 0);
   const capacityHours = Number(cell.capacityHours || 0);
   const expectedHours = getExpectedHoursToDate(plannedHours, month);
-  const varianceHours = loggedHours - expectedHours;
-  const paceClasses = paceStatusClasses(varianceHours);
+  const varianceHours = getPaceVarianceHours(cell, month);
+  const kind = getPaceKind(cell, month);
+  const paceClasses = PACE_KIND_CLASSES[kind];
+
   const plannedRatio = capacityHours > 0 ? Math.round((plannedHours / capacityHours) * 100) : 0;
-  const loggedRatio = capacityHours > 0 ? Math.round((loggedHours / capacityHours) * 100) : 0;
-  const showVarianceBadge = plannedHours > 0 || loggedHours > 0;
-  const unplanned = hasUnplannedLogging(cell);
+  const projectRatio = capacityHours > 0 ? Math.min(100, Math.round((projectHours / capacityHours) * 100)) : 0;
+  const internalRatio = capacityHours > 0 ? Math.min(100 - projectRatio, Math.round((internalHours / capacityHours) * 100)) : 0;
+
+  const splitText = loggedHours > 0 ? `${formatHours(projectHours)} proj · ${formatHours(internalHours)} int · ` : '';
+  const captionText = expectedHours > 0
+    ? `${splitText}esperado até hoje: ${formatHours(expectedHours)}`
+    : loggedHours > 0
+      ? `${splitText}lançou sem planejamento no mês`
+      : 'sem planejamento no mês';
 
   return (
     <Tooltip>
@@ -256,27 +264,28 @@ function ReferenceMonthCell({
             <span className="font-mono text-base font-bold leading-none tabular-nums text-foreground">
               {formatHours(loggedHours)}
             </span>
-            {showVarianceBadge && (
-              <span className={cn('rounded-pill px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none tabular-nums', paceClasses.badge)}>
-                {formatSignedHours(varianceHours)}
-              </span>
-            )}
+            <span className={cn('rounded-pill px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none tabular-nums', paceClasses.badge)}>
+              {kind === 'none' ? '—' : formatSignedHours(varianceHours)}
+            </span>
           </div>
           <span className="font-mono text-[11px] leading-none tabular-nums text-muted-foreground">
             lançado · plan. {formatHours(plannedHours)} · cap. {formatHours(capacityHours)}
           </span>
           <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div className={cn('absolute inset-y-0 left-0 rounded-full bg-foreground/15', snapWidthClass(plannedRatio))} />
-            <div className={cn('absolute inset-y-0 left-0 rounded-full', paceClasses.bar, snapWidthClass(loggedRatio))} />
+            <div className={cn('absolute inset-y-0 left-0 rounded-full bg-success/15', snapWidthClass(plannedRatio))} />
+            <div className={cn('absolute inset-y-0 left-0 rounded-full', paceClasses.bar, snapWidthClass(projectRatio))} />
+            <div
+              className="absolute inset-y-0 rounded-full bg-brand-slate"
+              style={{ left: `${projectRatio}%`, width: `${internalRatio}%` }}
+            />
           </div>
-          <span className="text-[10px] leading-none text-muted-foreground">
-            {unplanned ? 'lançou sem planejamento no mês' : `esperado até hoje: ${formatHours(expectedHours)}`}
-          </span>
+          <span className="text-[10px] leading-none text-muted-foreground">{captionText}</span>
         </button>
       </TooltipTrigger>
       <TooltipContent>
         <p>
-          Lançado: {formatHours(loggedHours)} · Esperado até hoje: {formatHours(expectedHours)} ({formatSignedHours(varianceHours)})
+          Lançado: {formatHours(loggedHours)} ({formatHours(projectHours)} proj · {formatHours(internalHours)} int)
+          {' '}· Esperado até hoje: {formatHours(expectedHours)} ({kind === 'none' ? '—' : formatSignedHours(varianceHours)})
           {' '}· Dia útil {month.workingDaysElapsed} de {month.workingDays}
         </p>
       </TooltipContent>
@@ -284,7 +293,7 @@ function ReferenceMonthCell({
   );
 }
 
-function AllocationLegend() {
+function AllocationLegend({ referenceMonth }: { referenceMonth?: AllocationMonth }) {
   const items: Array<{ label: string; key: AllocationStatusKey }> = [
     { label: 'Saudável 70–100%', key: 'healthy' },
     { label: 'Ocioso < 70%', key: 'idle' },
@@ -305,6 +314,15 @@ function AllocationLegend() {
           </span>
         );
       })}
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-1.5 w-2.5 rounded-sm bg-brand-slate" />
+        horas internas (não billable)
+      </span>
+      {referenceMonth && (
+        <span className="ml-auto">
+          esperado até hoje = planejado × dias úteis decorridos ({referenceMonth.workingDaysElapsed}/{referenceMonth.workingDays})
+        </span>
+      )}
     </div>
   );
 }
@@ -356,13 +374,20 @@ export function AllocationGrid({
         <table className="w-full min-w-[900px] table-fixed border-collapse">
           <thead>
             <tr>
-              <th className="sticky left-0 z-20 w-[200px] border-b border-r bg-muted p-3 text-left">
+              <th className="sticky left-0 z-20 w-[220px] border-b border-r bg-muted p-3 text-left">
                 <span className="ol-label text-muted-foreground">Pessoa</span>
               </th>
               {months.map((month) => {
                 const isReference = month.key === referenceMonthKey;
+                // Mês atual em destaque (coluna mais larga, absorve o espaço livre);
+                // meses passados mais estreitos, futuros num tamanho intermediário.
+                const widthClass = isReference
+                  ? 'min-w-[320px]'
+                  : isFutureMonth(month.key)
+                    ? 'w-[150px]'
+                    : 'w-[128px]';
                 return (
-                  <th key={month.key} className="w-[160px] border-b border-r bg-muted p-3 text-left last:border-r-0">
+                  <th key={month.key} className={cn('border-b border-r bg-muted p-3 text-left last:border-r-0', widthClass, isReference && 'bg-success-subtle/40')}>
                     <span className="block text-sm font-semibold uppercase tracking-normal text-foreground">
                       {month.label}
                       {isReference && (
@@ -394,7 +419,13 @@ export function AllocationGrid({
                   const isReference = month.key === referenceMonthKey;
 
                   return (
-                    <td key={`${person.id}-${month.key}`} className="border-r border-t bg-card p-0 align-middle last:border-r-0 transition-colors group-hover:bg-accent/50">
+                    <td
+                      key={`${person.id}-${month.key}`}
+                      className={cn(
+                        'border-r border-t p-0 align-middle last:border-r-0 transition-colors group-hover:bg-accent/50',
+                        isReference ? 'bg-success-subtle/40' : 'bg-card',
+                      )}
+                    >
                       {isReference ? (
                         <ReferenceMonthCell cell={cell} month={month} onOpen={() => openPerson(person.id, month.key)} />
                       ) : (
@@ -409,7 +440,7 @@ export function AllocationGrid({
         </table>
       </div>
 
-      <AllocationLegend />
+      <AllocationLegend referenceMonth={months.find((month) => month.key === referenceMonthKey)} />
 
       <AllocationPaginationFooter
         page={page}
