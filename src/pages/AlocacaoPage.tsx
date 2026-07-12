@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import * as amplitude from '@amplitude/analytics-browser';
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CalendarDays } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { AllocationFilters } from '@/components/allocation/AllocationFilters';
 import { AllocationGrid } from '@/components/allocation/AllocationGrid';
-import { AllocationMetricsBar } from '@/components/allocation/AllocationMetricsBar';
+import { AllocationToolbar } from '@/components/allocation/AllocationToolbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAllocationGrid } from '@/hooks/useAllocationGrid';
 import { calculateMetrics, filterAllocationPeople, getAllocationStatus, getLoggedHours, sortByReferencePlanVariance } from '@/lib/allocationGrid';
@@ -16,6 +17,7 @@ import { formatDate } from '@/lib/formatters';
 import { AllocationFiltersState, AllocationMonth, AllocationPerson, AllocationProjectPill, AllocationStatusFilter } from '@/types/allocation';
 
 const PAGE_SIZE = 15;
+const DEFAULT_OFFSET_START = -1;
 
 const DEFAULT_FILTERS: AllocationFiltersState = {
   status: 'all',
@@ -93,7 +95,7 @@ const JOAOZINHO_VISUAL_PROJECTS: AllocationProjectPill[] = [
 ];
 
 function readStatusFilter(value: string | null): AllocationStatusFilter {
-  if (value === 'abovePlan' || value === 'missingLogs' || value === 'overloaded' || value === 'unallocated') return value;
+  if (value === 'abovePlan' || value === 'missingLogs' || value === 'overloaded' || value === 'unallocated' || value === 'outOfPace') return value;
   if (value === 'overallocated') return 'overloaded';
   return DEFAULT_FILTERS.status;
 }
@@ -150,7 +152,7 @@ export default function AlocacaoPage() {
     search: searchParams.get('q') || DEFAULT_FILTERS.search,
     showTerminated: searchParams.get('desligados') === '1',
   });
-  const [offsetStart, setOffsetStart] = useState(readNumber(searchParams.get('offset'), 0));
+  const [offsetStart, setOffsetStart] = useState(readNumber(searchParams.get('offset'), DEFAULT_OFFSET_START));
   const [periodLength, setPeriodLength] = useState(readNumber(searchParams.get('months'), 4));
   const [page, setPage] = useState(1);
 
@@ -187,17 +189,17 @@ export default function AlocacaoPage() {
   }, [baseDate, months, offsetStart, periodLength]);
 
   const filteredPeople = useMemo(() => {
-    if (!data || !referenceMonthKey) return [];
+    if (!data || !referenceMonth) return [];
     const sourcePeople = applyVisualFixture(data.people, referenceMonthKey, visualFixture);
     return sortByReferencePlanVariance(
-      filterAllocationPeople(sourcePeople, filters, referenceMonthKey),
+      filterAllocationPeople(sourcePeople, filters, referenceMonth),
       referenceMonthKey,
     );
-  }, [data, filters, referenceMonthKey, visualFixture]);
+  }, [data, filters, referenceMonth, referenceMonthKey, visualFixture]);
 
   const metrics = useMemo(
-    () => (referenceMonthKey ? calculateMetrics(filteredPeople, referenceMonthKey) : calculateMetrics([], '')),
-    [filteredPeople, referenceMonthKey],
+    () => calculateMetrics(filteredPeople, referenceMonth),
+    [filteredPeople, referenceMonth],
   );
 
   const paginatedPeople = useMemo(() => {
@@ -214,7 +216,7 @@ export default function AlocacaoPage() {
     if (filters.projectId !== 'all') nextParams.set('project', filters.projectId);
     if (filters.search.trim()) nextParams.set('q', filters.search.trim());
     if (filters.showTerminated) nextParams.set('desligados', '1');
-    if (offsetStart !== 0) nextParams.set('offset', String(offsetStart));
+    if (offsetStart !== DEFAULT_OFFSET_START) nextParams.set('offset', String(offsetStart));
     if (periodLength !== 4) nextParams.set('months', String(periodLength));
     if (visualFixture) nextParams.set('teste', visualFixture);
     setSearchParams(nextParams, { replace: true });
@@ -282,28 +284,53 @@ export default function AlocacaoPage() {
       title="Alocação da Equipe"
       description="Compare o que foi planejado com o que foi lançado no timesheet, sem misturar custo."
       breadcrumbs={[{ label: 'Alocação da Equipe' }]}
+      actions={
+        <>
+          <div className="flex flex-col items-end gap-0.5">
+            <Select value={`${offsetStart}:${periodLength}`} onValueChange={(value) => {
+              const [nextOffset, nextLength] = value.split(':').map(Number);
+              updatePeriod(nextOffset, nextLength);
+            }}>
+              <SelectTrigger className="h-9 w-auto gap-2 px-3">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="0:1">Somente mês atual</SelectItem>
+                <SelectItem value="-1:4">Anterior + atual + 2 próximos</SelectItem>
+                <SelectItem value="0:4">Mês atual + 3 próximos</SelectItem>
+                <SelectItem value="-1:5">1 passado + atual + 3 próximos</SelectItem>
+                <SelectItem value="-2:6">2 passados + atual + 3 próximos</SelectItem>
+                <SelectItem value="1:4">Próximos 4 meses</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">
+              {formatDate(periodBounds.startDate)} - {formatDate(periodBounds.endDate)}
+            </span>
+          </div>
+
+          <label className="flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground transition-colors hover:border-ring/50">
+            <Switch
+              checked={filters.showTerminated}
+              onCheckedChange={(value) => updateFilter('showTerminated', value)}
+            />
+            Desligados
+          </label>
+        </>
+      }
     >
       <div className="space-y-6">
-        <AllocationMetricsBar
-          metrics={metrics}
-          isLoading={isLoading}
-          activeFilter={filters.status}
-          onStatusSelect={(status) => updateFilter('status', status)}
-        />
-
-        <AllocationFilters
+        <AllocationToolbar
           filters={filters}
           roles={data?.roles ?? []}
           projects={data?.projects ?? []}
-          offsetStart={offsetStart}
-          periodLength={periodLength}
+          metrics={metrics}
+          isLoading={isLoading}
           activeFiltersCount={filterCount}
+          referenceLabel={referenceLabel}
           onFilterChange={updateFilter}
-          onPeriodChange={updatePeriod}
           onClear={clearFilters}
           onExport={exportCsv}
-          periodLabel={`${formatDate(periodBounds.startDate)} - ${formatDate(periodBounds.endDate)}`}
-          referenceLabel={referenceLabel}
         />
 
         {isError && (

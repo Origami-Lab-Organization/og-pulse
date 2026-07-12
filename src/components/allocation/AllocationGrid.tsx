@@ -6,7 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { getAllocationStatusClasses } from '@/lib/allocationGrid';
+import {
+  getAllocationStatusClasses,
+  getExpectedHoursToDate,
+  getLoggedHours,
+  hasUnplannedLogging,
+  formatSignedHours,
+  snapWidthClass,
+  PACE_VARIANCE_THRESHOLD_HOURS,
+} from '@/lib/allocationGrid';
 import { EmployeeAllocationPanel } from '@/components/allocation/EmployeeAllocationPanel';
 import { AllocationCell, AllocationMonth, AllocationPerson, AllocationProjectOption, AllocationStatusKey } from '@/types/allocation';
 
@@ -53,8 +61,18 @@ function isFutureMonth(monthKey: string) {
   return monthKey > currentMonthKey();
 }
 
-function monthHeaderSubtitle(monthKey: string) {
+function monthHeaderSubtitle(monthKey: string, isReference: boolean) {
+  if (isReference) return 'lançado · plan. · cap. — faixa clara na barra = planejado';
   return isFutureMonth(monthKey) ? '% alocação · planejado / cap.' : '% alocação · realizado / cap.';
+}
+
+function paceStatusClasses(varianceHours: number) {
+  if (Math.abs(varianceHours) < PACE_VARIANCE_THRESHOLD_HOURS) {
+    return { bar: 'bg-success', badge: 'bg-success/10 text-success' };
+  }
+  return varianceHours > 0
+    ? { bar: 'bg-warning', badge: 'bg-warning/10 text-warning' }
+    : { bar: 'bg-destructive', badge: 'bg-destructive/10 text-destructive' };
 }
 
 function AllocationGridSkeleton({ months }: { months: AllocationMonth[] }) {
@@ -206,6 +224,66 @@ function MonthCell({
   );
 }
 
+function ReferenceMonthCell({
+  cell,
+  month,
+  onOpen,
+}: {
+  cell: AllocationCell;
+  month: AllocationMonth;
+  onOpen: () => void;
+}) {
+  const loggedHours = getLoggedHours(cell);
+  const plannedHours = Number(cell.plannedHours || 0);
+  const capacityHours = Number(cell.capacityHours || 0);
+  const expectedHours = getExpectedHoursToDate(plannedHours, month);
+  const varianceHours = loggedHours - expectedHours;
+  const paceClasses = paceStatusClasses(varianceHours);
+  const plannedRatio = capacityHours > 0 ? Math.round((plannedHours / capacityHours) * 100) : 0;
+  const loggedRatio = capacityHours > 0 ? Math.round((loggedHours / capacityHours) * 100) : 0;
+  const showVarianceBadge = plannedHours > 0 || loggedHours > 0;
+  const unplanned = hasUnplannedLogging(cell);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex min-h-[64px] w-full flex-col items-start justify-center gap-1 p-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none"
+        >
+          <div className="flex w-full items-baseline justify-between gap-2">
+            <span className="font-mono text-base font-bold leading-none tabular-nums text-foreground">
+              {formatHours(loggedHours)}
+            </span>
+            {showVarianceBadge && (
+              <span className={cn('rounded-pill px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none tabular-nums', paceClasses.badge)}>
+                {formatSignedHours(varianceHours)}
+              </span>
+            )}
+          </div>
+          <span className="font-mono text-[11px] leading-none tabular-nums text-muted-foreground">
+            lançado · plan. {formatHours(plannedHours)} · cap. {formatHours(capacityHours)}
+          </span>
+          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className={cn('absolute inset-y-0 left-0 rounded-full bg-foreground/15', snapWidthClass(plannedRatio))} />
+            <div className={cn('absolute inset-y-0 left-0 rounded-full', paceClasses.bar, snapWidthClass(loggedRatio))} />
+          </div>
+          <span className="text-[10px] leading-none text-muted-foreground">
+            {unplanned ? 'lançou sem planejamento no mês' : `esperado até hoje: ${formatHours(expectedHours)}`}
+          </span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>
+          Lançado: {formatHours(loggedHours)} · Esperado até hoje: {formatHours(expectedHours)} ({formatSignedHours(varianceHours)})
+          {' '}· Dia útil {month.workingDaysElapsed} de {month.workingDays}
+        </p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function AllocationLegend() {
   const items: Array<{ label: string; key: AllocationStatusKey }> = [
     { label: 'Saudável 70–100%', key: 'healthy' },
@@ -291,11 +369,13 @@ export function AllocationGrid({
                         <span className="ml-1.5 text-[10px] font-semibold normal-case text-primary-deep">hoje</span>
                       )}
                       <span className="ml-1 text-[11px] font-normal normal-case text-muted-foreground">
-                        · {month.workingDays}d
+                        {isReference
+                          ? `· dia útil ${month.workingDaysElapsed} de ${month.workingDays}`
+                          : `· ${month.workingDays}d`}
                       </span>
                     </span>
                     <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                      {monthHeaderSubtitle(month.key)}
+                      {monthHeaderSubtitle(month.key, isReference)}
                     </span>
                   </th>
                 );
@@ -311,10 +391,15 @@ export function AllocationGrid({
 
                 {months.map((month) => {
                   const cell = person.cells[month.key];
+                  const isReference = month.key === referenceMonthKey;
 
                   return (
                     <td key={`${person.id}-${month.key}`} className="border-r border-t bg-card p-0 align-middle last:border-r-0 transition-colors group-hover:bg-accent/50">
-                      <MonthCell cell={cell} month={month} onOpen={() => openPerson(person.id, month.key)} />
+                      {isReference ? (
+                        <ReferenceMonthCell cell={cell} month={month} onOpen={() => openPerson(person.id, month.key)} />
+                      ) : (
+                        <MonthCell cell={cell} month={month} onOpen={() => openPerson(person.id, month.key)} />
+                      )}
                     </td>
                   );
                 })}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as amplitude from '@amplitude/analytics-browser';
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, HelpCircle, Lock, PlusCircle, Wrench, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, HelpCircle, Lock, PlusCircle, Wrench, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { getAllocationStatus, getAllocationStatusClasses, getAllocationStatusLabel } from '@/lib/allocationGrid';
+import {
+  formatSignedHours,
+  getAllocationStatus,
+  getAllocationStatusClasses,
+  getAllocationStatusLabel,
+  getExpectedHoursToDate,
+  snapWidthClass,
+} from '@/lib/allocationGrid';
 import { useEmployeeAvailability } from '@/hooks/useEmployeeAvailability';
 import {
   PlannedHoursChange,
@@ -62,12 +69,6 @@ function formatHours(value: number) {
   return `${Math.round(value)}h`;
 }
 
-function formatSignedHours(value: number) {
-  const rounded = Math.round(value);
-  if (rounded > 0) return `+${rounded}h`;
-  return `${rounded}h`;
-}
-
 function currentMonthKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -94,20 +95,6 @@ function statusCopy(utilization: number | null) {
   if (utilization === null) return '—';
   if (utilization === 0) return '0% (Mínimo 40%)';
   return `${utilization}%`;
-}
-
-function progressClass(utilization: number | null) {
-  if (utilization === null || utilization <= 0) return 'w-0';
-  if (utilization <= 10) return 'w-[10%]';
-  if (utilization <= 20) return 'w-[20%]';
-  if (utilization <= 30) return 'w-[30%]';
-  if (utilization <= 40) return 'w-[40%]';
-  if (utilization <= 50) return 'w-[50%]';
-  if (utilization <= 60) return 'w-[60%]';
-  if (utilization <= 70) return 'w-[70%]';
-  if (utilization <= 80) return 'w-[80%]';
-  if (utilization <= 90) return 'w-[90%]';
-  return 'w-full';
 }
 
 function PanelSkeleton() {
@@ -251,6 +238,9 @@ export function EmployeeAllocationPanel({
   const statusClasses = getAllocationStatusClasses(status);
   const excessHours = Math.max(plannedTotal - capacityHours, 0);
   const isEmpty = rows.length === 0 && plannedTotal === 0 && actualTotal === 0;
+  const isCurrentMonth = focusedMonth?.key === currentMonthKey();
+  const expectedHours = focusedMonth ? getExpectedHoursToDate(plannedTotal, focusedMonth) : 0;
+  const paceVarianceHours = actualTotal - expectedHours;
   const canEditRow = (row: AllocationPanelProjectRow) => Boolean(row.allocationId) && canEditProject(row.projectId);
 
   const changedRows = rows.filter((row) =>
@@ -414,9 +404,20 @@ export function EmployeeAllocationPanel({
                   </span>
                 </div>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-background/70">
-                  <div className={cn('h-full rounded-full', statusClasses.bg, progressClass(utilization))} />
+                  <div className={cn('h-full rounded-full', statusClasses.bg, snapWidthClass(utilization))} />
                 </div>
               </section>
+
+              {isCurrentMonth && (
+                <section className="flex items-start gap-2.5 rounded-lg border bg-card p-3 text-sm">
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    <span className="font-medium text-foreground">Aderência:</span>
+                    {' '}{formatHours(actualTotal)} lançadas vs. {formatHours(expectedHours)} esperadas até hoje
+                    {' '}({formatSignedHours(paceVarianceHours)}). Dia útil {focusedMonth?.workingDaysElapsed} de {focusedMonth?.workingDays}.
+                  </p>
+                </section>
+              )}
 
               <div className="flex items-center justify-between rounded-md border bg-card px-2 py-2">
                 <Button type="button" variant="ghost" size="icon" disabled={monthIndex <= 0} onClick={() => previousMonth && setFocusedMonthKey(previousMonth.key)}>

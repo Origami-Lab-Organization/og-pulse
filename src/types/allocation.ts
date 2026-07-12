@@ -5,7 +5,7 @@ export type AllocationStatusKey =
   | 'limit'
   | 'critical';
 
-export type AllocationStatusFilter = 'all' | 'abovePlan' | 'missingLogs' | 'overloaded' | 'unallocated';
+export type AllocationStatusFilter = 'all' | 'abovePlan' | 'missingLogs' | 'overloaded' | 'unallocated' | 'outOfPace';
 
 export interface AllocationMonth {
   key: string;
@@ -15,6 +15,8 @@ export interface AllocationMonth {
   endDate: string;
   label: string;
   workingDays: number;
+  /** Dias úteis já decorridos até hoje: = workingDays em meses passados, 0 em meses futuros. */
+  workingDaysElapsed: number;
 }
 
 export interface AllocationProjectPill {
@@ -74,9 +76,11 @@ export interface AllocationGridData {
 export interface AllocationMetrics {
   overloaded: number | null;
   unallocated: number | null;
+  outOfPace: number | null;
   avgUtilization: number | null;
   availableHours: number | null;
   activeMembers: number | null;
+  billablePercent: number | null;
 }
 
 export interface AllocationPanelProjectRow {

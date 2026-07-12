@@ -5,6 +5,11 @@ import { countWorkingDays } from '@/lib/workingDays';
 
 const DEFAULT_MINIMUM_UTILIZATION = 40;
 
+// Deduzido comparando linha a linha os números do mockup de "Alocação com foco em
+// aderência": um desvio de ritmo (lançado vs. esperado até hoje) só entra em "Fora do
+// plano" a partir de 15h — ajustável se o critério de negócio mudar.
+export const PACE_VARIANCE_THRESHOLD_HOURS = 15;
+
 interface HolidayLike {
   holiday_type: string;
   fixed_day: number | null;
@@ -75,6 +80,9 @@ export function buildAllocationMonths(baseDate: Date, offsetStart: number, lengt
     const date = addMonths(startOfMonth(baseDate), boundedStart + index);
     const start = startOfMonth(date);
     const end = endOfMonth(date);
+    // Meses passados contam o mês inteiro (elapsed = workingDays); meses futuros ainda
+    // não começaram (elapsed = 0); o mês corrente conta só até hoje, inclusive.
+    const elapsedEnd = baseDate < start ? null : baseDate > end ? end : baseDate;
 
     return {
       key: format(date, 'yyyy-MM'),
@@ -84,6 +92,7 @@ export function buildAllocationMonths(baseDate: Date, offsetStart: number, lengt
       endDate: format(end, 'yyyy-MM-dd'),
       label: format(date, 'MMM', { locale: ptBR }).replace('.', '').toUpperCase(),
       workingDays: countWorkingDays(start, end, holidays),
+      workingDaysElapsed: elapsedEnd ? countWorkingDays(start, elapsedEnd, holidays) : 0,
     };
   });
 }
@@ -110,14 +119,54 @@ export function getPlanVariance(cell: AllocationCell) {
   return getLoggedHours(cell) - Number(cell.plannedHours || 0);
 }
 
-export function calculateMetrics(people: AllocationPerson[], referenceMonthKey: string): AllocationMetrics {
-  if (people.length === 0) {
+export function getExpectedHoursToDate(plannedHours: number, month: Pick<AllocationMonth, 'workingDays' | 'workingDaysElapsed'>) {
+  if (!month.workingDays) return 0;
+  return Math.round(Number(plannedHours || 0) * month.workingDaysElapsed / month.workingDays);
+}
+
+export function getPaceVarianceHours(cell: AllocationCell, month: Pick<AllocationMonth, 'workingDays' | 'workingDaysElapsed'>) {
+  return getLoggedHours(cell) - getExpectedHoursToDate(cell.plannedHours, month);
+}
+
+export function isOutOfPace(cell: AllocationCell, month: Pick<AllocationMonth, 'workingDays' | 'workingDaysElapsed'>) {
+  return Math.abs(getPaceVarianceHours(cell, month)) >= PACE_VARIANCE_THRESHOLD_HOURS;
+}
+
+export function hasUnplannedLogging(cell: AllocationCell) {
+  return Number(cell.plannedHours || 0) === 0 && getLoggedHours(cell) > 0;
+}
+
+export function formatSignedHours(value: number) {
+  const rounded = Math.round(value);
+  return rounded > 0 ? `+${rounded}h` : `${rounded}h`;
+}
+
+export function snapWidthClass(ratio: number | null) {
+  if (ratio === null || ratio <= 0) return 'w-0';
+  if (ratio <= 10) return 'w-[10%]';
+  if (ratio <= 20) return 'w-[20%]';
+  if (ratio <= 30) return 'w-[30%]';
+  if (ratio <= 40) return 'w-[40%]';
+  if (ratio <= 50) return 'w-[50%]';
+  if (ratio <= 60) return 'w-[60%]';
+  if (ratio <= 70) return 'w-[70%]';
+  if (ratio <= 80) return 'w-[80%]';
+  if (ratio <= 90) return 'w-[90%]';
+  return 'w-full';
+}
+
+export function calculateMetrics(people: AllocationPerson[], referenceMonth: AllocationMonth | undefined): AllocationMetrics {
+  const referenceMonthKey = referenceMonth?.key ?? '';
+
+  if (people.length === 0 || !referenceMonth) {
     return {
       overloaded: null,
       unallocated: null,
+      outOfPace: null,
       avgUtilization: null,
       availableHours: null,
       activeMembers: null,
+      billablePercent: null,
     };
   }
 
@@ -125,6 +174,7 @@ export function calculateMetrics(people: AllocationPerson[], referenceMonthKey: 
 
   const overloaded = referenceCells.filter((cell) => cell.status === 'critical').length;
   const unallocated = referenceCells.filter((cell) => cell.status === 'unallocated').length;
+  const outOfPace = referenceCells.filter((cell) => isOutOfPace(cell, referenceMonth)).length;
   const activeMembers = people.length;
 
   const cellsWithUtil = referenceCells.filter((cell) => cell.utilization !== null);
@@ -139,15 +189,20 @@ export function calculateMetrics(people: AllocationPerson[], referenceMonthKey: 
     }, 0),
   );
 
-  return { overloaded, unallocated, avgUtilization, availableHours, activeMembers };
+  const totalLoggedHours = referenceCells.reduce((sum, cell) => sum + getLoggedHours(cell), 0);
+  const totalProjectHours = referenceCells.reduce((sum, cell) => sum + Number(cell.actualProjectHours || 0), 0);
+  const billablePercent = totalLoggedHours > 0 ? Math.round((totalProjectHours / totalLoggedHours) * 100) : null;
+
+  return { overloaded, unallocated, outOfPace, avgUtilization, availableHours, activeMembers, billablePercent };
 }
 
 export function filterAllocationPeople(
   people: AllocationPerson[],
   filters: AllocationFiltersState,
-  referenceMonthKey: string,
+  referenceMonth: AllocationMonth,
 ) {
   const search = filters.search.trim().toLocaleLowerCase('pt-BR');
+  const referenceMonthKey = referenceMonth.key;
 
   return people.filter((person) => {
     const cell = person.cells[referenceMonthKey] ?? emptyAllocationCell(referenceMonthKey);
@@ -164,7 +219,8 @@ export function filterAllocationPeople(
       (filters.status === 'abovePlan' && loggedHours > plannedHours) ||
       (filters.status === 'missingLogs' && plannedHours > 0 && loggedHours === 0) ||
       (filters.status === 'overloaded' && cell.status === 'critical') ||
-      (filters.status === 'unallocated' && cell.status === 'unallocated');
+      (filters.status === 'unallocated' && cell.status === 'unallocated') ||
+      (filters.status === 'outOfPace' && isOutOfPace(cell, referenceMonth));
 
     return matchesTerminated && matchesRole && matchesProject && matchesSearch && matchesStatus;
   });

@@ -53,6 +53,7 @@ const months: AllocationMonth[] = [
     endDate: '2026-09-30',
     label: 'SET',
     workingDays: 22,
+    workingDaysElapsed: 22,
   },
   {
     key: '2026-10',
@@ -62,6 +63,7 @@ const months: AllocationMonth[] = [
     endDate: '2026-10-31',
     label: 'OUT',
     workingDays: 23,
+    workingDaysElapsed: 0,
   },
   {
     key: '2026-11',
@@ -71,6 +73,7 @@ const months: AllocationMonth[] = [
     endDate: '2026-11-30',
     label: 'NOV',
     workingDays: 20,
+    workingDaysElapsed: 0,
   },
 ];
 
