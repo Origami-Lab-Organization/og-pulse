@@ -29,8 +29,8 @@ describe('calculatePlannedLaborCost', () => {
       [
         allocation({
           monthlyHours: [
-            { year: 2026, month: 6, plannedHours: 10, costPerHour: 100 },
-            { year: 2026, month: 7, plannedHours: 5, costPerHour: 80 },
+            { id: 'm', year: 2026, month: 6, plannedHours: 10, costPerHour: 100 },
+            { id: 'm', year: 2026, month: 7, plannedHours: 5, costPerHour: 80 },
           ],
         }),
       ],
@@ -46,7 +46,7 @@ describe('calculatePlannedLaborCost', () => {
       [
         allocation({
           monthlyHours: [
-            { year: 2026, month: 6, plannedHours: 10, costPerHour: null },
+            { id: 'm', year: 2026, month: 6, plannedHours: 10, costPerHour: null },
           ],
         }),
       ],
@@ -63,8 +63,8 @@ describe('calculatePlannedLaborCostByProjectMonth', () => {
       [
         allocation({
           monthlyHours: [
-            { year: 2026, month: 6, plannedHours: 10, costPerHour: 100 },
-            { year: 2026, month: 7, plannedHours: 5, costPerHour: 80 },
+            { id: 'm', year: 2026, month: 6, plannedHours: 10, costPerHour: 100 },
+            { id: 'm', year: 2026, month: 7, plannedHours: 5, costPerHour: 80 },
           ],
         }),
       ],
@@ -82,8 +82,8 @@ describe('calculatePlannedLaborCostByProjectMonth', () => {
       [
         allocation({
           monthlyHours: [
-            { year: 2026, month: 5, plannedHours: 10, costPerHour: 100 },
-            { year: 2026, month: 8, plannedHours: 10, costPerHour: 100 },
+            { id: 'm', year: 2026, month: 5, plannedHours: 10, costPerHour: 100 },
+            { id: 'm', year: 2026, month: 8, plannedHours: 10, costPerHour: 100 },
           ],
         }),
       ],

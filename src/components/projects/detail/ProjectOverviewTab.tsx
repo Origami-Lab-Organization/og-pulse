@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
+import { DollarSign, Target, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
-import { useMaskedCurrency } from '@/contexts/HideValuesContext';
+import { useMaskedCurrency, useMaskedPercent } from '@/contexts/HideValuesContext';
 import { ProjectTeamSection } from './ProjectTeamSection';
 import { ProjectKPIBar } from './ProjectKPIBar';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
@@ -22,6 +23,7 @@ interface ProjectOverviewTabProps {
 
 export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
   const formatCurrency = useMaskedCurrency();
+  const formatPercent = useMaskedPercent();
   const memberIds = useMemo(
     () => (project.members || []).map((m) => m.id),
     [project.members]

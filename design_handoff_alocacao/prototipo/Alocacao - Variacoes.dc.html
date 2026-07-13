@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Lexend+Exa:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EDEEE6;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#252525}
+a{color:#0B7350}a:hover{color:#0C7E54}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 16px}
+.dv-tid{font:600 10px 'Space Grotesk',monospace;padding:3px 7px;background:#1A1A1A;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 'Lexend Exa',sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px 'Space Grotesk',monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 'Plus Jakarta Sans',sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#FBFBF9;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#0C7E54;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 'Plus Jakarta Sans',sans-serif;color:rgba(0,0,0,.5)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t2" data-screen-label="Turn 2 — Detalhamento do funcionário">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Detalhamento do funcionário — Drawer × Tela dedicada · Tiago A. de Souza Lima · jul 2026</span></div>
+
+<div style="max-width:1400px;background:#FFFFFF;border:1px solid #DEE0D0;border-radius:10px;padding:14px 20px;margin:0 0 24px;display:grid;grid-template-columns:1.5fr 1fr;gap:24px">
+  <div>
+    <div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8A8C7E;margin-bottom:6px">Cenário das duas opções</div>
+    <div style="font-size:12px;line-height:1.55;color:#54564E">Você está logado como <b>GP Kauany Arantes</b>. O Tiago está <b style="color:#C2410C">152% em julho, sem lançamento</b>. Kauany gerencia 2 dos 4 projetos dele — pode <b>corrigir o planejado nesses</b>; os outros 2 aparecem <b>read-only</b> ("Gerido por Marina"). Sobrealocação <b>nunca bloqueia</b> o salvamento. Meses passados só admin edita (com log). Nenhum dado financeiro em qualquer camada.</div>
+  </div>
+  <div>
+    <div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8A8C7E;margin-bottom:6px">A decidir</div>
+    <div style="font-size:12px;line-height:1.55;color:#54564E"><b>2a Drawer</b> — sobrepõe a tabela, contexto preservado, correção rápida sem sair. <b>2b Tela dedicada</b> — mais espaço para tendência de 6 meses, histórico de edições e leitura confortável. Minha recomendação abaixo.</div>
+  </div>
+</div>
+
+<div class="dv-opts">
+
+<!-- ══════════════════ OPTION 2A — DRAWER ══════════════════ -->
+<div class="dv-opt" id="2a" data-screen-label="2a — Drawer lateral">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Drawer lateral (Sheet) — sobrepõe a tabela; correção inline sem perder o contexto da equipe</div>
+<div class="dv-card" style="width:960px;padding:0;position:relative;overflow:hidden;background:#F2F2F0">
+
+  <!-- dimmed table backdrop -->
+  <div style="position:absolute;inset:0;padding:18px 20px;opacity:.4;filter:saturate(.7)" aria-hidden="true">
+    <div style="height:26px;background:#FFFFFF;border:1px solid #DEE0D0;border-radius:8px;margin-bottom:12px"></div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="height:44px;background:#FFFFFF;border:1px solid #DEE0D0;border-left:3px solid #C2410C;border-radius:8px"></div>
+      <div style="height:44px;background:#FFFFFF;border:1px solid #DEE0D0;border-left:3px solid #C2810C;border-radius:8px"></div>
+      <div style="height:44px;background:#FFFFFF;border:1px solid #DEE0D0;border-left:3px solid #2D4A4C;border-radius:8px"></div>
+      <div style="height:44px;background:#FFFFFF;border:1px solid #DEE0D0;border-radius:8px"></div>
+      <div style="height:44px;background:#FFFFFF;border:1px solid #DEE0D0;border-radius:8px"></div>
+    </div>
+  </div>
+  <div style="position:absolute;inset:0;background:rgba(26,26,26,.28)" aria-hidden="true"></div>
+
+  <!-- the sheet -->
+  <div style="position:relative;margin-left:auto;width:512px;min-height:720px;background:#FBFBF9;border-left:1px solid #DEE0D0;box-shadow:-16px 0 40px rgba(26,26,26,.18);display:flex;flex-direction:column">
+
+    <!-- header -->
+    <div style="padding:18px 22px 16px;border-bottom:1px solid #EFF0E8">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:44px;height:44px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:14px;font-weight:700;flex:none">TA</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:16px;font-weight:700;color:#1A1A1A">Tiago Alves de Souza Lima</div>
+          <div style="font-size:12.5px;color:#54564E">Engenheiro de Software · 8h/dia</div>
+        </div>
+        <div style="width:30px;height:30px;border-radius:8px;border:1px solid #DEE0D0;background:#fff;display:flex;align-items:center;justify-content:center;color:#8A8C7E;font-size:16px;flex:none">✕</div>
+      </div>
+
+      <!-- month nav -->
+      <div style="display:flex;align-items:center;gap:6px;margin-top:16px">
+        <div style="width:28px;height:28px;border-radius:7px;border:1px solid #DEE0D0;background:#fff;display:flex;align-items:center;justify-content:center;color:#54564E;font-size:14px">‹</div>
+        <div style="flex:1;display:flex;gap:5px">
+          <div style="flex:1;text-align:center;padding:6px 0;border-radius:8px;background:#fff;border:1px solid #DEE0D0"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;color:#8A8C7E">JUN</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">118%</div></div>
+          <div style="flex:1.15;text-align:center;padding:6px 0;border-radius:8px;background:#1A1A1A;border:1px solid #1A1A1A"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:700;color:#fff">JUL</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#F0A868;font-weight:600">152%</div></div>
+          <div style="flex:1;text-align:center;padding:6px 0;border-radius:8px;background:#fff;border:1px solid #DEE0D0"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;color:#8A8C7E">AGO</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#C2410C">167%</div></div>
+          <div style="flex:1;text-align:center;padding:6px 0;border-radius:8px;background:#fff;border:1px solid #DEE0D0"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;color:#8A8C7E">SET</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#C2410C">127%</div></div>
+        </div>
+        <div style="width:28px;height:28px;border-radius:7px;border:1px solid #DEE0D0;background:#fff;display:flex;align-items:center;justify-content:center;color:#54564E;font-size:14px">›</div>
+      </div>
+    </div>
+
+    <!-- month summary -->
+    <div style="padding:16px 22px;background:#F6F7EB;border-bottom:1px solid #EFF0E8">
+      <div style="display:flex;align-items:flex-end;gap:18px">
+        <div>
+          <div style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Carga · jul</div>
+          <div style="font-family:'Space Grotesk',monospace;font-size:28px;font-weight:600;color:#C2410C;line-height:1;margin-top:3px">152%</div>
+          <div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E;margin-top:3px">280h plan / 184h cap</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Ritmo · dia 5 de 23</div>
+          <div style="font-size:13px;color:#54564E;margin-top:4px"><b style="color:#1A1A1A">0h</b> lançado · <span style="color:#C2410C;font-weight:600">sem lançamento</span></div>
+          <div style="position:relative;height:6px;border-radius:999px;background:#EFF0E8;margin-top:8px"><div style="position:absolute;left:21.7%;top:-3px;width:2px;height:12px;background:#1A1A1A;border-radius:1px"></div></div>
+          <div style="font-size:10.5px;color:#8A8C7E;margin-top:5px">esperado até hoje: 61h</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
+        <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(194,65,12,.10);border:1px solid rgba(194,65,12,.28);color:#C2410C;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"><span style="width:5px;height:5px;border-radius:999px;background:#C2410C"></span>Sobrecarga 152%</span>
+        <span style="font-size:11.5px;color:#8A8C7E">Livres: <b style="color:#C2410C;font-family:'Space Grotesk',monospace">−96h</b> (cap − Σplan)</span>
+      </div>
+    </div>
+
+    <!-- breakdown -->
+    <div style="padding:14px 22px 4px;flex:1">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px">
+        <div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Alocação por projeto</div>
+        <div style="font-size:11px;color:#8A8C7E">plan · lançado · Δ</div>
+      </div>
+
+      <!-- editable row 1 -->
+      <div style="padding:11px 0;border-top:1px solid #EFF0E8">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13.5px;font-weight:600;color:#0B7350">Redesign Portal Cliente <span style="color:#B9BAAC;font-weight:400">↗</span></div>
+            <div style="font-size:11.5px;color:#8A8C7E">Acme Capital · Eng. de Software</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:9px">
+          <div style="flex:1">
+            <div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Planejado</div>
+            <div style="display:flex;align-items:center;gap:6px;border:1.5px solid #0C7E54;border-radius:8px;background:#fff;padding:5px 8px;box-shadow:0 0 0 3px rgba(12,126,84,.10)">
+              <input value="96h" style="width:100%;border:none;outline:none;background:transparent;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#1A1A1A" readonly>
+              <span style="color:#0C7E54;font-size:13px">✎</span>
+            </div>
+          </div>
+          <div style="flex:1"><div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Lançado</div><div style="padding:6px 8px;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#54564E">0h</div></div>
+          <div style="flex:.8"><div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Δ</div><div style="padding:6px 0;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#C2410C">−96h</div></div>
+        </div>
+      </div>
+
+      <!-- read-only row (other GP) -->
+      <div style="padding:11px 0;border-top:1px solid #EFF0E8">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13.5px;font-weight:600;color:#0B7350">App Logística <span style="color:#B9BAAC;font-weight:400">↗</span></div>
+            <div style="font-size:11.5px;color:#8A8C7E">Transportadora Nova · Eng. de Software</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:9px">
+          <div style="flex:1">
+            <div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Planejado</div>
+            <div style="display:flex;align-items:center;gap:6px;border:1px dashed #DEE0D0;border-radius:8px;background:#F6F7EB;padding:5px 8px" title="Gerido por Marina Duarte">
+              <span style="font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#8A8C7E">88h</span>
+              <span style="margin-left:auto;color:#B9BAAC;font-size:11px">🔒</span>
+            </div>
+            <div style="font-size:10px;color:#8A8C7E;margin-top:3px">Gerido por Marina Duarte</div>
+          </div>
+          <div style="flex:1"><div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Lançado</div><div style="padding:6px 8px;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#54564E">0h</div></div>
+          <div style="flex:.8"><div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Δ</div><div style="padding:6px 0;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#C2410C">−88h</div></div>
+        </div>
+      </div>
+
+      <!-- editable row 2 -->
+      <div style="padding:11px 0;border-top:1px solid #EFF0E8">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13.5px;font-weight:600;color:#0B7350">Integração ERP <span style="color:#B9BAAC;font-weight:400">↗</span></div>
+            <div style="font-size:11.5px;color:#8A8C7E">Indústria Bela · Eng. de Software</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:9px">
+          <div style="flex:1">
+            <div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Planejado</div>
+            <div style="display:flex;align-items:center;gap:6px;border:1px solid #DEE0D0;border-radius:8px;background:#fff;padding:5px 8px">
+              <span style="font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#1A1A1A">72h</span>
+              <span style="margin-left:auto;color:#0C7E54;font-size:13px">✎</span>
+            </div>
+          </div>
+          <div style="flex:1"><div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Lançado</div><div style="padding:6px 8px;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#54564E">0h</div></div>
+          <div style="flex:.8"><div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Δ</div><div style="padding:6px 0;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#C2410C">−72h</div></div>
+        </div>
+      </div>
+
+      <!-- read-only row 2 -->
+      <div style="padding:11px 0;border-top:1px solid #EFF0E8">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13.5px;font-weight:600;color:#0B7350">Migração Cloud <span style="color:#B9BAAC;font-weight:400">↗</span></div>
+            <div style="font-size:11.5px;color:#8A8C7E">Banco Sul · Eng. de Software</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:9px">
+          <div style="flex:1">
+            <div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Planejado</div>
+            <div style="display:flex;align-items:center;gap:6px;border:1px dashed #DEE0D0;border-radius:8px;background:#F6F7EB;padding:5px 8px" title="Gerido por Marina Duarte">
+              <span style="font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#8A8C7E">24h</span>
+              <span style="margin-left:auto;color:#B9BAAC;font-size:11px">🔒</span>
+            </div>
+            <div style="font-size:10px;color:#8A8C7E;margin-top:3px">Gerido por Marina Duarte</div>
+          </div>
+          <div style="flex:1"><div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Lançado</div><div style="padding:6px 8px;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#54564E">0h</div></div>
+          <div style="flex:.8"><div style="font-size:9.5px;color:#8A8C7E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Δ</div><div style="padding:6px 0;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#C2410C">−24h</div></div>
+        </div>
+      </div>
+
+      <!-- internal -->
+      <div style="padding:11px 0;border-top:1px solid #EFF0E8;display:flex;align-items:center;gap:8px">
+        <div style="flex:1"><div style="font-size:13.5px;font-weight:600;color:#54564E">Atividades internas</div><div style="font-size:11px;color:#8A8C7E">Cerimônias, guilds, institucional · read-only</div></div>
+        <div style="font-family:'Space Grotesk',monospace;font-size:13px;color:#8A8C7E">— plan · 0h lançado</div>
+      </div>
+    </div>
+
+    <!-- footer reconciliation + actions -->
+    <div style="border-top:1px solid #DEE0D0;background:#F6F7EB;padding:13px 22px">
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
+        <span style="color:#54564E">Σ planejado <b style="color:#1A1A1A;font-family:'Space Grotesk',monospace">280h</b> · capacidade <b style="font-family:'Space Grotesk',monospace">184h</b></span>
+        <span style="color:#C2410C;font-weight:600;font-family:'Space Grotesk',monospace">livres −96h</span>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <div style="flex:1;text-align:center;padding:9px 0;border-radius:999px;background:#0C7E54;color:#fff;font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:600">Salvar correções</div>
+        <div style="padding:9px 18px;border-radius:999px;border:1px solid #DEE0D0;background:#fff;color:#54564E;font-size:12px;font-weight:600">Ver no projeto</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div style="max-width:940px;font-size:11.5px;line-height:1.6;color:#54564E;padding:0 4px">· Sobrepõe a tabela — o GP corrige e volta ao scan sem trocar de tela. Ideal para o fluxo "vi o alerta → conserto agora".<br>· Campo editável tem foco/anel emerald; linha de outro GP fica tracejada + cadeado + "Gerido por Marina". Rodapé reconcilia Σplan × capacidade.<br>· Trade-off: 512px apertam a tendência histórica — cabem 4 meses no seletor, sem sparkline de 6 meses nem histórico de edições.</div>
+</div>
+
+<!-- ══════════════════ OPTION 2B — FULL PAGE ══════════════════ -->
+<div class="dv-opt" id="2b" data-screen-label="2b — Tela dedicada">
+<div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Tela dedicada — mais espaço para tendência de 6 meses, histórico de edições e leitura confortável</div>
+<div class="dv-card" style="width:1180px;padding:0;overflow:hidden">
+
+  <!-- breadcrumb / back -->
+  <div style="padding:14px 26px;border-bottom:1px solid #EFF0E8;display:flex;align-items:center;gap:8px;font-size:12px;color:#8A8C7E">
+    <span style="color:#0B7350">‹ Alocação</span><span>/</span><span style="color:#1A1A1A;font-weight:600">Tiago Alves de Souza Lima</span>
+  </div>
+
+  <!-- person header -->
+  <div style="padding:22px 26px 20px;display:flex;align-items:center;gap:18px;border-bottom:1px solid #EFF0E8">
+    <div style="width:56px;height:56px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:18px;font-weight:700;flex:none">TA</div>
+    <div style="flex:1">
+      <div style="font-size:20px;font-weight:700;color:#1A1A1A">Tiago Alves de Souza Lima</div>
+      <div style="font-size:13px;color:#54564E">Engenheiro de Software · 8h/dia · Squad Tsuru</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Carga · jul</div>
+      <div style="font-family:'Space Grotesk',monospace;font-size:30px;font-weight:600;color:#C2410C;line-height:1;margin-top:2px">152%</div>
+      <div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">280h plan / 184h cap</div>
+    </div>
+  </div>
+
+  <!-- 6-month trend strip -->
+  <div style="padding:18px 26px;border-bottom:1px solid #EFF0E8">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Tendência de carga · 6 meses</div>
+      <div style="font-size:11px;color:#8A8C7E">clique num mês para detalhar</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end">
+      <!-- each month card w/ bar -->
+      <div style="text-align:center">
+        <div style="height:88px;display:flex;align-items:flex-end;justify-content:center"><div style="width:38px;height:52%;background:#C2810C;border-radius:6px 6px 0 0"></div></div>
+        <div style="border-top:2px solid #EFF0E8;padding-top:7px;margin-top:4px"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;color:#8A8C7E">ABR</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#C2810C;font-weight:600">104%</div></div>
+      </div>
+      <div style="text-align:center">
+        <div style="height:88px;display:flex;align-items:flex-end;justify-content:center"><div style="width:38px;height:41%;background:#0B7350;border-radius:6px 6px 0 0"></div></div>
+        <div style="border-top:2px solid #EFF0E8;padding-top:7px;margin-top:4px"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;color:#8A8C7E">MAI</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#0B7350;font-weight:600">82%</div></div>
+      </div>
+      <div style="text-align:center">
+        <div style="height:88px;display:flex;align-items:flex-end;justify-content:center"><div style="width:38px;height:59%;background:#C2410C;border-radius:6px 6px 0 0"></div></div>
+        <div style="border-top:2px solid #EFF0E8;padding-top:7px;margin-top:4px"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;color:#8A8C7E">JUN</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#C2410C;font-weight:600">118%</div></div>
+      </div>
+      <!-- selected: JUL -->
+      <div style="text-align:center">
+        <div style="height:88px;display:flex;align-items:flex-end;justify-content:center"><div style="width:44px;height:76%;background:#C2410C;border-radius:6px 6px 0 0;box-shadow:0 0 0 3px rgba(194,65,12,.18)"></div></div>
+        <div style="border-top:2px solid #1A1A1A;padding-top:7px;margin-top:4px"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:700;color:#1A1A1A">JUL ·vigente</div><div style="font-family:'Space Grotesk',monospace;font-size:13px;color:#C2410C;font-weight:700">152%</div></div>
+      </div>
+      <div style="text-align:center">
+        <div style="height:88px;display:flex;align-items:flex-end;justify-content:center"><div style="width:38px;height:83%;background:#C2410C;border-radius:6px 6px 0 0"></div></div>
+        <div style="border-top:2px solid #EFF0E8;padding-top:7px;margin-top:4px"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;color:#8A8C7E">AGO</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#C2410C;font-weight:600">167%</div></div>
+      </div>
+      <div style="text-align:center">
+        <div style="height:88px;display:flex;align-items:flex-end;justify-content:center"><div style="width:38px;height:63%;background:#C2410C;border-radius:6px 6px 0 0"></div></div>
+        <div style="border-top:2px solid #EFF0E8;padding-top:7px;margin-top:4px"><div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;color:#8A8C7E">SET</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#C2410C;font-weight:600">127%</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- two-column body -->
+  <div style="display:grid;grid-template-columns:1.75fr 1fr;gap:0">
+    <!-- left: breakdown table -->
+    <div style="padding:20px 26px;border-right:1px solid #EFF0E8">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+        <div style="font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;color:#1A1A1A">Alocação de julho · por projeto</div>
+        <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(194,65,12,.10);border:1px solid rgba(194,65,12,.28);color:#C2410C;font-size:10.5px;font-weight:600">sem lançamento</span>
+      </div>
+      <div style="font-size:12px;color:#54564E;margin-bottom:14px">Ritmo dia 5 de 23 · esperado até hoje <b style="font-family:'Space Grotesk',monospace">61h</b> · lançado <b style="font-family:'Space Grotesk',monospace;color:#C2410C">0h</b></div>
+
+      <!-- table head -->
+      <div style="display:grid;grid-template-columns:1.9fr .9fr .9fr .7fr;gap:8px;padding:8px 0;border-bottom:1px solid #DEE0D0">
+        <div style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#8A8C7E">Projeto</div>
+        <div style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#8A8C7E;text-align:right">Planejado</div>
+        <div style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#8A8C7E;text-align:right">Lançado</div>
+        <div style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#8A8C7E;text-align:right">Δ</div>
+      </div>
+
+      <!-- row editable -->
+      <div style="display:grid;grid-template-columns:1.9fr .9fr .9fr .7fr;gap:8px;padding:12px 0;border-bottom:1px solid #EFF0E8;align-items:center">
+        <div><div style="font-size:13px;font-weight:600;color:#0B7350">Redesign Portal Cliente <span style="color:#B9BAAC">↗</span></div><div style="font-size:11px;color:#8A8C7E">Acme Capital · Eng. de Software</div></div>
+        <div style="display:flex;justify-content:flex-end"><div style="display:inline-flex;align-items:center;gap:6px;border:1.5px solid #0C7E54;border-radius:8px;background:#fff;padding:4px 9px;box-shadow:0 0 0 3px rgba(12,126,84,.10)"><span style="font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#1A1A1A">96h</span><span style="color:#0C7E54;font-size:12px">✎</span></div></div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#54564E">0h</div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#C2410C">−96h</div>
+      </div>
+      <!-- row read-only -->
+      <div style="display:grid;grid-template-columns:1.9fr .9fr .9fr .7fr;gap:8px;padding:12px 0;border-bottom:1px solid #EFF0E8;align-items:center">
+        <div><div style="font-size:13px;font-weight:600;color:#0B7350">App Logística <span style="color:#B9BAAC">↗</span></div><div style="font-size:11px;color:#8A8C7E">Transportadora Nova · <span title="Gerido por Marina Duarte">🔒 Gerido por Marina</span></div></div>
+        <div style="display:flex;justify-content:flex-end"><div style="display:inline-flex;align-items:center;gap:6px;border:1px dashed #DEE0D0;border-radius:8px;background:#F6F7EB;padding:4px 9px"><span style="font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#8A8C7E">88h</span><span style="color:#B9BAAC;font-size:11px">🔒</span></div></div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#54564E">0h</div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#C2410C">−88h</div>
+      </div>
+      <!-- row editable -->
+      <div style="display:grid;grid-template-columns:1.9fr .9fr .9fr .7fr;gap:8px;padding:12px 0;border-bottom:1px solid #EFF0E8;align-items:center">
+        <div><div style="font-size:13px;font-weight:600;color:#0B7350">Integração ERP <span style="color:#B9BAAC">↗</span></div><div style="font-size:11px;color:#8A8C7E">Indústria Bela · Eng. de Software</div></div>
+        <div style="display:flex;justify-content:flex-end"><div style="display:inline-flex;align-items:center;gap:6px;border:1px solid #DEE0D0;border-radius:8px;background:#fff;padding:4px 9px"><span style="font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#1A1A1A">72h</span><span style="color:#0C7E54;font-size:12px">✎</span></div></div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#54564E">0h</div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#C2410C">−72h</div>
+      </div>
+      <!-- row read-only -->
+      <div style="display:grid;grid-template-columns:1.9fr .9fr .9fr .7fr;gap:8px;padding:12px 0;border-bottom:1px solid #EFF0E8;align-items:center">
+        <div><div style="font-size:13px;font-weight:600;color:#0B7350">Migração Cloud <span style="color:#B9BAAC">↗</span></div><div style="font-size:11px;color:#8A8C7E">Banco Sul · <span title="Gerido por Marina Duarte">🔒 Gerido por Marina</span></div></div>
+        <div style="display:flex;justify-content:flex-end"><div style="display:inline-flex;align-items:center;gap:6px;border:1px dashed #DEE0D0;border-radius:8px;background:#F6F7EB;padding:4px 9px"><span style="font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#8A8C7E">24h</span><span style="color:#B9BAAC;font-size:11px">🔒</span></div></div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#54564E">0h</div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#C2410C">−24h</div>
+      </div>
+      <!-- internal -->
+      <div style="display:grid;grid-template-columns:1.9fr .9fr .9fr .7fr;gap:8px;padding:12px 0;border-bottom:1px solid #EFF0E8;align-items:center">
+        <div><div style="font-size:13px;font-weight:600;color:#54564E">Atividades internas</div><div style="font-size:11px;color:#8A8C7E">Cerimônias, guilds · read-only</div></div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:13px;color:#8A8C7E">—</div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:600;color:#54564E">0h</div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:13px;color:#8A8C7E">—</div>
+      </div>
+      <!-- totals -->
+      <div style="display:grid;grid-template-columns:1.9fr .9fr .9fr .7fr;gap:8px;padding:12px 0 0;align-items:center">
+        <div style="font-size:12.5px;font-weight:700;color:#1A1A1A">Total · capacidade 184h</div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:700;color:#C2410C">280h</div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:14px;font-weight:700;color:#54564E">0h</div>
+        <div style="text-align:right;font-family:'Space Grotesk',monospace;font-size:13px;font-weight:700;color:#C2410C">livres<br>−96h</div>
+      </div>
+    </div>
+
+    <!-- right: rail (ritmo + histórico) -->
+    <div style="padding:20px 24px;background:#F6F7EB">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E;margin-bottom:12px">Ritmo de lançamento</div>
+      <div style="background:#fff;border:1px solid #DEE0D0;border-radius:12px;padding:16px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:12px;color:#54564E">lançado</span><span style="font-family:'Space Grotesk',monospace;font-size:18px;font-weight:600;color:#C2410C">0h</span></div>
+        <div style="position:relative;height:8px;border-radius:999px;background:#EFF0E8;margin:12px 0 6px"><div style="position:absolute;left:21.7%;top:-3px;width:2px;height:14px;background:#1A1A1A;border-radius:1px"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#8A8C7E"><span>0h</span><span>esperado hoje 61h</span><span>plan 280h</span></div>
+        <div style="margin-top:12px;padding:9px 11px;border-radius:8px;background:rgba(194,65,12,.08);font-size:11.5px;color:#C2410C;font-weight:600">61h atrás do ritmo esperado</div>
+      </div>
+
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E;margin:22px 0 12px">Histórico de correções</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:10px"><div style="width:8px;height:8px;border-radius:999px;background:#0B7350;margin-top:4px;flex:none"></div><div><div style="font-size:12px;color:#1A1A1A"><b>Kauany</b> ajustou Integração ERP <span style="font-family:'Space Grotesk',monospace">64h → 72h</span></div><div style="font-size:10.5px;color:#8A8C7E">2 jul · 14h20</div></div></div>
+        <div style="display:flex;gap:10px"><div style="width:8px;height:8px;border-radius:999px;background:#8A8C7E;margin-top:4px;flex:none"></div><div><div style="font-size:12px;color:#1A1A1A"><b>Marina</b> alocou em App Logística <span style="font-family:'Space Grotesk',monospace">88h</span></div><div style="font-size:10.5px;color:#8A8C7E">28 jun · 09h05</div></div></div>
+      </div>
+      <div style="font-size:10.5px;color:#B9BAAC;margin-top:14px;line-height:1.5">Edições de mês passado exigem admin e ficam registradas em log.</div>
+    </div>
+  </div>
+
+  <!-- sticky action bar -->
+  <div style="border-top:1px solid #DEE0D0;background:#FBFBF9;padding:14px 26px;display:flex;align-items:center;justify-content:space-between">
+    <div style="font-size:12px;color:#8A8C7E">Editando como <b style="color:#1A1A1A">GP Kauany Arantes</b> · 2 de 4 projetos editáveis · sobrealocação não bloqueia</div>
+    <div style="display:flex;gap:10px">
+      <div style="padding:10px 20px;border-radius:999px;border:1px solid #DEE0D0;background:#fff;color:#54564E;font-size:12.5px;font-weight:600">Cancelar</div>
+      <div style="padding:10px 24px;border-radius:999px;background:#0C7E54;color:#fff;font-family:'Lexend Exa',sans-serif;font-size:12.5px;font-weight:600">Salvar correções</div>
+    </div>
+  </div>
+</div>
+<div style="max-width:1160px;font-size:11.5px;line-height:1.6;color:#54564E;padding:0 4px">· Rota própria (`/alocacao/:employeeId`) — o espaço extra ganha a <b>tendência de 6 meses</b> (barras clicáveis), o <b>ritmo em painel dedicado</b> e o <b>histórico de correções/log</b> que o drawer não comporta.<br>· Mesmas regras de permissão por linha e reconciliação. Barra de ação fixa embaixo deixa claro o papel ativo.<br>· Trade-off: tira o GP do contexto da tabela — melhor para "análise/planejamento" do que para "conserto rápido no meio do scan".</div>
+</div>
+
+</div>
+<p class="dv-next">Recomendação: <b>drawer como padrão</b> (<a class="dv-oid" href="#2a">2a</a>) para o conserto no fluxo + botão "abrir tela cheia" levando à <a class="dv-oid" href="#2b">2b</a> para análise. Próximo: "construir o protótipo interativo com a tabela 1b + o drawer 2a".</p>
+</section>
+
+<section class="dv-turn" id="t1" data-screen-label="Turn 1 — Variações da linha de alocação">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Linha de alocação — 3 direções · Pulse /alocacao</span></div>
+
+<div style="max-width:1360px;background:#FFFFFF;border:1px solid #DEE0D0;border-radius:10px;padding:14px 20px;margin:0 0 24px;display:grid;grid-template-columns:1.4fr 1fr;gap:24px">
+  <div>
+    <div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8A8C7E;margin-bottom:6px">Premissas comuns às 3 opções</div>
+    <div style="font-size:12px;line-height:1.55;color:#54564E">Hoje simulado: <b>ter, 7 jul 2026</b> — 5 de 23 dias úteis (esperado 21,7% do plano lançado). Capacidade = dias úteis × jornada diária. Faixas: <b style="color:#2D4A4C">&lt;70% subalocado</b> · <b style="color:#0B7350">70–90 saudável</b> · <b style="color:#C2810C">90–105 cheio</b> · <b style="color:#C2410C">&gt;105 sobrecarga</b>. Ritmo com tolerância de 4h. <b>Um badge por linha</b>, por precedência; ausência de badge = em ordem. Horas livres só em meses futuros.</div>
+  </div>
+  <div>
+    <div style="font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8A8C7E;margin-bottom:6px">O que varia</div>
+    <div style="font-size:12px;line-height:1.55;color:#54564E">Hierarquia da célula do mês vigente (número × barra), densidade da linha, tratamento das células futuras (texto × heatmap × mini-régua) e formato do bloco de KPI refatorado.</div>
+  </div>
+</div>
+
+<div class="dv-opts">
+
+<!-- ══════════════════ OPTION 1A ══════════════════ -->
+<div class="dv-opt" id="1a" data-screen-label="1a — Número-protagonista">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Número-protagonista · fiel à spec — % de carga lidera, badge único à direita, futuro = horas livres</div>
+<div class="dv-card" style="width:1360px;padding:20px 24px 16px">
+
+  <div style="display:grid;grid-template-columns:1.35fr 1.75fr 1fr 1fr 1fr 1fr;gap:10px">
+    <div style="background:#FFFFFF;border:1px solid #DEE0D0;border-radius:12px;padding:12px 14px">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Carga · jul</div>
+      <div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:26px;font-weight:600;color:#C2810C;margin-top:2px">104%</div>
+      <div style="font-family:'Space Grotesk',monospace;font-size:11.5px;color:#8A8C7E;margin-top:1px">3.588h plan / 3.450h cap</div>
+    </div>
+    <div style="background:#FFFFFF;border:1px solid #DEE0D0;border-radius:12px;padding:12px 14px">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Ritmo até hoje · 5 de 23d</div>
+      <div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:26px;font-weight:600;color:#C2410C;margin-top:2px">−368h</div>
+      <div style="font-family:'Space Grotesk',monospace;font-size:11.5px;color:#8A8C7E;margin-top:1px">412h lançadas · esperado 780h</div>
+    </div>
+    <div style="background:#FFFFFF;border:1px solid #DEE0D0;border-radius:12px;padding:12px 14px">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Sobrecarga</div>
+      <div style="font-family:'Space Grotesk',monospace;font-size:26px;font-weight:600;color:#C2410C;margin-top:2px">2</div>
+      <div style="font-size:11.5px;color:#8A8C7E;margin-top:1px">carga &gt; 105%</div>
+    </div>
+    <div style="background:#FFFFFF;border:1px solid #DEE0D0;border-radius:12px;padding:12px 14px">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Sem lançamento</div>
+      <div style="font-family:'Space Grotesk',monospace;font-size:26px;font-weight:600;color:#C2410C;margin-top:2px">3</div>
+      <div style="font-size:11.5px;color:#8A8C7E;margin-top:1px">com plano no mês</div>
+    </div>
+    <div style="background:#FFFFFF;border:1px solid #DEE0D0;border-radius:12px;padding:12px 14px">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Atrás do ritmo</div>
+      <div style="font-family:'Space Grotesk',monospace;font-size:26px;font-weight:600;color:#C2810C;margin-top:2px">2</div>
+      <div style="font-size:11.5px;color:#8A8C7E;margin-top:1px">desvio além de 4h</div>
+    </div>
+    <div style="background:#FFFFFF;border:1px solid #DEE0D0;border-radius:12px;padding:12px 14px">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Subalocados</div>
+      <div style="font-family:'Space Grotesk',monospace;font-size:26px;font-weight:600;color:#2D4A4C;margin-top:2px">5</div>
+      <div style="font-size:11.5px;color:#8A8C7E;margin-top:1px">carga &lt; 70%</div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#8A8C7E;margin:6px 2px 0">Cartões-contador funcionam como filtros de um clique · desvio agregado agora é pró-rata, nunca contra o mês inteiro</div>
+
+  <div style="margin-top:14px;border:1px solid #DEE0D0;border-radius:12px;overflow:hidden;background:#FFFFFF">
+    <div style="display:grid;grid-template-columns:272px 1.65fr 1fr 1fr 1fr 40px;background:#F1F2E6;border-bottom:1px solid #DEE0D0;padding:10px 0;align-items:end">
+      <div style="padding:0 20px;font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Pessoa <span style="color:#8A8C7E;text-transform:none;letter-spacing:0;font-family:'Plus Jakarta Sans',sans-serif;font-weight:400">· por severidade ↓</span></div>
+      <div style="padding:0 16px">
+        <div style="display:flex;align-items:center;gap:8px"><span style="font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;color:#1A1A1A">JUL</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">23d úteis</span><span style="background:#E8F1EC;color:#0B7350;font-family:'Lexend Exa',sans-serif;font-size:8.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:999px">vigente</span></div>
+        <div style="font-size:10.5px;color:#8A8C7E;margin-top:2px">plan / capacidade · lançado até hoje</div>
+      </div>
+      <div style="padding:0 16px"><div style="display:flex;align-items:center;gap:8px"><span style="font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:600;color:#54564E">AGO</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">21d</span></div><div style="font-size:10.5px;color:#8A8C7E;margin-top:2px">plan / capacidade</div></div>
+      <div style="padding:0 16px"><div style="display:flex;align-items:center;gap:8px"><span style="font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:600;color:#54564E">SET</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">22d</span></div><div style="font-size:10.5px;color:#8A8C7E;margin-top:2px">plan / capacidade</div></div>
+      <div style="padding:0 16px"><div style="display:flex;align-items:center;gap:8px"><span style="font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:600;color:#54564E">OUT</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">22d</span></div><div style="font-size:10.5px;color:#8A8C7E;margin-top:2px">plan / capacidade</div></div>
+      <div></div>
+    </div>
+
+    <!-- row: Tiago — sobrecarga + sem lançamento -->
+    <div style="display:grid;grid-template-columns:272px 1.65fr 1fr 1fr 1fr 40px;padding:14px 0;align-items:center">
+      <div style="padding:0 20px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;flex:none">TA</div>
+        <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Tiago Alves de Souza Lima</div><div style="font-size:12px;color:#54564E">Engenheiro de Software</div></div>
+      </div>
+      <div style="padding:0 24px 0 16px">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:20px;font-weight:600;color:#C2410C">152%</span>
+          <span style="font-family:'Space Grotesk',monospace;font-size:12px;color:#54564E">280h plan / 184h cap</span>
+          <span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(194,65,12,.10);border:1px solid rgba(194,65,12,.28);color:#C2410C;font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"><span style="width:5px;height:5px;border-radius:999px;background:#C2410C"></span>Sobrecarga 152%</span>
+        </div>
+        <div style="font-size:12.5px;color:#54564E;margin-top:3px"><b style="color:#1A1A1A">0h</b> lançado · <span style="color:#C2410C;font-weight:600">sem lançamento</span></div>
+        <div style="position:relative;margin-top:30px">
+          <div style="position:absolute;bottom:14px;left:21.7%;transform:translateX(-50%);background:#1A1A1A;color:#F6F7EB;font-size:11px;padding:4px 9px;border-radius:6px;white-space:nowrap">Esperado até hoje: <b style="font-family:'Space Grotesk',monospace">61h</b></div>
+          <div style="position:absolute;bottom:10px;left:21.7%;transform:translateX(-50%) rotate(45deg);width:7px;height:7px;background:#1A1A1A"></div>
+          <div style="position:relative;height:6px;border-radius:999px;background:#EFF0E8">
+            <div style="position:absolute;left:21.7%;top:-3px;width:2px;height:12px;background:#1A1A1A;border-radius:1px"></div>
+          </div>
+        </div>
+        <div style="margin-top:8px"><a href="#1a" style="font-size:12px;color:#0B7350;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">4 projetos</a></div>
+      </div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#C2410C">−112h</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">167% · 280h / 168h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#C2410C">−48h</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">127% · 224h / 176h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#C2810C">+8h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">95% · 168h / 176h</div></div>
+      <div style="display:flex;align-items:center;justify-content:center;color:#B9BAAC;font-size:18px">›</div>
+    </div>
+
+    <!-- row: Marina — cheio + atrás do ritmo -->
+    <div style="display:grid;grid-template-columns:272px 1.65fr 1fr 1fr 1fr 40px;padding:14px 0;align-items:center;border-top:1px solid #EFF0E8">
+      <div style="padding:0 20px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;flex:none">MD</div>
+        <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Marina Duarte Campos</div><div style="font-size:12px;color:#54564E">Tech Lead</div></div>
+      </div>
+      <div style="padding:0 24px 0 16px">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:20px;font-weight:600;color:#C2810C">96%</span>
+          <span style="font-family:'Space Grotesk',monospace;font-size:12px;color:#54564E">176h plan / 184h cap</span>
+          <span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(194,129,12,.12);border:1px solid rgba(194,129,12,.3);color:#C2810C;font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"><span style="width:5px;height:5px;border-radius:999px;background:#C2810C"></span>Atrás do ritmo</span>
+        </div>
+        <div style="font-size:12.5px;color:#54564E;margin-top:3px"><b style="color:#1A1A1A">24h</b> lançadas · <span style="color:#C2810C;font-weight:600">14h atrás do ritmo</span></div>
+        <div style="position:relative;height:6px;border-radius:999px;background:#EFF0E8;margin-top:12px">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:13.6%;background:#C2810C;border-radius:999px"></div>
+          <div style="position:absolute;left:21.7%;top:-3px;width:2px;height:12px;background:#1A1A1A;border-radius:1px"></div>
+        </div>
+        <div style="margin-top:8px"><a href="#1a" style="font-size:12px;color:#0B7350;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">3 projetos</a></div>
+      </div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#C2810C">+8h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">95% · 160h / 168h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#2D4A4C">+56h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">68% · 120h / 176h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#2D4A4C">+96h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">45% · 80h / 176h</div></div>
+      <div style="display:flex;align-items:center;justify-content:center;color:#B9BAAC;font-size:18px">›</div>
+    </div>
+
+    <!-- row: Rafael — subalocado -->
+    <div style="display:grid;grid-template-columns:272px 1.65fr 1fr 1fr 1fr 40px;padding:14px 0;align-items:center;border-top:1px solid #EFF0E8">
+      <div style="padding:0 20px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;flex:none">RN</div>
+        <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Rafael Nogueira Pinto</div><div style="font-size:12px;color:#54564E">Product Designer</div></div>
+      </div>
+      <div style="padding:0 24px 0 16px">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:20px;font-weight:600;color:#2D4A4C">48%</span>
+          <span style="font-family:'Space Grotesk',monospace;font-size:12px;color:#54564E">88h plan / 184h cap</span>
+          <span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(45,74,76,.10);border:1px solid rgba(45,74,76,.28);color:#2D4A4C;font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"><span style="width:5px;height:5px;border-radius:999px;background:#2D4A4C"></span>Subalocado</span>
+        </div>
+        <div style="font-size:12.5px;color:#54564E;margin-top:3px"><b style="color:#1A1A1A">20h</b> lançadas · <span style="color:#0B7350;font-weight:600">em dia</span></div>
+        <div style="position:relative;height:6px;border-radius:999px;background:#EFF0E8;margin-top:12px">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:22.7%;background:#0B7350;border-radius:999px"></div>
+          <div style="position:absolute;left:21.7%;top:-3px;width:2px;height:12px;background:#1A1A1A;border-radius:1px"></div>
+        </div>
+        <div style="margin-top:8px"><a href="#1a" style="font-size:12px;color:#0B7350;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">1 projeto</a></div>
+      </div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#2D4A4C">+128h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">24% · 40h / 168h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#2D4A4C">+80h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">55% · 96h / 176h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#0B7350">+32h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">82% · 144h / 176h</div></div>
+      <div style="display:flex;align-items:center;justify-content:center;color:#B9BAAC;font-size:18px">›</div>
+    </div>
+
+    <!-- row: Kauany — em ordem, sem badge -->
+    <div style="display:grid;grid-template-columns:272px 1.65fr 1fr 1fr 1fr 40px;padding:14px 0;align-items:center;border-top:1px solid #EFF0E8">
+      <div style="padding:0 20px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;flex:none">KS</div>
+        <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kauany Sebastiana Arantes</div><div style="font-size:12px;color:#54564E">Gerente de Produto</div></div>
+      </div>
+      <div style="padding:0 24px 0 16px">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:20px;font-weight:600;color:#0B7350">83%</span>
+          <span style="font-family:'Space Grotesk',monospace;font-size:12px;color:#54564E">152h plan / 184h cap</span>
+        </div>
+        <div style="font-size:12.5px;color:#54564E;margin-top:3px"><b style="color:#1A1A1A">31h</b> lançadas · <span style="color:#0B7350;font-weight:600">em dia</span></div>
+        <div style="position:relative;height:6px;border-radius:999px;background:#EFF0E8;margin-top:12px">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:20.4%;background:#0B7350;border-radius:999px"></div>
+          <div style="position:absolute;left:21.7%;top:-3px;width:2px;height:12px;background:#1A1A1A;border-radius:1px"></div>
+        </div>
+        <div style="margin-top:8px"><a href="#1a" style="font-size:12px;color:#0B7350;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">2 projetos</a></div>
+      </div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#0B7350">+40h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">76% · 128h / 168h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#0B7350">+48h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">73% · 128h / 176h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;font-size:17px;font-weight:600;color:#2D4A4C">+80h livres</div><div style="font-family:'Space Grotesk',monospace;font-size:12px;color:#8A8C7E;margin-top:2px">55% · 96h / 176h</div></div>
+      <div style="display:flex;align-items:center;justify-content:center;color:#B9BAAC;font-size:18px">›</div>
+    </div>
+
+    <!-- footer totals -->
+    <div style="display:grid;grid-template-columns:272px 1.65fr 1fr 1fr 1fr 40px;padding:10px 0;align-items:center;background:#F6F7EB;border-top:1px solid #DEE0D0">
+      <div style="padding:0 20px;font-size:12px;font-weight:600;color:#54564E">Σ 19 pessoas</div>
+      <div style="padding:0 16px;font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#C2810C">3.588h / 3.450h · 104% <span style="color:#8A8C7E;font-weight:400">· 412h lançadas</span></div>
+      <div style="padding:0 16px;font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#54564E">+252h · 92%</div>
+      <div style="padding:0 16px;font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#54564E">+587h · 82%</div>
+      <div style="padding:0 16px;font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#54564E">+842h · 74%</div>
+      <div></div>
+    </div>
+  </div>
+</div>
+<div style="max-width:1340px;font-size:11.5px;line-height:1.6;color:#54564E;padding:0 4px">· Célula vigente segue a spec à letra: % → ritmo → barra ancorada (marcador = esperado hoje) → projetos → badge único.<br>· Futuro: horas livres protagonistas, % coadjuvante — sem rótulos textuais repetidos.<br>· Rodapé Σ do tenant e contadores-filtro no KPI. Mais conservadora; parente direta da tela atual.</div>
+</div>
+
+<!-- ══════════════════ OPTION 1B ══════════════════ -->
+<div class="dv-opt" id="1b" data-screen-label="1b — Scan 30s denso + heatmap">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Scan 30 segundos · denso + heatmap — agrupado por severidade, wash de cor no futuro, 19 pessoas sem rolagem</div>
+<div class="dv-card" style="width:1180px;padding:20px 24px 16px">
+
+  <div style="background:#FFFFFF;border:1px solid #DEE0D0;border-radius:12px;padding:13px 18px;display:flex;align-items:center;gap:16px">
+    <div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E;flex:none">Temperatura · jul</div>
+    <div style="flex:1;display:flex;height:20px;border-radius:999px;overflow:hidden">
+      <div style="width:10.5%;background:#C2410C;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',monospace;font-size:10.5px;font-weight:600">2</div>
+      <div style="width:15.8%;background:#C2810C;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',monospace;font-size:10.5px;font-weight:600">3</div>
+      <div style="width:47.4%;background:#0B7350;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',monospace;font-size:10.5px;font-weight:600">9</div>
+      <div style="width:26.3%;background:#2D4A4C;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',monospace;font-size:10.5px;font-weight:600">5</div>
+    </div>
+    <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(194,65,12,.10);border:1px solid rgba(194,65,12,.28);color:#C2410C;font-size:11px;font-weight:600;flex:none">3 sem lançamento</span>
+    <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(194,129,12,.12);border:1px solid rgba(194,129,12,.3);color:#C2810C;font-size:11px;font-weight:600;flex:none">2 atrás do ritmo</span>
+    <div style="font-family:'Space Grotesk',monospace;font-size:13px;font-weight:600;color:#1A1A1A;flex:none">104% <span style="color:#8A8C7E;font-weight:400;font-size:11.5px">· 3.588h/3.450h</span></div>
+  </div>
+  <div style="font-size:11px;color:#8A8C7E;margin:6px 2px 0">Barra segmentada: sobrecarga · cheio · saudável · subalocado — a operação inteira em uma linha</div>
+
+  <div style="margin-top:14px;border:1px solid #DEE0D0;border-radius:12px;overflow:hidden;background:#FFFFFF">
+    <div style="display:grid;grid-template-columns:250px 1.5fr 1fr 1fr 1fr 32px;background:#F1F2E6;border-bottom:1px solid #DEE0D0;padding:8px 0">
+      <div style="padding:0 16px;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Pessoa</div>
+      <div style="padding:0 14px;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#1A1A1A">Jul · 23d <span style="color:#8A8C7E;font-weight:400;letter-spacing:0;text-transform:none;font-family:'Plus Jakarta Sans',sans-serif">carga · lançado</span></div>
+      <div style="padding:0 14px;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Ago · 21d</div>
+      <div style="padding:0 14px;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Set · 22d</div>
+      <div style="padding:0 14px;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Out · 22d</div>
+      <div></div>
+    </div>
+
+    <div style="background:#EFF0E8;padding:4px 16px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #E4E5D8"><span style="width:6px;height:6px;border-radius:999px;background:#C2410C"></span><span style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Sobrecarga · 1</span></div>
+
+    <!-- Tiago compact -->
+    <div style="display:grid;grid-template-columns:250px 1.5fr 1fr 1fr 1fr 32px;align-items:center;min-height:54px;border-left:3px solid #C2410C">
+      <div style="padding:6px 16px 6px 13px;display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="width:26px;height:26px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:700;flex:none">TA</div>
+        <div style="font-size:13px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Tiago A. de Souza Lima <span style="color:#8A8C7E;font-weight:400;font-size:11.5px">· Eng. de Software</span></div>
+      </div>
+      <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#C2410C;background:rgba(194,65,12,.10);padding:2px 8px;border-radius:6px">152%</span>
+        <div style="position:relative;width:70px;height:5px;border-radius:999px;background:#EFF0E8;flex:none"><div style="position:absolute;left:21.7%;top:-2.5px;width:1.5px;height:10px;background:#1A1A1A"></div></div>
+        <span style="font-size:12px;color:#54564E"><b style="color:#1A1A1A">0h</b> · <span style="color:#C2410C;font-weight:600">sem lanç.</span></span>
+        <span style="margin-left:auto;font-size:11.5px;color:#8A8C7E">4 proj</span>
+      </div>
+      <div style="padding:6px 10px"><div style="background:rgba(194,65,12,.09);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#C2410C">−112h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">167%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(194,65,12,.09);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#C2410C">−48h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">127%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(194,129,12,.10);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#C2810C">+8h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">95%</span></div></div>
+      <div style="color:#B9BAAC;font-size:16px">›</div>
+    </div>
+
+    <div style="background:#EFF0E8;padding:4px 16px;display:flex;align-items:center;gap:7px;border-top:1px solid #E4E5D8;border-bottom:1px solid #E4E5D8"><span style="width:6px;height:6px;border-radius:999px;background:#C2810C"></span><span style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Atrás do ritmo · 1</span></div>
+
+    <!-- Marina compact -->
+    <div style="display:grid;grid-template-columns:250px 1.5fr 1fr 1fr 1fr 32px;align-items:center;min-height:54px;border-left:3px solid #C2810C">
+      <div style="padding:6px 16px 6px 13px;display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="width:26px;height:26px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:700;flex:none">MD</div>
+        <div style="font-size:13px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Marina Duarte Campos <span style="color:#8A8C7E;font-weight:400;font-size:11.5px">· Tech Lead</span></div>
+      </div>
+      <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#C2810C;background:rgba(194,129,12,.12);padding:2px 8px;border-radius:6px">96%</span>
+        <div style="position:relative;width:70px;height:5px;border-radius:999px;background:#EFF0E8;flex:none"><div style="position:absolute;left:0;top:0;bottom:0;width:13.6%;background:#C2810C;border-radius:999px"></div><div style="position:absolute;left:21.7%;top:-2.5px;width:1.5px;height:10px;background:#1A1A1A"></div></div>
+        <span style="font-size:12px;color:#54564E"><b style="color:#1A1A1A">24h</b> · <span style="color:#C2810C;font-weight:600">−14h ritmo</span></span>
+        <span style="margin-left:auto;font-size:11.5px;color:#8A8C7E">3 proj</span>
+      </div>
+      <div style="padding:6px 10px"><div style="background:rgba(194,129,12,.10);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#C2810C">+8h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">95%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(45,74,76,.08);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#2D4A4C">+56h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">68%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(45,74,76,.08);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#2D4A4C">+96h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">45%</span></div></div>
+      <div style="color:#B9BAAC;font-size:16px">›</div>
+    </div>
+
+    <div style="background:#EFF0E8;padding:4px 16px;display:flex;align-items:center;gap:7px;border-top:1px solid #E4E5D8;border-bottom:1px solid #E4E5D8"><span style="width:6px;height:6px;border-radius:999px;background:#2D4A4C"></span><span style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Subalocado · 2</span></div>
+
+    <!-- Rafael compact -->
+    <div style="display:grid;grid-template-columns:250px 1.5fr 1fr 1fr 1fr 32px;align-items:center;min-height:54px;border-left:3px solid #2D4A4C">
+      <div style="padding:6px 16px 6px 13px;display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="width:26px;height:26px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:700;flex:none">RN</div>
+        <div style="font-size:13px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Rafael Nogueira Pinto <span style="color:#8A8C7E;font-weight:400;font-size:11.5px">· Product Designer</span></div>
+      </div>
+      <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#2D4A4C;background:rgba(45,74,76,.10);padding:2px 8px;border-radius:6px">48%</span>
+        <div style="position:relative;width:70px;height:5px;border-radius:999px;background:#EFF0E8;flex:none"><div style="position:absolute;left:0;top:0;bottom:0;width:22.7%;background:#0B7350;border-radius:999px"></div><div style="position:absolute;left:21.7%;top:-2.5px;width:1.5px;height:10px;background:#1A1A1A"></div></div>
+        <span style="font-size:12px;color:#54564E"><b style="color:#1A1A1A">20h</b> · em dia</span>
+        <span style="margin-left:auto;font-size:11.5px;color:#8A8C7E">1 proj</span>
+      </div>
+      <div style="padding:6px 10px"><div style="background:rgba(45,74,76,.08);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#2D4A4C">+128h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">24%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(45,74,76,.08);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#2D4A4C">+80h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">55%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(11,115,80,.09);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#0B7350">+32h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">82%</span></div></div>
+      <div style="color:#B9BAAC;font-size:16px">›</div>
+    </div>
+
+    <!-- Heitor compact -->
+    <div style="display:grid;grid-template-columns:250px 1.5fr 1fr 1fr 1fr 32px;align-items:center;min-height:54px;border-left:3px solid #2D4A4C;border-top:1px solid #EFF0E8">
+      <div style="padding:6px 16px 6px 13px;display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="width:26px;height:26px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:700;flex:none">HP</div>
+        <div style="font-size:13px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Heitor Prado Teixeira <span style="color:#8A8C7E;font-weight:400;font-size:11.5px">· Estagiário de Design · 6h/d</span></div>
+      </div>
+      <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#2D4A4C;background:rgba(45,74,76,.10);padding:2px 8px;border-radius:6px">35%</span>
+        <div style="position:relative;width:70px;height:5px;border-radius:999px;background:#EFF0E8;flex:none"><div style="position:absolute;left:0;top:0;bottom:0;width:18.8%;background:#0B7350;border-radius:999px"></div><div style="position:absolute;left:21.7%;top:-2.5px;width:1.5px;height:10px;background:#1A1A1A"></div></div>
+        <span style="font-size:12px;color:#54564E"><b style="color:#1A1A1A">9h</b> · em dia</span>
+        <span style="margin-left:auto;font-size:11.5px;color:#8A8C7E">1 proj</span>
+      </div>
+      <div style="padding:6px 10px"><div style="background:rgba(45,74,76,.08);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#2D4A4C">+78h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">38%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(45,74,76,.08);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#2D4A4C">+66h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">50%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(11,115,80,.09);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#0B7350">+40h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">70%</span></div></div>
+      <div style="color:#B9BAAC;font-size:16px">›</div>
+    </div>
+
+    <div style="background:#EFF0E8;padding:4px 16px;display:flex;align-items:center;gap:7px;border-top:1px solid #E4E5D8;border-bottom:1px solid #E4E5D8"><span style="width:6px;height:6px;border-radius:999px;background:#0B7350"></span><span style="font-family:'Lexend Exa',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Em ordem · 2</span></div>
+
+    <!-- Otavio compact -->
+    <div style="display:grid;grid-template-columns:250px 1.5fr 1fr 1fr 1fr 32px;align-items:center;min-height:54px;border-left:3px solid transparent">
+      <div style="padding:6px 16px 6px 13px;display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="width:26px;height:26px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:700;flex:none">OR</div>
+        <div style="font-size:13px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Otávio Ramos Bicalho <span style="color:#8A8C7E;font-weight:400;font-size:11.5px">· QA Sênior</span></div>
+      </div>
+      <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#C2810C;background:rgba(194,129,12,.12);padding:2px 8px;border-radius:6px">102%</span>
+        <div style="position:relative;width:70px;height:5px;border-radius:999px;background:#EFF0E8;flex:none"><div style="position:absolute;left:0;top:0;bottom:0;width:20.7%;background:#0B7350;border-radius:999px"></div><div style="position:absolute;left:21.7%;top:-2.5px;width:1.5px;height:10px;background:#1A1A1A"></div></div>
+        <span style="font-size:12px;color:#54564E"><b style="color:#1A1A1A">39h</b> · em dia</span>
+        <span style="margin-left:auto;font-size:11.5px;color:#8A8C7E">2 proj</span>
+      </div>
+      <div style="padding:6px 10px"><div style="background:rgba(194,129,12,.10);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#C2810C">0h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">100%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(194,129,12,.10);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#C2810C">0h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">100%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(11,115,80,.09);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#0B7350">+44h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">75%</span></div></div>
+      <div style="color:#B9BAAC;font-size:16px">›</div>
+    </div>
+
+    <!-- Kauany compact -->
+    <div style="display:grid;grid-template-columns:250px 1.5fr 1fr 1fr 1fr 32px;align-items:center;min-height:54px;border-left:3px solid transparent;border-top:1px solid #EFF0E8">
+      <div style="padding:6px 16px 6px 13px;display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="width:26px;height:26px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:700;flex:none">KS</div>
+        <div style="font-size:13px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kauany Sebastiana Arantes <span style="color:#8A8C7E;font-weight:400;font-size:11.5px">· Gerente de Produto</span></div>
+      </div>
+      <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Space Grotesk',monospace;font-size:12.5px;font-weight:600;color:#0B7350;background:rgba(11,115,80,.10);padding:2px 8px;border-radius:6px">83%</span>
+        <div style="position:relative;width:70px;height:5px;border-radius:999px;background:#EFF0E8;flex:none"><div style="position:absolute;left:0;top:0;bottom:0;width:20.4%;background:#0B7350;border-radius:999px"></div><div style="position:absolute;left:21.7%;top:-2.5px;width:1.5px;height:10px;background:#1A1A1A"></div></div>
+        <span style="font-size:12px;color:#54564E"><b style="color:#1A1A1A">31h</b> · em dia</span>
+        <span style="margin-left:auto;font-size:11.5px;color:#8A8C7E">2 proj</span>
+      </div>
+      <div style="padding:6px 10px"><div style="background:rgba(11,115,80,.09);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#0B7350">+40h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">76%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(11,115,80,.09);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#0B7350">+48h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">73%</span></div></div>
+      <div style="padding:6px 10px"><div style="background:rgba(45,74,76,.08);border-radius:8px;padding:5px 10px;display:flex;align-items:baseline;gap:6px"><span style="font-family:'Space Grotesk',monospace;font-size:13.5px;font-weight:600;color:#2D4A4C">+80h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#54564E">55%</span></div></div>
+      <div style="color:#B9BAAC;font-size:16px">›</div>
+    </div>
+  </div>
+</div>
+<div style="max-width:1160px;font-size:11.5px;line-height:1.6;color:#54564E;padding:0 4px">· Linha de 54px: 19 pessoas cabem numa tela — o "30 segundos" literal. Grupos por severidade substituem o badge (trilho colorido à esquerda + banda de grupo).<br>· Futuro como heatmap: wash de cor + horas livres — o olho varre colunas verticais sem ler.<br>· KPI vira uma barra de temperatura segmentada. Trade-off: menos detalhe por linha (barra e ritmo encolhem); detalhe fica no drawer.</div>
+</div>
+
+<!-- ══════════════════ OPTION 1C ══════════════════ -->
+<div class="dv-opt" id="1c" data-screen-label="1c — Barra-protagonista">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Barra-protagonista · régua de execução — a barra ancorada é o herói; futuros como mini-réguas de capacidade</div>
+<div class="dv-card" style="width:1360px;padding:20px 24px 16px">
+
+  <div style="background:#FFFFFF;border:1px solid #DEE0D0;border-radius:12px;padding:14px 20px;display:flex;align-items:center;gap:24px">
+    <div style="flex:none">
+      <div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Jul 2026 · mês vigente</div>
+      <div style="font-family:'Space Grotesk',monospace;font-size:15px;font-weight:600;color:#1A1A1A;margin-top:4px">dia 5 de 23 úteis</div>
+      <div style="position:relative;width:180px;height:6px;border-radius:999px;background:#EFF0E8;margin-top:7px">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:21.7%;background:#2D4A4C;border-radius:999px"></div>
+        <div style="position:absolute;left:21.7%;top:-3px;width:2px;height:12px;background:#1A1A1A;border-radius:1px"></div>
+      </div>
+      <div style="font-size:10.5px;color:#8A8C7E;margin-top:5px">esperado 21,7% do plano lançado</div>
+    </div>
+    <div style="width:1px;align-self:stretch;background:#DEE0D0"></div>
+    <div><div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Carga · jul</div><div style="font-family:'Space Grotesk',monospace;font-size:24px;font-weight:600;color:#C2810C;margin-top:2px">104%</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">3.588h / 3.450h</div></div>
+    <div style="width:1px;align-self:stretch;background:#DEE0D0"></div>
+    <div><div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Ritmo até hoje</div><div style="font-family:'Space Grotesk',monospace;font-size:24px;font-weight:600;color:#C2410C;margin-top:2px">−368h</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">412h de 780h esperadas</div></div>
+    <div style="width:1px;align-self:stretch;background:#DEE0D0"></div>
+    <div><div style="font-family:'Lexend Exa',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8A8C7E">Livres · ago</div><div style="font-family:'Space Grotesk',monospace;font-size:24px;font-weight:600;color:#0B7350;margin-top:2px">+252h</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">para projetos novos</div></div>
+    <div style="width:1px;align-self:stretch;background:#DEE0D0"></div>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(194,65,12,.10);border:1px solid rgba(194,65,12,.28);color:#C2410C;font-size:11px;font-weight:600">2 sobrecarga · 3 sem lançamento</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(45,74,76,.10);border:1px solid rgba(45,74,76,.28);color:#2D4A4C;font-size:11px;font-weight:600">5 subalocados</span>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#8A8C7E;margin:6px 2px 0">O progresso do mês vira contexto permanente — a régua do cabeçalho é a mesma régua de cada linha</div>
+
+  <div style="margin-top:14px;border:1px solid #DEE0D0;border-radius:12px;overflow:hidden;background:#FFFFFF">
+    <div style="display:grid;grid-template-columns:272px 1.7fr 1fr 1fr 1fr 40px;background:#F1F2E6;border-bottom:1px solid #DEE0D0;padding:10px 0;align-items:end">
+      <div style="padding:0 20px;font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#54564E">Pessoa</div>
+      <div style="padding:0 16px"><span style="font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;color:#1A1A1A">JUL · 23d</span> <span style="font-size:10.5px;color:#8A8C7E">— execução: lançado sobre plano, marcador = hoje</span></div>
+      <div style="padding:0 16px"><span style="font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:600;color:#54564E">AGO · 21d</span></div>
+      <div style="padding:0 16px"><span style="font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:600;color:#54564E">SET · 22d</span></div>
+      <div style="padding:0 16px"><span style="font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:600;color:#54564E">OUT · 22d</span></div>
+      <div></div>
+    </div>
+
+    <!-- Tiago C -->
+    <div style="display:grid;grid-template-columns:272px 1.7fr 1fr 1fr 1fr 40px;padding:16px 0;align-items:center">
+      <div style="padding:0 20px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;flex:none">TA</div>
+        <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Tiago Alves de Souza Lima</div><div style="font-size:12px;color:#54564E">Engenheiro de Software</div></div>
+      </div>
+      <div style="padding:0 28px 0 16px;display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:none;width:86px"><div style="font-family:'Space Grotesk',monospace;font-size:24px;font-weight:600;color:#C2410C;line-height:1">152%</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E;margin-top:4px">280h / 184h</div></div>
+        <div style="flex:1;min-width:0">
+          <div style="position:relative;margin-top:16px">
+            <div style="position:absolute;left:21.7%;bottom:calc(100% + 2px);transform:translateX(-50%);font-family:'Space Grotesk',monospace;font-size:10px;color:#54564E;white-space:nowrap">hoje · 61h</div>
+            <div style="position:relative;height:14px;border-radius:7px;background:#EFF0E8">
+              <div style="position:absolute;left:21.7%;top:-3px;width:2px;height:20px;background:#1A1A1A;border-radius:1px"></div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px"><span style="font-size:11.5px;font-weight:600;color:#C2410C">0h lançado</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">280h plan</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:7px">
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(194,65,12,.10);border:1px solid rgba(194,65,12,.28);color:#C2410C;font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"><span style="width:5px;height:5px;border-radius:999px;background:#C2410C"></span>Sobrecarga 152%</span>
+            <span style="font-size:12px;color:#C2410C;font-weight:600">sem lançamento até hoje</span>
+            <a href="#1c" style="margin-left:auto;font-size:12px;color:#0B7350;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">4 projetos</a>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#C2410C">−112h</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:100%;background:#C2410C;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">167% · 280h/168h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#C2410C">−48h</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:100%;background:#C2410C;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">127% · 224h/176h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#C2810C">+8h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:95%;background:#C2810C;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">95% · 168h/176h</div></div>
+      <div style="display:flex;align-items:center;justify-content:center;color:#B9BAAC;font-size:18px">›</div>
+    </div>
+
+    <!-- Marina C -->
+    <div style="display:grid;grid-template-columns:272px 1.7fr 1fr 1fr 1fr 40px;padding:16px 0;align-items:center;border-top:1px solid #EFF0E8">
+      <div style="padding:0 20px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;flex:none">MD</div>
+        <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Marina Duarte Campos</div><div style="font-size:12px;color:#54564E">Tech Lead</div></div>
+      </div>
+      <div style="padding:0 28px 0 16px;display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:none;width:86px"><div style="font-family:'Space Grotesk',monospace;font-size:24px;font-weight:600;color:#C2810C;line-height:1">96%</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E;margin-top:4px">176h / 184h</div></div>
+        <div style="flex:1;min-width:0">
+          <div style="position:relative;margin-top:16px">
+            <div style="position:absolute;left:21.7%;bottom:calc(100% + 2px);transform:translateX(-50%);font-family:'Space Grotesk',monospace;font-size:10px;color:#54564E;white-space:nowrap">hoje · 38h</div>
+            <div style="position:relative;height:14px;border-radius:7px;background:#EFF0E8;overflow:hidden">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:13.6%;background:#C2810C"></div>
+            </div>
+            <div style="position:absolute;left:21.7%;top:-3px;width:2px;height:20px;background:#1A1A1A;border-radius:1px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px"><span style="font-size:11.5px;font-weight:600;color:#C2810C">24h lançadas · −14h</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">176h plan</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:7px">
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(194,129,12,.12);border:1px solid rgba(194,129,12,.3);color:#C2810C;font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"><span style="width:5px;height:5px;border-radius:999px;background:#C2810C"></span>Atrás do ritmo</span>
+            <a href="#1c" style="margin-left:auto;font-size:12px;color:#0B7350;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">3 projetos</a>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#C2810C">+8h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:95%;background:#C2810C;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">95% · 160h/168h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#2D4A4C">+56h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:68%;background:#2D4A4C;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">68% · 120h/176h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#2D4A4C">+96h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:45%;background:#2D4A4C;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">45% · 80h/176h</div></div>
+      <div style="display:flex;align-items:center;justify-content:center;color:#B9BAAC;font-size:18px">›</div>
+    </div>
+
+    <!-- Kauany C -->
+    <div style="display:grid;grid-template-columns:272px 1.7fr 1fr 1fr 1fr 40px;padding:16px 0;align-items:center;border-top:1px solid #EFF0E8">
+      <div style="padding:0 20px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;flex:none">KS</div>
+        <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kauany Sebastiana Arantes</div><div style="font-size:12px;color:#54564E">Gerente de Produto</div></div>
+      </div>
+      <div style="padding:0 28px 0 16px;display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:none;width:86px"><div style="font-family:'Space Grotesk',monospace;font-size:24px;font-weight:600;color:#0B7350;line-height:1">83%</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E;margin-top:4px">152h / 184h</div></div>
+        <div style="flex:1;min-width:0">
+          <div style="position:relative;margin-top:16px">
+            <div style="position:absolute;left:21.7%;bottom:calc(100% + 2px);transform:translateX(-50%);font-family:'Space Grotesk',monospace;font-size:10px;color:#54564E;white-space:nowrap">hoje · 33h</div>
+            <div style="position:relative;height:14px;border-radius:7px;background:#EFF0E8;overflow:hidden">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:20.4%;background:#0B7350"></div>
+            </div>
+            <div style="position:absolute;left:21.7%;top:-3px;width:2px;height:20px;background:#1A1A1A;border-radius:1px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px"><span style="font-size:11.5px;font-weight:600;color:#0B7350">31h lançadas · em dia</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">152h plan</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:7px">
+            <span style="font-size:12px;color:#8A8C7E">sem alertas</span>
+            <a href="#1c" style="margin-left:auto;font-size:12px;color:#0B7350;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">2 projetos</a>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#0B7350">+40h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:76%;background:#0B7350;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">76% · 128h/168h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#0B7350">+48h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:73%;background:#0B7350;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">73% · 128h/176h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#2D4A4C">+80h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:55%;background:#2D4A4C;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">55% · 96h/176h</div></div>
+      <div style="display:flex;align-items:center;justify-content:center;color:#B9BAAC;font-size:18px">›</div>
+    </div>
+
+    <!-- Rafael C -->
+    <div style="display:grid;grid-template-columns:272px 1.7fr 1fr 1fr 1fr 40px;padding:16px 0;align-items:center;border-top:1px solid #EFF0E8">
+      <div style="padding:0 20px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:999px;background:#E8F1EC;color:#0B7350;display:flex;align-items:center;justify-content:center;font-family:'Lexend Exa',sans-serif;font-size:12px;font-weight:700;flex:none">RN</div>
+        <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Rafael Nogueira Pinto</div><div style="font-size:12px;color:#54564E">Product Designer</div></div>
+      </div>
+      <div style="padding:0 28px 0 16px;display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:none;width:86px"><div style="font-family:'Space Grotesk',monospace;font-size:24px;font-weight:600;color:#2D4A4C;line-height:1">48%</div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E;margin-top:4px">88h / 184h</div></div>
+        <div style="flex:1;min-width:0">
+          <div style="position:relative;margin-top:16px">
+            <div style="position:absolute;left:21.7%;bottom:calc(100% + 2px);transform:translateX(-50%);font-family:'Space Grotesk',monospace;font-size:10px;color:#54564E;white-space:nowrap">hoje · 19h</div>
+            <div style="position:relative;height:14px;border-radius:7px;background:#EFF0E8;overflow:hidden">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:22.7%;background:#0B7350"></div>
+            </div>
+            <div style="position:absolute;left:21.7%;top:-3px;width:2px;height:20px;background:#1A1A1A;border-radius:1px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px"><span style="font-size:11.5px;font-weight:600;color:#0B7350">20h lançadas · em dia</span><span style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">88h plan</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:7px">
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(45,74,76,.10);border:1px solid rgba(45,74,76,.28);color:#2D4A4C;font-family:'Lexend Exa',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"><span style="width:5px;height:5px;border-radius:999px;background:#2D4A4C"></span>Subalocado</span>
+            <a href="#1c" style="margin-left:auto;font-size:12px;color:#0B7350;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">1 projeto</a>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#2D4A4C">+128h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:24%;background:#2D4A4C;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">24% · 40h/168h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#2D4A4C">+80h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:55%;background:#2D4A4C;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">55% · 96h/176h</div></div>
+      <div style="padding:0 16px"><div style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:600;color:#0B7350">+32h livres</div><div style="position:relative;height:5px;border-radius:999px;background:#EFF0E8;margin:6px 0 4px"><div style="position:absolute;left:0;top:0;bottom:0;width:82%;background:#0B7350;border-radius:999px"></div></div><div style="font-family:'Space Grotesk',monospace;font-size:11px;color:#8A8C7E">82% · 144h/176h</div></div>
+      <div style="display:flex;align-items:center;justify-content:center;color:#B9BAAC;font-size:18px">›</div>
+    </div>
+  </div>
+</div>
+<div style="max-width:1340px;font-size:11.5px;line-height:1.6;color:#54564E;padding:0 4px">· A barra de 14px é o herói: preenchimento = lançado/plano, marcador escuro = "hoje", rótulos nas pontas — o desvio de ritmo se VÊ antes de se ler.<br>· Futuros como mini-réguas plan/capacidade: as 4 colunas viram gauges alinhados, escaneáveis verticalmente.<br>· KPI traz a régua do mês ("dia 5 de 23") como contexto permanente. Trade-off: linha mais alta (~120px), menos pessoas por tela.</div>
+</div>
+
+</div>
+<p class="dv-next">Próximos passos: "construir <a class="dv-oid" href="#1a">1a</a> completa com drawer e filtros" · "linha da <a class="dv-oid" href="#1a">1a</a> com heatmap futuro da <a class="dv-oid" href="#1b">1b</a>" · "denso da <a class="dv-oid" href="#1b">1b</a> mas com a barra da <a class="dv-oid" href="#1c">1c</a>"</p>
+</section>
+
+</x-dc>
+</body>
+</html>

@@ -3499,6 +3499,7 @@ export type Database = {
           deliverables: string | null
           end_date: string
           id: string
+          milestone_type: string
           project_id: string
           start_date: string
           status: string | null
@@ -3510,6 +3511,7 @@ export type Database = {
           deliverables?: string | null
           end_date: string
           id?: string
+          milestone_type?: string
           project_id: string
           start_date: string
           status?: string | null
@@ -3521,6 +3523,7 @@ export type Database = {
           deliverables?: string | null
           end_date?: string
           id?: string
+          milestone_type?: string
           project_id?: string
           start_date?: string
           status?: string | null

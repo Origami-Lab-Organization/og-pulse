@@ -6,6 +6,7 @@ import {
   CreateMilestoneInput,
   UpdateMilestoneInput,
   MilestoneStatus,
+  MilestoneType,
 } from '@/types/projectMilestone';
 
 export const useProjectMilestones = (projectId: string | undefined) => {
@@ -21,7 +22,10 @@ export const useProjectMilestones = (projectId: string | undefined) => {
       if (error) throw error;
       return data.map((m) => ({
         ...m,
-        status: m.status as MilestoneStatus,
+        status: (m.status ?? 'pending') as MilestoneStatus,
+        // Coalesce para 'marco' quando a coluna ainda não existe/está nula
+        // (registros antigos do Cronograma antes da migration milestone_type).
+        milestone_type: ((m as { milestone_type?: string }).milestone_type ?? 'marco') as MilestoneType,
       })) as ProjectMilestone[];
     },
     enabled: !!projectId,
@@ -42,6 +46,7 @@ export const useCreateMilestone = () => {
           deliverables: input.deliverables || null,
           start_date: input.startDate,
           end_date: input.endDate,
+          milestone_type: input.milestoneType,
         })
         .select()
         .single();
@@ -89,6 +94,7 @@ export const useUpdateMilestone = () => {
           end_date: updates.endDate,
           completed_date: updates.completedDate,
           status: updates.status,
+          milestone_type: updates.milestoneType,
         })
         .eq('id', id)
         .select()

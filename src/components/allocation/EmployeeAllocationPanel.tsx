@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { getAllocationStatus, getAllocationStatusClasses, getAllocationStatusLabel } from '@/lib/allocationGrid';
+import { getRhythm, proRataFraction, rhythmLabel } from '@/lib/allocationSeverity';
 import { useEmployeeAvailability } from '@/hooks/useEmployeeAvailability';
 import {
   PlannedHoursChange,
@@ -417,6 +418,26 @@ export function EmployeeAllocationPanel({
                   <div className={cn('h-full rounded-full', statusClasses.bg, progressClass(utilization))} />
                 </div>
               </section>
+
+              {focusedMonth?.key === currentMonthKey() && (() => {
+                const fraction = proRataFraction(focusedMonth);
+                const rhythm = getRhythm(actualTotal, plannedTotal, fraction);
+                const rhythmTone = rhythm.state === 'em_dia' ? 'text-primary-deep' : 'text-destructive';
+                return (
+                  <section className="rounded-lg border bg-muted/40 p-4">
+                    <p className="ol-label text-muted-foreground">Ritmo de lançamento</p>
+                    <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
+                        {formatHours(actualTotal)} lançado
+                      </span>
+                      <span className={cn('text-sm font-semibold', rhythmTone)}>· {rhythmLabel(rhythm)}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Esperado até hoje: {formatHours(rhythm.expectedHours)} ({Math.round(fraction * 100)}% do mês)
+                    </p>
+                  </section>
+                );
+              })()}
 
               <div className="flex items-center justify-between rounded-md border bg-card px-2 py-2">
                 <Button type="button" variant="ghost" size="icon" disabled={monthIndex <= 0} onClick={() => previousMonth && setFocusedMonthKey(previousMonth.key)}>

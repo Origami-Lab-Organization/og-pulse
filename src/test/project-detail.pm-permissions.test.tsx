@@ -108,12 +108,6 @@ vi.mock('@/components/projects/detail/ProjectStakeholdersTab', () => ({
   ),
 }));
 
-vi.mock('@/components/projects/detail/ProjectScheduleTab', () => ({
-  ProjectScheduleTab: ({ isReadOnly }: { isReadOnly: boolean }) => (
-    <div data-testid="schedule-readonly">{String(isReadOnly)}</div>
-  ),
-}));
-
 vi.mock('@/components/projects/detail/ProjectExpectedResultTab', () => ({
   ProjectExpectedResultTab: () => <div>Resultado esperado</div>,
 }));

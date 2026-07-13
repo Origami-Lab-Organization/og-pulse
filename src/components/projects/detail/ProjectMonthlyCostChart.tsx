@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
 import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
 import { BarChart2, PieChart as PieChartIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -30,9 +31,12 @@ export interface MonthlyChartItem {
   };
 }
 
+export type CostCategoryTarget = 'labor' | 'others';
+
 interface ProjectMonthlyCostChartProps {
   data: MonthlyChartItem[];
   isLoading?: boolean;
+  onCategoryClick?: (target: CostCategoryTarget) => void;
 }
 
 // Escala monocromática do verde ESCURO da marca (--primary-deep, base
@@ -62,16 +66,25 @@ function BarTooltip({
   formatCurrency: (v: number) => string;
 }) {
   if (!active || !payload?.length) return null;
+  const point = payload[0]?.payload as (MonthlyChartItem & { plannedTotal: number; realizedTotal: number }) | undefined;
+  const b = point?.breakdown;
+  const line = (title: string, total: number, labor: number, others: number) => (
+    <div className="mb-1 last:mb-0">
+      <p className="font-medium">{title}: {formatCurrency(total)}</p>
+      <p className="text-xs text-muted-foreground">
+        MO: {formatCurrency(labor)} · Outros: {formatCurrency(others)}
+      </p>
+    </div>
+  );
   return (
     <div className="bg-background border rounded-lg p-3 shadow-lg text-sm">
       <p className="font-medium mb-2">{label}</p>
-      {payload.map((entry: any, i: number) => (
-        <div key={i} className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: entry.fill }} />
-          <span className="text-muted-foreground">{entry.name}:</span>
-          <span className="font-medium">{formatCurrency(entry.value)}</span>
-        </div>
-      ))}
+      {b && (
+        <>
+          {line('Planejado', point!.planned, b.planned.labor, b.planned.suppliers + b.planned.materials)}
+          {line('Realizado', point!.realized, b.realized.labor, b.realized.suppliers + b.realized.materials)}
+        </>
+      )}
     </div>
   );
 }
@@ -96,12 +109,21 @@ function PieTooltip({
   );
 }
 
-export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMonthlyCostChartProps) {
+export function ProjectMonthlyCostChart({ data, isLoading = false, onCategoryClick }: ProjectMonthlyCostChartProps) {
   const formatCurrency = useMaskedCurrency();
   const hideValues = useHideValues();
   const [pieMode, setPieMode] = useState<'realized' | 'planned'>('realized');
 
   const hasData = data.some(d => d.planned > 0 || d.realized > 0);
+
+  // Achata o breakdown para barras empilhadas: MO + Outros, por planejado e realizado.
+  const stackedData = data.map((d) => ({
+    ...d,
+    plannedLabor: d.breakdown.planned.labor,
+    plannedOthers: d.breakdown.planned.suppliers + d.breakdown.planned.materials,
+    realizedLabor: d.breakdown.realized.labor,
+    realizedOthers: d.breakdown.realized.suppliers + d.breakdown.realized.materials,
+  }));
 
   // Acumula os totais por categoria para os dois modos do donut.
   const totals = data.reduce(
@@ -140,6 +162,8 @@ export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMont
   const pieTotal = pieData.reduce((sum, item) => sum + item.value, 0);
   const pieCenterLabel = pieMode === 'realized' ? 'Realizado' : 'Planejado';
 
+  const categoryTarget = (name: string): CostCategoryTarget => (name === 'Mão de Obra' ? 'labor' : 'others');
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -172,7 +196,7 @@ export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMont
           ) : (
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                <BarChart data={stackedData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis
                     dataKey="month"
@@ -187,12 +211,14 @@ export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMont
                     className="text-muted-foreground"
                     width={65}
                   />
-                  <Tooltip content={(props) => <BarTooltip {...props} formatCurrency={formatCurrency} />} />
+                  <Tooltip content={(props) => <BarTooltip {...props} formatCurrency={formatCurrency} />} cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} />
                   <Legend iconType="circle" iconSize={8} />
-                  {/* Planejado em neutro, Realizado no verde escuro da marca —
-                      acento único, conforme o modelo de design e o origami-ds. */}
-                  <Bar dataKey="planned"  name="Planejado" fill="hsl(var(--muted-foreground) / 0.35)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="realized" name="Realizado"  fill="hsl(var(--primary-deep))" radius={[4, 4, 0, 0]} />
+                  {/* Planejado (tons neutros) e Realizado (verde da marca),
+                      cada um empilhado por Mão de Obra + Outros custos. */}
+                  <Bar stackId="planned" dataKey="plannedLabor"  name="Planejado · MO"     fill="hsl(var(--muted-foreground) / 0.55)" radius={[0, 0, 0, 0]} />
+                  <Bar stackId="planned" dataKey="plannedOthers" name="Planejado · Outros"  fill="hsl(var(--muted-foreground) / 0.25)" radius={[4, 4, 0, 0]} />
+                  <Bar stackId="realized" dataKey="realizedLabor"  name="Realizado · MO"     fill="hsl(var(--primary-deep))" radius={[0, 0, 0, 0]} />
+                  <Bar stackId="realized" dataKey="realizedOthers" name="Realizado · Outros"  fill="hsl(var(--primary-deep) / 0.45)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -248,6 +274,8 @@ export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMont
                       paddingAngle={2}
                       dataKey="value"
                       strokeWidth={0}
+                      onClick={onCategoryClick ? (entry: { name?: string }) => onCategoryClick(categoryTarget(entry?.name ?? '')) : undefined}
+                      className={onCategoryClick ? 'cursor-pointer' : undefined}
                     >
                       {pieData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -287,7 +315,16 @@ export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMont
                 {pieData.map((item) => {
                   const percent = ((item.value / pieTotal) * 100).toFixed(0);
                   return (
-                    <div key={item.name} className="flex items-center justify-between text-xs">
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={onCategoryClick ? () => onCategoryClick(categoryTarget(item.name)) : undefined}
+                      disabled={!onCategoryClick}
+                      className={cn(
+                        'flex items-center justify-between rounded px-1 py-0.5 text-xs transition-colors',
+                        onCategoryClick ? 'cursor-pointer hover:bg-accent/50' : 'cursor-default',
+                      )}
+                    >
                       <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                         <span className="text-muted-foreground">{item.name}</span>
@@ -295,7 +332,7 @@ export function ProjectMonthlyCostChart({ data, isLoading = false }: ProjectMont
                       <span className="font-medium">
                         {hideValues ? '•••' : `${percent}%`}
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

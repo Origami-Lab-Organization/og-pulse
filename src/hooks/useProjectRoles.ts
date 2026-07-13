@@ -1,13 +1,22 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { equipeService } from '@/services/equipeService';
+import { ProjectWithRelations } from '@/types/project';
 import {
   AddAllocationPayload,
   ProjectAllocation,
   ProjectAllocationWithEmployee,
+  ProjectTeamRowDB,
   CreateProjectRolePayload,
+  TeamAllocationRow,
+  TeamMonthCell,
 } from '@/types/equipe.types';
+import { useProjectBudgetRoles } from '@/hooks/useProjectBudgetRoles';
+import { useProjectRealizedHours } from '@/hooks/useProjectRealizedHours';
+import { getEmployeeMonthLoad, useTenantMonthlyCapacitySummary } from '@/hooks/useTenantMonthlyCapacitySummary';
+import { buildProjectMonths } from '@/lib/projectMonths';
 
 // ─── Aggregate raw rows → one entry per employee ──────────────────────────────
 
@@ -34,6 +43,7 @@ function groupAllocations(raw: ProjectAllocationWithEmployee[]): ProjectAllocati
     const entry = map.get(key)!;
     const hours = Number(row.planned_hours);
     entry.monthlyHours.push({
+      id: row.id,
       year: row.year,
       month: row.month,
       plannedHours: hours,
@@ -45,15 +55,33 @@ function groupAllocations(raw: ProjectAllocationWithEmployee[]): ProjectAllocati
   return Array.from(map.values());
 }
 
+function monthKey(year: number, month: number) {
+  return `${year}-${month}`;
+}
+
+function isFutureMonth(year: number, month: number, today: Date) {
+  const current = today.getFullYear() * 12 + today.getMonth();
+  const target = year * 12 + (month - 1);
+  return target > current;
+}
+
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
-export const useProjectAllocations = (projectId: string) => {
+export const useProjectAllocations = (projectId: string, includeCost: boolean) => {
   return useQuery({
-    queryKey: ['project-allocations', projectId],
+    queryKey: ['project-allocations', projectId, includeCost],
     queryFn: async () => {
-      const raw = await equipeService.getProjectAllocations(projectId);
+      const raw = await equipeService.getProjectAllocations(projectId, includeCost);
       return groupAllocations(raw);
     },
+    enabled: !!projectId,
+  });
+};
+
+export const useProjectTeamRows = (projectId: string) => {
+  return useQuery({
+    queryKey: ['project-team-rows', projectId],
+    queryFn: () => equipeService.getProjectTeamRows(projectId),
     enabled: !!projectId,
   });
 };
@@ -139,4 +167,362 @@ export const useCreateProjectRole = (projectId: string, onSuccess?: () => void) 
       toast({ title: 'Erro ao adicionar papel', variant: 'destructive' });
     },
   });
+};
+
+// ─── Edição inline de 1 célula (mês existente ou novo) ─────────────────────────
+
+export const useUpdateAllocationHours = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { employee } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: {
+      allocationId: string;
+      previousHours: number;
+      newHours: number;
+      isPastMonth: boolean;
+      reasonCode?: string;
+      justification?: string;
+    }) => {
+      if (input.isPastMonth && !employee?.isAdmin) {
+        throw new Error('Apenas admin pode editar horas planejadas de meses passados');
+      }
+      await equipeService.updateAllocationHours(input.allocationId, input.newHours);
+      if (input.isPastMonth && employee?.id) {
+        await equipeService.logAllocationHoursEdit({
+          allocationId: input.allocationId,
+          editedBy: employee.id,
+          previousHours: input.previousHours,
+          newHours: input.newHours,
+          reasonCode: input.reasonCode ?? 'other',
+          justification: input.justification ?? '',
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-realized-hours', projectId] });
+      toast({ title: 'Horas atualizadas' });
+    },
+    onError: (error: Error) => {
+      toast({ title: error.message || 'Erro ao atualizar horas', variant: 'destructive' });
+    },
+  });
+};
+
+/** Cria/atualiza a alocação de um mês que ainda não tem linha (upsert de 1 mês). */
+export const useSetAllocationMonthHours = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: {
+      tenantId: string;
+      employeeId: string;
+      budgetRoleId: string | null;
+      customRoleName: string | null;
+      year: number;
+      month: number;
+      plannedHours: number;
+    }) => {
+      await equipeService.upsertAllocations([{
+        project_id: projectId,
+        tenant_id: input.tenantId,
+        employee_id: input.employeeId,
+        budget_role_id: input.budgetRoleId,
+        custom_role_name: input.customRoleName,
+        year: input.year,
+        month: input.month,
+        planned_hours: input.plannedHours,
+      }]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao atualizar horas', variant: 'destructive' });
+    },
+  });
+};
+
+// ─── Desalocação / reativação ──────────────────────────────────────────────────
+
+export const useDeallocateMember = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (employeeId: string) => equipeService.deallocateMember(projectId, employeeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
+      toast({ title: 'Funcionário desalocado', description: 'As horas planejadas a partir do próximo mês foram zeradas.' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao desalocar funcionário', variant: 'destructive' });
+    },
+  });
+};
+
+export const useReactivateMember = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (employeeId: string) => equipeService.reactivateMember(projectId, employeeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
+      toast({ title: 'Funcionário reativado' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao reativar funcionário', variant: 'destructive' });
+    },
+  });
+};
+
+// ─── Vagas (manuais, sem papel orçado) ─────────────────────────────────────────
+
+export const useCreateVacancyRow = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (input: { tenantId: string; customRoleName: string; monthlyHours: { year: number; month: number; plannedHours: number }[] }) =>
+      equipeService.createVacancyRow({ projectId, tenantId: input.tenantId, customRoleName: input.customRoleName, monthlyHours: input.monthlyHours }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
+      toast({ title: 'Vaga criada' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao criar vaga', variant: 'destructive' });
+    },
+  });
+};
+
+export const useSetVacancyMonthHours = (projectId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { rowId: string; year: number; month: number; plannedHours: number }) =>
+      equipeService.setVacancyMonthlyHours(input.rowId, input.year, input.month, input.plannedHours),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
+    },
+  });
+};
+
+export const useAssignEmployeeToVacancyRow = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (input: { rowId: string; employeeId: string }) =>
+      equipeService.assignEmployeeToVacancyRow(input.rowId, input.employeeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
+      toast({ title: 'Funcionário atribuído à vaga' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao atribuir funcionário', variant: 'destructive' });
+    },
+  });
+};
+
+export const useRemoveTeamRow = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: { kind: 'vacancy' | 'member'; vacancyRowId?: string; employeeId?: string }) => {
+      if (input.kind === 'vacancy') {
+        if (!input.vacancyRowId) throw new Error('Vaga inválida');
+        await equipeService.deleteTeamRow(input.vacancyRowId);
+        return;
+      }
+      if (!input.employeeId) throw new Error('Funcionário inválido');
+      const hasActual = await equipeService.hasActualHours(projectId, input.employeeId);
+      if (hasActual) {
+        throw new Error('Não é possível excluir: existem horas realizadas. Desative em vez de excluir.');
+      }
+      await equipeService.deleteEmployeeAllocations(projectId, input.employeeId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-allocations-filled-roles', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
+      toast({ title: 'Linha removida' });
+    },
+    onError: (error: Error) => {
+      toast({ title: error.message || 'Erro ao remover', variant: 'destructive' });
+    },
+  });
+};
+
+// ─── Agregador: linhas "mês×membro" prontas para a tabela ──────────────────────
+
+export const useTeamAllocationRows = (project: ProjectWithRelations, canEdit: boolean, currentEmployeeId?: string) => {
+  const allocationsQuery = useProjectAllocations(project.id, canEdit);
+  const teamRowsQuery = useProjectTeamRows(project.id);
+  const { budgetRoles, isLoading: budgetRolesLoading } = useProjectBudgetRoles(project.budget_id, project.id);
+  const realizedQuery = useProjectRealizedHours(project.id);
+
+  const allocations = useMemo(() => allocationsQuery.data ?? [], [allocationsQuery.data]);
+  const years = useMemo(
+    () => Array.from(new Set(allocations.flatMap((a) => a.monthlyHours.map((mh) => mh.year)))),
+    [allocations],
+  );
+  const capacitySummary = useTenantMonthlyCapacitySummary({ tenantId: project.tenant_id, years, enabled: years.length > 0 });
+
+  const isLoading = allocationsQuery.isLoading || teamRowsQuery.isLoading || budgetRolesLoading || realizedQuery.isLoading;
+
+  const rows = useMemo<TeamAllocationRow[]>(() => {
+    if (isLoading) return [];
+    const today = new Date();
+    const teamRows: ProjectTeamRowDB[] = teamRowsQuery.data ?? [];
+    const memberStatusByEmployee = new Map(
+      teamRows.filter((r) => r.row_type === 'member_status' && r.employee_id).map((r) => [r.employee_id as string, r]),
+    );
+    const manualVacancies = teamRows.filter((r) => r.row_type === 'vacancy');
+    const realized = realizedQuery.data ?? new Map<string, number>();
+    const projectMonths = buildProjectMonths(project.start_date, project.end_date);
+    const monthNumberToDate = new Map(projectMonths.map((pm) => [pm.monthNumber, { year: pm.year, month: pm.month }]));
+
+    const buildCell = (employeeId: string, year: number, month: number, plannedHours: number, allocationId: string | null): TeamMonthCell => {
+      const future = isFutureMonth(year, month, today);
+      const realizedHours = future ? null : (realized.get(`${employeeId}-${year}-${month}`) ?? 0);
+      const load = getEmployeeMonthLoad(capacitySummary.data, employeeId, year, month);
+      return {
+        year,
+        month,
+        allocationId,
+        plannedHours,
+        realizedHours,
+        isOverallocated: load.plannedHours > load.capacityHours && load.capacityHours > 0,
+      };
+    };
+
+    const memberRows: TeamAllocationRow[] = allocations
+      .filter((a) => memberStatusByEmployee.get(a.employeeId)?.status !== 'deallocated')
+      .map((a) => {
+        const months: Record<string, TeamMonthCell> = {};
+        a.monthlyHours.forEach((mh) => {
+          months[monthKey(mh.year, mh.month)] = buildCell(a.employeeId, mh.year, mh.month, mh.plannedHours, mh.id);
+        });
+        return {
+          kind: 'member' as const,
+          key: a.employeeId,
+          employeeId: a.employeeId,
+          employee: a.employee,
+          roleName: a.roleName,
+          budgetRoleId: a.budgetRoleId,
+          isUnbudgeted: !a.budgetRoleId,
+          vacancyRowId: null,
+          months,
+          totalPlanned: a.totalHours,
+          totalRealized: a.monthlyHours.reduce((sum, mh) => sum + (realized.get(`${a.employeeId}-${mh.year}-${mh.month}`) ?? 0), 0),
+          deallocatedAt: null,
+        };
+      })
+      .sort((a, b) => {
+        if (currentEmployeeId) {
+          if (a.employeeId === currentEmployeeId) return -1;
+          if (b.employeeId === currentEmployeeId) return 1;
+        }
+        return (a.employee?.nome ?? '').localeCompare(b.employee?.nome ?? '', 'pt-BR');
+      });
+
+    const deallocatedRows: TeamAllocationRow[] = allocations
+      .filter((a) => memberStatusByEmployee.get(a.employeeId)?.status === 'deallocated')
+      .map((a) => {
+        const months: Record<string, TeamMonthCell> = {};
+        a.monthlyHours.forEach((mh) => {
+          months[monthKey(mh.year, mh.month)] = buildCell(a.employeeId, mh.year, mh.month, mh.plannedHours, mh.id);
+        });
+        return {
+          kind: 'deallocated' as const,
+          key: a.employeeId,
+          employeeId: a.employeeId,
+          employee: a.employee,
+          roleName: a.roleName,
+          budgetRoleId: a.budgetRoleId,
+          isUnbudgeted: !a.budgetRoleId,
+          vacancyRowId: null,
+          months,
+          totalPlanned: a.totalHours,
+          totalRealized: a.monthlyHours.reduce((sum, mh) => sum + (realized.get(`${a.employeeId}-${mh.year}-${mh.month}`) ?? 0), 0),
+          deallocatedAt: memberStatusByEmployee.get(a.employeeId)?.deallocated_at ?? null,
+        };
+      })
+      .sort((a, b) => (a.employee?.nome ?? '').localeCompare(b.employee?.nome ?? '', 'pt-BR'));
+
+    const budgetedVacancyRows: TeamAllocationRow[] = budgetRoles
+      .filter((role) => !role.filled)
+      .map((role) => {
+        const months: Record<string, TeamMonthCell> = {};
+        role.months.forEach((bm) => {
+          const date = monthNumberToDate.get(bm.month_number);
+          if (!date) return;
+          months[monthKey(date.year, date.month)] = {
+            year: date.year,
+            month: date.month,
+            allocationId: null,
+            plannedHours: Number(bm.hours),
+            realizedHours: null,
+            isOverallocated: false,
+          };
+        });
+        return {
+          kind: 'vacancy' as const,
+          key: `budget-role-${role.id}`,
+          employeeId: null,
+          employee: null,
+          roleName: role.role_name,
+          budgetRoleId: role.id,
+          isUnbudgeted: false,
+          vacancyRowId: null,
+          months,
+          totalPlanned: role.months.reduce((sum, bm) => sum + Number(bm.hours), 0),
+          totalRealized: 0,
+          deallocatedAt: null,
+        };
+      });
+
+    const manualVacancyRows: TeamAllocationRow[] = manualVacancies.map((row) => {
+      const months: Record<string, TeamMonthCell> = {};
+      (row.months ?? []).forEach((rm) => {
+        months[monthKey(rm.year, rm.month)] = {
+          year: rm.year,
+          month: rm.month,
+          allocationId: null,
+          plannedHours: Number(rm.planned_hours),
+          realizedHours: null,
+          isOverallocated: false,
+        };
+      });
+      return {
+        kind: 'vacancy' as const,
+        key: `team-row-${row.id}`,
+        employeeId: null,
+        employee: null,
+        roleName: row.custom_role_name ?? 'Vaga',
+        budgetRoleId: null,
+        isUnbudgeted: false,
+        vacancyRowId: row.id,
+        months,
+        totalPlanned: (row.months ?? []).reduce((sum, rm) => sum + Number(rm.planned_hours), 0),
+        totalRealized: 0,
+        deallocatedAt: null,
+      };
+    });
+
+    const vacancyRows = [...budgetedVacancyRows, ...manualVacancyRows].sort((a, b) =>
+      a.roleName.localeCompare(b.roleName, 'pt-BR'),
+    );
+
+    return [...memberRows, ...vacancyRows, ...deallocatedRows];
+  }, [allocations, teamRowsQuery.data, budgetRoles, realizedQuery.data, capacitySummary.data, isLoading, currentEmployeeId, project.start_date, project.end_date]);
+
+  return { rows, isLoading };
 };

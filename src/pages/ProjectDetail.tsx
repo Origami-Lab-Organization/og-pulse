@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Edit, Lock, Trash2, MoreVertical, Archive, Eye, EyeOff, Map } from "lucide-react";
+import { Edit, Lock, Trash2, MoreVertical, Archive, Eye, EyeOff } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,6 +18,7 @@ import { ProjectCostsTab } from "@/components/projects/detail/ProjectCostsTab";
 import { ProjectFinancialTab } from "@/components/projects/detail/ProjectFinancialTab";
 import { ProjectOKRsTab } from "@/components/projects/detail/ProjectOKRsTab";
 import { ProjectStakeholdersTab } from "@/components/projects/detail/ProjectStakeholdersTab";
+import { ProjectRoadmapTab } from "@/components/projects/detail/ProjectRoadmapTab";
 import { ProjectExpectedResultTab } from "@/components/projects/detail/ProjectExpectedResultTab";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
 import { EquipeTab } from "@/components/projects/detail/EquipeTab";
@@ -274,9 +275,9 @@ export default function ProjectDetail() {
                 {canAccessFullProject && (
                   <>
                     <TabsTrigger value="overview" className={projectTabClass}>Visão Geral</TabsTrigger>
-                    {/* <TabsTrigger value="planning" className={projectTabClass}>Planejamento</TabsTrigger> */}
+                    <TabsTrigger value="planning" className={projectTabClass}>Planejamento</TabsTrigger>
                     <TabsTrigger value="okrs" className={projectTabClass}>Objetivos</TabsTrigger>
-                    {/* <TabsTrigger value="roadmap" className={projectTabClass}>Roadmap</TabsTrigger> */}
+                    <TabsTrigger value="roadmap" className={projectTabClass}>Roadmap</TabsTrigger>
                     <TabsTrigger value="team" className={projectTabClass}>Equipe</TabsTrigger>
                     <TabsTrigger value="costs" className={projectTabClass}>Custos</TabsTrigger>
                     <TabsTrigger value="financial" className={projectTabClass}>Financeiro</TabsTrigger>
@@ -302,27 +303,21 @@ export default function ProjectDetail() {
                 <ProjectOverviewTab project={project} />
               </TabsContent>
 
-              {/* <TabsContent value="planning" className="mt-6">
+              <TabsContent value="planning" className="mt-6">
                 <ProjectPlanningOverviewTab
                   project={project}
                   canManageProject={canManageProject}
                   onNavigateToTab={setActiveTab}
                 />
-              </TabsContent> */}
+              </TabsContent>
 
               <TabsContent value="okrs" className="mt-6">
                 <ProjectOKRsTab project={project} isReadOnly={isReadOnly} />
               </TabsContent>
 
-              {/*<TabsContent value="roadmap" className="mt-6">
-                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-                  <Map className="h-8 w-8 text-muted-foreground" aria-hidden />
-                  <p className="text-sm font-medium text-foreground">Roadmap em breve</p>
-                  <p className="text-sm text-muted-foreground">
-                    Esta área ainda está em construção.
-                  </p>
-                </div>
-              </TabsContent>*/}
+              <TabsContent value="roadmap" className="mt-6">
+                <ProjectRoadmapTab project={project} isReadOnly={isReadOnly} />
+              </TabsContent>
 
               <TabsContent value="team" className="mt-6">
                 <EquipeTab project={project} isReadOnly={isReadOnly} />
