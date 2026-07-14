@@ -3,16 +3,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 // FUNC-J1 — Reenvio do convite de primeiro acesso (PÚBLICO / sem autenticação).
 //
-// Cenário: funcionário convidado que não concluiu o primeiro acesso (não tem
-// sessão válida) e perdeu/não usou a credencial temporária. Esta função gera uma
-// nova credencial temporária, reenvia o convite e reinicia o TTL.
+// Usa o SMTP do próprio Auth do Supabase (mesmo caminho do reset de senha).
+// Não depende mais do Resend nem gera senha temporária: envia um link de
+// recuperação que autentica o funcionário e cai em /primeiro-acesso, onde ele
+// define a senha via updateUser({ password }).
 //
 // Segurança:
 // - Sempre responde genérico ({ ok: true }) — nunca revela se a conta existe ou
 //   está pendente (evita enumeração).
 // - Só age quando o funcionário existe E está com must_change_password = true.
 // - Endpoint público: considerar rate limiting / captcha no futuro contra abuso.
-// - Logs sem dados pessoais ou credenciais (apenas marcadores de fluxo).
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,31 +24,21 @@ interface RequestFirstAccessBody {
   loginUrl: string;
 }
 
-function generateTempPassword(length = 12): string {
-  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lowercase = "abcdefghijklmnopqrstuvwxyz";
-  const numbers = "0123456789";
-  const all = uppercase + lowercase + numbers;
-  let credential = "";
-  credential += uppercase[Math.floor(Math.random() * uppercase.length)];
-  credential += lowercase[Math.floor(Math.random() * lowercase.length)];
-  credential += numbers[Math.floor(Math.random() * numbers.length)];
-  for (let i = 3; i < length; i++) {
-    credential += all[Math.floor(Math.random() * all.length)];
-  }
-  return credential.split("").sort(() => Math.random() - 0.5).join("");
-}
+const PUBLIC_APP_ORIGIN = "https://origamipulse.com.br";
 
 // Destino do primeiro acesso a partir do loginUrl do app (FUNC-J1).
-function firstAccessRedirect(loginUrl: string): string {
+function firstAccessRedirect(_loginUrl: string): string {
+  // Links de Auth abertos fora do preview precisam cair no domínio público do
+  // produto. `window.location.origin` no preview gera URLs *.lovable.app e, em
+  // alguns clientes de e-mail, o Auth também pode cair no Site URL padrão.
   try {
-    const url = new URL(loginUrl);
+    const url = new URL(PUBLIC_APP_ORIGIN);
     url.pathname = "/primeiro-acesso";
     url.search = "";
     url.hash = "";
     return url.toString();
   } catch {
-    return (loginUrl || "").replace(/\/login\/?$/, "") + "/primeiro-acesso";
+    return `${PUBLIC_APP_ORIGIN}/primeiro-acesso`;
   }
 }
 
@@ -75,34 +65,38 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey);
 
     const normalized = email.trim().toLowerCase();
 
     // Só funcionários com convite pendente (must_change_password = true).
     const { data: employee, error: empError } = await adminClient
       .from("employees")
-      .select("id, nome, email, auth_id, tenant_id, must_change_password")
+      .select("id, email, auth_id, must_change_password")
       .ilike("email", normalized)
       .eq("must_change_password", true)
       .limit(1)
       .maybeSingle();
 
-    // Resposta genérica: não revela existência/estado da conta.
     if (empError || !employee || !employee.auth_id) {
       console.log("request-first-access: sem convite pendente elegivel");
       return genericOk();
     }
 
-    // Nova credencial temporária — invalida a anterior.
-    const newTempPassword = generateTempPassword();
+    const redirectTo = firstAccessRedirect(loginUrl || `${supabaseUrl}/login`);
 
-    const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(
-      employee.auth_id,
-      { password: newTempPassword },
+    // Envia link de recuperação via endpoint /recover — mesmo caminho que o
+    // reset de senha usa e que sabemos que dispara o SMTP. admin.generateLink
+    // apenas GERA o link, não envia o e-mail.
+    const { error: linkError } = await anonClient.auth.resetPasswordForEmail(
+      employee.email,
+      { redirectTo },
     );
-    if (updateAuthError) {
-      console.error("request-first-access: falha ao atualizar credencial de auth");
+
+    if (linkError) {
+      console.error("request-first-access: falha ao enviar link de acesso:", linkError.message);
       return genericOk();
     }
 
@@ -112,49 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
       .update({ must_change_password: true, invited_at: new Date().toISOString() })
       .eq("id", employee.id);
 
-    // Nome da empresa para personalizar o convite (fallback no template).
-    const { data: tenant } = await adminClient
-      .from("tenants")
-      .select("name")
-      .eq("id", employee.tenant_id)
-      .maybeSingle();
-
-    // Magic link (FUNC-J1): leva direto à tela de primeiro acesso já autenticado.
-    // Fallback para credencial temporária se a geração falhar.
-    let actionLink: string | undefined;
-    try {
-      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-        type: "magiclink",
-        email: employee.email,
-        options: { redirectTo: firstAccessRedirect(loginUrl || `${supabaseUrl}/login`) },
-      });
-      if (linkError) {
-        console.error("request-first-access: nao foi possivel gerar o link, usando fallback");
-      } else {
-        actionLink = linkData?.properties?.action_link ?? undefined;
-      }
-    } catch (_e) {
-      console.error("request-first-access: geracao de link falhou, usando fallback");
-    }
-
-    // Reutiliza o template oficial de convite (send-invite-email).
-    const sendResponse = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: employee.email,
-        nome: employee.nome,
-        tempPassword: newTempPassword,
-        loginUrl: loginUrl || `${supabaseUrl}/login`,
-        companyName: tenant?.name ?? undefined,
-        actionLink,
-      }),
-    });
-
-    if (!sendResponse.ok) {
-      console.error("request-first-access: falha no envio do convite");
-    }
-
+    console.log("request-first-access: link de primeiro acesso enviado via SMTP do Auth");
     return genericOk();
   } catch (error: unknown) {
     console.error("request-first-access: erro inesperado:", error instanceof Error ? error.message : "unknown");

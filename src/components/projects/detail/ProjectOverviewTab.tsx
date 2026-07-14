@@ -14,6 +14,7 @@ import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
+import { formatPercent } from '@/lib/formatters';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -238,135 +239,22 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         </Card>
       </div>
 
-      {/* Row 2: KPI Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Receita */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <DollarSign className="h-4 w-4 text-primary" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Receita</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.revenueActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.revenuePlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.revenueExecuted.toFixed(1)}%
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Comissão 
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-                <Percent className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Comissão</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.commissionActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.commissionPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.commissionExecuted.toFixed(1)}%
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        */}
-
-        {/* Custos */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Custos</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.costActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.costPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {kpiData.costExecuted.toFixed(1)}%
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Margem */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                kpiData.marginActual >= 30 ? 'bg-green-100 dark:bg-green-900/30' :
-                kpiData.marginActual >= 15 ? 'bg-muted' : 'bg-red-100 dark:bg-red-900/30'
-              }`}>
-                {kpiData.marginActual >= 30 ? (
-                  <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-                ) : kpiData.marginActual < 15 ? (
-                  <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
-                ) : (
-                  <Minus className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Margem</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className={`text-xl font-bold ${
-                  kpiData.marginActual >= 30 ? 'text-green-600 dark:text-green-400' :
-                  kpiData.marginActual < 15 ? 'text-red-600 dark:text-red-400' : ''
-                }`}>
-                  {formatPercent(kpiData.marginActual)}
-                </p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatPercent(kpiData.marginPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className={`text-xs font-semibold ${kpiData.marginVar >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {kpiData.marginVar >= 0 ? '+' : ''}{kpiData.marginVar.toFixed(1)}pp
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">variação</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Row 2: KPI Bar (padrão unificado) */}
+      <ProjectKPIBar
+        revenuePlanned={kpiData.revenuePlanned}
+        revenueActual={kpiData.revenueActual}
+        revenueExecuted={kpiData.revenueExecuted}
+        commissionPlanned={kpiData.commissionPlanned}
+        commissionActual={kpiData.commissionActual}
+        commissionExecuted={kpiData.commissionExecuted}
+        costPlanned={kpiData.costPlanned}
+        costActual={kpiData.costActual}
+        costExecuted={kpiData.costExecuted}
+        marginPlanned={kpiData.marginPlanned}
+        marginActual={kpiData.marginActual}
+        marginVar={kpiData.marginVar}
+        marginTarget={financialSettings?.gross_margin_target_percent ?? undefined}
+      />
 
       {/* Row 3: Team */}
       <ProjectTeamSection members={project.members || []} projectId={project.id} memberMonths={memberMonths} timesheets={timesheets} />

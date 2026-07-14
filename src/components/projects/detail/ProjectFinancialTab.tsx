@@ -9,9 +9,8 @@ import { ProjectFinancialChart } from './ProjectFinancialChart';
 import { ProjectTrendChart } from './ProjectTrendChart';
 import { ProjectInstallmentsTable } from '@/components/projects/ProjectInstallmentsTable';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
-import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
-import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
+import { useProjectCostItems } from '@/hooks/useProjectCostItems';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { parseISO, differenceInMonths, startOfMonth, addMonths } from 'date-fns';
 import { useBudget } from '@/hooks/useBudgets';
@@ -32,15 +31,10 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     () => (project.members || []).map((m) => m.id),
     [project.members]
   );
-  const supplierIds = useMemo(
-    () => (project.suppliers || []).map((s) => s.id),
-    [project.suppliers]
-  );
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
-  const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
-  const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
+  const { data: projectCosts = [] } = useProjectCostItems(project.id);
   const { data: financialSettings } = useFinancialSettings();
   const { data: budget } = useBudget(project.budget_id);
   const { data: commissions = [] } = useProjectCommissions(project.id);
@@ -93,29 +87,26 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
       return acc + memberActualCost;
     }, 0);
 
-    const supplierPlanned = supplierMonths.reduce((s, sm) => s + sm.value, 0) ||
-      (project.suppliers || []).reduce((acc, sup) => {
-        const months = sup.end_month ? sup.end_month - sup.start_month + 1 : projectDuration;
-        return acc + Number(sup.monthly_value || 0) * months;
-      }, 0);
+    // Custos extras (fornecedores, materiais, etc.) vêm da fonte unificada
+    // `project_costs` — mesma origem usada pela aba Custos.
+    const extraPlanned = projectCosts.reduce(
+      (sum, cost) => sum + Number(cost.planned_amount_brl || 0),
+      0,
+    );
+    const extraActual = projectCosts.reduce(
+      (sum, cost) => sum + Number(cost.actual_amount_brl || 0),
+      0,
+    );
 
-    const supplierActualTotal = supplierActuals.reduce((s, sa) => s + sa.value, 0);
+    const totalPlanned = laborPlanned + extraPlanned;
+    const totalActual = laborActual + extraActual;
 
-    const materialPlanned = (project.materials || []).reduce((s, m) => s + Number(m.value || 0), 0);
-    const materialActual = (project.materials || [])
-      .filter((m) => m.is_realized)
-      .reduce((s, m) => s + Number(m.value || 0), 0);
-
-    const totalPlanned = laborPlanned + supplierPlanned + materialPlanned;
-    const totalActual = laborActual + supplierActualTotal + materialActual;
-
-    return { totalPlanned, totalActual, laborPlanned, laborActual, supplierPlanned, supplierActualTotal, materialPlanned, materialActual };
+    return { totalPlanned, totalActual, laborPlanned, laborActual, extraPlanned, extraActual };
   }, [
     project,
     memberMonths,
     timesheets,
-    supplierMonths,
-    supplierActuals,
+    projectCosts,
     projectDuration,
     plannedLaborFromAllocations.hasRoleAllocations,
     plannedLaborFromAllocations.total,
@@ -159,6 +150,55 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
   const monthlyChartData = useMemo(() => {
     const startDate = parseISO(project.start_date);
 
+    // Mapeia custos extras (fornecedores/materiais) por mês do projeto,
+    // usando a mesma fonte unificada da aba Custos.
+    const extraPlannedByMonth = new Map<number, number>();
+    const extraActualByMonth = new Map<number, number>();
+    projectCosts.forEach((cost) => {
+      const isRecurring = Boolean((cost as any).is_recurring);
+      if (isRecurring) {
+        const startMonth = Number((cost as any).start_month || 1);
+        const endMonth = Math.min(
+          Number((cost as any).end_month || projectDuration),
+          projectDuration,
+        );
+        const monthly = Number(
+          (cost as any).monthly_amount_brl ||
+            (cost as any).monthly_amount ||
+            0,
+        );
+        for (let m = startMonth; m <= endMonth; m++) {
+          if (m < 1 || m > projectDuration) continue;
+          extraPlannedByMonth.set(m, (extraPlannedByMonth.get(m) || 0) + monthly);
+        }
+        if (cost.actual_amount_brl != null) {
+          extraActualByMonth.set(
+            startMonth,
+            (extraActualByMonth.get(startMonth) || 0) + Number(cost.actual_amount_brl),
+          );
+        }
+        return;
+      }
+
+      const stored = Number((cost as any).month_number || 0);
+      const monthNumber =
+        stored ||
+        (cost.cost_date
+          ? differenceInMonths(parseISO(cost.cost_date), startOfMonth(startDate)) + 1
+          : 1);
+      const clamped = Math.max(1, Math.min(monthNumber, projectDuration));
+      extraPlannedByMonth.set(
+        clamped,
+        (extraPlannedByMonth.get(clamped) || 0) + Number(cost.planned_amount_brl || 0),
+      );
+      if (cost.actual_amount_brl != null) {
+        extraActualByMonth.set(
+          clamped,
+          (extraActualByMonth.get(clamped) || 0) + Number(cost.actual_amount_brl || 0),
+        );
+      }
+    });
+
     return Array.from({ length: projectDuration }, (_, i) => {
       const monthNum = i + 1;
 
@@ -192,42 +232,20 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
         return acc + memberActualCost;
       }, 0);
 
-      // Planned suppliers for this month
-      const supplierPlan = supplierMonths
-        .filter((sm) => sm.month_number === monthNum)
-        .reduce((s, sm) => s + sm.value, 0) ||
-        (project.suppliers || []).reduce((acc, sup) => {
-          if (monthNum >= sup.start_month && (!sup.end_month || monthNum <= sup.end_month)) {
-            return acc + Number(sup.monthly_value || 0);
-          }
-          return acc;
-        }, 0);
-
-      // Actual suppliers for this month
-      const supplierReal = supplierActuals
-        .filter((sa) => sa.month_number === monthNum)
-        .reduce((s, sa) => s + sa.value, 0);
-
-      // Materials for this month
-      const materialPlan = (project.materials || [])
-        .filter((m) => (m.month_number || 1) === monthNum)
-        .reduce((s, m) => s + Number(m.value || 0), 0);
-      const materialReal = (project.materials || [])
-        .filter((m) => m.is_realized && (m.month_number || 1) === monthNum)
-        .reduce((s, m) => s + Number(m.value || 0), 0);
+      const extraPlan = extraPlannedByMonth.get(monthNum) || 0;
+      const extraReal = extraActualByMonth.get(monthNum) || 0;
 
       return {
         name: getProjectMonthLabel(monthNum, project.start_date),
-        planejado: laborPlan + supplierPlan + materialPlan,
-        realizado: laborReal + supplierReal + materialReal,
+        planejado: laborPlan + extraPlan,
+        realizado: laborReal + extraReal,
       };
     });
   }, [
     project,
     memberMonths,
     timesheets,
-    supplierMonths,
-    supplierActuals,
+    projectCosts,
     projectDuration,
     plannedLaborFromAllocations.byMonth,
     plannedLaborFromAllocations.hasRoleAllocations,
@@ -235,141 +253,22 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Receita */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <DollarSign className="h-4 w-4 text-primary" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Receita</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.revenueActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.revenuePlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {hideValues ? '•••' : `${kpiData.revenueExecuted.toFixed(1)}%`}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Comissão 
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-                <Percent className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Comissão</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.commissionActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.commissionPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {hideValues ? '•••' : `${kpiData.commissionExecuted.toFixed(1)}%`}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        */}
-
-        {/* Custos */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Custos</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-xl font-bold">{formatCurrency(kpiData.costActual)}</p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatCurrency(kpiData.costPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {hideValues ? '•••' : `${kpiData.costExecuted.toFixed(1)}%`}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">executado</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Margem */}
-        <Card>
-          <CardContent className="pt-4 pb-4 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                kpiData.marginActual >= marginTarget ? 'bg-green-100 dark:bg-green-900/30' :
-                kpiData.marginActual < marginTarget * 0.5 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-muted'
-              }`}>
-                {kpiData.marginActual >= marginTarget ? (
-                  <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-                ) : kpiData.marginActual < marginTarget * 0.5 ? (
-                  <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
-                ) : (
-                  <Minus className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground">Margem</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-baseline justify-between">
-                <p className={`text-xl font-bold ${
-                  kpiData.marginActual >= marginTarget ? 'text-green-600 dark:text-green-400' :
-                  kpiData.marginActual < marginTarget * 0.5 ? 'text-red-600 dark:text-red-400' : ''
-                }`}>
-                  {formatPercent(kpiData.marginActual)}
-                </p>
-                <span className="text-xs text-muted-foreground">Realizado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatPercent(kpiData.marginPlanned)}</p>
-                <span className="text-xs text-muted-foreground">Planejado</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">{formatPercent(marginTarget)}</p>
-                <span className="text-xs text-muted-foreground">Meta</span>
-              </div>
-              <div className="pt-1">
-                <span className={`text-xs font-semibold ${kpiData.marginVar >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {hideValues
-                    ? '••• pp'
-                    : `${kpiData.marginVar >= 0 ? '+' : ''}${kpiData.marginVar.toFixed(1)}pp`}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">variação</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* KPI Bar — mesmo padrão da aba Custos */}
+      <ProjectKPIBar
+        revenuePlanned={kpiData.revenuePlanned}
+        revenueActual={kpiData.revenueActual}
+        revenueExecuted={kpiData.revenueExecuted}
+        commissionPlanned={kpiData.commissionPlanned}
+        commissionActual={kpiData.commissionActual}
+        commissionExecuted={kpiData.commissionExecuted}
+        costPlanned={kpiData.costPlanned}
+        costActual={kpiData.costActual}
+        costExecuted={kpiData.costExecuted}
+        marginPlanned={kpiData.marginPlanned}
+        marginActual={kpiData.marginActual}
+        marginVar={kpiData.marginVar}
+        marginTarget={marginTarget}
+      />
 
       {/* Installments Table */}
       <Card>

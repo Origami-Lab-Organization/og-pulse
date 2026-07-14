@@ -19,6 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
+const PUBLIC_APP_ORIGIN = 'https://origamipulse.com.br';
+
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
 });
@@ -40,7 +42,7 @@ const ForgotPassword = () => {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${PUBLIC_APP_ORIGIN}/reset-password`,
       });
       if (error) throw error;
       setSent(true);

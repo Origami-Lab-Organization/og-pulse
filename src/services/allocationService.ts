@@ -220,12 +220,17 @@ export const allocationService = {
         .forEach((month) => {
           const cell = person.cells[month.key] ?? emptyAllocationCell(month.key);
           const internalHours = sumInternalHours(rows, month.month);
-          const actualProjectHours = cell.actualProjectHours;
-          const totalHours = isFutureMonth(month.key) ? cell.plannedHours + internalHours : actualProjectHours + internalHours;
+          // O RPC de summary já soma horas de projeto + atividade interna em actual_hours
+          // (guardado em cell.actualProjectHours). Portanto ele é o TOTAL lançado — separamos
+          // a parte de projeto subtraindo as internas para não contar interna duas vezes.
+          const totalActualHours = Number(cell.actualProjectHours || 0);
+          const actualProjectHours = Math.max(0, totalActualHours - internalHours);
+          const totalHours = isFutureMonth(month.key) ? cell.plannedHours + internalHours : totalActualHours;
           const utilization = cell.capacityHours > 0 ? Math.round((totalHours / cell.capacityHours) * 100) : null;
 
           person.cells[month.key] = {
             ...cell,
+            actualProjectHours,
             internalHours,
             totalHours,
             utilization,
@@ -324,6 +329,7 @@ export const allocationService = {
           projects,
           plannedHours: Math.round(Number(cell.plannedHours || 0)),
           actualHours: Math.round(Number(cell.actualProjectHours || 0) + Number(cell.internalHours || 0)),
+          internalHours: Math.round(Number(cell.internalHours || 0)),
         };
       }),
     };

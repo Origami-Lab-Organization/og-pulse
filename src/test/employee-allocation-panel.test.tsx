@@ -53,6 +53,7 @@ const months: AllocationMonth[] = [
     endDate: '2026-09-30',
     label: 'SET',
     workingDays: 22,
+    workingDaysElapsed: 22,
   },
   {
     key: '2026-10',
@@ -62,6 +63,7 @@ const months: AllocationMonth[] = [
     endDate: '2026-10-31',
     label: 'OUT',
     workingDays: 23,
+    workingDaysElapsed: 0,
   },
   {
     key: '2026-11',
@@ -71,6 +73,7 @@ const months: AllocationMonth[] = [
     endDate: '2026-11-30',
     label: 'NOV',
     workingDays: 20,
+    workingDaysElapsed: 0,
   },
 ];
 
@@ -154,12 +157,14 @@ describe('EmployeeAllocationPanel', () => {
           month: months[0],
           plannedHours: 184,
           actualHours: 184,
+          internalHours: 0,
           projects: [],
         },
         {
           month: months[1],
           plannedHours: 240,
           actualHours: 114,
+          internalHours: 0,
           projects: [
             {
               projectId: 'project-1',
@@ -203,6 +208,7 @@ describe('EmployeeAllocationPanel', () => {
           month: months[2],
           plannedHours: 160,
           actualHours: 0,
+          internalHours: 0,
           projects: [],
         },
       ],
@@ -251,6 +257,7 @@ describe('EmployeeAllocationPanel', () => {
         month,
         plannedHours: 0,
         actualHours: 0,
+        internalHours: 0,
         projects: [],
       })),
     };

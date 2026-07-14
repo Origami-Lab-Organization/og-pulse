@@ -98,9 +98,10 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
   };
 
   return (
-    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between xl:gap-6">
-      {/* Bloco esquerdo: breadcrumb + título + metadados */}
-      <div className="min-w-0 space-y-2">
+    <div className="space-y-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+        {/* Bloco esquerdo: breadcrumb + título */}
+        <div className="min-w-0 space-y-2">
         {/* Breadcrumb */}
         <nav aria-label="Trilha de navegação">
           <ol className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -136,38 +137,35 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
           </span> */}
         </div>
 
-        {/* Metadados */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <Building2 className="h-3.5 w-3.5" aria-hidden />
-            <span className="font-medium text-foreground">{clientName}</span>
-          </span>
-          {project.service?.name && (
-            <>
-              <span className="text-muted-foreground/40" aria-hidden>·</span>
-              <span className="flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5" aria-hidden />
-                <span>{project.service.name}</span>
-              </span>
-            </>
-          )}
-          <span className="text-muted-foreground/40" aria-hidden>·</span>
-          <span className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5" aria-hidden />
-            <span>{managerName}</span>
-          </span>
-          <span className="text-muted-foreground/40" aria-hidden>·</span>
-          <span className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" aria-hidden />
-            <span>{formatPeriod()}</span>
-          </span>
+        </div>
+
+        {/* Bloco direito: stepper de estágios + ações, alinhados à direita */}
+        <div className="flex items-start gap-3 lg:shrink-0 lg:justify-end">
+          <StageStepper current={stage} />
+          {actions && <div className="shrink-0">{actions}</div>}
         </div>
       </div>
 
-      {/* Bloco direito: stepper de estágios + ações, alinhados à direita */}
-      <div className="flex items-start gap-3 xl:shrink-0 xl:justify-end">
-        <StageStepper current={stage} />
-        {actions && <div className="shrink-0">{actions}</div>}
+      {/* Metadados */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span className="whitespace-nowrap font-medium text-foreground" title={clientName}>{clientName}</span>
+        </span>
+        {project.service?.name && (
+          <span className="inline-flex items-center gap-1.5">
+            <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="whitespace-nowrap" title={project.service.name}>{project.service.name}</span>
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1.5">
+          <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span className="whitespace-nowrap" title={managerName}>{managerName}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span className="whitespace-nowrap" title={formatPeriod()}>{formatPeriod()}</span>
+        </span>
       </div>
     </div>
   );

@@ -6,16 +6,16 @@ import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { AllocationFilters } from '@/components/allocation/AllocationFilters';
 import { AllocationGrid } from '@/components/allocation/AllocationGrid';
-import { AllocationMetricsBar } from '@/components/allocation/AllocationMetricsBar';
+import { AllocationToolbar } from '@/components/allocation/AllocationToolbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAllocationGrid } from '@/hooks/useAllocationGrid';
-import { calculateMetrics, filterAllocationPeople, getAllocationStatus, getLoggedHours, sortByReferencePlanVariance } from '@/lib/allocationGrid';
+import { calculateMetrics, filterAllocationPeople, getAllocationStatus } from '@/lib/allocationGrid';
 import { formatDate } from '@/lib/formatters';
 import { AllocationFiltersState, AllocationMonth, AllocationPerson, AllocationProjectPill, AllocationStatusFilter } from '@/types/allocation';
 
 const PAGE_SIZE = 15;
+const DEFAULT_OFFSET_START = -1;
 
 const DEFAULT_FILTERS: AllocationFiltersState = {
   status: 'all',
@@ -43,42 +43,6 @@ function activeFiltersCount(filters: AllocationFiltersState) {
   ].filter(Boolean).length;
 }
 
-function csvEscape(value: string | number | null) {
-  const raw = value === null ? '' : String(value);
-  return `"${raw.replace(/"/g, '""')}"`;
-}
-
-function buildCsv(people: AllocationPerson[], months: AllocationMonth[]) {
-  const headers = [
-    'Nome',
-    'Cargo',
-    ...months.flatMap((month) => [
-      `${month.label} planejado`,
-      `${month.label} lançado`,
-      `${month.label} capacidade`,
-      `${month.label} aderência`,
-    ]),
-  ];
-
-  const rows = people.map((person) => [
-    person.name,
-    person.role,
-    ...months.flatMap((month) => {
-      const cell = person.cells[month.key];
-      const loggedHours = getLoggedHours(cell);
-      const adherence = cell.plannedHours > 0 ? Math.round((loggedHours / cell.plannedHours) * 100) : null;
-      return [
-        Math.round(cell.plannedHours),
-        Math.round(loggedHours),
-        Math.round(cell.capacityHours),
-        adherence === null ? '—' : `${adherence}%`,
-      ];
-    }),
-  ]);
-
-  return [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
-}
-
 const JOAOZINHO_VISUAL_PROJECTS: AllocationProjectPill[] = [
   { id: 'fixture-meridian', code: 'MER', name: 'Diagnóstico de Inovação — Meridian 2C', hours: 36, plannedHours: 20, actualHours: 36 },
   { id: 'fixture-atlas', code: 'ATL', name: 'Portal do Cliente — Atlas', hours: 12, plannedHours: 8, actualHours: 12 },
@@ -93,7 +57,7 @@ const JOAOZINHO_VISUAL_PROJECTS: AllocationProjectPill[] = [
 ];
 
 function readStatusFilter(value: string | null): AllocationStatusFilter {
-  if (value === 'abovePlan' || value === 'missingLogs' || value === 'overloaded' || value === 'unallocated') return value;
+  if (value === 'abovePlan' || value === 'missingLogs' || value === 'overloaded' || value === 'unallocated' || value === 'outOfPace') return value;
   if (value === 'overallocated') return 'overloaded';
   return DEFAULT_FILTERS.status;
 }
@@ -150,7 +114,7 @@ export default function AlocacaoPage() {
     search: searchParams.get('q') || DEFAULT_FILTERS.search,
     showTerminated: searchParams.get('desligados') === '1',
   });
-  const [offsetStart, setOffsetStart] = useState(readNumber(searchParams.get('offset'), 0));
+  const [offsetStart, setOffsetStart] = useState(readNumber(searchParams.get('offset'), DEFAULT_OFFSET_START));
   const [periodLength, setPeriodLength] = useState(readNumber(searchParams.get('months'), 4));
   const [page, setPage] = useState(1);
 
@@ -187,17 +151,15 @@ export default function AlocacaoPage() {
   }, [baseDate, months, offsetStart, periodLength]);
 
   const filteredPeople = useMemo(() => {
-    if (!data || !referenceMonthKey) return [];
+    if (!data || !referenceMonth) return [];
     const sourcePeople = applyVisualFixture(data.people, referenceMonthKey, visualFixture);
-    return sortByReferencePlanVariance(
-      filterAllocationPeople(sourcePeople, filters, referenceMonthKey),
-      referenceMonthKey,
-    );
-  }, [data, filters, referenceMonthKey, visualFixture]);
+    return [...filterAllocationPeople(sourcePeople, filters, referenceMonth)]
+      .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'));
+  }, [data, filters, referenceMonth, referenceMonthKey, visualFixture]);
 
   const metrics = useMemo(
-    () => (referenceMonthKey ? calculateMetrics(filteredPeople, referenceMonthKey) : calculateMetrics([], '')),
-    [filteredPeople, referenceMonthKey],
+    () => calculateMetrics(filteredPeople, referenceMonth),
+    [filteredPeople, referenceMonth],
   );
 
   const paginatedPeople = useMemo(() => {
@@ -214,7 +176,7 @@ export default function AlocacaoPage() {
     if (filters.projectId !== 'all') nextParams.set('project', filters.projectId);
     if (filters.search.trim()) nextParams.set('q', filters.search.trim());
     if (filters.showTerminated) nextParams.set('desligados', '1');
-    if (offsetStart !== 0) nextParams.set('offset', String(offsetStart));
+    if (offsetStart !== DEFAULT_OFFSET_START) nextParams.set('offset', String(offsetStart));
     if (periodLength !== 4) nextParams.set('months', String(periodLength));
     if (visualFixture) nextParams.set('teste', visualFixture);
     setSearchParams(nextParams, { replace: true });
@@ -260,50 +222,27 @@ export default function AlocacaoPage() {
     amplitude.track('allocation_employee_opened', { employeeId });
   };
 
-  const exportCsv = () => {
-    if (!data) return;
-    const csv = buildCsv(filteredPeople, data.months);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const period = data.months.map((month) => month.key).join('_');
-    link.href = url;
-    link.download = `alocacao-equipe-${period}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   const emptyMessage = data?.people.length === 0
     ? 'Nenhum funcionário cadastrado'
     : 'Nenhum funcionário encontrado com os filtros aplicados';
 
   return (
-    <AppLayout
-      title="Alocação da Equipe"
-      description="Compare o que foi planejado com o que foi lançado no timesheet, sem misturar custo."
-      breadcrumbs={[{ label: 'Alocação da Equipe' }]}
-    >
-      <div className="space-y-6">
-        <AllocationMetricsBar
-          metrics={metrics}
-          isLoading={isLoading}
-          activeFilter={filters.status}
-          onStatusSelect={(status) => updateFilter('status', status)}
-        />
-
-        <AllocationFilters
+    <AppLayout title="Alocação da Equipe" hideHeader>
+      <div className="space-y-4">
+        <AllocationToolbar
           filters={filters}
           roles={data?.roles ?? []}
           projects={data?.projects ?? []}
+          metrics={metrics}
+          isLoading={isLoading}
+          activeFiltersCount={filterCount}
+          referenceLabel={referenceLabel}
           offsetStart={offsetStart}
           periodLength={periodLength}
-          activeFiltersCount={filterCount}
-          onFilterChange={updateFilter}
-          onPeriodChange={updatePeriod}
-          onClear={clearFilters}
-          onExport={exportCsv}
           periodLabel={`${formatDate(periodBounds.startDate)} - ${formatDate(periodBounds.endDate)}`}
-          referenceLabel={referenceLabel}
+          onFilterChange={updateFilter}
+          onClear={clearFilters}
+          onPeriodChange={updatePeriod}
         />
 
         {isError && (

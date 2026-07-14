@@ -314,3 +314,11 @@
 ### 2026-07-01T11:48:02.545Z
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: c:\Users\OrigamiLab\Documents\ws-visualcode\og-pulse\src\services\vacationService.ts
+
+### 2026-07-12T18:07:37.531Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/allocationService.ts
+
+### 2026-07-12T18:30:33.683Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/allocationService.ts
