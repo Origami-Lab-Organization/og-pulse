@@ -52,6 +52,17 @@ describe('allocationGrid', () => {
       person('3', 'Renata Vidal', 'Designer', 30, 0, 168, 'p-1'),
     ];
 
+    const referenceMonth = {
+      key: '2026-06',
+      year: 2026,
+      month: 6,
+      startDate: '2026-06-01',
+      endDate: '2026-06-30',
+      label: 'JUN',
+      workingDays: 22,
+      workingDaysElapsed: 22,
+    };
+
     const filtered = filterAllocationPeople(
       people,
       {
@@ -61,7 +72,7 @@ describe('allocationGrid', () => {
         search: 'renata',
         showTerminated: false,
       },
-      '2026-06',
+      referenceMonth,
     );
 
     expect(filtered.map((item) => item.name)).toEqual(['Renata Vidal']);

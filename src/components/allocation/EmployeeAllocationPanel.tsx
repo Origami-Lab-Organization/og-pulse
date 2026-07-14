@@ -771,6 +771,8 @@ export function EmployeeAllocationPanel({
                 employeeId={employee.id}
                 employeeName={employee.name}
                 tenantId={tenantId}
+                canEditAll={Boolean(currentUser?.isAdmin)}
+                currentEmployeeId={currentUser?.id}
               />
             )}
           </>

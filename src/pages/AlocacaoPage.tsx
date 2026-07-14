@@ -261,11 +261,13 @@ export default function AlocacaoPage() {
           tenantId={tenantId}
           months={months}
           people={paginatedPeople}
+          footerPeople={filteredPeople}
           referenceMonthKey={referenceMonthKey}
           projectIdFilter={filters.projectId}
           projectOptions={data?.projects ?? []}
           roleOptions={data?.roles ?? []}
           isLoading={isLoading}
+          density="compact"
           page={page}
           pageSize={PAGE_SIZE}
           total={filteredPeople.length}
