@@ -57,31 +57,18 @@ function KpiCard({
 }
 
 export function FinanceKpiCards({ data }: { data: FinancialReportData }) {
-  const billablePct = data.billablePct ?? 0;
-
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       <KpiCard label="Faturamento" hint="NF emitida" value={fmtBRL0(data.faturamento)} dotClass="bg-muted-foreground/50">
         <ProgressVsPlanned realizado={data.faturamento} previsto={data.faturamentoPrevisto} fillClass="bg-muted-foreground/60" />
-        <p className="mt-3 border-t pt-2 text-[11px] leading-snug text-muted-foreground">O que emitimos no período — o caixa pode entrar depois.</p>
       </KpiCard>
 
       <KpiCard label="Receita" hint="recebido" value={fmtBRL0(data.receita)} dotClass="bg-success">
         <ProgressVsPlanned realizado={data.receita} previsto={data.receitaPrevista} fillClass="bg-success" />
-        <p className="mt-3 border-t pt-2 text-[11px] leading-snug text-muted-foreground">Tudo que entrou no caixa no período (data de pagamento).</p>
       </KpiCard>
 
       <KpiCard label="Custos" hint="total do período" value={fmtBRL0(data.custos)} dotClass="bg-destructive">
         <ProgressVsPlanned realizado={data.custos} previsto={data.custosPrevisto} fillClass="bg-destructive" />
-        <div className="mt-2">
-          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full bg-success" style={{ width: `${billablePct}%` }} />
-            <div className="h-full bg-brand-slate" style={{ width: `${100 - billablePct}%` }} />
-          </div>
-          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-            {fmtBRLk(data.billableCost)} billable · {fmtBRLk(data.internalCost)} não-billable
-          </p>
-        </div>
       </KpiCard>
 
       {/* RESULTADO — card em destaque (verde-escuro) */}

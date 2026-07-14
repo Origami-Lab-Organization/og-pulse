@@ -17,8 +17,7 @@ import { generateAnalyticsPdf } from '@/components/analytics/AnalyticsPdfGenerat
 import { FinanceKpiCards } from '@/components/analytics/financeiro/FinanceKpiCards';
 import { FinanceEvolutionChart } from '@/components/analytics/financeiro/FinanceEvolutionChart';
 import { OverdueSection } from '@/components/analytics/financeiro/OverdueSection';
-import { CostByCategoryCard, BillableSplitCard } from '@/components/analytics/financeiro/CostByCategoryCard';
-import { CashflowReceivablesCard } from '@/components/analytics/financeiro/CashflowReceivablesCard';
+import { BillableSplitCard } from '@/components/analytics/financeiro/BillableSplitCard';
 import { ClientBreakdownCard } from '@/components/analytics/financeiro/ClientBreakdownCard';
 
 type PeriodPreset = 'month' | 'quarter' | 'ytd' | 'year' | 'custom';
@@ -92,16 +91,6 @@ export default function Analytics() {
       case 'custom': return `${format(range.startDate, 'dd/MM/yy')} – ${format(range.endDate, 'dd/MM/yy')}`;
     }
   }, [period, monthDate, today, range]);
-
-  const periodShort = useMemo(() => {
-    switch (period) {
-      case 'month': return format(monthDate, 'MMM', { locale: ptBR }).replace('.', '').toUpperCase();
-      case 'quarter': return `T${getQuarter(today)}`;
-      case 'ytd': return 'YTD';
-      case 'year': return String(today.getFullYear());
-      case 'custom': return 'período';
-    }
-  }, [period, monthDate, today]);
 
   const activeFilters = [managerId, clientId, projectId].filter((v) => v !== ALL).length;
   const clearFilters = () => { setManagerId(ALL); setClientId(ALL); setProjectId(ALL); };
@@ -249,17 +238,8 @@ export default function Analytics() {
           <FinanceKpiCards data={data} />
           <FinanceEvolutionChart months={data.evolutionMonths} />
           <ClientBreakdownCard rows={data.clientBreakdown} metaPct={data.metaPct} />
-          {/* Duas colunas: Custos (categoria + billable×interno) · Recebimentos (em atraso + fluxo/a receber) */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 sm:gap-6">
-            <div className="space-y-4 sm:space-y-6">
-              <CostByCategoryCard data={data} monthLabel={periodLabelFull.toLowerCase()} />
-              <BillableSplitCard data={data} />
-            </div>
-            <div className="space-y-4 sm:space-y-6">
-              <OverdueSection overdueNFs={data.revenue.overdueNFs} overdueReceipts={data.revenue.overdueReceipts} />
-              <CashflowReceivablesCard data={data} monthShort={periodShort} />
-            </div>
-          </div>
+          <OverdueSection overdueNFs={data.revenue.overdueNFs} overdueReceipts={data.revenue.overdueReceipts} />
+          <BillableSplitCard data={data} />
         </div>
       )}
     </AppLayout>
