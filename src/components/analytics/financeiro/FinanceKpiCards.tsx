@@ -1,0 +1,113 @@
+import { ArrowDown, ArrowUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { FinancialReportData } from '@/hooks/useFinancialReport';
+import { fmtBRL0, fmtBRLk, fmtPct, fmtPp } from './financeUtils';
+
+function ProgressVsPlanned({
+  realizado,
+  previsto,
+  fillClass,
+}: {
+  realizado: number;
+  previsto: number;
+  fillClass: string;
+}) {
+  const pct = previsto > 0 ? (realizado / previsto) * 100 : null;
+  return (
+    <div className="mt-3 border-t pt-2">
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+        <span className="font-mono tabular-nums">
+          {pct === null ? 'sem previsto' : `${fmtPct(pct, 0)} do previsto`}
+        </span>
+        <span className="font-mono tabular-nums">prev. {fmtBRLk(previsto)}</span>
+      </div>
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className={cn('h-full rounded-full', fillClass)} style={{ width: `${pct === null ? 0 : Math.min(100, pct)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({
+  label,
+  hint,
+  value,
+  dotClass,
+  children,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  dotClass: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col rounded-lg border bg-card p-4 shadow-card">
+      <div className="flex items-center justify-between">
+        <span className="ol-label inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className={cn('h-2 w-2 rounded-full', dotClass)} />
+          {label}
+        </span>
+        <span className="text-[11px] text-muted-foreground">{hint}</span>
+      </div>
+      <span className="mt-2 font-mono text-3xl font-bold leading-none tracking-tight tabular-nums text-foreground">{value}</span>
+      {children}
+    </div>
+  );
+}
+
+export function FinanceKpiCards({ data }: { data: FinancialReportData }) {
+  const billablePct = data.billablePct ?? 0;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <KpiCard label="Faturamento" hint="NF emitida" value={fmtBRL0(data.faturamento)} dotClass="bg-muted-foreground/50">
+        <ProgressVsPlanned realizado={data.faturamento} previsto={data.faturamentoPrevisto} fillClass="bg-muted-foreground/60" />
+        <p className="mt-3 border-t pt-2 text-[11px] leading-snug text-muted-foreground">O que emitimos no período — o caixa pode entrar depois.</p>
+      </KpiCard>
+
+      <KpiCard label="Receita" hint="recebido" value={fmtBRL0(data.receita)} dotClass="bg-success">
+        <ProgressVsPlanned realizado={data.receita} previsto={data.receitaPrevista} fillClass="bg-success" />
+        <p className="mt-3 border-t pt-2 text-[11px] leading-snug text-muted-foreground">Tudo que entrou no caixa no período (data de pagamento).</p>
+      </KpiCard>
+
+      <KpiCard label="Custos" hint="total do período" value={fmtBRL0(data.custos)} dotClass="bg-destructive">
+        <ProgressVsPlanned realizado={data.custos} previsto={data.custosPrevisto} fillClass="bg-destructive" />
+        <div className="mt-2">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full bg-success" style={{ width: `${billablePct}%` }} />
+            <div className="h-full bg-brand-slate" style={{ width: `${100 - billablePct}%` }} />
+          </div>
+          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+            {fmtBRLk(data.billableCost)} billable · {fmtBRLk(data.internalCost)} não-billable
+          </p>
+        </div>
+      </KpiCard>
+
+      {/* RESULTADO — card em destaque (verde-escuro) */}
+      <div className="flex flex-col rounded-lg bg-primary-deep p-4 text-primary-deep-foreground shadow-card">
+        <div className="flex items-center justify-between">
+          <span className="ol-label text-primary-deep-foreground/80">Resultado</span>
+          <span className="text-[11px] text-primary-deep-foreground/70">Receita − Custos</span>
+        </div>
+        <span className="mt-2 font-mono text-3xl font-bold leading-none tracking-tight tabular-nums">{fmtBRL0(data.resultado)}</span>
+        <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-sm tabular-nums">
+          <span>Margem {data.margemPct != null ? fmtPct(data.margemPct) : '—'}</span>
+          {data.margemDeltaPp != null && (
+            <span className="inline-flex items-center gap-0.5 rounded-pill bg-primary-deep-foreground/15 px-1.5 py-0.5 text-xs font-semibold">
+              {data.margemDeltaPp >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+              {fmtPp(Math.abs(data.margemDeltaPp))}
+            </span>
+          )}
+        </div>
+        <p className="mt-3 border-t border-primary-deep-foreground/20 pt-2 text-[11px] leading-snug text-primary-deep-foreground/80">
+          {data.metaPct == null
+            ? 'Meta de margem não configurada.'
+            : data.margemPct == null
+              ? `Meta ${fmtPct(data.metaPct, 0)}`
+              : `Meta ${fmtPct(data.metaPct, 0)} · ${data.margemPct >= data.metaPct ? 'acima' : 'abaixo'} por ${fmtPp(Math.abs(data.margemPct - data.metaPct)).replace('+', '')}`}
+        </p>
+      </div>
+    </div>
+  );
+}

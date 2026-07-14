@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO, differenceInDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
@@ -36,6 +37,12 @@ export interface PeriodInstallmentItem {
   status: string;
 }
 
+export interface ReceivableBucket {
+  monthKey: string;
+  label: string;
+  value: number;
+}
+
 export interface RevenueAnalyticsData {
   overdueNFs: OverdueItem[];
   overdueReceipts: OverdueItem[];
@@ -44,6 +51,10 @@ export interface RevenueAnalyticsData {
   byClient: RevenueByDimension[];
   byManager: RevenueByDimension[];
   byServiceLine: RevenueByDimension[];
+  // A receber (NF emitida, ainda não paga) agrupado por mês de vencimento futuro
+  receivablesByDueMonth: ReceivableBucket[];
+  overdueReceivableTotal: number;
+  totalReceivable: number;
 }
 
 export function useRevenueAnalytics(
@@ -105,6 +116,7 @@ export function useRevenueAnalytics(
         overdueNFs: [], overdueReceipts: [],
         periodNFs: [], periodReceivables: [],
         byClient: [], byManager: [], byServiceLine: [],
+        receivablesByDueMonth: [], overdueReceivableTotal: 0, totalReceivable: 0,
       };
       if (!projects || projects.length === 0) return empty;
 
@@ -149,7 +161,7 @@ export function useRevenueAnalytics(
         .sort((a: OverdueItem, b: OverdueItem) => b.daysOverdue - a.daysOverdue);
 
       const overdueReceipts: OverdueItem[] = (overdueRes.data || [])
-        .filter((i: any) => i.status !== 'received' && Number(i.value) > 0)
+        .filter((i: any) => i.status !== 'received' && (i.status === 'invoiced' || !!i.invoice_date) && Number(i.value) > 0)
         .map((i: any) => {
           const proj = projectMap.get(i.project_id) as any;
           return {
@@ -252,6 +264,32 @@ export function useRevenueAnalytics(
           a.dueDate.localeCompare(b.dueDate),
         );
 
+      // A receber = NF emitida (invoiced / com invoice_date) e ainda não paga.
+      const receivable = (allRes.data || []).filter((i: any) =>
+        i.status !== 'received' &&
+        (i.status === 'invoiced' || !!i.invoice_date) &&
+        Number(i.value) > 0,
+      );
+      let overdueReceivableTotal = 0;
+      const futureByMonth = new Map<string, number>();
+      for (const i of receivable as any[]) {
+        const value = Number(i.value);
+        if (i.due_date < todayStr) {
+          overdueReceivableTotal += value;
+        } else {
+          const key = String(i.due_date).slice(0, 7); // yyyy-MM
+          futureByMonth.set(key, (futureByMonth.get(key) || 0) + value);
+        }
+      }
+      const receivablesByDueMonth: ReceivableBucket[] = [...futureByMonth.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([monthKey, value]) => ({
+          monthKey,
+          label: format(parseISO(`${monthKey}-01`), 'MMMM yyyy', { locale: ptBR }),
+          value,
+        }));
+      const totalReceivable = overdueReceivableTotal + [...futureByMonth.values()].reduce((s, v) => s + v, 0);
+
       return {
         overdueNFs,
         overdueReceipts,
@@ -260,6 +298,9 @@ export function useRevenueAnalytics(
         byClient: [...clientMap.values()].sort((a, b) => b.received - a.received),
         byManager: [...managerMap.values()].sort((a, b) => b.received - a.received),
         byServiceLine: [...serviceLineMap.values()].sort((a, b) => b.received - a.received),
+        receivablesByDueMonth,
+        overdueReceivableTotal,
+        totalReceivable,
       };
     },
     enabled: !!tenantId && (options?.enabled ?? true),

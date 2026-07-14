@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveCostMonthIndex } from '@/lib/costRecognition';
 import type { AnalyticsFilters } from './useAnalyticsData';
-import { fetchSuppliersWithActualsAndPlanned, fetchMaterials } from '@/services/projectCostsService';
+import { fetchSuppliersWithActualsAndPlanned, fetchMaterials, fetchProjectCostsRealizedByCategory } from '@/services/projectCostsService';
 
 export interface FinancialMonthlyPoint {
   monthIndex: number;
@@ -23,6 +23,11 @@ export interface FinancialMonthlyPoint {
   supplierCost: number;
   materialCost: number;
   commissionCost: number;
+  // Non-project (interno) + demais categorias unificadas de project_costs
+  internalLaborCost: number;
+  subscriptionCost: number;
+  equipmentCost: number;
+  travelOtherCost: number;
   // Planned costs
   plannedTotalCosts: number;
   plannedLaborCost: number;
@@ -122,6 +127,7 @@ export function useFinancialEvolution(
           revenueReal: 0, revenuePlanned: 0, faturado: 0,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
           commissionCost: 0,
+          internalLaborCost: 0, subscriptionCost: 0, equipmentCost: 0, travelOtherCost: 0,
           plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
           grossMarginPct: null, plannedGrossMarginPct: null,
         }));
@@ -141,7 +147,19 @@ export function useFinancialEvolution(
       const projectIds = projects.map(p => p.id);
       const projectMap = new Map(projects.map(p => [p.id, p]));
 
-      const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, plannedAllocationsRes, suppliersRes, materialsRes, commissionsRes] = await Promise.all([
+      // Mão de obra interna (activity_timesheets) é custo da empresa, não de projeto:
+      // só entra na visão-empresa (sem recorte por GP/projeto/cliente).
+      const includeInternal = !filters.managerId && !filters.projectId && !filters.clientId;
+      const activityPromise = includeInternal
+        ? supabase
+            .from('activity_timesheets')
+            .select('work_date, hours, employee:employees(total_monthly_cost_estimated, jornada_mensal)')
+            .eq('tenant_id', tenantId)
+            .gte('work_date', yearStart)
+            .lte('work_date', yearEnd)
+        : Promise.resolve({ data: [] as unknown[] });
+
+      const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, plannedAllocationsRes, suppliersRes, materialsRes, commissionsRes, otherCosts, activityRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('payment_date, value')
@@ -187,6 +205,8 @@ export function useFinancialEvolution(
           .eq('is_paid', true)
           .gte('paid_date', yearStart)
           .lte('paid_date', yearEnd),
+        fetchProjectCostsRealizedByCategory(projectIds, year, ['subscription', 'equipment_rental', 'travel', 'other']),
+        activityPromise,
       ]);
 
       const received = receivedRes.data || [];
@@ -198,6 +218,11 @@ export function useFinancialEvolution(
       const projectSuppliersWithActuals = suppliersRes as SupplierEvolutionRow[];
       const materials = materialsRes;
       const commissions = commissionsRes.data || [];
+      const activityRows = ((activityRes as { data?: unknown[] }).data || []) as Array<{
+        work_date: string;
+        hours: number | null;
+        employee: EmployeeCostJoin | EmployeeCostJoin[] | null;
+      }>;
 
       const memberCostMap = new Map<string, number>();
       for (const m of members) {
@@ -307,12 +332,35 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].commissionCost += Number(c.planned_value) || 0;
       }
 
+      // Demais categorias de project_costs (subscription/equipment_rental/travel/other),
+      // já reconhecidas no mês de calendário pelo service.
+      for (const c of otherCosts) {
+        const target = monthData[c.monthIndex];
+        if (!target) continue;
+        if (c.category === 'subscription') target.subscriptionCost += c.value;
+        else if (c.category === 'equipment_rental') target.equipmentCost += c.value;
+        else target.travelOtherCost += c.value; // travel + other
+      }
+
+      // Mão de obra interna (não-billable): horas de activity_timesheets × custo-hora.
+      for (const ts of activityRows) {
+        if (!ts.work_date) continue;
+        const d = parseISO(ts.work_date);
+        if (d.getFullYear() !== year) continue;
+        const emp = Array.isArray(ts.employee) ? ts.employee[0] : ts.employee;
+        const hourlyCost = emp && Number(emp.jornada_mensal) > 0
+          ? Number(emp.total_monthly_cost_estimated || 0) / Number(emp.jornada_mensal)
+          : 0;
+        monthData[d.getMonth()].internalLaborCost += Number(ts.hours || 0) * hourlyCost;
+      }
+
       const today = new Date();
       for (const m of monthData) {
         m.isPast = startOfMonth(new Date(year, m.monthIndex, 1)) <= today;
         m.isCurrent = m.monthIndex === today.getMonth() && year === today.getFullYear();
 
-        m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost;
+        m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost
+          + m.internalLaborCost + m.subscriptionCost + m.equipmentCost + m.travelOtherCost;
         m.plannedTotalCosts = m.plannedLaborCost + m.plannedSupplierCost + m.plannedMaterialCost;
         m.grossMarginPct = m.isPast && m.revenueReal > 0
           ? ((m.revenueReal - m.totalCosts) / m.revenueReal) * 100

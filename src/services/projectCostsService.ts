@@ -1,6 +1,98 @@
 import { supabase } from '@/integrations/supabase/client';
 import { addMonths, differenceInMonths } from 'date-fns';
+import { resolveCostMonthIndex } from '@/lib/costRecognition';
 import type { ProjectSupplierDB, ProjectMaterialDB } from '@/types/project';
+
+/** Categorias de custo unificadas em project_costs (ADR-0003 / J9-01). */
+export type ProjectCostCategory =
+  | 'supplier'
+  | 'subscription'
+  | 'equipment_rental'
+  | 'material'
+  | 'travel'
+  | 'other';
+
+/** Um custo realizado, já reconhecido no mês de calendário (0–11) do ano-alvo. */
+export interface CategoryCostActual {
+  project_id: string;
+  category: ProjectCostCategory;
+  monthIndex: number;
+  value: number;
+}
+
+interface ProjectCostCategoryRow {
+  project_id: string;
+  category: ProjectCostCategory;
+  is_recurring: boolean | null;
+  cost_date: string | null;
+  actual_amount: number | null;
+  actual_amount_brl: number | null;
+  month_number: number | null;
+  project: { start_date: string } | { start_date: string }[] | null;
+  months: { month_number: number; actual_value: number | null; invoice_date: string | null }[] | null;
+}
+
+/**
+ * Lê os custos REALIZADOS de project_costs por categoria e reconhece cada valor no
+ * mês de calendário do ano-alvo (mesma regra de resolveCostMonthIndex já usada para
+ * fornecedores): recorrente → project_cost_months (data da nota, senão mês relativo ao
+ * projeto); avulso → cost_date. Prefere o valor canônico em BRL quando disponível.
+ *
+ * Complementa fetchSuppliersWithActuals/fetchMaterials — passe apenas as categorias
+ * ainda não agregadas (subscription/equipment_rental/travel/other) para evitar dupla
+ * contagem de supplier/material, que os hooks já somam por outro caminho.
+ */
+export async function fetchProjectCostsRealizedByCategory(
+  projectIds: string[],
+  targetYear: number,
+  categories?: ProjectCostCategory[],
+): Promise<CategoryCostActual[]> {
+  if (projectIds.length === 0) return [];
+
+  let query = supabase
+    .from('project_costs')
+    .select(
+      'project_id, category, is_recurring, cost_date, actual_amount, actual_amount_brl, month_number, project:projects(start_date), months:project_cost_months(month_number, actual_value, invoice_date)',
+    )
+    .is('deleted_at', null)
+    .in('project_id', projectIds);
+  if (categories && categories.length > 0) query = query.in('category', categories);
+
+  const { data } = await query;
+  const rows = (data ?? []) as unknown as ProjectCostCategoryRow[];
+  const out: CategoryCostActual[] = [];
+
+  for (const row of rows) {
+    const project = Array.isArray(row.project) ? row.project[0] : row.project;
+    const projectStartDate = project?.start_date;
+
+    if (row.is_recurring) {
+      for (const m of row.months ?? []) {
+        if (m.actual_value == null) continue;
+        const idx = resolveCostMonthIndex({
+          realDate: m.invoice_date,
+          projectStartDate: projectStartDate ?? '',
+          monthNumber: m.month_number,
+          targetYear,
+        });
+        if (idx != null) out.push({ project_id: row.project_id, category: row.category, monthIndex: idx, value: Number(m.actual_value) });
+      }
+      continue;
+    }
+
+    const actual = row.actual_amount_brl ?? row.actual_amount;
+    if (actual == null) continue;
+    const idx = resolveCostMonthIndex({
+      realDate: row.cost_date,
+      projectStartDate: projectStartDate ?? '',
+      monthNumber: row.month_number ?? 1,
+      targetYear,
+    });
+    if (idx != null) out.push({ project_id: row.project_id, category: row.category, monthIndex: idx, value: Number(actual) });
+  }
+
+  return out;
+}
 
 /**
  * projectCostsService — ÚNICA porta de leitura dos custos extra-labor do projeto.
