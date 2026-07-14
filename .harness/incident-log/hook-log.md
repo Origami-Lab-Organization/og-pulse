@@ -322,3 +322,7 @@
 ### 2026-07-12T18:30:33.683Z
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/allocationService.ts
+
+### 2026-07-13T21:40:31.505Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/projectCostsService.ts
