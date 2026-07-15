@@ -337,7 +337,10 @@ export default function ProjectDetail() {
 
               <TabsContent value="financial" className="mt-6">
                 {isPlanning ? (
-                  <ProjectExpectedResultTab project={project} />
+                  <ProjectExpectedResultTab
+                    project={project}
+                    canManageInstallments={canManageInstallments}
+                  />
                 ) : (
                   <ProjectFinancialTab
                     project={project}

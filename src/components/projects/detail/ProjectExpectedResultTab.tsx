@@ -14,9 +14,10 @@ import { PlanningInstallmentsTable } from './PlanningInstallmentsTable';
 
 interface ProjectExpectedResultTabProps {
   project: ProjectWithRelations;
+  canManageInstallments?: boolean;
 }
 
-export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabProps) {
+export function ProjectExpectedResultTab({ project, canManageInstallments = false }: ProjectExpectedResultTabProps) {
   const formatCurrency = useMaskedCurrency();
   const hideValues = useHideValues();
   const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
@@ -170,6 +171,7 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
           <PlanningInstallmentsTable
             installments={project.installments || []}
             projectId={project.id}
+            canManageInstallments={canManageInstallments}
           />
         </CardContent>
       </Card>
