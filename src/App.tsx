@@ -37,6 +37,7 @@ import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import Analytics from "./pages/Analytics";
+import PayrollAnalysis from "./pages/PayrollAnalysis";
 import MyTimesheet from "./pages/MyTimesheet";
 import CommercialDashboard from "./pages/CommercialDashboard";
 import Welcome from "./pages/Welcome";
@@ -252,6 +253,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <CommercialDashboard />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/analises/folha-pagamento"
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <PayrollAnalysis />
                   </RoleProtectedRoute>
                 }
               />

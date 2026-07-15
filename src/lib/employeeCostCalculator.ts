@@ -37,6 +37,8 @@ export interface CostBreakdownDetails {
   // Encargos sobre provisões (detalhados)
   fgts13: number;               // FGTS sobre 13º
   fgtsFerias: number;           // FGTS sobre férias + 1/3
+  inss13: number;               // INSS patronal sobre 13º
+  inssFerias: number;           // INSS patronal sobre férias + 1/3
   encargos13: number;           // Total encargos 13º
   encargosFerias: number;       // Total encargos férias
 }
@@ -103,6 +105,8 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
     // Encargos sobre provisões
     fgts13: 0,
     fgtsFerias: 0,
+    inss13: 0,
+    inssFerias: 0,
     encargos13: 0,
     encargosFerias: 0,
   };
@@ -129,9 +133,11 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
       details.provisaoFeriasTerco = details.provisaoFeriasBase / 3;
       details.provisaoFerias = details.provisaoFeriasBase + details.provisaoFeriasTerco;
 
-      // FGTS sobre provisões (separado para exibição)
+      // FGTS e INSS patronal sobre provisões (separados para exibição)
       details.fgts13 = profile.applyFgtsOn13th ? details.provisao13 * fgtsRate : 0;
       details.fgtsFerias = profile.applyFgtsOnVacation ? details.provisaoFerias * fgtsRate : 0;
+      details.inss13 = profile.applyInssOn13th ? details.provisao13 * profile.inssPatronalRate : 0;
+      details.inssFerias = profile.applyInssOnVacation ? details.provisaoFerias * profile.inssPatronalRate : 0;
 
       // Encargos totais sobre provisões
       const rates13 = sum13thApplicableRates(profile, fgtsRate);

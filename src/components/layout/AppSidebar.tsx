@@ -72,6 +72,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Alocações', url: '/analises/alocacoes' },
       { title: 'Financeiro', url: '/analises/financeiro' },
       { title: 'Comercial', url: '/analises/comercial' },
+      { title: 'Folha de Pagamento', url: '/analises/folha-pagamento', requiresAdmin: true },
     ],
   },
   {
