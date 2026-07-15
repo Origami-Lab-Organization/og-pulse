@@ -1,5 +1,6 @@
 import { PayrollProfile, DEFAULT_PAYROLL_PROFILE } from '@/types/payrollProfile';
 import { ContractType } from '@/types/employee';
+import { calculateINSS } from '@/lib/netSalaryCalculator';
 
 export interface CostCalculationInput {
   tipoContratacao: ContractType;
@@ -20,7 +21,12 @@ export interface CostBreakdownDetails {
   rat: number;
   terceiros: number;
   outros: number;
-  
+
+  // INSS retido do funcionário (tabela progressiva) — não é encargo do
+  // empregador, é descontado do próprio salário bruto e recolhido pela
+  // empresa; exibido à parte para não duplicar no custo total.
+  inssFuncionario: number;
+
   // Provisões detalhadas
   provisao13: number;           // 13º salário (salário / 12)
   provisaoFeriasBase: number;   // Férias base (salário / 12)
@@ -87,6 +93,7 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
     rat: 0,
     terceiros: 0,
     outros: 0,
+    inssFuncionario: 0,
     // Provisões detalhadas
     provisao13: 0,
     provisaoFeriasBase: 0,
@@ -114,6 +121,7 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
       details.rat = baseAmount * profile.ratRate;
       details.terceiros = baseAmount * profile.terceirosRate;
       details.outros = baseAmount * profile.outrosRate;
+      details.inssFuncionario = calculateINSS(baseAmount).total;
 
       // Provisões detalhadas
       details.provisao13 = baseAmount / 12;

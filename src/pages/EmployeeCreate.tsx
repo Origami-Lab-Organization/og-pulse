@@ -1034,7 +1034,23 @@ const EmployeeCreate = () => {
                           />
                         </FormItem>
                       )}
+                      {(costBreakdown?.details.inssFuncionario || 0) > 0 && (
+                        <FormItem>
+                          <FormLabel>INSS do Funcionário (retido)</FormLabel>
+                          <Input
+                            disabled
+                            value={formatCurrency(costBreakdown?.details.inssFuncionario || 0)}
+                            className="bg-muted"
+                          />
+                        </FormItem>
+                      )}
                     </div>
+                    {(costBreakdown?.details.inssFuncionario || 0) > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Descontado do salário bruto e recolhido pela empresa mensalmente ao INSS —
+                        não é somado ao custo total, pois já está incluso na Base.
+                      </p>
+                    )}
                   </div>
                 )}
 
