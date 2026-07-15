@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { CalendarDays, FileDown, Loader2, X } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter,
-  startOfYear, endOfYear, getQuarter,
+  startOfYear, endOfYear, getQuarter, isSameMonth,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -20,15 +20,7 @@ import { OverdueSection } from '@/components/analytics/financeiro/OverdueSection
 import { BillableSplitCard } from '@/components/analytics/financeiro/BillableSplitCard';
 import { ClientBreakdownCard } from '@/components/analytics/financeiro/ClientBreakdownCard';
 
-type PeriodPreset = 'month' | 'quarter' | 'ytd' | 'year' | 'custom';
-
-const PERIOD_OPTIONS: { value: PeriodPreset; label: string }[] = [
-  { value: 'month', label: 'Mês' },
-  { value: 'quarter', label: 'Trimestre' },
-  { value: 'ytd', label: 'Ano até hoje' },
-  { value: 'year', label: 'Ano' },
-  { value: 'custom', label: 'Personalizado' },
-];
+type PeriodPreset = 'currentMonth' | 'previousMonth' | 'currentQuarter' | 'year' | 'custom';
 
 const ALL = 'all';
 
@@ -38,17 +30,19 @@ function capitalize(s: string) {
 
 export default function Analytics() {
   const today = useMemo(() => new Date(), []);
-  const monthOptions = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, i) => {
-        const d = startOfMonth(subMonths(today, i));
-        return { value: format(d, 'yyyy-MM'), label: capitalize(format(d, 'MMMM yyyy', { locale: ptBR })), closed: endOfMonth(d) < today };
-      }),
+
+  const periodOptions = useMemo<{ value: PeriodPreset; label: string }[]>(
+    () => [
+      { value: 'currentMonth', label: 'Mês atual' },
+      { value: 'previousMonth', label: 'Mês anterior' },
+      { value: 'currentQuarter', label: 'Trimestre atual' },
+      { value: 'year', label: String(today.getFullYear()) },
+      { value: 'custom', label: 'Personalizado' },
+    ],
     [today],
   );
 
-  const [period, setPeriod] = useState<PeriodPreset>('month');
-  const [selectedMonth, setSelectedMonth] = useState(monthOptions[1]?.value ?? monthOptions[0].value);
+  const [period, setPeriod] = useState<PeriodPreset>('currentMonth');
   const [customStart, setCustomStart] = useState<Date | undefined>();
   const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [managerId, setManagerId] = useState(ALL);
@@ -56,17 +50,18 @@ export default function Analytics() {
   const [projectId, setProjectId] = useState(ALL);
   const [isRequestingPdf, setIsRequestingPdf] = useState(false);
 
-  const monthDate = useMemo(() => startOfMonth(new Date(`${selectedMonth}-01T00:00:00`)), [selectedMonth]);
-
   const range = useMemo(() => {
     switch (period) {
-      case 'month': return { startDate: startOfMonth(monthDate), endDate: endOfMonth(monthDate) };
-      case 'quarter': return { startDate: startOfQuarter(today), endDate: endOfQuarter(today) };
-      case 'ytd': return { startDate: startOfYear(today), endDate: endOfMonth(today) };
+      case 'currentMonth': return { startDate: startOfMonth(today), endDate: endOfMonth(today) };
+      case 'previousMonth': {
+        const d = subMonths(today, 1);
+        return { startDate: startOfMonth(d), endDate: endOfMonth(d) };
+      }
+      case 'currentQuarter': return { startDate: startOfQuarter(today), endDate: endOfQuarter(today) };
       case 'year': return { startDate: startOfYear(today), endDate: endOfYear(today) };
       case 'custom': return { startDate: customStart ?? startOfMonth(today), endDate: customEnd ?? endOfMonth(today) };
     }
-  }, [period, monthDate, customStart, customEnd, today]);
+  }, [period, today, customStart, customEnd]);
 
   const filters = useMemo(
     () => ({
@@ -83,17 +78,31 @@ export default function Analytics() {
   const { data: options } = useAnalyticsFilterOptions();
 
   const periodLabelFull = useMemo(() => {
+    const shortMonth = (d: Date) => capitalize(format(d, 'MMM', { locale: ptBR }).replace('.', ''));
     switch (period) {
-      case 'month': return capitalize(format(monthDate, 'MMMM yyyy', { locale: ptBR }));
-      case 'quarter': return `${getQuarter(today)}º trimestre ${today.getFullYear()}`;
-      case 'ytd': return `Jan–${capitalize(format(today, 'MMM', { locale: ptBR }).replace('.', ''))} ${today.getFullYear()} (YTD)`;
-      case 'year': return String(today.getFullYear());
+      case 'currentMonth': return `${capitalize(format(today, 'MMMM yyyy', { locale: ptBR }))} · em curso`;
+      case 'previousMonth': return `${capitalize(format(subMonths(today, 1), 'MMMM yyyy', { locale: ptBR }))} · mês fechado`;
+      case 'currentQuarter': return `${getQuarter(today)}T${format(today, 'yy')} · ${shortMonth(startOfQuarter(today))}–${shortMonth(endOfQuarter(today))}`;
+      case 'year': return `Jan–Dez ${today.getFullYear()}`;
       case 'custom': return `${format(range.startDate, 'dd/MM/yy')} – ${format(range.endDate, 'dd/MM/yy')}`;
     }
-  }, [period, monthDate, today, range]);
+  }, [period, today, range]);
 
   const activeFilters = [managerId, clientId, projectId].filter((v) => v !== ALL).length;
   const clearFilters = () => { setManagerId(ALL); setClientId(ALL); setProjectId(ALL); };
+
+  function handleChartMonthClick(monthIndex: number) {
+    const clicked = new Date(range.startDate.getFullYear(), monthIndex, 1);
+    if (isSameMonth(clicked, today)) {
+      setPeriod('currentMonth');
+    } else if (isSameMonth(clicked, subMonths(today, 1))) {
+      setPeriod('previousMonth');
+    } else {
+      setCustomStart(startOfMonth(clicked));
+      setCustomEnd(endOfMonth(clicked));
+      setPeriod('custom');
+    }
+  }
 
   function handleExportPdf() {
     if (!data) return;
@@ -138,25 +147,9 @@ export default function Analytics() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
-                {PERIOD_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                {periodOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
-
-            {period === 'month' && (
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="h-9 w-auto gap-2 px-3">
-                  <SelectValue />
-                  {monthOptions.find((o) => o.value === selectedMonth) && (
-                    <span className="ml-1 text-[11px] font-normal text-muted-foreground">
-                      {monthOptions.find((o) => o.value === selectedMonth)!.closed ? 'mês fechado' : 'em curso'}
-                    </span>
-                  )}
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {monthOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
 
             {period === 'custom' && (
               <div className="flex items-center gap-1">
@@ -176,7 +169,7 @@ export default function Analytics() {
               </div>
             )}
 
-            {period !== 'month' && period !== 'custom' && (
+            {period !== 'custom' && (
               <span className="hidden font-mono text-[11px] tabular-nums text-muted-foreground lg:inline">{periodLabelFull}</span>
             )}
 
@@ -236,7 +229,7 @@ export default function Analytics() {
       ) : (
         <div className="space-y-4 sm:space-y-6">
           <FinanceKpiCards data={data} />
-          <FinanceEvolutionChart months={data.evolutionMonths} />
+          <FinanceEvolutionChart months={data.evolutionMonths} onMonthClick={handleChartMonthClick} />
           <ClientBreakdownCard rows={data.clientBreakdown} metaPct={data.metaPct} />
           <OverdueSection overdueNFs={data.revenue.overdueNFs} overdueReceipts={data.revenue.overdueReceipts} />
           <BillableSplitCard data={data} />
