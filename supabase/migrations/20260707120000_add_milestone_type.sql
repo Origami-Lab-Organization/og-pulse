@@ -2,7 +2,7 @@
 -- entrega interna). Default 'marco' preserva o comportamento atual e
 -- retrocompatibiliza os registros existentes sem UPDATE explícito.
 ALTER TABLE public.project_milestones
-  ADD COLUMN milestone_type TEXT NOT NULL DEFAULT 'marco';
+  ADD COLUMN IF NOT EXISTS milestone_type TEXT NOT NULL DEFAULT 'marco';
 
 COMMENT ON COLUMN public.project_milestones.milestone_type IS
   'marco (pontual, visível ao cliente) | release (período, entrega ao cliente) | '
