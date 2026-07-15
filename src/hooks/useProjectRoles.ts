@@ -106,8 +106,21 @@ export const useAddAllocation = (projectId: string, onSuccess?: () => void) => {
       await equipeService.upsertAllocations(rows);
     },
     onSuccess: () => {
+      // Aba Equipe
       queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project-allocations-filled-roles', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
+      // Tela /alocacao
+      queryClient.invalidateQueries({ queryKey: ['allocation-employee-month-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['allocation-employee-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['allocation-grid'] });
+      queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
+      // Disponibilidade
+      queryClient.invalidateQueries({ queryKey: ['employee-availability'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-monthly-load'] });
+      // Custos / financeiro do projeto
+      queryClient.invalidateQueries({ queryKey: ['project-team-financials', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-realized-hours', projectId] });
       toast({ title: 'Funcionário alocado com sucesso' });
       onSuccess?.();
     },
@@ -400,6 +413,8 @@ export const useTeamAllocationRows = (project: ProjectWithRelations, canEdit: bo
         plannedHours,
         realizedHours,
         isOverallocated: load.plannedHours > load.capacityHours && load.capacityHours > 0,
+        capacityHours: load.capacityHours,
+        othersHours: Math.max(0, load.plannedHours - plannedHours),
       };
     };
 
@@ -471,6 +486,8 @@ export const useTeamAllocationRows = (project: ProjectWithRelations, canEdit: bo
             plannedHours: Number(bm.hours),
             realizedHours: null,
             isOverallocated: false,
+            capacityHours: 0,
+            othersHours: 0,
           };
         });
         return {
@@ -499,6 +516,8 @@ export const useTeamAllocationRows = (project: ProjectWithRelations, canEdit: bo
           plannedHours: Number(rm.planned_hours),
           realizedHours: null,
           isOverallocated: false,
+          capacityHours: 0,
+          othersHours: 0,
         };
       });
       return {

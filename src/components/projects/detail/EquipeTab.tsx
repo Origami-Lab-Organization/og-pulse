@@ -69,6 +69,7 @@ export function EquipeTab({ project, isReadOnly = false }: EquipeTabProps) {
         project={project}
         alreadyAllocatedIds={alreadyAllocatedIds}
         sourceVacancy={vacancySource ?? undefined}
+        canSeeMargin={isFinancialVisible}
       />
     </div>
   );
