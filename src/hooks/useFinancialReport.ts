@@ -80,7 +80,7 @@ export function useFinancialReport(filters: AnalyticsFilters) {
     if (!evolution.data) return null;
     const months = evolution.data.months;
     // useFinancialEvolution carrega os 12 meses do ano de startDate; os meses do
-    // período são derivados do range (o campo m.isHighlighted do hook é sempre false).
+    // período (isHighlighted) são marcados abaixo a partir do range de filtros.
     const year = evolution.data.year;
     const minIdx = filters.startDate.getFullYear() < year ? 0 : filters.startDate.getMonth();
     const maxIdx = filters.endDate.getFullYear() > year ? 11 : filters.endDate.getMonth();
@@ -174,7 +174,7 @@ export function useFinancialReport(filters: AnalyticsFilters) {
       billablePct,
       categories,
       clientBreakdown,
-      evolutionMonths: months.slice(0, maxIdx + 1),
+      evolutionMonths: months.map((m, i) => ({ ...m, isHighlighted: i >= minIdx && i <= maxIdx })),
       revenue: revenue.data ?? EMPTY_REVENUE,
     };
   }, [evolution.data, revenue.data, projFin.data, filters.startDate, filters.endDate]);
