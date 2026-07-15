@@ -17,6 +17,10 @@
 -- 4) Triggers de defesa em profundidade: bloquear edição de mês passado por
 --    não-admin, e bloquear exclusão de alocação com horas realizadas.
 -- 5) RPC transacional de desalocação.
+--
+-- Idempotente: seguro rodar de novo caso uma execução anterior tenha parado
+-- no meio (DROP ... IF EXISTS antes de cada CREATE POLICY/TRIGGER, IF NOT
+-- EXISTS em TABLE/INDEX; CREATE OR REPLACE FUNCTION já é idempotente).
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- 1) RLS de project_role_allocations
@@ -25,6 +29,7 @@ DROP POLICY IF EXISTS "Tenant members can insert project_role_allocations" ON pu
 DROP POLICY IF EXISTS "Tenant members can update project_role_allocations" ON public.project_role_allocations;
 DROP POLICY IF EXISTS "Tenant members can delete project_role_allocations" ON public.project_role_allocations;
 
+DROP POLICY IF EXISTS "project_role_allocations_select_admin_manager_or_member" ON public.project_role_allocations;
 CREATE POLICY "project_role_allocations_select_admin_manager_or_member"
 ON public.project_role_allocations FOR SELECT TO authenticated
 USING (
@@ -37,7 +42,7 @@ USING (
 );
 
 -- 2) project_team_rows / project_team_row_months
-CREATE TABLE public.project_team_rows (
+CREATE TABLE IF NOT EXISTS public.project_team_rows (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
   tenant_id uuid NOT NULL,
@@ -57,17 +62,19 @@ CREATE TABLE public.project_team_rows (
   )
 );
 
-CREATE UNIQUE INDEX project_team_rows_member_unique
+CREATE UNIQUE INDEX IF NOT EXISTS project_team_rows_member_unique
   ON public.project_team_rows(project_id, employee_id) WHERE row_type = 'member_status';
 
-CREATE INDEX idx_project_team_rows_project ON public.project_team_rows(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_team_rows_project ON public.project_team_rows(project_id);
 
+DROP TRIGGER IF EXISTS update_project_team_rows_updated_at ON public.project_team_rows;
 CREATE TRIGGER update_project_team_rows_updated_at
 BEFORE UPDATE ON public.project_team_rows
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 ALTER TABLE public.project_team_rows ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "project_team_rows_select_admin_manager_or_member" ON public.project_team_rows;
 CREATE POLICY "project_team_rows_select_admin_manager_or_member"
 ON public.project_team_rows FOR SELECT TO authenticated
 USING (
@@ -80,20 +87,23 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "project_team_rows_insert_admin_or_pm" ON public.project_team_rows;
 CREATE POLICY "project_team_rows_insert_admin_or_pm"
 ON public.project_team_rows FOR INSERT TO authenticated
 WITH CHECK (public.can_manage_project(auth.uid(), project_id));
 
+DROP POLICY IF EXISTS "project_team_rows_update_admin_or_pm" ON public.project_team_rows;
 CREATE POLICY "project_team_rows_update_admin_or_pm"
 ON public.project_team_rows FOR UPDATE TO authenticated
 USING (public.can_manage_project(auth.uid(), project_id))
 WITH CHECK (public.can_manage_project(auth.uid(), project_id));
 
+DROP POLICY IF EXISTS "project_team_rows_delete_admin_or_pm" ON public.project_team_rows;
 CREATE POLICY "project_team_rows_delete_admin_or_pm"
 ON public.project_team_rows FOR DELETE TO authenticated
 USING (public.can_manage_project(auth.uid(), project_id));
 
-CREATE TABLE public.project_team_row_months (
+CREATE TABLE IF NOT EXISTS public.project_team_row_months (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   row_id uuid NOT NULL REFERENCES public.project_team_rows(id) ON DELETE CASCADE,
   year int NOT NULL,
@@ -102,10 +112,11 @@ CREATE TABLE public.project_team_row_months (
   UNIQUE (row_id, year, month)
 );
 
-CREATE INDEX idx_project_team_row_months_row ON public.project_team_row_months(row_id);
+CREATE INDEX IF NOT EXISTS idx_project_team_row_months_row ON public.project_team_row_months(row_id);
 
 ALTER TABLE public.project_team_row_months ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "project_team_row_months_select_admin_manager_or_member" ON public.project_team_row_months;
 CREATE POLICY "project_team_row_months_select_admin_manager_or_member"
 ON public.project_team_row_months FOR SELECT TO authenticated
 USING (
@@ -124,12 +135,14 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "project_team_row_months_insert_admin_or_pm" ON public.project_team_row_months;
 CREATE POLICY "project_team_row_months_insert_admin_or_pm"
 ON public.project_team_row_months FOR INSERT TO authenticated
 WITH CHECK (
   EXISTS (SELECT 1 FROM public.project_team_rows r WHERE r.id = row_id AND public.can_manage_project(auth.uid(), r.project_id))
 );
 
+DROP POLICY IF EXISTS "project_team_row_months_update_admin_or_pm" ON public.project_team_row_months;
 CREATE POLICY "project_team_row_months_update_admin_or_pm"
 ON public.project_team_row_months FOR UPDATE TO authenticated
 USING (
@@ -139,6 +152,7 @@ WITH CHECK (
   EXISTS (SELECT 1 FROM public.project_team_rows r WHERE r.id = row_id AND public.can_manage_project(auth.uid(), r.project_id))
 );
 
+DROP POLICY IF EXISTS "project_team_row_months_delete_admin_or_pm" ON public.project_team_row_months;
 CREATE POLICY "project_team_row_months_delete_admin_or_pm"
 ON public.project_team_row_months FOR DELETE TO authenticated
 USING (
@@ -146,7 +160,7 @@ USING (
 );
 
 -- 3) Auditoria de edição retroativa de horas planejadas
-CREATE TABLE public.project_role_allocation_edit_logs (
+CREATE TABLE IF NOT EXISTS public.project_role_allocation_edit_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   allocation_id uuid NOT NULL REFERENCES public.project_role_allocations(id) ON DELETE CASCADE,
   edited_by uuid NOT NULL REFERENCES auth.users(id),
@@ -157,10 +171,11 @@ CREATE TABLE public.project_role_allocation_edit_logs (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_project_role_allocation_edit_logs_allocation ON public.project_role_allocation_edit_logs(allocation_id);
+CREATE INDEX IF NOT EXISTS idx_project_role_allocation_edit_logs_allocation ON public.project_role_allocation_edit_logs(allocation_id);
 
 ALTER TABLE public.project_role_allocation_edit_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "project_role_allocation_edit_logs_select_admin_or_pm" ON public.project_role_allocation_edit_logs;
 CREATE POLICY "project_role_allocation_edit_logs_select_admin_or_pm"
 ON public.project_role_allocation_edit_logs FOR SELECT TO authenticated
 USING (
@@ -171,6 +186,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "project_role_allocation_edit_logs_insert_admin_or_pm" ON public.project_role_allocation_edit_logs;
 CREATE POLICY "project_role_allocation_edit_logs_insert_admin_or_pm"
 ON public.project_role_allocation_edit_logs FOR INSERT TO authenticated
 WITH CHECK (
@@ -199,6 +215,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS enforce_past_month_allocation_edit ON public.project_role_allocations;
 CREATE TRIGGER enforce_past_month_allocation_edit
 BEFORE UPDATE OF planned_hours ON public.project_role_allocations
 FOR EACH ROW EXECUTE FUNCTION public.enforce_past_month_allocation_edit();
@@ -237,6 +254,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS enforce_no_delete_with_actual_hours ON public.project_role_allocations;
 CREATE TRIGGER enforce_no_delete_with_actual_hours
 BEFORE DELETE ON public.project_role_allocations
 FOR EACH ROW EXECUTE FUNCTION public.enforce_no_delete_with_actual_hours();
