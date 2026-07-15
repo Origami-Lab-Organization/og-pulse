@@ -1,0 +1,204 @@
+import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Lock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import { TeamMonthCell } from '@/types/equipe.types';
+
+const PAST_MONTH_EDIT_REASONS = [
+  { value: 'planning_error', label: 'Erro de planejamento' },
+  { value: 'retroactive_adjustment', label: 'Ajuste retroativo de escopo' },
+  { value: 'correction', label: 'Correção de lançamento' },
+  { value: 'other', label: 'Outro' },
+] as const;
+
+type CellTone = 'future' | 'empty' | 'ok' | 'warning' | 'critical';
+
+function cellTone(plannedHours: number, realizedHours: number | null): CellTone {
+  if (realizedHours === null) return 'future';
+  if (plannedHours === 0) return realizedHours > 0 ? 'critical' : 'empty';
+  const ratio = realizedHours / plannedHours;
+  if (ratio <= 1) return 'ok';
+  if (ratio <= 1.1) return 'warning';
+  return 'critical';
+}
+
+const TONE_CLASSES: Record<CellTone, string> = {
+  future: 'bg-muted/40 text-muted-foreground',
+  empty: 'text-muted-foreground',
+  ok: 'bg-primary-deep/10 text-primary-deep',
+  warning: 'bg-warning/10 text-warning',
+  critical: 'bg-destructive/10 text-destructive',
+};
+
+interface AllocationCellProps {
+  cell: TeamMonthCell | undefined;
+  editable: boolean;
+  isPastMonth: boolean;
+  isAdmin: boolean;
+  onSave: (newHours: number, reasonCode?: string, justification?: string) => void;
+}
+
+export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }: AllocationCellProps) {
+  const plannedHours = cell?.plannedHours ?? 0;
+  const realizedHours = cell?.realizedHours ?? null;
+  const tone = cellTone(plannedHours, realizedHours);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(String(plannedHours));
+  const [pendingHours, setPendingHours] = useState<number | null>(null);
+  const [reasonCode, setReasonCode] = useState('');
+  const [justification, setJustification] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [isEditing]);
+
+  const startEdit = () => {
+    if (!editable) return;
+    setDraft(String(plannedHours));
+    setIsEditing(true);
+  };
+
+  const commit = () => {
+    setIsEditing(false);
+    const newHours = Math.max(0, Number(draft) || 0);
+    if (newHours === plannedHours) return;
+
+    if (isPastMonth && isAdmin) {
+      setPendingHours(newHours);
+      return;
+    }
+    onSave(newHours);
+  };
+
+  const confirmPastMonthEdit = () => {
+    if (pendingHours === null || !reasonCode || justification.trim().length < 10) return;
+    onSave(pendingHours, reasonCode, justification.trim());
+    setPendingHours(null);
+    setReasonCode('');
+    setJustification('');
+  };
+
+  const cancelPastMonthEdit = () => {
+    setPendingHours(null);
+    setReasonCode('');
+    setJustification('');
+  };
+
+  if (isEditing) {
+    return (
+      <Input
+        ref={inputRef}
+        type="number"
+        min={0}
+        step={1}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') setIsEditing(false);
+        }}
+        className="h-8 w-full text-center font-mono text-xs tabular-nums"
+      />
+    );
+  }
+
+  const realizedText = realizedHours === null ? '—' : `${Math.round(realizedHours)}h`;
+
+  const content = (
+    <button
+      type="button"
+      onClick={startEdit}
+      disabled={!editable}
+      className={cn(
+        'group relative flex h-9 w-full items-center justify-center gap-1.5 rounded-md px-2 text-xs transition-colors',
+        TONE_CLASSES[tone],
+        editable ? 'cursor-pointer hover:ring-1 hover:ring-primary-deep/40' : 'cursor-default',
+      )}
+    >
+      <span className="font-mono text-sm font-semibold tabular-nums">{Math.round(plannedHours)}h</span>
+      <span className="font-mono text-[11px] tabular-nums opacity-40">/</span>
+      <span className="font-mono text-[11px] tabular-nums opacity-70">{realizedText}</span>
+      {cell?.isOverallocated && (
+        <TooltipProvider delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="absolute right-0.5 top-0.5">
+                <AlertTriangle className="h-3 w-3 text-warning" aria-hidden />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[200px] text-xs">
+              Este funcionário está acima da jornada mensal somando todos os projetos neste mês.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+      {isPastMonth && !editable && (
+        <span className="absolute left-0.5 top-0.5 text-muted-foreground">
+          <Lock className="h-2.5 w-2.5" aria-hidden />
+        </span>
+      )}
+    </button>
+  );
+
+  if (isPastMonth && !editable) {
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>{content}</TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">Apenas admin pode editar meses passados</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <Popover open={pendingHours !== null} onOpenChange={(open) => !open && cancelPastMonthEdit()}>
+      <PopoverTrigger asChild>{content}</PopoverTrigger>
+      <PopoverContent className="w-72 space-y-3" align="center">
+        <p className="text-sm font-semibold text-foreground">Editar mês encerrado</p>
+        <p className="text-xs text-muted-foreground">
+          Alterar horas planejadas de {Math.round(plannedHours)}h para {pendingHours}h. Motivo e justificativa ficam registrados.
+        </p>
+        <Select value={reasonCode} onValueChange={setReasonCode}>
+          <SelectTrigger className="h-9">
+            <SelectValue placeholder="Motivo" />
+          </SelectTrigger>
+          <SelectContent>
+            {PAST_MONTH_EDIT_REASONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Textarea
+          placeholder="Justificativa (mín. 10 caracteres)"
+          value={justification}
+          onChange={(e) => setJustification(e.target.value)}
+          className="text-sm"
+        />
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={cancelPastMonthEdit}>Cancelar</Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!reasonCode || justification.trim().length < 10}
+            onClick={confirmPastMonthEdit}
+            className="bg-primary-deep text-primary-deep-foreground hover:bg-primary-deep/90"
+          >
+            Confirmar
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,8 +10,7 @@ import {
   TriangleAlert,
   Wand2,
 } from "lucide-react";
-import { addMonths, parseISO, format, getYear, getMonth } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { ProjectMonth, buildProjectMonths } from "@/lib/projectMonths";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +55,9 @@ import { useBudget } from "@/hooks/useBudgets";
 import { useHolidays } from "@/hooks/useHolidays";
 import { getFallbackHourlyCost } from "@/lib/employeeCost";
 import { useMaskedCurrency, useMaskedPercent } from "@/contexts/HideValuesContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { equipeService } from "@/services/equipeService";
+import { useTenantMonthlyCapacitySummary, getEmployeeMonthLoad } from "@/hooks/useTenantMonthlyCapacitySummary";
 import {
   BudgetRoleWithMonths,
   AddAllocationPayload,
@@ -63,6 +65,7 @@ import {
 } from "@/types/equipe.types";
 import { ProjectWithRelations } from "@/types/project";
 import { useAuth } from "@/contexts/AuthContext";
+import type { VacancySourceInfo } from "@/components/projects/team/TeamAllocationTable";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -86,13 +89,6 @@ type Step1Values = z.infer<typeof step1Schema>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-interface ProjectMonth {
-  year: number;
-  month: number;
-  label: string;
-  monthNumber: number;
-}
-
 const SENIORITY_LABELS: Record<string, string> = {
   junior: "Júnior",
   pleno: "Pleno",
@@ -104,46 +100,32 @@ function seniorityLabel(value: string | null | undefined): string | null {
   return SENIORITY_LABELS[value.toLowerCase()] ?? value;
 }
 
-function buildProjectMonths(
-  startDate: string,
-  endDate: string | null,
-): ProjectMonth[] {
-  const start = parseISO(startDate);
-  const end = endDate ? parseISO(endDate) : addMonths(start, 12);
-  const months: ProjectMonth[] = [];
-  let current = start;
-  let i = 1;
-  while (current <= end) {
-    months.push({
-      year: getYear(current),
-      month: getMonth(current) + 1,
-      label: format(current, "MMM/yy", { locale: ptBR }),
-      monthNumber: i,
-    });
-    current = addMonths(current, 1);
-    i++;
-  }
-  return months;
-}
-
 // ─── Step 1 ───────────────────────────────────────────────────────────────────
 
 interface Step1Props {
   projectId: string;
+  tenantId: string;
   budgetId: string | null;
   alreadyAllocatedIds: Set<string>;
+  projectMonths: ProjectMonth[];
+  sourceVacancy?: VacancySourceInfo;
   onNext: (values: Step1Values) => void;
 }
 
 function Step1({
   projectId,
+  tenantId,
   budgetId,
   alreadyAllocatedIds,
+  projectMonths,
+  sourceVacancy,
   onNext,
 }: Step1Props) {
   const { data: employees = [] } = useEmployees();
   const { budgetRoles } = useProjectBudgetRoles(budgetId, projectId);
-  const { data: projectAllocations = [] } = useProjectAllocations(projectId);
+  const { data: projectAllocations = [] } = useProjectAllocations(projectId, false);
+  const years = useMemo(() => Array.from(new Set(projectMonths.map((pm) => pm.year))), [projectMonths]);
+  const { data: capacitySummary } = useTenantMonthlyCapacitySummary({ tenantId, years, enabled: !!sourceVacancy });
 
   // Quem já está alocado em cada papel orçado (reflete a equipe atual do projeto).
   const allocatedByBudgetRole = useMemo(() => {
@@ -161,23 +143,52 @@ function Step1({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
-  const [selectedBudgetRoleId, setSelectedBudgetRoleId] = useState("");
-  const [useCustomRole, setUseCustomRole] = useState(false);
-  const [customRoleName, setCustomRoleName] = useState("");
+  const [selectedBudgetRoleId, setSelectedBudgetRoleId] = useState(sourceVacancy?.budgetRoleId ?? "");
+  const [useCustomRole, setUseCustomRole] = useState(!!sourceVacancy?.customRoleName);
+  const [customRoleName, setCustomRoleName] = useState(sourceVacancy?.customRoleName ?? "");
   const [error, setError] = useState("");
+
+  // Disponibilidade média (horas livres) do candidato nos meses do projeto —
+  // usada pra ordenar e mostrar confronto orçado×disponível vindo de uma vaga.
+  const avgFreeHoursByEmployee = useMemo(() => {
+    if (!sourceVacancy || !capacitySummary) return new Map<string, number>();
+    const result = new Map<string, number>();
+    employees.forEach((emp) => {
+      const freeHours = projectMonths.map((pm) => {
+        const load = getEmployeeMonthLoad(capacitySummary, emp.id, pm.year, pm.month);
+        return Math.max(0, load.capacityHours - load.plannedHours);
+      });
+      result.set(emp.id, freeHours.length ? freeHours.reduce((a, b) => a + b, 0) / freeHours.length : 0);
+    });
+    return result;
+  }, [sourceVacancy, capacitySummary, employees, projectMonths]);
+
+  const avgBudgetedHoursForVacancy = useMemo(() => {
+    if (!sourceVacancy || sourceVacancy.monthlyHours.length === 0) return 0;
+    return sourceVacancy.monthlyHours.reduce((sum, mh) => sum + mh.plannedHours, 0) / sourceVacancy.monthlyHours.length;
+  }, [sourceVacancy]);
 
   const filteredEmployees = useMemo(() => {
     const q = search.toLowerCase();
-    return employees.filter(
+    const matches = employees.filter(
       (e) =>
         e.nome.toLowerCase().includes(q) || e.cargo.toLowerCase().includes(q),
     );
-  }, [employees, search]);
+    if (!sourceVacancy || !search.trim()) {
+      return [...matches].sort((a, b) => {
+        const diff = (avgFreeHoursByEmployee.get(b.id) ?? 0) - (avgFreeHoursByEmployee.get(a.id) ?? 0);
+        return diff !== 0 ? diff : a.nome.localeCompare(b.nome, 'pt-BR');
+      });
+    }
+    return matches;
+  }, [employees, search, sourceVacancy, avgFreeHoursByEmployee]);
 
   const selectedEmployee =
     employees.find((e) => e.id === selectedEmployeeId) ?? null;
-  // Lista só aparece quando o usuário começa a digitar (combobox), não ao abrir/focar.
-  const showEmployeeList = isInputFocused && search.trim().length > 0;
+  // Lista só aparece quando o usuário começa a digitar (combobox) — exceto
+  // vindo de uma vaga, onde já mostramos os candidatos ordenados por
+  // disponibilidade assim que o campo ganha foco.
+  const showEmployeeList = isInputFocused && (search.trim().length > 0 || !!sourceVacancy);
 
   const handleNext = () => {
     const result = step1Schema.safeParse({
@@ -197,7 +208,15 @@ function Step1({
 
   return (
     <div className="space-y-5">
-      {/* Role selector */}
+      {/* Role selector — travado quando vem de uma vaga aberta */}
+      {sourceVacancy ? (
+        <div className="space-y-1.5 rounded-md border bg-muted/30 px-3 py-2">
+          <Label className="ol-label text-muted-foreground">Papel da vaga</Label>
+          <p className="text-sm font-medium text-foreground">
+            {sourceVacancy.customRoleName || budgetRoles.find((r) => r.id === sourceVacancy.budgetRoleId)?.role_name || 'Papel da vaga'}
+          </p>
+        </div>
+      ) : (
       <div className="space-y-2">
         <Label>Papel *</Label>
         <div className="rounded-md border divide-y">
@@ -296,6 +315,7 @@ function Step1({
 
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
+      )}
 
       {/* Employee selector */}
       <div className="space-y-2">
@@ -340,6 +360,14 @@ function Step1({
                   filteredEmployees.map((emp) => {
                     const isAllocated = alreadyAllocatedIds.has(emp.id);
                     const isSelected = selectedEmployeeId === emp.id;
+                    const avgFree = sourceVacancy ? Math.round(avgFreeHoursByEmployee.get(emp.id) ?? 0) : null;
+                    const fitTone = avgFree === null
+                      ? ''
+                      : avgFree >= avgBudgetedHoursForVacancy
+                        ? 'border-transparent bg-primary-deep/10 text-primary-deep'
+                        : avgFree > 0
+                          ? 'border-transparent bg-warning/10 text-warning'
+                          : 'border-transparent bg-destructive/10 text-destructive';
                     return (
                       <button
                         key={emp.id}
@@ -359,6 +387,11 @@ function Step1({
                           <span className="font-medium">{emp.nome}</span>
                           <span className="ml-2 text-muted-foreground">{emp.cargo}</span>
                         </div>
+                        {avgFree !== null && (
+                          <Badge variant="outline" className={cn('shrink-0 text-xs', fitTone)}>
+                            {avgFree}h livres/mês
+                          </Badge>
+                        )}
                         {isAllocated && (
                           <Badge variant="outline" className="shrink-0 text-xs border-transparent bg-muted text-muted-foreground">
                             Já alocado
@@ -1116,6 +1149,8 @@ interface AddAllocationDialogProps {
   alreadyAllocatedIds: Set<string>;
   /** When provided, opens directly on Step 2 in edit mode */
   editAllocation?: ProjectAllocation;
+  /** When provided, Step1 trava o papel e Step2 pré-preenche as horas da vaga */
+  sourceVacancy?: VacancySourceInfo;
 }
 
 export function AddAllocationDialog({
@@ -1124,8 +1159,10 @@ export function AddAllocationDialog({
   project,
   alreadyAllocatedIds,
   editAllocation,
+  sourceVacancy,
 }: AddAllocationDialogProps) {
   const { employee } = useAuth();
+  const queryClient = useQueryClient();
   const { data: employees = [] } = useEmployees();
   const { budgetRoles } = useProjectBudgetRoles(project.budget_id, project.id);
   const { data: financialSettings } = useFinancialSettings();
@@ -1158,7 +1195,16 @@ export function AddAllocationDialog({
     }, 200);
   };
 
-  const addAllocation = useAddAllocation(project.id, handleClose);
+  const handleAllocationSuccess = () => {
+    if (sourceVacancy?.vacancyRowId) {
+      equipeService.deleteTeamRow(sourceVacancy.vacancyRowId).finally(() => {
+        queryClient.invalidateQueries({ queryKey: ['project-team-rows', project.id] });
+      });
+    }
+    handleClose();
+  };
+
+  const addAllocation = useAddAllocation(project.id, handleAllocationSuccess);
 
   const handleStep1Next = (values: Step1Values) => {
     setStep1Values(values);
@@ -1190,7 +1236,7 @@ export function AddAllocationDialog({
       "Funcionário")
     : "";
 
-  // Build initialHours map for edit mode
+  // Build initialHours map for edit mode ou vindo de uma vaga aberta
   const initialHours = editAllocation
     ? Object.fromEntries(
         editAllocation.monthlyHours.map((mh) => [
@@ -1198,7 +1244,11 @@ export function AddAllocationDialog({
           mh.plannedHours,
         ]),
       )
-    : undefined;
+    : sourceVacancy
+      ? Object.fromEntries(
+          sourceVacancy.monthlyHours.map((mh) => [`${mh.year}-${mh.month}`, mh.plannedHours]),
+        )
+      : undefined;
 
   // ── Margin simulation: cost of every OTHER allocated member (this role is excluded
   // so it isn't double-counted, both when adding a new member and when editing one
@@ -1282,8 +1332,11 @@ export function AddAllocationDialog({
         {step === 1 && (
           <Step1
             projectId={project.id}
+            tenantId={project.tenant_id}
             budgetId={project.budget_id}
             alreadyAllocatedIds={alreadyAllocatedIds}
+            projectMonths={projectMonths}
+            sourceVacancy={sourceVacancy}
             onNext={handleStep1Next}
           />
         )}

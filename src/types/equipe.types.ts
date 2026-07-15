@@ -49,6 +49,7 @@ export interface ProjectAllocationWithEmployee extends ProjectAllocationDB {
 // ─── Frontend aggregate ───────────────────────────────────────────────────────
 
 export interface MonthlyHours {
+  id: string; // project_role_allocations.id desta linha de mês
   year: number;
   month: number; // 1-12
   plannedHours: number;
@@ -81,6 +82,61 @@ export interface AddAllocationPayload {
   budgetRoleId?: string;
   customRoleName?: string;
   monthlyHours: { year: number; month: number; plannedHours: number }[];
+}
+
+// ─── Team rows: vagas manuais e status de desalocação ─────────────────────────
+
+export type TeamRowType = 'vacancy' | 'member_status';
+export type TeamRowStatus = 'active' | 'deallocated';
+
+export interface ProjectTeamRowMonthDB {
+  id: string;
+  row_id: string;
+  year: number;
+  month: number;
+  planned_hours: number;
+}
+
+export interface ProjectTeamRowDB {
+  id: string;
+  project_id: string;
+  tenant_id: string;
+  row_type: TeamRowType;
+  budget_role_id: string | null;
+  custom_role_name: string | null;
+  employee_id: string | null;
+  status: TeamRowStatus;
+  deallocated_at: string | null;
+  deallocated_by: string | null;
+  reactivated_at: string | null;
+  months?: ProjectTeamRowMonthDB[];
+}
+
+/** Linha "mês×membro" pronta para a tabela — membro ativo, vaga ou desalocado. */
+export type TeamAllocationRowKind = 'member' | 'vacancy' | 'deallocated';
+
+export interface TeamMonthCell {
+  year: number;
+  month: number;
+  allocationId: string | null; // null para vaga (não tem project_role_allocations ainda)
+  plannedHours: number;
+  realizedHours: number | null; // null = mês futuro, sem timesheet ainda
+  isOverallocated: boolean; // soma do funcionário em TODOS os projetos no mês > jornada mensal
+}
+
+export interface TeamAllocationRow {
+  kind: TeamAllocationRowKind;
+  key: string; // employeeId (member/deallocated) ou team_row id (vaga)
+  employeeId: string | null;
+  employee: { id: string; nome: string; cargo: string; foto_url?: string | null } | null;
+  roleName: string;
+  budgetRoleId: string | null;
+  isUnbudgeted: boolean; // badge "Não orçado"
+  vacancyRowId: string | null; // presente só para vagas manuais (project_team_rows)
+  months: Record<string, TeamMonthCell>; // chave "year-month"
+  totalPlanned: number;
+  totalRealized: number;
+  deallocatedAt: string | null;
 }
 
 // ─── Project Roles (team composition) ─────────────────────────────────────────

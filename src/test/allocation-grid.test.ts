@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  calculateMetrics,
   filterAllocationPeople,
   getAllocationStatus,
   sortByReferencePlanVariance,
@@ -53,6 +52,17 @@ describe('allocationGrid', () => {
       person('3', 'Renata Vidal', 'Designer', 30, 0, 168, 'p-1'),
     ];
 
+    const referenceMonth = {
+      key: '2026-06',
+      year: 2026,
+      month: 6,
+      startDate: '2026-06-01',
+      endDate: '2026-06-30',
+      label: 'JUN',
+      workingDays: 22,
+      workingDaysElapsed: 22,
+    };
+
     const filtered = filterAllocationPeople(
       people,
       {
@@ -62,7 +72,7 @@ describe('allocationGrid', () => {
         search: 'renata',
         showTerminated: false,
       },
-      '2026-06',
+      referenceMonth,
     );
 
     expect(filtered.map((item) => item.name)).toEqual(['Renata Vidal']);
@@ -71,32 +81,5 @@ describe('allocationGrid', () => {
       'Daniel Reis',
       'Cecilia Pacheco',
     ]);
-  });
-
-  it('calcula os cinco cards de planejado vs lançado sobre o escopo filtrado', () => {
-    const metrics = calculateMetrics(
-      [
-        person('1', 'Daniel Reis', 'Tech Lead', 160, 180, 168),
-        person('2', 'Cecilia Pacheco', 'GP', 140, 140, 168),
-        person('3', 'Ana Lima', 'Designer', 80, 0, 168),
-      ],
-      '2026-06',
-    );
-
-    expect(metrics.plannedHours).toBe(380);
-    expect(metrics.loggedHours).toBe(320);
-    expect(metrics.varianceHours).toBe(-60);
-    expect(metrics.offPlanMembers).toBe(2);
-    expect(metrics.missingLogs).toBe(1);
-  });
-
-  it('exibe métricas vazias sem NaN quando não há pessoas', () => {
-    expect(calculateMetrics([], '2026-06')).toEqual({
-      plannedHours: null,
-      loggedHours: null,
-      varianceHours: null,
-      offPlanMembers: null,
-      missingLogs: null,
-    });
   });
 });

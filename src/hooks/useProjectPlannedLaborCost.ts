@@ -26,7 +26,7 @@ export function useProjectPlannedLaborCost(
   project: ProjectWithRelations,
   durationMonths: number,
 ) {
-  const { data: allocations = [], isLoading } = useProjectAllocations(project.id);
+  const { data: allocations = [], isLoading } = useProjectAllocations(project.id, true);
   const { data: holidays = [] } = useHolidays();
 
   const fallbackByEmployee = useMemo(

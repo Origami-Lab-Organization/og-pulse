@@ -1,21 +1,35 @@
 import { supabase } from '@/integrations/supabase/client';
-import { ProjectAllocationWithEmployee } from '@/types/equipe.types';
+import { ProjectAllocationWithEmployee, ProjectTeamRowDB } from '@/types/equipe.types';
 
 export const equipeService = {
-  async getProjectAllocations(projectId: string): Promise<ProjectAllocationWithEmployee[]> {
+  async getProjectAllocations(projectId: string, includeCost: boolean): Promise<ProjectAllocationWithEmployee[]> {
+    const columns = [
+      'id',
+      'project_id',
+      'tenant_id',
+      'employee_id',
+      'budget_role_id',
+      'custom_role_name',
+      'year',
+      'month',
+      'planned_hours',
+      ...(includeCost ? ['cost_per_hour'] : []),
+      'employee:employees(id, nome, cargo, foto_url)',
+      'budget_role:budget_roles(id, role_name, seniority, hourly_rate)',
+    ].join(', ');
+
     const { data, error } = await (supabase
       .from('project_role_allocations' as any)
-      .select(`
-        *,
-        employee:employees(id, nome, cargo, foto_url),
-        budget_role:budget_roles(id, role_name, seniority, hourly_rate)
-      `) as any)
+      .select(columns) as any)
       .eq('project_id', projectId)
       .order('employee_id')
       .order('year')
       .order('month');
     if (error) throw error;
-    return (data || []) as ProjectAllocationWithEmployee[];
+    return (data || []).map((row: any) => ({
+      ...row,
+      cost_per_hour: includeCost ? row.cost_per_hour ?? null : null,
+    })) as ProjectAllocationWithEmployee[];
   },
 
   async upsertAllocations(rows: {
@@ -34,6 +48,35 @@ export const equipeService = {
     if (error) throw error;
   },
 
+  async updateAllocationHours(allocationId: string, plannedHours: number): Promise<void> {
+    const { error } = await (supabase
+      .from('project_role_allocations' as any) as any)
+      .update({ planned_hours: plannedHours })
+      .eq('id', allocationId);
+    if (error) throw error;
+  },
+
+  async logAllocationHoursEdit(input: {
+    allocationId: string;
+    editedBy: string;
+    previousHours: number;
+    newHours: number;
+    reasonCode: string;
+    justification: string;
+  }): Promise<void> {
+    const { error } = await (supabase
+      .from('project_role_allocation_edit_logs' as any) as any)
+      .insert({
+        allocation_id: input.allocationId,
+        edited_by: input.editedBy,
+        previous_hours: input.previousHours,
+        new_hours: input.newHours,
+        reason_code: input.reasonCode,
+        justification: input.justification,
+      });
+    if (error) throw error;
+  },
+
   async deleteEmployeeAllocations(projectId: string, employeeId: string): Promise<void> {
     const { error } = await (supabase
       .from('project_role_allocations' as any)
@@ -41,6 +84,120 @@ export const equipeService = {
       .eq('project_id', projectId)
       .eq('employee_id', employeeId);
     if (error) throw error;
+  },
+
+  async hasActualHours(projectId: string, employeeId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('project_employee_has_actual_hours' as any, {
+      p_project_id: projectId,
+      p_employee_id: employeeId,
+    } as any);
+    if (error) throw error;
+    return Boolean(data);
+  },
+
+  async deallocateMember(projectId: string, employeeId: string): Promise<void> {
+    const { error } = await supabase.rpc('deallocate_project_member' as any, {
+      p_project_id: projectId,
+      p_employee_id: employeeId,
+    } as any);
+    if (error) throw error;
+  },
+
+  async reactivateMember(projectId: string, employeeId: string): Promise<void> {
+    const { error } = await supabase.rpc('reactivate_project_member' as any, {
+      p_project_id: projectId,
+      p_employee_id: employeeId,
+    } as any);
+    if (error) throw error;
+  },
+
+  async getProjectTeamRows(projectId: string): Promise<ProjectTeamRowDB[]> {
+    const { data, error } = await (supabase
+      .from('project_team_rows' as any)
+      .select('*, months:project_team_row_months(*)') as any)
+      .eq('project_id', projectId);
+    if (error) throw error;
+    return (data || []) as ProjectTeamRowDB[];
+  },
+
+  async createVacancyRow(input: {
+    projectId: string;
+    tenantId: string;
+    budgetRoleId?: string | null;
+    customRoleName?: string | null;
+    monthlyHours: { year: number; month: number; plannedHours: number }[];
+  }): Promise<string> {
+    const { data, error } = await (supabase
+      .from('project_team_rows' as any) as any)
+      .insert({
+        project_id: input.projectId,
+        tenant_id: input.tenantId,
+        row_type: 'vacancy',
+        budget_role_id: input.budgetRoleId ?? null,
+        custom_role_name: input.customRoleName ?? null,
+      })
+      .select('id')
+      .single();
+    if (error) throw error;
+
+    const rowId = data.id as string;
+    if (input.monthlyHours.length > 0) {
+      const { error: monthsError } = await (supabase
+        .from('project_team_row_months' as any) as any)
+        .insert(input.monthlyHours.map((mh) => ({
+          row_id: rowId,
+          year: mh.year,
+          month: mh.month,
+          planned_hours: mh.plannedHours,
+        })));
+      if (monthsError) throw monthsError;
+    }
+    return rowId;
+  },
+
+  async setVacancyMonthlyHours(rowId: string, year: number, month: number, plannedHours: number): Promise<void> {
+    const { error } = await (supabase
+      .from('project_team_row_months' as any) as any)
+      .upsert({ row_id: rowId, year, month, planned_hours: plannedHours }, { onConflict: 'row_id,year,month' });
+    if (error) throw error;
+  },
+
+  async deleteTeamRow(rowId: string): Promise<void> {
+    const { error } = await (supabase
+      .from('project_team_rows' as any)
+      .delete() as any)
+      .eq('id', rowId);
+    if (error) throw error;
+  },
+
+  async assignEmployeeToVacancyRow(rowId: string, employeeId: string): Promise<void> {
+    const { error } = await supabase.rpc('assign_employee_to_vacancy_row' as any, {
+      p_row_id: rowId,
+      p_employee_id: employeeId,
+    } as any);
+    if (error) throw error;
+  },
+
+  async getRealizedHoursByEmployeeMonth(projectId: string): Promise<{ employeeId: string; year: number; month: number; hours: number }[]> {
+    const { data, error } = await (supabase
+      .from('project_timesheets' as any)
+      .select('hours, work_date, project_member:project_members(employee_id)') as any)
+      .eq('project_id', projectId);
+    if (error) throw error;
+
+    const totals = new Map<string, { employeeId: string; year: number; month: number; hours: number }>();
+    (data || []).forEach((row: any) => {
+      const employeeId = row.project_member?.employee_id;
+      if (!employeeId || !row.work_date) return;
+      const date = new Date(row.work_date);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const key = `${employeeId}-${year}-${month}`;
+      const entry = totals.get(key) ?? { employeeId, year, month, hours: 0 };
+      entry.hours += Number(row.hours || 0);
+      totals.set(key, entry);
+    });
+    return Array.from(totals.values());
   },
 
   async getBudgetRolesForProject(budgetId: string) {
