@@ -108,7 +108,8 @@ export interface EmployeeMonthCost {
  */
 export function calculatePlannedLaborCostByEmployeeMonth(
   allocations: ProjectAllocation[],
-  fallbackHourlyByEmployee: Record<string, number>,
+  fallbackByEmployee: Record<string, EmployeeFallbackCost>,
+  holidays: Holiday[] = [],
 ): Map<string, EmployeeMonthCost> {
   const result = new Map<string, EmployeeMonthCost>();
 
@@ -118,7 +119,10 @@ export function calculatePlannedLaborCostByEmployeeMonth(
       const hourlyCost = resolveHourlyCost(
         allocation.employeeId,
         month.costPerHour,
-        fallbackHourlyByEmployee,
+        month.year,
+        month.month,
+        fallbackByEmployee,
+        holidays,
       );
       const key = employeeMonthKey(allocation.employeeId, month.year, month.month);
       const entry = result.get(key) ?? {
@@ -161,7 +165,8 @@ export interface RealizedLaborCostResult {
 export function calculateRealizedLaborCost(
   timesheets: RealizedTimesheetRow[],
   memberToEmployee: Map<string, string>,
-  fallbackHourlyByMember: Map<string, number>,
+  fallbackByMember: Map<string, EmployeeFallbackCost>,
+  holidays: Holiday[] = [],
 ): RealizedLaborCostResult {
   const costByEmployee: Record<string, number> = {};
   const hoursByEmployee: Record<string, number> = {};
@@ -172,10 +177,17 @@ export function calculateRealizedLaborCost(
     const employeeId = memberToEmployee.get(timesheet.project_member_id);
     if (!employeeId) return;
 
+    const date = new Date(timesheet.work_date);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+
+    const fallback = fallbackByMember.get(timesheet.project_member_id);
     const hourlyCost =
       timesheet.cost_per_hour != null
         ? Number(timesheet.cost_per_hour)
-        : fallbackHourlyByMember.get(timesheet.project_member_id) ?? 0;
+        : fallback
+          ? getFallbackHourlyCost(fallback.monthlyCostEstimated, fallback.jornadaDiaria, year, month - 1, holidays)
+          : 0;
     const hours = Number(timesheet.hours) || 0;
     const cost = hourlyCost * hours;
 
@@ -183,9 +195,6 @@ export function calculateRealizedLaborCost(
     hoursByEmployee[employeeId] = (hoursByEmployee[employeeId] ?? 0) + hours;
     total += cost;
 
-    const date = new Date(timesheet.work_date);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
     const key = employeeMonthKey(employeeId, year, month);
     const entry = byEmployeeMonth.get(key) ?? { employeeId, year, month, hours: 0, cost: 0 };
     entry.hours += hours;

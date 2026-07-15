@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { ProjectWithRelations } from '@/types/project';
 import { useProjectAllocations, useProjectTeamRows } from '@/hooks/useProjectRoles';
 import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
+import { useHolidays } from '@/hooks/useHolidays';
 import {
   calculatePlannedLaborCostByEmployeeMonth,
   calculateRealizedLaborCost,
   employeeMonthKey,
+  EmployeeFallbackCost,
 } from '@/lib/roleAllocationCosts';
 
 export interface LaborMonthCell {
@@ -42,13 +44,12 @@ export interface LaborBreakdownTotals {
   deltaPct: number | null;
 }
 
-function memberFallbackHourly(member: NonNullable<ProjectWithRelations['members']>[number]): number {
-  if (member.employee) {
-    const total = member.employee.total_monthly_cost_estimated || 0;
-    const hours = member.employee.jornada_mensal || 168;
-    return hours > 0 ? total / hours : 0;
-  }
-  return Number((member as { hourly_rate?: number }).hourly_rate) || 0;
+function memberFallbackCost(member: NonNullable<ProjectWithRelations['members']>[number]): EmployeeFallbackCost | null {
+  if (!member.employee) return null;
+  return {
+    jornadaDiaria: member.employee.jornada_diaria || 8,
+    monthlyCostEstimated: member.employee.total_monthly_cost_estimated || 0,
+  };
 }
 
 /**
@@ -62,6 +63,7 @@ export function useProjectLaborBreakdown(project: ProjectWithRelations) {
   const teamRowsQuery = useProjectTeamRows(project.id);
   const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
   const timesheetsQuery = useTimesheetsByMembers(memberIds);
+  const { data: holidays = [] } = useHolidays();
 
   const isLoading = allocationsQuery.isLoading || teamRowsQuery.isLoading || timesheetsQuery.isLoading;
 
@@ -72,13 +74,15 @@ export function useProjectLaborBreakdown(project: ProjectWithRelations) {
     const members = project.members || [];
 
     const memberToEmployee = new Map<string, string>();
-    const fallbackByMember = new Map<string, number>();
-    const fallbackByEmployee: Record<string, number> = {};
+    const fallbackByMember = new Map<string, EmployeeFallbackCost>();
+    const fallbackByEmployee: Record<string, EmployeeFallbackCost> = {};
     members.forEach((member) => {
       memberToEmployee.set(member.id, member.employee_id);
-      const hourly = memberFallbackHourly(member);
-      fallbackByMember.set(member.id, hourly);
-      fallbackByEmployee[member.employee_id] = hourly;
+      const fallback = memberFallbackCost(member);
+      if (fallback) {
+        fallbackByMember.set(member.id, fallback);
+        fallbackByEmployee[member.employee_id] = fallback;
+      }
     });
 
     const deallocatedEmployees = new Set(
@@ -87,8 +91,8 @@ export function useProjectLaborBreakdown(project: ProjectWithRelations) {
         .map((r) => r.employee_id as string),
     );
 
-    const plannedByEmployeeMonth = calculatePlannedLaborCostByEmployeeMonth(allocations, fallbackByEmployee);
-    const realized = calculateRealizedLaborCost(timesheets, memberToEmployee, fallbackByMember);
+    const plannedByEmployeeMonth = calculatePlannedLaborCostByEmployeeMonth(allocations, fallbackByEmployee, holidays);
+    const realized = calculateRealizedLaborCost(timesheets, memberToEmployee, fallbackByMember, holidays);
 
     // Metadados de exibição por funcionário (nome/cargo/papel), preferindo a
     // alocação (modelo novo) e caindo para o membro (modelo antigo).
@@ -190,7 +194,7 @@ export function useProjectLaborBreakdown(project: ProjectWithRelations) {
     totals.deltaPct = totals.plannedCost > 0 ? (totals.realizedCost / totals.plannedCost - 1) * 100 : null;
 
     return { rows, totals };
-  }, [allocationsQuery.data, timesheetsQuery.data, teamRowsQuery.data, project.members]);
+  }, [allocationsQuery.data, timesheetsQuery.data, teamRowsQuery.data, project.members, holidays]);
 
   return { ...result, isLoading };
 }
