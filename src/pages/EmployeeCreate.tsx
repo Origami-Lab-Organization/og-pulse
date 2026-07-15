@@ -30,6 +30,8 @@ import {
   showsChargesSection,
   showsProvisionsSection,
 } from "@/lib/employeeCostCalculator";
+import { getMonthlyHoursFromDaily } from "@/lib/employeeCost";
+import { useHolidays } from "@/hooks/useHolidays";
 import { formatCurrency } from "@/lib/formatters";
 import {
   Form,
@@ -176,6 +178,7 @@ const EmployeeCreate = () => {
   const addBenefit = useAddEmployeeBenefit();
   const addTool = useAddEmployeeTool();
   const { data: payrollProfile } = usePayrollProfile();
+  const { data: holidays = [] } = useHolidays();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [localBenefits, setLocalBenefits] = useState<LocalBenefit[]>([]);
@@ -272,7 +275,7 @@ const EmployeeCreate = () => {
     form.setValue("decimoTerceiro", breakdown.details.provisao13 || 0);
     form.setValue("ferias", breakdown.details.provisaoFerias || 0);
     form.setValue("beneficios", localBenefits.reduce((s, b) => s + b.monthlyValue, 0));
-    form.setValue("encargos", localTools.reduce((s, t) => s + t.monthlyCost, 0));
+    form.setValue("encargos", breakdown.chargesAmount);
     setFgtsDisplay(formatCurrencyMask(String(breakdown.details.fgts || 0)));
     setDecimoDisplay(formatCurrencyMask(String(breakdown.details.provisao13 || 0)));
     setFeriasDisplay(formatCurrencyMask(String(breakdown.details.provisaoFerias || 0)));
@@ -422,9 +425,10 @@ const EmployeeCreate = () => {
 
   const buildPayload = (data: FormData): CreateEmployeeInput => {
     const { status: _status, jornadaDiaria, ...rest } = data;
+    const today = new Date();
     return {
       ...rest,
-      jornadaMensal: jornadaDiaria * 22,
+      jornadaMensal: getMonthlyHoursFromDaily(jornadaDiaria, today.getFullYear(), today.getMonth(), holidays),
       jornadaDiaria,
       status: "aguardando_confirmacao",
       provisao13: costBreakdown?.details.provisao13 || 0,
@@ -875,7 +879,8 @@ const EmployeeCreate = () => {
                       onChange={(e) => {
                         const daily = parseInt(e.target.value) || 0;
                         field.onChange(daily);
-                        form.setValue("jornadaMensal", daily * 22);
+                        const today = new Date();
+                        form.setValue("jornadaMensal", getMonthlyHoursFromDaily(daily, today.getFullYear(), today.getMonth(), holidays));
                       }}
                     />
                   </FormControl>

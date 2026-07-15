@@ -9,6 +9,8 @@ import {
   useEmployeeById,
   useEmployeeVersions,
   useUpdateEmployee,
+  useEmployeeBenefits,
+  useEmployeeTools,
 } from "@/hooks/useEmployees";
 import { CreateEmployeeInput } from "@/services/employeeService";
 import {
@@ -31,6 +33,8 @@ import {
   showsChargesSection,
   showsProvisionsSection,
 } from "@/lib/employeeCostCalculator";
+import { getMonthlyHoursFromDaily } from "@/lib/employeeCost";
+import { useHolidays } from "@/hooks/useHolidays";
 import { formatCurrency } from "@/lib/formatters";
 import {
   AlertDialog,
@@ -207,7 +211,13 @@ const EmployeeDetail = () => {
   const { data: versions = [], isLoading: versionsLoading } =
     useEmployeeVersions(id);
   const { data: payrollProfile } = usePayrollProfile();
+  const { data: holidays = [] } = useHolidays();
+  const { data: employeeBenefits = [] } = useEmployeeBenefits(id);
+  const { data: employeeTools = [] } = useEmployeeTools(id);
   const updateEmployee = useUpdateEmployee();
+
+  const benefitsTotalMonthly = employeeBenefits.reduce((sum, b) => sum + Number(b.monthly_value), 0);
+  const toolsTotalMonthly = employeeTools.reduce((sum, t) => sum + Number(t.monthly_cost), 0);
 
   // Version confirmation state
   const [versionConfirmOpen, setVersionConfirmOpen] = useState(false);
@@ -365,8 +375,8 @@ const EmployeeDetail = () => {
       valorContratoPj,
       proLabore,
       dividendos,
-      benefitsTotalMonthly: 0,
-      toolsTotalMonthly: 0,
+      benefitsTotalMonthly,
+      toolsTotalMonthly,
       payrollProfile,
     });
     setCostBreakdown(breakdown);
@@ -392,6 +402,8 @@ const EmployeeDetail = () => {
     valorContratoPj,
     proLabore,
     dividendos,
+    benefitsTotalMonthly,
+    toolsTotalMonthly,
     payrollProfile,
     form,
   ]);
@@ -510,9 +522,10 @@ const EmployeeDetail = () => {
 
   const buildPayload = (data: FormData): SubmitPayload => {
     const { status: _status, jornadaDiaria, ...rest } = data;
+    const today = new Date();
     return {
       ...rest,
-      jornadaMensal: jornadaDiaria * 22,
+      jornadaMensal: getMonthlyHoursFromDaily(jornadaDiaria, today.getFullYear(), today.getMonth(), holidays),
       jornadaDiaria,
       status: employee!.status,
       provisao13: costBreakdown?.details.provisao13 || 0,
@@ -1022,7 +1035,8 @@ const EmployeeDetail = () => {
                       onChange={(e) => {
                         const daily = parseInt(e.target.value) || 0;
                         field.onChange(daily);
-                        form.setValue("jornadaMensal", daily * 22);
+                        const today = new Date();
+                        form.setValue("jornadaMensal", getMonthlyHoursFromDaily(daily, today.getFullYear(), today.getMonth(), holidays));
                       }}
                     />
                   </FormControl>

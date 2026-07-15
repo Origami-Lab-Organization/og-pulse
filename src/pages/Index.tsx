@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import EmployeeCalculatorDialog from '@/components/employees/EmployeeCalculatorDialog';
 import { useInitiateTermination } from '@/hooks/useInitiateTermination';
+import { useHolidays } from '@/hooks/useHolidays';
 import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
@@ -26,6 +27,7 @@ const Index = () => {
   const resendInvite = useResendInvite();
   const navigate = useNavigate();
   const termination = useInitiateTermination();
+  const { data: holidays = [] } = useHolidays();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [hideValues, setHideValues] = useState(false);
@@ -109,8 +111,9 @@ const Index = () => {
         onViewTermination: handleViewTermination,
         isResendingInvite: resendInvite.isPending,
         hideValues,
+        holidays,
       }),
-    [resendInvite.isPending, hideValues]
+    [resendInvite.isPending, hideValues, holidays]
   );
 
   const actions = (

@@ -108,13 +108,14 @@ export interface ProjectMaterialDB {
   created_at: string;
 }
 
-// Project Costs (J9-01) — custos  em 6 categorias com moeda/conversão
+// Project Costs (J9-01) — custos em categorias com moeda/conversão
 export type ProjectCostCategory =
   | "supplier"
   | "subscription"
   | "equipment_rental"
   | "material"
   | "travel"
+  | "reimbursement"
   | "other";
 
 export type CostCurrency = "BRL" | "USD" | "EUR" | "GBP";
@@ -265,7 +266,7 @@ export interface ProjectWithRelations extends ProjectDB {
       cargo: string;
       foto_url?: string | null;
       total_monthly_cost_estimated: number;
-      jornada_mensal: number;
+      jornada_diaria: number;
     };
   })[];
   installments?: ProjectInstallmentDB[];

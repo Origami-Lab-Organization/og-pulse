@@ -4,6 +4,8 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveCostMonthIndex } from '@/lib/costRecognition';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import type { Holiday } from '@/lib/workingDays';
 import type { AnalyticsFilters } from './useAnalyticsData';
 import { fetchSuppliersWithActualsAndPlanned, fetchMaterials, fetchProjectCostsRealizedByCategory } from '@/services/projectCostsService';
 
@@ -27,6 +29,7 @@ export interface FinancialMonthlyPoint {
   internalLaborCost: number;
   subscriptionCost: number;
   equipmentCost: number;
+  reimbursementCost: number;
   travelOtherCost: number;
   // Planned costs
   plannedTotalCosts: number;
@@ -53,7 +56,7 @@ interface TimesheetCostRow {
 
 interface EmployeeCostJoin {
   total_monthly_cost_estimated: number | null;
-  jornada_mensal: number | null;
+  jornada_diaria: number | null;
 }
 
 interface ProjectMemberCostRow {
@@ -127,7 +130,7 @@ export function useFinancialEvolution(
           revenueReal: 0, revenuePlanned: 0, faturado: 0,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
           commissionCost: 0,
-          internalLaborCost: 0, subscriptionCost: 0, equipmentCost: 0, travelOtherCost: 0,
+          internalLaborCost: 0, subscriptionCost: 0, equipmentCost: 0, reimbursementCost: 0, travelOtherCost: 0,
           plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
           grossMarginPct: null, plannedGrossMarginPct: null,
         }));
@@ -153,13 +156,13 @@ export function useFinancialEvolution(
       const activityPromise = includeInternal
         ? supabase
             .from('activity_timesheets')
-            .select('work_date, hours, employee:employees(total_monthly_cost_estimated, jornada_mensal)')
+            .select('work_date, hours, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
             .eq('tenant_id', tenantId)
             .gte('work_date', yearStart)
             .lte('work_date', yearEnd)
         : Promise.resolve({ data: [] as unknown[] });
 
-      const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, plannedAllocationsRes, suppliersRes, materialsRes, commissionsRes, otherCosts, activityRes] = await Promise.all([
+      const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, plannedAllocationsRes, suppliersRes, materialsRes, commissionsRes, otherCosts, activityRes, holidaysRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('payment_date, value')
@@ -189,11 +192,11 @@ export function useFinancialEvolution(
           .lte('work_date', yearEnd),
         supabase
           .from('project_members')
-          .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_mensal)')
+          .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
           .in('project_id', projectIds),
         supabase
           .from('project_role_allocations')
-          .select('project_id, employee_id, year, month, planned_hours, cost_per_hour, employee:employees(total_monthly_cost_estimated, jornada_mensal)')
+          .select('project_id, employee_id, year, month, planned_hours, cost_per_hour, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
           .in('project_id', projectIds)
           .eq('year', year),
         fetchSuppliersWithActualsAndPlanned(projectIds),
@@ -205,10 +208,16 @@ export function useFinancialEvolution(
           .eq('is_paid', true)
           .gte('paid_date', yearStart)
           .lte('paid_date', yearEnd),
-        fetchProjectCostsRealizedByCategory(projectIds, year, ['subscription', 'equipment_rental', 'travel', 'other']),
+        fetchProjectCostsRealizedByCategory(projectIds, year, ['subscription', 'equipment_rental', 'travel', 'reimbursement', 'other']),
         activityPromise,
+        supabase
+          .from('company_holidays')
+          .select('holiday_type, fixed_day, fixed_month, specific_date')
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true),
       ]);
 
+      const holidays = (holidaysRes.data || []) as Holiday[];
       const received = receivedRes.data || [];
       const planned = plannedRes.data || [];
       const faturado = faturadoRes.data || [];
@@ -224,14 +233,14 @@ export function useFinancialEvolution(
         employee: EmployeeCostJoin | EmployeeCostJoin[] | null;
       }>;
 
-      const memberCostMap = new Map<string, number>();
+      const memberCostMap = new Map<string, { jornadaDiaria: number; monthlyCostEstimated: number }>();
       for (const m of members) {
         const employee = Array.isArray(m.employee) ? m.employee[0] : m.employee;
         if (!employee) continue;
-        const hourlyCost = Number(employee.jornada_mensal) > 0
-          ? Number(employee.total_monthly_cost_estimated) / Number(employee.jornada_mensal)
-          : 0;
-        memberCostMap.set(m.id, hourlyCost);
+        memberCostMap.set(m.id, {
+          jornadaDiaria: Number(employee.jornada_diaria) || 8,
+          monthlyCostEstimated: Number(employee.total_monthly_cost_estimated) || 0,
+        });
       }
 
       const monthData = buildEmpty();
@@ -258,18 +267,22 @@ export function useFinancialEvolution(
       for (const ts of timesheets) {
         const d = parseISO(ts.work_date);
         if (d.getFullYear() !== year) continue;
+        const monthIdx = d.getMonth();
+        const info = memberCostMap.get(ts.project_member_id);
         const hourlyCost = ts.cost_per_hour != null
           ? Number(ts.cost_per_hour)
-          : (memberCostMap.get(ts.project_member_id) ?? 0);
-        monthData[d.getMonth()].laborCost += Number(ts.hours) * hourlyCost;
+          : info
+            ? getFallbackHourlyCost(info.monthlyCostEstimated, info.jornadaDiaria, year, monthIdx, holidays)
+            : 0;
+        monthData[monthIdx].laborCost += Number(ts.hours) * hourlyCost;
       }
 
       for (const allocation of plannedAllocations) {
         const monthIndex = Number(allocation.month) - 1;
         if (monthIndex < 0 || monthIndex > 11) continue;
         const employee = Array.isArray(allocation.employee) ? allocation.employee[0] : allocation.employee;
-        const fallbackCost = employee && Number(employee.jornada_mensal) > 0
-          ? Number(employee.total_monthly_cost_estimated || 0) / Number(employee.jornada_mensal)
+        const fallbackCost = employee
+          ? getFallbackHourlyCost(Number(employee.total_monthly_cost_estimated || 0), Number(employee.jornada_diaria) || 8, year, monthIndex, holidays)
           : 0;
         const hourlyCost = allocation.cost_per_hour != null ? Number(allocation.cost_per_hour) : fallbackCost;
         monthData[monthIndex].plannedLaborCost += Number(allocation.planned_hours || 0) * hourlyCost;
@@ -332,13 +345,14 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].commissionCost += Number(c.planned_value) || 0;
       }
 
-      // Demais categorias de project_costs (subscription/equipment_rental/travel/other),
+      // Demais categorias de project_costs (subscription/equipment_rental/travel/reimbursement/other),
       // já reconhecidas no mês de calendário pelo service.
       for (const c of otherCosts) {
         const target = monthData[c.monthIndex];
         if (!target) continue;
         if (c.category === 'subscription') target.subscriptionCost += c.value;
         else if (c.category === 'equipment_rental') target.equipmentCost += c.value;
+        else if (c.category === 'reimbursement') target.reimbursementCost += c.value;
         else target.travelOtherCost += c.value; // travel + other
       }
 
@@ -348,8 +362,8 @@ export function useFinancialEvolution(
         const d = parseISO(ts.work_date);
         if (d.getFullYear() !== year) continue;
         const emp = Array.isArray(ts.employee) ? ts.employee[0] : ts.employee;
-        const hourlyCost = emp && Number(emp.jornada_mensal) > 0
-          ? Number(emp.total_monthly_cost_estimated || 0) / Number(emp.jornada_mensal)
+        const hourlyCost = emp
+          ? getFallbackHourlyCost(Number(emp.total_monthly_cost_estimated || 0), Number(emp.jornada_diaria) || 8, year, d.getMonth(), holidays)
           : 0;
         monthData[d.getMonth()].internalLaborCost += Number(ts.hours || 0) * hourlyCost;
       }
@@ -360,7 +374,7 @@ export function useFinancialEvolution(
         m.isCurrent = m.monthIndex === today.getMonth() && year === today.getFullYear();
 
         m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost
-          + m.internalLaborCost + m.subscriptionCost + m.equipmentCost + m.travelOtherCost;
+          + m.internalLaborCost + m.subscriptionCost + m.equipmentCost + m.reimbursementCost + m.travelOtherCost;
         m.plannedTotalCosts = m.plannedLaborCost + m.plannedSupplierCost + m.plannedMaterialCost;
         m.grossMarginPct = m.isPast && m.revenueReal > 0
           ? ((m.revenueReal - m.totalCosts) / m.revenueReal) * 100

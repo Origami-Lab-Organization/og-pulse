@@ -14,8 +14,10 @@ import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
+import { useHolidays } from '@/hooks/useHolidays';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import { formatPercent } from '@/lib/formatters';
-import { format } from 'date-fns';
+import { format, parseISO, startOfMonth, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface ProjectOverviewTabProps {
@@ -37,6 +39,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
+  const { data: holidays = [] } = useHolidays();
   const plannedLaborFromAllocations = useProjectPlannedLaborCost(
     project,
     project.duration_months,
@@ -51,35 +54,41 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
   }, [project]);
 
   const costData = useMemo(() => {
-    const fallbackHourlyCost = (member: NonNullable<typeof project.members>[number]) => {
+    const fallbackHourlyCost = (member: NonNullable<typeof project.members>[number], year: number, monthIndex: number) => {
       if (!member.employee) return Number((member as any).hourly_rate) || 0;
-      const totalCost = member.employee.total_monthly_cost_estimated || 0;
-      const workHours = member.employee.jornada_mensal || 168;
-      return workHours > 0 ? totalCost / workHours : 0;
+      return getFallbackHourlyCost(member.employee.total_monthly_cost_estimated || 0, member.employee.jornada_diaria || 8, year, monthIndex, holidays);
     };
 
+    const projStart = startOfMonth(parseISO(project.start_date));
     const laborPlanned = plannedLaborFromAllocations.hasRoleAllocations
       ? plannedLaborFromAllocations.total
       : (project.members || []).reduce((acc, member) => {
-          const fallbackCost = fallbackHourlyCost(member);
           const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
           if (memberEntries.length === 0) {
+            const fallbackCost = fallbackHourlyCost(member, projStart.getFullYear(), projStart.getMonth());
             return acc + fallbackCost * Number(member.hours_per_month || 0) * project.duration_months;
           }
 
           return acc + memberEntries.reduce((sum, mm) => {
-            const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
-            return sum + hourlyCost * Number(mm.hours);
+            if ((mm as any).cost_per_hour != null) {
+              return sum + Number((mm as any).cost_per_hour) * Number(mm.hours);
+            }
+            const monthDate = addMonths(projStart, mm.month_number - 1);
+            const fallbackCost = fallbackHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth());
+            return sum + fallbackCost * Number(mm.hours);
           }, 0);
         }, 0);
 
     const laborActual = (project.members || []).reduce((acc, member) => {
-      const fallbackCost = fallbackHourlyCost(member);
       const memberActualCost = timesheets
         .filter((t) => t.project_member_id === member.id)
         .reduce((sum, t) => {
-          const hourlyCost = (t as any).cost_per_hour != null ? Number((t as any).cost_per_hour) : fallbackCost;
-          return sum + hourlyCost * Number(t.hours);
+          if ((t as any).cost_per_hour != null) {
+            return sum + Number((t as any).cost_per_hour) * Number(t.hours);
+          }
+          const tsDate = parseISO(t.work_date);
+          const fallbackCost = fallbackHourlyCost(member, tsDate.getFullYear(), tsDate.getMonth());
+          return sum + fallbackCost * Number(t.hours);
         }, 0);
       return acc + memberActualCost;
     }, 0);
@@ -107,6 +116,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     timesheets,
     supplierMonths,
     supplierActuals,
+    holidays,
     plannedLaborFromAllocations.hasRoleAllocations,
     plannedLaborFromAllocations.total,
   ]);

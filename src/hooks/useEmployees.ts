@@ -324,8 +324,14 @@ export const useAddEmployeeTool = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (input: CreateEmployeeToolInput) => {
-      return employeeService.addTool(input);
+    mutationFn: async (input: CreateEmployeeToolInput & { recalculate?: boolean }) => {
+      const result = await employeeService.addTool(input);
+
+      if (input.recalculate) {
+        await employeeService.recalculateAndUpdateCost(input.employeeId);
+      }
+
+      return result;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-tools', variables.employeeId] });
@@ -354,12 +360,20 @@ export const useUpdateEmployeeTool = () => {
       id,
       employeeId,
       updates,
+      recalculate,
     }: {
       id: string;
       employeeId: string;
       updates: Partial<Omit<CreateEmployeeToolInput, 'employeeId'>>;
+      recalculate?: boolean;
     }) => {
-      return employeeService.updateTool(id, updates);
+      const result = await employeeService.updateTool(id, updates);
+
+      if (recalculate) {
+        await employeeService.recalculateAndUpdateCost(employeeId);
+      }
+
+      return result;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-tools', variables.employeeId] });
@@ -384,8 +398,13 @@ export const useDeleteEmployeeTool = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, employeeId }: { id: string; employeeId: string }) => {
+    mutationFn: async ({ id, employeeId, recalculate }: { id: string; employeeId: string; recalculate?: boolean }) => {
       await employeeService.deleteTool(id);
+
+      if (recalculate) {
+        await employeeService.recalculateAndUpdateCost(employeeId);
+      }
+
       return { employeeId };
     },
     onSuccess: (data) => {

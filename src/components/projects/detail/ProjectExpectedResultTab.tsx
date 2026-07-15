@@ -2,11 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
 import { useMemo } from 'react';
+import { parseISO, startOfMonth, addMonths } from 'date-fns';
 import { TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
+import { useHolidays } from '@/hooks/useHolidays';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import { PlanningInstallmentsTable } from './PlanningInstallmentsTable';
 
 interface ProjectExpectedResultTabProps {
@@ -22,6 +25,7 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const { data: financialSettings } = useFinancialSettings();
+  const { data: holidays = [] } = useHolidays();
   const plannedLaborFromAllocations = useProjectPlannedLaborCost(
     project,
     project.duration_months,
@@ -33,21 +37,28 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
       : 0;
 
     if (!plannedLaborFromAllocations.hasRoleAllocations) {
+      const projStart = startOfMonth(parseISO(project.start_date));
       project.members?.forEach((member) => {
-        const fallbackCost = member.employee
-          ? (() => {
-              const totalMonthlyCost = member.employee.total_monthly_cost_estimated || 0;
-              const workHours = member.employee.jornada_mensal || 168;
-              return workHours > 0 ? totalMonthlyCost / workHours : 0;
-            })()
-          : Number((member as any).hourly_rate) || 0;
-
         const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
         if (memberEntries.length === 0) return;
 
         laborCost += memberEntries.reduce((sum, mm) => {
-          const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
-          return sum + hourlyCost * Number(mm.hours);
+          if ((mm as any).cost_per_hour != null) {
+            return sum + Number((mm as any).cost_per_hour) * Number(mm.hours);
+          }
+          const fallbackCost = member.employee
+            ? (() => {
+                const monthDate = addMonths(projStart, mm.month_number - 1);
+                return getFallbackHourlyCost(
+                  member.employee.total_monthly_cost_estimated || 0,
+                  member.employee.jornada_diaria || 8,
+                  monthDate.getFullYear(),
+                  monthDate.getMonth(),
+                  holidays,
+                );
+              })()
+            : Number((member as any).hourly_rate) || 0;
+          return sum + fallbackCost * Number(mm.hours);
         }, 0);
       });
     }
@@ -62,8 +73,10 @@ export function ProjectExpectedResultTab({ project }: ProjectExpectedResultTabPr
   }, [
     project.members,
     project.materials,
+    project.start_date,
     memberMonths,
     supplierMonths,
+    holidays,
     plannedLaborFromAllocations.hasRoleAllocations,
     plannedLaborFromAllocations.total,
   ]);

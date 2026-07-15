@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { differenceInMonths, parseISO, startOfMonth } from 'date-fns';
+import { differenceInMonths, parseISO, startOfMonth, addMonths } from 'date-fns';
+import { useHolidays } from '@/hooks/useHolidays';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import { Plus, Trash2, Users, Pencil, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,7 +53,7 @@ interface ProjectLaborSectionProps {
       cargo: string;
       foto_url?: string | null;
       total_monthly_cost_estimated: number;
-      jornada_mensal: number;
+      jornada_diaria: number;
     };
   })[];
   durationMonths: number;
@@ -95,7 +97,9 @@ export function ProjectLaborSection({
 
   const memberIds = useMemo(() => members.map((m) => m.id), [members]);
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
+  const { data: holidays = [] } = useHolidays();
   const upsertMemberMonth = useUpsertMemberMonth();
+  const projectStart = useMemo(() => startOfMonth(parseISO(projectStartDate)), [projectStartDate]);
 
   // Local state for debounced hours input
   const [localHours, setLocalHours] = useState<Record<string, number>>({});
@@ -143,15 +147,20 @@ export function ProjectLaborSection({
 
   // Legacy fallback only. Historical calculations should use stored cost_per_hour snapshots.
   // If no employee is assigned, use the member's hourly_rate (from budget) as cost
-  const getRealHourlyCost = useCallback((member: typeof members[0]): number => {
+  const getRealHourlyCost = useCallback((member: typeof members[0], monthNumber?: number): number => {
     if (member.employee) {
-      const totalCost = member.employee.total_monthly_cost_estimated || 0;
-      const workHours = member.employee.jornada_mensal || 168;
-      return workHours > 0 ? totalCost / workHours : 0;
+      const monthDate = monthNumber != null ? addMonths(projectStart, monthNumber - 1) : projectStart;
+      return getFallbackHourlyCost(
+        member.employee.total_monthly_cost_estimated || 0,
+        member.employee.jornada_diaria || 8,
+        monthDate.getFullYear(),
+        monthDate.getMonth(),
+        holidays,
+      );
     }
     // No employee: use hourly_rate as cost
     return Number((member as any).hourly_rate) || 0;
-  }, []);
+  }, [projectStart, holidays]);
 
   // Get hours prioritizing local state
   const getHoursForMonth = useCallback(
@@ -403,7 +412,7 @@ export function ProjectLaborSection({
   const actualCostByMemberAndMonth = useMemo(() => {
     const result: Record<string, Record<number, number>> = {};
     const startDate = parseISO(projectStartDate);
-    const fallbackCostByMember = new Map(members.map((member) => [member.id, getRealHourlyCost(member)]));
+    const memberById = new Map(members.map((member) => [member.id, member]));
 
     timesheets.forEach((ts) => {
       const workDate = parseISO(ts.work_date);
@@ -414,9 +423,10 @@ export function ProjectLaborSection({
       if (!result[ts.project_member_id]) {
         result[ts.project_member_id] = {};
       }
+      const member = memberById.get(ts.project_member_id);
       const hourlyCost = (ts as any).cost_per_hour != null
         ? Number((ts as any).cost_per_hour)
-        : (fallbackCostByMember.get(ts.project_member_id) || 0);
+        : (member ? getRealHourlyCost(member, monthNumber) : 0);
       result[ts.project_member_id][monthNumber] =
         (result[ts.project_member_id][monthNumber] || 0) + Number(ts.hours) * hourlyCost;
     });
@@ -445,8 +455,8 @@ export function ProjectLaborSection({
     });
 
     members.forEach((member) => {
-      const fallbackCost = getRealHourlyCost(member);
       months.forEach((monthNum) => {
+        const fallbackCost = getRealHourlyCost(member, monthNum);
         const mm = memberMonths.find(
           (m) => m.project_member_id === member.id && m.month_number === monthNum
         );
@@ -470,7 +480,7 @@ export function ProjectLaborSection({
         totalActualValue += storedActualCost;
       } else {
         const actualHrs = actualHoursByMember[member.id] || 0;
-        totalActualValue += actualHrs * fallbackCost;
+        totalActualValue += actualHrs * getRealHourlyCost(member);
       }
     });
 
@@ -482,7 +492,6 @@ export function ProjectLaborSection({
   const memberTotals = useMemo(() => {
     const result: Record<string, { plannedHours: number; plannedValue: number; actualHours: number; actualValue: number }> = {};
     members.forEach((member) => {
-      const fallbackCost = getRealHourlyCost(member);
       let plannedHours = 0;
       let plannedValue = 0;
       months.forEach((monthNum) => {
@@ -490,13 +499,13 @@ export function ProjectLaborSection({
         const mm = memberMonths.find(
           (m) => m.project_member_id === member.id && m.month_number === monthNum
         );
-        const cost = (mm as any)?.cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
+        const cost = (mm as any)?.cost_per_hour != null ? Number((mm as any).cost_per_hour) : getRealHourlyCost(member, monthNum);
         plannedHours = Math.round((plannedHours + h) * 10) / 10;
         plannedValue += h * cost;
       });
       const actualHours = actualHoursByMember[member.id] || 0;
       const storedActualCost = actualCostByMember[member.id];
-      const actualValue = storedActualCost != null ? storedActualCost : actualHours * fallbackCost;
+      const actualValue = storedActualCost != null ? storedActualCost : actualHours * getRealHourlyCost(member);
       result[member.id] = { plannedHours, plannedValue, actualHours, actualValue };
     });
     return result;
@@ -509,10 +518,9 @@ export function ProjectLaborSection({
 
   // Get employee hourly cost for display in dropdown
   const getEmployeeHourlyCost = useCallback((emp: typeof availableEmployees[0]): number => {
-    const totalCost = emp.totalMonthlyCostEstimated || 0;
-    const workHours = emp.jornadaMensal || 168;
-    return workHours > 0 ? totalCost / workHours : 0;
-  }, []);
+    const today = new Date();
+    return getFallbackHourlyCost(emp.totalMonthlyCostEstimated || 0, emp.jornadaDiaria || 8, today.getFullYear(), today.getMonth(), holidays);
+  }, [holidays]);
 
   // Calculate budget data per member (seniority + hourly rate only, for display)
   const budgetDataByMember = useMemo(() => {

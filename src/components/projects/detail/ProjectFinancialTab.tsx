@@ -16,6 +16,8 @@ import { parseISO, differenceInMonths, startOfMonth, addMonths } from 'date-fns'
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
+import { useHolidays } from '@/hooks/useHolidays';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
 
 interface ProjectFinancialTabProps {
   project: ProjectWithRelations;
@@ -38,6 +40,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
   const { data: financialSettings } = useFinancialSettings();
   const { data: budget } = useBudget(project.budget_id);
   const { data: commissions = [] } = useProjectCommissions(project.id);
+  const { data: holidays = [] } = useHolidays();
   const marginTarget = financialSettings?.gross_margin_target_percent ?? 0;
 
   const projectDuration = useMemo(() => {
@@ -52,37 +55,43 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     projectDuration,
   );
 
-  const fallbackHourlyCost = (member: NonNullable<typeof project.members>[number]) => {
+  const fallbackHourlyCost = (member: NonNullable<typeof project.members>[number], year: number, monthIndex: number) => {
     if (!member.employee) return Number((member as any).hourly_rate) || 0;
-    const totalCost = member.employee.total_monthly_cost_estimated || 0;
-    const workHours = member.employee.jornada_mensal || 168;
-    return workHours > 0 ? totalCost / workHours : 0;
+    return getFallbackHourlyCost(member.employee.total_monthly_cost_estimated || 0, member.employee.jornada_diaria || 8, year, monthIndex, holidays);
   };
 
   // Aggregate cost data (same logic as OverviewTab)
   const costData = useMemo(() => {
+    const projStart = startOfMonth(parseISO(project.start_date));
     const laborPlanned = plannedLaborFromAllocations.hasRoleAllocations
       ? plannedLaborFromAllocations.total
       : (project.members || []).reduce((acc, member) => {
-          const fallbackCost = fallbackHourlyCost(member);
           const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
           if (memberEntries.length === 0) {
+            const fallbackCost = fallbackHourlyCost(member, projStart.getFullYear(), projStart.getMonth());
             return acc + fallbackCost * Number(member.hours_per_month || 0) * projectDuration;
           }
 
           return acc + memberEntries.reduce((sum, mm) => {
-            const hourlyCost = (mm as any).cost_per_hour != null ? Number((mm as any).cost_per_hour) : fallbackCost;
-            return sum + hourlyCost * Number(mm.hours);
+            if ((mm as any).cost_per_hour != null) {
+              return sum + Number((mm as any).cost_per_hour) * Number(mm.hours);
+            }
+            const monthDate = addMonths(projStart, mm.month_number - 1);
+            const fallbackCost = fallbackHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth());
+            return sum + fallbackCost * Number(mm.hours);
           }, 0);
         }, 0);
 
     const laborActual = (project.members || []).reduce((acc, member) => {
-      const fallbackCost = fallbackHourlyCost(member);
       const memberActualCost = timesheets
         .filter((t) => t.project_member_id === member.id)
         .reduce((sum, t) => {
-          const hourlyCost = (t as any).cost_per_hour != null ? Number((t as any).cost_per_hour) : fallbackCost;
-          return sum + hourlyCost * Number(t.hours);
+          if ((t as any).cost_per_hour != null) {
+            return sum + Number((t as any).cost_per_hour) * Number(t.hours);
+          }
+          const tsDate = parseISO(t.work_date);
+          const fallbackCost = fallbackHourlyCost(member, tsDate.getFullYear(), tsDate.getMonth());
+          return sum + fallbackCost * Number(t.hours);
         }, 0);
       return acc + memberActualCost;
     }, 0);
@@ -108,6 +117,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     timesheets,
     projectCosts,
     projectDuration,
+    holidays,
     plannedLaborFromAllocations.hasRoleAllocations,
     plannedLaborFromAllocations.total,
   ]);
@@ -203,10 +213,11 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
       const monthNum = i + 1;
 
       // Planned labor for this month
+      const laborPlanMonthDate = addMonths(startOfMonth(startDate), monthNum - 1);
       const laborPlan = plannedLaborFromAllocations.hasRoleAllocations
         ? plannedLaborFromAllocations.byMonth.get(monthNum) || 0
         : (project.members || []).reduce((acc, member) => {
-            const fallbackCost = fallbackHourlyCost(member);
+            const fallbackCost = fallbackHourlyCost(member, laborPlanMonthDate.getFullYear(), laborPlanMonthDate.getMonth());
             const monthEntry = memberMonths.find((mm) => mm.project_member_id === member.id && mm.month_number === monthNum);
             const hourlyCost = (monthEntry as any)?.cost_per_hour != null
               ? Number((monthEntry as any).cost_per_hour)
@@ -219,7 +230,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
       const monthStart = startOfMonth(addMonths(startDate, i));
       const monthEnd = startOfMonth(addMonths(startDate, i + 1));
       const laborReal = (project.members || []).reduce((acc, member) => {
-        const fallbackCost = fallbackHourlyCost(member);
+        const fallbackCost = fallbackHourlyCost(member, monthStart.getFullYear(), monthStart.getMonth());
         const memberActualCost = timesheets
           .filter((t) => {
             const d = parseISO(t.work_date);
@@ -247,6 +258,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     timesheets,
     projectCosts,
     projectDuration,
+    holidays,
     plannedLaborFromAllocations.byMonth,
     plannedLaborFromAllocations.hasRoleAllocations,
   ]);

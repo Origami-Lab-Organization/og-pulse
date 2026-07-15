@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Pencil, Trash2, Phone, Mail, Crown, UserMinus, Eye } from 'lucide-react';
+import { useHolidays } from '@/hooks/useHolidays';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
 
 interface EmployeeCardProps {
   employee: Employee;
@@ -13,6 +15,7 @@ interface EmployeeCardProps {
 }
 
 const EmployeeCard = ({ employee, onEdit, onDelete, onTerminate, onViewTermination }: EmployeeCardProps) => {
+  const { data: holidays = [] } = useHolidays();
   const isActive = employee.status === 'ativo';
   const hasTermination = !!employee.terminationId;
   const custoTotal = (() => {
@@ -31,7 +34,8 @@ const EmployeeCard = ({ employee, onEdit, onDelete, onTerminate, onViewTerminati
     
     return employee.salarioMensal + employee.beneficios + employee.encargos + benefitsFromQuery + toolsFromQuery;
   })();
-  const custoHora = custoTotal / (employee.jornadaMensal || 176);
+  const today = new Date();
+  const custoHora = getFallbackHourlyCost(custoTotal, employee.jornadaDiaria || 8, today.getFullYear(), today.getMonth(), holidays);
 
   return (
     <Card className="group animate-fade-in transition-colors duration-200 hover:border-primary/30">

@@ -326,3 +326,23 @@
 ### 2026-07-13T21:40:31.505Z
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/projectCostsService.ts
+
+### 2026-07-14T19:30:06.829Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/employeeVersionService.ts
+
+### 2026-07-14T19:30:17.085Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/employeeVersionService.ts
+
+### 2026-07-14T19:38:36.319Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/projectService.ts
+
+### 2026-07-15T00:59:36.678Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/projectCostsService.ts
+
+### 2026-07-15T14:52:10.869Z
+- **Tipo:** missing-tests
+- **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/employeeService.ts

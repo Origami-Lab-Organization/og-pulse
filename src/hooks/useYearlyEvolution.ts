@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { countWorkingDays } from '@/lib/workingDays';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface MonthlyPoint {
@@ -34,7 +35,7 @@ interface YearlyTimesheetRow {
 }
 
 interface YearlyEmployeeCostJoin {
-  jornada_mensal: number | null;
+  jornada_diaria: number | null;
   total_monthly_cost_estimated: number | null;
 }
 
@@ -142,7 +143,7 @@ export function useYearlyEvolution(
 
         supabase
           .from('project_members')
-          .select('id, project_id, employee_id, employee:employees(jornada_mensal, total_monthly_cost_estimated)')
+          .select('id, project_id, employee_id, employee:employees(jornada_diaria, total_monthly_cost_estimated)')
           .in('project_id', projectIds),
         supabase
           .from('project_role_allocations')
@@ -174,14 +175,15 @@ export function useYearlyEvolution(
       const holidays = holidaysRes.data || [];
 
       // Build member → employee info map (keyed by project_members.id)
-      const memberMap = new Map<string, { employeeId: string; hourlyCost: number }>();
+      const memberMap = new Map<string, { employeeId: string; jornadaDiaria: number; monthlyCostEstimated: number }>();
       for (const m of members) {
         const employee = Array.isArray(m.employee) ? m.employee[0] : m.employee;
         if (!employee) continue;
-        const hourlyCost = Number(employee.jornada_mensal) > 0
-          ? Number(employee.total_monthly_cost_estimated) / Number(employee.jornada_mensal)
-          : 0;
-        memberMap.set(m.id, { employeeId: m.employee_id, hourlyCost });
+        memberMap.set(m.id, {
+          employeeId: m.employee_id,
+          jornadaDiaria: Number(employee.jornada_diaria) || 8,
+          monthlyCostEstimated: Number(employee.total_monthly_cost_estimated) || 0,
+        });
       }
 
       // Build capacity list from ALL active tenant employees (no termination needed — already filtered)
@@ -201,7 +203,7 @@ export function useYearlyEvolution(
         if (info) {
           const hourlyCost = ts.cost_per_hour != null
             ? Number(ts.cost_per_hour)
-            : info.hourlyCost;
+            : getFallbackHourlyCost(info.monthlyCostEstimated, info.jornadaDiaria, year, monthIdx, holidays);
           laborCostByMonth[monthIdx] += Number(ts.hours) * hourlyCost;
         }
       }

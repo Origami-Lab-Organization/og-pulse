@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchSuppliersWithActualsAndPlanned, fetchMaterials } from '@/services/projectCostsService';
 import { ProjectAllocation } from '@/types/equipe.types';
-import { calculatePlannedLaborCost } from '@/lib/roleAllocationCosts';
+import { calculatePlannedLaborCost, EmployeeFallbackCost } from '@/lib/roleAllocationCosts';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import { holidayService } from '@/services/holidayService';
 
 /**
  * Financeiro PLANEJADO da equipe de um projeto, a partir do modelo novo
@@ -12,7 +14,7 @@ import { calculatePlannedLaborCost } from '@/lib/roleAllocationCosts';
  *  - margem planejada do projeto (receita de contrato − custos) / receita.
  *
  * Custo/hora vem do snapshot mensal em `project_role_allocations.cost_per_hour`.
- * O fallback `total_monthly_cost_estimated / jornada_mensal` existe apenas para
+ * O fallback (jornada diária × dias úteis do mês em questão) existe apenas para
  * registros antigos ou incompletos, sem snapshot.
  */
 
@@ -32,7 +34,7 @@ export interface ProjectTeamFinancials {
 interface EmployeeCostRow {
   id: string;
   total_monthly_cost_estimated: number | null;
-  jornada_mensal: number | null;
+  jornada_diaria: number | null;
 }
 
 function sumPlanned(rows: { value: number }[] | null | undefined) {
@@ -61,26 +63,32 @@ export function useProjectTeamFinancials({
     queryKey: ['project-team-financials', project.id, employeeIds, allocationSignature, project.total_value],
     enabled: enabled && employeeIds.length >= 0,
     queryFn: async (): Promise<ProjectTeamFinancials> => {
-      const [employeesRes, suppliers, materials] = await Promise.all([
+      const [employeesRes, suppliers, materials, holidays] = await Promise.all([
         employeeIds.length
           ? supabase
               .from('employees')
-              .select('id, total_monthly_cost_estimated, jornada_mensal')
+              .select('id, total_monthly_cost_estimated, jornada_diaria')
               .in('id', employeeIds)
           : Promise.resolve({ data: [] as EmployeeCostRow[], error: null }),
         fetchSuppliersWithActualsAndPlanned([project.id]),
         fetchMaterials([project.id]),
+        holidayService.getAll(),
       ]);
 
       if ((employeesRes as { error?: unknown }).error) throw (employeesRes as { error: Error }).error;
 
+      const fallbackByEmployee: Record<string, EmployeeFallbackCost> = {};
       const hourlyByEmployee: Record<string, number> = {};
+      const today = new Date();
       ((employeesRes.data ?? []) as EmployeeCostRow[]).forEach((emp) => {
-        const jornada = Number(emp.jornada_mensal || 0);
-        hourlyByEmployee[emp.id] = jornada > 0 ? Number(emp.total_monthly_cost_estimated || 0) / jornada : 0;
+        const jornadaDiaria = Number(emp.jornada_diaria) || 8;
+        const monthlyCostEstimated = Number(emp.total_monthly_cost_estimated) || 0;
+        fallbackByEmployee[emp.id] = { jornadaDiaria, monthlyCostEstimated };
+        // Valor exibido de referência (mês atual) — o cálculo real do custo usa o mês de cada alocação.
+        hourlyByEmployee[emp.id] = getFallbackHourlyCost(monthlyCostEstimated, jornadaDiaria, today.getFullYear(), today.getMonth(), holidays);
       });
 
-      const { laborCost, costByEmployee } = calculatePlannedLaborCost(allocations, hourlyByEmployee);
+      const { laborCost, costByEmployee } = calculatePlannedLaborCost(allocations, fallbackByEmployee, holidays);
 
       const suppliersPlanned = (suppliers ?? []).reduce((sum, s) => sum + sumPlanned(s.plannedMonths), 0);
       const materialsPlanned = sumPlanned(materials as { value: number }[]);

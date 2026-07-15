@@ -34,7 +34,7 @@ describe('calculatePlannedLaborCost', () => {
           ],
         }),
       ],
-      { 'emp-1': 50 },
+      { 'emp-1': { jornadaDiaria: 8, monthlyCostEstimated: 8800 } },
     );
 
     expect(result.laborCost).toBe(1400);
@@ -50,9 +50,10 @@ describe('calculatePlannedLaborCost', () => {
           ],
         }),
       ],
-      { 'emp-1': 75 },
+      { 'emp-1': { jornadaDiaria: 8, monthlyCostEstimated: 13200 } },
     );
 
+    // R$13.200 / (8h × 22 dias úteis de junho/2026) = R$75/h × 10h
     expect(result.laborCost).toBe(750);
   });
 });

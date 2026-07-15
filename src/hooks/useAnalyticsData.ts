@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import { countWorkingDays } from '@/lib/workingDays';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import { fetchSuppliersWithActuals, fetchMaterials } from '@/services/projectCostsService';
 
 export interface AnalyticsFilters {
@@ -137,7 +138,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .lte('work_date', endStr),
         supabase
           .from('project_members')
-          .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_mensal, jornada_diaria, data_admissao, termination:employee_terminations(termination_date))')
+          .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_diaria, data_admissao, termination:employee_terminations(termination_date))')
           .in('project_id', projectIds),
         fetchSuppliersWithActuals(projectIds),
         fetchMaterials(projectIds, { realizedOnly: true }),
@@ -210,9 +211,14 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         if (!member?.employee) continue;
 
         const emp = member.employee;
-        const dynamicCost = emp.jornada_mensal > 0
-          ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
-          : 0;
+        const tsDate = parseISO(ts.work_date);
+        const dynamicCost = getFallbackHourlyCost(
+          Number(emp.total_monthly_cost_estimated) || 0,
+          Number(emp.jornada_diaria) || 8,
+          tsDate.getFullYear(),
+          tsDate.getMonth(),
+          holidays,
+        );
         const hourlyCost = (ts as any).cost_per_hour != null ? Number((ts as any).cost_per_hour) : dynamicCost;
         const cost = Number(ts.hours) * hourlyCost;
 
@@ -293,9 +299,13 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
         const effectiveWorkingDays = countWorkingDays(effectiveStart, effectiveEnd, holidays);
         const capacity = jornadaDiaria * effectiveWorkingDays;
         const utilization = capacity > 0 ? (hours / capacity) * 100 : 0;
-        const hourlyCost = Number(emp.jornada_mensal) > 0
-          ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
-          : 0;
+        const hourlyCost = getFallbackHourlyCost(
+          Number(emp.total_monthly_cost_estimated) || 0,
+          jornadaDiaria,
+          filters.startDate.getFullYear(),
+          filters.startDate.getMonth(),
+          holidays,
+        );
         employeeUtilization.push({
           employeeId: emp.id,
           employeeName: emp.nome,
@@ -324,9 +334,13 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           const effectiveEnd = termDate && termDate < filters.endDate ? termDate : filters.endDate;
           const effectiveWorkingDays = countWorkingDays(effectiveStart, effectiveEnd, holidays);
           const capacity = jornadaDiaria * effectiveWorkingDays;
-          const hourlyCost = Number(emp.jornada_mensal) > 0
-            ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
-            : 0;
+          const hourlyCost = getFallbackHourlyCost(
+            Number(emp.total_monthly_cost_estimated) || 0,
+            jornadaDiaria,
+            filters.startDate.getFullYear(),
+            filters.startDate.getMonth(),
+            holidays,
+          );
           employeeUtilization.push({
             employeeId: emp.id,
             employeeName: emp.nome,

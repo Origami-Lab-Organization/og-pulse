@@ -657,6 +657,7 @@ export const employeeService = {
           jornadaDiaria: Number(employee.jornada_diaria),
           tipoContratacao: employee.tipo_contratacao,
           cargo: employee.cargo,
+          totalMonthlyCostEstimated: breakdown.totalMonthlyCost,
         });
       } catch (versionError) {
         console.error("Error creating employee version:", versionError);

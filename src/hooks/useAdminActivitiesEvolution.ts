@@ -3,6 +3,8 @@ import { format, addMonths, startOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import type { Holiday } from '@/lib/workingDays';
 
 export interface AdminActivityMonthlyPoint {
   monthIndex: number;
@@ -56,11 +58,18 @@ export function useAdminActivitiesEvolution(
       // Fetch activity timesheets with employee cost info
       const { data: timesheets, error: tsErr } = await supabase
         .from('activity_timesheets' as any)
-        .select('activity_type_id, work_date, hours, employee:employees(total_monthly_cost_estimated, jornada_mensal)')
+        .select('activity_type_id, work_date, hours, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
         .in('activity_type_id', typeIds)
         .gte('work_date', yearStart)
         .lte('work_date', yearEnd);
       if (tsErr) throw tsErr;
+
+      const { data: holidaysData } = await supabase
+        .from('company_holidays')
+        .select('holiday_type, fixed_day, fixed_month, specific_date')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true);
+      const holidays = (holidaysData || []) as Holiday[];
 
       const monthData = buildEmpty();
 
@@ -70,10 +79,8 @@ export function useAdminActivitiesEvolution(
         if (d.getFullYear() !== year) continue;
         const emp = ts.employee;
         if (!emp) continue;
-        const hourlyCost = Number(emp.jornada_mensal) > 0
-          ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
-          : 0;
         const idx = d.getMonth();
+        const hourlyCost = getFallbackHourlyCost(Number(emp.total_monthly_cost_estimated) || 0, Number(emp.jornada_diaria) || 8, year, idx, holidays);
         const current = (monthData[idx][ts.activity_type_id] as number) || 0;
         monthData[idx][ts.activity_type_id] = current + Number(ts.hours) * hourlyCost;
       }

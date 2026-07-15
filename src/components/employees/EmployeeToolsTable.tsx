@@ -115,6 +115,7 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
         name: newTool.name.trim(),
         description: newTool.description.trim() || undefined,
         monthlyCost: newTool.monthlyCost,
+        recalculate: true,
       },
       {
         onSuccess: () => {
@@ -152,6 +153,7 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
           description: editData.description.trim() || undefined,
           monthlyCost: editData.monthlyCost,
         },
+        recalculate: true,
       },
       {
         onSuccess: () => {
@@ -165,7 +167,7 @@ export function EmployeeToolsTable({ employeeId, employeeName }: EmployeeToolsTa
     if (!deleteToolId) return;
     
     deleteTool.mutate(
-      { id: deleteToolId, employeeId },
+      { id: deleteToolId, employeeId, recalculate: true },
       {
         onSuccess: () => {
           setDeleteToolId(null);

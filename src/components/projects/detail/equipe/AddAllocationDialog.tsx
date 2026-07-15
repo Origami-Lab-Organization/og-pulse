@@ -53,6 +53,8 @@ import {
 } from "@/hooks/useEmployeeMonthlyLoad";
 import { useFinancialSettings } from "@/hooks/useFinancialSettings";
 import { useBudget } from "@/hooks/useBudgets";
+import { useHolidays } from "@/hooks/useHolidays";
+import { getFallbackHourlyCost } from "@/lib/employeeCost";
 import { useMaskedCurrency, useMaskedPercent } from "@/contexts/HideValuesContext";
 import {
   BudgetRoleWithMonths,
@@ -1128,6 +1130,7 @@ export function AddAllocationDialog({
   const { budgetRoles } = useProjectBudgetRoles(project.budget_id, project.id);
   const { data: financialSettings } = useFinancialSettings();
   const { data: budget } = useBudget(project.budget_id);
+  const { data: holidays = [] } = useHolidays();
   const projectMonths = useMemo(
     () => buildProjectMonths(project.start_date, project.end_date),
     [project.start_date, project.end_date],
@@ -1203,12 +1206,15 @@ export function AddAllocationDialog({
   const existingPlannedCosts = useMemo(() => {
     const months = projectMonths.length || 1;
     const excludeEmployeeId = step1Values?.employeeId;
+    const refMonth = projectMonths[0];
+    const refYear = refMonth ? refMonth.year : new Date().getFullYear();
+    const refMonthIndex = refMonth ? refMonth.month - 1 : new Date().getMonth();
 
     const laborPlanned = (project.members || [])
       .filter((member) => member.employee_id !== excludeEmployeeId)
       .reduce((sum, member) => {
-        const hourlyCost = member.employee && member.employee.jornada_mensal > 0
-          ? member.employee.total_monthly_cost_estimated / member.employee.jornada_mensal
+        const hourlyCost = member.employee
+          ? getFallbackHourlyCost(member.employee.total_monthly_cost_estimated || 0, member.employee.jornada_diaria || 8, refYear, refMonthIndex, holidays)
           : 0;
         return sum + hourlyCost * Number(member.hours_per_month || 0) * months;
       }, 0);
@@ -1221,11 +1227,18 @@ export function AddAllocationDialog({
     const materialPlanned = (project.materials || []).reduce((sum, material) => sum + Number(material.value || 0), 0);
 
     return laborPlanned + supplierPlanned + materialPlanned;
-  }, [project.members, project.suppliers, project.materials, projectMonths.length, step1Values?.employeeId]);
+  }, [project.members, project.suppliers, project.materials, projectMonths, step1Values?.employeeId, holidays]);
 
   const selectedEmployee = step1Values ? employees.find((emp) => emp.id === step1Values.employeeId) : undefined;
-  const selectedEmployeeHourlyCost = selectedEmployee && selectedEmployee.jornadaMensal > 0
-    ? selectedEmployee.totalMonthlyCostEstimated / selectedEmployee.jornadaMensal
+  const selectedEmployeeRefMonth = projectMonths[0];
+  const selectedEmployeeHourlyCost = selectedEmployee
+    ? getFallbackHourlyCost(
+        selectedEmployee.totalMonthlyCostEstimated || 0,
+        selectedEmployee.jornadaDiaria || 8,
+        selectedEmployeeRefMonth ? selectedEmployeeRefMonth.year : new Date().getFullYear(),
+        selectedEmployeeRefMonth ? selectedEmployeeRefMonth.month - 1 : new Date().getMonth(),
+        holidays,
+      )
     : 0;
 
   const simulation: MarginSimulationInput | null = step1Values

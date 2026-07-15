@@ -11,6 +11,8 @@ import { useProjectMemberMonths } from "@/hooks/useProjectMemberMonths";
 import { useProjectCostItems } from "@/hooks/useProjectCostItems";
 import { useTimesheetsByMembers } from "@/hooks/useProjectTimesheets";
 import { useProjectPlannedLaborCost } from "@/hooks/useProjectPlannedLaborCost";
+import { useHolidays } from "@/hooks/useHolidays";
+import { getFallbackHourlyCost } from "@/lib/employeeCost";
 import { ProjectWithRelations } from "@/types/project";
 
 interface ProjectCostsTabProps {
@@ -82,23 +84,27 @@ export function ProjectCostsTab({
   const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
   const { data: projectCosts = [], isLoading: projectCostsLoading } =
     useProjectCostItems(project.id);
+  const { data: holidays = [] } = useHolidays();
   const plannedLaborFromAllocations = useProjectPlannedLaborCost(
     project,
     durationMonths,
   );
 
   const getMemberHourlyCost = useCallback(
-    (member: (typeof project.members)[0]) => {
+    (member: (typeof project.members)[0], year: number, monthIndex: number) => {
       if (member.employee) {
-        const totalMonthlyCost =
-          member.employee.total_monthly_cost_estimated || 0;
-        const workHours = member.employee.jornada_mensal || 168;
-        return workHours > 0 ? totalMonthlyCost / workHours : 0;
+        return getFallbackHourlyCost(
+          member.employee.total_monthly_cost_estimated || 0,
+          member.employee.jornada_diaria || 8,
+          year,
+          monthIndex,
+          holidays,
+        );
       }
 
       return Number((member as any).hourly_rate) || 0;
     },
-    [],
+    [holidays],
   );
 
   const laborCostsPlanned = useMemo(() => {
@@ -108,17 +114,19 @@ export function ProjectCostsTab({
 
     if (!project.members || project.members.length === 0) return 0;
 
+    const projStart = startOfMonth(parseISO(project.start_date));
     let total = 0;
     project.members.forEach((member) => {
-      const fallbackCost = getMemberHourlyCost(member);
       memberMonths
         .filter((month) => month.project_member_id === member.id)
         .forEach((month) => {
-          const cost =
-            (month as any).cost_per_hour != null
-              ? Number((month as any).cost_per_hour)
-              : fallbackCost;
-          total += cost * Number(month.hours);
+          if ((month as any).cost_per_hour != null) {
+            total += Number((month as any).cost_per_hour) * Number(month.hours);
+            return;
+          }
+          const monthDate = addMonths(projStart, month.month_number - 1);
+          const fallbackCost = getMemberHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth());
+          total += fallbackCost * Number(month.hours);
         });
     });
 
@@ -129,21 +137,23 @@ export function ProjectCostsTab({
     plannedLaborFromAllocations.hasRoleAllocations,
     plannedLaborFromAllocations.total,
     project.members,
+    project.start_date,
   ]);
 
   const laborCostsActual = useMemo(() => {
-    if (!project.members || project.members.length === 0) return 0;
+    const members = project.members;
+    if (!members || members.length === 0) return 0;
 
-    const memberCostMap = new Map<string, number>();
-    project.members.forEach((member) => {
-      memberCostMap.set(member.id, getMemberHourlyCost(member));
-    });
+    const memberMap = new Map(members.map((member) => [member.id, member]));
 
     return timesheets.reduce((total, timesheet) => {
-      const cost =
-        (timesheet as any).cost_per_hour != null
-          ? Number((timesheet as any).cost_per_hour)
-          : memberCostMap.get(timesheet.project_member_id) || 0;
+      if ((timesheet as any).cost_per_hour != null) {
+        return total + Number((timesheet as any).cost_per_hour) * Number(timesheet.hours);
+      }
+      const member = memberMap.get(timesheet.project_member_id);
+      if (!member) return total;
+      const tsDate = parseISO(timesheet.work_date);
+      const cost = getMemberHourlyCost(member, tsDate.getFullYear(), tsDate.getMonth());
       return total + cost * Number(timesheet.hours);
     }, 0);
   }, [project.members, timesheets, getMemberHourlyCost]);
@@ -201,10 +211,7 @@ export function ProjectCostsTab({
 
   const monthlyChartData = useMemo(() => {
     const projectStart = startOfMonth(parseISO(project.start_date));
-    const memberCostFallback = new Map<string, number>();
-    (project.members || []).forEach((member) =>
-      memberCostFallback.set(member.id, getMemberHourlyCost(member)),
-    );
+    const memberMap = new Map((project.members || []).map((member) => [member.id, member]));
 
     const plannedLaborMap = new Map<number, number>();
     if (plannedLaborFromAllocations.hasRoleAllocations) {
@@ -213,10 +220,14 @@ export function ProjectCostsTab({
       });
     } else {
       memberMonths.forEach((month) => {
-        const cost =
-          (month as any).cost_per_hour != null
-            ? Number((month as any).cost_per_hour)
-            : memberCostFallback.get(month.project_member_id) || 0;
+        let cost: number;
+        if ((month as any).cost_per_hour != null) {
+          cost = Number((month as any).cost_per_hour);
+        } else {
+          const member = memberMap.get(month.project_member_id);
+          const monthDate = addMonths(projectStart, month.month_number - 1);
+          cost = member ? getMemberHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth()) : 0;
+        }
         plannedLaborMap.set(
           month.month_number,
           (plannedLaborMap.get(month.month_number) || 0) +
@@ -227,14 +238,18 @@ export function ProjectCostsTab({
 
     const actualLaborMap = new Map<number, number>();
     timesheets.forEach((timesheet) => {
+      const workDate = parseISO(timesheet.work_date);
       const monthNumber =
-        differenceInMonths(parseISO(timesheet.work_date), projectStart) + 1;
+        differenceInMonths(workDate, projectStart) + 1;
       if (monthNumber < 1 || monthNumber > durationMonths) return;
 
-      const cost =
-        (timesheet as any).cost_per_hour != null
-          ? Number((timesheet as any).cost_per_hour)
-          : memberCostFallback.get(timesheet.project_member_id) || 0;
+      let cost: number;
+      if ((timesheet as any).cost_per_hour != null) {
+        cost = Number((timesheet as any).cost_per_hour);
+      } else {
+        const member = memberMap.get(timesheet.project_member_id);
+        cost = member ? getMemberHourlyCost(member, workDate.getFullYear(), workDate.getMonth()) : 0;
+      }
       actualLaborMap.set(
         monthNumber,
         (actualLaborMap.get(monthNumber) || 0) +

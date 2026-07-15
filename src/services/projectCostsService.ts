@@ -10,6 +10,7 @@ export type ProjectCostCategory =
   | 'equipment_rental'
   | 'material'
   | 'travel'
+  | 'reimbursement'
   | 'other';
 
 /** Um custo realizado, já reconhecido no mês de calendário (0–11) do ano-alvo. */

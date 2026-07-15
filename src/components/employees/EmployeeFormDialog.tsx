@@ -9,6 +9,8 @@ import { usePayrollProfile } from '@/hooks/usePayrollProfile';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateEmployeeCost, CostBreakdown, getBaseFieldLabel, showsChargesSection, showsProvisionsSection } from '@/lib/employeeCostCalculator';
+import { getMonthlyHoursFromDaily } from '@/lib/employeeCost';
+import { useHolidays } from '@/hooks/useHolidays';
 import { formatCurrency } from '@/lib/formatters';
 import {
   Dialog,
@@ -171,6 +173,9 @@ const EmployeeFormDialog = ({
 
   // Fetch payroll profile for cost calculation
   const { data: payrollProfile } = usePayrollProfile();
+
+  // Feriados para derivar a jornada mensal a partir da diária (dias úteis reais do mês)
+  const { data: holidays = [] } = useHolidays();
 
   // Local state for benefits and tools (for new employees)
   const [localBenefits, setLocalBenefits] = useState<LocalBenefit[]>([]);
@@ -558,7 +563,8 @@ const EmployeeFormDialog = ({
 
   const buildSubmitPayload = (data: FormData, hasVersionedChanges: boolean, effectiveFrom?: string): EmployeeFormSubmitData => {
     const { status: _status, jornadaDiaria, ...dataWithoutStatus } = data;
-    const jornadaMensalCalculated = jornadaDiaria * 22;
+    const today = new Date();
+    const jornadaMensalCalculated = getMonthlyHoursFromDaily(jornadaDiaria, today.getFullYear(), today.getMonth(), holidays);
     return {
       ...dataWithoutStatus,
       jornadaMensal: jornadaMensalCalculated,
@@ -1043,7 +1049,8 @@ const EmployeeFormDialog = ({
                       onChange={(e) => {
                         const daily = parseInt(e.target.value) || 0;
                         field.onChange(daily);
-                        form.setValue('jornadaMensal', daily * 22);
+                        const today = new Date();
+                        form.setValue('jornadaMensal', getMonthlyHoursFromDaily(daily, today.getFullYear(), today.getMonth(), holidays));
                       }}
                     />
                   </FormControl>

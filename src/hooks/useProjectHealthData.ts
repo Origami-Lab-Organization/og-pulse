@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AnalyticsFilters } from './useAnalyticsData';
 import { fetchSupplierRefs, fetchAllSupplierActuals, fetchMaterials } from '@/services/projectCostsService';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import {
   calculateProjectHealth,
   type ProjectHealthScore,
@@ -169,14 +170,14 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
 
         supabase
           .from('project_timesheets')
-          .select('project_id, project_member_id, hours, cost_per_hour')
+          .select('project_id, project_member_id, work_date, hours, cost_per_hour')
           .in('project_id', projectIds)
           .gte('work_date', startStr)
           .lte('work_date', endStr),
 
         supabase
           .from('project_members')
-          .select('id, project_id, employee:employees(id, jornada_diaria, jornada_mensal, total_monthly_cost_estimated, data_admissao)')
+          .select('id, project_id, employee:employees(id, jornada_diaria, total_monthly_cost_estimated, data_admissao)')
           .in('project_id', projectIds),
 
         fetchSupplierRefs(projectIds),
@@ -251,9 +252,14 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
           const member = memberMap.get(ts.project_member_id);
           if (!member?.employee) continue;
           const emp = member.employee;
-          const fallbackCost = Number(emp.jornada_mensal) > 0
-            ? Number(emp.total_monthly_cost_estimated) / Number(emp.jornada_mensal)
-            : 0;
+          const tsDate = parseISO(ts.work_date);
+          const fallbackCost = getFallbackHourlyCost(
+            Number(emp.total_monthly_cost_estimated) || 0,
+            Number(emp.jornada_diaria) || 8,
+            tsDate.getFullYear(),
+            tsDate.getMonth(),
+            holidays,
+          );
           const hourlyCost = (ts as any).cost_per_hour != null
             ? Number((ts as any).cost_per_hour)
             : fallbackCost;

@@ -36,6 +36,8 @@ import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHe
 import { formatCurrency } from '@/lib/masks';
 import { formatDate } from '@/lib/formatters';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import type { Holiday } from '@/lib/workingDays';
 
 interface EmployeeColumnsProps {
   onEdit: (employee: Employee) => void;
@@ -47,6 +49,7 @@ interface EmployeeColumnsProps {
   onViewTermination?: (employee: Employee) => void;
   isResendingInvite?: boolean;
   hideValues?: boolean;
+  holidays?: Holiday[];
 }
 
 const getStatusBadge = (status: string) => {
@@ -86,6 +89,7 @@ export const createEmployeeColumns = ({
   onViewTermination,
   isResendingInvite,
   hideValues,
+  holidays = [],
 }: EmployeeColumnsProps): ColumnDef<Employee>[] => [
   {
     accessorKey: 'nome',
@@ -244,9 +248,10 @@ export const createEmployeeColumns = ({
             ? Number((breakdown as any).toolsAmount) : 0;
           return estimated + (benefitsFromQuery - storedBenefits) + (toolsFromQuery - storedTools);
         }
-        return employee.salarioMensal + employee.beneficios + employee.encargos + benefitsFromQuery + toolsFromQuery;
+        return employee.salarioMensal + employee.beneficios + employee.encargos + getProvisoes(employee) + benefitsFromQuery + toolsFromQuery;
       })();
-      const custoHora = custoTotal / (employee.jornadaMensal || 176);
+      const today = new Date();
+      const custoHora = getFallbackHourlyCost(custoTotal, employee.jornadaDiaria || 8, today.getFullYear(), today.getMonth(), holidays);
       return (
         <div className="flex flex-col">
           <span className="font-medium text-foreground">
@@ -271,7 +276,7 @@ export const createEmployeeColumns = ({
             ? Number((breakdown as any).toolsAmount) : 0;
           return estimated + (benefitsFromQuery - storedBenefits) + (toolsFromQuery - storedTools);
         }
-        return emp.salarioMensal + emp.beneficios + emp.encargos + benefitsFromQuery + toolsFromQuery;
+        return emp.salarioMensal + emp.beneficios + emp.encargos + getProvisoes(emp) + benefitsFromQuery + toolsFromQuery;
       };
       return calcCost(rowA.original) - calcCost(rowB.original);
     },

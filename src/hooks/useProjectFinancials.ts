@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SERVICE_LINE_LABELS } from '@/types/lead';
 import type { AnalyticsFilters } from './useAnalyticsData';
 import { fetchSuppliersWithActuals, fetchMaterials } from '@/services/projectCostsService';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import type { Holiday } from '@/lib/workingDays';
 
 export interface ProjectFinancialRow {
   projectId: string;
@@ -111,7 +113,7 @@ export function useProjectFinancials(
       const projectIds = projects.map((p: any) => p.id);
       const projectMap = new Map(projects.map((p: any) => [p.id, p]));
 
-      const [receivedRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes] = await Promise.all([
+      const [receivedRes, timesheetsRes, membersRes, suppliersRes, materialsRes, commissionsRes, holidaysRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('project_id, value')
@@ -122,14 +124,14 @@ export function useProjectFinancials(
 
         supabase
           .from('project_timesheets')
-          .select('project_id, project_member_id, hours, cost_per_hour')
+          .select('project_id, project_member_id, work_date, hours, cost_per_hour')
           .in('project_id', projectIds)
           .gte('work_date', startStr)
           .lte('work_date', endStr),
 
         supabase
           .from('project_members')
-          .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_mensal)')
+          .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
           .in('project_id', projectIds),
 
         fetchSuppliersWithActuals(projectIds),
@@ -143,7 +145,14 @@ export function useProjectFinancials(
           .eq('is_paid', true)
           .gte('paid_date', startStr)
           .lte('paid_date', endStr),
+
+        supabase
+          .from('company_holidays')
+          .select('holiday_type, fixed_day, fixed_month, specific_date')
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true),
       ]);
+      const holidays = (holidaysRes.data || []) as Holiday[];
 
       const revenue = new Map<string, number>();
       const costs = new Map<string, number>();
@@ -152,18 +161,25 @@ export function useProjectFinancials(
 
       for (const r of (receivedRes.data || []) as any[]) add(revenue, r.project_id, Number(r.value));
 
-      const memberCostMap = new Map<string, number>();
+      const memberCostMap = new Map<string, { jornadaDiaria: number; monthlyCostEstimated: number }>();
       for (const m of (membersRes.data || []) as any[]) {
         if (!m.employee) continue;
-        const hourly = Number(m.employee.jornada_mensal) > 0
-          ? Number(m.employee.total_monthly_cost_estimated) / Number(m.employee.jornada_mensal)
-          : 0;
-        memberCostMap.set(m.id, hourly);
+        memberCostMap.set(m.id, {
+          jornadaDiaria: Number(m.employee.jornada_diaria) || 8,
+          monthlyCostEstimated: Number(m.employee.total_monthly_cost_estimated) || 0,
+        });
       }
       for (const ts of (timesheetsRes.data || []) as any[]) {
-        const hourlyCost = ts.cost_per_hour != null
-          ? Number(ts.cost_per_hour)
-          : (memberCostMap.get(ts.project_member_id) ?? 0);
+        let hourlyCost = 0;
+        if (ts.cost_per_hour != null) {
+          hourlyCost = Number(ts.cost_per_hour);
+        } else {
+          const info = memberCostMap.get(ts.project_member_id);
+          if (info) {
+            const d = parseISO(ts.work_date);
+            hourlyCost = getFallbackHourlyCost(info.monthlyCostEstimated, info.jornadaDiaria, d.getFullYear(), d.getMonth(), holidays);
+          }
+        }
         add(costs, ts.project_id, Number(ts.hours) * hourlyCost);
       }
 

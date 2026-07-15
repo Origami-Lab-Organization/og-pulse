@@ -1,21 +1,35 @@
 import { ProjectAllocation } from '@/types/equipe.types';
+import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import type { Holiday } from '@/lib/workingDays';
 
 export interface PlannedLaborCostResult {
   laborCost: number;
   costByEmployee: Record<string, number>;
 }
 
+export interface EmployeeFallbackCost {
+  jornadaDiaria: number;
+  monthlyCostEstimated: number;
+}
+
 function resolveHourlyCost(
   employeeId: string,
   costPerHour: number | null,
-  fallbackHourlyByEmployee: Record<string, number>,
+  year: number,
+  month: number,
+  fallbackByEmployee: Record<string, EmployeeFallbackCost>,
+  holidays: Holiday[],
 ) {
-  return costPerHour ?? fallbackHourlyByEmployee[employeeId] ?? 0;
+  if (costPerHour != null) return costPerHour;
+  const fallback = fallbackByEmployee[employeeId];
+  if (!fallback) return 0;
+  return getFallbackHourlyCost(fallback.monthlyCostEstimated, fallback.jornadaDiaria, year, month - 1, holidays);
 }
 
 export function calculatePlannedLaborCost(
   allocations: ProjectAllocation[],
-  fallbackHourlyByEmployee: Record<string, number>,
+  fallbackByEmployee: Record<string, EmployeeFallbackCost>,
+  holidays: Holiday[] = [],
 ): PlannedLaborCostResult {
   const costByEmployee: Record<string, number> = {};
   let laborCost = 0;
@@ -25,7 +39,10 @@ export function calculatePlannedLaborCost(
       const hourlyCost = resolveHourlyCost(
         allocation.employeeId,
         month.costPerHour,
-        fallbackHourlyByEmployee,
+        month.year,
+        month.month,
+        fallbackByEmployee,
+        holidays,
       );
       return sum + month.plannedHours * hourlyCost;
     }, 0);
@@ -39,9 +56,10 @@ export function calculatePlannedLaborCost(
 
 export function calculatePlannedLaborCostByProjectMonth(
   allocations: ProjectAllocation[],
-  fallbackHourlyByEmployee: Record<string, number>,
+  fallbackByEmployee: Record<string, EmployeeFallbackCost>,
   projectStartDate: Date,
   durationMonths: number,
+  holidays: Holiday[] = [],
 ): Map<number, number> {
   const result = new Map<number, number>();
   const startYear = projectStartDate.getFullYear();
@@ -56,7 +74,10 @@ export function calculatePlannedLaborCostByProjectMonth(
       const hourlyCost = resolveHourlyCost(
         allocation.employeeId,
         month.costPerHour,
-        fallbackHourlyByEmployee,
+        month.year,
+        month.month,
+        fallbackByEmployee,
+        holidays,
       );
       result.set(
         relativeMonth,

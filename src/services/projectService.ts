@@ -137,7 +137,7 @@ export const projectService = {
       .from('project_members')
       .select(`
         *,
-        employee:employees(id, nome, cargo, foto_url, total_monthly_cost_estimated, jornada_mensal)
+        employee:employees(id, nome, cargo, foto_url, total_monthly_cost_estimated, jornada_diaria)
       `)
       .eq('project_id', id);
 

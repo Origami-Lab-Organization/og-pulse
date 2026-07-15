@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Truck, Repeat, Wrench, Package, Plane, MoreHorizontal, type LucideIcon } from 'lucide-react';
+import { Truck, Repeat, Wrench, Package, Plane, Receipt, MoreHorizontal, type LucideIcon } from 'lucide-react';
 import type { ProjectCostCategory, CostCurrency } from '@/types/project';
 
 // ── Categorias (ordem e labels conforme J9-01) ───────────────────────────
@@ -16,6 +16,7 @@ export const COST_CATEGORIES: CostCategoryMeta[] = [
   { value: 'equipment_rental', label: 'Aluguel de Equipamento', icon: Wrench, emptyHint: 'Nenhum aluguel de equipamento cadastrado.' },
   { value: 'material', label: 'Material/Equipamento', icon: Package, emptyHint: 'Nenhum material/equipamento cadastrado.' },
   { value: 'travel', label: 'Viagem', icon: Plane, emptyHint: 'Nenhum custo de viagem cadastrado.' },
+  { value: 'reimbursement', label: 'Reembolso', icon: Receipt, emptyHint: 'Nenhum reembolso cadastrado.' },
   { value: 'other', label: 'Outros', icon: MoreHorizontal, emptyHint: 'Nenhum custo cadastrado nesta categoria.' },
 ];
 
@@ -59,7 +60,7 @@ export const CLOSED_MONTH_MESSAGE =
 // ── Validação do formulário (zod) ─────────────────────────────────────────
 export const projectCostFormSchema = z
   .object({
-    category: z.enum(['supplier', 'subscription', 'equipment_rental', 'material', 'travel', 'other']),
+    category: z.enum(['supplier', 'subscription', 'equipment_rental', 'material', 'travel', 'reimbursement', 'other']),
     description: z.string().trim().min(1, 'Descrição é obrigatória'),
     plannedAmount: z.number({ invalid_type_error: 'Valor planejado é obrigatório' }).positive('Valor planejado é obrigatório'),
     actualAmount: z.number().nonnegative('Valor realizado inválido').nullable().optional(),

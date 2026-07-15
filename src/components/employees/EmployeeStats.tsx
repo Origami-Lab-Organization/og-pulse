@@ -44,7 +44,7 @@ const EmployeeStats = ({ employees, hideValues }: EmployeeStatsProps) => {
 
   const totalMonthlyCost = activeList.reduce((sum, e) => {
     if (e.totalMonthlyCostEstimated > 0) return sum + e.totalMonthlyCostEstimated;
-    return sum + getBaseSalary(e) + e.encargos + (e.totalBenefitsCost || 0) + (e.totalToolsCost || 0);
+    return sum + getBaseSalary(e) + e.encargos + getProvisoes(e) + (e.totalBenefitsCost || 0) + (e.totalToolsCost || 0);
   }, 0);
 
   const totalSalario = activeList.reduce((sum, e) => sum + getBaseSalary(e), 0);

@@ -127,6 +127,7 @@ export function useFinancialReport(filters: AnalyticsFilters) {
       { key: 'material', label: 'Materiais / equipamentos', value: materialEquip, pct: 0, scope: 'billable' },
       { key: 'commission', label: 'Comissões', value: sum((m) => m.commissionCost), pct: 0, scope: 'billable' },
       { key: 'subscription', label: 'Assinaturas / ferramentas', value: sum((m) => m.subscriptionCost), pct: 0, scope: 'billable' },
+      { key: 'reimbursement', label: 'Reembolsos', value: sum((m) => m.reimbursementCost), pct: 0, scope: 'billable' },
       { key: 'other', label: 'Outros / viagens', value: sum((m) => m.travelOtherCost), pct: 0, scope: 'billable' },
     ];
     const categories = rawCategories

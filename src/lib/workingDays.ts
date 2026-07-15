@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 
-interface Holiday {
+export interface Holiday {
   holiday_type: string;
   fixed_day: number | null;
   fixed_month: number | null;

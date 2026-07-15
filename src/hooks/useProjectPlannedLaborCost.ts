@@ -1,28 +1,25 @@
 import { useMemo } from 'react';
 import { parseISO, startOfMonth } from 'date-fns';
 import { useProjectAllocations } from '@/hooks/useProjectRoles';
+import { useHolidays } from '@/hooks/useHolidays';
 import {
   calculatePlannedLaborCost,
   calculatePlannedLaborCostByProjectMonth,
+  EmployeeFallbackCost,
 } from '@/lib/roleAllocationCosts';
 import { ProjectWithRelations } from '@/types/project';
 
-function fallbackHourlyCost(member: NonNullable<ProjectWithRelations['members']>[number]) {
-  if (!member.employee) return Number((member as any).hourly_rate) || 0;
-
-  const totalCost = member.employee.total_monthly_cost_estimated || 0;
-  const workHours = member.employee.jornada_mensal || 168;
-  return workHours > 0 ? totalCost / workHours : 0;
-}
-
-function buildFallbackHourlyByEmployee(project: ProjectWithRelations) {
-  const fallbackHourlyByEmployee: Record<string, number> = {};
+function buildFallbackByEmployee(project: ProjectWithRelations) {
+  const fallbackByEmployee: Record<string, EmployeeFallbackCost> = {};
 
   (project.members || []).forEach((member) => {
-    fallbackHourlyByEmployee[member.employee_id] = fallbackHourlyCost(member);
+    fallbackByEmployee[member.employee_id] = {
+      jornadaDiaria: member.employee?.jornada_diaria || 8,
+      monthlyCostEstimated: member.employee?.total_monthly_cost_estimated || 0,
+    };
   });
 
-  return fallbackHourlyByEmployee;
+  return fallbackByEmployee;
 }
 
 export function useProjectPlannedLaborCost(
@@ -30,9 +27,10 @@ export function useProjectPlannedLaborCost(
   durationMonths: number,
 ) {
   const { data: allocations = [], isLoading } = useProjectAllocations(project.id);
+  const { data: holidays = [] } = useHolidays();
 
-  const fallbackHourlyByEmployee = useMemo(
-    () => buildFallbackHourlyByEmployee(project),
+  const fallbackByEmployee = useMemo(
+    () => buildFallbackByEmployee(project),
     [project],
   );
 
@@ -48,7 +46,8 @@ export function useProjectPlannedLaborCost(
     const projectStart = startOfMonth(parseISO(project.start_date));
     const { laborCost } = calculatePlannedLaborCost(
       allocations,
-      fallbackHourlyByEmployee,
+      fallbackByEmployee,
+      holidays,
     );
 
     return {
@@ -56,12 +55,13 @@ export function useProjectPlannedLaborCost(
       total: laborCost,
       byMonth: calculatePlannedLaborCostByProjectMonth(
         allocations,
-        fallbackHourlyByEmployee,
+        fallbackByEmployee,
         projectStart,
         durationMonths,
+        holidays,
       ),
     };
-  }, [allocations, durationMonths, fallbackHourlyByEmployee, project.start_date]);
+  }, [allocations, durationMonths, fallbackByEmployee, holidays, project.start_date]);
 
   return {
     ...plannedLabor,
