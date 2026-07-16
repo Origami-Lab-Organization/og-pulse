@@ -20,21 +20,23 @@ interface PayrollEvolutionChartProps {
 }
 
 // Ordem fixa de categorias — mesma ordem em barras, legenda e tooltip (fonte
-// única, os dois derivam daqui). Cores = tokens --chart-1..6 do tema já
-// implementado (src/index.css); --chart-6 é o tom reservado para um 6º item
-// categórico ("usar por último").
+// única, os dois derivam daqui). Cores = tokens --chart-1..5 do tema já
+// implementado (src/index.css).
 //
-// INSS aqui é sempre o retido do colaborador (não o patronal, que soma em
-// Encargos e é sempre 0 no Simples Nacional). FGTS substitui "Encargos
-// (Impostos)" como segmento — para quem está no Simples Nacional os dois
-// valores são idênticos (INSS patronal/RAT/Terceiros/Outros = 0 no perfil
-// padrão); em outro regime tributário, essa parcela residual não aparece
-// como segmento aqui (fica só na tabela e no Excel, que mostram o
-// detalhamento completo de Encargos).
+// INSS retido do funcionário NÃO entra aqui: já está embutido no Salário
+// Base (é descontado dele, não somado a ele), então empilhá-lo como mais um
+// segmento infla a barra e o "Total" do tooltip além do custo real da
+// empresa — mesmo tratamento do INSS patronal, que soma em Encargos e é
+// sempre 0 no Simples Nacional. FGTS substitui "Encargos (Impostos)" como
+// segmento — para quem está no Simples Nacional os dois valores são
+// idênticos (INSS patronal/RAT/Terceiros/Outros = 0 no perfil padrão); em
+// outro regime tributário, essa parcela residual não aparece como segmento
+// aqui (fica só na tabela e no Excel, que mostram o detalhamento completo
+// de Encargos). O INSS retido aparece à parte no tooltip, informativo, na
+// mesma lógica da coluna "INSS" da tabela (PayrollAnalysisTable).
 const CATEGORIES: { key: keyof PayrollMonthPoint; name: string; color: string }[] = [
   { key: 'baseAmount', name: 'Salário Base', color: 'hsl(var(--chart-1))' },
   { key: 'fgtsAmount', name: 'FGTS', color: 'hsl(var(--chart-2))' },
-  { key: 'inssFuncionarioAmount', name: 'INSS', color: 'hsl(var(--chart-6))' },
   { key: 'benefitsAmount', name: 'Benefícios', color: 'hsl(var(--chart-4))' },
   { key: 'toolsAmount', name: 'Ferramentas', color: 'hsl(var(--chart-5))' },
   { key: 'provisionsAmount', name: 'Provisões', color: 'hsl(var(--chart-3))' },
@@ -82,6 +84,12 @@ function EvolutionTooltip({
         <span>Total</span>
         <span className="tabular-nums">{formatCurrency(total)}</span>
       </div>
+      {!!point?.inssFuncionarioAmount && (
+        <div className="mt-1 flex items-center justify-between gap-3 italic text-muted-foreground">
+          <span>INSS (retido do funcionário)</span>
+          <span className="tabular-nums">{formatCurrency(point.inssFuncionarioAmount)}</span>
+        </div>
+      )}
       <p className="mt-1 text-[11px] text-muted-foreground">{point?.headcount} colaborador{point?.headcount === 1 ? '' : 'es'}</p>
     </div>
   );

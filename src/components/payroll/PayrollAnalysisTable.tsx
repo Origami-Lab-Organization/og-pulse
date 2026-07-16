@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpDown } from 'lucide-react';
+import { ArrowUpDown, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { CONTRACT_TYPE_LABELS } from '@/types/employee';
@@ -64,25 +65,37 @@ export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }:
     sortKeyName,
     className,
     align = 'left',
+    tooltip,
   }: {
     label: string;
     sortKeyName: SortKey;
     className?: string;
     align?: 'left' | 'right';
+    tooltip?: string;
   }) => (
     <TableHead className={className}>
-      <button
-        type="button"
-        className={cn(
-          'flex items-center gap-1 rounded px-1 py-0.5 text-xs hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          align === 'right' ? '-mr-1 justify-end w-full' : '-ml-1',
+      <div className={cn('flex items-center gap-1', align === 'right' && 'justify-end')}>
+        <button
+          type="button"
+          className={cn(
+            'flex items-center gap-1 rounded px-1 py-0.5 text-xs hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            align === 'right' ? '-mr-1' : '-ml-1',
+          )}
+          onClick={() => toggleSort(sortKeyName)}
+        >
+          {align === 'right' && <ArrowUpDown className="h-3 w-3 text-muted-foreground/60" />}
+          {label}
+          {align === 'left' && <ArrowUpDown className="h-3 w-3 text-muted-foreground/60" />}
+        </button>
+        {tooltip && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[240px] text-xs">{tooltip}</TooltipContent>
+          </Tooltip>
         )}
-        onClick={() => toggleSort(sortKeyName)}
-      >
-        {align === 'right' && <ArrowUpDown className="h-3 w-3 text-muted-foreground/60" />}
-        {label}
-        {align === 'left' && <ArrowUpDown className="h-3 w-3 text-muted-foreground/60" />}
-      </button>
+      </div>
     </TableHead>
   );
 
@@ -143,7 +156,13 @@ export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }:
                 <SortableHead label="Tipo" sortKeyName="tipo" />
                 <SortableHead label="Salário Base" sortKeyName="baseAmount" className="text-right" align="right" />
                 <SortableHead label="FGTS" sortKeyName="fgtsAmount" className="text-right" align="right" />
-                <SortableHead label="INSS" sortKeyName="inssFuncionario" className="text-right" align="right" />
+                <SortableHead
+                  label="INSS"
+                  sortKeyName="inssFuncionario"
+                  className="text-right"
+                  align="right"
+                  tooltip="Retido do salário do funcionário e repassado por ele ao INSS — não é um custo adicional da empresa, por isso não soma ao Total Mensal (já incluído no Salário Base)."
+                />
                 <SortableHead label="Benefícios" sortKeyName="benefitsAmount" className="text-right" align="right" />
                 <SortableHead label="Ferramentas" sortKeyName="toolsAmount" className="text-right" align="right" />
                 <SortableHead label="Provisões" sortKeyName="provisionsAmount" className="text-right" align="right" />
@@ -161,7 +180,9 @@ export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }:
                   <TableCell className="text-muted-foreground">{CONTRACT_TYPE_LABELS[row.tipoContratacao]}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.baseAmount)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.fgtsAmount)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(row.inssFuncionario)}</TableCell>
+                  <TableCell className="text-right italic tabular-nums text-muted-foreground">
+                    {formatCurrency(row.inssFuncionario)}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.benefitsAmount)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.toolsAmount)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.provisionsAmount)}</TableCell>
@@ -174,7 +195,9 @@ export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }:
                 <TableCell colSpan={2} className="font-bold">Total ({rows.length} colaboradores)</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.baseAmount)}</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.fgtsAmount)}</TableCell>
-                <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.inssFuncionario)}</TableCell>
+                <TableCell className="text-right italic font-bold tabular-nums text-muted-foreground">
+                  {formatCurrency(totals.inssFuncionario)}
+                </TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.benefitsAmount)}</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.toolsAmount)}</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.provisionsAmount)}</TableCell>

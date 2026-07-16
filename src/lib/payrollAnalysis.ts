@@ -35,12 +35,13 @@ export interface PayrollAnalysisRow {
   tipoContratacao: ContractType;
   baseAmount: number;
   chargesAmount: number;
-  /** FGTS sobre salário/pró-labore + 13º + férias — soma parte de `chargesAmount`. */
+  /** FGTS sobre o salário/pró-labore do mês (alíquota cheia) — não inclui o FGTS sobre as provisões de 13º/férias, que fica em `provisionsAmount`. */
   fgtsAmount: number;
-  /** INSS patronal sobre salário/pró-labore + 13º + férias — soma parte de `chargesAmount`. */
+  /** INSS patronal sobre o salário/pró-labore do mês (alíquota cheia) — não inclui o INSS patronal sobre as provisões de 13º/férias, que fica em `provisionsAmount`. */
   inssPatronalAmount: number;
-  /** Resto de `chargesAmount` (RAT, Terceiros, Outros) — para que FGTS + INSS Patronal + isso feche com `chargesAmount`. */
+  /** Resto de `chargesAmount` sobre o salário do mês (RAT, Terceiros, Outros) — para que FGTS + INSS Patronal + isso + encargos sobre provisões feche com `chargesAmount`. */
   outrosEncargosAmount: number;
+  /** Provisão de 13º/férias + os encargos (FGTS, INSS patronal etc.) incidentes sobre essas provisões — são valores reservados para pagamento futuro, não custo do mês corrente. */
   provisionsAmount: number;
   benefitsAmount: number;
   toolsAmount: number;
@@ -70,8 +71,13 @@ export function calculatePayrollAnalysisRow(
     payrollProfile,
   });
 
-  const fgtsAmount = breakdown.details.fgts + breakdown.details.fgts13 + breakdown.details.fgtsFerias;
-  const inssPatronalAmount = breakdown.details.inss + breakdown.details.inss13 + breakdown.details.inssFerias;
+  // FGTS e INSS patronal do mês são só a alíquota cheia sobre o salário —
+  // o que incide sobre as provisões de 13º/férias é, ele próprio, provisão
+  // (dinheiro reservado para pagar junto com o 13º/férias, não encargo do
+  // mês corrente), por isso soma em `provisionsAmount` e não aqui.
+  const fgtsAmount = breakdown.details.fgts;
+  const inssPatronalAmount = breakdown.details.inss;
+  const encargosSobreProvisoes = breakdown.details.encargos13 + breakdown.details.encargosFerias;
 
   return {
     employeeId: e.id,
@@ -82,8 +88,8 @@ export function calculatePayrollAnalysisRow(
     chargesAmount: breakdown.chargesAmount,
     fgtsAmount,
     inssPatronalAmount,
-    outrosEncargosAmount: breakdown.chargesAmount - fgtsAmount - inssPatronalAmount,
-    provisionsAmount: breakdown.provisionsAmount,
+    outrosEncargosAmount: breakdown.chargesAmount - fgtsAmount - inssPatronalAmount - encargosSobreProvisoes,
+    provisionsAmount: breakdown.provisionsAmount + encargosSobreProvisoes,
     benefitsAmount: breakdown.benefitsAmount,
     toolsAmount: breakdown.toolsAmount,
     totalMonthlyCost: breakdown.totalMonthlyCost,
