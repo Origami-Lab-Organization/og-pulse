@@ -279,7 +279,7 @@ export default function ProjectDetail() {
                     <TabsTrigger value="okrs" className={projectTabClass}>Objetivos</TabsTrigger>
                     <TabsTrigger value="roadmap" className={projectTabClass}>Roadmap</TabsTrigger>
                     <TabsTrigger value="team" className={projectTabClass}>Equipe</TabsTrigger>
-                    <TabsTrigger value="costs" className={projectTabClass}>Custos</TabsTrigger>
+                    <TabsTrigger value="costs" className={projectTabClass}>Despesas</TabsTrigger>
                     <TabsTrigger value="financial" className={projectTabClass}>Financeiro</TabsTrigger>
                     <TabsTrigger value="stakeholders" className={projectTabClass}>Stakeholders</TabsTrigger>
                   </>
@@ -346,6 +346,7 @@ export default function ProjectDetail() {
                     project={project}
                     isReadOnly={isReadOnly}
                     canManageInstallments={canManageInstallments}
+                    onNavigateToTab={setActiveTab}
                   />
                 )}
               </TabsContent>

@@ -506,6 +506,21 @@ export const useClients = () => {
 
 Dados financeiros (taxas, encargos, custos) vivem exclusivamente nos módulos de RH e financeiro. **Nunca devem aparecer** em views de projeto para funcionários ou GPs.
 
+#### Exceções formalizadas à hard rule
+
+As exceções abaixo são as **únicas** situações em que um dado financeiro agregado
+aparece fora dos módulos de RH/financeiro. Cada uma é restrita a admin e ao GP do
+projeto (`manager_id`), nunca expõe salário bruto, custo/hora individual ou
+`total_monthly_cost_estimated`, e é sempre calculada server-side.
+
+1. **Aba Custos do projeto** — comparativo planejado × realizado (mão de obra +
+   fornecedores + materiais + reembolsos) em valores **agregados**, visível a
+   admin e GP do projeto.
+2. **Dialog de alocação da aba Equipe** — exibe, para admin e GP do projeto,
+   simulação de impacto na margem (custo estimado agregado da alocação e margem
+   planejada antes/depois vs. baseline). A **tabela** da aba Equipe permanece sem
+   qualquer dado financeiro, para qualquer role.
+
 ### Timesheet
 
 - Apontamento é **por dia, por projeto** — não por tarefa

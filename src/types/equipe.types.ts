@@ -122,6 +122,10 @@ export interface TeamMonthCell {
   plannedHours: number;
   realizedHours: number | null; // null = mês futuro, sem timesheet ainda
   isOverallocated: boolean; // soma do funcionário em TODOS os projetos no mês > jornada mensal
+  /** Jornada mensal do funcionário no mês (capacidade). 0 para vagas / sem capacidade. */
+  capacityHours: number;
+  /** Horas do funcionário em OUTROS projetos no mês (para a mini-barra de contexto). */
+  othersHours: number;
 }
 
 export interface TeamAllocationRow {
@@ -155,4 +159,38 @@ export interface CreateProjectRolePayload {
   hourlyRate?: number;
   monthlyRate?: number;
   cltEncargosMultiplier?: number;
+}
+
+// ─── Simulação de impacto na margem (aba Equipe v2, §5.3) ──────────────────────
+
+/** Um mês da alocação em composição, enviado à RPC de simulação. */
+export interface SimulationMonth {
+  year: number;
+  month: number; // 1-12
+  hours: number;
+}
+
+export type MarginVerdict = 'fits' | 'tightens' | 'breaks' | null;
+
+/**
+ * Agregados devolvidos pela RPC simulate_allocation_margin_impact.
+ * NUNCA contém salário bruto, custo/hora individual ou total_monthly_cost_estimated.
+ */
+export interface AllocationMarginImpact {
+  custoEstimado: number;
+  horasTotal: number;
+  custoHoraMedio: number;
+  /** Margem planejada corrente do projeto (%), null quando sem receita/non_revenue. */
+  margemAtual: number | null;
+  /** Margem planejada com esta alocação (%), null quando sem receita/non_revenue. */
+  margemSimulada: number | null;
+  /** Baseline derivada do orçamento (%), null quando o projeto não tem baseline. */
+  margemBaseline: number | null;
+  /** Δ = simulada − baseline em pp, null sem baseline. */
+  deltaPp: number | null;
+  /** Tolerância do tenant em pp (default 3). */
+  tolPp: number;
+  verdict: MarginVerdict;
+  hasBaseline: boolean;
+  isNonRevenue: boolean;
 }

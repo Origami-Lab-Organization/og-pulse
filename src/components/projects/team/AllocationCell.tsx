@@ -16,10 +16,10 @@ const PAST_MONTH_EDIT_REASONS = [
   { value: 'other', label: 'Outro' },
 ] as const;
 
-type CellTone = 'future' | 'empty' | 'ok' | 'warning' | 'critical';
+type CellTone = 'empty' | 'ok' | 'warning' | 'critical';
 
-function cellTone(plannedHours: number, realizedHours: number | null): CellTone {
-  if (realizedHours === null) return 'future';
+// Cores de EXECUÇÃO (só mês vigente/passado, quando já há realizado a comparar).
+function executionTone(plannedHours: number, realizedHours: number): CellTone {
   if (plannedHours === 0) return realizedHours > 0 ? 'critical' : 'empty';
   const ratio = realizedHours / plannedHours;
   if (ratio <= 1) return 'ok';
@@ -28,7 +28,6 @@ function cellTone(plannedHours: number, realizedHours: number | null): CellTone 
 }
 
 const TONE_CLASSES: Record<CellTone, string> = {
-  future: 'bg-muted/40 text-muted-foreground',
   empty: 'text-muted-foreground',
   ok: 'bg-primary-deep/10 text-primary-deep',
   warning: 'bg-warning/10 text-warning',
@@ -46,7 +45,9 @@ interface AllocationCellProps {
 export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }: AllocationCellProps) {
   const plannedHours = cell?.plannedHours ?? 0;
   const realizedHours = cell?.realizedHours ?? null;
-  const tone = cellTone(plannedHours, realizedHours);
+  const capacity = cell?.capacityHours ?? 0;
+  const others = cell?.othersHours ?? 0;
+  const isFuture = realizedHours === null;
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(String(plannedHours));
@@ -72,7 +73,6 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
     setIsEditing(false);
     const newHours = Math.max(0, Number(draft) || 0);
     if (newHours === plannedHours) return;
-
     if (isPastMonth && isAdmin) {
       setPendingHours(newHours);
       return;
@@ -113,7 +113,9 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
     );
   }
 
-  const realizedText = realizedHours === null ? '—' : `${Math.round(realizedHours)}h`;
+  const thisPct = capacity > 0 ? Math.min(100, (plannedHours / capacity) * 100) : 0;
+  const freeHours = Math.max(0, capacity - others - plannedHours);
+  const tone = isFuture ? null : executionTone(plannedHours, realizedHours as number);
 
   const content = (
     <button
@@ -121,27 +123,33 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
       onClick={startEdit}
       disabled={!editable}
       className={cn(
-        'group relative flex h-9 w-full items-center justify-center gap-1.5 rounded-md px-2 text-xs transition-colors',
-        TONE_CLASSES[tone],
+        'group relative flex h-9 w-full items-center justify-center rounded-md px-2 text-xs transition-colors',
+        isFuture ? 'flex-col gap-0.5 text-foreground' : cn('gap-1.5', TONE_CLASSES[tone as CellTone]),
         editable ? 'cursor-pointer hover:ring-1 hover:ring-primary-deep/40' : 'cursor-default',
       )}
     >
-      <span className="font-mono text-sm font-semibold tabular-nums">{Math.round(plannedHours)}h</span>
-      <span className="font-mono text-[11px] tabular-nums opacity-40">/</span>
-      <span className="font-mono text-[11px] tabular-nums opacity-70">{realizedText}</span>
+      {isFuture ? (
+        <>
+          <span className="font-mono text-sm font-semibold tabular-nums leading-none">
+            {Math.round(plannedHours)}h
+          </span>
+          {capacity > 0 && (
+            <span className="flex h-1 w-10 overflow-hidden rounded-full bg-muted">
+              <span className="h-full bg-primary-deep" style={{ width: `${thisPct}%` }} />
+            </span>
+          )}
+        </>
+      ) : (
+        <>
+          <span className="font-mono text-sm font-semibold tabular-nums">{Math.round(plannedHours)}h</span>
+          <span className="font-mono text-[11px] tabular-nums opacity-40">/</span>
+          <span className="font-mono text-[11px] tabular-nums opacity-70">{Math.round(realizedHours as number)}h</span>
+        </>
+      )}
       {cell?.isOverallocated && (
-        <TooltipProvider delayDuration={150}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="absolute right-0.5 top-0.5">
-                <AlertTriangle className="h-3 w-3 text-warning" aria-hidden />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-[200px] text-xs">
-              Este funcionário está acima da jornada mensal somando todos os projetos neste mês.
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <span className="absolute right-0.5 top-0.5">
+          <AlertTriangle className="h-3 w-3 text-warning" aria-hidden />
+        </span>
       )}
       {isPastMonth && !editable && (
         <span className="absolute left-0.5 top-0.5 text-muted-foreground">
@@ -151,12 +159,29 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
     </button>
   );
 
+  // Mês futuro: tooltip de contexto do projeto (horas apenas, nunca custo).
+  if (isFuture && capacity > 0) {
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>{content}</TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            Neste mês: {Math.round(plannedHours)}h neste projeto · {Math.round(others)}h em outros ·{' '}
+            {Math.round(freeHours)}h livres
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
   if (isPastMonth && !editable) {
     return (
       <TooltipProvider delayDuration={150}>
         <Tooltip>
           <TooltipTrigger asChild>{content}</TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">Apenas admin pode editar meses passados</TooltipContent>
+          <TooltipContent side="top" className="text-xs">
+            Apenas admin pode editar meses passados
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
     );
@@ -168,7 +193,8 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
       <PopoverContent className="w-72 space-y-3" align="center">
         <p className="text-sm font-semibold text-foreground">Editar mês encerrado</p>
         <p className="text-xs text-muted-foreground">
-          Alterar horas planejadas de {Math.round(plannedHours)}h para {pendingHours}h. Motivo e justificativa ficam registrados.
+          Alterar horas planejadas de {Math.round(plannedHours)}h para {pendingHours}h. Motivo e justificativa ficam
+          registrados.
         </p>
         <Select value={reasonCode} onValueChange={setReasonCode}>
           <SelectTrigger className="h-9">
@@ -176,7 +202,9 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
           </SelectTrigger>
           <SelectContent>
             {PAST_MONTH_EDIT_REASONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -187,7 +215,9 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
           className="text-sm"
         />
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={cancelPastMonthEdit}>Cancelar</Button>
+          <Button type="button" variant="outline" size="sm" onClick={cancelPastMonthEdit}>
+            Cancelar
+          </Button>
           <Button
             type="button"
             size="sm"
