@@ -12,14 +12,18 @@ function ProgressVsPlanned({
   previsto: number;
   fillClass: string;
 }) {
-  const pct = previsto > 0 ? (realizado / previsto) * 100 : null;
+  // previsto = saldo em aberto (atrasado + futuro, nunca o que já foi realizado).
+  // % é sobre o total esperado (realizado + em aberto), não sobre o previsto isolado —
+  // assim a barra continua limitada a 0–100% mesmo com previsto pequeno ou zerado.
+  const totalEsperado = realizado + previsto;
+  const pct = totalEsperado > 0 ? (realizado / totalEsperado) * 100 : null;
   return (
     <div className="mt-3 border-t pt-2">
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="font-mono tabular-nums">
-          {pct === null ? 'sem previsto' : `${fmtPct(pct, 0)} do previsto`}
+          {pct === null ? 'sem previsto' : `${fmtPct(pct, 0)} do total esperado`}
         </span>
-        <span className="font-mono tabular-nums">prev. {fmtBRLk(previsto)}</span>
+        <span className="font-mono tabular-nums">em aberto {fmtBRLk(previsto)}</span>
       </div>
       <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div className={cn('h-full rounded-full', fillClass)} style={{ width: `${pct === null ? 0 : Math.min(100, pct)}%` }} />

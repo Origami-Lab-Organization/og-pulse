@@ -31,11 +31,16 @@ export interface FinancialMonthlyPoint {
   equipmentCost: number;
   reimbursementCost: number;
   travelOtherCost: number;
-  // Planned costs
+  // Planned costs — saldo em aberto (atrasado + futuro) por categoria, nunca inclui o que já foi realizado
   plannedTotalCosts: number;
   plannedLaborCost: number;
   plannedSupplierCost: number;
   plannedMaterialCost: number;
+  plannedCommissionCost: number;
+  plannedSubscriptionCost: number;
+  plannedEquipmentCost: number;
+  plannedReimbursementCost: number;
+  plannedTravelOtherCost: number;
   // Margin
   grossMarginPct: number | null;
   plannedGrossMarginPct: number | null;
@@ -132,6 +137,8 @@ export function useFinancialEvolution(
           commissionCost: 0,
           internalLaborCost: 0, subscriptionCost: 0, equipmentCost: 0, reimbursementCost: 0, travelOtherCost: 0,
           plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
+          plannedCommissionCost: 0, plannedSubscriptionCost: 0, plannedEquipmentCost: 0,
+          plannedReimbursementCost: 0, plannedTravelOtherCost: 0,
           grossMarginPct: null, plannedGrossMarginPct: null,
         }));
 
@@ -174,6 +181,7 @@ export function useFinancialEvolution(
           .from('project_installments')
           .select('due_date, value')
           .in('project_id', projectIds)
+          .neq('status', 'received')
           .gte('due_date', yearStart)
           .lte('due_date', yearEnd),
         supabase
@@ -203,11 +211,8 @@ export function useFinancialEvolution(
         fetchMaterials(projectIds),
         supabase
           .from('project_commissions')
-          .select('planned_value, paid_date')
-          .in('project_id', projectIds)
-          .eq('is_paid', true)
-          .gte('paid_date', yearStart)
-          .lte('paid_date', yearEnd),
+          .select('planned_value, paid_date, is_paid, installment:project_installments(due_date)')
+          .in('project_id', projectIds),
         fetchProjectCostsRealizedByCategory(projectIds, year, ['subscription', 'equipment_rental', 'travel', 'reimbursement', 'other']),
         activityPromise,
         supabase
@@ -317,17 +322,9 @@ export function useFinancialEvolution(
         if (!project?.start_date || !mat.month_number) continue;
         const val = Number(mat.value);
 
-        // Planejado: sempre pelo mês relativo ao projeto (início + month_number − 1).
-        const plannedIdx = resolveCostMonthIndex({
-          projectStartDate: project.start_date,
-          monthNumber: mat.month_number,
-          targetYear: year,
-        });
-        if (plannedIdx != null) monthData[plannedIdx].plannedMaterialCost += val;
-
-        // Realizado: reconhece pela data real da compra (purchase_date) quando
-        // houver; senão, cai no mês relativo ao projeto.
         if (mat.is_realized) {
+          // Realizado: reconhece pela data real da compra (purchase_date) quando
+          // houver; senão, cai no mês relativo ao projeto.
           const realizedIdx = resolveCostMonthIndex({
             realDate: mat.purchase_date,
             projectStartDate: project.start_date,
@@ -335,19 +332,37 @@ export function useFinancialEvolution(
             targetYear: year,
           });
           if (realizedIdx != null) monthData[realizedIdx].materialCost += val;
+        } else {
+          // Ainda não realizado (saldo em aberto): sempre pelo mês relativo ao
+          // projeto (início + month_number − 1).
+          const plannedIdx = resolveCostMonthIndex({
+            projectStartDate: project.start_date,
+            monthNumber: mat.month_number,
+            targetYear: year,
+          });
+          if (plannedIdx != null) monthData[plannedIdx].plannedMaterialCost += val;
         }
       }
 
       for (const c of commissions) {
-        if (!c.paid_date) continue;
-        const d = parseISO(c.paid_date);
-        if (d.getFullYear() !== year) continue;
-        monthData[d.getMonth()].commissionCost += Number(c.planned_value) || 0;
+        if (c.is_paid) {
+          if (!c.paid_date) continue;
+          const d = parseISO(c.paid_date);
+          if (d.getFullYear() !== year) continue;
+          monthData[d.getMonth()].commissionCost += Number(c.planned_value) || 0;
+        } else {
+          // Ainda não paga (saldo em aberto): reconhece pelo vencimento da parcela vinculada.
+          const installment = Array.isArray(c.installment) ? c.installment[0] : c.installment;
+          if (!installment?.due_date) continue;
+          const d = parseISO(installment.due_date);
+          if (d.getFullYear() !== year) continue;
+          monthData[d.getMonth()].plannedCommissionCost += Number(c.planned_value) || 0;
+        }
       }
 
-      // Demais categorias de project_costs (subscription/equipment_rental/travel/reimbursement/other),
-      // já reconhecidas no mês de calendário pelo service.
-      for (const c of otherCosts) {
+      // Demais categorias de project_costs (subscription/equipment_rental/travel/reimbursement/other):
+      // realizado e previsto já reconhecidos no mês de calendário pelo service.
+      for (const c of otherCosts.actuals) {
         const target = monthData[c.monthIndex];
         if (!target) continue;
         if (c.category === 'subscription') target.subscriptionCost += c.value;
@@ -356,7 +371,17 @@ export function useFinancialEvolution(
         else target.travelOtherCost += c.value; // travel + other
       }
 
+      for (const c of otherCosts.planned) {
+        const target = monthData[c.monthIndex];
+        if (!target) continue;
+        if (c.category === 'subscription') target.plannedSubscriptionCost += c.value;
+        else if (c.category === 'equipment_rental') target.plannedEquipmentCost += c.value;
+        else if (c.category === 'reimbursement') target.plannedReimbursementCost += c.value;
+        else target.plannedTravelOtherCost += c.value; // travel + other
+      }
+
       // Mão de obra interna (não-billable): horas de activity_timesheets × custo-hora.
+      // Sem contrapartida de planejamento na base hoje — não entra em plannedTotalCosts.
       for (const ts of activityRows) {
         if (!ts.work_date) continue;
         const d = parseISO(ts.work_date);
@@ -375,12 +400,32 @@ export function useFinancialEvolution(
 
         m.totalCosts = m.laborCost + m.supplierCost + m.materialCost + m.commissionCost
           + m.internalLaborCost + m.subscriptionCost + m.equipmentCost + m.reimbursementCost + m.travelOtherCost;
-        m.plannedTotalCosts = m.plannedLaborCost + m.plannedSupplierCost + m.plannedMaterialCost;
+
+        // Mão de obra não tem, por item, um sinalizador "já realizado" comparável ao de
+        // fornecedor/material/comissão (o planejado vem de project_role_allocations, o
+        // realizado de project_timesheets — tabelas e granularidades diferentes). Por
+        // isso o saldo em aberto de mão de obra é o resíduo do MÊS: o que foi planejado
+        // menos o que já foi de fato apontado.
+        m.plannedLaborCost = Math.max(0, m.plannedLaborCost - m.laborCost);
+
+        // plannedXxxCost (fornecedor/material/comissão/assinatura/equipamento/reembolso/
+        // outros) já chega aqui como saldo em aberto (nunca inclui o que virou actual) —
+        // soma direta, sem subtrair de novo. Mão de obra interna não tem previsto na base.
+        m.plannedTotalCosts = m.plannedLaborCost + m.plannedSupplierCost + m.plannedMaterialCost
+          + m.plannedCommissionCost + m.plannedSubscriptionCost + m.plannedEquipmentCost
+          + m.plannedReimbursementCost + m.plannedTravelOtherCost;
+
         m.grossMarginPct = m.isPast && m.revenueReal > 0
           ? ((m.revenueReal - m.totalCosts) / m.revenueReal) * 100
           : null;
-        m.plannedGrossMarginPct = m.revenuePlanned > 0
-          ? ((m.revenuePlanned - m.plannedTotalCosts) / m.revenuePlanned) * 100
+
+        // Margem projetada = considerando tudo que ainda está em aberto (atrasado +
+        // futuro) como se fosse realizado, sobre a receita total esperada (recebida +
+        // pendente). Mais estável do que comparar só o saldo em aberto de cada lado.
+        const receitaTotalEsperada = m.revenueReal + m.revenuePlanned;
+        const custoTotalEsperado = m.totalCosts + m.plannedTotalCosts;
+        m.plannedGrossMarginPct = receitaTotalEsperada > 0
+          ? ((receitaTotalEsperada - custoTotalEsperado) / receitaTotalEsperada) * 100
           : null;
       }
 

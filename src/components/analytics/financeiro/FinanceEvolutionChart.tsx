@@ -96,6 +96,11 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
             projeção
           </span>
         )}
+        {!point.isFuture && !point.isCurrent && hasRestante && (
+          <span className="rounded-pill bg-muted px-1.5 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-muted-foreground">
+            atrasado
+          </span>
+        )}
         {!point.isHighlighted && (
           <span className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground">fora do período</span>
         )}
@@ -105,8 +110,8 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
           {r.name}: {r.pct ? fmtPct(r.value) : fmtBRL0(r.value)}
         </p>
       ))}
-      {point.isCurrent && hasRestante && (
-        <p className="mt-1 border-t pt-1 text-[11px] text-muted-foreground">hachurado = restante até o previsto do mês</p>
+      {hasRestante && (
+        <p className="mt-1 border-t pt-1 text-[11px] text-muted-foreground">hachurado = saldo em aberto (previsto ainda não lançado)</p>
       )}
     </div>
   );
@@ -120,15 +125,16 @@ interface FinanceEvolutionChartProps {
 export function FinanceEvolutionChart({ months, onMonthClick }: FinanceEvolutionChartProps) {
   const chartData: EvolutionChartPoint[] = months.map((m) => {
     const isFuture = !m.isPast;
-    const closed = m.isPast && !m.isCurrent;
 
     const faturadoAtual = isFuture ? 0 : m.faturado;
     const receitaAtual = isFuture ? 0 : m.revenueReal;
     const custosAtual = isFuture ? 0 : m.totalCosts;
 
-    const faturadoRestante = closed ? 0 : Math.max(0, m.revenuePlanned - faturadoAtual);
-    const receitaRestante = closed ? 0 : Math.max(0, m.revenuePlanned - receitaAtual);
-    const custosRestante = closed ? 0 : Math.max(0, m.plannedTotalCosts - custosAtual);
+    // m.revenuePlanned / m.plannedTotalCosts já são saldo em aberto (atrasado +
+    // futuro, nunca o que já foi realizado) — usar direto, sem subtrair de novo.
+    const faturadoRestante = m.revenuePlanned;
+    const receitaRestante = m.revenuePlanned;
+    const custosRestante = m.plannedTotalCosts;
 
     return {
       label: m.label.toUpperCase(),
@@ -159,7 +165,7 @@ export function FinanceEvolutionChart({ months, onMonthClick }: FinanceEvolution
         <div>
           <h2 className="text-base font-semibold text-foreground">Evolução financeira</h2>
           <p className="text-xs text-muted-foreground">
-            valores em R$ (eixo esq.) · margem % (eixo dir.) · destaque = período selecionado · hachurado = projeção
+            valores em R$ (eixo esq.) · margem % (eixo dir.) · destaque = período selecionado · hachurado = saldo em aberto (atrasado ou futuro)
             {onMonthClick && ' · clique em um mês para filtrar'}
           </p>
         </div>
