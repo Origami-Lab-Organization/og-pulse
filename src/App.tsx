@@ -59,6 +59,7 @@ import MyVacation from "./pages/MyVacation";
 import VacationManagement from "./pages/VacationManagement";
 import Dashboard from "./pages/Dashboard";
 import DashboardRouter from "./pages/DashboardRouter";
+import SiteUnderConstruction from "./pages/SiteUnderConstruction";
 import { PwaRouteGuard } from "@/components/pwa/PwaRouteGuard";
 import { InstallPwaBanner } from "@/components/pwa/InstallPwaBanner";
 
@@ -69,6 +70,27 @@ const queryClient = new QueryClient({
 function RedirectAlocacaoEmployee() {
   const { employeeId } = useParams();
   return <Navigate to={`/analises/alocacoes/${employeeId}`} replace />;
+}
+
+/**
+ * Domínios institucionais que devem exibir a página pública "Em construção"
+ * na raiz em vez de redirecionar para login/dashboard.
+ */
+const INSTITUTIONAL_HOSTS = ["origamipulse.com.br", "www.origamipulse.com.br"];
+
+/**
+ * Destino da raiz "/". No domínio institucional exibe a página pública
+ * "Em construção"; nos demais mantém o fluxo autenticado (HomeRedirect).
+ */
+function RootEntry() {
+  if (INSTITUTIONAL_HOSTS.includes(window.location.hostname)) {
+    return <SiteUnderConstruction />;
+  }
+  return (
+    <ProtectedRoute>
+      <HomeRedirect />
+    </ProtectedRoute>
+  );
 }
 
 const App = () => (
@@ -83,6 +105,7 @@ const App = () => (
               <InstallPwaBanner />
               <PwaRouteGuard>
                 <Routes>
+              <Route path="/em-construcao" element={<SiteUnderConstruction />} />
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Navigate to="/login" replace />} />
@@ -112,7 +135,7 @@ const App = () => (
                 }
               />
               {/* Root redirect — admin → /dashboard, demais → /inbox */}
-              <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
+              <Route path="/" element={<RootEntry />} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route
                 path="/admin-dashboard"
