@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePayrollProfile } from './usePayrollProfile';
+import { useHolidays } from './useHolidays';
 import { buildPayrollHistory, buildYearMonths, type PayrollHistoryEmployeeInput } from '@/lib/payrollHistory';
 import type { ContractType } from '@/types/employee';
 
@@ -17,6 +18,7 @@ export function usePayrollHistory() {
   const { employee: currentEmployee } = useAuth();
   const tenantId = currentEmployee?.tenant_id;
   const { data: payrollProfile, isLoading: isLoadingProfile } = usePayrollProfile();
+  const { data: holidays, isLoading: isLoadingHolidays } = useHolidays();
 
   const rawQuery = useQuery({
     queryKey: ['payroll-history-raw', tenantId],
@@ -82,9 +84,9 @@ export function usePayrollHistory() {
   const months = useMemo(() => buildYearMonths(new Date()), []);
 
   const history = useMemo(() => {
-    if (!rawQuery.data || !payrollProfile) return [];
-    return buildPayrollHistory(rawQuery.data, payrollProfile, months);
-  }, [rawQuery.data, payrollProfile, months]);
+    if (!rawQuery.data || !payrollProfile || !holidays) return [];
+    return buildPayrollHistory(rawQuery.data, payrollProfile, months, holidays);
+  }, [rawQuery.data, payrollProfile, months, holidays]);
 
-  return { history, isLoading: rawQuery.isLoading || isLoadingProfile };
+  return { history, isLoading: rawQuery.isLoading || isLoadingProfile || isLoadingHolidays };
 }

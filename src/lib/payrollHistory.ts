@@ -17,14 +17,10 @@
 import { startOfYear, startOfMonth, endOfMonth, addMonths, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { calculatePayrollAnalysisRow, type PayrollAnalysisEmployeeInput, type PayrollAnalysisRow } from './payrollAnalysis';
+import type { Holiday } from './workingDays';
 import type { PayrollProfile } from '@/types/payrollProfile';
 
-export interface PayrollHistoryEmployeeInput extends PayrollAnalysisEmployeeInput {
-  /** 'YYYY-MM-DD' */
-  dataAdmissao: string | null;
-  /** Data efetiva de desligamento mais antiga ('YYYY-MM-DD'), ou null se nunca desligado. */
-  terminationDate: string | null;
-}
+export type PayrollHistoryEmployeeInput = PayrollAnalysisEmployeeInput;
 
 export interface PayrollMonth {
   /** 'YYYY-MM' */
@@ -121,6 +117,7 @@ export function buildPayrollHistory(
   employees: PayrollHistoryEmployeeInput[],
   payrollProfile: Partial<PayrollProfile>,
   months: PayrollMonth[],
+  holidays: Holiday[],
 ): PayrollMonthPoint[] {
   return months.map((month) => {
     // Mês atual e meses futuros: não há como saber o status passado/futuro de
@@ -131,7 +128,7 @@ export function buildPayrollHistory(
     const requiresActiveStatusToday = month.isCurrent || month.isFuture;
     const rows = employees
       .filter((e) => wasEmployedDuringMonth(e, month) && (!requiresActiveStatusToday || e.status === 'ativo'))
-      .map((e) => calculatePayrollAnalysisRow(e, payrollProfile))
+      .map((e) => calculatePayrollAnalysisRow(e, payrollProfile, month, holidays))
       .sort((a, b) => b.totalMonthlyCost - a.totalMonthlyCost);
 
     return {
