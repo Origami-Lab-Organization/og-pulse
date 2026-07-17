@@ -1305,6 +1305,7 @@ export type Database = {
           created_at: string
           gross_margin_target_percent: number | null
           id: string
+          margin_tolerance_pp: number
           net_margin_percent: number
           taxes_percent: number
           tenant_id: string
@@ -1316,6 +1317,7 @@ export type Database = {
           created_at?: string
           gross_margin_target_percent?: number | null
           id?: string
+          margin_tolerance_pp?: number
           net_margin_percent?: number
           taxes_percent?: number
           tenant_id: string
@@ -1327,6 +1329,7 @@ export type Database = {
           created_at?: string
           gross_margin_target_percent?: number | null
           id?: string
+          margin_tolerance_pp?: number
           net_margin_percent?: number
           taxes_percent?: number
           tenant_id?: string
@@ -5563,6 +5566,473 @@ export type Database = {
           },
         ]
       }
+      time_adjustment_requests: {
+        Row: {
+          anexo_nome: string | null
+          anexo_path: string | null
+          created_at: string
+          data_fim: string | null
+          data_referencia: string
+          decidido_em: string | null
+          decidido_por: string | null
+          employee_id: string
+          entry_id_original: string | null
+          horario_solicitado: string | null
+          horas_solicitadas: number | null
+          id: string
+          motivo: string
+          motivo_decisao: string | null
+          status: string
+          tenant_id: string
+          tipo: string
+          tipo_marcacao: Database["public"]["Enums"]["time_entry_type"] | null
+        }
+        Insert: {
+          anexo_nome?: string | null
+          anexo_path?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_referencia: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          employee_id: string
+          entry_id_original?: string | null
+          horario_solicitado?: string | null
+          horas_solicitadas?: number | null
+          id?: string
+          motivo: string
+          motivo_decisao?: string | null
+          status?: string
+          tenant_id: string
+          tipo: string
+          tipo_marcacao?: Database["public"]["Enums"]["time_entry_type"] | null
+        }
+        Update: {
+          anexo_nome?: string | null
+          anexo_path?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_referencia?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          employee_id?: string
+          entry_id_original?: string | null
+          horario_solicitado?: string | null
+          horas_solicitadas?: number | null
+          id?: string
+          motivo?: string
+          motivo_decisao?: string | null
+          status?: string
+          tenant_id?: string
+          tipo?: string
+          tipo_marcacao?: Database["public"]["Enums"]["time_entry_type"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_adjustment_requests_decidido_por_fkey"
+            columns: ["decidido_por"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_adjustment_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_adjustment_requests_entry_id_original_fkey"
+            columns: ["entry_id_original"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_adjustment_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_bank_ledger: {
+        Row: {
+          created_at: string
+          data: string
+          employee_id: string
+          horas: number
+          id: string
+          origem: string
+          referencia_id: string | null
+          saldo_acumulado: number
+          tenant_id: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          employee_id: string
+          horas: number
+          id?: string
+          origem?: string
+          referencia_id?: string | null
+          saldo_acumulado: number
+          tenant_id: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          employee_id?: string
+          horas?: number
+          id?: string
+          origem?: string
+          referencia_id?: string | null
+          saldo_acumulado?: number
+          tenant_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_bank_ledger_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_bank_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_daily_summary: {
+        Row: {
+          calculado_em: string
+          data: string
+          employee_id: string
+          horas_extras: number
+          horas_previstas: number
+          horas_trabalhadas: number
+          id: string
+          saldo_dia: number
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          calculado_em?: string
+          data: string
+          employee_id: string
+          horas_extras?: number
+          horas_previstas?: number
+          horas_trabalhadas?: number
+          id?: string
+          saldo_dia?: number
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          calculado_em?: string
+          data?: string
+          employee_id?: string
+          horas_extras?: number
+          horas_previstas?: number
+          horas_trabalhadas?: number
+          id?: string
+          saldo_dia?: number
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_daily_summary_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_daily_summary_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_entries: {
+        Row: {
+          ajuste_de_id: string | null
+          created_at: string
+          employee_id: string
+          face_match_score: number | null
+          face_match_status: string | null
+          horario: string
+          id: string
+          ip_address: string | null
+          is_ajuste: boolean
+          latitude: number | null
+          longitude: number | null
+          origem: string
+          selfie_path: string | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["time_entry_type"]
+          user_agent: string | null
+        }
+        Insert: {
+          ajuste_de_id?: string | null
+          created_at?: string
+          employee_id: string
+          face_match_score?: number | null
+          face_match_status?: string | null
+          horario?: string
+          id?: string
+          ip_address?: string | null
+          is_ajuste?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          origem?: string
+          selfie_path?: string | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["time_entry_type"]
+          user_agent?: string | null
+        }
+        Update: {
+          ajuste_de_id?: string | null
+          created_at?: string
+          employee_id?: string
+          face_match_score?: number | null
+          face_match_status?: string | null
+          horario?: string
+          id?: string
+          ip_address?: string | null
+          is_ajuste?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          origem?: string
+          selfie_path?: string | null
+          tenant_id?: string
+          tipo?: Database["public"]["Enums"]["time_entry_type"]
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_ajuste_de_id_fkey"
+            columns: ["ajuste_de_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_punch_face_profiles: {
+        Row: {
+          consentimento_aceito_em: string
+          consentimento_versao: string
+          created_at: string
+          descriptor: Json
+          employee_id: string
+          id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          consentimento_aceito_em: string
+          consentimento_versao: string
+          created_at?: string
+          descriptor: Json
+          employee_id: string
+          id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          consentimento_aceito_em?: string
+          consentimento_versao?: string
+          created_at?: string
+          descriptor?: Json
+          employee_id?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_punch_face_profiles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_punch_face_profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_tracking_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          description: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          metadata: Json | null
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_tracking_audit_log_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_tracking_audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_tracking_period_locks: {
+        Row: {
+          ano: number
+          fechado_em: string
+          fechado_por: string | null
+          id: string
+          mes: number
+          tenant_id: string
+        }
+        Insert: {
+          ano: number
+          fechado_em?: string
+          fechado_por?: string | null
+          id?: string
+          mes: number
+          tenant_id: string
+        }
+        Update: {
+          ano?: number
+          fechado_em?: string
+          fechado_por?: string | null
+          id?: string
+          mes?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_tracking_period_locks_fechado_por_fkey"
+            columns: ["fechado_por"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_tracking_period_locks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_tracking_settings: {
+        Row: {
+          created_at: string
+          exigir_reconhecimento_facial: boolean
+          exigir_selfie: boolean
+          id: string
+          intervalo_minimo_minutos: number
+          limite_horas_extras_diarias: number
+          tenant_id: string
+          tolerancia_entrada_minutos: number
+          tolerancia_saida_minutos: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exigir_reconhecimento_facial?: boolean
+          exigir_selfie?: boolean
+          id?: string
+          intervalo_minimo_minutos?: number
+          limite_horas_extras_diarias?: number
+          tenant_id: string
+          tolerancia_entrada_minutos?: number
+          tolerancia_saida_minutos?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exigir_reconhecimento_facial?: boolean
+          exigir_selfie?: boolean
+          id?: string
+          intervalo_minimo_minutos?: number
+          limite_horas_extras_diarias?: number
+          tenant_id?: string
+          tolerancia_entrada_minutos?: number
+          tolerancia_saida_minutos?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_tracking_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       timesheet_edit_logs: {
         Row: {
           edited_at: string
@@ -5886,478 +6356,21 @@ export type Database = {
           },
         ]
       }
-      time_tracking_settings: {
-        Row: {
-          created_at: string
-          exigir_reconhecimento_facial: boolean
-          exigir_selfie: boolean
-          id: string
-          intervalo_minimo_minutos: number
-          limite_horas_extras_diarias: number
-          tenant_id: string
-          tolerancia_entrada_minutos: number
-          tolerancia_saida_minutos: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          exigir_reconhecimento_facial?: boolean
-          exigir_selfie?: boolean
-          id?: string
-          intervalo_minimo_minutos?: number
-          limite_horas_extras_diarias?: number
-          tenant_id: string
-          tolerancia_entrada_minutos?: number
-          tolerancia_saida_minutos?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          exigir_reconhecimento_facial?: boolean
-          exigir_selfie?: boolean
-          id?: string
-          intervalo_minimo_minutos?: number
-          limite_horas_extras_diarias?: number
-          tenant_id?: string
-          tolerancia_entrada_minutos?: number
-          tolerancia_saida_minutos?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_tracking_settings_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: true
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      time_entries: {
-        Row: {
-          ajuste_de_id: string | null
-          created_at: string
-          employee_id: string
-          face_match_score: number | null
-          face_match_status: string | null
-          horario: string
-          id: string
-          ip_address: string | null
-          is_ajuste: boolean
-          latitude: number | null
-          longitude: number | null
-          origem: string
-          selfie_path: string | null
-          tenant_id: string
-          tipo: Database["public"]["Enums"]["time_entry_type"]
-          user_agent: string | null
-        }
-        Insert: {
-          ajuste_de_id?: string | null
-          created_at?: string
-          employee_id: string
-          face_match_score?: number | null
-          face_match_status?: string | null
-          horario?: string
-          id?: string
-          ip_address?: string | null
-          is_ajuste?: boolean
-          latitude?: number | null
-          longitude?: number | null
-          origem?: string
-          selfie_path?: string | null
-          tenant_id: string
-          tipo: Database["public"]["Enums"]["time_entry_type"]
-          user_agent?: string | null
-        }
-        Update: {
-          ajuste_de_id?: string | null
-          created_at?: string
-          employee_id?: string
-          face_match_score?: number | null
-          face_match_status?: string | null
-          horario?: string
-          id?: string
-          ip_address?: string | null
-          is_ajuste?: boolean
-          latitude?: number | null
-          longitude?: number | null
-          origem?: string
-          selfie_path?: string | null
-          tenant_id?: string
-          tipo?: Database["public"]["Enums"]["time_entry_type"]
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_entries_ajuste_de_id_fkey"
-            columns: ["ajuste_de_id"]
-            isOneToOne: false
-            referencedRelation: "time_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_entries_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_entries_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      time_daily_summary: {
-        Row: {
-          calculado_em: string
-          data: string
-          employee_id: string
-          horas_extras: number
-          horas_previstas: number
-          horas_trabalhadas: number
-          id: string
-          saldo_dia: number
-          status: string
-          tenant_id: string
-        }
-        Insert: {
-          calculado_em?: string
-          data: string
-          employee_id: string
-          horas_extras?: number
-          horas_previstas?: number
-          horas_trabalhadas?: number
-          id?: string
-          saldo_dia?: number
-          status?: string
-          tenant_id: string
-        }
-        Update: {
-          calculado_em?: string
-          data?: string
-          employee_id?: string
-          horas_extras?: number
-          horas_previstas?: number
-          horas_trabalhadas?: number
-          id?: string
-          saldo_dia?: number
-          status?: string
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_daily_summary_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_daily_summary_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      time_bank_ledger: {
-        Row: {
-          created_at: string
-          data: string
-          employee_id: string
-          horas: number
-          id: string
-          origem: string
-          referencia_id: string | null
-          saldo_acumulado: number
-          tenant_id: string
-          tipo: string
-        }
-        Insert: {
-          created_at?: string
-          data: string
-          employee_id: string
-          horas: number
-          id?: string
-          origem?: string
-          referencia_id?: string | null
-          saldo_acumulado: number
-          tenant_id: string
-          tipo: string
-        }
-        Update: {
-          created_at?: string
-          data?: string
-          employee_id?: string
-          horas?: number
-          id?: string
-          origem?: string
-          referencia_id?: string | null
-          saldo_acumulado?: number
-          tenant_id?: string
-          tipo?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_bank_ledger_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_bank_ledger_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      time_adjustment_requests: {
-        Row: {
-          anexo_nome: string | null
-          anexo_path: string | null
-          created_at: string
-          data_fim: string | null
-          data_referencia: string
-          decidido_em: string | null
-          decidido_por: string | null
-          employee_id: string
-          entry_id_original: string | null
-          horario_solicitado: string | null
-          horas_solicitadas: number | null
-          id: string
-          motivo: string
-          motivo_decisao: string | null
-          status: string
-          tenant_id: string
-          tipo: string
-          tipo_marcacao: Database["public"]["Enums"]["time_entry_type"] | null
-        }
-        Insert: {
-          anexo_nome?: string | null
-          anexo_path?: string | null
-          created_at?: string
-          data_fim?: string | null
-          data_referencia: string
-          decidido_em?: string | null
-          decidido_por?: string | null
-          employee_id: string
-          entry_id_original?: string | null
-          horario_solicitado?: string | null
-          horas_solicitadas?: number | null
-          id?: string
-          motivo: string
-          motivo_decisao?: string | null
-          status?: string
-          tenant_id: string
-          tipo: string
-          tipo_marcacao?: Database["public"]["Enums"]["time_entry_type"] | null
-        }
-        Update: {
-          anexo_nome?: string | null
-          anexo_path?: string | null
-          created_at?: string
-          data_fim?: string | null
-          data_referencia?: string
-          decidido_em?: string | null
-          decidido_por?: string | null
-          employee_id?: string
-          entry_id_original?: string | null
-          horario_solicitado?: string | null
-          horas_solicitadas?: number | null
-          id?: string
-          motivo?: string
-          motivo_decisao?: string | null
-          status?: string
-          tenant_id?: string
-          tipo?: string
-          tipo_marcacao?: Database["public"]["Enums"]["time_entry_type"] | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_adjustment_requests_decidido_por_fkey"
-            columns: ["decidido_por"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_adjustment_requests_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_adjustment_requests_entry_id_original_fkey"
-            columns: ["entry_id_original"]
-            isOneToOne: false
-            referencedRelation: "time_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_adjustment_requests_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      time_tracking_period_locks: {
-        Row: {
-          ano: number
-          fechado_em: string
-          fechado_por: string | null
-          id: string
-          mes: number
-          tenant_id: string
-        }
-        Insert: {
-          ano: number
-          fechado_em?: string
-          fechado_por?: string | null
-          id?: string
-          mes: number
-          tenant_id: string
-        }
-        Update: {
-          ano?: number
-          fechado_em?: string
-          fechado_por?: string | null
-          id?: string
-          mes?: number
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_tracking_period_locks_fechado_por_fkey"
-            columns: ["fechado_por"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_tracking_period_locks_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      time_punch_face_profiles: {
-        Row: {
-          consentimento_aceito_em: string
-          consentimento_versao: string
-          created_at: string
-          descriptor: Json
-          employee_id: string
-          id: string
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          consentimento_aceito_em: string
-          consentimento_versao: string
-          created_at?: string
-          descriptor: Json
-          employee_id: string
-          id?: string
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          consentimento_aceito_em?: string
-          consentimento_versao?: string
-          created_at?: string
-          descriptor?: Json
-          employee_id?: string
-          id?: string
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_punch_face_profiles_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: true
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_punch_face_profiles_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      time_tracking_audit_log: {
-        Row: {
-          action: string
-          created_at: string
-          created_by: string | null
-          description: string
-          entity_id: string | null
-          entity_type: string
-          id: string
-          metadata: Json | null
-          tenant_id: string
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          created_by?: string | null
-          description: string
-          entity_id?: string | null
-          entity_type: string
-          id?: string
-          metadata?: Json | null
-          tenant_id: string
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          created_by?: string | null
-          description?: string
-          entity_id?: string | null
-          entity_type?: string
-          id?: string
-          metadata?: Json | null
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_tracking_audit_log_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_tracking_audit_log_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      apply_absence_period: {
+        Args: {
+          p_data_fim: string
+          p_data_inicio: string
+          p_employee_id: string
+          p_status: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       assign_employee_to_vacancy_row: {
         Args: { p_employee_id: string; p_row_id: string }
         Returns: undefined
@@ -6581,6 +6594,30 @@ export type Database = {
       recalculate_employee_cost_snapshots: {
         Args: { p_employee_id: string }
         Returns: undefined
+      }
+      recompute_daily_summary: {
+        Args: { p_data: string; p_employee_id: string }
+        Returns: undefined
+      }
+      reprocess_time_bank_from_date: {
+        Args: { p_data_inicio: string; p_employee_id: string }
+        Returns: undefined
+      }
+      simulate_allocation_margin_impact: {
+        Args: { p_employee_id: string; p_months: Json; p_project_id: string }
+        Returns: {
+          custo_estimado: number
+          custo_hora_medio: number
+          delta_pp: number
+          has_baseline: boolean
+          horas_total: number
+          is_non_revenue: boolean
+          margem_atual: number
+          margem_baseline: number
+          margem_simulada: number
+          tol_pp: number
+          verdict: string
+        }[]
       }
       update_overdue_installments: { Args: never; Returns: undefined }
       user_belongs_to_tenant: {
