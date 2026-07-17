@@ -43,6 +43,8 @@ type LinkItem = {
   requiresAdmin?: boolean;
   employeeOnly?: boolean;
   notForAdmin?: boolean;
+  /** Só aparece rodando local (`npm run dev`) — escondido em produção sem remover o código. */
+  devOnly?: boolean;
 };
 
 type GroupItem = {
@@ -52,6 +54,8 @@ type GroupItem = {
   icon: React.ElementType;
   requiresManager?: boolean;
   requiresAdmin?: boolean;
+  /** Só aparece rodando local (`npm run dev`) — escondido em produção sem remover o código. */
+  devOnly?: boolean;
   children: { title: string; url: string; requiresAdmin?: boolean; requiresRH?: boolean }[];
 };
 
@@ -105,6 +109,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
     title: 'OrigamiPonto',
     url: '/jornada',
     icon: Timer,
+    devOnly: true,
     children: [
       { title: 'Meu Ponto', url: '/jornada' },
       { title: 'Aprovações', url: '/jornada/aprovacoes', requiresAdmin: true },
@@ -137,6 +142,7 @@ export function AppSidebar() {
   const homeRoute = isAdmin ? '/admin-dashboard' : '/dashboard';
 
   const isVisible = (item: SidebarNavItem): boolean => {
+    if (item.devOnly && !import.meta.env.DEV) return false;
     if (item.requiresAdmin && !isAdmin) return false;
     if (item.requiresManager && !isManager && !isAdmin) return false;
     if (item.kind === 'link' && item.employeeOnly && (isManager || isAdmin)) return false;
