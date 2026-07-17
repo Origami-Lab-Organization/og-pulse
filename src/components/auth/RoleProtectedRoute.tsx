@@ -7,12 +7,14 @@ interface RoleProtectedRouteProps {
   children: ReactNode;
   requireManager?: boolean;
   requireAdmin?: boolean;
+  requireRH?: boolean;
 }
 
-const RoleProtectedRoute = ({ 
-  children, 
+const RoleProtectedRoute = ({
+  children,
   requireManager = false,
   requireAdmin = false,
+  requireRH = false,
 }: RoleProtectedRouteProps) => {
   const { user, employee, loading } = useAuth();
 
@@ -36,6 +38,11 @@ const RoleProtectedRoute = ({
   // Check if user has manager/admin access
   // is_gerente = true means the user is a manager or admin
   if (requireManager && !employee.is_gerente && !employee.isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Check if user has RH/admin access
+  if (requireRH && !employee.isRH) {
     return <Navigate to="/dashboard" replace />;
   }
 

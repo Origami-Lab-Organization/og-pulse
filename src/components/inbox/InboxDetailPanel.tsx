@@ -17,7 +17,8 @@ import {
   FolderKanban,
   Bell,
   RotateCcw,
-  ArrowRight
+  ArrowRight,
+  Timer
 } from "lucide-react";
 
 // Rótulo do botão de ação primária por tipo (usa action_url da notificação).
@@ -29,7 +30,14 @@ const typeActionLabel: Record<string, string> = {
   card_assigned: "Ver atividade",
   installment_nf_alert: "Ver projeto",
   installment_nf_alert_3d: "Ver projeto",
-  installment_payment_alert: "Ver projeto"
+  installment_payment_alert: "Ver projeto",
+  time_bank_negative: "Ver jornada",
+  overtime_limit_exceeded: "Ver jornada",
+  time_adjustment_pending: "Ver aprovações",
+  time_adjustment_decided: "Ver jornada",
+  time_tracking_closing_reminder: "Ver relatórios",
+  time_adjustment_stale_reminder: "Ver aprovações",
+  absence_period_registered: "Ver jornada"
 };
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -101,6 +109,20 @@ const statusBadge: Record<string, { label: string; className: string }> = {
     label: "Pagamento hoje",
     className:
       "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+  },
+  time_bank_negative: {
+    label: "Banco negativo",
+    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+  },
+  overtime_limit_exceeded: {
+    label: "Acima do limite",
+    className:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+  },
+  time_adjustment_pending: {
+    label: "Aguardando decisão",
+    className:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
   }
 };
 
@@ -168,6 +190,14 @@ const categoryConfig: Record<
     badge: "Férias",
     badgeClass:
       "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400"
+  },
+  jornada: {
+    bg: "bg-indigo-100 dark:bg-indigo-900/30",
+    text: "text-indigo-600 dark:text-indigo-400",
+    icon: Timer,
+    badge: "Jornada",
+    badgeClass:
+      "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
   }
 };
 

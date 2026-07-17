@@ -12,6 +12,7 @@ interface EmployeeData {
   is_gerente: boolean;
   must_change_password: boolean;
   isAdmin: boolean;
+  isRH: boolean;
   jornada_diaria: number;
 }
 
@@ -113,11 +114,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const roleSet = new Set((roles || []).map(r => r.role));
     const isAdmin = roleSet.has('admin');
     const isManager = roleSet.has('manager') || isAdmin;
+    const isRH = roleSet.has('rh') || isAdmin;
 
     const employeeData = {
       ...empData,
       is_gerente: isManager, // backward compat — will be removed once all refs migrated
       isAdmin,
+      isRH,
     } as EmployeeData;
     saveEmployeeSnapshot(userId, employeeData);
     return employeeData;

@@ -38,6 +38,11 @@ import AlocacaoPage from "./pages/AlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import Analytics from "./pages/Analytics";
 import MyTimesheet from "./pages/MyTimesheet";
+import Jornada from "./pages/Jornada";
+import JornadaConfiguracoes from "./pages/JornadaConfiguracoes";
+import JornadaAprovacoes from "./pages/JornadaAprovacoes";
+import JornadaRelatorios from "./pages/JornadaRelatorios";
+import JornadaAuditoria from "./pages/JornadaAuditoria";
 import CommercialDashboard from "./pages/CommercialDashboard";
 import Welcome from "./pages/Welcome";
 import Terms from "./pages/Terms";
@@ -138,6 +143,47 @@ const App = () => (
                   <ProtectedRoute>
                     <MyVacation />
                   </ProtectedRoute>
+                }
+              />
+              {/* Jornada - registro de ponto, todos os autenticados */}
+              <Route
+                path="/jornada"
+                element={
+                  <ProtectedRoute>
+                    <Jornada />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/jornada/configuracoes"
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <JornadaConfiguracoes />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/jornada/aprovacoes"
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <JornadaAprovacoes />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/jornada/relatorios"
+                element={
+                  <RoleProtectedRoute requireRH>
+                    <JornadaRelatorios />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/jornada/auditoria"
+                element={
+                  <RoleProtectedRoute requireRH>
+                    <JornadaAuditoria />
+                  </RoleProtectedRoute>
                 }
               />
               {/* Management routes - Manager or Admin */}

@@ -9,6 +9,7 @@ import {
   FolderOpen,
   ChevronDown,
   Database,
+  Timer,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
@@ -50,7 +51,7 @@ type GroupItem = {
   icon: React.ElementType;
   requiresManager?: boolean;
   requiresAdmin?: boolean;
-  children: { title: string; url: string; requiresAdmin?: boolean }[];
+  children: { title: string; url: string; requiresAdmin?: boolean; requiresRH?: boolean }[];
 };
 
 type SidebarNavItem = LinkItem | GroupItem;
@@ -86,6 +87,19 @@ const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Clientes', url: '/clients' },
     ],
   },
+  {
+    kind: 'group',
+    title: 'OrigamiPonto',
+    url: '/jornada',
+    icon: Timer,
+    children: [
+      { title: 'Meu Ponto', url: '/jornada' },
+      { title: 'Aprovações', url: '/jornada/aprovacoes', requiresAdmin: true },
+      { title: 'Relatórios', url: '/jornada/relatorios', requiresRH: true },
+      { title: 'Auditoria', url: '/jornada/auditoria', requiresRH: true },
+      { title: 'Configurações', url: '/jornada/configuracoes', requiresAdmin: true },
+    ],
+  },
 ];
 
 function isChildActive(url: string, pathname: string) {
@@ -105,6 +119,7 @@ export function AppSidebar() {
 
   const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
+  const isRH = employee?.isRH ?? false;
 
   const homeRoute = isAdmin ? '/admin-dashboard' : '/dashboard';
 
@@ -222,7 +237,10 @@ export function AppSidebar() {
                       </CollapsibleTrigger>
                       <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
                         <SidebarMenuSub>
-                          {item.children.filter((child) => !child.requiresAdmin || isAdmin).map((child) => (
+                          {item.children
+                            .filter((child) => !child.requiresAdmin || isAdmin)
+                            .filter((child) => !child.requiresRH || isRH)
+                            .map((child) => (
                             <SidebarMenuSubItem key={child.url}>
                               <SidebarMenuSubButton
                                 asChild
