@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Trash2, UserMinus, UserPlus, UserCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, MoreHorizontal, Trash2, UserMinus, UserPlus, UserCheck } from 'lucide-react';
+import { useHolidays } from '@/hooks/useHolidays';
+import { countWorkingDays } from '@/lib/workingDays';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -78,11 +80,29 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
 
   const today = useMemo(() => new Date(), []);
   const currentMonthIndex = today.getFullYear() * 12 + today.getMonth();
+  const { data: holidays = [] } = useHolidays();
 
   const months: ProjectMonth[] = useMemo(() => {
     if (project.is_continuous) return buildRollingMonths(today, offsetStart, 10);
     return buildProjectMonths(project.start_date, project.end_date);
   }, [project.is_continuous, project.start_date, project.end_date, offsetStart, today]);
+
+  // Dias úteis por mês (cabeçalho no padrão /alocacao: "MÊS · Xd"; no mês vigente,
+  // "hoje · dia útil X de Y").
+  const monthMeta = useMemo(() => {
+    const meta: Record<string, { workingDays: number; elapsed: number; isCurrent: boolean }> = {};
+    months.forEach((m) => {
+      const start = new Date(m.year, m.month - 1, 1);
+      const end = new Date(m.year, m.month, 0);
+      const isCurrent = m.year * 12 + (m.month - 1) === currentMonthIndex;
+      meta[monthKey(m.year, m.month)] = {
+        workingDays: countWorkingDays(start, end, holidays),
+        elapsed: isCurrent ? countWorkingDays(start, today, holidays) : 0,
+        isCurrent,
+      };
+    });
+    return meta;
+  }, [months, holidays, today, currentMonthIndex]);
 
   const activeRows = rows.filter((r) => r.kind === 'member');
   const vacancyRows = rows.filter((r) => r.kind === 'vacancy');
@@ -193,6 +213,9 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
                 <span className="ml-1.5 text-[10px] font-semibold normal-case text-primary-deep">você</span>
               )}
             </p>
+            {row.kind !== 'vacancy' && row.employee?.cargo && (
+              <p className="truncate text-[11px] text-muted-foreground">{row.employee.cargo}</p>
+            )}
             <div className="flex items-center gap-1 truncate text-xs text-muted-foreground">
               {row.kind !== 'vacancy' && <span className="truncate">{row.roleName}</span>}
               {row.isUnbudgeted && (
@@ -201,7 +224,11 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
                 </Badge>
               )}
               {row.kind === 'deallocated' && (
-                <span className="shrink-0 text-[10px]">Desalocado</span>
+                <Badge variant="outline" className="shrink-0 border-transparent bg-muted px-1.5 py-0 text-[10px] text-muted-foreground">
+                  {row.deallocatedAt
+                    ? `Desalocado em ${new Date(row.deallocatedAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
+                    : 'Desalocado'}
+                </Badge>
               )}
             </div>
           </div>
@@ -272,14 +299,32 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
 
   return (
     <div className="space-y-3">
-      {project.is_continuous && (
-        <div className="flex items-center justify-end gap-1">
-          <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setOffsetStart((v) => v - 1)}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setOffsetStart((v) => v + 1)}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {(deallocatedRows.length > 0 || project.is_continuous) && (
+        <div className="flex items-center justify-between gap-2">
+          {deallocatedRows.length > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDeallocated((v) => !v)}
+              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              {showDeallocated ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {showDeallocated ? 'Ocultar' : 'Mostrar'} desalocados · {deallocatedRows.length}
+            </Button>
+          ) : (
+            <span />
+          )}
+          {project.is_continuous && (
+            <div className="flex items-center gap-1">
+              <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setOffsetStart((v) => v - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setOffsetStart((v) => v + 1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -291,16 +336,24 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
                 <span className="ol-label text-muted-foreground">Equipe</span>
               </th>
               {months.map((m) => {
-                const isCurrent = m.year * 12 + (m.month - 1) === currentMonthIndex;
+                const meta = monthMeta[monthKey(m.year, m.month)];
                 return (
                   <th key={monthKey(m.year, m.month)} className="w-[120px] border-b border-r bg-muted p-2 text-left last:border-r-0">
                     <span className="block text-xs font-semibold uppercase tracking-normal text-foreground">
                       {m.label.replace('.', '')}
-                      {isCurrent && <span className="ml-1 text-[10px] font-semibold normal-case text-primary-deep">hoje</span>}
+                      <span className="ml-1 font-mono text-[10px] font-normal normal-case tabular-nums text-muted-foreground">
+                        · {meta?.workingDays ?? 0}d
+                      </span>
                     </span>
-                    <span className="mt-0.5 block text-[10px] font-normal normal-case text-muted-foreground">
-                      planejado / realizado
-                    </span>
+                    {meta?.isCurrent ? (
+                      <span className="mt-0.5 block text-[10px] font-semibold normal-case text-primary-deep">
+                        hoje · dia útil {meta.elapsed} de {meta.workingDays}
+                      </span>
+                    ) : (
+                      <span className="mt-0.5 block text-[10px] font-normal normal-case text-muted-foreground">
+                        planejado / realizado
+                      </span>
+                    )}
                   </th>
                 );
               })}
@@ -316,20 +369,6 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
             )}
             {activeRows.map(renderRow)}
             {vacancyRows.map(renderRow)}
-            {deallocatedRows.length > 0 && (
-              <tr>
-                <td colSpan={months.length + 1} className="border-t bg-muted/30 p-0">
-                  <button
-                    type="button"
-                    onClick={() => setShowDeallocated((v) => !v)}
-                    className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showDeallocated && 'rotate-180')} />
-                    {deallocatedRows.length} desalocado{deallocatedRows.length > 1 ? 's' : ''}
-                  </button>
-                </td>
-              </tr>
-            )}
             {showDeallocated && deallocatedRows.map(renderRow)}
           </tbody>
           <tfoot>

@@ -1,5 +1,6 @@
 import { PayrollProfile, DEFAULT_PAYROLL_PROFILE } from '@/types/payrollProfile';
 import { ContractType } from '@/types/employee';
+import { calculateINSS } from '@/lib/netSalaryCalculator';
 
 export interface CostCalculationInput {
   tipoContratacao: ContractType;
@@ -20,7 +21,12 @@ export interface CostBreakdownDetails {
   rat: number;
   terceiros: number;
   outros: number;
-  
+
+  // INSS retido do funcionário (tabela progressiva) — não é encargo do
+  // empregador, é descontado do próprio salário bruto e recolhido pela
+  // empresa; exibido à parte para não duplicar no custo total.
+  inssFuncionario: number;
+
   // Provisões detalhadas
   provisao13: number;           // 13º salário (salário / 12)
   provisaoFeriasBase: number;   // Férias base (salário / 12)
@@ -31,6 +37,8 @@ export interface CostBreakdownDetails {
   // Encargos sobre provisões (detalhados)
   fgts13: number;               // FGTS sobre 13º
   fgtsFerias: number;           // FGTS sobre férias + 1/3
+  inss13: number;               // INSS patronal sobre 13º
+  inssFerias: number;           // INSS patronal sobre férias + 1/3
   encargos13: number;           // Total encargos 13º
   encargosFerias: number;       // Total encargos férias
 }
@@ -87,6 +95,7 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
     rat: 0,
     terceiros: 0,
     outros: 0,
+    inssFuncionario: 0,
     // Provisões detalhadas
     provisao13: 0,
     provisaoFeriasBase: 0,
@@ -96,6 +105,8 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
     // Encargos sobre provisões
     fgts13: 0,
     fgtsFerias: 0,
+    inss13: 0,
+    inssFerias: 0,
     encargos13: 0,
     encargosFerias: 0,
   };
@@ -114,6 +125,7 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
       details.rat = baseAmount * profile.ratRate;
       details.terceiros = baseAmount * profile.terceirosRate;
       details.outros = baseAmount * profile.outrosRate;
+      details.inssFuncionario = calculateINSS(baseAmount).total;
 
       // Provisões detalhadas
       details.provisao13 = baseAmount / 12;
@@ -121,9 +133,11 @@ export function calculateEmployeeCost(input: CostCalculationInput): CostBreakdow
       details.provisaoFeriasTerco = details.provisaoFeriasBase / 3;
       details.provisaoFerias = details.provisaoFeriasBase + details.provisaoFeriasTerco;
 
-      // FGTS sobre provisões (separado para exibição)
+      // FGTS e INSS patronal sobre provisões (separados para exibição)
       details.fgts13 = profile.applyFgtsOn13th ? details.provisao13 * fgtsRate : 0;
       details.fgtsFerias = profile.applyFgtsOnVacation ? details.provisaoFerias * fgtsRate : 0;
+      details.inss13 = profile.applyInssOn13th ? details.provisao13 * profile.inssPatronalRate : 0;
+      details.inssFerias = profile.applyInssOnVacation ? details.provisaoFerias * profile.inssPatronalRate : 0;
 
       // Encargos totais sobre provisões
       const rates13 = sum13thApplicableRates(profile, fgtsRate);

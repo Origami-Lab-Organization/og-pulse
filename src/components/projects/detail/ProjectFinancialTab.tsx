@@ -1,33 +1,47 @@
 import { useMemo } from 'react';
-import { DollarSign, Target, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { getProjectMonthLabel } from '@/lib/formatters';
-import { useMaskedCurrency, useMaskedPercent, useHideValues } from '@/contexts/HideValuesContext';
-import { ProjectKPIBar } from './ProjectKPIBar';
-import { ProjectFinancialChart } from './ProjectFinancialChart';
-import { ProjectTrendChart } from './ProjectTrendChart';
+import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
 import { ProjectInstallmentsTable } from '@/components/projects/ProjectInstallmentsTable';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
 import { useProjectCostItems } from '@/hooks/useProjectCostItems';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
-import { parseISO, differenceInMonths, startOfMonth, addMonths } from 'date-fns';
+import {
+  parseISO,
+  differenceInMonths,
+  differenceInCalendarDays,
+  startOfMonth,
+  addMonths,
+} from 'date-fns';
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
 import { useHolidays } from '@/hooks/useHolidays';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import { FinancialKpiCards } from './financial/FinancialKpiCards';
+import { ProjectPnLBridge } from './financial/ProjectPnLBridge';
+import {
+  ProjectContractCurveChart,
+  ContractCurvePoint,
+} from './financial/ProjectContractCurveChart';
+import { FinancialAlertBanner } from './financial/FinancialAlertBanner';
 
 interface ProjectFinancialTabProps {
   project: ProjectWithRelations;
   isReadOnly?: boolean;
   canManageInstallments?: boolean;
+  onNavigateToTab?: (tab: string) => void;
 }
 
-export function ProjectFinancialTab({ project, isReadOnly = false, canManageInstallments = false }: ProjectFinancialTabProps) {
+export function ProjectFinancialTab({
+  project,
+  isReadOnly = false,
+  canManageInstallments = false,
+  onNavigateToTab,
+}: ProjectFinancialTabProps) {
   const formatCurrency = useMaskedCurrency();
-  const formatPercent = useMaskedPercent();
   const hideValues = useHideValues();
   const memberIds = useMemo(
     () => (project.members || []).map((m) => m.id),
@@ -97,7 +111,7 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     }, 0);
 
     // Custos extras (fornecedores, materiais, etc.) vêm da fonte unificada
-    // `project_costs` — mesma origem usada pela aba Custos.
+    // `project_costs` — mesma origem usada pela aba Despesas.
     const extraPlanned = projectCosts.reduce(
       (sum, cost) => sum + Number(cost.planned_amount_brl || 0),
       0,
@@ -142,26 +156,22 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
       ? (budget.commission_percent / 100) * budget.total_with_fees
       : 0;
     const commissionActual = commissions.filter((c) => c.is_paid).reduce((s, c) => s + Number(c.planned_value), 0);
-    const commissionExecuted = commissionPlanned > 0 ? (commissionActual / commissionPlanned) * 100 : 0;
 
     const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - commissionPlanned - costPlanned) / revenuePlanned) * 100 : 0;
     const marginActual = revenueActual > 0 ? ((revenueActual - commissionActual - costActual) / revenueActual) * 100 : 0;
-    const marginVar = marginActual - marginPlanned;
 
     return {
       revenuePlanned, revenueActual, revenueExecuted,
-      commissionPlanned, commissionActual, commissionExecuted,
+      commissionPlanned, commissionActual,
       costPlanned, costActual, costExecuted,
-      marginPlanned, marginActual, marginVar,
+      marginPlanned, marginActual,
     };
-  }, [project, costData, financialSettings, budget, commissions]);
+  }, [project, costData, budget, commissions]);
 
-  // Monthly chart data
+  // Custos planejado/realizado por mês do projeto (mesma origem da aba Despesas).
   const monthlyChartData = useMemo(() => {
     const startDate = parseISO(project.start_date);
 
-    // Mapeia custos extras (fornecedores/materiais) por mês do projeto,
-    // usando a mesma fonte unificada da aba Custos.
     const extraPlannedByMonth = new Map<number, number>();
     const extraActualByMonth = new Map<number, number>();
     projectCosts.forEach((cost) => {
@@ -212,7 +222,6 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     return Array.from({ length: projectDuration }, (_, i) => {
       const monthNum = i + 1;
 
-      // Planned labor for this month
       const laborPlanMonthDate = addMonths(startOfMonth(startDate), monthNum - 1);
       const laborPlan = plannedLaborFromAllocations.hasRoleAllocations
         ? plannedLaborFromAllocations.byMonth.get(monthNum) || 0
@@ -226,7 +235,6 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
             return acc + hourlyCost * hours;
           }, 0);
 
-      // Actual labor for this month (map timesheet dates to project month)
       const monthStart = startOfMonth(addMonths(startDate, i));
       const monthEnd = startOfMonth(addMonths(startDate, i + 1));
       const laborReal = (project.members || []).reduce((acc, member) => {
@@ -263,48 +271,175 @@ export function ProjectFinancialTab({ project, isReadOnly = false, canManageInst
     plannedLaborFromAllocations.hasRoleAllocations,
   ]);
 
+  // Mês corrente do projeto (1-based), limitado à duração.
+  const currentMonthIndex = useMemo(() => {
+    const start = startOfMonth(parseISO(project.start_date));
+    const elapsed = differenceInMonths(startOfMonth(new Date()), start) + 1;
+    return Math.min(Math.max(elapsed, 1), projectDuration);
+  }, [project.start_date, projectDuration]);
+
+  // Receita por mês do projeto (planejada = todas as parcelas; realizada = recebidas).
+  const revenueByMonth = useMemo(() => {
+    const start = startOfMonth(parseISO(project.start_date));
+    const actual = new Array(projectDuration).fill(0);
+    const planned = new Array(projectDuration).fill(0);
+    (project.installments || []).forEach((inst) => {
+      const monthNum = Math.min(
+        Math.max(differenceInMonths(startOfMonth(parseISO(inst.due_date)), start) + 1, 1),
+        projectDuration,
+      );
+      planned[monthNum - 1] += Number(inst.value);
+      if (inst.status === 'received') actual[monthNum - 1] += Number(inst.value);
+    });
+    return { actual, planned };
+  }, [project.installments, project.start_date, projectDuration]);
+
+  // Forecast (EAC): custo incorrido até hoje + plano restante (burn-rate).
+  const forecast = useMemo(() => {
+    const costActualToday = monthlyChartData
+      .slice(0, currentMonthIndex)
+      .reduce((a, d) => a + d.realizado, 0);
+    const plannedRemaining = monthlyChartData
+      .slice(currentMonthIndex)
+      .reduce((a, d) => a + d.planejado, 0);
+    const forecastCost = costActualToday + plannedRemaining;
+    const forecastMargin = kpiData.revenuePlanned > 0
+      ? ((kpiData.revenuePlanned - kpiData.commissionPlanned - forecastCost) / kpiData.revenuePlanned) * 100
+      : 0;
+    return { forecastCost, forecastMargin };
+  }, [monthlyChartData, currentMonthIndex, kpiData.revenuePlanned, kpiData.commissionPlanned]);
+
+  // Curva acumulada receita × custo (sólido até hoje, tracejado na projeção).
+  const curveData = useMemo<ContractCurvePoint[]>(() => {
+    const revActualToday = revenueByMonth.actual
+      .slice(0, currentMonthIndex)
+      .reduce((a, b) => a + b, 0);
+    const costActualToday = monthlyChartData
+      .slice(0, currentMonthIndex)
+      .reduce((a, d) => a + d.realizado, 0);
+    let revA = 0;
+    let costA = 0;
+    let revProj = revActualToday;
+    let costProj = costActualToday;
+    return monthlyChartData.map((d, i) => {
+      const monthNum = i + 1;
+      revA += revenueByMonth.actual[i] || 0;
+      costA += d.realizado;
+      if (monthNum > currentMonthIndex) {
+        revProj += revenueByMonth.planned[i] || 0;
+        costProj += d.planejado;
+      }
+      const isPast = monthNum <= currentMonthIndex;
+      const atToday = monthNum === currentMonthIndex;
+      return {
+        name: d.name,
+        revenue: isPast ? revA : null,
+        cost: isPast ? costA : null,
+        revenueProj: monthNum >= currentMonthIndex ? (atToday ? revActualToday : revProj) : null,
+        costProj: monthNum >= currentMonthIndex ? (atToday ? costActualToday : costProj) : null,
+      };
+    });
+  }, [monthlyChartData, revenueByMonth, currentMonthIndex]);
+
+  const todayLabel = monthlyChartData[currentMonthIndex - 1]?.name ?? null;
+
+  // Alertas reais (único uso de vermelho nesta aba).
+  const alerts = useMemo(() => {
+    const list: string[] = [];
+    const today = new Date();
+    (project.installments || []).forEach((inst) => {
+      const days = differenceInCalendarDays(today, parseISO(inst.due_date));
+      const overdue = inst.status === 'overdue' || (inst.status !== 'received' && days > 0);
+      if (overdue && days > 0) {
+        list.push(`Parcela ${inst.installment_number} vencida há ${days} ${days === 1 ? 'dia' : 'dias'}`);
+      }
+    });
+    if (marginTarget > 0 && forecast.forecastMargin < marginTarget) {
+      list.push(
+        `Margem projetada (${forecast.forecastMargin.toFixed(0)}%) abaixo da meta (${marginTarget.toFixed(0)}%)`,
+      );
+    }
+    return list;
+  }, [project.installments, forecast.forecastMargin, marginTarget]);
+
+  // Resumo de faturamento (rodapé da tabela de parcelas).
+  const revenueGap = Math.max(0, kpiData.revenuePlanned - kpiData.revenueActual);
+  const pendingCount = (project.installments || []).filter((i) => i.status !== 'received').length;
+  const marginGapPp = forecast.forecastMargin - marginTarget;
+
+  const insight = hideValues
+    ? 'Projeção de fechamento com base no ritmo atual.'
+    : `No ritmo atual, o projeto fecha com margem de ${forecast.forecastMargin.toFixed(0)}% — ${Math.abs(marginGapPp).toFixed(0)}pp ${marginGapPp >= 0 ? 'acima' : 'abaixo'} da meta. Gap de faturamento: ${formatCurrency(revenueGap)} a emitir (${pendingCount} ${pendingCount === 1 ? 'parcela' : 'parcelas'}).`;
+
   return (
-    <div className="space-y-6">
-      {/* KPI Bar — mesmo padrão da aba Custos */}
-      <ProjectKPIBar
-        revenuePlanned={kpiData.revenuePlanned}
+    <div className="space-y-3">
+      <FinancialKpiCards
         revenueActual={kpiData.revenueActual}
+        revenuePlanned={kpiData.revenuePlanned}
         revenueExecuted={kpiData.revenueExecuted}
-        commissionPlanned={kpiData.commissionPlanned}
-        commissionActual={kpiData.commissionActual}
-        commissionExecuted={kpiData.commissionExecuted}
-        costPlanned={kpiData.costPlanned}
         costActual={kpiData.costActual}
+        costPlanned={kpiData.costPlanned}
         costExecuted={kpiData.costExecuted}
-        marginPlanned={kpiData.marginPlanned}
         marginActual={kpiData.marginActual}
-        marginVar={kpiData.marginVar}
+        marginPlanned={kpiData.marginPlanned}
         marginTarget={marginTarget}
+        forecastMargin={forecast.forecastMargin}
+        forecastCost={forecast.forecastCost}
+        onNavigateToExpenses={onNavigateToTab ? () => onNavigateToTab('costs') : undefined}
       />
 
-      {/* Installments Table */}
+      <div className="grid gap-3 lg:grid-cols-[1.05fr_1.5fr]">
+        <ProjectPnLBridge
+          contract={kpiData.revenuePlanned}
+          commission={kpiData.commissionPlanned}
+          labor={costData.laborPlanned}
+          other={costData.extraPlanned}
+        />
+        <ProjectContractCurveChart
+          data={curveData}
+          contractValue={kpiData.revenuePlanned}
+          todayLabel={todayLabel}
+          insight={insight}
+        />
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Parcelas / Faturamento</CardTitle>
+          <CardTitle className="text-base">Parcelas / Faturamento</CardTitle>
           <CardDescription>
             Gerencie a emissão de NF e registre os recebimentos do projeto
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <ProjectInstallmentsTable
             installments={project.installments || []}
             projectId={project.id}
             isManualInstallments={project.service_line === 'financiamento_inovacao'}
             canManageInstallments={canManageInstallments}
           />
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs">
+            <span className="text-muted-foreground">
+              Σ contrato{' '}
+              <b className="font-mono tabular-nums text-foreground">
+                {formatCurrency(kpiData.revenuePlanned)}
+              </b>{' '}
+              · recebido{' '}
+              <b className="font-mono tabular-nums text-primary-deep">
+                {formatCurrency(kpiData.revenueActual)}
+              </b>
+            </span>
+            <span className="text-muted-foreground">
+              a emitir:{' '}
+              <b className="font-mono tabular-nums text-foreground">
+                {formatCurrency(revenueGap)}
+              </b>{' '}
+              ({pendingCount} {pendingCount === 1 ? 'parcela' : 'parcelas'})
+            </span>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Charts */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ProjectFinancialChart data={monthlyChartData} />
-        <ProjectTrendChart data={monthlyChartData} budgetLine={Number(project.total_value || 0)} />
-      </div>
+      <FinancialAlertBanner alerts={alerts} />
     </div>
   );
 }

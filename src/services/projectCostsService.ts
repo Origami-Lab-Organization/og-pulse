@@ -28,16 +28,26 @@ interface ProjectCostCategoryRow {
   cost_date: string | null;
   actual_amount: number | null;
   actual_amount_brl: number | null;
+  planned_amount: number | null;
+  planned_amount_brl: number | null;
   month_number: number | null;
   project: { start_date: string } | { start_date: string }[] | null;
-  months: { month_number: number; actual_value: number | null; invoice_date: string | null }[] | null;
+  months: { month_number: number; actual_value: number | null; planned_value: number | null; invoice_date: string | null }[] | null;
+}
+
+export interface CategoryCostsByMonth {
+  /** Já lançado (com data real / nota). */
+  actuals: CategoryCostActual[];
+  /** Ainda não lançado — atrasado (mês já passou) ou futuro. Nunca inclui o que já virou actual. */
+  planned: CategoryCostActual[];
 }
 
 /**
- * Lê os custos REALIZADOS de project_costs por categoria e reconhece cada valor no
- * mês de calendário do ano-alvo (mesma regra de resolveCostMonthIndex já usada para
- * fornecedores): recorrente → project_cost_months (data da nota, senão mês relativo ao
- * projeto); avulso → cost_date. Prefere o valor canônico em BRL quando disponível.
+ * Lê os custos de project_costs por categoria, separando REALIZADO (com data real / nota)
+ * de PREVISTO (ainda sem actual_amount/actual_value lançado — atrasado ou futuro).
+ * Reconhecimento: recorrente → project_cost_months (realizado pela data da nota, previsto
+ * sempre pelo mês relativo ao projeto); avulso → cost_date (realizado) ou mês relativo
+ * (previsto). Prefere o valor canônico em BRL quando disponível.
  *
  * Complementa fetchSuppliersWithActuals/fetchMaterials — passe apenas as categorias
  * ainda não agregadas (subscription/equipment_rental/travel/other) para evitar dupla
@@ -47,13 +57,13 @@ export async function fetchProjectCostsRealizedByCategory(
   projectIds: string[],
   targetYear: number,
   categories?: ProjectCostCategory[],
-): Promise<CategoryCostActual[]> {
-  if (projectIds.length === 0) return [];
+): Promise<CategoryCostsByMonth> {
+  if (projectIds.length === 0) return { actuals: [], planned: [] };
 
   let query = supabase
     .from('project_costs')
     .select(
-      'project_id, category, is_recurring, cost_date, actual_amount, actual_amount_brl, month_number, project:projects(start_date), months:project_cost_months(month_number, actual_value, invoice_date)',
+      'project_id, category, is_recurring, cost_date, actual_amount, actual_amount_brl, planned_amount, planned_amount_brl, month_number, project:projects(start_date), months:project_cost_months(month_number, actual_value, planned_value, invoice_date)',
     )
     .is('deleted_at', null)
     .in('project_id', projectIds);
@@ -61,7 +71,8 @@ export async function fetchProjectCostsRealizedByCategory(
 
   const { data } = await query;
   const rows = (data ?? []) as unknown as ProjectCostCategoryRow[];
-  const out: CategoryCostActual[] = [];
+  const actuals: CategoryCostActual[] = [];
+  const planned: CategoryCostActual[] = [];
 
   for (const row of rows) {
     const project = Array.isArray(row.project) ? row.project[0] : row.project;
@@ -69,30 +80,49 @@ export async function fetchProjectCostsRealizedByCategory(
 
     if (row.is_recurring) {
       for (const m of row.months ?? []) {
-        if (m.actual_value == null) continue;
-        const idx = resolveCostMonthIndex({
-          realDate: m.invoice_date,
-          projectStartDate: projectStartDate ?? '',
-          monthNumber: m.month_number,
-          targetYear,
-        });
-        if (idx != null) out.push({ project_id: row.project_id, category: row.category, monthIndex: idx, value: Number(m.actual_value) });
+        if (m.actual_value != null) {
+          const idx = resolveCostMonthIndex({
+            realDate: m.invoice_date,
+            projectStartDate: projectStartDate ?? '',
+            monthNumber: m.month_number,
+            targetYear,
+          });
+          if (idx != null) actuals.push({ project_id: row.project_id, category: row.category, monthIndex: idx, value: Number(m.actual_value) });
+        } else if (m.planned_value != null) {
+          const idx = resolveCostMonthIndex({
+            projectStartDate: projectStartDate ?? '',
+            monthNumber: m.month_number,
+            targetYear,
+          });
+          if (idx != null) planned.push({ project_id: row.project_id, category: row.category, monthIndex: idx, value: Number(m.planned_value) });
+        }
       }
       continue;
     }
 
     const actual = row.actual_amount_brl ?? row.actual_amount;
-    if (actual == null) continue;
+    if (actual != null) {
+      const idx = resolveCostMonthIndex({
+        realDate: row.cost_date,
+        projectStartDate: projectStartDate ?? '',
+        monthNumber: row.month_number ?? 1,
+        targetYear,
+      });
+      if (idx != null) actuals.push({ project_id: row.project_id, category: row.category, monthIndex: idx, value: Number(actual) });
+      continue;
+    }
+
+    const plannedVal = row.planned_amount_brl ?? row.planned_amount;
+    if (plannedVal == null) continue;
     const idx = resolveCostMonthIndex({
-      realDate: row.cost_date,
       projectStartDate: projectStartDate ?? '',
       monthNumber: row.month_number ?? 1,
       targetYear,
     });
-    if (idx != null) out.push({ project_id: row.project_id, category: row.category, monthIndex: idx, value: Number(actual) });
+    if (idx != null) planned.push({ project_id: row.project_id, category: row.category, monthIndex: idx, value: Number(plannedVal) });
   }
 
-  return out;
+  return { actuals, planned };
 }
 
 /**
@@ -186,14 +216,14 @@ function supplierActuals(row: SupplierCostRow): SupplierMonthValue[] {
   return [{ month_number: dateToProjectMonth(row.project.start_date, row.cost_date), value: Number(row.actual_amount) }];
 }
 
-/** Planejados por mês de um custo de fornecedor. */
+/** Ainda não realizados por mês de um custo de fornecedor (saldo em aberto: atrasado ou futuro). */
 function supplierPlanned(row: SupplierCostRow): SupplierMonthValue[] {
   if (row.is_recurring) {
     return (row.months ?? [])
-      .filter((m) => m.planned_value != null)
+      .filter((m) => m.planned_value != null && m.actual_value == null)
       .map((m) => ({ month_number: m.month_number, value: Number(m.planned_value) }));
   }
-  if (!row.cost_date || !row.project?.start_date) return [];
+  if (row.actual_amount != null || !row.cost_date || !row.project?.start_date) return [];
   return [{ month_number: dateToProjectMonth(row.project.start_date, row.cost_date), value: Number(row.planned_amount) }];
 }
 

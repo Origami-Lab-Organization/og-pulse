@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Database,
   Timer,
+  Users,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
@@ -73,6 +74,18 @@ const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Alocações', url: '/analises/alocacoes' },
       { title: 'Financeiro', url: '/analises/financeiro' },
       { title: 'Comercial', url: '/analises/comercial' },
+      { title: 'Custo x Hora', url: '/analises/custo-hora', requiresAdmin: true },
+    ],
+  },
+  {
+    kind: 'group',
+    title: 'Pessoas',
+    url: '/analises/folha-pagamento',
+    icon: Users,
+    requiresAdmin: true,
+    children: [
+      { title: 'Folha de Pagamento', url: '/analises/folha-pagamento' },
+      { title: 'Desligamentos', url: '/rh/desligamentos' },
     ],
   },
   {

@@ -3,7 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
@@ -37,6 +38,8 @@ import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import Analytics from "./pages/Analytics";
+import PayrollAnalysis from "./pages/PayrollAnalysis";
+import CostPerHourAnalysis from "./pages/CostPerHourAnalysis";
 import MyTimesheet from "./pages/MyTimesheet";
 import Jornada from "./pages/Jornada";
 import JornadaConfiguracoes from "./pages/JornadaConfiguracoes";
@@ -63,6 +66,7 @@ import MyVacation from "./pages/MyVacation";
 import VacationManagement from "./pages/VacationManagement";
 import Dashboard from "./pages/Dashboard";
 import DashboardRouter from "./pages/DashboardRouter";
+import SiteUnderConstruction from "./pages/SiteUnderConstruction";
 import { PwaRouteGuard } from "@/components/pwa/PwaRouteGuard";
 import { InstallPwaBanner } from "@/components/pwa/InstallPwaBanner";
 
@@ -73,6 +77,42 @@ const queryClient = new QueryClient({
 function RedirectAlocacaoEmployee() {
   const { employeeId } = useParams();
   return <Navigate to={`/analises/alocacoes/${employeeId}`} replace />;
+}
+
+/**
+ * Domínios institucionais que devem exibir a página pública "Em construção"
+ * na raiz em vez de redirecionar para login/dashboard.
+ */
+const INSTITUTIONAL_HOSTS = ["origamipulse.com.br", "www.origamipulse.com.br"];
+
+/**
+ * Destino da raiz "/". No domínio institucional exibe a página pública
+ * "Em construção" apenas para visitantes não autenticados; quem já está
+ * logado (ex.: após login) segue o HomeRedirect para o dashboard do seu
+ * nível. Nos demais domínios mantém sempre o fluxo autenticado.
+ */
+function RootEntry() {
+  const { user, loading } = useAuth();
+  const isInstitutional = INSTITUTIONAL_HOSTS.includes(window.location.hostname);
+
+  if (isInstitutional) {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+    if (!user) {
+      return <SiteUnderConstruction />;
+    }
+  }
+
+  return (
+    <ProtectedRoute>
+      <HomeRedirect />
+    </ProtectedRoute>
+  );
 }
 
 const App = () => (
@@ -87,6 +127,7 @@ const App = () => (
               <InstallPwaBanner />
               <PwaRouteGuard>
                 <Routes>
+              <Route path="/em-construcao" element={<SiteUnderConstruction />} />
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Navigate to="/login" replace />} />
@@ -116,7 +157,7 @@ const App = () => (
                 }
               />
               {/* Root redirect — admin → /dashboard, demais → /inbox */}
-              <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
+              <Route path="/" element={<RootEntry />} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route
                 path="/admin-dashboard"
@@ -298,6 +339,22 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <CommercialDashboard />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/analises/folha-pagamento"
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <PayrollAnalysis />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/analises/custo-hora"
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <CostPerHourAnalysis />
                   </RoleProtectedRoute>
                 }
               />

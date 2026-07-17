@@ -1,7 +1,40 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectAllocationWithEmployee, ProjectTeamRowDB } from '@/types/equipe.types';
+import { AllocationMarginImpact, SimulationMonth } from '@/types/equipe.types';
 
 export const equipeService = {
+  /**
+   * Simulação de impacto na margem de uma alocação em composição (aba Equipe v2).
+   * Chama a RPC server-side, que devolve APENAS agregados — nenhum campo salarial
+   * bruto trafega para o cliente. RLS: admin OU manager_id do projeto.
+   */
+  async simulateAllocationImpact(
+    projectId: string,
+    employeeId: string,
+    months: SimulationMonth[],
+  ): Promise<AllocationMarginImpact | null> {
+    const { data, error } = await supabase.rpc('simulate_allocation_margin_impact' as any, {
+      p_project_id: projectId,
+      p_employee_id: employeeId,
+      p_months: months,
+    } as any);
+    if (error) throw error;
+    const row = Array.isArray(data) ? (data[0] as any) : (data as any);
+    if (!row) return null;
+    return {
+      custoEstimado: Number(row.custo_estimado ?? 0),
+      horasTotal: Number(row.horas_total ?? 0),
+      custoHoraMedio: Number(row.custo_hora_medio ?? 0),
+      margemAtual: row.margem_atual == null ? null : Number(row.margem_atual),
+      margemSimulada: row.margem_simulada == null ? null : Number(row.margem_simulada),
+      margemBaseline: row.margem_baseline == null ? null : Number(row.margem_baseline),
+      deltaPp: row.delta_pp == null ? null : Number(row.delta_pp),
+      tolPp: Number(row.tol_pp ?? 3),
+      verdict: (row.verdict ?? null) as AllocationMarginImpact['verdict'],
+      hasBaseline: Boolean(row.has_baseline),
+      isNonRevenue: Boolean(row.is_non_revenue),
+    };
+  },
   async getProjectAllocations(projectId: string, includeCost: boolean): Promise<ProjectAllocationWithEmployee[]> {
     const columns = [
       'id',

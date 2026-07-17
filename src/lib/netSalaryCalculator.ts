@@ -1,4 +1,4 @@
-// Tabela INSS 2024 - Progressivo
+// Tabela INSS - Progressivo
 interface INSSBracket {
   min: number;
   max: number;
@@ -13,16 +13,16 @@ interface IRRFBracket {
   deduction: number;
 }
 
-// Faixas INSS 2024 (progressivo)
+// Faixas INSS (progressivo)
 const INSS_BRACKETS: INSSBracket[] = [
-  { min: 0, max: 1412.00, rate: 0.075 },
-  { min: 1412.01, max: 2666.68, rate: 0.09 },
-  { min: 2666.69, max: 4000.03, rate: 0.12 },
-  { min: 4000.04, max: 7786.02, rate: 0.14 },
+  { min: 0, max: 1621.00, rate: 0.075 },
+  { min: 1621.01, max: 2902.84, rate: 0.09 },
+  { min: 2902.85, max: 4354.27, rate: 0.12 },
+  { min: 4354.28, max: 8475.55, rate: 0.14 },
 ];
 
-// Teto INSS 2024
-export const INSS_CEILING = 908.86;
+// Teto INSS (soma do valor máximo de cada faixa)
+export const INSS_CEILING = 988.09;
 
 // Faixas IRRF 2024
 const IRRF_BRACKETS: IRRFBracket[] = [
@@ -59,7 +59,7 @@ export interface NetSalaryBreakdown {
 }
 
 /**
- * Calcula INSS do empregado usando tabela progressiva 2024
+ * Calcula INSS do empregado usando tabela progressiva
  * Cada faixa é calculada sobre a diferença entre os limites
  */
 export function calculateINSS(salarioBruto: number): { total: number; breakdown: INSSBreakdown } {
@@ -78,8 +78,8 @@ export function calculateINSS(salarioBruto: number): { total: number; breakdown:
   let remaining = salarioBruto;
   let total = 0;
 
-  // Faixa 1: até 1.412,00 - 7,5%
-  const bracket1Max = 1412.00;
+  // Faixa 1: até 1.621,00 - 7,5%
+  const bracket1Max = 1621.00;
   if (remaining > 0) {
     const taxable = Math.min(remaining, bracket1Max);
     breakdown.bracket1 = taxable * 0.075;
@@ -87,8 +87,8 @@ export function calculateINSS(salarioBruto: number): { total: number; breakdown:
     remaining -= taxable;
   }
 
-  // Faixa 2: 1.412,01 a 2.666,68 - 9%
-  const bracket2Range = 2666.68 - 1412.00;
+  // Faixa 2: 1.621,01 a 2.902,84 - 9%
+  const bracket2Range = 2902.84 - 1621.00;
   if (remaining > 0) {
     const taxable = Math.min(remaining, bracket2Range);
     breakdown.bracket2 = taxable * 0.09;
@@ -96,8 +96,8 @@ export function calculateINSS(salarioBruto: number): { total: number; breakdown:
     remaining -= taxable;
   }
 
-  // Faixa 3: 2.666,69 a 4.000,03 - 12%
-  const bracket3Range = 4000.03 - 2666.68;
+  // Faixa 3: 2.902,85 a 4.354,27 - 12%
+  const bracket3Range = 4354.27 - 2902.84;
   if (remaining > 0) {
     const taxable = Math.min(remaining, bracket3Range);
     breakdown.bracket3 = taxable * 0.12;
@@ -105,16 +105,17 @@ export function calculateINSS(salarioBruto: number): { total: number; breakdown:
     remaining -= taxable;
   }
 
-  // Faixa 4: 4.000,04 a 7.786,02 - 14%
-  const bracket4Range = 7786.02 - 4000.03;
+  // Faixa 4: 4.354,28 a 8.475,55 - 14%
+  const bracket4Range = 8475.55 - 4354.27;
   if (remaining > 0) {
     const taxable = Math.min(remaining, bracket4Range);
     breakdown.bracket4 = taxable * 0.14;
     total += breakdown.bracket4;
   }
 
-  // Aplica o teto
+  // Aplica o teto e arredonda o total final (não cada faixa) para 2 casas decimais
   total = Math.min(total, INSS_CEILING);
+  total = Math.round(total * 100) / 100;
   breakdown.total = total;
 
   return { total, breakdown };
