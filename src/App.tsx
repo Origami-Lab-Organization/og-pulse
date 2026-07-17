@@ -39,6 +39,7 @@ import AlocacaoPage from "./pages/AlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import Analytics from "./pages/Analytics";
 import PayrollAnalysis from "./pages/PayrollAnalysis";
+import CostPerHourAnalysis from "./pages/CostPerHourAnalysis";
 import MyTimesheet from "./pages/MyTimesheet";
 import CommercialDashboard from "./pages/CommercialDashboard";
 import Welcome from "./pages/Welcome";
@@ -300,6 +301,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireAdmin>
                     <PayrollAnalysis />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/analises/custo-hora"
+                element={
+                  <RoleProtectedRoute requireAdmin>
+                    <CostPerHourAnalysis />
                   </RoleProtectedRoute>
                 }
               />

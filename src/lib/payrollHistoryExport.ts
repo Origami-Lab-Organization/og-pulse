@@ -74,6 +74,7 @@ export async function exportPayrollHistoryToExcel({ history, selectedMonthKey }:
       { header: 'Ferramentas', key: 'toolsAmount', width: 14, style: { numFmt: CURRENCY_FMT } },
       { header: 'Provisões', key: 'provisionsAmount', width: 14, style: { numFmt: CURRENCY_FMT } },
       { header: 'Total Mensal', key: 'totalMonthlyCost', width: 16, style: { numFmt: CURRENCY_FMT } },
+      { header: 'Custo/Hora', key: 'hourlyCost', width: 14, style: { numFmt: CURRENCY_FMT } },
     ];
     detailSheet.getRow(1).font = { bold: true };
     for (const row of selected.rows) {
@@ -87,8 +88,12 @@ export async function exportPayrollHistoryToExcel({ history, selectedMonthKey }:
         toolsAmount: row.toolsAmount,
         provisionsAmount: row.provisionsAmount,
         totalMonthlyCost: row.totalMonthlyCost,
+        hourlyCost: row.hourlyCost,
       });
     }
+    // Custo/hora é uma taxa — o total é a média ponderada (custo total ÷ horas totais), não a soma das linhas.
+    const totalHoursWorked = selected.rows.reduce((sum, row) => sum + row.hoursWorked, 0);
+    const avgHourlyCost = totalHoursWorked > 0 ? selected.totalMonthlyCost / totalHoursWorked : 0;
     const totalsRow = detailSheet.addRow({
       nome: `Total (${selected.rows.length} colaboradores)`,
       baseAmount: selected.baseAmount,
@@ -98,6 +103,7 @@ export async function exportPayrollHistoryToExcel({ history, selectedMonthKey }:
       toolsAmount: selected.toolsAmount,
       provisionsAmount: selected.provisionsAmount,
       totalMonthlyCost: selected.totalMonthlyCost,
+      hourlyCost: avgHourlyCost,
     });
     totalsRow.font = { bold: true };
   }

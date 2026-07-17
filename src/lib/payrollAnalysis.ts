@@ -29,6 +29,8 @@ export interface PayrollAnalysisEmployeeInput {
   dividendos: number;
   totalBenefitsCost: number;
   totalToolsCost: number;
+  /** Horas de trabalho por dia — usada para calcular o volume de horas úteis do mês (Custo/Hora). */
+  jornadaDiaria: number;
   /** 'YYYY-MM-DD' ou null. Usada para prorata de salário/encargos/benefícios no mês de admissão. */
   dataAdmissao: string | null;
   /** Data efetiva de desligamento mais antiga ('YYYY-MM-DD'), ou null se nunca desligado. Usada para prorata no mês de desligamento. */
@@ -78,6 +80,17 @@ function calendarProrationFraction(e: PayrollAnalysisEmployeeInput, month: Payro
   return Math.min(1, workedDays / daysInMonth);
 }
 
+/** Dias úteis (considerando feriados) que o colaborador efetivamente trabalha no mês — 0 se não houve sobreposição. */
+function effectiveBusinessDaysWorked(e: PayrollAnalysisEmployeeInput, month: PayrollMonthWindow, holidays: Holiday[]): number {
+  const monthStart = parseDateString(month.start);
+  const monthEnd = parseDateString(month.end);
+
+  const window = effectiveEmploymentWindow(e, monthStart, monthEnd);
+  if (!window) return 0;
+
+  return countWorkingDays(window.start, window.end, holidays);
+}
+
 /**
  * Benefícios: valor total mensal ÷ dias úteis do mês × dias úteis que o
  * colaborador efetivamente trabalha no mês (admissão/desligamento parcial).
@@ -88,17 +101,13 @@ function proratedBenefitsAmount(
   e: PayrollAnalysisEmployeeInput,
   month: PayrollMonthWindow,
   holidays: Holiday[],
+  businessDaysWorked: number,
 ): number {
   const monthStart = parseDateString(month.start);
-  const monthEnd = parseDateString(month.end);
 
   const businessDaysInMonth = getBusinessDaysInMonth(monthStart.getFullYear(), monthStart.getMonth(), holidays);
   if (businessDaysInMonth <= 0) return 0;
 
-  const window = effectiveEmploymentWindow(e, monthStart, monthEnd);
-  if (!window) return 0;
-
-  const businessDaysWorked = countWorkingDays(window.start, window.end, holidays);
   return (e.totalBenefitsCost / businessDaysInMonth) * businessDaysWorked;
 }
 
@@ -126,6 +135,14 @@ export interface PayrollAnalysisRow {
    * do GPS/eSocial; não soma em `totalMonthlyCost` nem em `chargesAmount`.
    */
   inssFuncionario: number;
+  /** Horas úteis que o colaborador efetivamente trabalha no mês (jornada diária × dias úteis, já considerando admissão/desligamento parcial). */
+  hoursWorked: number;
+  /**
+   * `totalMonthlyCost ÷ hoursWorked` — mesma fórmula de `getFallbackHourlyCost`
+   * (src/lib/employeeCost.ts), mas usando as horas realmente trabalhadas no mês
+   * em vez do mês cheio, para refletir admissão/desligamento parcial.
+   */
+  hourlyCost: number;
 }
 
 /** Linha de custo de um único colaborador — reaproveitada tanto pela folha atual quanto pela evolução histórica. */
@@ -139,6 +156,7 @@ export function calculatePayrollAnalysisRow(
   // do mês — FGTS, INSS e provisões são calculados sobre esse valor já
   // proporcional, então herdam a proporcionalidade automaticamente.
   const baseFraction = calendarProrationFraction(e, month);
+  const businessDaysWorked = effectiveBusinessDaysWorked(e, month, holidays);
 
   const breakdown = calculateEmployeeCost({
     tipoContratacao: e.tipoContratacao,
@@ -148,11 +166,14 @@ export function calculatePayrollAnalysisRow(
     proLabore: e.proLabore * baseFraction,
     dividendos: e.dividendos * baseFraction,
     // Benefícios seguem sua própria prorata por dias úteis (não pelos dias corridos do salário).
-    benefitsTotalMonthly: proratedBenefitsAmount(e, month, holidays),
+    benefitsTotalMonthly: proratedBenefitsAmount(e, month, holidays, businessDaysWorked),
     // Ferramentas: valor cheio do mês, sem proporcionalidade.
     toolsTotalMonthly: e.totalToolsCost,
     payrollProfile,
   });
+
+  const hoursWorked = businessDaysWorked * e.jornadaDiaria;
+  const hourlyCost = hoursWorked > 0 ? breakdown.totalMonthlyCost / hoursWorked : 0;
 
   // FGTS e INSS patronal do mês são só a alíquota cheia sobre o salário —
   // o que incide sobre as provisões de 13º/férias é, ele próprio, provisão
@@ -177,5 +198,7 @@ export function calculatePayrollAnalysisRow(
     toolsAmount: breakdown.toolsAmount,
     totalMonthlyCost: breakdown.totalMonthlyCost,
     inssFuncionario: breakdown.details.inssFuncionario,
+    hoursWorked,
+    hourlyCost,
   };
 }

@@ -26,7 +26,7 @@ export function usePayrollHistory() {
       const [employeesRes, terminationsRes, toolsRes, benefitsRes] = await Promise.all([
         supabase
           .from('employees')
-          .select('id, nome, cargo, status, tipo_contratacao, data_admissao, salario_mensal, bolsa_auxilio, valor_contrato_pj, pro_labore, dividendos'),
+          .select('id, nome, cargo, status, tipo_contratacao, data_admissao, salario_mensal, bolsa_auxilio, valor_contrato_pj, pro_labore, dividendos, jornada_diaria'),
         supabase.from('employee_terminations').select('employee_id, termination_date, status'),
         supabase.from('employee_tools').select('employee_id, monthly_cost, is_active'),
         supabase.from('employee_benefits').select('employee_id, monthly_value, is_active'),
@@ -73,6 +73,7 @@ export function usePayrollHistory() {
         valorContratoPj: Number(e.valor_contrato_pj) || 0,
         proLabore: Number(e.pro_labore) || 0,
         dividendos: Number(e.dividendos) || 0,
+        jornadaDiaria: Number(e.jornada_diaria) || 8,
         totalBenefitsCost: benefitsByEmployee.get(e.id) || 0,
         totalToolsCost: toolsByEmployee.get(e.id) || 0,
         terminationDate: terminationDates.get(e.id) || null,
