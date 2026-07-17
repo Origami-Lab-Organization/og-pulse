@@ -84,6 +84,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
     requiresAdmin: true,
     children: [
       { title: 'Folha de Pagamento', url: '/analises/folha-pagamento' },
+      { title: 'Desligamentos', url: '/rh/desligamentos' },
     ],
   },
   {
