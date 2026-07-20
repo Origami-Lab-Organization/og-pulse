@@ -83,25 +83,25 @@ const NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     kind: 'group',
-    title: 'Pessoas',
-    url: '/analises/folha-pagamento',
-    icon: Users,
-    requiresAdmin: true,
-    children: [
-      { title: 'Folha de Pagamento', url: '/analises/folha-pagamento' },
-      { title: 'Desligamentos', url: '/rh/desligamentos' },
-    ],
-  },
-  {
-    kind: 'group',
     title: 'Cadastros',
     url: '/clients',
     icon: Database,
     requiresManager: true,
     children: [
-      { title: 'Funcionários', url: '/employees', requiresAdmin: true },
       { title: 'Serviços', url: '/comercial/servicos', requiresAdmin: true },
       { title: 'Clientes', url: '/clients' },
+    ],
+  },
+  {
+    kind: 'group',
+    title: 'Pessoas',
+    url: '/analises/folha-pagamento',
+    icon: Users,
+    requiresAdmin: true,
+    children: [
+      { title: 'Funcionários', url: '/employees', requiresAdmin: true },
+      { title: 'Folha de Pagamento', url: '/analises/folha-pagamento' },
+      { title: 'Desligamentos', url: '/rh/desligamentos' },
     ],
   },
   {
