@@ -6,6 +6,8 @@ const CURRENCY_FMT = '"R$" #,##0.00';
 interface ExportPayrollHistoryParams {
   history: PayrollMonthPoint[];
   selectedMonthKey: string | undefined;
+  /** Custo/hora só é um conceito de regime de competência — omitido no export da Folha de Pagamento (regime de caixa). */
+  includeHourlyCost?: boolean;
 }
 
 function sanitizeSheetName(name: string): string {
@@ -19,7 +21,11 @@ function situacaoLabel(point: PayrollMonthPoint): string {
   return 'Estimado';
 }
 
-export async function exportPayrollHistoryToExcel({ history, selectedMonthKey }: ExportPayrollHistoryParams): Promise<void> {
+export async function exportPayrollHistoryToExcel({
+  history,
+  selectedMonthKey,
+  includeHourlyCost = false,
+}: ExportPayrollHistoryParams): Promise<void> {
   // Import dinâmico: exceljs é uma dependência pesada usada só nesta exportação
   // pontual — não deve entrar no bundle principal carregado por todo usuário.
   const { default: ExcelJS } = await import('exceljs');
@@ -74,7 +80,7 @@ export async function exportPayrollHistoryToExcel({ history, selectedMonthKey }:
       { header: 'Ferramentas', key: 'toolsAmount', width: 14, style: { numFmt: CURRENCY_FMT } },
       { header: 'Provisões', key: 'provisionsAmount', width: 14, style: { numFmt: CURRENCY_FMT } },
       { header: 'Total Mensal', key: 'totalMonthlyCost', width: 16, style: { numFmt: CURRENCY_FMT } },
-      { header: 'Custo/Hora', key: 'hourlyCost', width: 14, style: { numFmt: CURRENCY_FMT } },
+      ...(includeHourlyCost ? [{ header: 'Custo/Hora', key: 'hourlyCost', width: 14, style: { numFmt: CURRENCY_FMT } }] : []),
     ];
     detailSheet.getRow(1).font = { bold: true };
     for (const row of selected.rows) {
@@ -88,7 +94,7 @@ export async function exportPayrollHistoryToExcel({ history, selectedMonthKey }:
         toolsAmount: row.toolsAmount,
         provisionsAmount: row.provisionsAmount,
         totalMonthlyCost: row.totalMonthlyCost,
-        hourlyCost: row.hourlyCost,
+        ...(includeHourlyCost ? { hourlyCost: row.hourlyCost } : {}),
       });
     }
     // Custo/hora é uma taxa — o total é a média ponderada (custo total ÷ horas totais), não a soma das linhas.
@@ -103,7 +109,7 @@ export async function exportPayrollHistoryToExcel({ history, selectedMonthKey }:
       toolsAmount: selected.toolsAmount,
       provisionsAmount: selected.provisionsAmount,
       totalMonthlyCost: selected.totalMonthlyCost,
-      hourlyCost: avgHourlyCost,
+      ...(includeHourlyCost ? { hourlyCost: avgHourlyCost } : {}),
     });
     totalsRow.font = { bold: true };
   }

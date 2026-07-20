@@ -24,7 +24,7 @@ export default function CostPerHourAnalysis() {
   async function handleExportExcel() {
     setIsExporting(true);
     try {
-      await exportPayrollHistoryToExcel({ history, selectedMonthKey: activeMonth });
+      await exportPayrollHistoryToExcel({ history, selectedMonthKey: activeMonth, includeHourlyCost: true });
     } catch (err) {
       console.error('Falha ao exportar custo por hora para Excel', err);
     } finally {

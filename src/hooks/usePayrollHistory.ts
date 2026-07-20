@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePayrollProfile } from './usePayrollProfile';
 import { useHolidays } from './useHolidays';
-import { buildPayrollHistory, buildYearMonths, type PayrollHistoryEmployeeInput } from '@/lib/payrollHistory';
+import { buildPayrollHistory, buildCashPayrollHistory, buildYearMonths, type PayrollHistoryEmployeeInput } from '@/lib/payrollHistory';
 import type { ContractType } from '@/types/employee';
 
 /**
@@ -82,12 +82,20 @@ export function usePayrollHistory() {
     enabled: !!tenantId,
   });
 
-  const months = useMemo(() => buildYearMonths(new Date()), []);
+  const referenceDate = useMemo(() => new Date(), []);
+  const months = useMemo(() => buildYearMonths(referenceDate), [referenceDate]);
 
+  // Regime de competência (custo do mês corrente) — usado por Custo x Hora.
   const history = useMemo(() => {
     if (!rawQuery.data || !payrollProfile || !holidays) return [];
     return buildPayrollHistory(rawQuery.data, payrollProfile, months, holidays);
   }, [rawQuery.data, payrollProfile, months, holidays]);
 
-  return { history, isLoading: rawQuery.isLoading || isLoadingProfile || isLoadingHolidays };
+  // Regime de caixa (o que é efetivamente pago no mês) — usado pela Folha de Pagamento.
+  const cashHistory = useMemo(() => {
+    if (!rawQuery.data || !payrollProfile || !holidays) return [];
+    return buildCashPayrollHistory(rawQuery.data, payrollProfile, months, holidays, referenceDate);
+  }, [rawQuery.data, payrollProfile, months, holidays, referenceDate]);
+
+  return { history, cashHistory, isLoading: rawQuery.isLoading || isLoadingProfile || isLoadingHolidays };
 }

@@ -13,7 +13,9 @@ import { formatCurrency } from '@/lib/formatters';
 import { exportPayrollHistoryToExcel } from '@/lib/payrollHistoryExport';
 
 export default function PayrollAnalysis() {
-  const { history, isLoading } = usePayrollHistory();
+  // Regime de caixa: o que é efetivamente pago no mês (salário/encargos/provisões do mês
+  // anterior + benefícios/ferramentas do mês corrente) — ver buildCashPayrollHistory.
+  const { cashHistory: history, isLoading } = usePayrollHistory();
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>(undefined);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -39,7 +41,7 @@ export default function PayrollAnalysis() {
         <div className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1.5 border-b px-4 py-2.5 sm:px-6">
           <h1 className="text-lg font-bold tracking-tight text-foreground">Folha de Pagamento</h1>
           <span className="hidden border-l pl-3 text-xs text-muted-foreground md:inline">
-            Custo por colaborador, impostos, ferramentas e benefícios
+            Regime de caixa: o que é efetivamente pago em cada mês
           </span>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">

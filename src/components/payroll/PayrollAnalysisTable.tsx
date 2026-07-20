@@ -140,6 +140,8 @@ export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }:
       <CardHeader>
         <CardTitle className="text-base">Custos por Colaborador — {monthLabel}</CardTitle>
         <CardDescription className="text-xs">
+          Regime de caixa: salário, encargos e provisões são os do mês anterior (pagos neste mês); rescisões
+          de desligamentos deste mês entram no mês corrente. Benefícios e ferramentas são sempre do mês corrente.{' '}
           {projected
             ? 'Projeção: mesmo quadro de colaboradores e mesmos valores de hoje, mantidos constantes até este mês.'
             : estimated
