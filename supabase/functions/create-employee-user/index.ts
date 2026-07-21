@@ -27,6 +27,7 @@ interface CreateEmployeeRequest {
   encargos: number;
   tipoContratacao: string;
   jornadaMensal: number;
+  jornadaDiaria?: number;
   salarioLiquido: number;
   fgts: number;
   inssEmpresa: number;
@@ -139,6 +140,7 @@ const handler = async (req: Request): Promise<Response> => {
       encargos,
       tipoContratacao,
       jornadaMensal,
+      jornadaDiaria,
       salarioLiquido,
       fgts,
       inssEmpresa,
@@ -290,6 +292,7 @@ const handler = async (req: Request): Promise<Response> => {
         encargos,
         tipo_contratacao: tipoContratacao || "CLT",
         jornada_mensal: jornadaMensal || 176,
+        jornada_diaria: jornadaDiaria || 8,
         salario_liquido: salarioLiquido || 0,
         fgts: fgts || 0,
         inss_empresa: inssEmpresa || 0,

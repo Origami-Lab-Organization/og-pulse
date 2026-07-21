@@ -10,6 +10,7 @@ import {
   useAddEmployeeTool,
 } from "@/hooks/useEmployees";
 import { CreateEmployeeInput } from "@/services/employeeService";
+import { employeeVersionService } from "@/services/employeeVersionService";
 import {
   ContractType,
   CONTRACT_TYPE_LABELS,
@@ -32,7 +33,7 @@ import {
 } from "@/lib/employeeCostCalculator";
 import { getMonthlyHoursFromDaily } from "@/lib/employeeCost";
 import { useHolidays } from "@/hooks/useHolidays";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, todayLocalDateString } from "@/lib/formatters";
 import {
   Form,
   FormControl,
@@ -211,7 +212,7 @@ const EmployeeCreate = () => {
       telefone: "",
       cargo: "",
       cpf: "",
-      dataAdmissao: new Date().toISOString().split("T")[0],
+      dataAdmissao: todayLocalDateString(),
       dataNascimento: "",
       fotoUrl: "",
       isGerente: false,
@@ -468,6 +469,17 @@ const EmployeeCreate = () => {
       );
 
       await Promise.all([...benefitPromises, ...toolPromises]);
+
+      // Versão de abertura — captura dados/contratação já com admissão como vigência, para
+      // a aba Histórico nunca começar vazia (ver createInitialVersion, employeeVersionService.ts).
+      try {
+        await employeeVersionService.createInitialVersion(newEmployee.id, newEmployee);
+      } catch (versionError) {
+        console.error("Error creating initial employee version:", versionError);
+        // Não bloqueia o cadastro — mesmo padrão de tolerância a falha de versionamento
+        // usado em employeeService.ts (o bootstrap lazy em update() cobre esse caso depois).
+      }
+
       navigate(`/employees/${newEmployee.id}`);
     } catch {
       // toast tratado pela mutation onError

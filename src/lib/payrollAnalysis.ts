@@ -57,12 +57,12 @@ export interface PayrollMonthWindow {
  * Marco financeiro do colaborador (employee_versions) — captura tipo de contratação,
  * salário, pró-labore, jornada e cargo vigentes a partir de `effectiveFrom`. Usada para
  * corrigir o cálculo em meses passados quando esses campos mudaram (ex.: transição
- * Menor Aprendiz -> CLT). `valorContratoPj`/`dividendos` não são versionados (sem coluna
- * em employee_versions) — sempre vêm do cadastro atual. `bolsaAuxilio` é versionado como
- * os demais campos financeiros principais, mas pode ser `null` em versões criadas antes
- * desse campo existir — cai para o cadastro atual nesse caso, mesmo comportamento de
- * antes. `totalBenefitsCost`/`totalToolsCost` só existem (não nulos) em versões já
- * fechadas (congelados no fechamento); a versão aberta usa a soma ao vivo do cadastro atual.
+ * Menor Aprendiz -> CLT). `bolsaAuxilio`/`valorContratoPj`/`dividendos` são versionados
+ * como os demais campos financeiros principais, mas podem ser `null` em versões criadas
+ * antes desses campos existirem — cai para o cadastro atual nesse caso, mesmo
+ * comportamento de antes. `totalBenefitsCost`/`totalToolsCost` só existem (não nulos) em
+ * versões já fechadas (congelados no fechamento); a versão aberta usa a soma ao vivo do
+ * cadastro atual.
  */
 export interface EmployeeVersionInput {
   employeeId: string;
@@ -75,6 +75,8 @@ export interface EmployeeVersionInput {
   proLabore: number;
   jornadaDiaria: number;
   bolsaAuxilio: number | null;
+  valorContratoPj: number | null;
+  dividendos: number | null;
   totalBenefitsCost: number | null;
   totalToolsCost: number | null;
 }
@@ -119,6 +121,8 @@ interface ResolvedSegment {
   proLabore: number;
   jornadaDiaria: number;
   bolsaAuxilio: number;
+  valorContratoPj: number;
+  dividendos: number;
   totalBenefitsCost: number;
   totalToolsCost: number;
 }
@@ -131,8 +135,6 @@ interface ResolvedSegment {
  * meses antigos, em vez de aplicar retroativamente os dados atuais do cadastro.
  * Sem versões que se sobreponham ao mês, cai para um único segmento com os dados
  * atuais do cadastro — mesmo comportamento (estimado) de antes desta função existir.
- * `bolsaAuxilio`/`valorContratoPj`/`dividendos` não são versionados — sempre vêm do
- * cadastro atual, aplicados fora desta função.
  */
 function resolveVersionSegments(
   e: PayrollAnalysisEmployeeInput,
@@ -151,6 +153,8 @@ function resolveVersionSegments(
     proLabore: e.proLabore,
     jornadaDiaria: e.jornadaDiaria,
     bolsaAuxilio: e.bolsaAuxilio,
+    valorContratoPj: e.valorContratoPj,
+    dividendos: e.dividendos,
     totalBenefitsCost: e.totalBenefitsCost,
     totalToolsCost: e.totalToolsCost,
   });
@@ -189,6 +193,8 @@ function resolveVersionSegments(
         proLabore: v.proLabore,
         jornadaDiaria: v.jornadaDiaria,
         bolsaAuxilio: v.bolsaAuxilio ?? e.bolsaAuxilio,
+        valorContratoPj: v.valorContratoPj ?? e.valorContratoPj,
+        dividendos: v.dividendos ?? e.dividendos,
         totalBenefitsCost: v.totalBenefitsCost ?? e.totalBenefitsCost,
         totalToolsCost: v.totalToolsCost ?? e.totalToolsCost,
       };
@@ -318,9 +324,9 @@ export function calculatePayrollAnalysisRow(
       tipoContratacao: seg.tipoContratacao,
       salarioBruto: seg.salarioMensal * segFraction,
       bolsaAuxilio: seg.bolsaAuxilio * segFraction,
-      valorContratoPj: e.valorContratoPj * segFraction,
+      valorContratoPj: seg.valorContratoPj * segFraction,
       proLabore: seg.proLabore * segFraction,
-      dividendos: e.dividendos * segFraction,
+      dividendos: seg.dividendos * segFraction,
       benefitsTotalMonthly: 0,
       toolsTotalMonthly: 0,
       payrollProfile,
@@ -466,9 +472,9 @@ export function calculatePayrollAnalysisRowsByContractType(
       tipoContratacao: seg.tipoContratacao,
       salarioBruto: seg.salarioMensal * segFraction,
       bolsaAuxilio: seg.bolsaAuxilio * segFraction,
-      valorContratoPj: e.valorContratoPj * segFraction,
+      valorContratoPj: seg.valorContratoPj * segFraction,
       proLabore: seg.proLabore * segFraction,
-      dividendos: e.dividendos * segFraction,
+      dividendos: seg.dividendos * segFraction,
       benefitsTotalMonthly: 0,
       toolsTotalMonthly: 0,
       payrollProfile,

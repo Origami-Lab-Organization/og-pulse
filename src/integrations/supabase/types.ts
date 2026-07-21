@@ -1048,76 +1048,130 @@ export type Database = {
       }
       employee_versions: {
         Row: {
+          bank_account: string | null
+          bank_account_type: string | null
+          bank_agency: string | null
+          bank_name: string | null
           beneficios: number
           bolsa_auxilio: number | null
+          breakdown_json: Json | null
           cargo: string
+          cpf: string | null
           created_at: string
+          data_admissao: string | null
+          data_nascimento: string | null
           decimo_terceiro: number
+          dividendos: number | null
           effective_from: string
           effective_until: string | null
           employee_id: string
           encargos: number
           ferias: number
           fgts: number
+          foto_url: string | null
           id: string
           inss_empresa: number
+          is_gerente: boolean | null
           jornada_diaria: number
           jornada_mensal: number
+          nome: string | null
+          pix_key: string | null
+          pix_key_type: string | null
           pro_labore: number
           salario_liquido: number
           salario_mensal: number
+          system_role: string | null
+          telefone: string | null
           tipo_contratacao: string
+          total_annual_cost_estimated: number | null
           total_benefits_cost: number | null
           total_monthly_cost_estimated: number | null
           total_tools_cost: number | null
+          valor_contrato_pj: number | null
         }
         Insert: {
+          bank_account?: string | null
+          bank_account_type?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
           beneficios?: number
           bolsa_auxilio?: number | null
+          breakdown_json?: Json | null
           cargo: string
+          cpf?: string | null
           created_at?: string
+          data_admissao?: string | null
+          data_nascimento?: string | null
           decimo_terceiro?: number
+          dividendos?: number | null
           effective_from?: string
           effective_until?: string | null
           employee_id: string
           encargos?: number
           ferias?: number
           fgts?: number
+          foto_url?: string | null
           id?: string
           inss_empresa?: number
+          is_gerente?: boolean | null
           jornada_diaria?: number
           jornada_mensal?: number
+          nome?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
           pro_labore?: number
           salario_liquido?: number
           salario_mensal?: number
+          system_role?: string | null
+          telefone?: string | null
           tipo_contratacao?: string
+          total_annual_cost_estimated?: number | null
           total_benefits_cost?: number | null
           total_monthly_cost_estimated?: number | null
           total_tools_cost?: number | null
+          valor_contrato_pj?: number | null
         }
         Update: {
+          bank_account?: string | null
+          bank_account_type?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
           beneficios?: number
           bolsa_auxilio?: number | null
+          breakdown_json?: Json | null
           cargo?: string
+          cpf?: string | null
           created_at?: string
+          data_admissao?: string | null
+          data_nascimento?: string | null
           decimo_terceiro?: number
+          dividendos?: number | null
           effective_from?: string
           effective_until?: string | null
           employee_id?: string
           encargos?: number
           ferias?: number
           fgts?: number
+          foto_url?: string | null
           id?: string
           inss_empresa?: number
+          is_gerente?: boolean | null
           jornada_diaria?: number
           jornada_mensal?: number
+          nome?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
           pro_labore?: number
           salario_liquido?: number
           salario_mensal?: number
+          system_role?: string | null
+          telefone?: string | null
           tipo_contratacao?: string
+          total_annual_cost_estimated?: number | null
           total_benefits_cost?: number | null
           total_monthly_cost_estimated?: number | null
           total_tools_cost?: number | null
+          valor_contrato_pj?: number | null
         }
         Relationships: [
           {
@@ -6418,6 +6472,10 @@ export type Database = {
       can_view_project_document: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
+      }
+      cancel_scheduled_employee_version: {
+        Args: { p_today: string; p_version_id: string }
+        Returns: undefined
       }
       complete_onboarding: { Args: never; Returns: undefined }
       complete_password_change: { Args: never; Returns: undefined }

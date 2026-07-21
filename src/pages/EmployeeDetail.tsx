@@ -35,7 +35,7 @@ import {
 } from "@/lib/employeeCostCalculator";
 import { getMonthlyHoursFromDaily } from "@/lib/employeeCost";
 import { useHolidays } from "@/hooks/useHolidays";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, todayLocalDateString } from "@/lib/formatters";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -258,7 +258,7 @@ const EmployeeDetail = () => {
       telefone: "",
       cargo: "",
       cpf: "",
-      dataAdmissao: new Date().toISOString().split("T")[0],
+      dataAdmissao: todayLocalDateString(),
       dataNascimento: "",
       fotoUrl: "",
       isGerente: false,
@@ -563,6 +563,22 @@ const EmployeeDetail = () => {
       "jornadaMensal",
       "tipoContratacao",
       "cargo",
+      // Dados pessoais — também versionados (mesma tabela employee_versions), para que a aba
+      // Histórico reflita qualquer edição cadastral, não só mudanças financeiras.
+      "nome",
+      "telefone",
+      "cpf",
+      "dataNascimento",
+      "dataAdmissao",
+      "fotoUrl",
+      "systemRole",
+      "isGerente",
+      "pixKeyType",
+      "pixKey",
+      "bankName",
+      "bankAccountType",
+      "bankAgency",
+      "bankAccount",
     ] as const;
 
     for (const field of versionedFields) {
@@ -1606,8 +1622,8 @@ const EmployeeDetail = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Novo Marco Financeiro</AlertDialogTitle>
             <AlertDialogDescription>
-              Detectamos alterações em campos financeiros (jornada, salário,
-              cargo, etc). A partir de quando esta mudança é válida?
+              Detectamos alterações em dados ou contratação (nome, telefone,
+              jornada, salário, cargo, etc). A partir de quando esta mudança é válida?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">

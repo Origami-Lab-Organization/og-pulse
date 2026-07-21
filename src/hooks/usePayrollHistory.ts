@@ -24,6 +24,8 @@ function groupVersionsByEmployee(
       proLabore: Number(v.pro_labore) || 0,
       jornadaDiaria: Number(v.jornada_diaria) || 8,
       bolsaAuxilio: v.bolsa_auxilio !== null ? Number(v.bolsa_auxilio) : null,
+      valorContratoPj: v.valor_contrato_pj !== null ? Number(v.valor_contrato_pj) : null,
+      dividendos: v.dividendos !== null ? Number(v.dividendos) : null,
       totalBenefitsCost: v.total_benefits_cost !== null ? Number(v.total_benefits_cost) : null,
       totalToolsCost: v.total_tools_cost !== null ? Number(v.total_tools_cost) : null,
     });

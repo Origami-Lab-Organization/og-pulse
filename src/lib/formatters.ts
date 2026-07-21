@@ -108,6 +108,21 @@ export function parseDateString(dateStr: string): Date {
   return new Date(dateStr);
 }
 
+/**
+ * Data de hoje como 'YYYY-MM-DD' no fuso LOCAL do navegador — não usar
+ * `new Date().toISOString().slice(0, 10)` (UTC) para isso: em fusos negativos
+ * (ex.: Brasília, UTC-3), entre ~21h e meia-noite local o UTC já virou o dia
+ * seguinte, fazendo comparações de "isFutureDated" contra uma data escolhida
+ * no calendário (sempre local) falharem justo nessa janela.
+ */
+export function todayLocalDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 /**
