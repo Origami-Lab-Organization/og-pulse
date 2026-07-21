@@ -1049,6 +1049,7 @@ export type Database = {
       employee_versions: {
         Row: {
           beneficios: number
+          bolsa_auxilio: number | null
           cargo: string
           created_at: string
           decimo_terceiro: number
@@ -1066,10 +1067,13 @@ export type Database = {
           salario_liquido: number
           salario_mensal: number
           tipo_contratacao: string
+          total_benefits_cost: number | null
           total_monthly_cost_estimated: number | null
+          total_tools_cost: number | null
         }
         Insert: {
           beneficios?: number
+          bolsa_auxilio?: number | null
           cargo: string
           created_at?: string
           decimo_terceiro?: number
@@ -1087,10 +1091,13 @@ export type Database = {
           salario_liquido?: number
           salario_mensal?: number
           tipo_contratacao?: string
+          total_benefits_cost?: number | null
           total_monthly_cost_estimated?: number | null
+          total_tools_cost?: number | null
         }
         Update: {
           beneficios?: number
+          bolsa_auxilio?: number | null
           cargo?: string
           created_at?: string
           decimo_terceiro?: number
@@ -1108,7 +1115,9 @@ export type Database = {
           salario_liquido?: number
           salario_mensal?: number
           tipo_contratacao?: string
+          total_benefits_cost?: number | null
           total_monthly_cost_estimated?: number | null
+          total_tools_cost?: number | null
         }
         Relationships: [
           {

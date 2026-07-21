@@ -9,7 +9,7 @@ import {
   PixKeyType,
   BankAccountType,
 } from "@/types/employee";
-import { employeeVersionService } from "./employeeVersionService";
+import { employeeVersionService, type EmployeeVersionDB } from "./employeeVersionService";
 import {
   CostBreakdown,
   calculateEmployeeCost,
@@ -258,15 +258,76 @@ export const employeeService = {
     if (updates.bankAccountType !== undefined)
       dbUpdates.bank_account_type = updates.bankAccountType;
 
-    // Capture current cost before update so we can backfill the old version
-    let oldTotalMonthlyCost: number | null = null;
+    // Campos versionados com effectiveFrom futuro ficam de fora do UPDATE agora — o cron
+    // activate_scheduled_employee_versions os aplica quando o dia chegar.
+    const VERSIONED_DB_FIELDS = [
+      "tipo_contratacao",
+      "salario_mensal",
+      "salario_liquido",
+      "beneficios",
+      "encargos",
+      "fgts",
+      "inss_empresa",
+      "decimo_terceiro",
+      "ferias",
+      "pro_labore",
+      "jornada_mensal",
+      "jornada_diaria",
+      "cargo",
+      "total_monthly_cost_estimated",
+      "bolsa_auxilio",
+      // Sem coluna em employee_versions (nada para o cron ativar depois) — adiados mesmo assim
+      // para não vazar o valor novo antes de effectiveFrom; ficam no valor antigo até o próximo save.
+      "valor_contrato_pj",
+      "dividendos",
+      "provisao_13",
+      "provisao_ferias",
+      "provisao_recesso",
+      "total_annual_cost_estimated",
+      "breakdown_json",
+    ] as const;
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const isFutureDated =
+      createNewVersion && !!effectiveFrom && effectiveFrom > todayStr;
+
+    // Estado anterior — usado para prorrogar campos versionados (mudança futura) e para
+    // criar a versão de abertura (bootstrap) se o colaborador ainda não tiver nenhuma.
+    let oldEmployee: EmployeeDB | null = null;
+    let oldBenefitsTotal = 0;
+    let oldToolsTotal = 0;
+    const pendingVersionedUpdates: Record<string, unknown> = {};
     if (createNewVersion) {
       const { data: current } = await supabase
         .from("employees")
-        .select("total_monthly_cost_estimated")
+        .select("*")
         .eq("id", id)
         .single();
-      oldTotalMonthlyCost = current?.total_monthly_cost_estimated ?? null;
+      oldEmployee = current as EmployeeDB | null;
+
+      const [{ data: oldBenefits }, { data: oldTools }] = await Promise.all([
+        supabase
+          .from("employee_benefits")
+          .select("monthly_value, is_active")
+          .eq("employee_id", id),
+        supabase
+          .from("employee_tools")
+          .select("monthly_cost, is_active")
+          .eq("employee_id", id),
+      ]);
+      oldBenefitsTotal = (oldBenefits || [])
+        .filter((b) => b.is_active !== false)
+        .reduce((sum, b) => sum + Number(b.monthly_value), 0);
+      oldToolsTotal = (oldTools || [])
+        .filter((t) => t.is_active !== false)
+        .reduce((sum, t) => sum + Number(t.monthly_cost), 0);
+
+      if (isFutureDated) {
+        for (const field of VERSIONED_DB_FIELDS) {
+          if (field in dbUpdates) pendingVersionedUpdates[field] = dbUpdates[field];
+          delete dbUpdates[field];
+        }
+      }
     }
 
     const { data, error } = await supabase
@@ -283,35 +344,121 @@ export const employeeService = {
 
     const updatedEmployee = data as EmployeeDB;
 
+    // system_role on employees is display data — user_roles is what RLS's
+    // has_role() actually checks, so it must be kept in sync on every change.
+    if (updates.systemRole !== undefined && updatedEmployee.auth_id) {
+      const { error: roleDeleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", updatedEmployee.auth_id)
+        .eq("tenant_id", updatedEmployee.tenant_id);
+
+      if (roleDeleteError) {
+        console.error("Error clearing previous user role:", roleDeleteError);
+        throw roleDeleteError;
+      }
+
+      const { error: roleInsertError } = await supabase
+        .from("user_roles")
+        .insert({
+          user_id: updatedEmployee.auth_id,
+          tenant_id: updatedEmployee.tenant_id,
+          role: updates.systemRole,
+        });
+
+      if (roleInsertError) {
+        console.error("Error updating user role:", roleInsertError);
+        throw roleInsertError;
+      }
+    }
+
     // Create a new version if requested (for financial/charge changes)
-    if (createNewVersion) {
+    if (createNewVersion && oldEmployee) {
       try {
-        // Backfill total_monthly_cost_estimated into the still-open version BEFORE
-        // createVersion closes it, preserving the historical cost for that period
-        await supabase
+        const effectiveFromDate = effectiveFrom || todayStr;
+
+        const { data: anyVersion } = await supabase
           .from("employee_versions")
-          .update({ total_monthly_cost_estimated: oldTotalMonthlyCost })
+          .select("id")
           .eq("employee_id", id)
-          .is("effective_until", null);
+          .limit(1)
+          .maybeSingle();
+
+        // Nenhuma versão ainda existe para este colaborador: registra o estado ANTERIOR
+        // (Menor Aprendiz, por ex.) como versão de abertura antes de criar a nova — sem
+        // isso, o histórico anterior a `effectiveFrom` seria perdido no momento do save.
+        if (!anyVersion && oldEmployee.data_admissao < effectiveFromDate) {
+          await employeeVersionService.createVersion({
+            employeeId: id,
+            effectiveFrom: oldEmployee.data_admissao,
+            salarioMensal: oldEmployee.salario_mensal,
+            salarioLiquido: oldEmployee.salario_liquido,
+            beneficios: oldEmployee.beneficios,
+            encargos: oldEmployee.encargos,
+            fgts: oldEmployee.fgts,
+            inssEmpresa: oldEmployee.inss_empresa,
+            decimoTerceiro: oldEmployee.decimo_terceiro,
+            ferias: oldEmployee.ferias,
+            proLabore: oldEmployee.pro_labore,
+            jornadaMensal: oldEmployee.jornada_mensal,
+            jornadaDiaria: oldEmployee.jornada_diaria,
+            tipoContratacao: oldEmployee.tipo_contratacao,
+            cargo: oldEmployee.cargo,
+            totalMonthlyCostEstimated: oldEmployee.total_monthly_cost_estimated,
+            bolsaAuxilio: oldEmployee.bolsa_auxilio,
+          });
+        }
+
+        // Versão vigente no instante anterior a `effectiveFromDate` — pode não ser "a versão
+        // aberta" se já existir uma futura agendada por uma edição anterior (ver createVersion
+        // em employeeVersionService.ts, que encaixa a nova versão na linha do tempo).
+        const { data: supersededVersion } = await supabase
+          .from("employee_versions")
+          .select("*")
+          .eq("employee_id", id)
+          .lte("effective_from", effectiveFromDate)
+          .or(`effective_until.is.null,effective_until.gt.${effectiveFromDate}`)
+          .order("effective_from", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        // Congela o custo/benefícios/ferramentas do período que está sendo substituído —
+        // não necessariamente "a versão aberta" (idem acima).
+        if (supersededVersion) {
+          await supabase
+            .from("employee_versions")
+            .update({
+              total_monthly_cost_estimated: oldEmployee.total_monthly_cost_estimated,
+              total_benefits_cost: oldBenefitsTotal,
+              total_tools_cost: oldToolsTotal,
+              bolsa_auxilio: oldEmployee.bolsa_auxilio,
+            })
+            .eq("id", supersededVersion.id);
+        }
+
+        // Futuro: parte da versão substituída (pode já não ser o cadastro atual — ex.: reajuste
+        // agendado após uma transição de contrato já agendada), não de `employees`/`updatedEmployee`.
+        const base: EmployeeDB | EmployeeVersionDB = supersededVersion ?? oldEmployee;
+        const next = isFutureDated ? { ...base, ...pendingVersionedUpdates } : updatedEmployee;
 
         await employeeVersionService.createVersion({
           employeeId: id,
           effectiveFrom,
-          salarioMensal: updatedEmployee.salario_mensal,
-          salarioLiquido: updatedEmployee.salario_liquido,
-          beneficios: updatedEmployee.beneficios,
-          encargos: updatedEmployee.encargos,
-          fgts: updatedEmployee.fgts,
-          inssEmpresa: updatedEmployee.inss_empresa,
-          decimoTerceiro: updatedEmployee.decimo_terceiro,
-          ferias: updatedEmployee.ferias,
-          proLabore: updatedEmployee.pro_labore,
-          jornadaMensal: updatedEmployee.jornada_mensal,
-          jornadaDiaria: updatedEmployee.jornada_diaria,
-          tipoContratacao: updatedEmployee.tipo_contratacao,
-          cargo: updatedEmployee.cargo,
-          totalMonthlyCostEstimated:
-            updatedEmployee.total_monthly_cost_estimated,
+          salarioMensal: next.salario_mensal,
+          salarioLiquido: next.salario_liquido,
+          beneficios: next.beneficios,
+          encargos: next.encargos,
+          fgts: next.fgts,
+          inssEmpresa: next.inss_empresa,
+          decimoTerceiro: next.decimo_terceiro,
+          ferias: next.ferias,
+          proLabore: next.pro_labore,
+          jornadaMensal: next.jornada_mensal,
+          jornadaDiaria: next.jornada_diaria,
+          tipoContratacao: next.tipo_contratacao,
+          cargo: next.cargo,
+          totalMonthlyCostEstimated: next.total_monthly_cost_estimated,
+          bolsaAuxilio: next.bolsa_auxilio,
         });
       } catch (versionError) {
         console.error("Error creating employee version:", versionError);
@@ -615,27 +762,32 @@ export const employeeService = {
       payrollProfile: payrollProfile || undefined,
     });
 
-    // 5. Update employee record
-    const { error: updateError } = await supabase
-      .from("employees")
-      .update({
-        beneficios: benefitsTotal,
-        total_monthly_cost_estimated: breakdown.totalMonthlyCost,
-        total_annual_cost_estimated: breakdown.totalAnnualCost,
-        breakdown_json: breakdown as unknown as Json,
-        encargos: breakdown.chargesAmount,
-        fgts: breakdown.details.fgts,
-        inss_empresa: breakdown.details.inss,
-        decimo_terceiro: breakdown.details.provisao13,
-        ferias: breakdown.details.provisaoFerias,
-        provisao_13: breakdown.details.provisao13,
-        provisao_ferias: breakdown.details.provisaoFerias,
-      })
-      .eq("id", employeeId);
+    // 5. Update employee record — só imediatamente se a vigência já chegou (ou não foi
+    // informada); vigência futura só grava a versão (passo 6), sem tocar employees agora.
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const isFutureDated = !!effectiveFrom && effectiveFrom > todayStr;
+    if (!isFutureDated) {
+      const { error: updateError } = await supabase
+        .from("employees")
+        .update({
+          beneficios: benefitsTotal,
+          total_monthly_cost_estimated: breakdown.totalMonthlyCost,
+          total_annual_cost_estimated: breakdown.totalAnnualCost,
+          breakdown_json: breakdown as unknown as Json,
+          encargos: breakdown.chargesAmount,
+          fgts: breakdown.details.fgts,
+          inss_empresa: breakdown.details.inss,
+          decimo_terceiro: breakdown.details.provisao13,
+          ferias: breakdown.details.provisaoFerias,
+          provisao_13: breakdown.details.provisao13,
+          provisao_ferias: breakdown.details.provisaoFerias,
+        })
+        .eq("id", employeeId);
 
-    if (updateError) {
-      console.error("Error updating employee cost:", updateError);
-      throw updateError;
+      if (updateError) {
+        console.error("Error updating employee cost:", updateError);
+        throw updateError;
+      }
     }
 
     // 6. Create version if effectiveFrom provided
@@ -658,6 +810,7 @@ export const employeeService = {
           tipoContratacao: employee.tipo_contratacao,
           cargo: employee.cargo,
           totalMonthlyCostEstimated: breakdown.totalMonthlyCost,
+          bolsaAuxilio: Number(employee.bolsa_auxilio),
         });
       } catch (versionError) {
         console.error("Error creating employee version:", versionError);

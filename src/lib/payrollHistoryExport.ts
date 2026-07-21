@@ -100,8 +100,9 @@ export async function exportPayrollHistoryToExcel({
     // Custo/hora é uma taxa — o total é a média ponderada (custo total ÷ horas totais), não a soma das linhas.
     const totalHoursWorked = selected.rows.reduce((sum, row) => sum + row.hoursWorked, 0);
     const avgHourlyCost = totalHoursWorked > 0 ? selected.totalMonthlyCost / totalHoursWorked : 0;
+    const distinctEmployeeCount = new Set(selected.rows.map((row) => row.employeeId)).size;
     const totalsRow = detailSheet.addRow({
-      nome: `Total (${selected.rows.length} colaboradores)`,
+      nome: `Total (${distinctEmployeeCount} colaboradores)`,
       baseAmount: selected.baseAmount,
       fgtsAmount: selected.fgtsAmount,
       inssFuncionario: selected.inssFuncionarioAmount,

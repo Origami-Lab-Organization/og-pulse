@@ -587,7 +587,9 @@ const EmployeeDetail = () => {
   };
 
   const handleVersionConfirm = () => {
-    if (!pendingSubmitData) return;
+    // Evita duplo-clique/duplo-envio criar duas versões sobrepostas para o mesmo marco
+    // financeiro (cada uma contaria seu próprio custo/benefícios na folha, dobrando o valor).
+    if (!pendingSubmitData || updateEmployee.isPending) return;
     const dateStr = format(versionEffectiveDate, "yyyy-MM-dd");
     updateEmployee.mutate({
       id: id!,
@@ -1642,9 +1644,9 @@ const EmployeeDetail = () => {
             </Popover>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleVersionConfirm}>
-              Confirmar
+            <AlertDialogCancel disabled={updateEmployee.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleVersionConfirm} disabled={updateEmployee.isPending}>
+              {updateEmployee.isPending ? "Salvando..." : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

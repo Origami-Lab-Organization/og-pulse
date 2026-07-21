@@ -16,6 +16,11 @@ import { parseDateString } from './formatters';
 import type { PayrollProfile } from '@/types/payrollProfile';
 import type { ContractType } from '@/types/employee';
 
+export interface PayrollLineItem {
+  name: string;
+  value: number;
+}
+
 export interface PayrollAnalysisEmployeeInput {
   id: string;
   nome: string;
@@ -29,6 +34,10 @@ export interface PayrollAnalysisEmployeeInput {
   dividendos: number;
   totalBenefitsCost: number;
   totalToolsCost: number;
+  /** Itens de benefício ATIVOS hoje — sem histórico por item, então mostrados como referência atual mesmo em meses passados. */
+  benefitsBreakdown: PayrollLineItem[];
+  /** Itens de ferramenta ATIVOS hoje — mesma ressalva de `benefitsBreakdown`. */
+  toolsBreakdown: PayrollLineItem[];
   /** Horas de trabalho por dia — usada para calcular o volume de horas úteis do mês (Custo/Hora). */
   jornadaDiaria: number;
   /** 'YYYY-MM-DD' ou null. Usada para prorata de salário/encargos/benefícios no mês de admissão. */
@@ -44,7 +53,34 @@ export interface PayrollMonthWindow {
   end: string;
 }
 
+/**
+ * Marco financeiro do colaborador (employee_versions) — captura tipo de contratação,
+ * salário, pró-labore, jornada e cargo vigentes a partir de `effectiveFrom`. Usada para
+ * corrigir o cálculo em meses passados quando esses campos mudaram (ex.: transição
+ * Menor Aprendiz -> CLT). `valorContratoPj`/`dividendos` não são versionados (sem coluna
+ * em employee_versions) — sempre vêm do cadastro atual. `bolsaAuxilio` é versionado como
+ * os demais campos financeiros principais, mas pode ser `null` em versões criadas antes
+ * desse campo existir — cai para o cadastro atual nesse caso, mesmo comportamento de
+ * antes. `totalBenefitsCost`/`totalToolsCost` só existem (não nulos) em versões já
+ * fechadas (congelados no fechamento); a versão aberta usa a soma ao vivo do cadastro atual.
+ */
+export interface EmployeeVersionInput {
+  employeeId: string;
+  /** 'YYYY-MM-DD' */
+  effectiveFrom: string;
+  /** 'YYYY-MM-DD' exclusivo (o dia em que a próxima versão começa), ou null se é a versão aberta/atual. */
+  effectiveUntil: string | null;
+  tipoContratacao: ContractType;
+  salarioMensal: number;
+  proLabore: number;
+  jornadaDiaria: number;
+  bolsaAuxilio: number | null;
+  totalBenefitsCost: number | null;
+  totalToolsCost: number | null;
+}
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const addDays = (d: Date, n: number): Date => new Date(d.getTime() + n * MS_PER_DAY);
 
 /** Interseção entre o mês e o período empregado (admissão até desligamento) — null se não houve sobreposição. */
 function effectiveEmploymentWindow(
@@ -62,53 +98,119 @@ function effectiveEmploymentWindow(
   return { start, end };
 }
 
-/**
- * Fração pró-rata do mês (dias corridos) em que o colaborador esteve
- * empregado — 1 para quem trabalhou o mês inteiro, menor que 1 para
- * admissão/desligamento parcial. Aplicada ao salário base, o que propaga a
- * proporcionalidade para FGTS/INSS/provisões (calculados sobre o salário).
- */
-function calendarProrationFraction(e: PayrollAnalysisEmployeeInput, month: PayrollMonthWindow): number {
-  const monthStart = parseDateString(month.start);
-  const monthEnd = parseDateString(month.end);
-  const daysInMonth = monthEnd.getDate();
-
-  const window = effectiveEmploymentWindow(e, monthStart, monthEnd);
+/** Fração pró-rata (dias corridos de `window` ÷ dias do mês) — 0 se `window` é null. */
+function calendarFractionForWindow(window: { start: Date; end: Date } | null, daysInMonth: number): number {
   if (!window) return 0;
-
   const workedDays = Math.round((window.end.getTime() - window.start.getTime()) / MS_PER_DAY) + 1;
   return Math.min(1, workedDays / daysInMonth);
 }
 
-/** Dias úteis (considerando feriados) que o colaborador efetivamente trabalha no mês — 0 se não houve sobreposição. */
-function effectiveBusinessDaysWorked(e: PayrollAnalysisEmployeeInput, month: PayrollMonthWindow, holidays: Holiday[]): number {
-  const monthStart = parseDateString(month.start);
-  const monthEnd = parseDateString(month.end);
-
-  const window = effectiveEmploymentWindow(e, monthStart, monthEnd);
+/** Dias úteis (considerando feriados) dentro de `window` — 0 se `window` é null. */
+function businessDaysForWindow(window: { start: Date; end: Date } | null, holidays: Holiday[]): number {
   if (!window) return 0;
-
   return countWorkingDays(window.start, window.end, holidays);
 }
 
+interface ResolvedSegment {
+  start: Date;
+  end: Date;
+  tipoContratacao: ContractType;
+  salarioMensal: number;
+  proLabore: number;
+  jornadaDiaria: number;
+  bolsaAuxilio: number;
+  totalBenefitsCost: number;
+  totalToolsCost: number;
+}
+
 /**
- * Benefícios: valor total mensal ÷ dias úteis do mês × dias úteis que o
- * colaborador efetivamente trabalha no mês (admissão/desligamento parcial).
- * Ferramentas, ao contrário, são cobradas no valor cheio independente da
- * proporcionalidade — por isso não têm uma função equivalente.
+ * Segmentos do mês por marco financeiro (employee_versions) que se sobrepõem a ele,
+ * recortados pela janela de emprego (admissão/desligamento) e ordenados
+ * cronologicamente — permite que uma mudança de tipo de contratação/salário/jornada
+ * no meio do histórico (ex.: Menor Aprendiz -> CLT) seja refletida corretamente nos
+ * meses antigos, em vez de aplicar retroativamente os dados atuais do cadastro.
+ * Sem versões que se sobreponham ao mês, cai para um único segmento com os dados
+ * atuais do cadastro — mesmo comportamento (estimado) de antes desta função existir.
+ * `bolsaAuxilio`/`valorContratoPj`/`dividendos` não são versionados — sempre vêm do
+ * cadastro atual, aplicados fora desta função.
  */
-function proratedBenefitsAmount(
+function resolveVersionSegments(
   e: PayrollAnalysisEmployeeInput,
-  month: PayrollMonthWindow,
-  holidays: Holiday[],
-  businessDaysWorked: number,
-): number {
-  const monthStart = parseDateString(month.start);
+  versions: EmployeeVersionInput[],
+  monthStart: Date,
+  monthEnd: Date,
+): ResolvedSegment[] {
+  const employmentWindow = effectiveEmploymentWindow(e, monthStart, monthEnd);
+  if (!employmentWindow) return [];
 
-  const businessDaysInMonth = getBusinessDaysInMonth(monthStart.getFullYear(), monthStart.getMonth(), holidays);
-  if (businessDaysInMonth <= 0) return 0;
+  const currentSegment = (start: Date, end: Date): ResolvedSegment => ({
+    start,
+    end,
+    tipoContratacao: e.tipoContratacao,
+    salarioMensal: e.salarioMensal,
+    proLabore: e.proLabore,
+    jornadaDiaria: e.jornadaDiaria,
+    bolsaAuxilio: e.bolsaAuxilio,
+    totalBenefitsCost: e.totalBenefitsCost,
+    totalToolsCost: e.totalToolsCost,
+  });
 
-  return (e.totalBenefitsCost / businessDaysInMonth) * businessDaysWorked;
+  const overlapping = versions
+    .filter((v) => v.employeeId === e.id)
+    .filter((v) => {
+      const vStart = parseDateString(v.effectiveFrom);
+      const vEnd = v.effectiveUntil ? parseDateString(v.effectiveUntil) : null;
+      return vStart <= monthEnd && (!vEnd || vEnd > monthStart);
+    })
+    .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+
+  // Duas versões com o mesmo (effectiveFrom, effectiveUntil) já ocorreram na prática (duplo
+  // clique em "Novo Marco Financeiro") e contariam o período em dobro — salvaguarda de cálculo.
+  const deduped: EmployeeVersionInput[] = [];
+  for (const v of overlapping) {
+    const isDuplicate = deduped.some(
+      (kept) => kept.effectiveFrom === v.effectiveFrom && kept.effectiveUntil === v.effectiveUntil,
+    );
+    if (!isDuplicate) deduped.push(v);
+  }
+
+  const versionSegments = deduped
+    .map((v): ResolvedSegment => {
+      const vStart = parseDateString(v.effectiveFrom);
+      const vEndExclusive = v.effectiveUntil ? parseDateString(v.effectiveUntil) : addDays(monthEnd, 1);
+      const segStart = vStart > employmentWindow.start ? vStart : employmentWindow.start;
+      const segEndInclusive = addDays(vEndExclusive, -1);
+      const segEnd = segEndInclusive < employmentWindow.end ? segEndInclusive : employmentWindow.end;
+      return {
+        start: segStart,
+        end: segEnd,
+        tipoContratacao: v.tipoContratacao,
+        salarioMensal: v.salarioMensal,
+        proLabore: v.proLabore,
+        jornadaDiaria: v.jornadaDiaria,
+        bolsaAuxilio: v.bolsaAuxilio ?? e.bolsaAuxilio,
+        totalBenefitsCost: v.totalBenefitsCost ?? e.totalBenefitsCost,
+        totalToolsCost: v.totalToolsCost ?? e.totalToolsCost,
+      };
+    })
+    .filter((seg) => seg.start <= seg.end);
+
+  if (versionSegments.length === 0) {
+    return [currentSegment(employmentWindow.start, employmentWindow.end)];
+  }
+
+  // Preenche com os dados atuais qualquer trecho da janela de emprego não coberto por versão
+  // (histórico incompleto é um caso real já conhecido) — senão zerava base/encargos/horas.
+  const filled: ResolvedSegment[] = [];
+  let cursor = employmentWindow.start;
+  for (const seg of versionSegments) {
+    if (seg.start > cursor) filled.push(currentSegment(cursor, addDays(seg.start, -1)));
+    filled.push(seg);
+    cursor = addDays(seg.end, 1);
+  }
+  if (cursor <= employmentWindow.end) filled.push(currentSegment(cursor, employmentWindow.end));
+
+  return filled;
 }
 
 export interface PayrollAnalysisRow {
@@ -126,8 +228,20 @@ export interface PayrollAnalysisRow {
   outrosEncargosAmount: number;
   /** Provisão de 13º/férias + os encargos (FGTS, INSS patronal etc.) incidentes sobre essas provisões — são valores reservados para pagamento futuro, não custo do mês corrente. */
   provisionsAmount: number;
+  /** Provisão de 13º salário (principal, sem encargos) — parte de `provisionsAmount`. */
+  provisao13Amount: number;
+  /** Provisão de férias + 1/3 (principal, sem encargos) — parte de `provisionsAmount`. */
+  provisaoFeriasAmount: number;
+  /** Provisão de recesso remunerado (só Estágio) — parte de `provisionsAmount`. */
+  provisaoRecessoAmount: number;
+  /** FGTS + INSS Patronal incidentes sobre as provisões acima — parte de `provisionsAmount`. */
+  encargosSobreProvisoesAmount: number;
   benefitsAmount: number;
   toolsAmount: number;
+  /** Itens de benefício ATIVOS hoje (referência) — ver ressalva em `PayrollAnalysisEmployeeInput`. */
+  benefitsBreakdown: PayrollLineItem[];
+  /** Itens de ferramenta ATIVOS hoje (referência) — ver ressalva em `PayrollAnalysisEmployeeInput`. */
+  toolsBreakdown: PayrollLineItem[];
   totalMonthlyCost: number;
   /**
    * INSS retido do colaborador (tabela progressiva) — descontado do próprio
@@ -145,60 +259,262 @@ export interface PayrollAnalysisRow {
   hourlyCost: number;
 }
 
-/** Linha de custo de um único colaborador — reaproveitada tanto pela folha atual quanto pela evolução histórica. */
+/**
+ * Linha de custo de um único colaborador — reaproveitada tanto pela folha atual quanto
+ * pela evolução histórica. `versions` (marcos financeiros do colaborador, já filtrados
+ * para este `e.id`) permite corrigir o cálculo quando tipo de contratação/salário/
+ * pró-labore/jornada mudaram no meio do histórico — sem nenhuma versão que se
+ * sobreponha ao mês, o comportamento é idêntico ao anterior (estimado com os dados
+ * atuais do cadastro).
+ */
 export function calculatePayrollAnalysisRow(
   e: PayrollAnalysisEmployeeInput,
   payrollProfile: Partial<PayrollProfile>,
   month: PayrollMonthWindow,
   holidays: Holiday[],
+  versions: EmployeeVersionInput[] = [],
 ): PayrollAnalysisRow {
-  // Admissão/desligamento parcial: prorata o salário-base pelos dias corridos
-  // do mês — FGTS, INSS e provisões são calculados sobre esse valor já
-  // proporcional, então herdam a proporcionalidade automaticamente.
-  const baseFraction = calendarProrationFraction(e, month);
-  const businessDaysWorked = effectiveBusinessDaysWorked(e, month, holidays);
+  const monthStart = parseDateString(month.start);
+  const monthEnd = parseDateString(month.end);
+  const daysInMonth = monthEnd.getDate();
+  const businessDaysInMonth = getBusinessDaysInMonth(monthStart.getFullYear(), monthStart.getMonth(), holidays);
 
-  const breakdown = calculateEmployeeCost({
-    tipoContratacao: e.tipoContratacao,
-    salarioBruto: e.salarioMensal * baseFraction,
-    bolsaAuxilio: e.bolsaAuxilio * baseFraction,
-    valorContratoPj: e.valorContratoPj * baseFraction,
-    proLabore: e.proLabore * baseFraction,
-    dividendos: e.dividendos * baseFraction,
-    // Benefícios seguem sua própria prorata por dias úteis (não pelos dias corridos do salário).
-    benefitsTotalMonthly: proratedBenefitsAmount(e, month, holidays, businessDaysWorked),
-    // Ferramentas: valor cheio do mês, sem proporcionalidade.
-    toolsTotalMonthly: e.totalToolsCost,
-    payrollProfile,
-  });
+  const segments = resolveVersionSegments(e, versions, monthStart, monthEnd);
 
-  const hoursWorked = businessDaysWorked * e.jornadaDiaria;
-  const hourlyCost = hoursWorked > 0 ? breakdown.totalMonthlyCost / hoursWorked : 0;
+  // Ferramentas: valor cheio do mês, sem proporcionalidade — usa o segmento vigente no fim do
+  // período empregado (não faz sentido "ratear" uma cobrança de valor cheio por segmento).
+  const toolsAmount = segments[segments.length - 1]?.totalToolsCost ?? e.totalToolsCost;
 
-  // FGTS e INSS patronal do mês são só a alíquota cheia sobre o salário —
-  // o que incide sobre as provisões de 13º/férias é, ele próprio, provisão
-  // (dinheiro reservado para pagar junto com o 13º/férias, não encargo do
-  // mês corrente), por isso soma em `provisionsAmount` e não aqui.
-  const fgtsAmount = breakdown.details.fgts;
-  const inssPatronalAmount = breakdown.details.inss;
-  const encargosSobreProvisoes = breakdown.details.encargos13 + breakdown.details.encargosFerias;
+  let baseAmount = 0;
+  let chargesAmount = 0;
+  let fgtsAmount = 0;
+  let inssPatronalAmount = 0;
+  let outrosEncargosAmount = 0;
+  let provisionsAmount = 0;
+  let provisao13Amount = 0;
+  let provisaoFeriasAmount = 0;
+  let provisaoRecessoAmount = 0;
+  let encargosSobreProvisoesAmount = 0;
+  let inssFuncionario = 0;
+  let benefitsAmount = 0;
+  let salaryOnlyCost = 0;
+  let hoursWorked = 0;
+  let tipoContratacaoForRow = e.tipoContratacao;
+
+  for (const seg of segments) {
+    tipoContratacaoForRow = seg.tipoContratacao;
+    const segFraction = calendarFractionForWindow({ start: seg.start, end: seg.end }, daysInMonth);
+    const segBusinessDays = businessDaysForWindow({ start: seg.start, end: seg.end }, holidays);
+
+    // Benefícios: ponderados por dias úteis de cada segmento dentro do mês — se o marco
+    // financeiro muda no meio do mês, cada trecho contribui só a sua parte proporcional.
+    if (businessDaysInMonth > 0) benefitsAmount += (seg.totalBenefitsCost / businessDaysInMonth) * segBusinessDays;
+    hoursWorked += segBusinessDays * seg.jornadaDiaria;
+
+    if (segFraction <= 0) continue;
+
+    // Encargos sobre provisões de 13º/férias entram em `provisionsAmount`, não aqui.
+    const breakdown = calculateEmployeeCost({
+      tipoContratacao: seg.tipoContratacao,
+      salarioBruto: seg.salarioMensal * segFraction,
+      bolsaAuxilio: seg.bolsaAuxilio * segFraction,
+      valorContratoPj: e.valorContratoPj * segFraction,
+      proLabore: seg.proLabore * segFraction,
+      dividendos: e.dividendos * segFraction,
+      benefitsTotalMonthly: 0,
+      toolsTotalMonthly: 0,
+      payrollProfile,
+    });
+
+    const encargosSobreProvisoes = breakdown.details.encargos13 + breakdown.details.encargosFerias;
+
+    baseAmount += breakdown.baseAmount;
+    chargesAmount += breakdown.chargesAmount;
+    fgtsAmount += breakdown.details.fgts;
+    inssPatronalAmount += breakdown.details.inss;
+    outrosEncargosAmount += breakdown.chargesAmount - breakdown.details.fgts - breakdown.details.inss - encargosSobreProvisoes;
+    provisionsAmount += breakdown.provisionsAmount + encargosSobreProvisoes;
+    provisao13Amount += breakdown.details.provisao13;
+    provisaoFeriasAmount += breakdown.details.provisaoFerias;
+    provisaoRecessoAmount += breakdown.details.provisaoRecesso;
+    encargosSobreProvisoesAmount += encargosSobreProvisoes;
+    inssFuncionario += breakdown.details.inssFuncionario;
+    // totalMonthlyCost de cada segmento já exclui benefícios/ferramentas (passados como 0
+    // acima) — soma o total autoritativo do segmento em vez de rederivar de
+    // chargesAmount+provisionsAmount, que se sobrepõem por design (ver payrollHistory.ts).
+    salaryOnlyCost += breakdown.totalMonthlyCost;
+  }
+
+  const totalMonthlyCost = salaryOnlyCost + benefitsAmount + toolsAmount;
+  const hourlyCost = hoursWorked > 0 ? totalMonthlyCost / hoursWorked : 0;
 
   return {
     employeeId: e.id,
     nome: e.nome,
     cargo: e.cargo,
-    tipoContratacao: e.tipoContratacao,
-    baseAmount: breakdown.baseAmount,
-    chargesAmount: breakdown.chargesAmount,
+    tipoContratacao: tipoContratacaoForRow,
+    baseAmount,
+    chargesAmount,
     fgtsAmount,
     inssPatronalAmount,
-    outrosEncargosAmount: breakdown.chargesAmount - fgtsAmount - inssPatronalAmount - encargosSobreProvisoes,
-    provisionsAmount: breakdown.provisionsAmount + encargosSobreProvisoes,
-    benefitsAmount: breakdown.benefitsAmount,
-    toolsAmount: breakdown.toolsAmount,
-    totalMonthlyCost: breakdown.totalMonthlyCost,
-    inssFuncionario: breakdown.details.inssFuncionario,
+    outrosEncargosAmount,
+    provisionsAmount,
+    provisao13Amount,
+    provisaoFeriasAmount,
+    provisaoRecessoAmount,
+    encargosSobreProvisoesAmount,
+    benefitsAmount,
+    toolsAmount,
+    benefitsBreakdown: e.benefitsBreakdown,
+    toolsBreakdown: e.toolsBreakdown,
+    totalMonthlyCost,
+    inssFuncionario,
     hoursWorked,
     hourlyCost,
   };
+}
+
+interface ContractTypeGroupAccum {
+  tipoContratacao: ContractType;
+  baseAmount: number;
+  chargesAmount: number;
+  fgtsAmount: number;
+  inssPatronalAmount: number;
+  outrosEncargosAmount: number;
+  provisionsAmount: number;
+  provisao13Amount: number;
+  provisaoFeriasAmount: number;
+  provisaoRecessoAmount: number;
+  encargosSobreProvisoesAmount: number;
+  benefitsAmount: number;
+  toolsAmount: number;
+  inssFuncionario: number;
+  salaryOnlyCost: number;
+  hoursWorked: number;
+}
+
+function newContractTypeGroup(tipoContratacao: ContractType): ContractTypeGroupAccum {
+  return {
+    tipoContratacao,
+    baseAmount: 0,
+    chargesAmount: 0,
+    fgtsAmount: 0,
+    inssPatronalAmount: 0,
+    outrosEncargosAmount: 0,
+    provisionsAmount: 0,
+    provisao13Amount: 0,
+    provisaoFeriasAmount: 0,
+    provisaoRecessoAmount: 0,
+    encargosSobreProvisoesAmount: 0,
+    benefitsAmount: 0,
+    toolsAmount: 0,
+    inssFuncionario: 0,
+    salaryOnlyCost: 0,
+    hoursWorked: 0,
+  };
+}
+
+/**
+ * Como `calculatePayrollAnalysisRow`, mas retorna uma linha para CADA trecho contínuo de
+ * tipo de contratação dentro do mês, em vez de somar tudo numa linha só — usada apenas
+ * pela Folha de Pagamento (regime de caixa), quando o colaborador troca de tipo de
+ * contratação no meio do mês (ex.: Estagiário -> CLT), para que cada trecho apareça como
+ * sua própria linha auditável. Custo x Hora não usa esta função — continua com uma linha
+ * só por mês via `calculatePayrollAnalysisRow`. A soma das linhas retornadas aqui é sempre
+ * igual, campo a campo, ao resultado de `calculatePayrollAnalysisRow` para os mesmos
+ * argumentos (mesmo cálculo por segmento, só agrupado em vez de somado).
+ */
+export function calculatePayrollAnalysisRowsByContractType(
+  e: PayrollAnalysisEmployeeInput,
+  payrollProfile: Partial<PayrollProfile>,
+  month: PayrollMonthWindow,
+  holidays: Holiday[],
+  versions: EmployeeVersionInput[] = [],
+): PayrollAnalysisRow[] {
+  const monthStart = parseDateString(month.start);
+  const monthEnd = parseDateString(month.end);
+  const daysInMonth = monthEnd.getDate();
+  const businessDaysInMonth = getBusinessDaysInMonth(monthStart.getFullYear(), monthStart.getMonth(), holidays);
+
+  const segments = resolveVersionSegments(e, versions, monthStart, monthEnd);
+  if (segments.length === 0) return [];
+
+  // Ferramentas: valor cheio do mês, sem proporcionalidade — atribuído inteiramente ao trecho
+  // vigente no fim do período empregado (mesma regra de `calculatePayrollAnalysisRow`); os
+  // demais trechos não recebem nada, para a soma entre linhas não contar em dobro.
+  const toolsAmountForRow = segments[segments.length - 1].totalToolsCost;
+
+  const groups: ContractTypeGroupAccum[] = [];
+
+  segments.forEach((seg, i) => {
+    let group = groups[groups.length - 1];
+    if (!group || group.tipoContratacao !== seg.tipoContratacao) {
+      group = newContractTypeGroup(seg.tipoContratacao);
+      groups.push(group);
+    }
+
+    const segFraction = calendarFractionForWindow({ start: seg.start, end: seg.end }, daysInMonth);
+    const segBusinessDays = businessDaysForWindow({ start: seg.start, end: seg.end }, holidays);
+
+    if (businessDaysInMonth > 0) group.benefitsAmount += (seg.totalBenefitsCost / businessDaysInMonth) * segBusinessDays;
+    group.hoursWorked += segBusinessDays * seg.jornadaDiaria;
+    if (i === segments.length - 1) group.toolsAmount += toolsAmountForRow;
+
+    if (segFraction <= 0) return;
+
+    const breakdown = calculateEmployeeCost({
+      tipoContratacao: seg.tipoContratacao,
+      salarioBruto: seg.salarioMensal * segFraction,
+      bolsaAuxilio: seg.bolsaAuxilio * segFraction,
+      valorContratoPj: e.valorContratoPj * segFraction,
+      proLabore: seg.proLabore * segFraction,
+      dividendos: e.dividendos * segFraction,
+      benefitsTotalMonthly: 0,
+      toolsTotalMonthly: 0,
+      payrollProfile,
+    });
+
+    const encargosSobreProvisoes = breakdown.details.encargos13 + breakdown.details.encargosFerias;
+
+    group.baseAmount += breakdown.baseAmount;
+    group.chargesAmount += breakdown.chargesAmount;
+    group.fgtsAmount += breakdown.details.fgts;
+    group.inssPatronalAmount += breakdown.details.inss;
+    group.outrosEncargosAmount +=
+      breakdown.chargesAmount - breakdown.details.fgts - breakdown.details.inss - encargosSobreProvisoes;
+    group.provisionsAmount += breakdown.provisionsAmount + encargosSobreProvisoes;
+    group.provisao13Amount += breakdown.details.provisao13;
+    group.provisaoFeriasAmount += breakdown.details.provisaoFerias;
+    group.provisaoRecessoAmount += breakdown.details.provisaoRecesso;
+    group.encargosSobreProvisoesAmount += encargosSobreProvisoes;
+    group.inssFuncionario += breakdown.details.inssFuncionario;
+    group.salaryOnlyCost += breakdown.totalMonthlyCost;
+  });
+
+  return groups.map(
+    (g): PayrollAnalysisRow => ({
+      employeeId: e.id,
+      nome: e.nome,
+      cargo: e.cargo,
+      tipoContratacao: g.tipoContratacao,
+      baseAmount: g.baseAmount,
+      chargesAmount: g.chargesAmount,
+      fgtsAmount: g.fgtsAmount,
+      inssPatronalAmount: g.inssPatronalAmount,
+      outrosEncargosAmount: g.outrosEncargosAmount,
+      provisionsAmount: g.provisionsAmount,
+      provisao13Amount: g.provisao13Amount,
+      provisaoFeriasAmount: g.provisaoFeriasAmount,
+      provisaoRecessoAmount: g.provisaoRecessoAmount,
+      encargosSobreProvisoesAmount: g.encargosSobreProvisoesAmount,
+      benefitsAmount: g.benefitsAmount,
+      toolsAmount: g.toolsAmount,
+      benefitsBreakdown: e.benefitsBreakdown,
+      toolsBreakdown: e.toolsBreakdown,
+      totalMonthlyCost: g.salaryOnlyCost + g.benefitsAmount + g.toolsAmount,
+      inssFuncionario: g.inssFuncionario,
+      hoursWorked: g.hoursWorked,
+      hourlyCost: 0,
+    }),
+  );
 }

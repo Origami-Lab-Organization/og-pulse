@@ -16,10 +16,17 @@
  */
 import { startOfYear, startOfMonth, endOfMonth, addMonths, subMonths, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { calculatePayrollAnalysisRow, type PayrollAnalysisEmployeeInput, type PayrollAnalysisRow } from './payrollAnalysis';
+import {
+  calculatePayrollAnalysisRow,
+  calculatePayrollAnalysisRowsByContractType,
+  type PayrollAnalysisEmployeeInput,
+  type PayrollAnalysisRow,
+  type EmployeeVersionInput,
+} from './payrollAnalysis';
 import { parseDateString } from './formatters';
 import type { Holiday } from './workingDays';
 import type { PayrollProfile } from '@/types/payrollProfile';
+import type { ContractType } from '@/types/employee';
 
 export type PayrollHistoryEmployeeInput = PayrollAnalysisEmployeeInput;
 
@@ -131,6 +138,7 @@ export function buildPayrollHistory(
   payrollProfile: Partial<PayrollProfile>,
   months: PayrollMonth[],
   holidays: Holiday[],
+  versionsByEmployee: Map<string, EmployeeVersionInput[]> = new Map(),
 ): PayrollMonthPoint[] {
   return months.map((month) => {
     // Mês atual e meses futuros: não há como saber o status passado/futuro de
@@ -141,7 +149,7 @@ export function buildPayrollHistory(
     const requiresActiveStatusToday = month.isCurrent || month.isFuture;
     const rows = employees
       .filter((e) => wasEmployedDuringMonth(e, month) && (!requiresActiveStatusToday || e.status === 'ativo'))
-      .map((e) => calculatePayrollAnalysisRow(e, payrollProfile, month, holidays))
+      .map((e) => calculatePayrollAnalysisRow(e, payrollProfile, month, holidays, versionsByEmployee.get(e.id)))
       .sort((a, b) => b.totalMonthlyCost - a.totalMonthlyCost);
 
     return {
@@ -156,80 +164,106 @@ export function buildPayrollHistory(
 }
 
 /**
- * Linha de um colaborador no mês `month`, em regime de CAIXA: salário,
+ * Linha(s) de um colaborador no mês `month`, em regime de CAIXA: salário,
  * encargos e provisões são o que foi GANHO no mês anterior (pago neste,
  * prática usual de folha mensal) — exceto quando o desligamento cai dentro
  * do próprio `month`, caso em que a rescisão (CLT Art. 477) é reconhecida no
  * mesmo mês, não no seguinte. Benefícios e ferramentas continuam ligados ao
  * mês corrente (pagos dentro do mês em que são incorridos, sem defasagem).
- * Reaproveita `calculatePayrollAnalysisRow` (regime de competência) como
- * fonte de cada uma das duas janelas — nunca duplica a fórmula de custo.
+ * Reaproveita `calculatePayrollAnalysisRowsByContractType` (regime de
+ * competência, por trecho) como fonte de cada uma das duas janelas — nunca
+ * duplica a fórmula de custo.
+ *
+ * Quando o colaborador troca de tipo de contratação no meio do mês corrente
+ * OU do mês anterior (a fonte do salário deste mês), retorna MAIS DE UMA
+ * linha — uma por tipo de contratação — em vez de uma única linha borrada.
+ * Isso pode fazer o mesmo colaborador aparecer em 2 meses seguidos: no mês em
+ * que a troca ocorre (benefícios/ferramentas do mês corrente já divididos) e
+ * no mês seguinte (salário/encargos do mês anterior, que veio dividido).
  */
-function buildCashRow(
+function buildCashRows(
   e: PayrollHistoryEmployeeInput,
   payrollProfile: Partial<PayrollProfile>,
   month: PayrollMonth,
   prevMonth: PayrollMonth,
   holidays: Holiday[],
-): PayrollAnalysisRow | null {
+  versions: EmployeeVersionInput[],
+): PayrollAnalysisRow[] {
   // terminationService já muda o status para 'em_desligamento' assim que a rescisão é
   // registrada, antes da data efetiva — por isso `terminationDate` (não o status) manda aqui.
   const currentRequiresActive = month.isCurrent || month.isFuture;
   const employedThisMonth =
     wasEmployedDuringMonth(e, month) && (!currentRequiresActive || e.terminationDate !== null || e.status === 'ativo');
-  const current = employedThisMonth ? calculatePayrollAnalysisRow(e, payrollProfile, month, holidays) : null;
+  const currentSegments = employedThisMonth
+    ? calculatePayrollAnalysisRowsByContractType(e, payrollProfile, month, holidays, versions)
+    : [];
 
   const prevRequiresActive = prevMonth.isCurrent || prevMonth.isFuture;
   const wasEmployedPrevMonth =
     wasEmployedDuringMonth(e, prevMonth) && (!prevRequiresActive || e.terminationDate !== null || e.status === 'ativo');
-  const shifted =
+  const shiftedSegments =
     wasEmployedPrevMonth && !isTerminatedDuring(e, prevMonth)
-      ? calculatePayrollAnalysisRow(e, payrollProfile, prevMonth, holidays)
-      : null;
+      ? calculatePayrollAnalysisRowsByContractType(e, payrollProfile, prevMonth, holidays, versions)
+      : [];
 
-  // Rescisão: mesma chamada que já computou `current` (o desligamento, se houver, já está
-  // dentro da janela de `month`) — não recalcula, só decide se ela entra como "salário do mês".
-  const rescission = isTerminatedDuring(e, month) ? current : null;
+  // Rescisão: mesmos trechos que já formam `currentSegments` (o desligamento, se houver, já
+  // está dentro da janela de `month`) — não recalcula, só decide se entram como "salário do mês".
+  const rescissionSegments = isTerminatedDuring(e, month) ? currentSegments : [];
 
-  if (!current && !shifted) return null;
+  if (currentSegments.length === 0 && shiftedSegments.length === 0) return [];
+
+  // Tipos de contratação distintos, na ordem em que aparecem: primeiro os que vêm do
+  // salário (mês anterior/rescisão), depois qualquer tipo novo que só apareça nos
+  // benefícios do mês corrente. Sem troca no mês, isso é sempre um único tipo -> uma
+  // única linha, idêntico ao comportamento anterior a este mecanismo.
+  const identities: ContractType[] = [];
+  for (const r of [...shiftedSegments, ...rescissionSegments, ...currentSegments]) {
+    if (!identities.includes(r.tipoContratacao)) identities.push(r.tipoContratacao);
+  }
 
   const add = (a?: number, b?: number) => (a ?? 0) + (b ?? 0);
-
-  const baseAmount = add(shifted?.baseAmount, rescission?.baseAmount);
-  const chargesAmount = add(shifted?.chargesAmount, rescission?.chargesAmount);
-  const fgtsAmount = add(shifted?.fgtsAmount, rescission?.fgtsAmount);
-  const inssPatronalAmount = add(shifted?.inssPatronalAmount, rescission?.inssPatronalAmount);
-  const outrosEncargosAmount = add(shifted?.outrosEncargosAmount, rescission?.outrosEncargosAmount);
-  const provisionsAmount = add(shifted?.provisionsAmount, rescission?.provisionsAmount);
-  const inssFuncionario = add(shifted?.inssFuncionario, rescission?.inssFuncionario);
-  const benefitsAmount = current?.benefitsAmount ?? 0;
-  const toolsAmount = current?.toolsAmount ?? 0;
   // chargesAmount e provisionsAmount ambos embutem os encargos sobre 13º/férias (payrollAnalysis.ts)
   // — somar os dois contaria em dobro, por isso parte do totalMonthlyCost já correto de cada linha.
-  const salaryOnlyTotal = (row: PayrollAnalysisRow | null) =>
+  const salaryOnlyTotal = (row: PayrollAnalysisRow | undefined) =>
     row ? row.totalMonthlyCost - row.benefitsAmount - row.toolsAmount : 0;
-  const totalMonthlyCost = salaryOnlyTotal(shifted) + salaryOnlyTotal(rescission) + benefitsAmount + toolsAmount;
 
-  return {
-    employeeId: e.id,
-    nome: e.nome,
-    cargo: e.cargo,
-    tipoContratacao: e.tipoContratacao,
-    baseAmount,
-    chargesAmount,
-    fgtsAmount,
-    inssPatronalAmount,
-    outrosEncargosAmount,
-    provisionsAmount,
-    benefitsAmount,
-    toolsAmount,
-    totalMonthlyCost,
-    inssFuncionario,
-    // Custo/hora é um conceito de regime de competência (Custo x Hora, que usa
-    // `buildPayrollHistory`) — não faz sentido nesta janela mista, por isso zerado.
-    hoursWorked: 0,
-    hourlyCost: 0,
-  };
+  return identities.map((tipo): PayrollAnalysisRow => {
+    const shifted = shiftedSegments.find((r) => r.tipoContratacao === tipo);
+    const rescission = rescissionSegments.find((r) => r.tipoContratacao === tipo);
+    const current = currentSegments.find((r) => r.tipoContratacao === tipo);
+
+    const benefitsAmount = current?.benefitsAmount ?? 0;
+    const toolsAmount = current?.toolsAmount ?? 0;
+
+    return {
+      employeeId: e.id,
+      nome: e.nome,
+      cargo: e.cargo,
+      tipoContratacao: tipo,
+      baseAmount: add(shifted?.baseAmount, rescission?.baseAmount),
+      chargesAmount: add(shifted?.chargesAmount, rescission?.chargesAmount),
+      fgtsAmount: add(shifted?.fgtsAmount, rescission?.fgtsAmount),
+      inssPatronalAmount: add(shifted?.inssPatronalAmount, rescission?.inssPatronalAmount),
+      outrosEncargosAmount: add(shifted?.outrosEncargosAmount, rescission?.outrosEncargosAmount),
+      provisionsAmount: add(shifted?.provisionsAmount, rescission?.provisionsAmount),
+      provisao13Amount: add(shifted?.provisao13Amount, rescission?.provisao13Amount),
+      provisaoFeriasAmount: add(shifted?.provisaoFeriasAmount, rescission?.provisaoFeriasAmount),
+      provisaoRecessoAmount: add(shifted?.provisaoRecessoAmount, rescission?.provisaoRecessoAmount),
+      encargosSobreProvisoesAmount: add(shifted?.encargosSobreProvisoesAmount, rescission?.encargosSobreProvisoesAmount),
+      benefitsAmount,
+      toolsAmount,
+      // Sempre os itens atuais do cadastro (referência) — current cobre qualquer mês com
+      // algum valor na linha (benefícios/ferramentas nunca vêm só de shifted/rescission).
+      benefitsBreakdown: current?.benefitsBreakdown ?? shifted?.benefitsBreakdown ?? e.benefitsBreakdown,
+      toolsBreakdown: current?.toolsBreakdown ?? shifted?.toolsBreakdown ?? e.toolsBreakdown,
+      totalMonthlyCost: salaryOnlyTotal(shifted) + salaryOnlyTotal(rescission) + benefitsAmount + toolsAmount,
+      inssFuncionario: add(shifted?.inssFuncionario, rescission?.inssFuncionario),
+      // Custo/hora é um conceito de regime de competência (Custo x Hora, que usa
+      // `buildPayrollHistory`) — não faz sentido nesta janela mista, por isso zerado.
+      hoursWorked: 0,
+      hourlyCost: 0,
+    };
+  });
 }
 
 /**
@@ -244,17 +278,20 @@ export function buildCashPayrollHistory(
   months: PayrollMonth[],
   holidays: Holiday[],
   referenceDate: Date,
+  versionsByEmployee: Map<string, EmployeeVersionInput[]> = new Map(),
 ): PayrollMonthPoint[] {
   return months.map((month) => {
     const prevMonth = previousMonth(month, referenceDate);
     const rows = employees
-      .map((e) => buildCashRow(e, payrollProfile, month, prevMonth, holidays))
-      .filter((r): r is PayrollAnalysisRow => r !== null)
+      .flatMap((e) => buildCashRows(e, payrollProfile, month, prevMonth, holidays, versionsByEmployee.get(e.id) ?? []))
       .sort((a, b) => b.totalMonthlyCost - a.totalMonthlyCost);
 
     return {
       ...month,
-      headcount: rows.length,
+      // Distinto por colaborador, não por linha — uma troca de tipo de contratação no meio
+      // do mês gera 2 linhas para a mesma pessoa (ver `buildCashRows`), que não deve contar
+      // como 2 colaboradores no headcount.
+      headcount: new Set(rows.map((r) => r.employeeId)).size,
       ...sumRows(rows),
       rows,
       estimated: !month.isCurrent && !month.isFuture,

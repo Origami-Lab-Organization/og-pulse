@@ -19,6 +19,12 @@ export interface EmployeeVersionDB {
   tipo_contratacao: string;
   cargo: string;
   total_monthly_cost_estimated: number | null;
+  /** Null em versões criadas antes deste campo existir — cai para o cadastro atual nesse caso. */
+  bolsa_auxilio: number | null;
+  /** Congelado no fechamento da versão — null enquanto a versão está aberta (usa soma ao vivo nesse caso). */
+  total_benefits_cost: number | null;
+  /** Congelado no fechamento da versão — null enquanto a versão está aberta (usa soma ao vivo nesse caso). */
+  total_tools_cost: number | null;
   created_at: string;
 }
 
@@ -39,6 +45,9 @@ export interface CreateVersionInput {
   tipoContratacao: string;
   cargo: string;
   totalMonthlyCostEstimated?: number | null;
+  bolsaAuxilio?: number | null;
+  totalBenefitsCost?: number | null;
+  totalToolsCost?: number | null;
 }
 
 // Fields that trigger a new version when changed
@@ -58,6 +67,25 @@ const VERSIONED_FIELDS = [
 ] as const;
 
 export const employeeVersionService = {
+  /**
+   * Todas as versões de todos os colaboradores do tenant (RLS escopa via employees,
+   * mesmo padrão de `usePayrollHistory.ts`) — usada pela Folha de Pagamento/Custo x
+   * Hora para resolver o tipo de contratação/salário/jornada vigente em cada mês.
+   */
+  async getAllVersionsForTenant(): Promise<EmployeeVersionDB[]> {
+    const { data, error } = await supabase
+      .from('employee_versions')
+      .select('*')
+      .order('effective_from', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching all employee versions:', error);
+      throw error;
+    }
+
+    return (data || []) as EmployeeVersionDB[];
+  },
+
   /**
    * Get all versions for an employee
    */
@@ -120,17 +148,30 @@ export const employeeVersionService = {
   },
 
   /**
-   * Create a new version (closes the current one if exists)
+   * Cria uma nova versão, encaixando-a na linha do tempo em `effectiveFrom` — não
+   * necessariamente ao final. Fecha a versão cujo intervalo CONTÉM `effectiveFrom` (que pode
+   * não ser "a versão aberta", se já existir uma futura agendada depois) e, se já houver uma
+   * versão futura agendada para depois de `effectiveFrom`, a nova versão termina exatamente
+   * onde aquela começa — evita sobrepor ou apagar um marco já agendado por um edit anterior.
    */
   async createVersion(input: CreateVersionInput): Promise<EmployeeVersionDB> {
     const effectiveFrom = input.effectiveFrom || new Date().toISOString().split('T')[0];
 
-    // First, close any current version
     await supabase
       .from('employee_versions')
       .update({ effective_until: effectiveFrom })
       .eq('employee_id', input.employeeId)
-      .is('effective_until', null);
+      .lte('effective_from', effectiveFrom)
+      .or(`effective_until.is.null,effective_until.gt.${effectiveFrom}`);
+
+    const { data: nextVersion } = await supabase
+      .from('employee_versions')
+      .select('effective_from')
+      .eq('employee_id', input.employeeId)
+      .gt('effective_from', effectiveFrom)
+      .order('effective_from', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
     // Create the new version
     const { data, error } = await supabase
@@ -138,7 +179,7 @@ export const employeeVersionService = {
       .insert({
         employee_id: input.employeeId,
         effective_from: effectiveFrom,
-        effective_until: null,
+        effective_until: nextVersion?.effective_from ?? null,
         salario_mensal: input.salarioMensal,
         salario_liquido: input.salarioLiquido,
         beneficios: input.beneficios,
@@ -153,6 +194,9 @@ export const employeeVersionService = {
         tipo_contratacao: input.tipoContratacao,
         cargo: input.cargo,
         total_monthly_cost_estimated: input.totalMonthlyCostEstimated ?? null,
+        bolsa_auxilio: input.bolsaAuxilio ?? null,
+        total_benefits_cost: input.totalBenefitsCost ?? null,
+        total_tools_cost: input.totalToolsCost ?? null,
       })
       .select()
       .single();

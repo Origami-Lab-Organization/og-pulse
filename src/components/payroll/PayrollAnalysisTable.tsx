@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ArrowUpDown, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,6 +7,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { CONTRACT_TYPE_LABELS } from '@/types/employee';
 import type { PayrollAnalysisRow } from '@/lib/payrollAnalysis';
+import { EmployeeDetailDialog } from '@/components/employees/EmployeeDetailDialog';
 
 interface PayrollAnalysisTableProps {
   rows: PayrollAnalysisRow[];
@@ -35,9 +35,9 @@ function getSortValue(row: PayrollAnalysisRow, key: SortKey): string | number {
 }
 
 export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }: PayrollAnalysisTableProps) {
-  const navigate = useNavigate();
   const [sortKey, setSortKey] = useState<SortKey>('totalMonthlyCost');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [selectedRow, setSelectedRow] = useState<PayrollAnalysisRow | null>(null);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -174,9 +174,9 @@ export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }:
             <TableBody>
               {sortedRows.map((row) => (
                 <TableRow
-                  key={row.employeeId}
+                  key={`${row.employeeId}-${row.tipoContratacao}`}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/employees/${row.employeeId}`)}
+                  onClick={() => setSelectedRow(row)}
                 >
                   <TableCell className="font-medium">{row.nome}</TableCell>
                   <TableCell className="text-muted-foreground">{CONTRACT_TYPE_LABELS[row.tipoContratacao]}</TableCell>
@@ -194,7 +194,9 @@ export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }:
             </TableBody>
             <TableFooter>
               <TableRow className="hover:bg-muted/50">
-                <TableCell colSpan={2} className="font-bold">Total ({rows.length} colaboradores)</TableCell>
+                <TableCell colSpan={2} className="font-bold">
+                  Total ({new Set(rows.map((r) => r.employeeId)).size} colaboradores)
+                </TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.baseAmount)}</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.fgtsAmount)}</TableCell>
                 <TableCell className="text-right italic font-bold tabular-nums text-muted-foreground">
@@ -209,6 +211,13 @@ export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }:
           </Table>
         </div>
       </CardContent>
+      <EmployeeDetailDialog
+        open={selectedRow != null}
+        onOpenChange={(open) => !open && setSelectedRow(null)}
+        row={selectedRow}
+        monthLabel={monthLabel}
+        showHourlyCost={false}
+      />
     </Card>
   );
 }
