@@ -27,14 +27,20 @@ import { ProjectWithRelations } from '@/types/project';
 import { TeamAllocationRow } from '@/types/equipe.types';
 import {
   useTeamAllocationRows,
-  useUpdateAllocationHours,
-  useSetAllocationMonthHours,
+  useSaveAllocationMonthHours,
   useDeallocateMember,
   useReactivateMember,
   useRemoveTeamRow,
   useSetVacancyMonthHours,
 } from '@/hooks/useProjectRoles';
 import { AllocationCell } from '@/components/projects/team/AllocationCell';
+import { DeallocateMemberDialog } from '@/components/projects/team/DeallocateMemberDialog';
+
+type MonthStatus = 'past' | 'current' | 'future';
+
+function monthLabelPtBR(date: Date) {
+  return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
 
 function initials(name: string) {
   return name
@@ -69,10 +75,10 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
   const [offsetStart, setOffsetStart] = useState(-3);
   const [showDeallocated, setShowDeallocated] = useState(false);
   const [rowToRemove, setRowToRemove] = useState<TeamAllocationRow | null>(null);
+  const [memberToDeallocate, setMemberToDeallocate] = useState<TeamAllocationRow | null>(null);
 
   const { rows, isLoading } = useTeamAllocationRows(project, canEdit, currentEmployeeId);
-  const updateHours = useUpdateAllocationHours(project.id);
-  const setMonthHours = useSetAllocationMonthHours(project.id);
+  const saveHours = useSaveAllocationMonthHours(project.id);
   const setVacancyMonthHours = useSetVacancyMonthHours(project.id);
   const deallocate = useDeallocateMember(project.id);
   const reactivate = useReactivateMember(project.id);
@@ -90,15 +96,17 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
   // Dias úteis por mês (cabeçalho no padrão /alocacao: "MÊS · Xd"; no mês vigente,
   // "hoje · dia útil X de Y").
   const monthMeta = useMemo(() => {
-    const meta: Record<string, { workingDays: number; elapsed: number; isCurrent: boolean }> = {};
+    const meta: Record<string, { workingDays: number; elapsed: number; status: MonthStatus }> = {};
     months.forEach((m) => {
       const start = new Date(m.year, m.month - 1, 1);
       const end = new Date(m.year, m.month, 0);
-      const isCurrent = m.year * 12 + (m.month - 1) === currentMonthIndex;
+      const monthIdx = m.year * 12 + (m.month - 1);
+      const status: MonthStatus =
+        monthIdx === currentMonthIndex ? 'current' : monthIdx < currentMonthIndex ? 'past' : 'future';
       meta[monthKey(m.year, m.month)] = {
         workingDays: countWorkingDays(start, end, holidays),
-        elapsed: isCurrent ? countWorkingDays(start, today, holidays) : 0,
-        isCurrent,
+        elapsed: status === 'current' ? countWorkingDays(start, today, holidays) : 0,
+        status,
       };
     });
     return meta;
@@ -140,20 +148,10 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
       setVacancyMonthHours.mutate({ rowId: row.vacancyRowId, year, month, plannedHours: newHours });
       return;
     }
-    if (cell?.allocationId) {
-      const isPastMonth = year * 12 + (month - 1) < currentMonthIndex;
-      updateHours.mutate({
-        allocationId: cell.allocationId,
-        previousHours: cell.plannedHours,
-        newHours,
-        isPastMonth,
-        reasonCode,
-        justification,
-      });
-      return;
-    }
     if (!row.employeeId) return;
-    setMonthHours.mutate({
+    // Escrita única por upsert (mês existente ou novo). Nunca update puro por id.
+    const isPastMonth = year * 12 + (month - 1) < currentMonthIndex;
+    saveHours.mutate({
       tenantId: project.tenant_id,
       employeeId: row.employeeId,
       budgetRoleId: row.budgetRoleId,
@@ -161,6 +159,11 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
       year,
       month,
       plannedHours: newHours,
+      previousHours: cell?.plannedHours ?? 0,
+      isPastMonth,
+      allocationId: cell?.allocationId ?? null,
+      reasonCode,
+      justification,
     });
   };
 
@@ -242,7 +245,7 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
               <DropdownMenuContent align="end">
                 {row.kind === 'member' && (
                   <>
-                    <DropdownMenuItem onClick={() => row.employeeId && deallocate.mutate(row.employeeId)}>
+                    <DropdownMenuItem onClick={() => setMemberToDeallocate(row)}>
                       <UserMinus className="mr-2 h-4 w-4" />
                       Desalocar
                     </DropdownMenuItem>
@@ -280,14 +283,15 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
       {months.map((m) => {
         const key = monthKey(m.year, m.month);
         const cell = row.months[key];
-        const isPastMonth = m.year * 12 + (m.month - 1) < currentMonthIndex;
+        const monthStatus = monthMeta[key]?.status ?? 'future';
+        const isPastMonth = monthStatus === 'past';
         const editable = canEdit && row.kind !== 'deallocated' && (!isPastMonth || isAdmin);
         return (
           <td key={key} className="border-r border-t bg-card p-1 align-middle last:border-r-0">
             <AllocationCell
               cell={cell}
               editable={editable}
-              isPastMonth={isPastMonth}
+              monthStatus={monthStatus}
               isAdmin={isAdmin}
               onSave={(newHours, reasonCode, justification) => handleSaveCell(row, m.year, m.month, newHours, reasonCode, justification)}
             />
@@ -345,9 +349,18 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
                         · {meta?.workingDays ?? 0}d
                       </span>
                     </span>
-                    {meta?.isCurrent ? (
-                      <span className="mt-0.5 block text-[10px] font-semibold normal-case text-primary-deep">
-                        hoje · dia útil {meta.elapsed} de {meta.workingDays}
+                    {meta?.status === 'current' ? (
+                      <>
+                        <span className="mt-0.5 block text-[10px] font-semibold normal-case text-primary-deep">
+                          hoje · dia útil {meta.elapsed} de {meta.workingDays}
+                        </span>
+                        <span className="block text-[10px] font-normal normal-case text-muted-foreground">
+                          planejado · realizado
+                        </span>
+                      </>
+                    ) : meta?.status === 'future' ? (
+                      <span className="mt-0.5 block text-[10px] font-normal normal-case text-muted-foreground">
+                        planejado · capacidade
                       </span>
                     ) : (
                       <span className="mt-0.5 block text-[10px] font-normal normal-case text-muted-foreground">
@@ -387,6 +400,25 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
           </tfoot>
         </table>
       </div>
+
+      {memberToDeallocate && (
+        <DeallocateMemberDialog
+          open={Boolean(memberToDeallocate)}
+          onOpenChange={(open) => !open && setMemberToDeallocate(null)}
+          memberName={memberToDeallocate.employee?.nome ?? 'este funcionário'}
+          currentMonthPlanned={
+            memberToDeallocate.months[monthKey(today.getFullYear(), today.getMonth() + 1)]?.plannedHours ?? 0
+          }
+          currentMonthLabel={monthLabelPtBR(today)}
+          nextMonthLabel={monthLabelPtBR(new Date(today.getFullYear(), today.getMonth() + 1, 1))}
+          onConfirm={(clearCurrentMonth) => {
+            if (memberToDeallocate.employeeId) {
+              deallocate.mutate({ employeeId: memberToDeallocate.employeeId, clearCurrentMonth });
+            }
+            setMemberToDeallocate(null);
+          }}
+        />
+      )}
 
       <AlertDialog open={Boolean(rowToRemove)} onOpenChange={(open) => !open && setRowToRemove(null)}>
         <AlertDialogContent>

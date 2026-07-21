@@ -184,49 +184,37 @@ export const useCreateProjectRole = (projectId: string, onSuccess?: () => void) 
 
 // ─── Edição inline de 1 célula (mês existente ou novo) ─────────────────────────
 
-export const useUpdateAllocationHours = (projectId: string) => {
+/** Invalida todas as leituras impactadas por uma escrita de horas planejadas. */
+function invalidateAllocationDependents(queryClient: ReturnType<typeof useQueryClient>, projectId: string) {
+  // Aba Equipe
+  queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
+  queryClient.invalidateQueries({ queryKey: ['project-allocations-filled-roles', projectId] });
+  queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
+  queryClient.invalidateQueries({ queryKey: ['project-realized-hours', projectId] });
+  // Tela /alocacao (allocation-overview)
+  queryClient.invalidateQueries({ queryKey: ['allocation-employee-month-summary'] });
+  queryClient.invalidateQueries({ queryKey: ['allocation-employee-detail'] });
+  queryClient.invalidateQueries({ queryKey: ['allocation-grid'] });
+  queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
+  // Disponibilidade do funcionário
+  queryClient.invalidateQueries({ queryKey: ['employee-availability'] });
+  queryClient.invalidateQueries({ queryKey: ['employee-monthly-load'] });
+  // Custos / financeiro do projeto
+  queryClient.invalidateQueries({ queryKey: ['project-team-financials', projectId] });
+}
+
+/**
+ * Escrita canônica de horas planejadas de 1 célula (mês existente OU novo).
+ *
+ * SEMPRE upsert por chave composta — nunca `update` puro por id — para evitar a
+ * falha silenciosa de 0 linhas afetadas (RLS/linha inexistente devolvem sucesso
+ * no Supabase). O toast de sucesso só dispara após confirmar que a gravação
+ * afetou ≥ 1 linha; qualquer erro (ou 0 linhas) cai no toast de erro e mantém o
+ * valor anterior visível na grade (o cache não é atualizado).
+ */
+export const useSaveAllocationMonthHours = (projectId: string) => {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (input: {
-      allocationId: string;
-      previousHours: number;
-      newHours: number;
-      isPastMonth: boolean;
-      reasonCode?: string;
-      justification?: string;
-    }) => {
-      if (input.isPastMonth && !employee?.isAdmin) {
-        throw new Error('Apenas admin pode editar horas planejadas de meses passados');
-      }
-      await equipeService.updateAllocationHours(input.allocationId, input.newHours);
-      if (input.isPastMonth && employee?.id) {
-        await equipeService.logAllocationHoursEdit({
-          allocationId: input.allocationId,
-          editedBy: employee.id,
-          previousHours: input.previousHours,
-          newHours: input.newHours,
-          reasonCode: input.reasonCode ?? 'other',
-          justification: input.justification ?? '',
-        });
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project-realized-hours', projectId] });
-      toast({ title: 'Horas atualizadas' });
-    },
-    onError: (error: Error) => {
-      toast({ title: error.message || 'Erro ao atualizar horas', variant: 'destructive' });
-    },
-  });
-};
-
-/** Cria/atualiza a alocação de um mês que ainda não tem linha (upsert de 1 mês). */
-export const useSetAllocationMonthHours = (projectId: string) => {
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
@@ -238,8 +226,17 @@ export const useSetAllocationMonthHours = (projectId: string) => {
       year: number;
       month: number;
       plannedHours: number;
+      previousHours: number;
+      isPastMonth: boolean;
+      allocationId: string | null;
+      reasonCode?: string;
+      justification?: string;
     }) => {
-      await equipeService.upsertAllocations([{
+      if (input.isPastMonth && !employee?.isAdmin) {
+        throw new Error('Apenas admin pode editar horas planejadas de meses passados');
+      }
+
+      const affected = await equipeService.upsertAllocations([{
         project_id: projectId,
         tenant_id: input.tenantId,
         employee_id: input.employeeId,
@@ -249,12 +246,29 @@ export const useSetAllocationMonthHours = (projectId: string) => {
         month: input.month,
         planned_hours: input.plannedHours,
       }]);
+
+      if (affected === 0) {
+        throw new Error('Não foi possível salvar as horas. Verifique suas permissões e tente novamente.');
+      }
+
+      // Mês passado: registra no log de auditoria (só admin chega aqui).
+      if (input.isPastMonth && input.allocationId && employee?.id) {
+        await equipeService.logAllocationHoursEdit({
+          allocationId: input.allocationId,
+          editedBy: employee.id,
+          previousHours: input.previousHours,
+          newHours: input.plannedHours,
+          reasonCode: input.reasonCode ?? 'other',
+          justification: input.justification ?? '',
+        });
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
+      invalidateAllocationDependents(queryClient, projectId);
+      toast({ title: 'Horas atualizadas' });
     },
-    onError: () => {
-      toast({ title: 'Erro ao atualizar horas', variant: 'destructive' });
+    onError: (error: Error) => {
+      toast({ title: error.message || 'Erro ao atualizar horas', variant: 'destructive' });
     },
   });
 };
@@ -266,11 +280,23 @@ export const useDeallocateMember = (projectId: string) => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (employeeId: string) => equipeService.deallocateMember(projectId, employeeId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
-      toast({ title: 'Funcionário desalocado', description: 'As horas planejadas a partir do próximo mês foram zeradas.' });
+    // `clearCurrentMonth`: quando o GP opta por zerar também o mês vigente
+    // (desalocação retroativa). Meses passados nunca são tocados; meses futuros
+    // são zerados pela própria RPC.
+    mutationFn: async ({ employeeId, clearCurrentMonth }: { employeeId: string; clearCurrentMonth: boolean }) => {
+      await equipeService.deallocateMember(projectId, employeeId);
+      if (clearCurrentMonth) {
+        await equipeService.clearCurrentMonthPlanned(projectId, employeeId);
+      }
+    },
+    onSuccess: (_data, variables) => {
+      invalidateAllocationDependents(queryClient, projectId);
+      toast({
+        title: 'Funcionário desalocado',
+        description: variables.clearCurrentMonth
+          ? 'As horas planejadas do mês vigente em diante foram zeradas.'
+          : 'As horas planejadas a partir do próximo mês foram zeradas.',
+      });
     },
     onError: () => {
       toast({ title: 'Erro ao desalocar funcionário', variant: 'destructive' });

@@ -65,6 +65,12 @@ export const equipeService = {
     })) as ProjectAllocationWithEmployee[];
   },
 
+  /**
+   * Upsert por chave composta (employee_id, project_id, year, month). Retorna
+   * o nº de linhas efetivamente gravadas — um `.select()` é obrigatório para
+   * detectar o caso em que a RLS filtra a linha e o Supabase devolve sucesso
+   * com 0 linhas afetadas (falha silenciosa de persistência).
+   */
   async upsertAllocations(rows: {
     project_id: string;
     tenant_id: string;
@@ -74,10 +80,25 @@ export const equipeService = {
     year: number;
     month: number;
     planned_hours: number;
-  }[]): Promise<void> {
+  }[]): Promise<number> {
+    const { data, error } = await (supabase
+      .from('project_role_allocations' as any) as any)
+      .upsert(rows, { onConflict: 'employee_id,project_id,year,month' })
+      .select('id');
+    if (error) throw error;
+    return (data as unknown[] | null)?.length ?? 0;
+  },
+
+  /** Zera o planejado do MÊS VIGENTE de um membro (usado na desalocação retroativa). */
+  async clearCurrentMonthPlanned(projectId: string, employeeId: string): Promise<void> {
+    const now = new Date();
     const { error } = await (supabase
       .from('project_role_allocations' as any) as any)
-      .upsert(rows, { onConflict: 'employee_id,project_id,year,month' });
+      .update({ planned_hours: 0 })
+      .eq('project_id', projectId)
+      .eq('employee_id', employeeId)
+      .eq('year', now.getFullYear())
+      .eq('month', now.getMonth() + 1);
     if (error) throw error;
   },
 
