@@ -37,17 +37,19 @@ const TONE_CLASSES: Record<CellTone, string> = {
 interface AllocationCellProps {
   cell: TeamMonthCell | undefined;
   editable: boolean;
-  isPastMonth: boolean;
+  monthStatus: 'past' | 'current' | 'future';
   isAdmin: boolean;
   onSave: (newHours: number, reasonCode?: string, justification?: string) => void;
 }
 
-export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }: AllocationCellProps) {
+export function AllocationCell({ cell, editable, monthStatus, isAdmin, onSave }: AllocationCellProps) {
   const plannedHours = cell?.plannedHours ?? 0;
   const realizedHours = cell?.realizedHours ?? null;
   const capacity = cell?.capacityHours ?? 0;
   const others = cell?.othersHours ?? 0;
-  const isFuture = realizedHours === null;
+  // Mês futuro = capacidade (sem realizado). Mês vigente/passado = execução.
+  const isPastMonth = monthStatus === 'past';
+  const isFuture = monthStatus === 'future';
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(String(plannedHours));
@@ -113,9 +115,16 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
     );
   }
 
-  const thisPct = capacity > 0 ? Math.min(100, (plannedHours / capacity) * 100) : 0;
+  // Fração de CAPACIDADE (mês futuro): plan neste projeto / jornada mensal.
+  const capacityPct = capacity > 0 ? Math.min(100, (plannedHours / capacity) * 100) : 0;
   const freeHours = Math.max(0, capacity - others - plannedHours);
+  // Fração de EXECUÇÃO (mês vigente/passado): realizado / planejado.
   const tone = isFuture ? null : executionTone(plannedHours, realizedHours as number);
+  const execPct = plannedHours > 0
+    ? Math.min(100, ((realizedHours as number) / plannedHours) * 100)
+    : (realizedHours as number) > 0
+      ? 100
+      : 0;
 
   const content = (
     <button
@@ -123,8 +132,8 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
       onClick={startEdit}
       disabled={!editable}
       className={cn(
-        'group relative flex h-9 w-full items-center justify-center rounded-md px-2 text-xs transition-colors',
-        isFuture ? 'flex-col gap-0.5 text-foreground' : cn('gap-1.5', TONE_CLASSES[tone as CellTone]),
+        'group relative flex min-h-[3.25rem] w-full flex-col items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors',
+        isFuture ? 'text-foreground' : TONE_CLASSES[tone as CellTone],
         editable ? 'cursor-pointer hover:ring-1 hover:ring-primary-deep/40' : 'cursor-default',
       )}
     >
@@ -134,16 +143,30 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
             {Math.round(plannedHours)}h
           </span>
           {capacity > 0 && (
-            <span className="flex h-1 w-10 overflow-hidden rounded-full bg-muted">
-              <span className="h-full bg-primary-deep" style={{ width: `${thisPct}%` }} />
-            </span>
+            <>
+              {/* Barra de CAPACIDADE — cor neutra (não é execução verde/amarelo/vermelho). */}
+              <span className="flex h-1 w-12 overflow-hidden rounded-full bg-muted">
+                <span className="h-full bg-muted-foreground/50" style={{ width: `${capacityPct}%` }} />
+              </span>
+              <span className="text-[10px] leading-tight text-muted-foreground">
+                de {Math.round(capacity)}h cap.
+              </span>
+            </>
           )}
         </>
       ) : (
         <>
-          <span className="font-mono text-sm font-semibold tabular-nums">{Math.round(plannedHours)}h</span>
-          <span className="font-mono text-[11px] tabular-nums opacity-40">/</span>
-          <span className="font-mono text-[11px] tabular-nums opacity-70">{Math.round(realizedHours as number)}h</span>
+          <span className="flex items-baseline gap-1">
+            <span className="font-mono text-sm font-semibold tabular-nums">{Math.round(plannedHours)}h</span>
+            <span className="font-mono text-[11px] tabular-nums opacity-40">/</span>
+            <span className="font-mono text-[11px] tabular-nums opacity-70">{Math.round(realizedHours as number)}h</span>
+          </span>
+          {(plannedHours > 0 || (realizedHours as number) > 0) && (
+            /* Barra de EXECUÇÃO — realizado/planejado, na cor do tom (currentColor). */
+            <span className="flex h-1 w-12 overflow-hidden rounded-full bg-foreground/10">
+              <span className="h-full bg-current" style={{ width: `${execPct}%` }} />
+            </span>
+          )}
         </>
       )}
       {cell?.isOverallocated && (
@@ -166,7 +189,7 @@ export function AllocationCell({ cell, editable, isPastMonth, isAdmin, onSave }:
         <Tooltip>
           <TooltipTrigger asChild>{content}</TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
-            Neste mês: {Math.round(plannedHours)}h neste projeto · {Math.round(others)}h em outros ·{' '}
+            {Math.round(plannedHours)}h neste projeto · {Math.round(others)}h em outros projetos ·{' '}
             {Math.round(freeHours)}h livres
           </TooltipContent>
         </Tooltip>
