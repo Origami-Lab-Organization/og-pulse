@@ -8,7 +8,7 @@ import { ProjectTeamSection } from './ProjectTeamSection';
 import { ProjectKPIBar } from './ProjectKPIBar';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
-import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
+import { useProjectTimesheets } from '@/hooks/useProjectTimesheets';
 import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget } from '@/hooks/useBudgets';
@@ -35,9 +35,14 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     () => (project.suppliers || []).map((s) => s.id),
     [project.suppliers]
   );
+  const memberMap = useMemo(
+    () => new Map((project.members || []).map((m) => [m.id, m])),
+    [project.members],
+  );
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
-  const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
+  // Por project_id, não pela equipe atual — ver ProjectFinancialTab.tsx.
+  const { data: timesheets = [] } = useProjectTimesheets(project.id);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
   const { data: holidays = [] } = useHolidays();
@@ -80,18 +85,15 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
           }, 0);
         }, 0);
 
-    const laborActual = (project.members || []).reduce((acc, member) => {
-      const memberActualCost = timesheets
-        .filter((t) => t.project_member_id === member.id)
-        .reduce((sum, t) => {
-          if ((t as any).cost_per_hour != null) {
-            return sum + Number((t as any).cost_per_hour) * Number(t.hours);
-          }
-          const tsDate = parseISO(t.work_date);
-          const fallbackCost = fallbackHourlyCost(member, tsDate.getFullYear(), tsDate.getMonth());
-          return sum + fallbackCost * Number(t.hours);
-        }, 0);
-      return acc + memberActualCost;
+    const laborActual = timesheets.reduce((sum, t) => {
+      if ((t as any).cost_per_hour != null) {
+        return sum + Number((t as any).cost_per_hour) * Number(t.hours);
+      }
+      const member = memberMap.get(t.project_member_id);
+      if (!member) return sum;
+      const tsDate = parseISO(t.work_date);
+      const fallbackCost = fallbackHourlyCost(member, tsDate.getFullYear(), tsDate.getMonth());
+      return sum + fallbackCost * Number(t.hours);
     }, 0);
 
     const supplierPlanned = supplierMonths.reduce((s, sm) => s + sm.value, 0) ||
@@ -113,6 +115,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     return { totalPlanned, totalActual };
   }, [
     project,
+    memberMap,
     memberMonths,
     timesheets,
     supplierMonths,

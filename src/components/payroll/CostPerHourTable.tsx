@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ArrowUpDown, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, formatShortName } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { CONTRACT_TYPE_LABELS } from '@/types/employee';
 import type { PayrollAnalysisRow } from '@/lib/payrollAnalysis';
+import { EmployeeDetailDialog } from '@/components/employees/EmployeeDetailDialog';
 
 interface CostPerHourTableProps {
   rows: PayrollAnalysisRow[];
@@ -18,27 +18,29 @@ interface CostPerHourTableProps {
 
 type SortKey =
   | 'nome'
+  | 'cargo'
   | 'tipo'
   | 'baseAmount'
-  | 'fgtsAmount'
-  | 'inssFuncionario'
+  | 'chargesAmount'
   | 'benefitsAmount'
   | 'toolsAmount'
   | 'provisionsAmount'
   | 'totalMonthlyCost'
+  | 'hoursWorked'
   | 'hourlyCost';
 type SortDir = 'asc' | 'desc';
 
 function getSortValue(row: PayrollAnalysisRow, key: SortKey): string | number {
   if (key === 'nome') return row.nome;
+  if (key === 'cargo') return row.cargo;
   if (key === 'tipo') return CONTRACT_TYPE_LABELS[row.tipoContratacao];
   return row[key];
 }
 
 export function CostPerHourTable({ rows, monthLabel, estimated, projected }: CostPerHourTableProps) {
-  const navigate = useNavigate();
   const [sortKey, setSortKey] = useState<SortKey>('hourlyCost');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [selectedRow, setSelectedRow] = useState<PayrollAnalysisRow | null>(null);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -118,8 +120,7 @@ export function CostPerHourTable({ rows, monthLabel, estimated, projected }: Cos
   const totals = rows.reduce(
     (acc, r) => ({
       baseAmount: acc.baseAmount + r.baseAmount,
-      fgtsAmount: acc.fgtsAmount + r.fgtsAmount,
-      inssFuncionario: acc.inssFuncionario + r.inssFuncionario,
+      chargesAmount: acc.chargesAmount + r.chargesAmount,
       benefitsAmount: acc.benefitsAmount + r.benefitsAmount,
       toolsAmount: acc.toolsAmount + r.toolsAmount,
       provisionsAmount: acc.provisionsAmount + r.provisionsAmount,
@@ -128,8 +129,7 @@ export function CostPerHourTable({ rows, monthLabel, estimated, projected }: Cos
     }),
     {
       baseAmount: 0,
-      fgtsAmount: 0,
-      inssFuncionario: 0,
+      chargesAmount: 0,
       benefitsAmount: 0,
       toolsAmount: 0,
       provisionsAmount: 0,
@@ -160,20 +160,27 @@ export function CostPerHourTable({ rows, monthLabel, estimated, projected }: Cos
             <TableHeader>
               <TableRow>
                 <SortableHead label="Colaborador" sortKeyName="nome" />
+                <SortableHead label="Cargo" sortKeyName="cargo" />
                 <SortableHead label="Tipo" sortKeyName="tipo" />
                 <SortableHead label="Salário Base" sortKeyName="baseAmount" className="text-right" align="right" />
-                <SortableHead label="FGTS" sortKeyName="fgtsAmount" className="text-right" align="right" />
                 <SortableHead
-                  label="INSS"
-                  sortKeyName="inssFuncionario"
+                  label="Encargos"
+                  sortKeyName="chargesAmount"
                   className="text-right"
                   align="right"
-                  tooltip="Retido do salário do funcionário e repassado por ele ao INSS — não é um custo adicional da empresa, por isso não soma ao Total Mensal (já incluído no Salário Base)."
+                  tooltip="FGTS + INSS Patronal + outros encargos (RAT, Terceiros, Outros) sobre o salário do mês. Não inclui encargos sobre as provisões de 13º/férias — esses ficam em Provisões."
                 />
                 <SortableHead label="Benefícios" sortKeyName="benefitsAmount" className="text-right" align="right" />
                 <SortableHead label="Ferramentas" sortKeyName="toolsAmount" className="text-right" align="right" />
                 <SortableHead label="Provisões" sortKeyName="provisionsAmount" className="text-right" align="right" />
                 <SortableHead label="Total Mensal" sortKeyName="totalMonthlyCost" className="text-right" align="right" />
+                <SortableHead
+                  label="Horas no Mês"
+                  sortKeyName="hoursWorked"
+                  className="text-right"
+                  align="right"
+                  tooltip="Dias úteis do mês × jornada diária do colaborador, já considerando admissão/desligamento parcial."
+                />
                 <SortableHead
                   label="Custo/Hora"
                   sortKeyName="hourlyCost"
@@ -188,41 +195,44 @@ export function CostPerHourTable({ rows, monthLabel, estimated, projected }: Cos
                 <TableRow
                   key={row.employeeId}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/employees/${row.employeeId}`)}
+                  onClick={() => setSelectedRow(row)}
                 >
-                  <TableCell className="font-medium">{row.nome}</TableCell>
+                  <TableCell className="font-medium">{formatShortName(row.nome)}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.cargo}</TableCell>
                   <TableCell className="text-muted-foreground">{CONTRACT_TYPE_LABELS[row.tipoContratacao]}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.baseAmount)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(row.fgtsAmount)}</TableCell>
-                  <TableCell className="text-right italic tabular-nums text-muted-foreground">
-                    {formatCurrency(row.inssFuncionario)}
-                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{formatCurrency(row.chargesAmount)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.benefitsAmount)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.toolsAmount)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.provisionsAmount)}</TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(row.totalMonthlyCost)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{row.hoursWorked.toFixed(1)}h</TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(row.hourlyCost)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
             <TableFooter>
               <TableRow className="hover:bg-muted/50">
-                <TableCell colSpan={2} className="font-bold">Total ({rows.length} colaboradores)</TableCell>
+                <TableCell colSpan={3} className="font-bold">Total ({rows.length} colaboradores)</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.baseAmount)}</TableCell>
-                <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.fgtsAmount)}</TableCell>
-                <TableCell className="text-right italic font-bold tabular-nums text-muted-foreground">
-                  {formatCurrency(totals.inssFuncionario)}
-                </TableCell>
+                <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.chargesAmount)}</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.benefitsAmount)}</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.toolsAmount)}</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.provisionsAmount)}</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(totals.totalMonthlyCost)}</TableCell>
+                <TableCell className="text-right font-bold tabular-nums">{totals.hoursWorked.toFixed(1)}h</TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{formatCurrency(avgHourlyCost)}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
         </div>
       </CardContent>
+      <EmployeeDetailDialog
+        open={selectedRow != null}
+        onOpenChange={(open) => !open && setSelectedRow(null)}
+        row={selectedRow}
+        monthLabel={monthLabel}
+      />
     </Card>
   );
 }

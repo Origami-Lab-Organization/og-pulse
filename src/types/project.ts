@@ -267,6 +267,8 @@ export interface ProjectWithRelations extends ProjectDB {
       foto_url?: string | null;
       total_monthly_cost_estimated: number;
       jornada_diaria: number;
+      data_admissao?: string | null;
+      termination?: { termination_date: string } | null;
     };
   })[];
   installments?: ProjectInstallmentDB[];

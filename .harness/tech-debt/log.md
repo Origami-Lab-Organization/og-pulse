@@ -65,6 +65,22 @@
 - **Causa raiz**: tabelas `vacation_requests` e `vacation_request_approvals` criadas em `supabase/migrations/20260619120000_vacation_management.sql` ainda não aplicadas no ambiente, então o `types.ts` gerado não as conhece (mesma situação do TD-001, ver ADR-0003).
 - **Próximo passo**: após aplicar a migration no Supabase, rodar `supabase gen types typescript --local > src/integrations/supabase/types.ts`, remover os `as any` e o `eslint-disable` do `vacationService.ts`.
 
+### TD-0006 — LaborCostSection (Custos) não reconcilia com o KPI de custo realizado quando a equipe do projeto já mudou
+- **Status**: aberto
+- **Prioridade**: média
+- **Arquivos**: `src/hooks/useProjectLaborBreakdown.ts`, `src/components/projects/detail/costs/LaborCostSection.tsx`
+- **Impacto**: o KPI "Custo Incorrido"/"Custo Realizado" (`ProjectFinancialTab.tsx`, `ProjectOverviewTab.tsx`, `ProjectCostsTab.tsx`) agora soma TODOS os timesheets do projeto por `project_id`, incluindo lançamentos cujo `project_member_id` não corresponde a nenhum membro atual (equipe trocada ao longo do projeto — caso real encontrado no projeto "Prumo Obras - Fase 2": R$135.613,01 lançados vs. R$145,12 mostrados antes da correção). `useProjectLaborBreakdown` (detalhamento por pessoa na aba Custos) continua atribuindo custo só a membros atuais — lançamentos órfãos não aparecem em nenhuma linha, então a soma da tabela por pessoa pode ficar menor que o KPI do topo da aba nesses projetos.
+- **Causa raiz**: não há hoje um jeito de resolver a identidade (nome do colaborador) de um `project_member_id` que não está mais em `project.members` — precisaria de um registro histórico (ex.: `project_team_rows` com status `deallocated`) mapeado de volta para `employee_id`.
+- **Próximo passo**: usar `project_team_rows`/histórico de desalocação para resolver a identidade de membros removidos e adicionar uma linha "Ex-membros" (ou similar) no `LaborCostSection` somando o que não resolve para ninguém atual, fechando a reconciliação centavo a centavo mencionada no comentário de `useProjectLaborBreakdown.ts`.
+
+### TD-0005 — backfill de cost_per_hour não cobre projetos planning/paused
+- **Status**: aberto
+- **Prioridade**: baixa
+- **Arquivos**: `supabase/migrations/20260721170000_backfill_active_project_cost_snapshots.sql`, `supabase/migrations/20260721160000_employee_cost_snapshot_admission_termination_window.sql`
+- **Impacto**: `project_member_months`/`project_timesheets` de projetos com status `planning`/`paused` mantêm o `cost_per_hour` antigo (sem o recorte de admissão/desligamento) até serem recalculados. Sem impacto na margem exibida hoje para projetos ativos — decisão de escopo explícita (usuário pediu recálculo só para projetos ativos).
+- **Causa raiz**: `recalculate_employee_cost_snapshots_for_active_projects()` filtra por `projects.status = 'active'`.
+- **Próximo passo**: quando um projeto `planning`/`paused` virar `active`, rodar `SELECT public.recalculate_employee_cost_snapshots(employee_id)` para cada colaborador alocado nele (ou reexecutar a função de backfill, que é idempotente). Considerar futuramente disparar isso automaticamente na transição de status do projeto.
+
 ### TD-0001 — `as any` em Edge Functions de alertas de parcelas
 - **Status:** aberto
 - **Prioridade:** baixa

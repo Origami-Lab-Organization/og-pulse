@@ -10,6 +10,8 @@ export interface PlannedLaborCostResult {
 export interface EmployeeFallbackCost {
   jornadaDiaria: number;
   monthlyCostEstimated: number;
+  dataAdmissao?: string | null;
+  terminationDate?: string | null;
 }
 
 function resolveHourlyCost(
@@ -23,7 +25,15 @@ function resolveHourlyCost(
   if (costPerHour != null) return costPerHour;
   const fallback = fallbackByEmployee[employeeId];
   if (!fallback) return 0;
-  return getFallbackHourlyCost(fallback.monthlyCostEstimated, fallback.jornadaDiaria, year, month - 1, holidays);
+  return getFallbackHourlyCost(
+    fallback.monthlyCostEstimated,
+    fallback.jornadaDiaria,
+    year,
+    month - 1,
+    holidays,
+    fallback.dataAdmissao,
+    fallback.terminationDate,
+  );
 }
 
 export function calculatePlannedLaborCost(

@@ -35,6 +35,13 @@ export function toTitleCase(text: string | null | undefined): string {
     .join(' ');
 }
 
+export function formatShortName(fullName: string | null | undefined): string {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 2) return fullName.trim();
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+}
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',

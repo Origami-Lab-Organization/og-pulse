@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { ProjectWithRelations } from '@/types/project';
 import { useProjectAllocations, useProjectTeamRows } from '@/hooks/useProjectRoles';
-import { useTimesheetsByMembers } from '@/hooks/useProjectTimesheets';
+import { useProjectTimesheets } from '@/hooks/useProjectTimesheets';
 import { useHolidays } from '@/hooks/useHolidays';
 import {
   calculatePlannedLaborCostByEmployeeMonth,
@@ -49,6 +49,8 @@ function memberFallbackCost(member: NonNullable<ProjectWithRelations['members']>
   return {
     jornadaDiaria: member.employee.jornada_diaria || 8,
     monthlyCostEstimated: member.employee.total_monthly_cost_estimated || 0,
+    dataAdmissao: member.employee.data_admissao ?? null,
+    terminationDate: member.employee.termination?.termination_date ?? null,
   };
 }
 
@@ -62,7 +64,8 @@ export function useProjectLaborBreakdown(project: ProjectWithRelations) {
   const allocationsQuery = useProjectAllocations(project.id, true);
   const teamRowsQuery = useProjectTeamRows(project.id);
   const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
-  const timesheetsQuery = useTimesheetsByMembers(memberIds);
+  // Por project_id, não pela equipe atual — ver ProjectFinancialTab.tsx.
+  const timesheetsQuery = useProjectTimesheets(project.id);
   const { data: holidays = [] } = useHolidays();
 
   const isLoading = allocationsQuery.isLoading || teamRowsQuery.isLoading || timesheetsQuery.isLoading;

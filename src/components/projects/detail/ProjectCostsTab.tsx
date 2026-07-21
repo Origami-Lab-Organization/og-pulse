@@ -12,7 +12,7 @@ import { useMaskedCurrency } from "@/contexts/HideValuesContext";
 
 import { useProjectMemberMonths } from "@/hooks/useProjectMemberMonths";
 import { useProjectCostItems } from "@/hooks/useProjectCostItems";
-import { useTimesheetsByMembers } from "@/hooks/useProjectTimesheets";
+import { useProjectTimesheets } from "@/hooks/useProjectTimesheets";
 import { useProjectPlannedLaborCost } from "@/hooks/useProjectPlannedLaborCost";
 import { useHolidays } from "@/hooks/useHolidays";
 import { getFallbackHourlyCost } from "@/lib/employeeCost";
@@ -112,7 +112,8 @@ export function ProjectCostsTab({
   );
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
-  const { data: timesheets = [] } = useTimesheetsByMembers(memberIds);
+  // Por project_id, não pela equipe atual — ver ProjectFinancialTab.tsx.
+  const { data: timesheets = [] } = useProjectTimesheets(project.id);
   const { data: projectCosts = [], isLoading: projectCostsLoading } =
     useProjectCostItems(project.id);
   const { data: holidays = [] } = useHolidays();
@@ -172,10 +173,7 @@ export function ProjectCostsTab({
   ]);
 
   const laborCostsActual = useMemo(() => {
-    const members = project.members;
-    if (!members || members.length === 0) return 0;
-
-    const memberMap = new Map(members.map((member) => [member.id, member]));
+    const memberMap = new Map((project.members || []).map((member) => [member.id, member]));
 
     return timesheets.reduce((total, timesheet) => {
       if ((timesheet as any).cost_per_hour != null) {
