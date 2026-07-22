@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { allocationService } from '@/services/allocationService';
 import { AllocationMonth, AllocationPanelData, AllocationPerson } from '@/types/allocation';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAllocationQueries as invalidateAllocationQueriesShared } from '@/lib/allocationInvalidation';
 
 export interface PlannedHoursChange {
   tenantId: string;
@@ -65,13 +66,19 @@ export function useEmployeeAllocationPanel({
       });
     },
     enabled: enabled && !!tenantId && !!employee && months.length > 0,
+    refetchOnWindowFocus: true,
   });
 }
 
-function invalidateAllocationQueries(queryClient: ReturnType<typeof useQueryClient>, tenantId: string | undefined, employeeId: string | undefined) {
-  queryClient.invalidateQueries({ queryKey: ['allocation-panel', tenantId, employeeId] });
-  queryClient.invalidateQueries({ queryKey: ['allocation-grid', tenantId] });
-  queryClient.invalidateQueries({ queryKey: ['project-allocations'] });
+// Fonte única de invalidação cruzada, compartilhada com a aba Equipe (spec de
+// sincronização §4.2). Os parâmetros são mantidos por compatibilidade; a
+// invalidação é por prefixo e cobre todas as leituras dependentes.
+function invalidateAllocationQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  _tenantId: string | undefined,
+  _employeeId: string | undefined,
+) {
+  invalidateAllocationQueriesShared(queryClient);
 }
 
 export function useAllocateEmployeeToProject({

@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { alteracoesLabel } from '@/lib/pluralize';
 import {
   formatSignedHours,
   getAllocationStatus,
@@ -654,7 +655,7 @@ export function EmployeeAllocationPanel({
             <footer className="space-y-3 border-t bg-card px-5 py-4">
               {changedRows.length > 0 && (
                 <Button type="button" className="h-11 w-full" disabled={saveMutation.isPending} onClick={saveChanges}>
-                  {saveMutation.isPending ? 'Salvando...' : `Salvar ${changedRows.length} alteração${changedRows.length > 1 ? 'ões' : ''}`}
+                  {saveMutation.isPending ? 'Salvando...' : `Salvar ${alteracoesLabel(changedRows.length)}`}
                 </Button>
               )}
 
@@ -770,6 +771,8 @@ export function EmployeeAllocationPanel({
                 employeeId={employee.id}
                 employeeName={employee.name}
                 tenantId={tenantId}
+                canEditAll={Boolean(currentUser?.isAdmin)}
+                currentEmployeeId={currentUser?.id}
               />
             )}
           </>

@@ -125,6 +125,10 @@ export function AllocationCell({ cell, editable, monthStatus, isAdmin, onSave }:
     : (realizedHours as number) > 0
       ? 100
       : 0;
+  // Sobrealocação = soma de TODOS os projetos do tenant no mês (fonte cross-projeto)
+  // acima da capacidade. Rótulo explica o que é e o que fazer.
+  const totalPlannedAllProjects = Math.round(plannedHours + others);
+  const overallocationLabel = `Sobrealocado neste mês: ${totalPlannedAllProjects}h planejadas em todos os projetos para ${Math.round(capacity)}h de capacidade. Reduza ou redistribua as horas.`;
 
   const content = (
     <button
@@ -170,8 +174,13 @@ export function AllocationCell({ cell, editable, monthStatus, isAdmin, onSave }:
         </>
       )}
       {cell?.isOverallocated && (
-        <span className="absolute right-0.5 top-0.5">
-          <AlertTriangle className="h-3 w-3 text-warning" aria-hidden />
+        <span
+          className="absolute right-0.5 top-0.5 text-warning"
+          role="img"
+          aria-label={overallocationLabel}
+          title={overallocationLabel}
+        >
+          <AlertTriangle className="h-3 w-3" aria-hidden />
         </span>
       )}
       {isPastMonth && !editable && (

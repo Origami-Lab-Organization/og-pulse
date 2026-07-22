@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import * as amplitude from '@amplitude/analytics-browser';
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
 import { AlertCircle } from 'lucide-react';
@@ -102,6 +102,7 @@ function applyVisualFixture(people: AllocationPerson[], referenceMonthKey: strin
 
 export default function AlocacaoPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const baseDate = useMemo(() => new Date(), []);
@@ -220,6 +221,10 @@ export default function AlocacaoPage() {
 
   const openEmployee = (employeeId: string) => {
     amplitude.track('allocation_employee_opened', { employeeId });
+    // Consolidação v1.3: abre direto a tela de detalhe, preservando o estado da
+    // lista (filtros/período/ordenação) na query — o "voltar" restaura tudo.
+    const query = searchParams.toString();
+    navigate(`/analises/alocacoes/pessoa/${employeeId}${query ? `?${query}` : ''}`);
   };
 
   const emptyMessage = data?.people.length === 0

@@ -49,6 +49,7 @@ export function useTenantMonthlyCapacitySummary({
     queryKey: ['tenant-monthly-capacity-summary', tenantId, sortedYears],
     enabled: enabled && !!tenantId && sortedYears.length > 0,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<TenantMonthlyCapacitySummary> => {
       const perYear = await Promise.all(
         sortedYears.map(async (year) => {

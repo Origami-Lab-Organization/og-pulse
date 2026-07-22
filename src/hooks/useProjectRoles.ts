@@ -17,6 +17,7 @@ import { useProjectBudgetRoles } from '@/hooks/useProjectBudgetRoles';
 import { useProjectRealizedHours } from '@/hooks/useProjectRealizedHours';
 import { getEmployeeMonthLoad, useTenantMonthlyCapacitySummary } from '@/hooks/useTenantMonthlyCapacitySummary';
 import { buildProjectMonths } from '@/lib/projectMonths';
+import { invalidateAllocationQueries } from '@/lib/allocationInvalidation';
 
 // ─── Aggregate raw rows → one entry per employee ──────────────────────────────
 
@@ -184,23 +185,14 @@ export const useCreateProjectRole = (projectId: string, onSuccess?: () => void) 
 
 // ─── Edição inline de 1 célula (mês existente ou novo) ─────────────────────────
 
-/** Invalida todas as leituras impactadas por uma escrita de horas planejadas. */
-function invalidateAllocationDependents(queryClient: ReturnType<typeof useQueryClient>, projectId: string) {
-  // Aba Equipe
-  queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
-  queryClient.invalidateQueries({ queryKey: ['project-allocations-filled-roles', projectId] });
-  queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
-  queryClient.invalidateQueries({ queryKey: ['project-realized-hours', projectId] });
-  // Tela /alocacao (allocation-overview)
-  queryClient.invalidateQueries({ queryKey: ['allocation-employee-month-summary'] });
-  queryClient.invalidateQueries({ queryKey: ['allocation-employee-detail'] });
-  queryClient.invalidateQueries({ queryKey: ['allocation-grid'] });
-  queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
-  // Disponibilidade do funcionário
-  queryClient.invalidateQueries({ queryKey: ['employee-availability'] });
-  queryClient.invalidateQueries({ queryKey: ['employee-monthly-load'] });
-  // Custos / financeiro do projeto
-  queryClient.invalidateQueries({ queryKey: ['project-team-financials', projectId] });
+/**
+ * Invalida todas as leituras impactadas por uma escrita de horas planejadas.
+ * Fonte única de invalidação cruzada (compartilhada com a Tela de Alocação) —
+ * ver `invalidateAllocationQueries`. `projectId` mantido por compatibilidade de
+ * assinatura; a invalidação é por prefixo (cobre todos os projetos/pessoas).
+ */
+function invalidateAllocationDependents(queryClient: ReturnType<typeof useQueryClient>, _projectId: string) {
+  invalidateAllocationQueries(queryClient);
 }
 
 /**
@@ -351,6 +343,91 @@ export const useSetVacancyMonthHours = (projectId: string) => {
   });
 };
 
+// ─── Papel orçado: materialização / supressão / zerar (v2.2) ───────────────────
+// Vaga orçada (budget_role_id, ainda sem linha própria) vira uma linha real em
+// project_team_rows para poder receber horas e ser gerenciada — mesmo caminho de
+// escrita das demais vagas. O orçamento (budget_roles) permanece intocado.
+
+interface BudgetVacancyPayload {
+  tenantId: string;
+  budgetRoleId: string;
+  monthlyHours: { year: number; month: number; plannedHours: number }[];
+}
+
+/** Item 3: edição de horas de vaga orçada — materializa e grava as horas. */
+export const useMaterializeBudgetRoleVacancy = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: BudgetVacancyPayload) => {
+      await equipeService.createVacancyRow({
+        projectId,
+        tenantId: input.tenantId,
+        budgetRoleId: input.budgetRoleId,
+        monthlyHours: input.monthlyHours,
+      });
+    },
+    onSuccess: () => invalidateAllocationDependents(queryClient, projectId),
+    onError: () => toast({ title: 'Erro ao salvar horas do papel orçado', variant: 'destructive' }),
+  });
+};
+
+/** Item 2: exclusão de papel orçado — supressão por soft-delete (não altera o orçamento). */
+export const useSuppressBudgetRoleVacancy = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: BudgetVacancyPayload & { vacancyRowId: string | null }) => {
+      const now = new Date().toISOString();
+      if (input.vacancyRowId) {
+        await equipeService.setTeamRowDeletedAt(input.vacancyRowId, now);
+        return;
+      }
+      const rowId = await equipeService.createVacancyRow({
+        projectId,
+        tenantId: input.tenantId,
+        budgetRoleId: input.budgetRoleId,
+        monthlyHours: input.monthlyHours,
+      });
+      await equipeService.setTeamRowDeletedAt(rowId, now);
+    },
+    onSuccess: () => {
+      invalidateAllocationDependents(queryClient, projectId);
+      queryClient.invalidateQueries({ queryKey: ['budget-roles-for-project'] });
+      toast({ title: 'Papel orçado removido do projeto', description: 'O orçamento não foi alterado.' });
+    },
+    onError: () => toast({ title: 'Erro ao remover papel orçado', variant: 'destructive' }),
+  });
+};
+
+/** Item 2 (alternativa reversível): zerar as horas do papel orçado, preservando o vínculo. */
+export const useZeroBudgetRoleVacancy = (projectId: string) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: BudgetVacancyPayload & { vacancyRowId: string | null }) => {
+      if (input.vacancyRowId) {
+        await equipeService.zeroTeamRowMonths(input.vacancyRowId);
+        return;
+      }
+      await equipeService.createVacancyRow({
+        projectId,
+        tenantId: input.tenantId,
+        budgetRoleId: input.budgetRoleId,
+        monthlyHours: input.monthlyHours.map((m) => ({ ...m, plannedHours: 0 })),
+      });
+    },
+    onSuccess: () => {
+      invalidateAllocationDependents(queryClient, projectId);
+      toast({ title: 'Horas zeradas', description: 'O papel continua vinculado ao orçamento e pode ser reajustado.' });
+    },
+    onError: () => toast({ title: 'Erro ao zerar horas', variant: 'destructive' }),
+  });
+};
+
 export const useAssignEmployeeToVacancyRow = (projectId: string) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -423,7 +500,15 @@ export const useTeamAllocationRows = (project: ProjectWithRelations, canEdit: bo
     const memberStatusByEmployee = new Map(
       teamRows.filter((r) => r.row_type === 'member_status' && r.employee_id).map((r) => [r.employee_id as string, r]),
     );
-    const manualVacancies = teamRows.filter((r) => r.row_type === 'vacancy');
+    const vacancyTeamRows = teamRows.filter((r) => r.row_type === 'vacancy');
+    // Papéis orçados que já foram materializados como linha (ativa OU suprimida):
+    // param excluir da derivação a partir de budget_roles (evita duplicar/reviver).
+    const materializedBudgetRoleIds = new Set(
+      vacancyTeamRows.filter((r) => (r as any).budget_role_id).map((r) => (r as any).budget_role_id as string),
+    );
+    // Suprimidas (soft-delete) não aparecem na tabela.
+    const manualVacancies = vacancyTeamRows.filter((r) => !(r as any).deleted_at);
+    const budgetRoleNameById = new Map(budgetRoles.map((role) => [role.id, role.role_name]));
     const realized = realizedQuery.data ?? new Map<string, number>();
     const projectMonths = buildProjectMonths(project.start_date, project.end_date);
     const monthNumberToDate = new Map(projectMonths.map((pm) => [pm.monthNumber, { year: pm.year, month: pm.month }]));
@@ -499,7 +584,7 @@ export const useTeamAllocationRows = (project: ProjectWithRelations, canEdit: bo
       .sort((a, b) => (a.employee?.nome ?? '').localeCompare(b.employee?.nome ?? '', 'pt-BR'));
 
     const budgetedVacancyRows: TeamAllocationRow[] = budgetRoles
-      .filter((role) => !role.filled)
+      .filter((role) => !role.filled && !materializedBudgetRoleIds.has(role.id))
       .map((role) => {
         const months: Record<string, TeamMonthCell> = {};
         role.months.forEach((bm) => {
@@ -546,13 +631,16 @@ export const useTeamAllocationRows = (project: ProjectWithRelations, canEdit: bo
           othersHours: 0,
         };
       });
+      const linkedBudgetRoleId = (row as any).budget_role_id as string | null;
       return {
         kind: 'vacancy' as const,
         key: `team-row-${row.id}`,
         employeeId: null,
         employee: null,
-        roleName: row.custom_role_name ?? 'Vaga',
-        budgetRoleId: null,
+        roleName: linkedBudgetRoleId
+          ? budgetRoleNameById.get(linkedBudgetRoleId) ?? row.custom_role_name ?? 'Vaga'
+          : row.custom_role_name ?? 'Vaga',
+        budgetRoleId: linkedBudgetRoleId,
         isUnbudgeted: false,
         vacancyRowId: row.id,
         months,

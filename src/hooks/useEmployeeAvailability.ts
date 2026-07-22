@@ -39,5 +39,6 @@ export function useEmployeeAvailability({
       return { capacityHours: Math.round(Number(data) || 0) };
     },
     enabled: enabled && !!tenantId && !!employeeId && !!startDate && !!endDate,
+    refetchOnWindowFocus: true,
   });
 }
