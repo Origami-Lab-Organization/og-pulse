@@ -25,13 +25,21 @@ export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
   ESTAGIO: 'Estagiário',
 };
 
-export type EmployeeStatus = 'ativo' | 'aguardando_confirmacao' | 'bloqueado' | 'arquivado';
+export type EmployeeStatus =
+  | 'ativo'
+  | 'aguardando_confirmacao'
+  | 'bloqueado'
+  | 'arquivado'
+  | 'desligado'
+  | 'em_desligamento';
 
 export const EMPLOYEE_STATUS_LABELS: Record<EmployeeStatus, string> = {
   ativo: 'Ativo',
   aguardando_confirmacao: 'Aguardando',
   bloqueado: 'Bloqueado',
   arquivado: 'Arquivado',
+  desligado: 'Desligado',
+  em_desligamento: 'Em Desligamento',
 };
 
 export type SystemRole = 'admin' | 'manager' | 'user';

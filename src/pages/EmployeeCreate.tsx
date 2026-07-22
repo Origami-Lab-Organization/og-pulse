@@ -28,8 +28,6 @@ import {
   calculateEmployeeCost,
   CostBreakdown,
   getBaseFieldLabel,
-  showsChargesSection,
-  showsProvisionsSection,
 } from "@/lib/employeeCostCalculator";
 import { getMonthlyHoursFromDaily } from "@/lib/employeeCost";
 import { useHolidays } from "@/hooks/useHolidays";
@@ -60,15 +58,8 @@ import {
   User,
   Briefcase,
   History,
-  Calculator,
-  AlertCircle,
-  Camera,
-  Upload,
-  Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
 import {
   formatPhone,
   formatCPF,
@@ -86,9 +77,9 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { BankSelect } from "@/components/employees/BankSelect";
+import { EmployeeSidebar } from "@/components/employees/EmployeeSidebar";
+import { EmployeeCostBreakdownBox } from "@/components/employees/EmployeeCostBreakdownBox";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -160,11 +151,11 @@ const formSchema = baseFormSchema.refine(
 
 type FormData = z.infer<typeof baseFormSchema>;
 
-const STEP_IDS = ["dados", "financeiro", "beneficios", "ferramentas", "historico"] as const;
+const STEP_IDS = ["identificacao", "financeiro", "beneficios_ferramentas", "historico"] as const;
 type StepId = (typeof STEP_IDS)[number];
 
 const STEP_FIELDS: Partial<Record<StepId, (keyof FormData)[]>> = {
-  dados: ["nome", "email", "telefone", "cpf", "cargo", "dataNascimento", "dataAdmissao", "systemRole"],
+  identificacao: ["nome", "email", "telefone", "cpf", "cargo", "dataNascimento", "dataAdmissao", "systemRole"],
   financeiro: ["tipoContratacao", "jornadaDiaria", "salarioMensal", "bolsaAuxilio", "valorContratoPj", "proLabore", "dividendos"],
 };
 
@@ -172,7 +163,6 @@ const STEP_FIELDS: Partial<Record<StepId, (keyof FormData)[]>> = {
 
 const EmployeeCreate = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { employee: currentEmployee } = useAuth();
 
   const createEmployee = useCreateEmployee();
@@ -185,12 +175,6 @@ const EmployeeCreate = () => {
   const [localBenefits, setLocalBenefits] = useState<LocalBenefit[]>([]);
   const [localTools, setLocalTools] = useState<LocalTool[]>([]);
   const [costBreakdown, setCostBreakdown] = useState<CostBreakdown | null>(null);
-
-  // Photo state
-  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [tempImageSrc, setTempImageSrc] = useState<string | null>(null);
 
   // Masked display values
   const [phoneDisplay, setPhoneDisplay] = useState("");
@@ -334,53 +318,6 @@ const EmployeeCreate = () => {
     form.setValue(field, parseCurrency(formatted) as never);
   };
 
-  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Erro", description: "Apenas imagens são permitidas", variant: "destructive" });
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Erro", description: "A imagem deve ter no máximo 5MB", variant: "destructive" });
-      return;
-    }
-    const imageUrl = URL.createObjectURL(file);
-    setTempImageSrc(imageUrl);
-    setCropDialogOpen(true);
-    event.target.value = "";
-  };
-
-  const handleCropComplete = async (croppedBlob: Blob) => {
-    setUploadingPhoto(true);
-    try {
-      const fileName = `${Date.now()}-avatar.jpg`;
-      const { data, error } = await supabase.storage
-        .from("employee-photos")
-        .upload(fileName, croppedBlob, { contentType: "image/jpeg" });
-      if (error) {
-        toast({ title: "Erro", description: "Falha ao enviar foto", variant: "destructive" });
-        return;
-      }
-      const { data: urlData } = supabase.storage.from("employee-photos").getPublicUrl(data.path);
-      form.setValue("fotoUrl", urlData.publicUrl);
-      setFotoPreview(urlData.publicUrl);
-    } catch {
-      toast({ title: "Erro", description: "Falha ao enviar foto", variant: "destructive" });
-    } finally {
-      setUploadingPhoto(false);
-      if (tempImageSrc) {
-        URL.revokeObjectURL(tempImageSrc);
-        setTempImageSrc(null);
-      }
-    }
-  };
-
-  const handleRemovePhoto = () => {
-    setFotoPreview(null);
-    form.setValue("fotoUrl", "");
-  };
-
   const handleNext = async () => {
     const stepId = STEP_IDS[currentStep];
     const fields = STEP_FIELDS[stepId];
@@ -490,59 +427,6 @@ const EmployeeCreate = () => {
 
   const renderPersonalDataFields = () => (
     <div className="space-y-6">
-      <div className="flex flex-col items-center gap-4 pb-4 border-b">
-        <div className="relative group">
-          <Avatar className="h-24 w-24 border-2 border-muted">
-            {fotoPreview ? (
-              <AvatarImage src={fotoPreview} alt="Foto do funcionário" />
-            ) : (
-              <AvatarFallback className="bg-muted">
-                <Camera className="h-8 w-8 text-muted-foreground" />
-              </AvatarFallback>
-            )}
-          </Avatar>
-          {fotoPreview && (
-            <div
-              className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-              onClick={handleRemovePhoto}
-            >
-              <Trash2 className="h-6 w-6 text-white" />
-            </div>
-          )}
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => document.getElementById("photo-upload-create")?.click()}
-          disabled={uploadingPhoto}
-        >
-          {uploadingPhoto ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Upload className="h-4 w-4 mr-2" />
-          )}
-          {fotoPreview ? "Alterar Foto" : "Adicionar Foto"}
-        </Button>
-        <input
-          id="photo-upload-create"
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handlePhotoSelect}
-        />
-        <p className="text-xs text-muted-foreground">Foto opcional, máx. 5MB</p>
-      </div>
-
-      {tempImageSrc && (
-        <ImageCropDialog
-          open={cropDialogOpen}
-          onOpenChange={setCropDialogOpen}
-          imageSrc={tempImageSrc}
-          onCropComplete={handleCropComplete}
-        />
-      )}
-
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Dados Pessoais</CardTitle>
@@ -835,12 +719,7 @@ const EmployeeCreate = () => {
   );
 
   const renderFinancialFields = () => {
-    const showCharges = showsChargesSection(tipoContratacao as ContractType);
-    const showProvisions = showsProvisionsSection(tipoContratacao as ContractType);
     const baseLabel = getBaseFieldLabel(tipoContratacao as ContractType);
-    const subtotalSalarial = costBreakdown
-      ? costBreakdown.baseAmount + costBreakdown.chargesAmount + costBreakdown.provisionsAmount
-      : 0;
 
     return (
       <Card>
@@ -1011,172 +890,10 @@ const EmployeeCreate = () => {
             </div>
           </div>
 
-          {(showCharges || showProvisions) && tipoContratacao !== "PJ" && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="text-sm font-medium mb-1">
-                  {tipoContratacao === "ESTAGIO" ? "Provisões" : "Encargos e Provisões"}
-                </h4>
-                <p className="text-xs text-muted-foreground mb-3">Calculados automaticamente</p>
-
-                {showCharges && (
-                  <div className="mb-4">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">
-                      Encargos sobre Salário
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormItem>
-                        <FormLabel>
-                          FGTS ({tipoContratacao === "MENOR_APRENDIZ" ? "2%" : "8%"})
-                        </FormLabel>
-                        <Input
-                          disabled
-                          value={formatCurrency(costBreakdown?.details.fgts || 0)}
-                          className="bg-muted"
-                        />
-                      </FormItem>
-                      {(costBreakdown?.details.inss || 0) > 0 && (
-                        <FormItem>
-                          <FormLabel>INSS Patronal</FormLabel>
-                          <Input
-                            disabled
-                            value={formatCurrency(costBreakdown?.details.inss || 0)}
-                            className="bg-muted"
-                          />
-                        </FormItem>
-                      )}
-                      {(costBreakdown?.details.inssFuncionario || 0) > 0 && (
-                        <FormItem>
-                          <FormLabel>INSS do Funcionário (retido)</FormLabel>
-                          <Input
-                            disabled
-                            value={formatCurrency(costBreakdown?.details.inssFuncionario || 0)}
-                            className="bg-muted"
-                          />
-                        </FormItem>
-                      )}
-                    </div>
-                    {(costBreakdown?.details.inssFuncionario || 0) > 0 && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Descontado do salário bruto e recolhido pela empresa mensalmente ao INSS —
-                        não é somado ao custo total, pois já está incluso na Base.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {showProvisions && tipoContratacao !== "SOCIO" && (
-                  <div className="mb-4">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Provisões Mensais</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {tipoContratacao === "ESTAGIO" ? (
-                        <FormItem>
-                          <FormLabel>Provisão Recesso 1/12</FormLabel>
-                          <Input
-                            disabled
-                            value={formatCurrency(costBreakdown?.details.provisaoRecesso || 0)}
-                            className="bg-muted"
-                          />
-                        </FormItem>
-                      ) : (
-                        <>
-                          <FormItem>
-                            <FormLabel>13º prop. 1/12</FormLabel>
-                            <Input
-                              disabled
-                              value={formatCurrency(costBreakdown?.details.provisao13 || 0)}
-                              className="bg-muted"
-                            />
-                          </FormItem>
-                          <FormItem>
-                            <FormLabel>Férias prop. 1/12</FormLabel>
-                            <Input
-                              disabled
-                              value={formatCurrency(costBreakdown?.details.provisaoFeriasBase || 0)}
-                              className="bg-muted"
-                            />
-                          </FormItem>
-                          <FormItem>
-                            <FormLabel>1/3 de Férias</FormLabel>
-                            <Input
-                              disabled
-                              value={formatCurrency(costBreakdown?.details.provisaoFeriasTerco || 0)}
-                              className="bg-muted"
-                            />
-                          </FormItem>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {showCharges && showProvisions && tipoContratacao !== "ESTAGIO" && tipoContratacao !== "SOCIO" && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">
-                      Encargos sobre Provisões
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormItem>
-                        <FormLabel>FGTS 13º (prov)</FormLabel>
-                        <Input
-                          disabled
-                          value={formatCurrency(costBreakdown?.details.fgts13 || 0)}
-                          className="bg-muted"
-                        />
-                      </FormItem>
-                      <FormItem>
-                        <FormLabel>FGTS Férias (prov)</FormLabel>
-                        <Input
-                          disabled
-                          value={formatCurrency(costBreakdown?.details.fgtsFerias || 0)}
-                          className="bg-muted"
-                        />
-                      </FormItem>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {tipoContratacao === "PJ" && (
-            <>
-              <Separator />
-              <p className="text-sm text-muted-foreground">
-                Para contratos PJ, não há encargos trabalhistas ou provisões a calcular.
-              </p>
-            </>
-          )}
-
-          {costBreakdown && (
-            <>
-              <Separator />
-              <div className="bg-primary/5 rounded-lg p-4 space-y-3">
-                <h4 className="text-sm font-medium flex items-center gap-2">
-                  <Calculator className="h-4 w-4" />
-                  Resumo de Custo
-                </h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">Base</span>
-                  <span className="text-right font-medium">{formatCurrency(costBreakdown.baseAmount)}</span>
-                  <span className="text-muted-foreground">Encargos</span>
-                  <span className="text-right font-medium">{formatCurrency(costBreakdown.chargesAmount)}</span>
-                  <span className="text-muted-foreground">Provisões</span>
-                  <span className="text-right font-medium">{formatCurrency(costBreakdown.provisionsAmount)}</span>
-                </div>
-                <div className="border-t pt-3 flex justify-between font-bold">
-                  <span>SUBTOTAL SALARIAL</span>
-                  <span className="text-primary">{formatCurrency(subtotalSalarial)}</span>
-                </div>
-              </div>
-            </>
-          )}
-
-          <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Cálculo estimado; valide com contabilidade.
-          </p>
+          <EmployeeCostBreakdownBox
+            costBreakdown={costBreakdown}
+            tipoContratacao={tipoContratacao as ContractType}
+          />
         </CardContent>
       </Card>
     );
@@ -1204,73 +921,80 @@ const EmployeeCreate = () => {
     >
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()}>
-          <Tabs value={STEP_IDS[currentStep]} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 pointer-events-none">
-              <TabsTrigger value="dados" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">Dados</span>
-              </TabsTrigger>
-              <TabsTrigger value="financeiro" className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                <span className="hidden sm:inline">Contratação</span>
-              </TabsTrigger>
-              <TabsTrigger value="beneficios" className="flex items-center gap-2">
-                <Heart className="h-4 w-4" />
-                <span className="hidden sm:inline">Benefícios</span>
-              </TabsTrigger>
-              <TabsTrigger value="ferramentas" className="flex items-center gap-2">
-                <Wrench className="h-4 w-4" />
-                <span className="hidden sm:inline">Ferramentas</span>
-              </TabsTrigger>
-              <TabsTrigger value="historico" className="flex items-center gap-2">
-                <History className="h-4 w-4" />
-                <span className="hidden sm:inline">Histórico</span>
-              </TabsTrigger>
-            </TabsList>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <EmployeeSidebar
+              nome={form.watch("nome")}
+              cargo={form.watch("cargo")}
+              fotoUrl={form.watch("fotoUrl")}
+              onFotoChange={(url) => form.setValue("fotoUrl", url)}
+              costBreakdown={costBreakdown}
+              tipoContratacao={tipoContratacao as ContractType}
+            />
 
-            <TabsContent value="dados" className="mt-4">
-              {renderPersonalDataFields()}
-            </TabsContent>
-
-            <TabsContent value="financeiro" className="mt-4">
-              {renderFinancialFields()}
-            </TabsContent>
-
-            <TabsContent value="beneficios" className="mt-4">
-              <EmployeeBenefitsLocalTable
-                benefits={localBenefits}
-                onChange={setLocalBenefits}
-                employeeName={form.watch("nome") || "Funcionário"}
-              />
-            </TabsContent>
-
-            <TabsContent value="ferramentas" className="mt-4">
-              <EmployeeToolsLocalTable
-                tools={localTools}
-                onChange={setLocalTools}
-                employeeName={form.watch("nome") || "Funcionário"}
-              />
-            </TabsContent>
-
-            <TabsContent value="historico" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
+            <div className="min-w-0 flex-1">
+              <Tabs value={STEP_IDS[currentStep]} className="w-full">
+                <TabsList className="grid w-full grid-cols-4 pointer-events-none">
+                  <TabsTrigger value="identificacao" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span className="hidden sm:inline">Identificação</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="financeiro" className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4" />
+                    <span className="hidden sm:inline">Contratação</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="beneficios_ferramentas" className="flex items-center gap-1.5">
+                    <Heart className="h-4 w-4" />
+                    <Wrench className="h-4 w-4" />
+                    <span className="hidden sm:inline">Benefícios & Ferramentas</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="historico" className="flex items-center gap-2">
                     <History className="h-4 w-4" />
-                    Histórico de Versões
-                  </CardTitle>
-                  <CardDescription>
-                    O histórico financeiro será criado automaticamente após o cadastro.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    Nenhum histórico disponível para funcionários em cadastro.
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                    <span className="hidden sm:inline">Histórico</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="identificacao" className="mt-4">
+                  {renderPersonalDataFields()}
+                </TabsContent>
+
+                <TabsContent value="financeiro" className="mt-4">
+                  {renderFinancialFields()}
+                </TabsContent>
+
+                <TabsContent value="beneficios_ferramentas" className="mt-4 space-y-6">
+                  <EmployeeBenefitsLocalTable
+                    benefits={localBenefits}
+                    onChange={setLocalBenefits}
+                    employeeName={form.watch("nome") || "Funcionário"}
+                  />
+                  <EmployeeToolsLocalTable
+                    tools={localTools}
+                    onChange={setLocalTools}
+                    employeeName={form.watch("nome") || "Funcionário"}
+                  />
+                </TabsContent>
+
+                <TabsContent value="historico" className="mt-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <History className="h-4 w-4" />
+                        Histórico de Versões
+                      </CardTitle>
+                      <CardDescription>
+                        O histórico financeiro será criado automaticamente após o cadastro.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        Nenhum histórico disponível para funcionários em cadastro.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </div>
 
           {/* Navegação por passos */}
           <div className="flex items-center justify-between mt-6 pt-4 border-t">

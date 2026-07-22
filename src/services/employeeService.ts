@@ -278,7 +278,7 @@ export const employeeService = {
       "total_monthly_cost_estimated",
       "bolsa_auxilio",
       // Dados pessoais (aba "Dados") — também versionados, mas sem efeito em nenhum cálculo
-      // de folha; servem só para o histórico da aba Histórico (EmployeeVersionsTable).
+      // de folha; servem só para o histórico da aba Histórico (EmployeeVersionsTimeline).
       // system_role/is_gerente ficam de FORA desta lista de propósito: eles sincronizam
       // user_roles (o que o RLS realmente checa) de forma IMEDIATA logo abaixo, então nunca
       // podem ser adiados — senão a permissão mudaria antes da data de vigência escolhida.
