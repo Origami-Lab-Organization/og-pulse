@@ -189,6 +189,49 @@ export const useBatchUpsertTimesheets = () => {
   });
 };
 
+export interface ClearWeekProjectInput {
+  projectMemberIds: string[];
+  weekStart: string; // yyyy-MM-dd
+  weekEnd: string; // yyyy-MM-dd
+}
+
+/**
+ * "Limpar": apaga os lançamentos de projeto NÃO TRAVADOS dos membros na semana,
+ * voltando as células ao estado de sugestão. Nunca toca em dias travados/enviados.
+ */
+export const useClearWeekProjectTimesheets = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ projectMemberIds, weekStart, weekEnd }: ClearWeekProjectInput) => {
+      if (projectMemberIds.length === 0) return;
+      const { error } = await supabase
+        .from('project_timesheets')
+        .delete()
+        .in('project_member_id', projectMemberIds)
+        .gte('work_date', weekStart)
+        .lte('work_date', weekEnd)
+        .eq('is_locked', false);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-members'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao limpar horas',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
 export const useDeleteTimesheet = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();

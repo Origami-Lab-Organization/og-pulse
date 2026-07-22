@@ -65,6 +65,14 @@
 - **Causa raiz**: tabelas `vacation_requests` e `vacation_request_approvals` criadas em `supabase/migrations/20260619120000_vacation_management.sql` ainda não aplicadas no ambiente, então o `types.ts` gerado não as conhece (mesma situação do TD-001, ver ADR-0003).
 - **Próximo passo**: após aplicar a migration no Supabase, rodar `supabase gen types typescript --local > src/integrations/supabase/types.ts`, remover os `as any` e o `eslint-disable` do `vacationService.ts`.
 
+### TD-0007 — motor de auto-save de timesheet duplicado (linha antiga + hook novo)
+- **Status**: aberto
+- **Prioridade**: média
+- **Arquivos**: `src/hooks/useCellAutosave.ts`, `src/components/timesheets/TimesheetWeekRow.tsx`
+- **Impacto**: a lógica sensível de auto-save de célula (debounce 2s, flush no blur, retry 5s, anti-flick `editedValuesRef`, cap 12h, guard offline) agora existe em DOIS lugares: extraída no hook `useCellAutosave` (consumido pela nova experiência de `/my-timesheet` e componentes de grade) e ainda inline dentro de `TimesheetWeekRow` (usado por `TimesheetByProject`, `TimesheetByEmployee` e `GlobalSaveIndicator` — telas admin/PM). Risco de divergência futura se uma cópia mudar e a outra não.
+- **Causa raiz**: decisão consciente de NÃO refatorar `TimesheetWeekRow` na substituição de `/my-timesheet` — sem rede de testes automatizados no projeto (testes desativados), tocar no motor da linha compartilhada admin/PM traria risco de regressão em código financeiro sem verificação. O hook foi portado verbatim da linha, então as cópias começam idênticas.
+- **Próximo passo**: quando houver testes/QA cobrindo `TimesheetByProject` e `TimesheetByEmployee`, refatorar `TimesheetWeekRow` para consumir `useCellAutosave` (mesma extração já validada na nova grade), eliminando a duplicação.
+
 ### TD-0006 — LaborCostSection (Custos) não reconcilia com o KPI de custo realizado quando a equipe do projeto já mudou
 - **Status**: aberto
 - **Prioridade**: média
