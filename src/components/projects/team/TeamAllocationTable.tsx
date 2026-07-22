@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, MoreHorizontal, Trash2, UserMinus, UserPlus, UserCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, MoreHorizontal, Trash2, UserMinus, UserPlus, UserCheck, Eraser } from 'lucide-react';
 import { useHolidays } from '@/hooks/useHolidays';
 import { countWorkingDays } from '@/lib/workingDays';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -32,6 +32,9 @@ import {
   useReactivateMember,
   useRemoveTeamRow,
   useSetVacancyMonthHours,
+  useMaterializeBudgetRoleVacancy,
+  useSuppressBudgetRoleVacancy,
+  useZeroBudgetRoleVacancy,
 } from '@/hooks/useProjectRoles';
 import { AllocationCell } from '@/components/projects/team/AllocationCell';
 import { DeallocateMemberDialog } from '@/components/projects/team/DeallocateMemberDialog';
@@ -40,6 +43,21 @@ type MonthStatus = 'past' | 'current' | 'future';
 
 function monthLabelPtBR(date: Date) {
   return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
+/** Meses de uma vaga (para materializar/zerar), opcionalmente sobrescrevendo um mês. */
+function vacancyMonthlyHours(
+  row: TeamAllocationRow,
+  override?: { year: number; month: number; plannedHours: number },
+): { year: number; month: number; plannedHours: number }[] {
+  const list = Object.values(row.months).map((c) => ({
+    year: c.year,
+    month: c.month,
+    plannedHours:
+      override && c.year === override.year && c.month === override.month ? override.plannedHours : c.plannedHours,
+  }));
+  if (override && !row.months[monthKey(override.year, override.month)]) list.push(override);
+  return list;
 }
 
 function initials(name: string) {
@@ -75,11 +93,15 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
   const [offsetStart, setOffsetStart] = useState(-3);
   const [showDeallocated, setShowDeallocated] = useState(false);
   const [rowToRemove, setRowToRemove] = useState<TeamAllocationRow | null>(null);
+  const [budgetRoleToRemove, setBudgetRoleToRemove] = useState<TeamAllocationRow | null>(null);
   const [memberToDeallocate, setMemberToDeallocate] = useState<TeamAllocationRow | null>(null);
 
   const { rows, isLoading } = useTeamAllocationRows(project, canEdit, currentEmployeeId);
   const saveHours = useSaveAllocationMonthHours(project.id);
   const setVacancyMonthHours = useSetVacancyMonthHours(project.id);
+  const materializeBudgetVacancy = useMaterializeBudgetRoleVacancy(project.id);
+  const suppressBudgetVacancy = useSuppressBudgetRoleVacancy(project.id);
+  const zeroBudgetVacancy = useZeroBudgetRoleVacancy(project.id);
   const deallocate = useDeallocateMember(project.id);
   const reactivate = useReactivateMember(project.id);
   const removeRow = useRemoveTeamRow(project.id);
@@ -144,8 +166,18 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
   ) => {
     const cell = row.months[monthKey(year, month)];
     if (row.kind === 'vacancy') {
-      if (!row.vacancyRowId) return; // vaga orçada não persiste horas fora do orçamento
-      setVacancyMonthHours.mutate({ rowId: row.vacancyRowId, year, month, plannedHours: newHours });
+      if (row.vacancyRowId) {
+        setVacancyMonthHours.mutate({ rowId: row.vacancyRowId, year, month, plannedHours: newHours });
+        return;
+      }
+      // Vaga orçada ainda não materializada: cria a linha real e grava o mês editado.
+      if (row.budgetRoleId) {
+        materializeBudgetVacancy.mutate({
+          tenantId: project.tenant_id,
+          budgetRoleId: row.budgetRoleId,
+          monthlyHours: vacancyMonthlyHours(row, { year, month, plannedHours: newHours }),
+        });
+      }
       return;
     }
     if (!row.employeeId) return;
@@ -261,11 +293,33 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
                       <UserPlus className="mr-2 h-4 w-4" />
                       Atribuir pessoa
                     </DropdownMenuItem>
-                    {row.vacancyRowId && (
-                      <DropdownMenuItem onClick={() => setRowToRemove(row)} className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Excluir linha
-                      </DropdownMenuItem>
+                    {row.budgetRoleId ? (
+                      <>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            zeroBudgetVacancy.mutate({
+                              vacancyRowId: row.vacancyRowId,
+                              tenantId: project.tenant_id,
+                              budgetRoleId: row.budgetRoleId as string,
+                              monthlyHours: vacancyMonthlyHours(row),
+                            })
+                          }
+                        >
+                          <Eraser className="mr-2 h-4 w-4" />
+                          Zerar horas
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setBudgetRoleToRemove(row)} className="text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Excluir papel
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      row.vacancyRowId && (
+                        <DropdownMenuItem onClick={() => setRowToRemove(row)} className="text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Excluir linha
+                        </DropdownMenuItem>
+                      )
                     )}
                   </>
                 )}
@@ -419,6 +473,41 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
           }}
         />
       )}
+
+      <AlertDialog open={Boolean(budgetRoleToRemove)} onOpenChange={(open) => !open && setBudgetRoleToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir o papel “{budgetRoleToRemove?.roleName}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este papel fazia parte do orçamento aprovado. Excluí-lo remove a alocação do projeto, mas{' '}
+              <b>não altera o orçamento</b>. Para reincluí-lo depois, será necessário criá-lo manualmente.
+              <br />
+              <br />
+              Se a intenção é apenas não usá-lo agora, prefira <b>Zerar horas</b> — preserva o vínculo com o
+              orçamento e é reversível.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (budgetRoleToRemove?.budgetRoleId) {
+                  suppressBudgetVacancy.mutate({
+                    vacancyRowId: budgetRoleToRemove.vacancyRowId,
+                    tenantId: project.tenant_id,
+                    budgetRoleId: budgetRoleToRemove.budgetRoleId,
+                    monthlyHours: vacancyMonthlyHours(budgetRoleToRemove),
+                  });
+                }
+                setBudgetRoleToRemove(null);
+              }}
+            >
+              Excluir papel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={Boolean(rowToRemove)} onOpenChange={(open) => !open && setRowToRemove(null)}>
         <AlertDialogContent>

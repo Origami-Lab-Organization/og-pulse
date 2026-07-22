@@ -224,6 +224,24 @@ export const equipeService = {
     if (error) throw error;
   },
 
+  /** Soft-delete / restauração de uma vaga materializada (papel orçado suprimido). */
+  async setTeamRowDeletedAt(rowId: string, deletedAt: string | null): Promise<void> {
+    const { error } = await (supabase
+      .from('project_team_rows' as any) as any)
+      .update({ deleted_at: deletedAt })
+      .eq('id', rowId);
+    if (error) throw error;
+  },
+
+  /** Zera todas as horas planejadas dos meses de uma vaga materializada. */
+  async zeroTeamRowMonths(rowId: string): Promise<void> {
+    const { error } = await (supabase
+      .from('project_team_row_months' as any) as any)
+      .update({ planned_hours: 0 })
+      .eq('row_id', rowId);
+    if (error) throw error;
+  },
+
   async assignEmployeeToVacancyRow(rowId: string, employeeId: string): Promise<void> {
     const { error } = await supabase.rpc('assign_employee_to_vacancy_row' as any, {
       p_row_id: rowId,
