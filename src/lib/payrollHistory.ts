@@ -171,16 +171,38 @@ export function buildPayrollHistory(
  * mesmo mês, não no seguinte. Benefícios e ferramentas continuam ligados ao
  * mês corrente (pagos dentro do mês em que são incorridos, sem defasagem).
  * Reaproveita `calculatePayrollAnalysisRowsByContractType` (regime de
- * competência, por trecho) como fonte de cada uma das duas janelas — nunca
+ * competência, por trecho) como fonte de cada uma das janelas — nunca
  * duplica a fórmula de custo.
+ *
+ * Dentro da rescisão, nem tudo é pago junto com o acerto: verbas (saldo/
+ * férias/13º), FGTS e as provisões seguem no mês do desligamento, mas o INSS
+ * patronal e RAT/Terceiros/Outros sobre o salário rescisório (e o INSS retido
+ * do funcionário, informativo) NÃO saem no acerto — seguem o calendário
+ * normal do GPS, guia da competência com vencimento dia 20 do mês seguinte,
+ * igual ao INSS de qualquer mês comum. Por isso essa fatia (ver `gpsAmount`)
+ * é retirada do mês do desligamento e reaparece como `deferredGpsSegments` no
+ * mês seguinte, numa linha própria (sem salário/FGTS/benefícios/ferramentas —
+ * só o GPS pendente).
  *
  * Quando o colaborador troca de tipo de contratação no meio do mês corrente
  * OU do mês anterior (a fonte do salário deste mês), retorna MAIS DE UMA
  * linha — uma por tipo de contratação — em vez de uma única linha borrada.
- * Isso pode fazer o mesmo colaborador aparecer em 2 meses seguidos: no mês em
- * que a troca ocorre (benefícios/ferramentas do mês corrente já divididos) e
- * no mês seguinte (salário/encargos do mês anterior, que veio dividido).
+ * Isso pode fazer o mesmo colaborador aparecer em 3 meses seguidos: no mês em
+ * que a troca ocorre (benefícios/ferramentas do mês corrente já divididos), no
+ * mês seguinte (salário/encargos do mês anterior, que veio dividido) e, se
+ * houve desligamento, ainda um mês depois só com o GPS pendente da rescisão.
  */
+
+/** Fatia de uma linha que só é recolhida via guia GPS (INSS patronal + RAT/Terceiros/Outros). */
+function gpsAmount(row?: PayrollAnalysisRow): number {
+  return row ? row.inssPatronalAmount + row.outrosEncargosAmount : 0;
+}
+
+/** Mesma fatia GPS de `gpsAmount`, mas sobre os encargos das provisões de 13º/férias — resto de `encargosSobreProvisoesAmount` depois de tirar o FGTS (`fgtsSobreProvisoesAmount`). */
+function gpsOnProvisionsAmount(row?: PayrollAnalysisRow): number {
+  return row ? row.encargosSobreProvisoesAmount - row.fgtsSobreProvisoesAmount : 0;
+}
+
 function buildCashRows(
   e: PayrollHistoryEmployeeInput,
   payrollProfile: Partial<PayrollProfile>,
@@ -201,23 +223,28 @@ function buildCashRows(
   const prevRequiresActive = prevMonth.isCurrent || prevMonth.isFuture;
   const wasEmployedPrevMonth =
     wasEmployedDuringMonth(e, prevMonth) && (!prevRequiresActive || e.terminationDate !== null || e.status === 'ativo');
-  const shiftedSegments =
-    wasEmployedPrevMonth && !isTerminatedDuring(e, prevMonth)
-      ? calculatePayrollAnalysisRowsByContractType(e, payrollProfile, prevMonth, holidays, versions)
-      : [];
+  const prevMonthSegments = wasEmployedPrevMonth
+    ? calculatePayrollAnalysisRowsByContractType(e, payrollProfile, prevMonth, holidays, versions)
+    : [];
+  const terminatedPrevMonth = isTerminatedDuring(e, prevMonth);
+  // Mês comum: salário/FGTS/GPS do mês anterior inteiro, pago neste mês. Se o mês anterior foi
+  // o do desligamento, esses mesmos segmentos já viraram rescisão lá (ver `deferredGpsSegments`
+  // abaixo) — não entram aqui de novo.
+  const shiftedSegments = terminatedPrevMonth ? [] : prevMonthSegments;
+  // GPS que ficou pendente da rescisão do mês anterior (ver `gpsAmount`) — chega no caixa deste
+  // mês, junto com o GPS normal de todo mundo.
+  const deferredGpsSegments = terminatedPrevMonth ? prevMonthSegments : [];
 
   // Rescisão: mesmos trechos que já formam `currentSegments` (o desligamento, se houver, já
   // está dentro da janela de `month`) — não recalcula, só decide se entram como "salário do mês".
   const rescissionSegments = isTerminatedDuring(e, month) ? currentSegments : [];
 
-  if (currentSegments.length === 0 && shiftedSegments.length === 0) return [];
+  if (currentSegments.length === 0 && shiftedSegments.length === 0 && deferredGpsSegments.length === 0) return [];
 
-  // Tipos de contratação distintos, na ordem em que aparecem: primeiro os que vêm do
-  // salário (mês anterior/rescisão), depois qualquer tipo novo que só apareça nos
-  // benefícios do mês corrente. Sem troca no mês, isso é sempre um único tipo -> uma
-  // única linha, idêntico ao comportamento anterior a este mecanismo.
+  // Tipos de contratação distintos, na ordem em que aparecem — sem troca no mês, sempre um
+  // único tipo -> uma única linha, idêntico ao comportamento anterior a este mecanismo.
   const identities: ContractType[] = [];
-  for (const r of [...shiftedSegments, ...rescissionSegments, ...currentSegments]) {
+  for (const r of [...shiftedSegments, ...rescissionSegments, ...currentSegments, ...deferredGpsSegments]) {
     if (!identities.includes(r.tipoContratacao)) identities.push(r.tipoContratacao);
   }
 
@@ -231,9 +258,14 @@ function buildCashRows(
     const shifted = shiftedSegments.find((r) => r.tipoContratacao === tipo);
     const rescission = rescissionSegments.find((r) => r.tipoContratacao === tipo);
     const current = currentSegments.find((r) => r.tipoContratacao === tipo);
+    const deferredGps = deferredGpsSegments.find((r) => r.tipoContratacao === tipo);
 
     const benefitsAmount = current?.benefitsAmount ?? 0;
     const toolsAmount = current?.toolsAmount ?? 0;
+    // GPS da rescisão deste mês (salário + encargos sobre 13º/férias) não fica aqui — vira
+    // `deferredGps` no mês seguinte (ver JSDoc de `buildCashRows`).
+    const rescissionGps = gpsAmount(rescission) + gpsOnProvisionsAmount(rescission);
+    const deferredGpsValue = gpsAmount(deferredGps) + gpsOnProvisionsAmount(deferredGps);
 
     return {
       employeeId: e.id,
@@ -241,23 +273,31 @@ function buildCashRows(
       cargo: e.cargo,
       tipoContratacao: tipo,
       baseAmount: add(shifted?.baseAmount, rescission?.baseAmount),
-      chargesAmount: add(shifted?.chargesAmount, rescission?.chargesAmount),
+      chargesAmount: add(shifted?.chargesAmount, rescission?.chargesAmount) - rescissionGps + deferredGpsValue,
       fgtsAmount: add(shifted?.fgtsAmount, rescission?.fgtsAmount),
-      inssPatronalAmount: add(shifted?.inssPatronalAmount, rescission?.inssPatronalAmount),
-      outrosEncargosAmount: add(shifted?.outrosEncargosAmount, rescission?.outrosEncargosAmount),
-      provisionsAmount: add(shifted?.provisionsAmount, rescission?.provisionsAmount),
+      inssPatronalAmount: add(shifted?.inssPatronalAmount, deferredGps?.inssPatronalAmount),
+      outrosEncargosAmount: add(shifted?.outrosEncargosAmount, deferredGps?.outrosEncargosAmount),
+      provisionsAmount:
+        add(shifted?.provisionsAmount, rescission?.provisionsAmount) -
+        gpsOnProvisionsAmount(rescission) +
+        gpsOnProvisionsAmount(deferredGps),
       provisao13Amount: add(shifted?.provisao13Amount, rescission?.provisao13Amount),
       provisaoFeriasAmount: add(shifted?.provisaoFeriasAmount, rescission?.provisaoFeriasAmount),
       provisaoRecessoAmount: add(shifted?.provisaoRecessoAmount, rescission?.provisaoRecessoAmount),
-      encargosSobreProvisoesAmount: add(shifted?.encargosSobreProvisoesAmount, rescission?.encargosSobreProvisoesAmount),
+      encargosSobreProvisoesAmount:
+        add(shifted?.encargosSobreProvisoesAmount, rescission?.encargosSobreProvisoesAmount) -
+        gpsOnProvisionsAmount(rescission) +
+        gpsOnProvisionsAmount(deferredGps),
+      fgtsSobreProvisoesAmount: add(shifted?.fgtsSobreProvisoesAmount, rescission?.fgtsSobreProvisoesAmount),
       benefitsAmount,
       toolsAmount,
       // Sempre os itens atuais do cadastro (referência) — current cobre qualquer mês com
-      // algum valor na linha (benefícios/ferramentas nunca vêm só de shifted/rescission).
+      // algum valor na linha (benefícios/ferramentas nunca vêm só de shifted/rescission/GPS pendente).
       benefitsBreakdown: current?.benefitsBreakdown ?? shifted?.benefitsBreakdown ?? e.benefitsBreakdown,
       toolsBreakdown: current?.toolsBreakdown ?? shifted?.toolsBreakdown ?? e.toolsBreakdown,
-      totalMonthlyCost: salaryOnlyTotal(shifted) + salaryOnlyTotal(rescission) + benefitsAmount + toolsAmount,
-      inssFuncionario: add(shifted?.inssFuncionario, rescission?.inssFuncionario),
+      totalMonthlyCost:
+        salaryOnlyTotal(shifted) + salaryOnlyTotal(rescission) - rescissionGps + deferredGpsValue + benefitsAmount + toolsAmount,
+      inssFuncionario: add(shifted?.inssFuncionario, deferredGps?.inssFuncionario),
       // Custo/hora é um conceito de regime de competência (Custo x Hora, que usa
       // `buildPayrollHistory`) — não faz sentido nesta janela mista, por isso zerado.
       hoursWorked: 0,
@@ -286,12 +326,12 @@ export function buildCashPayrollHistory(
       .flatMap((e) => buildCashRows(e, payrollProfile, month, prevMonth, holidays, versionsByEmployee.get(e.id) ?? []))
       .sort((a, b) => b.totalMonthlyCost - a.totalMonthlyCost);
 
+    // Distinto por colaborador; exclui linha só de GPS pendente de rescisão anterior (`buildCashRows`).
+    const headcountRows = rows.filter((r) => r.baseAmount > 0 || r.benefitsAmount > 0 || r.toolsAmount > 0);
+
     return {
       ...month,
-      // Distinto por colaborador, não por linha — uma troca de tipo de contratação no meio
-      // do mês gera 2 linhas para a mesma pessoa (ver `buildCashRows`), que não deve contar
-      // como 2 colaboradores no headcount.
-      headcount: new Set(rows.map((r) => r.employeeId)).size,
+      headcount: new Set(headcountRows.map((r) => r.employeeId)).size,
       ...sumRows(rows),
       rows,
       estimated: !month.isCurrent && !month.isFuture,

@@ -242,6 +242,8 @@ export interface PayrollAnalysisRow {
   provisaoRecessoAmount: number;
   /** FGTS + INSS Patronal incidentes sobre as provisões acima — parte de `provisionsAmount`. */
   encargosSobreProvisoesAmount: number;
+  /** Fatia de `encargosSobreProvisoesAmount` que é só FGTS — resto é GPS (INSS Patronal + RAT/Terceiros/Outros), usado pela Folha de Pagamento (regime de caixa) para diferir o GPS da rescisão ao mês seguinte, como já faz com `inssPatronalAmount`/`outrosEncargosAmount`. */
+  fgtsSobreProvisoesAmount: number;
   benefitsAmount: number;
   toolsAmount: number;
   /** Itens de benefício ATIVOS hoje (referência) — ver ressalva em `PayrollAnalysisEmployeeInput`. */
@@ -301,6 +303,7 @@ export function calculatePayrollAnalysisRow(
   let provisaoFeriasAmount = 0;
   let provisaoRecessoAmount = 0;
   let encargosSobreProvisoesAmount = 0;
+  let fgtsSobreProvisoesAmount = 0;
   let inssFuncionario = 0;
   let benefitsAmount = 0;
   let salaryOnlyCost = 0;
@@ -344,6 +347,7 @@ export function calculatePayrollAnalysisRow(
     provisaoFeriasAmount += breakdown.details.provisaoFerias;
     provisaoRecessoAmount += breakdown.details.provisaoRecesso;
     encargosSobreProvisoesAmount += encargosSobreProvisoes;
+    fgtsSobreProvisoesAmount += breakdown.details.fgts13 + breakdown.details.fgtsFerias;
     inssFuncionario += breakdown.details.inssFuncionario;
     // totalMonthlyCost de cada segmento já exclui benefícios/ferramentas (passados como 0
     // acima) — soma o total autoritativo do segmento em vez de rederivar de
@@ -369,6 +373,7 @@ export function calculatePayrollAnalysisRow(
     provisaoFeriasAmount,
     provisaoRecessoAmount,
     encargosSobreProvisoesAmount,
+    fgtsSobreProvisoesAmount,
     benefitsAmount,
     toolsAmount,
     benefitsBreakdown: e.benefitsBreakdown,
@@ -392,6 +397,7 @@ interface ContractTypeGroupAccum {
   provisaoFeriasAmount: number;
   provisaoRecessoAmount: number;
   encargosSobreProvisoesAmount: number;
+  fgtsSobreProvisoesAmount: number;
   benefitsAmount: number;
   toolsAmount: number;
   inssFuncionario: number;
@@ -412,6 +418,7 @@ function newContractTypeGroup(tipoContratacao: ContractType): ContractTypeGroupA
     provisaoFeriasAmount: 0,
     provisaoRecessoAmount: 0,
     encargosSobreProvisoesAmount: 0,
+    fgtsSobreProvisoesAmount: 0,
     benefitsAmount: 0,
     toolsAmount: 0,
     inssFuncionario: 0,
@@ -493,6 +500,7 @@ export function calculatePayrollAnalysisRowsByContractType(
     group.provisaoFeriasAmount += breakdown.details.provisaoFerias;
     group.provisaoRecessoAmount += breakdown.details.provisaoRecesso;
     group.encargosSobreProvisoesAmount += encargosSobreProvisoes;
+    group.fgtsSobreProvisoesAmount += breakdown.details.fgts13 + breakdown.details.fgtsFerias;
     group.inssFuncionario += breakdown.details.inssFuncionario;
     group.salaryOnlyCost += breakdown.totalMonthlyCost;
   });
@@ -513,6 +521,7 @@ export function calculatePayrollAnalysisRowsByContractType(
       provisaoFeriasAmount: g.provisaoFeriasAmount,
       provisaoRecessoAmount: g.provisaoRecessoAmount,
       encargosSobreProvisoesAmount: g.encargosSobreProvisoesAmount,
+      fgtsSobreProvisoesAmount: g.fgtsSobreProvisoesAmount,
       benefitsAmount: g.benefitsAmount,
       toolsAmount: g.toolsAmount,
       benefitsBreakdown: e.benefitsBreakdown,
