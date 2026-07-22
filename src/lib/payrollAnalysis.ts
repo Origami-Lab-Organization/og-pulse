@@ -271,7 +271,7 @@ export interface PayrollAnalysisRow {
   rescissionProvisaoRecessoAmount: number;
   /** Fatia de `encargosSobreProvisoesAmount` atribuível à rescisão deste mês — só o FGTS (`fgtsSobreProvisoesAmount`), já que o GPS sobre as provisões da rescisão é diferido para o mês seguinte, igual `rescissionChargesAmount`. */
   rescissionEncargosSobreProvisoesAmount: number;
-  /** Fatia de `inssFuncionario` referente ao INSS retido sobre o saldo de salário da rescisão deste mês — mesma ressalva de `rescissionBaseAmount`. */
+  /** Fatia de `inssFuncionario` referente ao INSS retido sobre o saldo de salário da rescisão — 0 fora do regime de caixa (Folha de Pagamento); ao contrário de `rescissionBaseAmount`, aparece no mês SEGUINTE ao desligamento (mesma guia GPS de `inssPatronalAmount`), não no mês da rescisão. */
   rescissionInssFuncionarioAmount: number;
   totalMonthlyCost: number;
   /**

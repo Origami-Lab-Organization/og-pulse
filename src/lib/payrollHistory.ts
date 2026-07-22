@@ -231,10 +231,10 @@ function buildCashRows(
   // o do desligamento, esses mesmos segmentos já viraram rescisão lá (ver `deferredGpsSegments`
   // abaixo) — não entram aqui de novo.
   const shiftedSegments = terminatedPrevMonth ? [] : prevMonthSegments;
-  // GPS que ficou pendente da rescisão do mês anterior (ver `gpsAmount`), chega no caixa deste
-  // mês. Filtra por valor (não só presença) porque Estágio/PJ não geram INSS patronal a diferir.
+  // GPS pendente da rescisão e o INSS retido sobre ela (mesma guia) chegam juntos aqui — filtra
+  // por valor, não só presença, porque Estágio/PJ não geram nenhum dos dois a diferir.
   const deferredGpsSegments = terminatedPrevMonth
-    ? prevMonthSegments.filter((r) => gpsAmount(r) + gpsOnProvisionsAmount(r) !== 0)
+    ? prevMonthSegments.filter((r) => gpsAmount(r) + gpsOnProvisionsAmount(r) !== 0 || r.inssFuncionario !== 0)
     : [];
 
   // Rescisão: mesmos trechos que já formam `currentSegments` (o desligamento, se houver, já
@@ -309,10 +309,10 @@ function buildCashRows(
       rescissionEncargosSobreProvisoesAmount: rescission?.fgtsSobreProvisoesAmount ?? 0,
       totalMonthlyCost:
         salaryOnlyTotal(shifted) + salaryOnlyTotal(rescission) - rescissionGps + deferredGpsValue + benefitsAmount + toolsAmount,
-      // INSS retido do funcionário é descontado no pagamento (não segue o calendário do GPS
-      // como inssPatronalAmount/outrosEncargosAmount) — soma no mês da rescisão, não diferido.
-      inssFuncionario: add(shifted?.inssFuncionario, rescission?.inssFuncionario),
-      rescissionInssFuncionarioAmount: rescission?.inssFuncionario ?? 0,
+      // Mesma guia (GPS) e mesmo vencimento de inssPatronalAmount/outrosEncargosAmount — por
+      // isso também vem de `deferredGps`, não de `rescission`.
+      inssFuncionario: add(shifted?.inssFuncionario, deferredGps?.inssFuncionario),
+      rescissionInssFuncionarioAmount: deferredGps?.inssFuncionario ?? 0,
       // Custo/hora é um conceito de regime de competência (Custo x Hora, que usa
       // `buildPayrollHistory`) — não faz sentido nesta janela mista, por isso zerado.
       hoursWorked: 0,
