@@ -39,5 +39,6 @@ export function useAllocationGrid({
       });
     },
     enabled: !!tenantId,
+    refetchOnWindowFocus: true,
   });
 }

@@ -17,6 +17,7 @@ import { useProjectBudgetRoles } from '@/hooks/useProjectBudgetRoles';
 import { useProjectRealizedHours } from '@/hooks/useProjectRealizedHours';
 import { getEmployeeMonthLoad, useTenantMonthlyCapacitySummary } from '@/hooks/useTenantMonthlyCapacitySummary';
 import { buildProjectMonths } from '@/lib/projectMonths';
+import { invalidateAllocationQueries } from '@/lib/allocationInvalidation';
 
 // ─── Aggregate raw rows → one entry per employee ──────────────────────────────
 
@@ -184,23 +185,14 @@ export const useCreateProjectRole = (projectId: string, onSuccess?: () => void) 
 
 // ─── Edição inline de 1 célula (mês existente ou novo) ─────────────────────────
 
-/** Invalida todas as leituras impactadas por uma escrita de horas planejadas. */
-function invalidateAllocationDependents(queryClient: ReturnType<typeof useQueryClient>, projectId: string) {
-  // Aba Equipe
-  queryClient.invalidateQueries({ queryKey: ['project-allocations', projectId] });
-  queryClient.invalidateQueries({ queryKey: ['project-allocations-filled-roles', projectId] });
-  queryClient.invalidateQueries({ queryKey: ['project-team-rows', projectId] });
-  queryClient.invalidateQueries({ queryKey: ['project-realized-hours', projectId] });
-  // Tela /alocacao (allocation-overview)
-  queryClient.invalidateQueries({ queryKey: ['allocation-employee-month-summary'] });
-  queryClient.invalidateQueries({ queryKey: ['allocation-employee-detail'] });
-  queryClient.invalidateQueries({ queryKey: ['allocation-grid'] });
-  queryClient.invalidateQueries({ queryKey: ['allocation-overview-planner'] });
-  // Disponibilidade do funcionário
-  queryClient.invalidateQueries({ queryKey: ['employee-availability'] });
-  queryClient.invalidateQueries({ queryKey: ['employee-monthly-load'] });
-  // Custos / financeiro do projeto
-  queryClient.invalidateQueries({ queryKey: ['project-team-financials', projectId] });
+/**
+ * Invalida todas as leituras impactadas por uma escrita de horas planejadas.
+ * Fonte única de invalidação cruzada (compartilhada com a Tela de Alocação) —
+ * ver `invalidateAllocationQueries`. `projectId` mantido por compatibilidade de
+ * assinatura; a invalidação é por prefixo (cobre todos os projetos/pessoas).
+ */
+function invalidateAllocationDependents(queryClient: ReturnType<typeof useQueryClient>, _projectId: string) {
+  invalidateAllocationQueries(queryClient);
 }
 
 /**

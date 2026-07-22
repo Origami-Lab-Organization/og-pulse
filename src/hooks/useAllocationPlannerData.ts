@@ -152,6 +152,7 @@ export function useAllocationEmployeeMonthSummary({
       return (data ?? []) as AllocationSummaryRpcRow[];
     },
     enabled: !!tenantId,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -191,5 +192,6 @@ export function useAllocationEmployeeDetail({
       return (data ?? []) as AllocationDetailRpcRow[];
     },
     enabled: !!tenantId && !!employeeId,
+    refetchOnWindowFocus: true,
   });
 }

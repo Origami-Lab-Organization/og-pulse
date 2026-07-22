@@ -80,6 +80,7 @@ export function useEmployeeMonthlyLoad({
   return useQuery({
     queryKey: ['employee-monthly-load', tenantId, employeeId, sortedYears, excludeProjectId ?? null],
     enabled: enabled && !!tenantId && !!employeeId && sortedYears.length > 0,
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<EmployeeMonthlyLoad> => {
       if (!tenantId || !employeeId) return {};
 
