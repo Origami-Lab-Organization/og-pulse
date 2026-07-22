@@ -65,6 +65,14 @@
 - **Causa raiz**: tabelas `vacation_requests` e `vacation_request_approvals` criadas em `supabase/migrations/20260619120000_vacation_management.sql` ainda não aplicadas no ambiente, então o `types.ts` gerado não as conhece (mesma situação do TD-001, ver ADR-0003).
 - **Próximo passo**: após aplicar a migration no Supabase, rodar `supabase gen types typescript --local > src/integrations/supabase/types.ts`, remover os `as any` e o `eslint-disable` do `vacationService.ts`.
 
+### TD-0008 — cast `as any` em useTimesheetOnboarding (coluna/RPC fora dos tipos gerados)
+- **Status**: aberto
+- **Prioridade**: baixa
+- **Arquivos**: `src/hooks/useTimesheetOnboarding.ts`
+- **Impacto**: `supabase/migrations/20260722000000_timesheet_onboarding.sql` adiciona as colunas `employees.timesheet_onboarding_seen`/`timesheet_onboarding_seen_at` e a RPC `complete_timesheet_onboarding()`, mas o `src/integrations/supabase/types.ts` gerado ainda não os conhece (migration não rodada no ambiente/tipos não regenerados). O hook usa `(supabase.from('employees') as any)` e `(supabase.rpc as any)('complete_timesheet_onboarding')` para contornar — mesma situação do TD-0001/TD-0003 (onboarding geral). Sem risco funcional (a query é defensiva: erro/coluna ausente sempre resulta em `seen: true`, nunca força o onboarding indevidamente).
+- **Causa raiz**: migration nova ainda não aplicada no ambiente onde os tipos foram gerados pela última vez.
+- **Próximo passo**: depois de aplicar a migration, rodar `supabase gen types typescript --local > src/integrations/supabase/types.ts` e remover os casts `as any`.
+
 ### TD-0007 — motor de auto-save de timesheet duplicado (linha antiga + hook novo)
 - **Status**: aberto
 - **Prioridade**: média

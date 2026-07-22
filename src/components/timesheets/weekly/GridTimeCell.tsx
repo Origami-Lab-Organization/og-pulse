@@ -143,6 +143,7 @@ export function GridTimeCell({
         type="text"
         inputMode="numeric"
         data-focus-ring
+        data-tour-suggested-cell={showHint ? 'true' : undefined}
         aria-label={label}
         disabled={disabledOffline}
         value={filled ? fmt(value as number) : ''}

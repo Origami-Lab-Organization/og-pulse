@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Eraser,
   Folder,
+  HelpCircle,
   Info,
   Save,
   Send,
@@ -16,10 +17,18 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { TimesheetWeekSelector } from '@/components/timesheets/TimesheetWeekSelector';
 import { GlobalSaveIndicator } from '@/components/timesheets/GlobalSaveIndicator';
 import { SubmitAllProjectsDialog } from '@/components/timesheets/SubmitWeekDialog';
 import { WeeklyGridRow } from './WeeklyGridRow';
+import { TimesheetOnboarding } from './TimesheetOnboarding';
+import { useTimesheetOnboarding } from '@/hooks/useTimesheetOnboarding';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePwaEnvironment } from '@/hooks/use-pwa-environment';
 import { useMyProjectMemberships } from '@/hooks/useMyTimesheetData';
@@ -73,6 +82,7 @@ export function WeeklyTimesheetGrid({
   const { employee } = useAuth();
   const { isOnline } = usePwaEnvironment();
   const jornada = employee?.jornada_diaria ?? 8;
+  const onboarding = useTimesheetOnboarding();
 
   const weekStart = getWeekStart(selectedDate);
   const weekEnd = addDays(weekStart, 4);
@@ -479,6 +489,7 @@ export function WeeklyTimesheetGrid({
                   disabled={allProjectsLocked || anyPending || isFutureWeek || !hasSuggestions}
                   onClick={handleAcceptSuggested}
                   className="h-7 gap-1 px-2.5 text-xs font-medium"
+                  data-tour="accept-suggested-week"
                 >
                   <Wand2 className="h-3 w-3" /> Aceitar semana sugerida
                 </Button>
@@ -492,6 +503,25 @@ export function WeeklyTimesheetGrid({
                 >
                   <Eraser className="h-3 w-3" /> Limpar
                 </Button>
+                {onboarding.canReopen && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={onboarding.reopen}
+                          aria-label="Como funciona a nova timesheet"
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Como funciona a nova timesheet</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             )}
           </div>
@@ -607,6 +637,7 @@ export function WeeklyTimesheetGrid({
                   type="button"
                   onClick={() => setActivitiesExpanded((v) => !v)}
                   className="flex w-full items-center justify-between gap-2 rounded-md pb-2 pt-5 text-left transition-colors hover:bg-muted/30"
+                  data-tour="activities-toggle"
                 >
                   <div className="flex items-center gap-2">
                     <Briefcase className="h-4 w-4 text-muted-foreground" />
@@ -733,6 +764,8 @@ export function WeeklyTimesheetGrid({
         onConfirm={handleSubmit}
         isSubmitting={submitAll.isPending}
       />
+
+      {!emptyState && <TimesheetOnboarding open={onboarding.open} onDismiss={onboarding.dismiss} />}
     </Card>
   );
 }
