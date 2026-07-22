@@ -73,6 +73,8 @@ interface SubmitAllProjectsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pendingCount: number;
+  /** Quantidade de atividades internas com horas lançadas nesta semana (opcional). */
+  activityCount?: number;
   weekStart: Date;
   weekEnd: Date;
   totalHours: number;
@@ -84,6 +86,7 @@ export function SubmitAllProjectsDialog({
   open,
   onOpenChange,
   pendingCount,
+  activityCount = 0,
   weekStart,
   weekEnd,
   totalHours,
@@ -93,6 +96,15 @@ export function SubmitAllProjectsDialog({
   const weekStartStr = format(weekStart, "dd/MM", { locale: ptBR });
   const weekEndStr = format(weekEnd, "dd/MM/yyyy", { locale: ptBR });
 
+  const itemsLabel =
+    activityCount > 0
+      ? `${pendingCount} projeto(s) e ${activityCount} atividade(s) interna(s)`
+      : `${pendingCount} projeto(s)`;
+  const confirmLabel =
+    activityCount > 0
+      ? `Enviar ${pendingCount} Projeto(s) e ${activityCount} Atividade(s)`
+      : `Enviar ${pendingCount} Projeto(s)`;
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -101,7 +113,7 @@ export function SubmitAllProjectsDialog({
           <AlertDialogDescription className="space-y-2">
             <p>
               Deseja enviar os timesheets de{' '}
-              <strong className="text-foreground">{pendingCount} projeto(s)</strong> para a semana de{' '}
+              <strong className="text-foreground">{itemsLabel}</strong> para a semana de{' '}
               <strong className="text-foreground">{weekStartStr} - {weekEndStr}</strong>?
             </p>
             <p>
@@ -114,12 +126,12 @@ export function SubmitAllProjectsDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction 
-            onClick={onConfirm} 
+          <AlertDialogAction
+            onClick={onConfirm}
             disabled={isSubmitting}
             className="gap-2"
           >
-            {isSubmitting ? 'Enviando...' : `Enviar ${pendingCount} Projeto(s)`}
+            {isSubmitting ? 'Enviando...' : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

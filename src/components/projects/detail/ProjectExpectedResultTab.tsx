@@ -10,7 +10,7 @@ import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
 import { useHolidays } from '@/hooks/useHolidays';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
-import { PlanningInstallmentsTable } from './PlanningInstallmentsTable';
+import { FinanceInstallmentsTable } from './financial/FinanceInstallmentsTable';
 
 interface ProjectExpectedResultTabProps {
   project: ProjectWithRelations;
@@ -162,19 +162,9 @@ export function ProjectExpectedResultTab({ project, canManageInstallments = fals
         </Card>
       </div>
 
-      {/* Installments table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Projeção de Recebimentos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PlanningInstallmentsTable
-            installments={project.installments || []}
-            projectId={project.id}
-            canManageInstallments={canManageInstallments}
-          />
-        </CardContent>
-      </Card>
+      {/* Parcelas / Faturamento — mesma seção da aba Financeiro; na fase
+          Planejamento o assistente de geração automática fica disponível. */}
+      <FinanceInstallmentsTable project={project} canManage={canManageInstallments} />
     </div>
   );
 }

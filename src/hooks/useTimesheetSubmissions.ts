@@ -403,6 +403,19 @@ export const useSubmitAllProjects = () => {
         results.push(submission);
       }
 
+      // Travar também as atividades internas do funcionário na semana (decisão de
+      // produto: "semana enviada = travada" cobre projetos E atividades).
+      if (employee?.id) {
+        const { error: activityLockError } = await supabase
+          .from('activity_timesheets')
+          .update({ is_locked: true })
+          .eq('employee_id', employee.id)
+          .gte('work_date', weekStart)
+          .lte('work_date', weekEndStr);
+
+        if (activityLockError) throw activityLockError;
+      }
+
       // Notify managers — wrapped in try/catch so failures don't block the submit
       try {
         const { data: projectData } = await supabase
@@ -478,6 +491,7 @@ export const useSubmitAllProjects = () => {
       queryClient.invalidateQueries({ queryKey: ['project-timesheet-submissions'] });
       queryClient.invalidateQueries({ queryKey: ['timesheets-by-date-range'] });
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['activity-timesheets'] });
 
       // Best-effort: auto-resolve timesheet_pending notifications for this employee
       try {

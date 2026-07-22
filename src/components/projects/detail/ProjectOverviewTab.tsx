@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
 import { useMaskedCurrency, useMaskedPercent } from '@/contexts/HideValuesContext';
 import { ProjectTeamSection } from './ProjectTeamSection';
+import { InstallmentAlertsBanner } from './financial/InstallmentAlertsBanner';
 import { ProjectKPIBar } from './ProjectKPIBar';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
@@ -163,6 +164,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
 
   return (
     <div className="space-y-4">
+      <InstallmentAlertsBanner project={project} />
       {/* Informações do projeto e financeiras */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>

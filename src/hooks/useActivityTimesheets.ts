@@ -10,6 +10,7 @@ export interface ActivityTimesheetEntry {
   work_date: string;
   hours: number;
   description: string | null;
+  is_locked?: boolean;
 }
 
 export const useActivityTimesheetsByRange = (
@@ -43,6 +44,46 @@ export interface UpsertActivityTimesheetInput {
   hours: number;
   description?: string;
 }
+
+export interface ClearWeekActivityInput {
+  employeeId: string;
+  weekStart: string; // yyyy-MM-dd
+  weekEnd: string; // yyyy-MM-dd
+}
+
+/**
+ * "Limpar": apaga as atividades internas NÃO TRAVADAS do funcionário na semana.
+ * A RLS já permite apagar as próprias linhas não travadas.
+ */
+export const useClearWeekActivityTimesheets = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ employeeId, weekStart, weekEnd }: ClearWeekActivityInput) => {
+      const { error } = await supabase
+        .from('activity_timesheets')
+        .delete()
+        .eq('employee_id', employeeId)
+        .gte('work_date', weekStart)
+        .lte('work_date', weekEnd)
+        .eq('is_locked', false);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['activity-timesheets', variables.employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['activity-timesheets'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao limpar horas',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+};
 
 export const useUpsertActivityTimesheet = () => {
   const queryClient = useQueryClient();
