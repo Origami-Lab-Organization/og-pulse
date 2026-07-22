@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ArrowUpDown, Info } from 'lucide-react';
+import { ArrowUpDown, Info, UserMinus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { CONTRACT_TYPE_LABELS } from '@/types/employee';
 import type { PayrollAnalysisRow } from '@/lib/payrollAnalysis';
@@ -180,7 +180,23 @@ export function PayrollAnalysisTable({ rows, monthLabel, estimated, projected }:
                 >
                   <TableCell className="font-medium">{row.nome}</TableCell>
                   <TableCell className="text-muted-foreground">{CONTRACT_TYPE_LABELS[row.tipoContratacao]}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(row.baseAmount)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    <div className="flex items-center justify-end gap-1">
+                      {row.rescissionBaseAmount !== 0 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <UserMinus className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[240px] text-xs">
+                            Inclui rescisão do desligamento
+                            {row.terminationDate ? ` em ${formatDate(row.terminationDate)}` : ''} — clique para ver
+                            o salário normal separado do valor da rescisão.
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {formatCurrency(row.baseAmount)}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(row.fgtsAmount)}</TableCell>
                   <TableCell className="text-right italic tabular-nums text-muted-foreground">
                     {formatCurrency(row.inssFuncionario)}

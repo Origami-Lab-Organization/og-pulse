@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, parseDateString } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { CONTRACT_TYPE_LABELS } from '@/types/employee';
 import type { PayrollAnalysisRow } from '@/lib/payrollAnalysis';
@@ -29,12 +29,41 @@ interface EmployeeDetailDialogProps {
   showHourlyCost?: boolean;
 }
 
+function dayMonth(date: Date): string {
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
 function BreakdownLine({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-      <span className="truncate">{label}</span>
+      <span className="min-w-0 flex-1 truncate" title={label}>{label}</span>
       <span className="tabular-nums shrink-0">{formatCurrency(value)}</span>
     </div>
+  );
+}
+
+/**
+ * Divide uma linha em mês anterior (regular, sem data — é sempre o mês cheio) e rescisão
+ * (com o dia do desligamento) — regime de caixa mistura os dois no mesmo total. Mostra uma
+ * única linha, como antes, quando não há rescisão.
+ */
+function SplittableLine({
+  label,
+  total,
+  rescissionValue,
+  rescissionLabel,
+}: {
+  label: string;
+  total: number;
+  rescissionValue: number;
+  rescissionLabel: string;
+}) {
+  if (rescissionValue === 0) return <BreakdownLine label={label} value={total} />;
+  return (
+    <>
+      <BreakdownLine label={label} value={total - rescissionValue} />
+      <BreakdownLine label={rescissionLabel} value={rescissionValue} />
+    </>
   );
 }
 
@@ -51,6 +80,10 @@ export function EmployeeDetailDialog({
   showHourlyCost = true,
 }: EmployeeDetailDialogProps) {
   if (!row) return null;
+
+  const terminationDateObj = row.terminationDate ? parseDateString(row.terminationDate) : null;
+  const terminationDayLabel = terminationDateObj ? dayMonth(terminationDateObj) : '';
+  const rescissionLabel = `Rescisão (${terminationDayLabel})`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -74,10 +107,20 @@ export function EmployeeDetailDialog({
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <Banknote className="h-4 w-4 text-muted-foreground" />
-                <div>
+                <Banknote className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-muted-foreground">Salário Base</p>
                   <p className="font-medium text-lg">{formatCurrency(row.baseAmount)}</p>
+                  {row.rescissionBaseAmount !== 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      <SplittableLine
+                        label="Salário"
+                        total={row.baseAmount}
+                        rescissionValue={row.rescissionBaseAmount}
+                        rescissionLabel={rescissionLabel}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -93,12 +136,27 @@ export function EmployeeDetailDialog({
                     {formatCurrency(row.fgtsAmount + row.inssPatronalAmount + row.outrosEncargosAmount)}
                   </p>
                   <div className="mt-1 space-y-0.5">
-                    <BreakdownLine label="FGTS" value={row.fgtsAmount} />
+                    <SplittableLine
+                      label="FGTS"
+                      total={row.fgtsAmount}
+                      rescissionValue={row.rescissionChargesAmount}
+                      rescissionLabel={`FGTS rescisão (${terminationDayLabel})`}
+                    />
                     <BreakdownLine label="INSS Patronal" value={row.inssPatronalAmount} />
                     {row.outrosEncargosAmount !== 0 && (
                       <BreakdownLine label="RAT/Terceiros/Outros" value={row.outrosEncargosAmount} />
                     )}
                   </div>
+                  {row.inssFuncionario !== 0 && (
+                    <div className="mt-1.5 pt-1.5 border-t space-y-0.5 italic text-muted-foreground/80">
+                      <SplittableLine
+                        label="INSS retido (informativo)"
+                        total={row.inssFuncionario}
+                        rescissionValue={row.rescissionInssFuncionarioAmount}
+                        rescissionLabel={`INSS retido rescisão, informativo (${terminationDayLabel})`}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -152,15 +210,37 @@ export function EmployeeDetailDialog({
                   </p>
                   <p className="font-medium text-lg">{formatCurrency(row.provisionsAmount)}</p>
                   <div className="mt-1 space-y-0.5">
-                    {row.provisao13Amount !== 0 && <BreakdownLine label="13º salário" value={row.provisao13Amount} />}
+                    {row.provisao13Amount !== 0 && (
+                      <SplittableLine
+                        label="13º salário"
+                        total={row.provisao13Amount}
+                        rescissionValue={row.rescissionProvisao13Amount}
+                        rescissionLabel={`13º salário rescisão (${terminationDayLabel})`}
+                      />
+                    )}
                     {row.provisaoFeriasAmount !== 0 && (
-                      <BreakdownLine label="Férias + 1/3" value={row.provisaoFeriasAmount} />
+                      <SplittableLine
+                        label="Férias + 1/3"
+                        total={row.provisaoFeriasAmount}
+                        rescissionValue={row.rescissionProvisaoFeriasAmount}
+                        rescissionLabel={`Férias + 1/3 rescisão (${terminationDayLabel})`}
+                      />
                     )}
                     {row.provisaoRecessoAmount !== 0 && (
-                      <BreakdownLine label="Recesso remunerado" value={row.provisaoRecessoAmount} />
+                      <SplittableLine
+                        label="Recesso remunerado"
+                        total={row.provisaoRecessoAmount}
+                        rescissionValue={row.rescissionProvisaoRecessoAmount}
+                        rescissionLabel={`Recesso remunerado rescisão (${terminationDayLabel})`}
+                      />
                     )}
                     {row.encargosSobreProvisoesAmount !== 0 && (
-                      <BreakdownLine label="Encargos sobre as provisões" value={row.encargosSobreProvisoesAmount} />
+                      <SplittableLine
+                        label="Encargos sobre as provisões"
+                        total={row.encargosSobreProvisoesAmount}
+                        rescissionValue={row.rescissionEncargosSobreProvisoesAmount}
+                        rescissionLabel={`Encargos sobre as provisões rescisão (${terminationDayLabel})`}
+                      />
                     )}
                   </div>
                 </div>
@@ -168,13 +248,6 @@ export function EmployeeDetailDialog({
             </CardContent>
           </Card>
         </div>
-
-        {(row.benefitsBreakdown.length > 0 || row.toolsBreakdown.length > 0) && (
-          <p className="text-xs text-muted-foreground text-center">
-            Benefícios/ferramentas detalhados refletem a configuração ATUAL do cadastro — sem histórico por item,
-            podem diferir do valor total do mês selecionado quando há mudança ao longo do tempo.
-          </p>
-        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Card className={cn('bg-primary/5 border-primary/20', !showHourlyCost && 'sm:col-span-2')}>
@@ -206,11 +279,6 @@ export function EmployeeDetailDialog({
             </Card>
           )}
         </div>
-
-        <p className="text-xs text-muted-foreground text-center">
-          INSS retido do colaborador: {formatCurrency(row.inssFuncionario)} — informativo, já incluído no Salário
-          Base, não é custo adicional da empresa.
-        </p>
       </DialogContent>
     </Dialog>
   );

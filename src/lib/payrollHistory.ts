@@ -295,9 +295,22 @@ function buildCashRows(
       // algum valor na linha (benefícios/ferramentas nunca vêm só de shifted/rescission/GPS pendente).
       benefitsBreakdown: current?.benefitsBreakdown ?? shifted?.benefitsBreakdown ?? e.benefitsBreakdown,
       toolsBreakdown: current?.toolsBreakdown ?? shifted?.toolsBreakdown ?? e.toolsBreakdown,
+      terminationDate: e.terminationDate,
+      rescissionBaseAmount: rescission?.baseAmount ?? 0,
+      // Só o FGTS mistura o mês da rescisão — INSS Patronal/RAT/Terceiros/Outros dela são
+      // sempre diferidos para o mês seguinte (`rescissionGps`), nunca aparecem no mês corrente.
+      rescissionChargesAmount: rescission?.fgtsAmount ?? 0,
+      rescissionProvisao13Amount: rescission?.provisao13Amount ?? 0,
+      rescissionProvisaoFeriasAmount: rescission?.provisaoFeriasAmount ?? 0,
+      rescissionProvisaoRecessoAmount: rescission?.provisaoRecessoAmount ?? 0,
+      // Só o FGTS sobre as provisões mistura o mês da rescisão — o GPS sobre elas é diferido (`gpsOnProvisionsAmount`).
+      rescissionEncargosSobreProvisoesAmount: rescission?.fgtsSobreProvisoesAmount ?? 0,
       totalMonthlyCost:
         salaryOnlyTotal(shifted) + salaryOnlyTotal(rescission) - rescissionGps + deferredGpsValue + benefitsAmount + toolsAmount,
-      inssFuncionario: add(shifted?.inssFuncionario, deferredGps?.inssFuncionario),
+      // INSS retido do funcionário é descontado no pagamento (não segue o calendário do GPS
+      // como inssPatronalAmount/outrosEncargosAmount) — soma no mês da rescisão, não diferido.
+      inssFuncionario: add(shifted?.inssFuncionario, rescission?.inssFuncionario),
+      rescissionInssFuncionarioAmount: rescission?.inssFuncionario ?? 0,
       // Custo/hora é um conceito de regime de competência (Custo x Hora, que usa
       // `buildPayrollHistory`) — não faz sentido nesta janela mista, por isso zerado.
       hoursWorked: 0,

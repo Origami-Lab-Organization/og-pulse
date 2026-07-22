@@ -250,6 +250,27 @@ export interface PayrollAnalysisRow {
   benefitsBreakdown: PayrollLineItem[];
   /** Itens de ferramenta ATIVOS hoje (referência) — ver ressalva em `PayrollAnalysisEmployeeInput`. */
   toolsBreakdown: PayrollLineItem[];
+  /** Data efetiva de desligamento ('YYYY-MM-DD'), ou null se nunca desligado — repassada de `PayrollAnalysisEmployeeInput.terminationDate`. */
+  terminationDate: string | null;
+  /**
+   * Fatia de `baseAmount` referente ao saldo de salário da rescisão deste mês (regime de
+   * caixa) — 0 fora do mês de desligamento e no regime de competência (Custo x Hora), onde
+   * não há mistura de meses. O resto de `baseAmount` é o salário do mês anterior, já pago
+   * normalmente (ver `buildCashRows` em payrollHistory.ts).
+   */
+  rescissionBaseAmount: number;
+  /** Fatia de `fgtsAmount` referente ao FGTS sobre o saldo de salário da rescisão deste mês — mesma ressalva de `rescissionBaseAmount`. INSS Patronal/RAT/Terceiros da rescisão nunca entram no mês corrente (diferidos para o mês seguinte via GPS, ver `deferredGpsSegments`). */
+  rescissionChargesAmount: number;
+  /** Fatia de `provisao13Amount` liquidada na rescisão deste mês — mesma ressalva de `rescissionBaseAmount`. */
+  rescissionProvisao13Amount: number;
+  /** Fatia de `provisaoFeriasAmount` liquidada na rescisão deste mês — mesma ressalva de `rescissionBaseAmount`. */
+  rescissionProvisaoFeriasAmount: number;
+  /** Fatia de `provisaoRecessoAmount` liquidada na rescisão deste mês — mesma ressalva de `rescissionBaseAmount`. */
+  rescissionProvisaoRecessoAmount: number;
+  /** Fatia de `encargosSobreProvisoesAmount` atribuível à rescisão deste mês — só o FGTS (`fgtsSobreProvisoesAmount`), já que o GPS sobre as provisões da rescisão é diferido para o mês seguinte, igual `rescissionChargesAmount`. */
+  rescissionEncargosSobreProvisoesAmount: number;
+  /** Fatia de `inssFuncionario` referente ao INSS retido sobre o saldo de salário da rescisão deste mês — mesma ressalva de `rescissionBaseAmount`. */
+  rescissionInssFuncionarioAmount: number;
   totalMonthlyCost: number;
   /**
    * INSS retido do colaborador (tabela progressiva) — descontado do próprio
@@ -378,6 +399,15 @@ export function calculatePayrollAnalysisRow(
     toolsAmount,
     benefitsBreakdown: e.benefitsBreakdown,
     toolsBreakdown: e.toolsBreakdown,
+    terminationDate: e.terminationDate,
+    // Sem mistura salário/rescisão em regime de competência — só `buildCashRows` popula estes campos.
+    rescissionBaseAmount: 0,
+    rescissionChargesAmount: 0,
+    rescissionProvisao13Amount: 0,
+    rescissionProvisaoFeriasAmount: 0,
+    rescissionProvisaoRecessoAmount: 0,
+    rescissionEncargosSobreProvisoesAmount: 0,
+    rescissionInssFuncionarioAmount: 0,
     totalMonthlyCost,
     inssFuncionario,
     hoursWorked,
@@ -526,6 +556,14 @@ export function calculatePayrollAnalysisRowsByContractType(
       toolsAmount: g.toolsAmount,
       benefitsBreakdown: e.benefitsBreakdown,
       toolsBreakdown: e.toolsBreakdown,
+      terminationDate: e.terminationDate,
+      rescissionBaseAmount: 0,
+      rescissionChargesAmount: 0,
+      rescissionProvisao13Amount: 0,
+      rescissionProvisaoFeriasAmount: 0,
+      rescissionProvisaoRecessoAmount: 0,
+      rescissionEncargosSobreProvisoesAmount: 0,
+      rescissionInssFuncionarioAmount: 0,
       totalMonthlyCost: g.salaryOnlyCost + g.benefitsAmount + g.toolsAmount,
       inssFuncionario: g.inssFuncionario,
       hoursWorked: g.hoursWorked,
