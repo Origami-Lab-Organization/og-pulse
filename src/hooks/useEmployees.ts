@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { employeeService, CreateEmployeeInput, EmployeeDB } from '@/services/employeeService';
 import { employeeVersionService, EmployeeVersionDB } from '@/services/employeeVersionService';
 import { projectService } from '@/services/projectService';
@@ -8,8 +8,24 @@ import { CreateEmployeeToolInput, CreateEmployeeBenefitInput, ContractType, Syst
 import { CostBreakdown } from '@/lib/employeeCostCalculator';
 import { todayLocalDateString } from '@/lib/formatters';
 
+// Custo/hora de projeto (project_member_months/project_role_allocations/project_timesheets)
+// é um snapshot congelado, não recalculado automaticamente — qualquer edição que mude
+// total_monthly_cost_estimated do funcionário (versão financeira nova, benefício/ferramenta
+// alterado, marco agendado cancelado) precisa disparar isso, senão os relatórios de projeto
+// mostram um custo/hora desatualizado.
+async function recalculateProjectCostSnapshots(queryClient: QueryClient, employeeId: string) {
+  try {
+    await projectService.recalculateMemberCosts(employeeId);
+    queryClient.invalidateQueries({ queryKey: ['project-member-months'] });
+    queryClient.invalidateQueries({ queryKey: ['timesheets-by-members'] });
+    queryClient.invalidateQueries({ queryKey: ['project'] });
+  } catch (e) {
+    console.error('Error recalculating member costs:', e);
+  }
+}
+
 // Type for employee with tools and benefits from DB
-type EmployeeWithRelations = EmployeeDB & { 
+type EmployeeWithRelations = EmployeeDB & {
   employee_tools?: { monthly_cost: number; is_active?: boolean }[];
   employee_benefits?: { monthly_value: number; is_active?: boolean }[];
   termination_id?: string | null;
@@ -179,15 +195,7 @@ export const useUpdateEmployee = () => {
       if (variables.createNewVersion) {
         queryClient.invalidateQueries({ queryKey: ['employee-versions', variables.id] });
         queryClient.invalidateQueries({ queryKey: ['payroll-history-versions'] });
-        // Recalculate historical project costs based on employee versions
-        try {
-          await projectService.recalculateMemberCosts(variables.id);
-          queryClient.invalidateQueries({ queryKey: ['project-member-months'] });
-          queryClient.invalidateQueries({ queryKey: ['timesheets-by-members'] });
-          queryClient.invalidateQueries({ queryKey: ['project'] });
-        } catch (e) {
-          console.error('Error recalculating member costs:', e);
-        }
+        await recalculateProjectCostSnapshots(queryClient, variables.id);
       }
       toast({
         title: 'Funcionário atualizado',
@@ -340,11 +348,12 @@ export const useAddEmployeeTool = () => {
 
       return result;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-tools', variables.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       if (variables.recalculate) {
         queryClient.invalidateQueries({ queryKey: ['employee-versions', variables.employeeId] });
+        await recalculateProjectCostSnapshots(queryClient, variables.employeeId);
       }
       toast({
         title: 'Ferramenta adicionada',
@@ -392,11 +401,12 @@ export const useUpdateEmployeeTool = () => {
 
       return result;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-tools', variables.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       if (variables.recalculate) {
         queryClient.invalidateQueries({ queryKey: ['employee-versions', variables.employeeId] });
+        await recalculateProjectCostSnapshots(queryClient, variables.employeeId);
       }
       toast({
         title: 'Ferramenta atualizada',
@@ -442,11 +452,12 @@ export const useDeleteEmployeeTool = () => {
 
       return { employeeId, recalculate };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['employee-tools', data.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       if (data.recalculate) {
         queryClient.invalidateQueries({ queryKey: ['employee-versions', data.employeeId] });
+        await recalculateProjectCostSnapshots(queryClient, data.employeeId);
       }
       toast({
         title: 'Ferramenta removida',
@@ -491,11 +502,12 @@ export const useAddEmployeeBenefit = () => {
 
       return result;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-benefits', variables.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       if (variables.recalculate) {
         queryClient.invalidateQueries({ queryKey: ['employee-versions', variables.employeeId] });
+        await recalculateProjectCostSnapshots(queryClient, variables.employeeId);
       }
       toast({
         title: 'Benefício adicionado',
@@ -543,11 +555,12 @@ export const useUpdateEmployeeBenefit = () => {
 
       return result;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-benefits', variables.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       if (variables.recalculate) {
         queryClient.invalidateQueries({ queryKey: ['employee-versions', variables.employeeId] });
+        await recalculateProjectCostSnapshots(queryClient, variables.employeeId);
       }
       toast({
         title: 'Benefício atualizado',
@@ -583,11 +596,12 @@ export const useDeleteEmployeeBenefit = () => {
 
       return { employeeId, recalculate };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['employee-benefits', data.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       if (data.recalculate) {
         queryClient.invalidateQueries({ queryKey: ['employee-versions', data.employeeId] });
+        await recalculateProjectCostSnapshots(queryClient, data.employeeId);
       }
       toast({
         title: 'Benefício removido',
@@ -653,10 +667,11 @@ export const useCancelScheduledEmployeeVersion = () => {
       await employeeVersionService.cancelScheduledVersion(versionId);
       return { employeeId };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['employee-versions', data.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employee-version-current', data.employeeId] });
       queryClient.invalidateQueries({ queryKey: ['payroll-history-versions'] });
+      await recalculateProjectCostSnapshots(queryClient, data.employeeId);
       toast({
         title: 'Marco agendado cancelado',
         description: 'A alteração programada foi cancelada com sucesso.',
