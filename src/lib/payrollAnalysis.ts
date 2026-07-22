@@ -26,6 +26,8 @@ export interface PayrollAnalysisEmployeeInput {
   nome: string;
   cargo: string;
   status: string;
+  /** Só usado por buildPayrollHistory (Custo x Hora) — buildCashPayrollHistory (Folha de Pagamento) ignora este campo de propósito. */
+  alocaEmProjetos: boolean;
   tipoContratacao: ContractType;
   salarioMensal: number;
   bolsaAuxilio: number;

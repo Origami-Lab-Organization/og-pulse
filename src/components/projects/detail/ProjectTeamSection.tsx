@@ -56,7 +56,7 @@ export function ProjectTeamSection({ members, projectId, memberMonths = [], time
   const addMember = useAddProjectMember();
 
   const availableEmployees = employees.filter(
-    (e) => !members.some((m) => m.employee_id === e.id)
+    (e) => e.alocaEmProjetos && !members.some((m) => m.employee_id === e.id)
   );
 
   const getInitials = (name: string) => {

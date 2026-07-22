@@ -56,6 +56,7 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     dataAdmissao: db.data_admissao,
     isGerente: db.is_gerente,
     systemRole: (db.system_role || 'user') as SystemRole,
+    alocaEmProjetos: db.aloca_em_projetos ?? true,
     status: db.status as 'ativo' | 'aguardando_confirmacao' | 'bloqueado' | 'arquivado' | 'desligado' | 'em_desligamento',
     salarioMensal: Number(db.salario_mensal),
     beneficios: Number(db.beneficios),
@@ -192,6 +193,12 @@ export const useUpdateEmployee = () => {
     },
     onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employee', variables.id] });
+      // Reflete nome/cargo/aloca_em_projetos na grade de Alocação sem esperar o staleTime global.
+      queryClient.invalidateQueries({ queryKey: ['allocation-employee-month-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['allocation-employee-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['tenant-monthly-capacity-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-history-raw'] });
       if (variables.createNewVersion) {
         queryClient.invalidateQueries({ queryKey: ['employee-versions', variables.id] });
         queryClient.invalidateQueries({ queryKey: ['payroll-history-versions'] });

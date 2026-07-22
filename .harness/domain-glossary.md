@@ -24,3 +24,4 @@
 - Parcela/Installment: item de faturamento/recebimento ligado a projeto ou budget.
 - Tenant: unidade isolada de dados no sistema.
 - RLS: Row Level Security do Supabase para isolamento e autorizacao.
+- Aloca em projetos: atributo booleano do colaborador (`employees.aloca_em_projetos`, default true), alteravel apenas por admin, que define se ele aparece como opcao de alocacao e nas metricas/relatorios de alocacao e capacidade (seletor "Adicionar a um projeto", grade "Alocacao da Equipe", Capacity Planner). Nao afeta folha de pagamento, headcount ou turnover — esses continuam contando todo colaborador com `status='ativo'` independente deste campo. Nao pode ser desmarcado (true→false) enquanto houver alocacao ativa em `project_role_allocations`; o backend deve bloquear e listar os projetos pendentes de desalocacao. Ver ADR-0010.

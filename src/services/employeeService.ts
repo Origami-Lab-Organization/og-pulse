@@ -28,6 +28,7 @@ export interface EmployeeDB {
   data_admissao: string;
   is_gerente: boolean;
   system_role: string;
+  aloca_em_projetos: boolean;
   status: string;
   salario_mensal: number;
   beneficios: number;
@@ -76,6 +77,7 @@ export interface CreateEmployeeInput {
   dataAdmissao: string;
   isGerente: boolean;
   systemRole: SystemRole;
+  alocaEmProjetos: boolean;
   status: string;
   salarioMensal: number;
   beneficios: number;
@@ -203,6 +205,8 @@ export const employeeService = {
       dbUpdates.is_gerente = updates.isGerente;
     if (updates.systemRole !== undefined)
       dbUpdates.system_role = updates.systemRole;
+    if (updates.alocaEmProjetos !== undefined)
+      dbUpdates.aloca_em_projetos = updates.alocaEmProjetos;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
     if (updates.salarioMensal !== undefined)
       dbUpdates.salario_mensal = updates.salarioMensal;
@@ -279,9 +283,8 @@ export const employeeService = {
       "bolsa_auxilio",
       // Dados pessoais (aba "Dados") — também versionados, mas sem efeito em nenhum cálculo
       // de folha; servem só para o histórico da aba Histórico (EmployeeVersionsTimeline).
-      // system_role/is_gerente ficam de FORA desta lista de propósito: eles sincronizam
-      // user_roles (o que o RLS realmente checa) de forma IMEDIATA logo abaixo, então nunca
-      // podem ser adiados — senão a permissão mudaria antes da data de vigência escolhida.
+      // system_role/is_gerente/aloca_em_projetos ficam de FORA de propósito: são flags de
+      // permissão/elegibilidade que precisam valer IMEDIATAMENTE, nunca adiadas.
       "nome",
       "telefone",
       "cpf",

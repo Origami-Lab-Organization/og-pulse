@@ -197,7 +197,9 @@ export function AddAllocationDialog({
           <AllocationComposer
             tenantId={project.tenant_id}
             projectMonths={projectMonths}
-            employees={employees.map((e) => ({ id: e.id, nome: e.nome, cargo: e.cargo }))}
+            employees={employees
+              .filter((e) => e.alocaEmProjetos)
+              .map((e) => ({ id: e.id, nome: e.nome, cargo: e.cargo }))}
             budgetRoles={budgetRoles}
             alreadyAllocatedIds={alreadyAllocatedIds}
             allocatedByBudgetRole={allocatedByBudgetRole}

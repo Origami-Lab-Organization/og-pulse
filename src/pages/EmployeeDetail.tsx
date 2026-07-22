@@ -47,11 +47,13 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -123,6 +125,7 @@ const baseFormSchema = z.object({
   fotoUrl: z.string().optional(),
   isGerente: z.boolean(),
   systemRole: z.enum(["admin", "manager", "user"] as const),
+  alocaEmProjetos: z.boolean(),
   status: z.enum([
     "ativo",
     "aguardando_confirmacao",
@@ -245,6 +248,7 @@ const EmployeeDetail = () => {
       fotoUrl: "",
       isGerente: false,
       systemRole: "user",
+      alocaEmProjetos: true,
       status: "aguardando_confirmacao",
       tipoContratacao: "CLT",
       jornadaMensal: 176,
@@ -300,6 +304,7 @@ const EmployeeDetail = () => {
       fotoUrl: employee.fotoUrl || "",
       isGerente: employee.isGerente,
       systemRole: employee.systemRole || "user",
+      alocaEmProjetos: employee.alocaEmProjetos,
       status: employee.status,
       tipoContratacao: employee.tipoContratacao || "CLT",
       jornadaMensal: employee.jornadaMensal || 176,
@@ -684,6 +689,29 @@ const EmployeeDetail = () => {
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="alocaEmProjetos"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2 flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <FormLabel className="text-sm font-medium">Aloca em projetos</FormLabel>
+                      <FormDescription className="text-xs">
+                        Desative para colaboradores que não lançam timesheet (RH, financeiro, backoffice). Eles deixam de aparecer no seletor de alocação e na grade de capacidade, mas continuam na folha e nos relatórios de pessoas.
+                        {!currentEmployee?.isAdmin && " Somente admin pode alterar."}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={!currentEmployee?.isAdmin}
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />

@@ -21,6 +21,7 @@ interface CreateEmployeeRequest {
   dataAdmissao: string;
   isGerente: boolean;
   systemRole: "admin" | "manager" | "user";
+  alocaEmProjetos?: boolean;
   status: string;
   salarioMensal: number;
   beneficios: number;
@@ -134,6 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
       dataAdmissao,
       isGerente,
       systemRole,
+      alocaEmProjetos,
       status,
       salarioMensal,
       beneficios,
@@ -288,6 +290,7 @@ const handler = async (req: Request): Promise<Response> => {
         status: "aguardando_confirmacao", // Always start as pending until first login
         salario_mensal: salarioMensal,
         system_role: systemRole || "user",
+        aloca_em_projetos: alocaEmProjetos ?? true,
         beneficios,
         encargos,
         tipo_contratacao: tipoContratacao || "CLT",

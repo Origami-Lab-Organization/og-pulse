@@ -66,6 +66,7 @@ export interface Employee {
   dataAdmissao: string;
   isGerente: boolean;
   systemRole: SystemRole;
+  alocaEmProjetos: boolean;
   status: 'ativo' | 'inativo' | 'aguardando_confirmacao';
   salarioMensal: number;
   beneficios: number;

@@ -97,6 +97,14 @@
 - **Causa raiz**: `recalculate_employee_cost_snapshots_for_active_projects()` filtra por `projects.status = 'active'`.
 - **Próximo passo**: quando um projeto `planning`/`paused` virar `active`, rodar `SELECT public.recalculate_employee_cost_snapshots(employee_id)` para cada colaborador alocado nele (ou reexecutar a função de backfill, que é idempotente). Considerar futuramente disparar isso automaticamente na transição de status do projeto.
 
+### TD-0009 — Alteração manual de função no Supabase (fora de migration) reverteu filtro de negócio sem deixar rastro
+- **Status**: instância corrigida (`20260722150000_reapply_aloca_em_projetos_allocation_filter.sql`); risco de processo continua aberto
+- **Prioridade**: alta
+- **Arquivos**: `supabase/migrations/20260722150000_reapply_aloca_em_projetos_allocation_filter.sql`, `supabase/migrations/20260722090000_employee_allocation_eligibility.sql` (ADR-0010)
+- **Impacto**: durante a sessão de 2026-07-22, alguém rodou `CREATE OR REPLACE FUNCTION public.get_allocation_employee_month_summary` direto no SQL Editor do Supabase (provavelmente ao resolver, em paralelo, o bug de visibilidade de PM que motivou `20260722130000_project_role_allocations_pm_tenant_read.sql`), a partir de uma versão da função anterior ao filtro `aloca_em_projetos` recém-adicionado (`20260722090000`). O `CREATE OR REPLACE` reescreveu a função inteira e apagou o filtro silenciosamente — sem erro, sem aviso, sem nenhuma migration registrando a mudança. Sintoma: colaborador marcado como "não aloca em projetos" continuava aparecendo na grade de Alocação mesmo com o banco e o RLS corretos, confirmado só depois de comparar `pg_get_functiondef()` contra as migrations do repositório.
+- **Causa raiz**: alteração de função de banco feita fora do fluxo de migration versionada — viola `.harness/boundaries.md` ("Nao alterar schema Supabase sem migration versionada"). `CREATE OR REPLACE FUNCTION` não avisa sobre divergência com a última versão versionada; drift fica invisível até alguém comparar manualmente.
+- **Próximo passo**: nenhuma alteração de função/policy/trigger deve ser aplicada direto no SQL Editor — sempre via migration, mesmo para "correções rápidas" durante debugging em paralelo. Se recorrer, considerar um script de CI que rode `pg_get_functiondef` das funções críticas de alocação/folha e diffe contra o corpo esperado nas migrations, para detectar drift automaticamente.
+
 ### TD-0001 — `as any` em Edge Functions de alertas de parcelas
 - **Status:** aberto
 - **Prioridade:** baixa

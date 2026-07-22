@@ -148,7 +148,7 @@ export function buildPayrollHistory(
     // Meses passados: só a janela de datas, já que o status atual não reflete o histórico.
     const requiresActiveStatusToday = month.isCurrent || month.isFuture;
     const rows = employees
-      .filter((e) => wasEmployedDuringMonth(e, month) && (!requiresActiveStatusToday || e.status === 'ativo'))
+      .filter((e) => e.alocaEmProjetos && wasEmployedDuringMonth(e, month) && (!requiresActiveStatusToday || e.status === 'ativo'))
       .map((e) => calculatePayrollAnalysisRow(e, payrollProfile, month, holidays, versionsByEmployee.get(e.id)))
       .sort((a, b) => b.totalMonthlyCost - a.totalMonthlyCost);
 
@@ -231,9 +231,11 @@ function buildCashRows(
   // o do desligamento, esses mesmos segmentos já viraram rescisão lá (ver `deferredGpsSegments`
   // abaixo) — não entram aqui de novo.
   const shiftedSegments = terminatedPrevMonth ? [] : prevMonthSegments;
-  // GPS que ficou pendente da rescisão do mês anterior (ver `gpsAmount`) — chega no caixa deste
-  // mês, junto com o GPS normal de todo mundo.
-  const deferredGpsSegments = terminatedPrevMonth ? prevMonthSegments : [];
+  // GPS que ficou pendente da rescisão do mês anterior (ver `gpsAmount`), chega no caixa deste
+  // mês. Filtra por valor (não só presença) porque Estágio/PJ não geram INSS patronal a diferir.
+  const deferredGpsSegments = terminatedPrevMonth
+    ? prevMonthSegments.filter((r) => gpsAmount(r) + gpsOnProvisionsAmount(r) !== 0)
+    : [];
 
   // Rescisão: mesmos trechos que já formam `currentSegments` (o desligamento, se houver, já
   // está dentro da janela de `month`) — não recalcula, só decide se entram como "salário do mês".

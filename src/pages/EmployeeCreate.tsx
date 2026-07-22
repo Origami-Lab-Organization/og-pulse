@@ -35,12 +35,14 @@ import { formatCurrency, todayLocalDateString } from "@/lib/formatters";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -97,6 +99,7 @@ const baseFormSchema = z.object({
   fotoUrl: z.string().optional(),
   isGerente: z.boolean(),
   systemRole: z.enum(["admin", "manager", "user"] as const),
+  alocaEmProjetos: z.boolean(),
   status: z.enum([
     "ativo",
     "aguardando_confirmacao",
@@ -155,7 +158,7 @@ const STEP_IDS = ["identificacao", "financeiro", "beneficios_ferramentas", "hist
 type StepId = (typeof STEP_IDS)[number];
 
 const STEP_FIELDS: Partial<Record<StepId, (keyof FormData)[]>> = {
-  identificacao: ["nome", "email", "telefone", "cpf", "cargo", "dataNascimento", "dataAdmissao", "systemRole"],
+  identificacao: ["nome", "email", "telefone", "cpf", "cargo", "dataNascimento", "dataAdmissao", "systemRole", "alocaEmProjetos"],
   financeiro: ["tipoContratacao", "jornadaDiaria", "salarioMensal", "bolsaAuxilio", "valorContratoPj", "proLabore", "dividendos"],
 };
 
@@ -201,6 +204,7 @@ const EmployeeCreate = () => {
       fotoUrl: "",
       isGerente: false,
       systemRole: "user",
+      alocaEmProjetos: true,
       status: "aguardando_confirmacao",
       tipoContratacao: "CLT",
       jornadaMensal: 176,
@@ -561,6 +565,24 @@ const EmployeeCreate = () => {
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="alocaEmProjetos"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2 flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <FormLabel className="text-sm font-medium">Aloca em projetos</FormLabel>
+                    <FormDescription className="text-xs">
+                      Desative para colaboradores que não lançam timesheet (RH, financeiro, backoffice). Eles deixam de aparecer no seletor de alocação e na grade de capacidade, mas continuam na folha e nos relatórios de pessoas.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
                 </FormItem>
               )}
             />

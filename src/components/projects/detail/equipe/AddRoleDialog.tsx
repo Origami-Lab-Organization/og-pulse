@@ -178,7 +178,7 @@ function CltForm({
             <SelectValue placeholder="Selecione..." />
           </SelectTrigger>
           <SelectContent>
-            {employees.map((e) => (
+            {employees.filter((e) => e.alocaEmProjetos).map((e) => (
               <SelectItem key={e.id} value={e.id}>
                 {e.nome} — {e.cargo}
               </SelectItem>
@@ -297,7 +297,7 @@ function PjForm({
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
-                {employees.map((e) => (
+                {employees.filter((e) => e.alocaEmProjetos).map((e) => (
                   <SelectItem key={e.id} value={e.id}>
                     {e.nome} — {e.cargo}
                   </SelectItem>

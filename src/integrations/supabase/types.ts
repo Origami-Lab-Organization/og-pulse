@@ -1185,6 +1185,7 @@ export type Database = {
       }
       employees: {
         Row: {
+          aloca_em_projetos: boolean
           auth_id: string | null
           bank_account: string | null
           bank_account_type: string | null
@@ -1236,6 +1237,7 @@ export type Database = {
           valor_contrato_pj: number
         }
         Insert: {
+          aloca_em_projetos?: boolean
           auth_id?: string | null
           bank_account?: string | null
           bank_account_type?: string | null
@@ -1287,6 +1289,7 @@ export type Database = {
           valor_contrato_pj?: number
         }
         Update: {
+          aloca_em_projetos?: boolean
           auth_id?: string | null
           bank_account?: string | null
           bank_account_type?: string | null
