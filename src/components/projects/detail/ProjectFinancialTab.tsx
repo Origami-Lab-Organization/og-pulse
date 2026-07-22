@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { getProjectMonthLabel } from '@/lib/formatters';
 import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
-import { ProjectInstallmentsTable } from '@/components/projects/ProjectInstallmentsTable';
+import { FinanceInstallmentsTable } from './financial/FinanceInstallmentsTable';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectTimesheets } from '@/hooks/useProjectTimesheets';
 import { useProjectCostItems } from '@/hooks/useProjectCostItems';
@@ -408,41 +407,7 @@ export function ProjectFinancialTab({
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Parcelas / Faturamento</CardTitle>
-          <CardDescription>
-            Gerencie a emissão de NF e registre os recebimentos do projeto
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <ProjectInstallmentsTable
-            installments={project.installments || []}
-            projectId={project.id}
-            isManualInstallments={project.service_line === 'financiamento_inovacao'}
-            canManageInstallments={canManageInstallments}
-          />
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs">
-            <span className="text-muted-foreground">
-              Σ contrato{' '}
-              <b className="font-mono tabular-nums text-foreground">
-                {formatCurrency(kpiData.revenuePlanned)}
-              </b>{' '}
-              · recebido{' '}
-              <b className="font-mono tabular-nums text-primary-deep">
-                {formatCurrency(kpiData.revenueActual)}
-              </b>
-            </span>
-            <span className="text-muted-foreground">
-              a emitir:{' '}
-              <b className="font-mono tabular-nums text-foreground">
-                {formatCurrency(revenueGap)}
-              </b>{' '}
-              ({pendingCount} {pendingCount === 1 ? 'parcela' : 'parcelas'})
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+      <FinanceInstallmentsTable project={project} canManage={canManageInstallments} />
 
       <FinancialAlertBanner alerts={alerts} />
     </div>

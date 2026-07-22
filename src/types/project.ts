@@ -53,6 +53,8 @@ export interface ProjectDB {
   success_fee_percent: number | null;
   lead_id: string | null;
   value_book_url: string | null;
+  /** Dias de antecedência para o lembrete de emissão de NF antes do vencimento. */
+  nf_emission_lead_days?: number | null;
 }
 
 export interface ProjectMemberDB {

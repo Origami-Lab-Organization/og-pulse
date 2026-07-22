@@ -740,6 +740,17 @@ export const projectService = {
     return data as unknown as ProjectInstallmentDB;
   },
 
+  async setNfEmissionLeadDays(projectId: string, days: number): Promise<void> {
+    const { error } = await (supabase
+      .from('projects') as any)
+      .update({ nf_emission_lead_days: Math.max(0, Math.trunc(days)) })
+      .eq('id', projectId);
+    if (error) {
+      console.error('Error updating nf_emission_lead_days:', error);
+      throw error;
+    }
+  },
+
   async deleteInstallment(id: string): Promise<void> {
     const { error } = await supabase
       .from('project_installments')
