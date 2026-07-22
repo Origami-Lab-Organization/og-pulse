@@ -411,6 +411,42 @@ export const useCreateInstallment = () => {
   });
 };
 
+export const useGenerateInstallments = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: {
+      projectId: string;
+      leadDays: number;
+      drafts: { dueDate: string; value: number }[];
+    }) => {
+      await projectService.setNfEmissionLeadDays(input.projectId, input.leadDays);
+      // Sequencial: createInstallment numera a próxima parcela por consulta,
+      // então awaits em série evitam corrida na numeração.
+      for (const draft of input.drafts) {
+        await projectService.createInstallment({
+          projectId: input.projectId,
+          value: draft.value,
+          dueDate: draft.dueDate,
+        });
+      }
+      return { count: input.drafts.length };
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['project-installments', variables.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+      toast({
+        title: 'Parcelas geradas',
+        description: `${data.count} parcela(s) criada(s) como pendente.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao gerar parcelas', description: error.message, variant: 'destructive' });
+    },
+  });
+};
+
 export const useDeleteInstallment = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
