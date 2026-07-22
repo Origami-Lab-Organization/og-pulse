@@ -171,10 +171,7 @@ export function EmployeeBenefitsTable({ employeeId, employeeName }: EmployeeBene
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2">
-            <CardTitle className="text-lg">Benefícios</CardTitle>
-            
-          </CardTitle>
+          <CardTitle className="text-lg">Benefícios</CardTitle>
           <CardDescription>
             Benefícios mensais de {employeeName}
           </CardDescription>

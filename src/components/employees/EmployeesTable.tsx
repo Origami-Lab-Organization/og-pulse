@@ -1,6 +1,8 @@
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Pencil, Ban, Unlock, Archive, Mail, Phone, Clock, Send, UserMinus, Eye } from 'lucide-react';
+import { MoreHorizontal, Pencil, Ban, Unlock, Archive, Mail, Phone, Send, UserMinus, Eye } from 'lucide-react';
 import { Employee } from '@/hooks/useEmployees';
+import { EmployeeStatusBadge } from '@/components/employees/EmployeeStatusBadge';
+import { EmployeeStatus } from '@/types/employee';
 
 const getBaseSalary = (e: Employee): number => {
   switch (e.tipoContratacao) {
@@ -22,7 +24,6 @@ const getProvisoes = (e: Employee): number => {
   if (e.breakdownJson) return e.breakdownJson.provisionsAmount;
   return (e.provisao13 || 0) + (e.provisaoFerias || 0) + (e.provisaoRecesso || 0);
 };
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -51,33 +52,6 @@ interface EmployeeColumnsProps {
   hideValues?: boolean;
   holidays?: Holiday[];
 }
-
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case 'ativo':
-      return (
-        <Badge variant="default" className="bg-green-600 hover:bg-green-600/80">
-          Ativo
-        </Badge>
-      );
-    case 'aguardando_confirmacao':
-      return (
-        <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">
-          <Clock className="h-3 w-3 mr-1" />
-          Aguardando
-        </Badge>
-      );
-    case 'bloqueado':
-      return (
-        <Badge variant="destructive">
-          <Ban className="h-3 w-3 mr-1" />
-          Bloqueado
-        </Badge>
-      );
-    default:
-      return <Badge variant="secondary">{status}</Badge>;
-  }
-};
 
 export const createEmployeeColumns = ({
   onEdit,
@@ -160,7 +134,7 @@ export const createEmployeeColumns = ({
   {
     accessorKey: 'salarioMensal',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Salário" />
+      <DataTableColumnHeader column={column} title="Salário Base" />
     ),
     cell: ({ row }) => {
       const value = getBaseSalary(row.original);
@@ -171,63 +145,6 @@ export const createEmployeeColumns = ({
       );
     },
     sortingFn: (rowA, rowB) => getBaseSalary(rowA.original) - getBaseSalary(rowB.original),
-  },
-  {
-    accessorKey: 'encargos',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Encargos" />
-    ),
-    cell: ({ row }) => {
-      const value = row.original.encargos || 0;
-      return (
-        <span className="font-medium">
-          {hideValues ? '•••••' : formatCurrency(value)}
-        </span>
-      );
-    },
-  },
-  {
-    id: 'provisoes',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Provisões" />
-    ),
-    cell: ({ row }) => {
-      const value = getProvisoes(row.original);
-      return (
-        <span className="font-medium">
-          {hideValues ? '•••••' : formatCurrency(value)}
-        </span>
-      );
-    },
-    sortingFn: (rowA, rowB) => getProvisoes(rowA.original) - getProvisoes(rowB.original),
-  },
-  {
-    accessorKey: 'totalBenefitsCost',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Benefícios" />
-    ),
-    cell: ({ row }) => {
-      const value = row.original.totalBenefitsCost || 0;
-      return (
-        <span className="font-medium">
-          {hideValues ? '•••••' : formatCurrency(value)}
-        </span>
-      );
-    },
-  },
-  {
-    accessorKey: 'totalToolsCost',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Ferramentas" />
-    ),
-    cell: ({ row }) => {
-      const value = row.original.totalToolsCost || 0;
-      return (
-        <span className="font-medium">
-          {hideValues ? '•••••' : formatCurrency(value)}
-        </span>
-      );
-    },
   },
   {
     accessorKey: 'totalMonthlyCostEstimated',
@@ -287,8 +204,8 @@ export const createEmployeeColumns = ({
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
-      const status = row.getValue('status') as string;
-      return getStatusBadge(status);
+      const status = row.getValue('status') as EmployeeStatus;
+      return <EmployeeStatusBadge status={status} />;
     },
   },
   {

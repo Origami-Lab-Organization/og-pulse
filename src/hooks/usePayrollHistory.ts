@@ -23,9 +23,14 @@ function groupVersionsByEmployee(
       salarioMensal: Number(v.salario_mensal) || 0,
       proLabore: Number(v.pro_labore) || 0,
       jornadaDiaria: Number(v.jornada_diaria) || 8,
-      bolsaAuxilio: v.bolsa_auxilio !== null ? Number(v.bolsa_auxilio) : null,
-      totalBenefitsCost: v.total_benefits_cost !== null ? Number(v.total_benefits_cost) : null,
-      totalToolsCost: v.total_tools_cost !== null ? Number(v.total_tools_cost) : null,
+      // `!= null` de propósito: coluna de uma migration ainda não aplicada vem como
+      // `undefined`, não `null` — Number(undefined) vira NaN, que nem o `??` em
+      // resolveVersionSegments resgata depois (NaN não é "nullish").
+      bolsaAuxilio: v.bolsa_auxilio != null ? Number(v.bolsa_auxilio) : null,
+      valorContratoPj: v.valor_contrato_pj != null ? Number(v.valor_contrato_pj) : null,
+      dividendos: v.dividendos != null ? Number(v.dividendos) : null,
+      totalBenefitsCost: v.total_benefits_cost != null ? Number(v.total_benefits_cost) : null,
+      totalToolsCost: v.total_tools_cost != null ? Number(v.total_tools_cost) : null,
     });
     byEmployee.set(v.employee_id, list);
   }

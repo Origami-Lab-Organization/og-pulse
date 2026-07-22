@@ -57,12 +57,12 @@ export interface PayrollMonthWindow {
  * Marco financeiro do colaborador (employee_versions) — captura tipo de contratação,
  * salário, pró-labore, jornada e cargo vigentes a partir de `effectiveFrom`. Usada para
  * corrigir o cálculo em meses passados quando esses campos mudaram (ex.: transição
- * Menor Aprendiz -> CLT). `valorContratoPj`/`dividendos` não são versionados (sem coluna
- * em employee_versions) — sempre vêm do cadastro atual. `bolsaAuxilio` é versionado como
- * os demais campos financeiros principais, mas pode ser `null` em versões criadas antes
- * desse campo existir — cai para o cadastro atual nesse caso, mesmo comportamento de
- * antes. `totalBenefitsCost`/`totalToolsCost` só existem (não nulos) em versões já
- * fechadas (congelados no fechamento); a versão aberta usa a soma ao vivo do cadastro atual.
+ * Menor Aprendiz -> CLT). `bolsaAuxilio`/`valorContratoPj`/`dividendos` são versionados
+ * como os demais campos financeiros principais, mas podem ser `null` em versões criadas
+ * antes desses campos existirem — cai para o cadastro atual nesse caso, mesmo
+ * comportamento de antes. `totalBenefitsCost`/`totalToolsCost` só existem (não nulos) em
+ * versões já fechadas (congelados no fechamento); a versão aberta usa a soma ao vivo do
+ * cadastro atual.
  */
 export interface EmployeeVersionInput {
   employeeId: string;
@@ -75,6 +75,8 @@ export interface EmployeeVersionInput {
   proLabore: number;
   jornadaDiaria: number;
   bolsaAuxilio: number | null;
+  valorContratoPj: number | null;
+  dividendos: number | null;
   totalBenefitsCost: number | null;
   totalToolsCost: number | null;
 }
@@ -119,6 +121,8 @@ interface ResolvedSegment {
   proLabore: number;
   jornadaDiaria: number;
   bolsaAuxilio: number;
+  valorContratoPj: number;
+  dividendos: number;
   totalBenefitsCost: number;
   totalToolsCost: number;
 }
@@ -131,8 +135,6 @@ interface ResolvedSegment {
  * meses antigos, em vez de aplicar retroativamente os dados atuais do cadastro.
  * Sem versões que se sobreponham ao mês, cai para um único segmento com os dados
  * atuais do cadastro — mesmo comportamento (estimado) de antes desta função existir.
- * `bolsaAuxilio`/`valorContratoPj`/`dividendos` não são versionados — sempre vêm do
- * cadastro atual, aplicados fora desta função.
  */
 function resolveVersionSegments(
   e: PayrollAnalysisEmployeeInput,
@@ -151,6 +153,8 @@ function resolveVersionSegments(
     proLabore: e.proLabore,
     jornadaDiaria: e.jornadaDiaria,
     bolsaAuxilio: e.bolsaAuxilio,
+    valorContratoPj: e.valorContratoPj,
+    dividendos: e.dividendos,
     totalBenefitsCost: e.totalBenefitsCost,
     totalToolsCost: e.totalToolsCost,
   });
@@ -189,6 +193,8 @@ function resolveVersionSegments(
         proLabore: v.proLabore,
         jornadaDiaria: v.jornadaDiaria,
         bolsaAuxilio: v.bolsaAuxilio ?? e.bolsaAuxilio,
+        valorContratoPj: v.valorContratoPj ?? e.valorContratoPj,
+        dividendos: v.dividendos ?? e.dividendos,
         totalBenefitsCost: v.totalBenefitsCost ?? e.totalBenefitsCost,
         totalToolsCost: v.totalToolsCost ?? e.totalToolsCost,
       };
@@ -236,6 +242,8 @@ export interface PayrollAnalysisRow {
   provisaoRecessoAmount: number;
   /** FGTS + INSS Patronal incidentes sobre as provisões acima — parte de `provisionsAmount`. */
   encargosSobreProvisoesAmount: number;
+  /** Fatia de `encargosSobreProvisoesAmount` que é só FGTS — resto é GPS (INSS Patronal + RAT/Terceiros/Outros), usado pela Folha de Pagamento (regime de caixa) para diferir o GPS da rescisão ao mês seguinte, como já faz com `inssPatronalAmount`/`outrosEncargosAmount`. */
+  fgtsSobreProvisoesAmount: number;
   benefitsAmount: number;
   toolsAmount: number;
   /** Itens de benefício ATIVOS hoje (referência) — ver ressalva em `PayrollAnalysisEmployeeInput`. */
@@ -295,6 +303,7 @@ export function calculatePayrollAnalysisRow(
   let provisaoFeriasAmount = 0;
   let provisaoRecessoAmount = 0;
   let encargosSobreProvisoesAmount = 0;
+  let fgtsSobreProvisoesAmount = 0;
   let inssFuncionario = 0;
   let benefitsAmount = 0;
   let salaryOnlyCost = 0;
@@ -318,9 +327,9 @@ export function calculatePayrollAnalysisRow(
       tipoContratacao: seg.tipoContratacao,
       salarioBruto: seg.salarioMensal * segFraction,
       bolsaAuxilio: seg.bolsaAuxilio * segFraction,
-      valorContratoPj: e.valorContratoPj * segFraction,
+      valorContratoPj: seg.valorContratoPj * segFraction,
       proLabore: seg.proLabore * segFraction,
-      dividendos: e.dividendos * segFraction,
+      dividendos: seg.dividendos * segFraction,
       benefitsTotalMonthly: 0,
       toolsTotalMonthly: 0,
       payrollProfile,
@@ -338,6 +347,7 @@ export function calculatePayrollAnalysisRow(
     provisaoFeriasAmount += breakdown.details.provisaoFerias;
     provisaoRecessoAmount += breakdown.details.provisaoRecesso;
     encargosSobreProvisoesAmount += encargosSobreProvisoes;
+    fgtsSobreProvisoesAmount += breakdown.details.fgts13 + breakdown.details.fgtsFerias;
     inssFuncionario += breakdown.details.inssFuncionario;
     // totalMonthlyCost de cada segmento já exclui benefícios/ferramentas (passados como 0
     // acima) — soma o total autoritativo do segmento em vez de rederivar de
@@ -363,6 +373,7 @@ export function calculatePayrollAnalysisRow(
     provisaoFeriasAmount,
     provisaoRecessoAmount,
     encargosSobreProvisoesAmount,
+    fgtsSobreProvisoesAmount,
     benefitsAmount,
     toolsAmount,
     benefitsBreakdown: e.benefitsBreakdown,
@@ -386,6 +397,7 @@ interface ContractTypeGroupAccum {
   provisaoFeriasAmount: number;
   provisaoRecessoAmount: number;
   encargosSobreProvisoesAmount: number;
+  fgtsSobreProvisoesAmount: number;
   benefitsAmount: number;
   toolsAmount: number;
   inssFuncionario: number;
@@ -406,6 +418,7 @@ function newContractTypeGroup(tipoContratacao: ContractType): ContractTypeGroupA
     provisaoFeriasAmount: 0,
     provisaoRecessoAmount: 0,
     encargosSobreProvisoesAmount: 0,
+    fgtsSobreProvisoesAmount: 0,
     benefitsAmount: 0,
     toolsAmount: 0,
     inssFuncionario: 0,
@@ -466,9 +479,9 @@ export function calculatePayrollAnalysisRowsByContractType(
       tipoContratacao: seg.tipoContratacao,
       salarioBruto: seg.salarioMensal * segFraction,
       bolsaAuxilio: seg.bolsaAuxilio * segFraction,
-      valorContratoPj: e.valorContratoPj * segFraction,
+      valorContratoPj: seg.valorContratoPj * segFraction,
       proLabore: seg.proLabore * segFraction,
-      dividendos: e.dividendos * segFraction,
+      dividendos: seg.dividendos * segFraction,
       benefitsTotalMonthly: 0,
       toolsTotalMonthly: 0,
       payrollProfile,
@@ -487,6 +500,7 @@ export function calculatePayrollAnalysisRowsByContractType(
     group.provisaoFeriasAmount += breakdown.details.provisaoFerias;
     group.provisaoRecessoAmount += breakdown.details.provisaoRecesso;
     group.encargosSobreProvisoesAmount += encargosSobreProvisoes;
+    group.fgtsSobreProvisoesAmount += breakdown.details.fgts13 + breakdown.details.fgtsFerias;
     group.inssFuncionario += breakdown.details.inssFuncionario;
     group.salaryOnlyCost += breakdown.totalMonthlyCost;
   });
@@ -507,6 +521,7 @@ export function calculatePayrollAnalysisRowsByContractType(
       provisaoFeriasAmount: g.provisaoFeriasAmount,
       provisaoRecessoAmount: g.provisaoRecessoAmount,
       encargosSobreProvisoesAmount: g.encargosSobreProvisoesAmount,
+      fgtsSobreProvisoesAmount: g.fgtsSobreProvisoesAmount,
       benefitsAmount: g.benefitsAmount,
       toolsAmount: g.toolsAmount,
       benefitsBreakdown: e.benefitsBreakdown,

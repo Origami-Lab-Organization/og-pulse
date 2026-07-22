@@ -50,12 +50,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History, Calculator, AlertCircle, Camera, Upload, Trash2, Clock, Ban, CalendarIcon } from 'lucide-react';
+import { Loader2, Wrench, Heart, User, Briefcase, ChevronLeft, ChevronRight, Check, History, Calculator, AlertCircle, Camera, Upload, Trash2, CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatPhone, formatCPF, formatCurrency as formatCurrencyMask, parseCurrency, validateCPF } from '@/lib/masks';
@@ -63,7 +62,8 @@ import { EmployeeToolsTable } from './EmployeeToolsTable';
 import { EmployeeBenefitsTable } from './EmployeeBenefitsTable';
 import { EmployeeBenefitsLocalTable, LocalBenefit } from './EmployeeBenefitsLocalTable';
 import { EmployeeToolsLocalTable, LocalTool } from './EmployeeToolsLocalTable';
-import { EmployeeVersionsTable } from './EmployeeVersionsTable';
+import { EmployeeVersionsTimeline } from './EmployeeVersionsTimeline';
+import { EmployeeStatusBadge } from './EmployeeStatusBadge';
 import { BankSelect } from './BankSelect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -1412,7 +1412,7 @@ const EmployeeFormDialog = ({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EmployeeVersionsTable versions={versions} isLoading={versionsLoading} />
+            <EmployeeVersionsTimeline versions={versions} isLoading={versionsLoading} />
           </CardContent>
         </Card>
       </TabsContent>
@@ -1428,32 +1428,7 @@ const EmployeeFormDialog = ({
               <DialogTitle className="text-xl font-semibold">
                 {isEditing ? 'Editar Funcionário' : 'Novo Funcionário'}
               </DialogTitle>
-              {isEditing && employee && (() => {
-                switch (employee.status) {
-                  case 'ativo':
-                    return (
-                      <Badge variant="default" className="bg-green-600 hover:bg-green-600/80">
-                        Ativo
-                      </Badge>
-                    );
-                  case 'aguardando_confirmacao':
-                    return (
-                      <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Aguardando
-                      </Badge>
-                    );
-                  case 'bloqueado':
-                    return (
-                      <Badge variant="destructive">
-                        <Ban className="h-3 w-3 mr-1" />
-                        Bloqueado
-                      </Badge>
-                    );
-                  default:
-                    return <Badge variant="secondary">{employee.status}</Badge>;
-                }
-              })()}
+              {isEditing && employee && <EmployeeStatusBadge status={employee.status} />}
             </div>
             <DialogDescription>
               {isEditing
@@ -1566,10 +1541,10 @@ const EmployeeFormDialog = ({
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Novo Marco Financeiro</AlertDialogTitle>
+            <AlertDialogTitle>Nova Versão do Cadastro</AlertDialogTitle>
             <AlertDialogDescription>
-              Detectamos alterações em campos financeiros (jornada, salário, cargo, etc).
-              A partir de quando esta mudança é válida?
+              Detectamos alterações em dados cadastrais ou financeiros (nome, telefone,
+              jornada, salário, cargo, etc). A partir de quando esta mudança é válida?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">

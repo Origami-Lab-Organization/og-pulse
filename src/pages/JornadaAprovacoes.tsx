@@ -31,7 +31,7 @@ const JornadaAprovacoes = () => {
 
   return (
     <AppLayout
-      title="OrigamiPonto — Aprovações"
+      title="Ponto Eletrônico — Aprovações"
       description="Ajustes de ponto e horas extras aguardando decisão"
       actions={<RegisterAbsenceDialog />}
     >
