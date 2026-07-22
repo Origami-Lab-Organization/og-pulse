@@ -15,7 +15,6 @@ import {
   snapWidthClass,
   PaceKind,
 } from '@/lib/allocationGrid';
-import { EmployeeAllocationPanel } from '@/components/allocation/EmployeeAllocationPanel';
 import { AllocationCell, AllocationMonth, AllocationPerson, AllocationProjectOption, AllocationStatusKey } from '@/types/allocation';
 
 interface AllocationGridProps {
@@ -355,16 +354,9 @@ export function AllocationGrid({
   onEmployeeOpen,
 }: AllocationGridProps) {
   const pageCount = Math.ceil(total / pageSize);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
-  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(referenceMonthKey || months[0]?.key || '');
-  const selectedPerson = useMemo(
-    () => people.find((person) => person.id === selectedEmployeeId) ?? null,
-    [people, selectedEmployeeId],
-  );
 
-  const openPerson = (employeeId: string, monthKey = referenceMonthKey || months[0]?.key || '') => {
-    setSelectedEmployeeId(employeeId);
-    setSelectedMonthKey(monthKey);
+  // Consolidação v1.3: o clique abre direto a tela de detalhe (sem drawer intermediário).
+  const openPerson = (employeeId: string) => {
     onEmployeeOpen(employeeId);
   };
 
@@ -438,9 +430,9 @@ export function AllocationGrid({
                       )}
                     >
                       {isReference ? (
-                        <ReferenceMonthCell cell={cell} month={month} onOpen={() => openPerson(person.id, month.key)} />
+                        <ReferenceMonthCell cell={cell} month={month} onOpen={() => openPerson(person.id)} />
                       ) : (
-                        <MonthCell cell={cell} month={month} onOpen={() => openPerson(person.id, month.key)} />
+                        <MonthCell cell={cell} month={month} onOpen={() => openPerson(person.id)} />
                       )}
                     </td>
                   );
@@ -458,18 +450,6 @@ export function AllocationGrid({
         pageCount={pageCount}
         total={total}
         onPageChange={onPageChange}
-      />
-
-      <EmployeeAllocationPanel
-        open={Boolean(selectedEmployeeId)}
-        onOpenChange={(open) => !open && setSelectedEmployeeId(null)}
-        tenantId={tenantId}
-        employee={selectedPerson}
-        months={months}
-        monthKey={selectedMonthKey}
-        projectIdFilter={projectIdFilter}
-        projectOptions={projectOptions}
-        roleOptions={roleOptions}
       />
     </div>
   );

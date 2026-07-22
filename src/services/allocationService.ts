@@ -289,7 +289,8 @@ export const allocationService = {
             monthNumber: monthNumberFromProjectStart(row.project_start_date, year, row.month),
             projectName: row.title,
             clientName: row.client_name || 'Sem cliente',
-            subtitle: row.subtitle || row.client_name || 'Projeto',
+            // Sem UUID no subtítulo (v1.3 item 3): apenas cliente/GP, nunca o id do projeto.
+            subtitle: row.client_name || 'Projeto',
             plannedHours: 0,
             actualHours: 0,
           };

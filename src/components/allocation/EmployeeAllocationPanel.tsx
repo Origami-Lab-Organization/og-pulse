@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as amplitude from '@amplitude/analytics-browser';
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, HelpCircle, Lock, Maximize2, PlusCircle, Wrench, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, HelpCircle, Lock, PlusCircle, Wrench, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,7 +161,6 @@ export function EmployeeAllocationPanel({
   roleOptions,
 }: EmployeeAllocationPanelProps) {
   const { employee: currentUser } = useAuth();
-  const navigate = useNavigate();
   const [focusedMonthKey, setFocusedMonthKey] = useState(monthKey);
   const [draftHours, setDraftHours] = useState<Record<string, number>>({});
   const [isAddingProject, setIsAddingProject] = useState(false);
@@ -391,17 +389,6 @@ export function EmployeeAllocationPanel({
                   </SheetDescription>
                   <p className="mt-0.5 truncate text-sm text-muted-foreground">{employee.role}</p>
                 </div>
-                {employee.id && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => navigate(`/analises/alocacoes/pessoa/${employee.id}`)}
-                  >
-                    <Maximize2 className="h-3.5 w-3.5" />
-                    Abrir em tela cheia
-                  </Button>
-                )}
               </div>
             </SheetHeader>
 
@@ -784,6 +771,8 @@ export function EmployeeAllocationPanel({
                 employeeId={employee.id}
                 employeeName={employee.name}
                 tenantId={tenantId}
+                canEditAll={Boolean(currentUser?.isAdmin)}
+                currentEmployeeId={currentUser?.id}
               />
             )}
           </>
