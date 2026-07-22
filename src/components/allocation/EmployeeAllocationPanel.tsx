@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as amplitude from '@amplitude/analytics-browser';
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, HelpCircle, Lock, PlusCircle, Wrench, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, HelpCircle, Lock, Maximize2, PlusCircle, Wrench, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { alteracoesLabel } from '@/lib/pluralize';
 import {
   formatSignedHours,
   getAllocationStatus,
@@ -160,6 +162,7 @@ export function EmployeeAllocationPanel({
   roleOptions,
 }: EmployeeAllocationPanelProps) {
   const { employee: currentUser } = useAuth();
+  const navigate = useNavigate();
   const [focusedMonthKey, setFocusedMonthKey] = useState(monthKey);
   const [draftHours, setDraftHours] = useState<Record<string, number>>({});
   const [isAddingProject, setIsAddingProject] = useState(false);
@@ -388,6 +391,17 @@ export function EmployeeAllocationPanel({
                   </SheetDescription>
                   <p className="mt-0.5 truncate text-sm text-muted-foreground">{employee.role}</p>
                 </div>
+                {employee.id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => navigate(`/analises/alocacoes/pessoa/${employee.id}`)}
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                    Abrir em tela cheia
+                  </Button>
+                )}
               </div>
             </SheetHeader>
 
@@ -654,7 +668,7 @@ export function EmployeeAllocationPanel({
             <footer className="space-y-3 border-t bg-card px-5 py-4">
               {changedRows.length > 0 && (
                 <Button type="button" className="h-11 w-full" disabled={saveMutation.isPending} onClick={saveChanges}>
-                  {saveMutation.isPending ? 'Salvando...' : `Salvar ${changedRows.length} alteração${changedRows.length > 1 ? 'ões' : ''}`}
+                  {saveMutation.isPending ? 'Salvando...' : `Salvar ${alteracoesLabel(changedRows.length)}`}
                 </Button>
               )}
 

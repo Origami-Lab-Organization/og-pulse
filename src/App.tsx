@@ -37,6 +37,7 @@ import ArchivedLeads from "./pages/ArchivedLeads";
 import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
+import EmployeeAllocationDetailPage from "./pages/EmployeeAllocationDetailPage";
 import Analytics from "./pages/Analytics";
 import PayrollAnalysis from "./pages/PayrollAnalysis";
 import CostPerHourAnalysis from "./pages/CostPerHourAnalysis";
@@ -315,6 +316,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireManager>
                     <AlocacaoPage />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/analises/alocacoes/pessoa/:employeeId"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <EmployeeAllocationDetailPage />
                   </RoleProtectedRoute>
                 }
               />

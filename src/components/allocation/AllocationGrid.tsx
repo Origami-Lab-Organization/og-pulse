@@ -242,15 +242,17 @@ function ReferenceMonthCell({
   const paceClasses = PACE_KIND_CLASSES[kind];
 
   const plannedRatio = capacityHours > 0 ? Math.round((plannedHours / capacityHours) * 100) : 0;
-  const projectRatio = capacityHours > 0 ? Math.min(100, Math.round((projectHours / capacityHours) * 100)) : 0;
-  const internalRatio = capacityHours > 0 ? Math.min(100 - projectRatio, Math.round((internalHours / capacityHours) * 100)) : 0;
+  const loggedRatio = capacityHours > 0 ? Math.min(100, Math.round((loggedHours / capacityHours) * 100)) : 0;
+  const expectedRatio = capacityHours > 0 ? Math.min(100, Math.round((expectedHours / capacityHours) * 100)) : 0;
 
-  const splitText = loggedHours > 0 ? `${formatHours(projectHours)} proj · ${formatHours(internalHours)} int · ` : '';
-  const captionText = expectedHours > 0
-    ? `${splitText}esperado até hoje: ${formatHours(expectedHours)}`
-    : loggedHours > 0
-      ? `${splitText}lançou sem planejamento no mês`
-      : 'sem planejamento no mês';
+  // Estado de lançamento (linha 2). "atrás do ritmo" é proibido — usa "lançamento atrasado".
+  const stateText = plannedHours === 0
+    ? loggedHours > 0 ? 'lançou sem planejamento no mês' : 'sem planejamento no mês'
+    : loggedHours === 0
+      ? 'sem lançamento'
+      : kind === 'under'
+        ? `lançamento atrasado · faltam ${formatHours(Math.abs(varianceHours))}`
+        : 'em dia';
 
   return (
     <Tooltip>
@@ -260,26 +262,35 @@ function ReferenceMonthCell({
           onClick={onOpen}
           className="flex min-h-[64px] w-full flex-col items-start justify-center gap-1 p-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none"
         >
+          {/* Linha 1 — o fato: rótulo "lançado" antes do número grande + chip de desvio */}
           <div className="flex w-full items-baseline justify-between gap-2">
-            <span className="font-mono text-base font-bold leading-none tabular-nums text-foreground">
-              {formatHours(loggedHours)}
+            <span className="flex items-baseline gap-1.5">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">lançado</span>
+              <span className="font-mono text-base font-bold leading-none tabular-nums text-foreground">
+                {formatHours(loggedHours)}
+              </span>
             </span>
             <span className={cn('rounded-pill px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none tabular-nums', paceClasses.badge)}>
               {kind === 'none' ? '—' : formatSignedHours(varianceHours)}
             </span>
           </div>
-          <span className="font-mono text-[11px] leading-none tabular-nums text-muted-foreground">
-            lançado · plan. {formatHours(plannedHours)} · cap. {formatHours(capacityHours)}
+
+          {/* Linha 2 — execução: esperado até hoje + estado, com a barra ancorada e o marcador */}
+          <span className="text-[10px] leading-none text-muted-foreground">
+            {expectedHours > 0 ? `esperado até hoje: ${formatHours(expectedHours)} · ${stateText}` : stateText}
           </span>
           <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div className={cn('absolute inset-y-0 left-0 rounded-full bg-success/15', snapWidthClass(plannedRatio))} />
-            <div className={cn('absolute inset-y-0 left-0 rounded-full', paceClasses.bar, snapWidthClass(projectRatio))} />
-            <div
-              className="absolute inset-y-0 rounded-full bg-brand-slate"
-              style={{ left: `${projectRatio}%`, width: `${internalRatio}%` }}
-            />
+            <div className={cn('absolute inset-y-0 left-0 rounded-full', paceClasses.bar, snapWidthClass(loggedRatio))} />
+            {expectedHours > 0 && (
+              <div className="absolute inset-y-0 w-px bg-foreground/70" style={{ left: `${expectedRatio}%` }} aria-hidden />
+            )}
           </div>
-          <span className="text-[10px] leading-none text-muted-foreground">{captionText}</span>
+
+          {/* Linha 3 — carga: planejado × capacidade, por extenso */}
+          <span className="font-mono text-[11px] leading-none tabular-nums text-muted-foreground">
+            planejado {formatHours(plannedHours)} · capacidade {formatHours(capacityHours)}
+          </span>
         </button>
       </TooltipTrigger>
       <TooltipContent>
