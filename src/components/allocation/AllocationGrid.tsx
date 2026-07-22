@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
+  getAllocationStatus,
   getAllocationStatusClasses,
   getExpectedHoursToDate,
   getPaceKind,
@@ -61,7 +62,7 @@ function isFutureMonth(monthKey: string) {
 }
 
 function monthHeaderSubtitle(monthKey: string, isReference: boolean) {
-  if (isReference) return 'lançado · plan. · cap. — faixa clara na barra = planejado';
+  if (isReference) return '% alocação · planejado/cap · lançado/esperado';
   return isFutureMonth(monthKey) ? '% alocação · planejado / cap.' : '% alocação · realizado / cap.';
 }
 
@@ -244,6 +245,11 @@ function ReferenceMonthCell({
   const loggedRatio = capacityHours > 0 ? Math.min(100, Math.round((loggedHours / capacityHours) * 100)) : 0;
   const expectedRatio = capacityHours > 0 ? Math.min(100, Math.round((expectedHours / capacityHours) * 100)) : 0;
 
+  // Visão de ALOCAÇÃO (mesma das demais colunas): % planejado/capacidade, colorido.
+  const allocationStatus = getAllocationStatus(capacityHours > 0 ? plannedRatio : null);
+  const allocationClasses = getAllocationStatusClasses(allocationStatus);
+  const allocationLabel = capacityHours > 0 ? `${plannedRatio}%` : '—';
+
   // Estado de lançamento (linha 2). "atrás do ritmo" é proibido — usa "lançamento atrasado".
   const stateText = plannedHours === 0
     ? loggedHours > 0 ? 'lançou sem planejamento no mês' : 'sem planejamento no mês'
@@ -259,37 +265,42 @@ function ReferenceMonthCell({
         <button
           type="button"
           onClick={onOpen}
-          className="flex min-h-[64px] w-full flex-col items-start justify-center gap-1 p-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none"
+          className="flex min-h-[64px] w-full flex-col items-start justify-center gap-2 p-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none"
         >
-          {/* Linha 1 — o fato: rótulo "lançado" antes do número grande + chip de desvio */}
-          <div className="flex w-full items-baseline justify-between gap-2">
-            <span className="flex items-baseline gap-1.5">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">lançado</span>
-              <span className="font-mono text-base font-bold leading-none tabular-nums text-foreground">
-                {formatHours(loggedHours)}
+          {/* Visão ALOCAÇÃO — primeiro indicador, alinhado à esquerda como as demais colunas */}
+          <div className="flex flex-col items-start gap-0.5">
+            <span className={cn('font-mono text-base font-bold leading-none tabular-nums', allocationClasses.text)}>
+              {allocationLabel}
+            </span>
+            <span className="font-mono text-[11px] leading-none tabular-nums text-muted-foreground">
+              planejado {formatHours(plannedHours)} · capacidade {formatHours(capacityHours)}
+            </span>
+          </div>
+
+          {/* Visão LANÇAMENTO — segregada, abaixo de uma divisória sutil */}
+          <div className="w-full space-y-1 border-t border-border/60 pt-1.5">
+            <div className="flex w-full items-baseline justify-between gap-2">
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">lançado</span>
+                <span className="font-mono text-sm font-bold leading-none tabular-nums text-foreground">
+                  {formatHours(loggedHours)}
+                </span>
               </span>
+              <span className={cn('rounded-pill px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none tabular-nums', paceClasses.badge)}>
+                {kind === 'none' ? '—' : formatSignedHours(varianceHours)}
+              </span>
+            </div>
+            <span className="block text-[10px] leading-none text-muted-foreground">
+              {expectedHours > 0 ? `esperado até hoje: ${formatHours(expectedHours)} · ${stateText}` : stateText}
             </span>
-            <span className={cn('rounded-pill px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none tabular-nums', paceClasses.badge)}>
-              {kind === 'none' ? '—' : formatSignedHours(varianceHours)}
-            </span>
+            <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div className={cn('absolute inset-y-0 left-0 rounded-full bg-success/15', snapWidthClass(plannedRatio))} />
+              <div className={cn('absolute inset-y-0 left-0 rounded-full', paceClasses.bar, snapWidthClass(loggedRatio))} />
+              {expectedHours > 0 && (
+                <div className="absolute inset-y-0 w-px bg-foreground/70" style={{ left: `${expectedRatio}%` }} aria-hidden />
+              )}
+            </div>
           </div>
-
-          {/* Linha 2 — execução: esperado até hoje + estado, com a barra ancorada e o marcador */}
-          <span className="text-[10px] leading-none text-muted-foreground">
-            {expectedHours > 0 ? `esperado até hoje: ${formatHours(expectedHours)} · ${stateText}` : stateText}
-          </span>
-          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div className={cn('absolute inset-y-0 left-0 rounded-full bg-success/15', snapWidthClass(plannedRatio))} />
-            <div className={cn('absolute inset-y-0 left-0 rounded-full', paceClasses.bar, snapWidthClass(loggedRatio))} />
-            {expectedHours > 0 && (
-              <div className="absolute inset-y-0 w-px bg-foreground/70" style={{ left: `${expectedRatio}%` }} aria-hidden />
-            )}
-          </div>
-
-          {/* Linha 3 — carga: planejado × capacidade, por extenso */}
-          <span className="font-mono text-[11px] leading-none tabular-nums text-muted-foreground">
-            planejado {formatHours(plannedHours)} · capacidade {formatHours(capacityHours)}
-          </span>
         </button>
       </TooltipTrigger>
       <TooltipContent>
