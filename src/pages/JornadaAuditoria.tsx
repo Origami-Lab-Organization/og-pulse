@@ -55,7 +55,7 @@ const JornadaAuditoria = () => {
 
   return (
     <AppLayout
-      title="OrigamiPonto — Auditoria"
+      title="Ponto Eletrônico — Auditoria"
       description="Histórico de marcações, solicitações e decisões do módulo"
     >
       <div className="space-y-6">

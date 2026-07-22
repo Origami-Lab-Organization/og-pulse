@@ -189,7 +189,7 @@ serve(async (req) => {
       action_type: "navigate",
       action_url: "/jornada",
       title: `${label[0].toUpperCase()}${label.slice(1)} lançado(a) no seu ponto`,
-      message: `Seu período de ${label} de ${body.dataInicio} a ${body.dataFim} foi registrado no OrigamiPonto.`,
+      message: `Seu período de ${label} de ${body.dataInicio} a ${body.dataFim} foi registrado no Ponto Eletrônico.`,
       metadata: { tipo: body.tipo, data_inicio: body.dataInicio, data_fim: body.dataFim },
       is_read: false,
       is_resolved: false,

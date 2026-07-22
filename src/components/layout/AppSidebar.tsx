@@ -106,7 +106,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     kind: 'group',
-    title: 'OrigamiPonto',
+    title: 'Ponto Eletrônico',
     url: '/jornada',
     icon: Timer,
     devOnly: true,

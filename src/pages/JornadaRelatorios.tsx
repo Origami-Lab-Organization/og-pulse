@@ -87,7 +87,7 @@ const JornadaRelatorios = () => {
 
   return (
     <AppLayout
-      title="OrigamiPonto — Relatórios"
+      title="Ponto Eletrônico — Relatórios"
       description="Indicadores consolidados do tenant, por período"
     >
       <div className="space-y-6">

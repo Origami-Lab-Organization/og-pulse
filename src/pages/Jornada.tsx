@@ -198,7 +198,7 @@ const Jornada = () => {
 
   return (
     <AppLayout
-      title="OrigamiPonto"
+      title="Ponto Eletrônico"
       description="Registre seu ponto e acompanhe seu banco de horas"
       hideHeader
     >
@@ -210,7 +210,7 @@ const Jornada = () => {
                 <Timer className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/80">OrigamiPonto</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/80">Ponto Eletrônico</p>
                 <h1 className="ui-h1 text-white">
                   Olá, {employee?.nome?.split(' ')[0] ?? 'colaborador'}
                 </h1>

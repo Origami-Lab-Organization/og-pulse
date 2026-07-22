@@ -58,7 +58,7 @@ const JornadaConfiguracoes = () => {
 
   return (
     <AppLayout
-      title="OrigamiPonto — Configurações"
+      title="Ponto Eletrônico — Configurações"
       description="Regras de tolerância e horas extras aplicadas ao registro de ponto"
     >
       {isLoading ? (
