@@ -4,6 +4,20 @@
 - Data: 2026-05-26
 - Decisores: Origami Lab / operacao interna
 
+## Atualização 2026-07-22
+
+`20260707130000_project_team_rows.sql` recriou a policy de SELECT de
+`project_role_allocations` restringindo a admin, ao `manager_id` daquele projeto
+especifico (`can_manage_project`) ou ao proprio funcionario — sem querer, isso
+quebrou a leitura tenant-wide para PM que esta decisao ja previa: como
+`get_allocation_employee_month_summary` roda `SECURITY INVOKER`, a RLS zerava
+silenciosamente as horas planejadas de projetos de outros PMs na grade
+"Alocação da Equipe" (a pessoa aparecia, mas sem os numeros). Corrigido em
+`20260722130000_project_role_allocations_pm_tenant_read.sql`, reaplicando a
+mesma regra ja usada para leitura de `employees` (`is_admin_or_manager`):
+qualquer admin ou gerente do tenant le todas as alocacoes; escrita continua
+restrita por projeto via `can_manage_project`, sem alteracao.
+
 ## Contexto
 
 A pagina de alocacao precisa dar visao operacional ampla aos PMs, mas horas planejadas e correcoes de horas realizadas afetam projetos, custos e capacidade. Antes desta decisao, parte da tela e das policies ainda usava a regra ampla "admin ou manager", permitindo escrita gerencial em projetos de outros PMs.
