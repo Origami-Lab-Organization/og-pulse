@@ -15,6 +15,7 @@ import { countWorkingDays, type Holiday } from './workingDays';
 import { parseDateString } from './formatters';
 import type { PayrollProfile } from '@/types/payrollProfile';
 import type { ContractType } from '@/types/employee';
+import type { TerminationType } from '@/types/termination';
 
 export interface PayrollLineItem {
   name: string;
@@ -46,6 +47,17 @@ export interface PayrollAnalysisEmployeeInput {
   dataAdmissao: string | null;
   /** Data efetiva de desligamento mais antiga ('YYYY-MM-DD'), ou null se nunca desligado. Usada para prorata no mês de desligamento. */
   terminationDate: string | null;
+  /** Estimativa de depósito mensal de FGTS (não o saldo real) — usada para a multa 40%/20% da rescisão, mesma limitação de `calculateRealTerminationVerbas`. */
+  fgts: number;
+  /** Contrato de experiência (CLT Art. 445 §único) — só relevante para CLT, ver `calculateRealTerminationVerbas`. */
+  contratoExperiencia: boolean;
+  experienciaPeriodo1Fim: string | null;
+  experienciaPeriodo2Fim: string | null;
+  /** Campos da rescisão mais antiga (mesma que define `terminationDate`) — usados por `buildCashRows` para recalcular as verbas reais da rescisão em vez da provisão mensal genérica. `null`/`false`/`0` se nunca desligado. */
+  terminationType: TerminationType | null;
+  isJustCause: boolean;
+  noticeWorked: boolean;
+  noticePeriodDays: number;
 }
 
 export interface PayrollMonthWindow {

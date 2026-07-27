@@ -63,6 +63,11 @@ export interface EmployeeDB {
   tenant_id: string;
   auth_id: string | null;
   must_change_password: boolean;
+  // Contrato de experiência (CLT Art. 445 §único) — só relevante para tipo_contratacao = 'CLT'
+  contrato_experiencia: boolean;
+  experiencia_periodo1_fim: string | null;
+  experiencia_prorrogado: boolean;
+  experiencia_periodo2_fim: string | null;
 
   created_at: string;
   updated_at: string;
@@ -110,6 +115,11 @@ export interface CreateEmployeeInput {
   bankAccount?: string | null;
   bankAccountType?: BankAccountType | null;
   candidateId?: string | null;
+  // Contrato de experiência (CLT Art. 445 §único) — só relevante para tipoContratacao = 'CLT'
+  contratoExperiencia?: boolean;
+  experienciaPeriodo1Fim?: string | null;
+  experienciaProrrogado?: boolean;
+  experienciaPeriodo2Fim?: string | null;
 }
 
 export const employeeService = {
@@ -262,6 +272,14 @@ export const employeeService = {
       dbUpdates.bank_account = updates.bankAccount;
     if (updates.bankAccountType !== undefined)
       dbUpdates.bank_account_type = updates.bankAccountType;
+    if (updates.contratoExperiencia !== undefined)
+      dbUpdates.contrato_experiencia = updates.contratoExperiencia;
+    if (updates.experienciaPeriodo1Fim !== undefined)
+      dbUpdates.experiencia_periodo1_fim = updates.experienciaPeriodo1Fim;
+    if (updates.experienciaProrrogado !== undefined)
+      dbUpdates.experiencia_prorrogado = updates.experienciaProrrogado;
+    if (updates.experienciaPeriodo2Fim !== undefined)
+      dbUpdates.experiencia_periodo2_fim = updates.experienciaPeriodo2Fim;
 
     // Campos versionados com effectiveFrom futuro ficam de fora do UPDATE agora — o cron
     // activate_scheduled_employee_versions os aplica quando o dia chegar.

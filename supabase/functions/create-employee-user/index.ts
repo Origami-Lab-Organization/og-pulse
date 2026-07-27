@@ -57,6 +57,11 @@ interface CreateEmployeeRequest {
   bankAccount?: string | null;
   bankAccountType?: string | null;
   candidateId?: string | null;
+  // Contrato de experiência (CLT Art. 445 §único) — só relevante quando tipoContratacao = 'CLT'
+  contratoExperiencia?: boolean;
+  experienciaPeriodo1Fim?: string | null;
+  experienciaProrrogado?: boolean;
+  experienciaPeriodo2Fim?: string | null;
 }
 
 const PUBLIC_APP_ORIGIN = "https://origamipulse.com.br";
@@ -169,6 +174,10 @@ const handler = async (req: Request): Promise<Response> => {
       bankAgency,
       bankAccount,
       bankAccountType,
+      contratoExperiencia,
+      experienciaPeriodo1Fim,
+      experienciaProrrogado,
+      experienciaPeriodo2Fim,
       candidateId,
     } = body;
 
@@ -320,6 +329,10 @@ const handler = async (req: Request): Promise<Response> => {
         bank_agency: bankAgency || null,
         bank_account: bankAccount || null,
         bank_account_type: bankAccountType || null,
+        contrato_experiencia: contratoExperiencia || false,
+        experiencia_periodo1_fim: experienciaPeriodo1Fim || null,
+        experiencia_prorrogado: experienciaProrrogado || false,
+        experiencia_periodo2_fim: experienciaPeriodo2Fim || null,
         tenant_id: tenantId,
         auth_id: authUserId,
         must_change_password: !isExistingUser, // Only require change for new users

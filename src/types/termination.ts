@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Enums
-export const TERMINATION_TYPES = ['voluntary', 'involuntary', 'contract_end', 'internship_end', 'retirement', 'mutual_agreement'] as const;
+export const TERMINATION_TYPES = ['voluntary', 'involuntary', 'contract_end', 'internship_end', 'retirement', 'mutual_agreement', 'early_contract_termination'] as const;
 export type TerminationType = typeof TERMINATION_TYPES[number];
 
 export const TERMINATION_TYPE_LABELS: Record<TerminationType, string> = {
@@ -11,9 +11,10 @@ export const TERMINATION_TYPE_LABELS: Record<TerminationType, string> = {
   internship_end: 'Fim de Estágio',
   retirement: 'Aposentadoria',
   mutual_agreement: 'Acordo Mútuo',
+  early_contract_termination: 'Fim Antecipado de Contrato',
 };
 
-export const REASON_CATEGORIES = ['performance', 'restructuring', 'personal_request', 'contract_expiration', 'disciplinary', 'other'] as const;
+export const REASON_CATEGORIES = ['performance', 'restructuring', 'personal_request', 'contract_expiration', 'early_contract_termination', 'disciplinary', 'other'] as const;
 export type ReasonCategory = typeof REASON_CATEGORIES[number];
 
 export const REASON_CATEGORY_LABELS: Record<ReasonCategory, string> = {
@@ -21,6 +22,7 @@ export const REASON_CATEGORY_LABELS: Record<ReasonCategory, string> = {
   restructuring: 'Reestruturação',
   personal_request: 'Pedido Pessoal',
   contract_expiration: 'Expiração de Contrato',
+  early_contract_termination: 'Fim Antecipado de Contrato',
   disciplinary: 'Disciplinar',
   other: 'Outro',
 };

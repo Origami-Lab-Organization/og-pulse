@@ -1,11 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Upload, X, FileText, Info, AlertTriangle } from 'lucide-react';
+import { Upload, Download, Trash2, Info } from 'lucide-react';
 import { TerminationWizardData } from './types';
 
 interface Props {
@@ -50,49 +49,31 @@ const DOCUMENT_CHECKLISTS: Record<string, DocItem[]> = {
   ],
 };
 
+const ALLOWED_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+];
+const MAX_SIZE = 10 * 1024 * 1024;
+
 const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
-  const [isDragging, setIsDragging] = useState(false);
   const checklist = useMemo(() => {
     return DOCUMENT_CHECKLISTS[contractType] || DOCUMENT_CHECKLISTS.CLT;
   }, [contractType]);
 
-  const missingRequiredDocs = useMemo(() => {
-    return checklist.filter(d => d.required && !data.document_checklist[d.key]);
-  }, [checklist, data.document_checklist]);
+  const setFileForDoc = useCallback((key: string, file: File | null) => {
+    onChange({ document_files: { ...data.document_files, [key]: file } });
+  }, [data.document_files, onChange]);
 
-  const toggleChecklist = (key: string) => {
-    onChange({
-      document_checklist: {
-        ...data.document_checklist,
-        [key]: !data.document_checklist[key],
-      },
-    });
-  };
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const valid = files.filter(f => {
-      const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
-      return allowed.includes(f.type) && f.size <= 10 * 1024 * 1024;
-    });
-    onChange({ uploaded_files: [...data.uploaded_files, ...valid] });
+  const handleFileSelect = useCallback((key: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     e.target.value = '';
-  }, [data.uploaded_files, onChange]);
-
-  const removeFile = (index: number) => {
-    onChange({ uploaded_files: data.uploaded_files.filter((_, i) => i !== index) });
-  };
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files);
-    const valid = files.filter(f => {
-      const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
-      return allowed.includes(f.type) && f.size <= 10 * 1024 * 1024;
-    });
-    onChange({ uploaded_files: [...data.uploaded_files, ...valid] });
-  }, [data.uploaded_files, onChange]);
+    if (!file) return;
+    if (!ALLOWED_TYPES.includes(file.type) || file.size > MAX_SIZE) return;
+    setFileForDoc(key, file);
+  }, [setFileForDoc]);
 
   return (
     <div className="space-y-4">
@@ -104,89 +85,65 @@ const TerminationStep4Documents = ({ data, onChange, contractType }: Props) => {
           </AlertDescription>
         </Alert>
       )}
-      {/* Checklist */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">{contractType === 'PJ' ? 'Documentos da Rescisão' : 'Checklist de Documentos'}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {checklist.map(doc => (
-            <div key={doc.key} className="flex items-center gap-3">
-              <Checkbox
-                id={doc.key}
-                checked={!!data.document_checklist[doc.key]}
-                onCheckedChange={() => toggleChecklist(doc.key)}
-              />
-              <Label htmlFor={doc.key} className="text-sm cursor-pointer flex-1">{doc.label}</Label>
-              <Badge
-                variant={doc.required ? 'destructive' : 'secondary'}
-                className="text-[10px] px-1.5 py-0"
-              >
-                {doc.required ? 'Obrigatório' : 'Opcional'}
-              </Badge>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Upload area */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Upload de Documentos</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div
-            onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
-          >
-            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground mb-2">Arraste arquivos aqui ou</p>
-            <label>
-              <input type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={handleFileSelect} className="hidden" />
-              <Button variant="outline" size="sm" asChild>
-                <span className="cursor-pointer">Selecionar Arquivos</span>
-              </Button>
-            </label>
-            <p className="text-xs text-muted-foreground mt-2">PDF, DOC, DOCX, JPG, PNG — máx. 10MB</p>
-          </div>
-
-          {data.uploaded_files.length > 0 && (
-            <div className="space-y-2">
-              {data.uploaded_files.map((file, i) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded border border-border text-sm">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="truncate">{file.name}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">({(file.size / 1024).toFixed(0)} KB)</span>
+          {checklist.map(doc => {
+            const file = data.document_files[doc.key];
+            return (
+              <div key={doc.key} className="flex items-center gap-3">
+                <Label className="text-sm flex-1 min-w-0 truncate">{doc.label}</Label>
+                <Badge
+                  variant={doc.required ? 'destructive' : 'secondary'}
+                  className="text-[10px] px-1.5 py-0 shrink-0"
+                >
+                  {doc.required ? 'Obrigatório' : 'Opcional'}
+                </Badge>
+                {file ? (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-xs text-muted-foreground max-w-[120px] truncate">{file.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      asChild
+                    >
+                      <a href={URL.createObjectURL(file)} download={file.name} title="Baixar">
+                        <Download className="h-3.5 w-3.5" />
+                      </a>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setFileForDoc(doc.key, null)}
+                      title="Remover"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeFile(i)}>
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+                ) : (
+                  <label className="shrink-0">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={e => handleFileSelect(doc.key, e)}
+                      className="hidden"
+                    />
+                    <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+                      <span className="cursor-pointer" title="Anexar arquivo">
+                        <Upload className="h-3.5 w-3.5" />
+                      </span>
+                    </Button>
+                  </label>
+                )}
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
-
-      {missingRequiredDocs.length > 0 && (
-        <Alert variant="default" className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
-            <strong>Documentos obrigatórios pendentes:</strong> {missingRequiredDocs.map(d => d.label).join(', ')}.
-            O processo ficará com status <strong>"Aguardando Documentos"</strong> até que sejam anexados.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription className="text-xs">
-          Documentos podem ser anexados posteriormente na área de Funcionários Desligados.
-        </AlertDescription>
-      </Alert>
     </div>
   );
 };

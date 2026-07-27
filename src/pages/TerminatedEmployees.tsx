@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
-import { Search, UserMinus } from 'lucide-react';
+import { Plus, Search, UserMinus } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable } from '@/components/data-table/DataTable';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTerminations } from '@/hooks/useTerminations';
 import { TerminationWithEmployee } from '@/services/terminationService';
+import { Employee } from '@/hooks/useEmployees';
 import TerminationStats from '@/components/terminations/TerminationStats';
 import { createTerminationColumns } from '@/components/terminations/TerminationsTable';
 import {
@@ -17,6 +19,8 @@ import {
 } from '@/types/termination';
 import { TerminationDetailModal, handleExportTerminationPdf } from '@/components/terminations/TerminationDetailDrawer';
 import { TerminationEditDialog } from '@/components/terminations/TerminationEditDialog';
+import { SelectEmployeeForTerminationDialog } from '@/components/employees/SelectEmployeeForTerminationDialog';
+import TerminationWizardModal from '@/components/employees/TerminationWizardModal';
 import { useToast } from '@/hooks/use-toast';
 
 const TerminatedEmployees = () => {
@@ -26,6 +30,8 @@ const TerminatedEmployees = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedTermination, setSelectedTermination] = useState<TerminationWithEmployee | null>(null);
   const [editTermination, setEditTermination] = useState<TerminationWithEmployee | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [wizardEmployee, setWizardEmployee] = useState<Employee | null>(null);
 
   const { data, isLoading } = useTerminations({ limit: 200 });
   const terminations = data?.data ?? [];
@@ -56,12 +62,20 @@ const TerminatedEmployees = () => {
     onDownload: handleDownload,
   }), []);
 
+  const actions = (
+    <Button onClick={() => setPickerOpen(true)} className="gap-2">
+      <Plus className="h-4 w-4" />
+      Novo Desligamento
+    </Button>
+  );
+
   if (isLoading) {
     return (
       <AppLayout
         title="Desligamentos"
         description="Gerencie processos de desligamento"
         breadcrumbs={[{ label: 'RH' }, { label: 'Desligamentos' }]}
+        actions={actions}
       >
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -81,6 +95,7 @@ const TerminatedEmployees = () => {
       title="Desligamentos"
       description="Gerencie processos de desligamento de funcionários"
       breadcrumbs={[{ label: 'RH' }, { label: 'Desligamentos' }]}
+      actions={actions}
     >
       <TerminationStats terminations={terminations} />
 
@@ -150,6 +165,18 @@ const TerminatedEmployees = () => {
         open={!!editTermination}
         onOpenChange={(open) => !open && setEditTermination(null)}
         termination={editTermination!}
+      />
+
+      <SelectEmployeeForTerminationDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={(employee) => setWizardEmployee(employee)}
+      />
+
+      <TerminationWizardModal
+        isOpen={!!wizardEmployee}
+        onClose={() => setWizardEmployee(null)}
+        employee={wizardEmployee}
       />
     </AppLayout>
   );

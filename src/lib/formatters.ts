@@ -115,12 +115,15 @@ export function parseDateString(dateStr: string): Date {
  * seguinte, fazendo comparações de "isFutureDated" contra uma data escolhida
  * no calendário (sempre local) falharem justo nessa janela.
  */
-export function todayLocalDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+export function toLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+export function todayLocalDateString(): string {
+  return toLocalDateString(new Date());
 }
 
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];

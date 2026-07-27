@@ -24,8 +24,10 @@ import {
   type EmployeeVersionInput,
 } from './payrollAnalysis';
 import { parseDateString } from './formatters';
+import { calculateRealTerminationVerbas } from './terminationCalcs';
+import { sum13thApplicableRates, sumVacationApplicableRates } from './employeeCostCalculator';
 import type { Holiday } from './workingDays';
-import type { PayrollProfile } from '@/types/payrollProfile';
+import { DEFAULT_PAYROLL_PROFILE, type PayrollProfile } from '@/types/payrollProfile';
 import type { ContractType } from '@/types/employee';
 
 export type PayrollHistoryEmployeeInput = PayrollAnalysisEmployeeInput;
@@ -203,6 +205,131 @@ function gpsOnProvisionsAmount(row?: PayrollAnalysisRow): number {
   return row ? row.encargosSobreProvisoesAmount - row.fgtsSobreProvisoesAmount : 0;
 }
 
+/**
+ * Corrige as provisões de 13º/férias/recesso de um segmento de rescisão — a fonte
+ * (`calculatePayrollAnalysisRowsByContractType`) usa a provisão mensal genérica
+ * (`salário/12`, rateada pela fração de dias do segmento no mês), não os avos legais
+ * (Lei 4.090/1962, Súmula 261 TST, Lei 11.788/2008) nem a regra de justa causa (CLT Art.
+ * 482, que zera férias/13º) — mesmo bug já corrigido no wizard via
+ * `calculateRealTerminationVerbas` (`terminationCalcs.ts`), agora reaproveitado aqui como
+ * fonte única. `baseAmount`/`fgtsAmount`/`inssPatronalAmount`/`outrosEncargosAmount`/
+ * `inssFuncionario` do segmento (saldo de salário) NÃO são tocados — já batem com a
+ * fração de dias do mês (mesma convenção usada por `calculateRealTerminationVerbas`) e,
+ * ao contrário das provisões, não têm fórmula genérica alternativa para divergir.
+ *
+ * Aviso prévio, multa FGTS e a indenização Art. 479/480 (contrato de experiência
+ * encerrado antecipadamente) NÃO entram aqui — a Folha de Pagamento ainda não modela
+ * essas verbas (ver Fora de escopo no plano); só a tela de detalhe da rescisão as exibe.
+ */
+function correctRescissionSegment(
+  raw: PayrollAnalysisRow,
+  e: PayrollHistoryEmployeeInput,
+  payrollProfile: Partial<PayrollProfile>,
+  terminationDateStr: string,
+): PayrollAnalysisRow {
+  const tipo = raw.tipoContratacao;
+  if (tipo !== 'CLT' && tipo !== 'MENOR_APRENDIZ' && tipo !== 'ESTAGIO') return raw;
+
+  const verbas = calculateRealTerminationVerbas(
+    {
+      tipoContratacao: tipo,
+      salarioMensal: e.salarioMensal,
+      bolsaAuxilio: e.bolsaAuxilio,
+      valorContratoPj: e.valorContratoPj,
+      fgts: e.fgts,
+      dataAdmissao: e.dataAdmissao,
+      contratoExperiencia: e.contratoExperiencia,
+      dataPrevistaTerminoExperiencia: e.experienciaPeriodo2Fim ?? e.experienciaPeriodo1Fim ?? null,
+    },
+    {
+      terminationDate: parseDateString(terminationDateStr),
+      terminationType: e.terminationType ?? 'voluntary',
+      isJustCause: e.isJustCause,
+      noticeWorked: e.noticeWorked,
+      noticePeriodDays: e.noticePeriodDays,
+      // Não persistido em coluna própria (só existe no fluxo do wizard) — sem efeito
+      // aqui; a indenização Art. 479/480 continua restrita à tela de detalhe.
+      earlyTerminationInitiatedBy: null,
+    },
+    payrollProfile,
+  );
+
+  const profile = { ...DEFAULT_PAYROLL_PROFILE, ...payrollProfile };
+  const fgtsRate = tipo === 'CLT' ? profile.fgtsRateClt : profile.fgtsRateApprentice;
+  const feriasTotal = verbas.feriasProporcionais + verbas.tercoFerias;
+
+  let provisao13Amount = 0;
+  let provisaoFeriasAmount = 0;
+  let provisaoRecessoAmount = 0;
+  let encargosSobreProvisoesAmount = 0;
+  let fgtsSobreProvisoesAmount = 0;
+
+  if (tipo === 'CLT' || tipo === 'MENOR_APRENDIZ') {
+    provisao13Amount = verbas.decimoTerceiroProporcional;
+    provisaoFeriasAmount = feriasTotal;
+    const rates13 = sum13thApplicableRates(profile, fgtsRate);
+    const ratesVacation = sumVacationApplicableRates(profile, fgtsRate);
+    encargosSobreProvisoesAmount = provisao13Amount * rates13 + provisaoFeriasAmount * ratesVacation;
+    fgtsSobreProvisoesAmount =
+      (profile.applyFgtsOn13th ? provisao13Amount * fgtsRate : 0) +
+      (profile.applyFgtsOnVacation ? provisaoFeriasAmount * fgtsRate : 0);
+  } else {
+    // ESTAGIO — Lei 11.788/2008: recesso proporcional (meses/12 × 30 dias), sem FGTS/encargos
+    provisaoRecessoAmount = verbas.recessoProporcional;
+  }
+
+  const provisionsAmount = provisao13Amount + provisaoFeriasAmount + provisaoRecessoAmount + encargosSobreProvisoesAmount;
+  const chargesAmount = raw.fgtsAmount + raw.inssPatronalAmount + raw.outrosEncargosAmount + encargosSobreProvisoesAmount;
+  // `chargesAmount` e `provisionsAmount` acima se sobrepõem de propósito em
+  // `encargosSobreProvisoesAmount` (mesma convenção de exibição de `calculatePayrollAnalysisRowsByContractType`,
+  // em payrollAnalysis.ts) — por isso `totalMonthlyCost` não pode vir da soma dos dois (contaria
+  // esse encargo em dobro); cada componente entra uma única vez, direto da fonte.
+  const totalMonthlyCost =
+    raw.baseAmount +
+    raw.fgtsAmount +
+    raw.inssPatronalAmount +
+    raw.outrosEncargosAmount +
+    encargosSobreProvisoesAmount +
+    provisao13Amount +
+    provisaoFeriasAmount +
+    provisaoRecessoAmount +
+    raw.benefitsAmount +
+    raw.toolsAmount;
+
+  return {
+    ...raw,
+    provisao13Amount,
+    provisaoFeriasAmount,
+    provisaoRecessoAmount,
+    encargosSobreProvisoesAmount,
+    fgtsSobreProvisoesAmount,
+    provisionsAmount,
+    chargesAmount,
+    totalMonthlyCost,
+  };
+}
+
+/**
+ * Como `calculatePayrollAnalysisRowsByContractType`, mas corrige o(s) segmento(s) do mês
+ * do desligamento com as verbas reais de rescisão (ver `correctRescissionSegment`) — usado
+ * só pelo regime de caixa (`buildCashRows`), tanto para o mês corrente quanto para o mês
+ * anterior (fonte do GPS diferido no mês seguinte, ver JSDoc de `buildCashRows`), para que
+ * as duas leituras do mesmo mês de rescisão nunca divirjam entre si.
+ */
+function calculateCashSegments(
+  e: PayrollHistoryEmployeeInput,
+  payrollProfile: Partial<PayrollProfile>,
+  month: PayrollMonth,
+  holidays: Holiday[],
+  versions: EmployeeVersionInput[],
+): PayrollAnalysisRow[] {
+  const rows = calculatePayrollAnalysisRowsByContractType(e, payrollProfile, month, holidays, versions);
+  if (!e.terminationDate || !isTerminatedDuring(e, month)) return rows;
+  return rows.map((r) =>
+    r.tipoContratacao === e.tipoContratacao ? correctRescissionSegment(r, e, payrollProfile, e.terminationDate!) : r,
+  );
+}
+
 function buildCashRows(
   e: PayrollHistoryEmployeeInput,
   payrollProfile: Partial<PayrollProfile>,
@@ -217,14 +344,14 @@ function buildCashRows(
   const employedThisMonth =
     wasEmployedDuringMonth(e, month) && (!currentRequiresActive || e.terminationDate !== null || e.status === 'ativo');
   const currentSegments = employedThisMonth
-    ? calculatePayrollAnalysisRowsByContractType(e, payrollProfile, month, holidays, versions)
+    ? calculateCashSegments(e, payrollProfile, month, holidays, versions)
     : [];
 
   const prevRequiresActive = prevMonth.isCurrent || prevMonth.isFuture;
   const wasEmployedPrevMonth =
     wasEmployedDuringMonth(e, prevMonth) && (!prevRequiresActive || e.terminationDate !== null || e.status === 'ativo');
   const prevMonthSegments = wasEmployedPrevMonth
-    ? calculatePayrollAnalysisRowsByContractType(e, payrollProfile, prevMonth, holidays, versions)
+    ? calculateCashSegments(e, payrollProfile, prevMonth, holidays, versions)
     : [];
   const terminatedPrevMonth = isTerminatedDuring(e, prevMonth);
   // Mês comum: salário/FGTS/GPS do mês anterior inteiro, pago neste mês. Se o mês anterior foi

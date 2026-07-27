@@ -94,6 +94,10 @@ export const dbToEmployee = (db: EmployeeWithRelations) => {
     authId: db.auth_id,
     terminationId: db.termination_id || null,
     mustChangePassword: db.must_change_password,
+    contratoExperiencia: db.contrato_experiencia ?? false,
+    experienciaPeriodo1Fim: db.experiencia_periodo1_fim || null,
+    experienciaProrrogado: db.experiencia_prorrogado ?? false,
+    experienciaPeriodo2Fim: db.experiencia_periodo2_fim || null,
   };
 };
 

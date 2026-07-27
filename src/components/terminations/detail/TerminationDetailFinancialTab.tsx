@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -7,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, TrendingDown, DollarSign, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { terminationService } from '@/services/terminationService';
 import { TerminationWithEmployee } from '@/services/terminationService';
@@ -85,6 +86,8 @@ function buildWizardDataLike(t: TerminationWithEmployee): TerminationWizardData 
     termination_type: t.termination_type as any,
     reason_category: t.reason_category as any,
     reason: t.reason || '',
+    is_just_cause: t.is_just_cause ?? false,
+    early_termination_initiated_by: null,
     exit_interview_completed: t.exit_interview_completed ?? false,
     exit_interview_notes: t.exit_interview_notes || '',
     notice_period_days: t.notice_period_days ?? 30,
@@ -92,8 +95,7 @@ function buildWizardDataLike(t: TerminationWithEmployee): TerminationWizardData 
     notice_indemnified_by_company: true,
     notice_notes: '',
     manual_adjustments: [],
-    uploaded_files: [],
-    document_checklist: {},
+    document_files: {},
   };
 }
 
@@ -105,6 +107,12 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
   const [newDesc, setNewDesc] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newIsCredit, setNewIsCredit] = useState(true);
+
+  // Recalcular não sabe reconstruir a indenização Art. 479/480 CLT (quem antecipou o contrato
+  // de experiência não é persistido em coluna própria, só existe dentro do fluxo do wizard) —
+  // recalcular apagaria esse valor silenciosamente em vez de só aproximar. Bloqueado até existir
+  // uma coluna dedicada para isso.
+  const blocksRecalculation = termination.termination_type === 'early_contract_termination';
 
   // Check if we have stored JSONB data
   const storedAdjustments = useMemo(() => {
@@ -189,6 +197,37 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
     },
   });
 
+  // Regrava as verbas calculadas com a fórmula atual — necessário porque `final_payroll_adjustments`
+  // é congelado na finalização da rescisão e nunca se atualiza sozinho quando a fórmula de
+  // cálculo muda depois (ex.: correção dos avos de 13º/férias). Preserva os ajustes manuais.
+  const recalculateMutation = useMutation({
+    mutationFn: async () => {
+      const emp = buildEmployeeLike(termination);
+      const wizData = buildWizardDataLike(termination);
+      const newAutoCalcs = calculateAutoCalcs(emp, wizData);
+      const preservedManual = (storedAdjustments ?? []).filter(a => a.type === 'manual');
+      const newAdjustments: StoredAdjustment[] = [
+        ...newAutoCalcs.map(item => ({
+          desc: item.desc,
+          value: Math.round(item.value * 100) / 100,
+          isCredit: item.isCredit,
+          type: 'auto',
+        })),
+        ...preservedManual,
+      ];
+      await terminationService.update(termination.id, {
+        final_payroll_adjustments: newAdjustments,
+      } as any);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['terminations'] });
+      queryClient.invalidateQueries({ queryKey: ['termination', termination.id] });
+      toast({ title: 'Verbas recalculadas com a fórmula atual' });
+      window.location.reload();
+    },
+    onError: () => toast({ title: 'Erro ao recalcular verbas', variant: 'destructive' }),
+  });
+
   const resetForm = () => {
     setShowForm(false);
     setNewType('other');
@@ -271,9 +310,38 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
       {/* Auto-calculated Rescission Values */}
       {displayAutoCalcs.length > 0 && (
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-base">Verbas Rescisórias (Calculadas)</CardTitle>
+            {storedAdjustments && !blocksRecalculation && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => recalculateMutation.mutate()}
+                disabled={recalculateMutation.isPending}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                {recalculateMutation.isPending ? 'Recalculando...' : 'Recalcular verbas'}
+              </Button>
+            )}
           </CardHeader>
+          {storedAdjustments && blocksRecalculation && (
+            <CardContent className="pt-0 pb-3">
+              <Alert variant="destructive" className="border-amber-400 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-xs">
+                  Recalcular está desabilitado para "Fim Antecipado de Contrato" — o sistema não guarda quem antecipou o desligamento (empresa/funcionário) fora do fluxo do wizard, então recalcular apagaria a indenização Art. 479/480 CLT em vez de só atualizar os valores. Ajuste manualmente se precisar corrigir algo aqui.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          )}
+          {storedAdjustments && !blocksRecalculation && (
+            <CardContent className="pt-0 pb-3">
+              <p className="text-xs text-muted-foreground">
+                Recalcular assume aviso prévio indenizado pela empresa (não descontado do funcionário) — confira manualmente se este desligamento tinha o aviso descontado.
+              </p>
+            </CardContent>
+          )}
           <CardContent>
             <Table>
               <TableHeader>

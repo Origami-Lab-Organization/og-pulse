@@ -450,13 +450,13 @@ const App = () => (
                   </RoleProtectedRoute>
                 } 
               />
-              <Route 
-                path="/rh/desligamentos" 
+              <Route
+                path="/rh/desligamentos"
                 element={
                   <RoleProtectedRoute requireManager>
                     <TerminatedEmployees />
                   </RoleProtectedRoute>
-                } 
+                }
               />
               <Route path="/my-kanban" element={<ProtectedRoute><MyKanban /></ProtectedRoute>} />
               <Route path="/my-projects" element={<ProtectedRoute><MyProjects /></ProtectedRoute>} />

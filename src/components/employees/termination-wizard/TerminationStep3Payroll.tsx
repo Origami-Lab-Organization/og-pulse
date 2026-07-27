@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Trash2, Info, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
-import { calculateAutoCalcs, AutoCalcItem } from '@/lib/terminationCalcs';
+import { calculateTerminationBreakdown } from '@/lib/terminationCalcs';
 import { Employee } from '@/hooks/useEmployees';
+import { usePayrollProfile } from '@/hooks/usePayrollProfile';
 import { TerminationWizardData, ManualAdjustment } from './types';
 
 interface Props {
@@ -64,24 +64,32 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
   const contractType = employee.tipoContratacao;
   const message = CONTRACT_TYPE_MESSAGES[contractType] ?? UNSUPPORTED_TYPE_MESSAGE;
 
-  const autoCalcs = useMemo(() => calculateAutoCalcs(employee, data), [employee, data]);
+  const { data: payrollProfile } = usePayrollProfile();
+  const breakdown = useMemo(
+    () => calculateTerminationBreakdown(employee, data, payrollProfile),
+    [employee, data, payrollProfile],
+  );
+  const autoCalcs = breakdown.items;
+  const verbas = breakdown.verbas;
+  const fgtsTotal = verbas.fgtsSaldoSalario + verbas.fgtsDecimoTerceiro;
 
-  const totals = useMemo(() => {
-    let credits = 0;
-    let debits = 0;
-
-    autoCalcs.forEach(item => {
-      if (item.isCredit) credits += item.value;
-      else debits += item.value;
-    });
-
-    data.manual_adjustments.forEach(adj => {
-      if (adj.isCredit) credits += adj.amount;
-      else debits += adj.amount;
-    });
-
-    return { credits, debits, net: credits - debits };
+  const proventos = useMemo(() => {
+    const items = [
+      ...autoCalcs.filter(item => item.isCredit).map(item => ({ desc: item.desc, value: item.value })),
+      ...data.manual_adjustments.filter(adj => adj.isCredit).map(adj => ({ desc: adj.description, value: adj.amount })),
+    ];
+    return { items, total: items.reduce((sum, item) => sum + item.value, 0) };
   }, [autoCalcs, data.manual_adjustments]);
+
+  const deducoes = useMemo(() => {
+    const items = [
+      ...autoCalcs.filter(item => !item.isCredit).map(item => ({ desc: item.desc, value: item.value })),
+      ...data.manual_adjustments.filter(adj => !adj.isCredit).map(adj => ({ desc: adj.description, value: adj.amount })),
+    ];
+    return { items, total: items.reduce((sum, item) => sum + item.value, 0) };
+  }, [autoCalcs, data.manual_adjustments]);
+
+  const valorLiquido = proventos.total - deducoes.total;
 
   const addAdjustment = () => {
     if (!newAdj.description || newAdj.amount <= 0) return;
@@ -123,39 +131,6 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
             </span>
           </AlertDescription>
         </Alert>
-      )}
-
-      {/* Auto calculations */}
-      {autoCalcs.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Cálculos Automáticos</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="text-right">Tipo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {autoCalcs.map((item, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-sm">{item.desc}</TableCell>
-                    <TableCell className="text-right text-sm font-medium">{formatCurrency(item.value)}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="outline" className={item.isCredit ? 'text-green-700 border-green-300' : 'text-red-700 border-red-300'}>
-                        {item.isCredit ? 'Crédito' : 'Débito'}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
       )}
 
       {/* Manual adjustments */}
@@ -218,21 +193,70 @@ const TerminationStep3Payroll = ({ data, onChange, employee }: Props) => {
         </CardContent>
       </Card>
 
-      {/* Summary */}
+      {/* Resumo financeiro unificado — Proventos x Deduções x Líquido, estilo TRCT */}
       <Card className="border-primary/30 bg-primary/5">
-        <CardContent className="p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Total de Créditos:</span>
-            <span className="font-semibold text-green-700">{formatCurrency(totals.credits)}</span>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Resumo Financeiro</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Proventos</p>
+            {proventos.items.length === 0 && <p className="text-xs text-muted-foreground">Nenhum provento</p>}
+            {proventos.items.map((item, i) => (
+              <div key={i} className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{item.desc}</span>
+                <span className="font-medium text-green-700">{formatCurrency(item.value)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between text-sm pt-1 border-t border-border">
+              <span className="font-medium">Total de Proventos</span>
+              <span className="font-semibold text-green-700">{formatCurrency(proventos.total)}</span>
+            </div>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Total de Débitos:</span>
-            <span className="font-semibold text-red-700">{formatCurrency(totals.debits)}</span>
+
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Deduções</p>
+            {deducoes.items.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma dedução</p>}
+            {deducoes.items.map((item, i) => (
+              <div key={i} className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{item.desc}</span>
+                <span className="font-medium text-red-700">{formatCurrency(item.value)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between text-sm pt-1 border-t border-border">
+              <span className="font-medium">Total de Deduções</span>
+              <span className="font-semibold text-red-700">{formatCurrency(deducoes.total)}</span>
+            </div>
           </div>
+
           <div className="border-t border-border pt-2 flex justify-between">
             <span className="font-medium text-foreground">Valor Líquido:</span>
-            <span className="font-bold text-lg text-primary">{formatCurrency(totals.net)}</span>
+            <span className="font-bold text-lg text-primary">{formatCurrency(valorLiquido)}</span>
           </div>
+
+          {fgtsTotal > 0 && (
+            <div className="space-y-1 pt-2 border-t border-border">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                FGTS a depositar (informativo — guia FGTS, não afeta o valor líquido)
+              </p>
+              {verbas.fgtsSaldoSalario > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">FGTS s/ saldo de salário</span>
+                  <span className="font-medium">{formatCurrency(verbas.fgtsSaldoSalario)}</span>
+                </div>
+              )}
+              {verbas.fgtsDecimoTerceiro > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">FGTS s/ 13º proporcional</span>
+                  <span className="font-medium">{formatCurrency(verbas.fgtsDecimoTerceiro)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm pt-1 border-t border-border">
+                <span className="font-medium">Total FGTS a depositar</span>
+                <span className="font-semibold">{formatCurrency(fgtsTotal)}</span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

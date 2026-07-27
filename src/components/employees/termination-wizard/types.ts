@@ -16,6 +16,9 @@ export interface TerminationWizardData {
   reason_category: ReasonCategory;
   reason: string;
   is_just_cause: boolean;
+  /** Só relevante quando `termination_type === 'early_contract_termination'` — decide
+   *  Art. 479 CLT (empresa, crédito) vs Art. 480 CLT (funcionário, débito). */
+  early_termination_initiated_by: 'company' | 'employee' | null;
   exit_interview_completed: boolean;
   exit_interview_notes: string;
   // Step 2
@@ -25,9 +28,8 @@ export interface TerminationWizardData {
   notice_notes: string;
   // Step 3
   manual_adjustments: ManualAdjustment[];
-  // Step 4
-  uploaded_files: File[];
-  document_checklist: Record<string, boolean>;
+  // Step 4 — chave = `DocItem.key` do checklist do tipo de contratação; um arquivo por item
+  document_files: Record<string, File | null>;
 }
 
 export function getDefaultWizardData(): TerminationWizardData {
@@ -39,6 +41,7 @@ export function getDefaultWizardData(): TerminationWizardData {
     reason_category: 'other',
     reason: '',
     is_just_cause: false,
+    early_termination_initiated_by: null,
     exit_interview_completed: false,
     exit_interview_notes: '',
     notice_period_days: 30,
@@ -46,7 +49,6 @@ export function getDefaultWizardData(): TerminationWizardData {
     notice_indemnified_by_company: true,
     notice_notes: '',
     manual_adjustments: [],
-    uploaded_files: [],
-    document_checklist: {},
+    document_files: {},
   };
 }

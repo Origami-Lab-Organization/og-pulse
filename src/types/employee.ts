@@ -80,6 +80,10 @@ export interface Employee {
   decimoTerceiro: number;
   ferias: number;
   proLabore: number;
+  contratoExperiencia: boolean;
+  experienciaPeriodo1Fim: string | null;
+  experienciaProrrogado: boolean;
+  experienciaPeriodo2Fim: string | null;
   dataNascimento?: string;
   fotoUrl?: string;
   custoHora?: number;

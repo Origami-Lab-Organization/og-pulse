@@ -61,7 +61,7 @@ const getProfile = (partial?: Partial<PayrollProfile>): typeof DEFAULT_PAYROLL_P
   };
 };
 
-const sum13thApplicableRates = (profile: typeof DEFAULT_PAYROLL_PROFILE, fgtsRate: number): number => {
+export const sum13thApplicableRates = (profile: typeof DEFAULT_PAYROLL_PROFILE, fgtsRate: number): number => {
   let total = 0;
   if (profile.applyFgtsOn13th) total += fgtsRate;
   if (profile.applyInssOn13th) total += profile.inssPatronalRate;
@@ -71,7 +71,7 @@ const sum13thApplicableRates = (profile: typeof DEFAULT_PAYROLL_PROFILE, fgtsRat
   return total;
 };
 
-const sumVacationApplicableRates = (profile: typeof DEFAULT_PAYROLL_PROFILE, fgtsRate: number): number => {
+export const sumVacationApplicableRates = (profile: typeof DEFAULT_PAYROLL_PROFILE, fgtsRate: number): number => {
   let total = 0;
   if (profile.applyFgtsOnVacation) total += fgtsRate;
   if (profile.applyInssOnVacation) total += profile.inssPatronalRate;

@@ -940,6 +940,7 @@ export type Database = {
           exit_interview_notes: string | null
           final_payroll_adjustments: Json | null
           id: string
+          is_just_cause: boolean | null
           notice_period_days: number | null
           notice_worked: boolean | null
           notification_date: string | null
@@ -959,6 +960,7 @@ export type Database = {
           exit_interview_notes?: string | null
           final_payroll_adjustments?: Json | null
           id?: string
+          is_just_cause?: boolean | null
           notice_period_days?: number | null
           notice_worked?: boolean | null
           notification_date?: string | null
@@ -978,6 +980,7 @@ export type Database = {
           exit_interview_notes?: string | null
           final_payroll_adjustments?: Json | null
           id?: string
+          is_just_cause?: boolean | null
           notice_period_days?: number | null
           notice_worked?: boolean | null
           notification_date?: string | null
@@ -1196,6 +1199,7 @@ export type Database = {
           breakdown_json: Json | null
           candidate_id: string | null
           cargo: string
+          contrato_experiencia: boolean
           cpf: string
           created_at: string
           data_admissao: string
@@ -1204,6 +1208,9 @@ export type Database = {
           dividendos: number
           email: string
           encargos: number
+          experiencia_periodo1_fim: string | null
+          experiencia_periodo2_fim: string | null
+          experiencia_prorrogado: boolean
           ferias: number
           fgts: number
           foto_url: string | null
@@ -1248,6 +1255,7 @@ export type Database = {
           breakdown_json?: Json | null
           candidate_id?: string | null
           cargo: string
+          contrato_experiencia?: boolean
           cpf: string
           created_at?: string
           data_admissao: string
@@ -1256,6 +1264,9 @@ export type Database = {
           dividendos?: number
           email: string
           encargos?: number
+          experiencia_periodo1_fim?: string | null
+          experiencia_periodo2_fim?: string | null
+          experiencia_prorrogado?: boolean
           ferias?: number
           fgts?: number
           foto_url?: string | null
@@ -1300,6 +1311,7 @@ export type Database = {
           breakdown_json?: Json | null
           candidate_id?: string | null
           cargo?: string
+          contrato_experiencia?: boolean
           cpf?: string
           created_at?: string
           data_admissao?: string
@@ -1308,6 +1320,9 @@ export type Database = {
           dividendos?: number
           email?: string
           encargos?: number
+          experiencia_periodo1_fim?: string | null
+          experiencia_periodo2_fim?: string | null
+          experiencia_prorrogado?: boolean
           ferias?: number
           fgts?: number
           foto_url?: string | null
@@ -6758,6 +6773,7 @@ export type Database = {
         | "restructuring"
         | "personal_request"
         | "contract_expiration"
+        | "early_contract_termination"
         | "disciplinary"
         | "other"
       termination_status:
@@ -6773,6 +6789,7 @@ export type Database = {
         | "internship_end"
         | "retirement"
         | "mutual_agreement"
+        | "early_contract_termination"
       time_entry_type:
         | "entrada"
         | "inicio_intervalo"
@@ -6964,6 +6981,7 @@ export const Constants = {
         "restructuring",
         "personal_request",
         "contract_expiration",
+        "early_contract_termination",
         "disciplinary",
         "other",
       ],
@@ -6981,6 +6999,7 @@ export const Constants = {
         "internship_end",
         "retirement",
         "mutual_agreement",
+        "early_contract_termination",
       ],
       time_entry_type: [
         "entrada",

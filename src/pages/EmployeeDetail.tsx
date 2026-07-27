@@ -33,7 +33,7 @@ import {
 } from "@/lib/employeeCostCalculator";
 import { getMonthlyHoursFromDaily } from "@/lib/employeeCost";
 import { useHolidays } from "@/hooks/useHolidays";
-import { formatCurrency, todayLocalDateString } from "@/lib/formatters";
+import { formatCurrency, todayLocalDateString, parseDateString } from "@/lib/formatters";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -163,29 +163,88 @@ const baseFormSchema = z.object({
   bankAgency: z.string().nullable().optional(),
   bankAccount: z.string().nullable().optional(),
   bankAccountType: z.enum(["corrente", "poupanca"]).nullable().optional(),
+  contratoExperiencia: z.boolean(),
+  experienciaPeriodo1Fim: z.string().nullable().optional(),
+  experienciaProrrogado: z.boolean(),
+  experienciaPeriodo2Fim: z.string().nullable().optional(),
 });
 
-const formSchema = baseFormSchema.refine(
-  (data) => {
-    switch (data.tipoContratacao) {
-      case "CLT":
-      case "MENOR_APRENDIZ":
-        return data.salarioMensal > 0;
-      case "ESTAGIO":
-        return data.bolsaAuxilio > 0;
-      case "PJ":
-        return data.valorContratoPj > 0;
-      case "SOCIO":
-        return data.proLabore > 0 || data.dividendos > 0;
-      default:
-        return true;
+const formSchema = baseFormSchema.superRefine((data, ctx) => {
+  let salaryOk = true;
+  switch (data.tipoContratacao) {
+    case "CLT":
+    case "MENOR_APRENDIZ":
+      salaryOk = data.salarioMensal > 0;
+      break;
+    case "ESTAGIO":
+      salaryOk = data.bolsaAuxilio > 0;
+      break;
+    case "PJ":
+      salaryOk = data.valorContratoPj > 0;
+      break;
+    case "SOCIO":
+      salaryOk = data.proLabore > 0 || data.dividendos > 0;
+      break;
+  }
+  if (!salaryOk) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Preencha o valor base conforme o tipo de contratação",
+      path: ["salarioMensal"],
+    });
+  }
+
+  // Contrato de experiência (CLT Art. 445 §único) — máximo 90 dias, até 2 períodos.
+  if (data.tipoContratacao === "CLT" && data.contratoExperiencia) {
+    if (!data.experienciaPeriodo1Fim) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Informe o fim do 1º período",
+        path: ["experienciaPeriodo1Fim"],
+      });
+    } else if (data.dataAdmissao && data.experienciaPeriodo1Fim <= data.dataAdmissao) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Deve ser depois da admissão",
+        path: ["experienciaPeriodo1Fim"],
+      });
     }
-  },
-  {
-    message: "Preencha o valor base conforme o tipo de contratação",
-    path: ["salarioMensal"],
-  },
-);
+
+    if (data.experienciaProrrogado) {
+      if (!data.experienciaPeriodo2Fim) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe o fim do 2º período",
+          path: ["experienciaPeriodo2Fim"],
+        });
+      } else if (data.experienciaPeriodo1Fim && data.experienciaPeriodo2Fim <= data.experienciaPeriodo1Fim) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Deve ser depois do fim do 1º período",
+          path: ["experienciaPeriodo2Fim"],
+        });
+      }
+    }
+
+    const fimPrevisto = data.experienciaProrrogado ? data.experienciaPeriodo2Fim : data.experienciaPeriodo1Fim;
+    if (data.dataAdmissao && fimPrevisto) {
+      const dias = Math.round(
+        (parseDateString(fimPrevisto).getTime() - parseDateString(data.dataAdmissao).getTime()) / 86400000,
+      );
+      if (dias > 90) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Período de experiência não pode passar de 90 dias no total",
+          path: [data.experienciaProrrogado ? "experienciaPeriodo2Fim" : "experienciaPeriodo1Fim"],
+        });
+      }
+    }
+  }
+});
+
+function daysBetween(startIso: string, endIso: string): number {
+  return Math.round((parseDateString(endIso).getTime() - parseDateString(startIso).getTime()) / 86400000);
+}
 
 type FormData = z.infer<typeof baseFormSchema>;
 
@@ -270,6 +329,10 @@ const EmployeeDetail = () => {
       bankAgency: null,
       bankAccount: null,
       bankAccountType: null,
+      contratoExperiencia: false,
+      experienciaPeriodo1Fim: null,
+      experienciaProrrogado: false,
+      experienciaPeriodo2Fim: null,
     },
   });
 
@@ -280,6 +343,11 @@ const EmployeeDetail = () => {
   const proLabore = form.watch("proLabore");
   const dividendos = form.watch("dividendos");
   const systemRole = form.watch("systemRole");
+  const dataAdmissao = form.watch("dataAdmissao");
+  const contratoExperiencia = form.watch("contratoExperiencia");
+  const experienciaPeriodo1Fim = form.watch("experienciaPeriodo1Fim");
+  const experienciaProrrogado = form.watch("experienciaProrrogado");
+  const experienciaPeriodo2Fim = form.watch("experienciaPeriodo2Fim");
 
   // Sync isGerente based on systemRole
   useEffect(() => {
@@ -326,6 +394,10 @@ const EmployeeDetail = () => {
       bankAgency: employee.bankAgency ?? null,
       bankAccount: employee.bankAccount ?? null,
       bankAccountType: employee.bankAccountType ?? null,
+      contratoExperiencia: employee.contratoExperiencia ?? false,
+      experienciaPeriodo1Fim: employee.experienciaPeriodo1Fim ?? null,
+      experienciaProrrogado: employee.experienciaProrrogado ?? false,
+      experienciaPeriodo2Fim: employee.experienciaPeriodo2Fim ?? null,
     });
     setPhoneDisplay(employee.telefone ? formatPhone(employee.telefone) : "");
     setCpfDisplay(employee.cpf ? formatCPF(employee.cpf) : "");
@@ -500,6 +572,10 @@ const EmployeeDetail = () => {
       "bankAccountType",
       "bankAgency",
       "bankAccount",
+      "contratoExperiencia",
+      "experienciaPeriodo1Fim",
+      "experienciaProrrogado",
+      "experienciaPeriodo2Fim",
     ] as const;
 
     for (const field of versionedFields) {
@@ -1085,6 +1161,88 @@ const EmployeeDetail = () => {
               )}
             </div>
           </div>
+
+          {tipoContratacao === "CLT" && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="contratoExperiencia"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                      <div>
+                        <FormLabel className="text-sm font-medium">Contrato de experiência</FormLabel>
+                        <FormDescription className="text-xs">
+                          Período de até 90 dias (CLT Art. 445 §único), podendo ser dividido em 2 períodos com 1 prorrogação.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {contratoExperiencia && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-4">
+                    <FormField
+                      control={form.control}
+                      name="experienciaPeriodo1Fim"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Fim do 1º período *</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} value={field.value ?? ""} />
+                          </FormControl>
+                          {dataAdmissao && experienciaPeriodo1Fim && (
+                            <FormDescription className="text-xs">
+                              Duração: {daysBetween(dataAdmissao, experienciaPeriodo1Fim)} dias
+                            </FormDescription>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="experienciaProrrogado"
+                      render={({ field }) => (
+                        <FormItem className="sm:col-span-2 flex items-center justify-between rounded-lg border p-4">
+                          <FormLabel className="text-sm font-medium">Haverá prorrogação (2º período)?</FormLabel>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    {experienciaProrrogado && (
+                      <FormField
+                        control={form.control}
+                        name="experienciaPeriodo2Fim"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Fim do 2º período *</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value ?? ""} />
+                            </FormControl>
+                            {dataAdmissao && experienciaPeriodo2Fim && (
+                              <FormDescription className="text-xs">
+                                Duração total: {daysBetween(dataAdmissao, experienciaPeriodo2Fim)} dias
+                              </FormDescription>
+                            )}
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <EmployeeCostBreakdownBox
             costBreakdown={costBreakdown}

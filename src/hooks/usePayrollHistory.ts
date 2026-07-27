@@ -8,6 +8,7 @@ import { buildPayrollHistory, buildCashPayrollHistory, buildYearMonths, type Pay
 import type { EmployeeVersionInput } from '@/lib/payrollAnalysis';
 import { employeeVersionService } from '@/services/employeeVersionService';
 import type { ContractType } from '@/types/employee';
+import type { TerminationType } from '@/types/termination';
 
 function groupVersionsByEmployee(
   versions: Awaited<ReturnType<typeof employeeVersionService.getAllVersionsForTenant>>,
@@ -61,8 +62,10 @@ export function usePayrollHistory() {
       const [employeesRes, terminationsRes, toolsRes, benefitsRes] = await Promise.all([
         supabase
           .from('employees')
-          .select('id, nome, cargo, status, aloca_em_projetos, tipo_contratacao, data_admissao, salario_mensal, bolsa_auxilio, valor_contrato_pj, pro_labore, dividendos, jornada_diaria'),
-        supabase.from('employee_terminations').select('employee_id, termination_date, status'),
+          .select('id, nome, cargo, status, aloca_em_projetos, tipo_contratacao, data_admissao, salario_mensal, bolsa_auxilio, valor_contrato_pj, pro_labore, dividendos, jornada_diaria, fgts, contrato_experiencia, experiencia_periodo1_fim, experiencia_periodo2_fim'),
+        supabase
+          .from('employee_terminations')
+          .select('employee_id, termination_date, status, termination_type, is_just_cause, notice_worked, notice_period_days'),
         supabase.from('employee_tools').select('employee_id, name, monthly_cost, is_active'),
         supabase.from('employee_benefits').select('employee_id, name, monthly_value, is_active'),
       ]);
@@ -72,12 +75,25 @@ export function usePayrollHistory() {
       if (toolsRes.error) throw toolsRes.error;
       if (benefitsRes.error) throw benefitsRes.error;
 
-      const terminationDates = new Map<string, string>();
+      interface EarliestTermination {
+        date: string;
+        type: TerminationType;
+        isJustCause: boolean;
+        noticeWorked: boolean;
+        noticePeriodDays: number;
+      }
+      const terminationsByEmployee = new Map<string, EarliestTermination>();
       for (const t of terminationsRes.data || []) {
         if (t.status === 'cancelled' || !t.termination_date) continue;
-        const current = terminationDates.get(t.employee_id);
-        if (!current || t.termination_date < current) {
-          terminationDates.set(t.employee_id, t.termination_date);
+        const current = terminationsByEmployee.get(t.employee_id);
+        if (!current || t.termination_date < current.date) {
+          terminationsByEmployee.set(t.employee_id, {
+            date: t.termination_date,
+            type: t.termination_type as TerminationType,
+            isJustCause: t.is_just_cause ?? false,
+            noticeWorked: t.notice_worked ?? false,
+            noticePeriodDays: t.notice_period_days ?? 0,
+          });
         }
       }
 
@@ -104,26 +120,37 @@ export function usePayrollHistory() {
         benefitsBreakdownByEmployee.set(benefit.employee_id, list);
       }
 
-      return (employeesRes.data || []).map((e) => ({
-        id: e.id,
-        nome: e.nome,
-        cargo: e.cargo,
-        status: e.status,
-        alocaEmProjetos: e.aloca_em_projetos ?? true,
-        tipoContratacao: (e.tipo_contratacao || 'CLT') as ContractType,
-        dataAdmissao: e.data_admissao,
-        salarioMensal: Number(e.salario_mensal) || 0,
-        bolsaAuxilio: Number(e.bolsa_auxilio) || 0,
-        valorContratoPj: Number(e.valor_contrato_pj) || 0,
-        proLabore: Number(e.pro_labore) || 0,
-        dividendos: Number(e.dividendos) || 0,
-        jornadaDiaria: Number(e.jornada_diaria) || 8,
-        totalBenefitsCost: benefitsByEmployee.get(e.id) || 0,
-        totalToolsCost: toolsByEmployee.get(e.id) || 0,
-        benefitsBreakdown: benefitsBreakdownByEmployee.get(e.id) ?? [],
-        toolsBreakdown: toolsBreakdownByEmployee.get(e.id) ?? [],
-        terminationDate: terminationDates.get(e.id) || null,
-      }));
+      return (employeesRes.data || []).map((e) => {
+        const termination = terminationsByEmployee.get(e.id);
+        return {
+          id: e.id,
+          nome: e.nome,
+          cargo: e.cargo,
+          status: e.status,
+          alocaEmProjetos: e.aloca_em_projetos ?? true,
+          tipoContratacao: (e.tipo_contratacao || 'CLT') as ContractType,
+          dataAdmissao: e.data_admissao,
+          salarioMensal: Number(e.salario_mensal) || 0,
+          bolsaAuxilio: Number(e.bolsa_auxilio) || 0,
+          valorContratoPj: Number(e.valor_contrato_pj) || 0,
+          proLabore: Number(e.pro_labore) || 0,
+          dividendos: Number(e.dividendos) || 0,
+          jornadaDiaria: Number(e.jornada_diaria) || 8,
+          totalBenefitsCost: benefitsByEmployee.get(e.id) || 0,
+          totalToolsCost: toolsByEmployee.get(e.id) || 0,
+          benefitsBreakdown: benefitsBreakdownByEmployee.get(e.id) ?? [],
+          toolsBreakdown: toolsBreakdownByEmployee.get(e.id) ?? [],
+          terminationDate: termination?.date || null,
+          fgts: Number(e.fgts) || 0,
+          contratoExperiencia: e.contrato_experiencia ?? false,
+          experienciaPeriodo1Fim: e.experiencia_periodo1_fim ?? null,
+          experienciaPeriodo2Fim: e.experiencia_periodo2_fim ?? null,
+          terminationType: termination?.type ?? null,
+          isJustCause: termination?.isJustCause ?? false,
+          noticeWorked: termination?.noticeWorked ?? false,
+          noticePeriodDays: termination?.noticePeriodDays ?? 0,
+        };
+      });
     },
     enabled: !!tenantId,
   });

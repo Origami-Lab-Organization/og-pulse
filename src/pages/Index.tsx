@@ -7,7 +7,6 @@ import BlockEmployeeDialog from '@/components/employees/BlockEmployeeDialog';
 import UnblockEmployeeDialog from '@/components/employees/UnblockEmployeeDialog';
 import ArchiveEmployeeDialog from '@/components/employees/ArchiveEmployeeDialog';
 import InitiateTerminationDialog from '@/components/employees/InitiateTerminationDialog';
-import TerminationWizardModal from '@/components/employees/TerminationWizardModal';
 import EmployeeStats from '@/components/employees/EmployeeStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +14,7 @@ import { Plus, Search, Users, Calculator, EyeOff, Eye } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import EmployeeCalculatorDialog from '@/components/employees/EmployeeCalculatorDialog';
+import TerminationWizardModal from '@/components/employees/TerminationWizardModal';
 import { useInitiateTermination } from '@/hooks/useInitiateTermination';
 import { useHolidays } from '@/hooks/useHolidays';
 import { useNavigate } from 'react-router-dom';
@@ -250,9 +250,6 @@ const Index = () => {
         isOpen={termination.isModalOpen}
         onClose={termination.closeModal}
         employee={termination.selectedEmployee}
-        onSuccess={() => {
-          navigate('/rh/desligamentos');
-        }}
       />
     </AppLayout>
   );
