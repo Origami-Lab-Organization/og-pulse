@@ -24,7 +24,7 @@ import { BudgetMaterialsEditor } from '@/components/budgets/BudgetMaterialsEdito
 import { MarginGauge } from '@/components/budgets/MarginGauge';
 import { BudgetWizardFooter } from '@/components/budgets/BudgetWizardFooter';
 import { Separator } from '@/components/ui/separator';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, truncateToCents } from '@/lib/formatters';
 import { CreateBudgetInput, BudgetRoleInput, BudgetMaterialInput, BudgetSupplierInput, BudgetCalculation, RecurringCalculation, SuccessFeeCalculation, calculateBudgetTotals, calculateRecurringTotals, calculateSuccessFeeTotals } from '@/types/budget';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -324,7 +324,7 @@ export default function BudgetForm() {
       const { data: adminEmps } = await supabase
         .from('employees').select('id').in('auth_id', adminUserIds);
       if (!adminEmps || adminEmps.length === 0) return;
-      const fmtCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+      const fmtCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(truncateToCents(v));
       const effectiveMargin = calculation.effectiveMarginPercent.toFixed(1);
       const discountDisplay = isMonthlyMode ? fmtCurrency(discountValue) + '/mês' : fmtCurrency(discountValue);
       await supabase.from('notifications' as any).insert(

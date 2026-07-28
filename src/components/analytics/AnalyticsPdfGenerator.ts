@@ -5,6 +5,7 @@ import type { FinancialMonthlyPoint } from '@/hooks/useFinancialEvolution';
 import type { ProjectFinancialsData } from '@/hooks/useProjectFinancials';
 import type { RevenueAnalyticsData } from '@/hooks/useRevenueAnalytics';
 import type { StakeholderAnalyticsData } from '@/hooks/useStakeholderAnalytics';
+import { truncateToCents } from '@/lib/formatters';
 
 export interface AnalyticsPdfFinancialKPIs {
   faturado: number;
@@ -30,7 +31,7 @@ export interface AnalyticsPdfInput {
 }
 
 const fmtCurrency = (v: number) =>
-  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  truncateToCents(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const fmtPct = (v: number | null) =>
   v === null ? '—' : `${v.toFixed(1)}%`;

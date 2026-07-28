@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { LeadWithBudget, CRMStage } from '@/types/lead';
+import { truncateToCents } from '@/lib/formatters';
 
 // ─── Input types ─────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ export interface CommercialPdfInput {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtCurrency = (v: number) =>
-  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  truncateToCents(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const fmtK = (v: number) =>
   v === 0 ? '—' : v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : fmtCurrency(v);

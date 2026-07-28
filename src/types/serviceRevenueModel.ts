@@ -1,3 +1,5 @@
+import { truncateToCents } from '@/lib/formatters';
+
 export type RevenueModelType =
   | 'fixed'
   | 'recurring'
@@ -99,7 +101,7 @@ export const modelValueText = (model: Pick<ServiceRevenueModel, 'baseValue' | 'b
   if (model.billingUnit === '%') {
     return `${model.baseValue.toFixed(2).replace('.', ',')}%`;
   }
-  const formatted = model.baseValue.toLocaleString('pt-BR', {
+  const formatted = truncateToCents(model.baseValue).toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   });

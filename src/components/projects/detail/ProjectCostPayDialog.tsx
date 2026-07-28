@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useUpdateProjectCost } from "@/hooks/useProjectCostItems";
 import type { ProjectCostDB } from "@/types/project";
+import { truncateToCents } from "@/lib/formatters";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -24,7 +25,7 @@ interface ProjectCostPayDialogProps {
 }
 
 const brl = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  truncateToCents(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function ProjectCostPayDialog({
   open,

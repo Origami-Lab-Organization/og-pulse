@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { truncateToCents } from '@/lib/formatters';
 
 /**
  * Formats a numeric value (in cents) to Brazilian currency display: "1.234,56"
@@ -48,7 +49,7 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
 
     // Sync display from external value
     React.useEffect(() => {
-      const cents = Math.round(value * 100);
+      const cents = Math.round(truncateToCents(value) * 100);
       setDisplayValue(formatDisplay(cents));
     }, [value]);
 

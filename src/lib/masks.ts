@@ -1,3 +1,5 @@
+import { truncateToCents } from '@/lib/formatters';
+
 // Validate CPF with check digits
 export const validateCPF = (cpf: string): boolean => {
   const numbers = cpf.replace(/\D/g, '');
@@ -56,7 +58,7 @@ export const formatCPF = (value: string): string => {
 export const formatCurrency = (value: string | number): string => {
   // If it's already a number, format it directly
   if (typeof value === 'number') {
-    return value.toLocaleString('pt-BR', {
+    return truncateToCents(value).toLocaleString('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     });

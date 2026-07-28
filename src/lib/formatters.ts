@@ -42,11 +42,25 @@ export function formatShortName(fullName: string | null | undefined): string {
   return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
+/**
+ * Trunca (não arredonda) um valor para até 2 casas decimais.
+ * Ex.: 88.888888 → 88.88, 99.999 → 99.99, 5.333333 → 5.33.
+ * Passa por toFixed(8) antes de cortar a string para não confundir ruído de
+ * ponto flutuante (ex.: 1.005 * 100 === 100.49999999999999) com casas reais.
+ */
+export function truncateToCents(value: number): number {
+  if (!Number.isFinite(value)) return value;
+  const sign = value < 0 ? -1 : 1;
+  const fixed = Math.abs(value).toFixed(8);
+  const dotIndex = fixed.indexOf('.');
+  return sign * parseFloat(fixed.slice(0, dotIndex + 3));
+}
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(value);
+  }).format(truncateToCents(value));
 }
 
 export function formatPercent(value: number, decimals: number = 1): string {

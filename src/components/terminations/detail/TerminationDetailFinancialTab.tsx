@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { calculateAutoCalcs } from '@/components/employees/termination-wizard/TerminationStep3Payroll';
 import { Employee } from '@/hooks/useEmployees';
 import { TerminationWizardData } from '@/components/employees/termination-wizard/types';
+import { truncateToCents } from '@/lib/formatters';
 
 interface Props {
   termination: TerminationWithEmployee;
@@ -237,7 +238,7 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
   };
 
   const fmt = (v: number) =>
-    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    truncateToCents(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // Compute totals from whichever source we have
   const totals = useMemo(() => {

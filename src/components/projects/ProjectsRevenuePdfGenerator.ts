@@ -4,12 +4,13 @@ import { ptBR } from 'date-fns/locale';
 import { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import { PORTFOLIO_STAGE_LABELS } from '@/types/portfolio';
 import { ProjectCostSummary } from '@/services/projectReportService';
+import { truncateToCents } from '@/lib/formatters';
 
 const YEAR = 2026;
 const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 const fmtCurrency = (v: number) =>
-  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  truncateToCents(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const fmtK = (v: number) =>
   v > 0 ? `R$${(v / 1000).toFixed(0)}k` : '—';

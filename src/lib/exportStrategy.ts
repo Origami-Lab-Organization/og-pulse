@@ -7,6 +7,7 @@ import type {
 } from '@/types/strategy';
 import { getKrProgress, getKrStatus } from '@/types/strategy';
 import type { StrategyAlert } from '@/lib/strategyAlerts';
+import { truncateToCents } from '@/lib/formatters';
 
 interface ExportStrategyParams {
   cycle: StrategyCycle;
@@ -65,7 +66,7 @@ function formatCheckinDate(iso: string): string {
 
 function formatKrValue(value: number, unit: string | null): string {
   if (unit === 'R$') {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return truncateToCents(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
   if (unit === '%') {
     return `${value.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
