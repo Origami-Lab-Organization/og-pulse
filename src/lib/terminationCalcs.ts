@@ -238,7 +238,9 @@ export function calculateRealTerminationVerbas(
           verbas.multaFgts = employee.fgts * monthsWorked * 0.2;
           verbas.multaFgtsLabel = 'Multa FGTS 20% (CLT Art. 484-A)';
         }
-        if (!inputs.noticeWorked && inputs.noticePeriodDays > 0) {
+        // Súmula 163 TST: contrato por prazo determinado encerrado na data prevista não
+        // gera aviso prévio (indenizado ou descontado) — só se aplica a prazo indeterminado.
+        if (!inputs.noticeWorked && inputs.noticePeriodDays > 0 && inputs.terminationType !== 'contract_end') {
           verbas.avisoPrevio = (salary / 30) * inputs.noticePeriodDays;
           verbas.avisoPrevioIsCredit = inputs.noticeIndemnifiedByCompany ?? true;
         }

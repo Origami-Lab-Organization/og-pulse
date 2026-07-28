@@ -35,6 +35,10 @@ export const useCreateTermination = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['terminations'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      // Folha de Pagamento/Custo x Hora leem termination_type/is_just_cause/notice_* ao vivo
+      // (usePayrollHistory.ts) — sem isso, ficam com os dados de antes do desligamento até o
+      // cache expirar (staleTime de 2min) ou a página ser recarregada.
+      queryClient.invalidateQueries({ queryKey: ['payroll-history-raw'] });
       toast({ title: 'Desligamento criado', description: 'Processo de desligamento iniciado com sucesso.' });
     },
     onError: (error: Error) => {
@@ -74,6 +78,7 @@ export const useUpdateTermination = () => {
     onSettled: (_data, _err, vars) => {
       queryClient.invalidateQueries({ queryKey: ['termination', vars.id] });
       queryClient.invalidateQueries({ queryKey: ['terminations'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-history-raw'] });
     },
 
     onSuccess: () => {
@@ -93,6 +98,7 @@ export const useCancelTermination = () => {
       queryClient.invalidateQueries({ queryKey: ['terminations'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['termination'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-history-raw'] });
       toast({ title: 'Desligamento cancelado', description: 'O processo foi cancelado e o funcionário reativado.' });
     },
     onError: (error: Error) => {

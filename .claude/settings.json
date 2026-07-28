@@ -79,7 +79,8 @@
       "Bash(node run_lucro_presumido.cjs)",
       "Bash(node /private/tmp/claude-501/-Users-vrcouto-Projects-og-pulse/708f998c-d9f6-41ef-a5df-96b1e424cf4d/scratchpad/verify_script.mjs)",
       "Bash(node /Users/vrcouto/Projects/og-pulse/_tmp_verify_script.mjs)",
-      "Bash(node /private/tmp/claude-501/-Users-vrcouto-Projects-og-pulse/708f998c-d9f6-41ef-a5df-96b1e424cf4d/scratchpad/run_bruno.mjs)"
+      "Bash(node /private/tmp/claude-501/-Users-vrcouto-Projects-og-pulse/708f998c-d9f6-41ef-a5df-96b1e424cf4d/scratchpad/run_bruno.mjs)",
+      "Bash(awk -F_ '$1 >= 20260722000000')"
     ],
     "additionalDirectories": [
       "/Users/vrcouto/Projects/og-pulse/src/lib",

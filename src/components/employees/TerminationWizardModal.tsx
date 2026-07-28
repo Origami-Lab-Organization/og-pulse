@@ -84,7 +84,10 @@ const TerminationWizardModal = ({ isOpen, onClose, employee, onSuccess }: Termin
   const createTermination = useCreateTermination();
 
   const contractType = employee?.tipoContratacao || 'CLT';
-  const skipNotice = CONTRACT_TYPES_WITHOUT_NOTICE.includes(contractType);
+  // Contrato por prazo determinado (CLT) encerrado na data prevista não tem aviso prévio
+  // (Súmula 163 TST) — mesma regra já aplicada à multa FGTS nesse tipo de desligamento.
+  const skipNotice =
+    CONTRACT_TYPES_WITHOUT_NOTICE.includes(contractType) || wizardData.termination_type === 'contract_end';
 
   const steps = useMemo(() => {
     if (contractType === 'PJ') {
