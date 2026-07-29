@@ -77,7 +77,8 @@ export function calculateINSS(salarioBruto: number): { total: number; breakdown:
     return { total: 0, breakdown };
   }
 
-  let remaining = salarioBruto;
+  // Trunca o salário-base em centavos antes das faixas — precisão escondida (ex.: 23200/12) muda de faixa (ver ADR-0012).
+  let remaining = truncateToCents(salarioBruto);
   let total = 0;
 
   // Faixa 1: até 1.621,00 - 7,5%

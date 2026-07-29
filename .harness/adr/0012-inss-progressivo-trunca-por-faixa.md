@@ -55,6 +55,25 @@ Alternativas consideradas:
 3. **Truncar cada faixa antes de somar** (escolhida) — única abordagem que
    reproduziu os dois valores reais exatamente.
 
+**Segunda causa, descoberta após o primeiro deploy (mesmo dia):** truncar
+cada faixa resolveu a Kauany, mas o Adryan continuou em R$ 149,68 mesmo
+com o commit confirmado em produção (deploy via Lovable, publicado a
+partir do commit correto — descartada a hipótese de cache/deploy
+desatualizado). Investigação: o salário-base efetivo do Adryan carrega
+mais precisão que 2 casas decimais internamente — consistente com um
+valor como `23200 / 12 = 1.933,3333333...` — mesmo exibindo "R$ 1.933,33"
+truncado na tela (ADR-0011 trunca só na exibição, não some a precisão
+escondida do valor real). Essa precisão extra empurra a faixa 2 de
+R$ 28,10 para R$ 28,11 (`(1933,3333... − 1621) × 9% = 28,11`, contra
+`(1933,33 − 1621) × 9% = 28,10` com o salário já em centavos),
+reproduzindo os 149,68 mesmo com o truncamento por faixa já ativo.
+
+**Fix complementar**: truncar o próprio salário-base em centavos **antes**
+de rodar as faixas — a guia real de INSS sempre parte de um salário já em
+centavos, nunca dessa precisão escondida. Verificado com o código real:
+`calculateINSS(23200/12).total === 149.67` (antes deste fix complementar,
+dava 149,68 mesmo com o truncamento por faixa já em produção).
+
 ## Decisão
 
 1. Em `calculateINSS()` (`src/lib/netSalaryCalculator.ts`), cada uma das 4
@@ -68,9 +87,14 @@ Alternativas consideradas:
 3. O teto (`INSS_CEILING = 988,09`) é aplicado com `Math.min` depois da
    soma truncada — o teto já é um valor legal exato, não precisa de
    truncamento.
-4. `calculateIRRF`/`calculateNetSalary` não mudam — já recebem `inss` como
+4. O parâmetro `salarioBruto` recebido por `calculateINSS()` é truncado
+   para centavos (`truncateToCents`) antes de entrar na primeira faixa —
+   nenhuma faixa opera sobre precisão além de centavos, mesmo que o valor
+   de origem (`employees.salario_mensal` ou um segmento calculado) carregue
+   mais casas decimais internamente.
+5. `calculateIRRF`/`calculateNetSalary` não mudam — já recebem `inss` como
    parâmetro, então herdam o valor corrigido automaticamente.
-5. Todo consumidor de `calculateINSS()` (hoje: `employeeCostCalculator.ts`
+6. Todo consumidor de `calculateINSS()` (hoje: `employeeCostCalculator.ts`
    → `inssFuncionario`, exibido como "INSS retido (informativo)") passa a
    refletir o valor corrigido sem mudança adicional — é a mesma função,
    só com a matemática interna corrigida.
@@ -102,11 +126,21 @@ Alternativas consideradas:
   - Sem teste automatizado cobrindo `calculateINSS` (testes desativados
     nesta sessão por instrução explícita). Validação foi manual: rodei o
     arquivo real transpilado com esbuild (não uma reimplementação) contra
-    os salários reais de Adryan e Kauany, batendo exatamente com a guia.
+    os salários reais de Adryan e Kauany, batendo exatamente com a guia,
+    e contra um valor sintético com dízima (`23200/12`) pra confirmar o
+    fix complementar.
+  - **Não investigado**: de onde vem a precisão além de centavos no
+    salário-base do Adryan (`employees.salario_mensal` ou um segmento de
+    `resolveVersionSegments`) — pode ser um dado de origem que vale a pena
+    revisar/normalizar separadamente, já que o mesmo padrão pode afetar
+    outros cálculos que usam o salário bruto sem truncar primeiro (FGTS,
+    INSS patronal, provisões). Este ADR só truncou na entrada do cálculo
+    de INSS retido, não na origem do dado.
 - Como reverter:
-  - Reverter para `Math.round(total * 100) / 100` no total consolidado e
-    remover o `truncateToCents` de cada faixa restaura o comportamento
-    anterior (regressão para o bug relatado).
+  - Reverter para `Math.round(total * 100) / 100` no total consolidado,
+    remover o `truncateToCents` de cada faixa e o truncamento do
+    salário-base de entrada restaura o comportamento anterior (regressão
+    para o bug relatado).
 
 ## Evidências
 
@@ -115,10 +149,15 @@ Alternativas consideradas:
   Oliveira Marques e Kauany Sebastiana Arantes, competência Jul/27.
 - Salários reais confirmados pelo Admin (print da grade de custos):
   Adryan R$ 1.933,33, Kauany R$ 2.220,00.
+- Segundo relato do Admin: após o primeiro deploy (só truncamento por
+  faixa), Adryan continuou em R$ 149,68 tanto em dev quanto em produção
+  (deploy via Lovable confirmado no commit correto) — motivou a segunda
+  investigação (precisão escondida no salário-base).
 - Verificação: script Node ad-hoc rodando `src/lib/netSalaryCalculator.ts`
   e `src/lib/formatters.ts` reais (transpilados com `esbuild`, sem
-  reimplementação), confirmando `calculateINSS(1933.33).total === 149.67`
-  e `calculateINSS(2220.00).total === 175.48` após a correção.
+  reimplementação), confirmando `calculateINSS(1933.33).total === 149.67`,
+  `calculateINSS(23200/12).total === 149.67` e
+  `calculateINSS(2220.00).total === 175.48` após a correção completa.
 - Implementação: `src/lib/netSalaryCalculator.ts` (`calculateINSS`).
 - Relacionado: ADR-0011 (`0011-currency-truncation-no-rounding.md`) — mesma
   filosofia de truncamento, aplicada aqui ao cálculo em vez de à exibição.
