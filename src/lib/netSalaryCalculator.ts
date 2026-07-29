@@ -1,3 +1,5 @@
+import { truncateToCents } from '@/lib/formatters';
+
 // Tabela INSS - Progressivo
 interface INSSBracket {
   min: number;
@@ -82,7 +84,7 @@ export function calculateINSS(salarioBruto: number): { total: number; breakdown:
   const bracket1Max = 1621.00;
   if (remaining > 0) {
     const taxable = Math.min(remaining, bracket1Max);
-    breakdown.bracket1 = taxable * 0.075;
+    breakdown.bracket1 = truncateToCents(taxable * 0.075);
     total += breakdown.bracket1;
     remaining -= taxable;
   }
@@ -91,7 +93,7 @@ export function calculateINSS(salarioBruto: number): { total: number; breakdown:
   const bracket2Range = 2902.84 - 1621.00;
   if (remaining > 0) {
     const taxable = Math.min(remaining, bracket2Range);
-    breakdown.bracket2 = taxable * 0.09;
+    breakdown.bracket2 = truncateToCents(taxable * 0.09);
     total += breakdown.bracket2;
     remaining -= taxable;
   }
@@ -100,7 +102,7 @@ export function calculateINSS(salarioBruto: number): { total: number; breakdown:
   const bracket3Range = 4354.27 - 2902.84;
   if (remaining > 0) {
     const taxable = Math.min(remaining, bracket3Range);
-    breakdown.bracket3 = taxable * 0.12;
+    breakdown.bracket3 = truncateToCents(taxable * 0.12);
     total += breakdown.bracket3;
     remaining -= taxable;
   }
@@ -109,13 +111,12 @@ export function calculateINSS(salarioBruto: number): { total: number; breakdown:
   const bracket4Range = 8475.55 - 4354.27;
   if (remaining > 0) {
     const taxable = Math.min(remaining, bracket4Range);
-    breakdown.bracket4 = taxable * 0.14;
+    breakdown.bracket4 = truncateToCents(taxable * 0.14);
     total += breakdown.bracket4;
   }
 
-  // Aplica o teto e arredonda o total final (não cada faixa) para 2 casas decimais
-  total = Math.min(total, INSS_CEILING);
-  total = Math.round(total * 100) / 100;
+  // Guia real de INSS trunca cada faixa antes de somar (ver ADR-0012).
+  total = Math.min(truncateToCents(total), INSS_CEILING);
   breakdown.total = total;
 
   return { total, breakdown };
