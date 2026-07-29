@@ -245,6 +245,27 @@ export function WeeklyTimesheetGrid({
     return result;
   }, [weekDays, projects, prefillByProject, realValuesByRow, dayRealTotals, jornada]);
 
+  // Sugestão original da semana, ignorando edições do usuário — usada só pelo
+  // botão "Aceitar semana sugerida" para poder sobrescrever o que foi digitado.
+  const baselineSuggestionsByRow = useMemo(() => {
+    const result: Record<string, Record<string, number>> = {};
+    for (const day of weekDays) {
+      const date = day.date;
+      const rows: AdaptiveRow[] = projects.map((p) => {
+        const member = p.members[0];
+        const rowId = projectRowId(member?.memberId ?? p.projectId);
+        const weight = prefillByProject[p.projectId]?.[date] ?? 0;
+        return { rowId, weight, hasReal: false };
+      });
+      const hints = computeAdaptiveHints(rows, 0, jornada);
+      for (const rowId of Object.keys(hints)) {
+        if (!result[rowId]) result[rowId] = {};
+        result[rowId][date] = hints[rowId];
+      }
+    }
+    return result;
+  }, [weekDays, projects, prefillByProject, jornada]);
+
   // ---- navegação por teclado (coordenada na página) ----
   const registerRef = useCallback((rowIndex: number, dayIndex: number, el: HTMLInputElement | null) => {
     const key = `${rowIndex}:${dayIndex}`;
@@ -277,6 +298,18 @@ export function WeeklyTimesheetGrid({
     [orderedRowCount, weekDays.length]
   );
 
+  // Semana enviada = todo projeto com is_locked; usado por cellModeFor para
+  // travar também linhas sem nenhum lançamento (ex.: atividade nunca tocada).
+  const allProjectsLocked = useMemo(() => {
+    if (projects.length === 0) return false;
+    return projects.every((p) => {
+      const member = p.members[0];
+      if (!member) return false;
+      const es = timesheetEntries.filter((e) => e.projectMemberId === member.memberId);
+      return es.length > 0 && es.every((e) => e.isLocked);
+    });
+  }, [projects, timesheetEntries]);
+
   // ---- modo de célula ----
   const holidayName = useCallback(
     (date: string) => isHoliday(parseISO(date), holidays)?.name,
@@ -287,10 +320,10 @@ export function WeeklyTimesheetGrid({
     (date: string, lockedSet: Set<string> | undefined): 'edit' | 'locked' | 'holiday' | 'future' => {
       if (isHoliday(parseISO(date), holidays)) return 'holiday';
       if (isAfter(startOfDay(parseISO(date)), today)) return 'future';
-      if (lockedSet?.has(date)) return 'locked';
+      if (allProjectsLocked || lockedSet?.has(date)) return 'locked';
       return 'edit';
     },
-    [holidays, today]
+    [holidays, today, allProjectsLocked]
   );
 
   const onExceedMax = useCallback((max: number) => {
@@ -344,16 +377,6 @@ export function WeeklyTimesheetGrid({
   };
 
   // ---- estados agregados de envio ----
-  const allProjectsLocked = useMemo(() => {
-    if (projects.length === 0) return false;
-    return projects.every((p) => {
-      const member = p.members[0];
-      if (!member) return false;
-      const es = timesheetEntries.filter((e) => e.projectMemberId === member.memberId);
-      return es.length > 0 && es.every((e) => e.isLocked);
-    });
-  }, [projects, timesheetEntries]);
-
   const totalRealAllProjects = useMemo(() => {
     let total = 0;
     for (const p of projects) {
@@ -376,6 +399,19 @@ export function WeeklyTimesheetGrid({
     return total;
   }, [projects, suggestionsByRow]);
 
+  // Independe de edições do usuário — usado para habilitar "Aceitar semana
+  // sugerida" mesmo depois que todas as células já têm valor real digitado.
+  const totalBaselineSuggested = useMemo(() => {
+    let total = 0;
+    for (const p of projects) {
+      const member = p.members[0];
+      if (!member) continue;
+      const rec = baselineSuggestionsByRow[projectRowId(member.memberId)] ?? {};
+      total += Object.values(rec).reduce((s, h) => s + (h || 0), 0);
+    }
+    return total;
+  }, [projects, baselineSuggestionsByRow]);
+
   const totalRealAllActivities = useMemo(() => {
     let total = 0;
     for (const at of myActivityTypes) {
@@ -395,6 +431,7 @@ export function WeeklyTimesheetGrid({
     (s) => s.status === 'saving' || s.status === 'unsaved'
   );
   const hasSuggestions = totalSuggested > 0;
+  const hasSuggestedWeek = totalBaselineSuggested > 0;
 
   // ---- ações de semana ----
   const handleAcceptSuggested = () => {
@@ -402,8 +439,11 @@ export function WeeklyTimesheetGrid({
     for (const p of projects) {
       const member = p.members[0];
       if (!member) continue;
-      const rec = suggestionsByRow[projectRowId(member.memberId)] ?? {};
+      const rowId = projectRowId(member.memberId);
+      const rec = baselineSuggestionsByRow[rowId] ?? {};
+      const locked = projectLockedByRow[rowId];
       for (const date of Object.keys(rec)) {
+        if (locked?.has(date)) continue;
         inputs.push({
           projectId: p.projectId,
           projectMemberId: member.memberId,
@@ -413,7 +453,7 @@ export function WeeklyTimesheetGrid({
       }
     }
     if (inputs.length === 0) return;
-    batchUpsert.mutate(inputs);
+    batchUpsert.mutate(inputs, { onSuccess: () => setResetNonce((n) => n + 1) });
   };
 
   const handleClear = () => {
@@ -486,7 +526,7 @@ export function WeeklyTimesheetGrid({
                   type="button"
                   variant="secondary"
                   size="sm"
-                  disabled={allProjectsLocked || anyPending || isFutureWeek || !hasSuggestions}
+                  disabled={allProjectsLocked || anyPending || isFutureWeek || !hasSuggestedWeek}
                   onClick={handleAcceptSuggested}
                   className="h-7 gap-1 px-2.5 text-xs font-medium"
                   data-tour="accept-suggested-week"

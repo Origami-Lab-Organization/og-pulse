@@ -105,6 +105,14 @@
 - **Causa raiz**: alteração de função de banco feita fora do fluxo de migration versionada — viola `.harness/boundaries.md` ("Nao alterar schema Supabase sem migration versionada"). `CREATE OR REPLACE FUNCTION` não avisa sobre divergência com a última versão versionada; drift fica invisível até alguém comparar manualmente.
 - **Próximo passo**: nenhuma alteração de função/policy/trigger deve ser aplicada direto no SQL Editor — sempre via migration, mesmo para "correções rápidas" durante debugging em paralelo. Se recorrer, considerar um script de CI que rode `pg_get_functiondef` das funções críticas de alocação/folha e diffe contra o corpo esperado nas migrations, para detectar drift automaticamente.
 
+### TD-0010 — Semana sem nenhum projeto nunca é detectada como "enviada"
+- **Status**: aberto
+- **Prioridade**: média
+- **Arquivos**: `src/components/timesheets/weekly/WeeklyTimesheetGrid.tsx` (`allProjectsLocked`)
+- **Impacto**: `allProjectsLocked` retorna sempre `false` quando `projects.length === 0`. Um colaborador que só lança horas em atividades internas (sem nenhum projeto alocado naquela semana) nunca vê "Semana enviada" no rodapé, o botão "Enviar semana" nunca desabilita (pode reenviar indefinidamente), e mesmo depois do fix de 2026-07-29 — que passou a usar `allProjectsLocked` como override para travar QUALQUER linha da semana enviada, inclusive atividades nunca tocadas — as células de atividade continuam editáveis indefinidamente para esse perfil, porque o sinal de "semana travada" nunca liga.
+- **Causa raiz**: o único sinal de "semana enviada" hoje é agregado a partir de `project_timesheets`/`project_timesheet_submissions`, por projeto. Não existe uma submissão de semana (ou de atividades internas) independente de projeto.
+- **Próximo passo**: modelar um sinal explícito de "semana enviada" que não dependa de existir pelo menos um projeto — ex.: submissão por atividade análoga a `project_timesheet_submissions`, ou uma submissão de semana agregada por colaborador. É decisão de produto, não só de código — candidato a ADR se afetar mais de uma tela.
+
 ### TD-0001 — `as any` em Edge Functions de alertas de parcelas
 - **Status:** aberto
 - **Prioridade:** baixa
