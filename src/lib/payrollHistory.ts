@@ -289,14 +289,13 @@ function realProvisionsFor(
 }
 
 /**
- * Corrige as provisões de 13º/férias/recesso de um segmento de rescisão em regime de CAIXA
- * (Folha de Pagamento) pelos avos legais reais (ver `realProvisionsFor`) — mesmo bug já
- * corrigido no wizard via `calculateRealTerminationVerbas` (`terminationCalcs.ts`), agora
- * reaproveitado aqui como fonte única. `baseAmount`/`fgtsAmount`/`inssPatronalAmount`/
- * `outrosEncargosAmount`/`inssFuncionario` do segmento (saldo de salário) NÃO são tocados —
- * já batem com a fração de dias do mês (mesma convenção usada por
- * `calculateRealTerminationVerbas`) e, ao contrário das provisões, não têm fórmula genérica
- * alternativa para divergir.
+ * Corrige as provisões de 13º/férias/recesso E o INSS retido informativo de um segmento de
+ * rescisão em regime de CAIXA (Folha de Pagamento) pelos avos/verbas legais reais (ver
+ * `realProvisionsFor`) — mesmo bug já corrigido no wizard via `calculateRealTerminationVerbas`
+ * (`terminationCalcs.ts`). `baseAmount`/`fgtsAmount`/`inssPatronalAmount`/`outrosEncargosAmount`
+ * do segmento não são tocados (já batem com a fração de dias do mês); `inssFuncionario` PRECISA
+ * ser recalculado porque o genérico só cobre o saldo de salário — falta a incidência própria
+ * de INSS sobre o 13º proporcional (`inssRetidoDecimoTerceiro`).
  *
  * Aviso prévio, multa FGTS e a indenização Art. 479/480 (contrato de experiência
  * encerrado antecipadamente) NÃO entram aqui — a Folha de Pagamento ainda não modela
@@ -318,6 +317,7 @@ function correctRescissionSegment(
 
   const provisionsAmount = provisao13Amount + provisaoFeriasAmount + provisaoRecessoAmount + encargosSobreProvisoesAmount;
   const chargesAmount = raw.fgtsAmount + raw.inssPatronalAmount + raw.outrosEncargosAmount + encargosSobreProvisoesAmount;
+  const inssFuncionario = verbas.inssRetidoSaldoSalario + verbas.inssRetidoDecimoTerceiro;
   // `chargesAmount` e `provisionsAmount` acima se sobrepõem de propósito em
   // `encargosSobreProvisoesAmount` (mesma convenção de exibição de `calculatePayrollAnalysisRowsByContractType`,
   // em payrollAnalysis.ts) — por isso `totalMonthlyCost` não pode vir da soma dos dois (contaria
@@ -343,6 +343,7 @@ function correctRescissionSegment(
     fgtsSobreProvisoesAmount,
     provisionsAmount,
     chargesAmount,
+    inssFuncionario,
     totalMonthlyCost,
   };
 }
@@ -354,7 +355,8 @@ function correctRescissionSegment(
  * Pagamento (regime de caixa), aqui não há "mês seguinte" para diferir nada: o relatório é
  * por competência, então todo o custo da rescisão precisa ser reconhecido no mês em que ela
  * ocorre. `baseAmount`/`fgtsAmount`/`inssPatronalAmount`/`outrosEncargosAmount` (saldo de
- * salário pró-rata) não são tocados, mesma ressalva de `correctRescissionSegment`.
+ * salário pró-rata) não são tocados, `inssFuncionario` é recalculado — mesma ressalva de
+ * `correctRescissionSegment`.
  *
  * Indenização Art. 479/480 (rescisão antecipada de contrato de experiência) fica de fora —
  * depende de `earlyTerminationInitiatedBy`, que só existe no fluxo do wizard e não é
@@ -376,6 +378,7 @@ function correctCompetenceTerminationMonth(
 
   const provisionsAmount = provisao13Amount + provisaoFeriasAmount + provisaoRecessoAmount + encargosSobreProvisoesAmount;
   const chargesAmount = raw.fgtsAmount + raw.inssPatronalAmount + raw.outrosEncargosAmount + encargosSobreProvisoesAmount;
+  const inssFuncionario = verbas.inssRetidoSaldoSalario + verbas.inssRetidoDecimoTerceiro;
 
   // Negativo quando é desconto do funcionário (não indenizado pela empresa) — não persistido
   // historicamente, então `calculateRealTerminationVerbas` assume indenizado por padrão.
@@ -406,6 +409,7 @@ function correctCompetenceTerminationMonth(
     fgtsSobreProvisoesAmount,
     provisionsAmount,
     chargesAmount,
+    inssFuncionario,
     terminationAvisoPrevioAmount,
     terminationMultaFgtsAmount,
     totalMonthlyCost,
