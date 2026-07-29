@@ -247,6 +247,35 @@ export function EmployeeDetailDialog({
               </div>
             </CardContent>
           </Card>
+
+          {(row.terminationAvisoPrevioAmount !== 0 || row.terminationMultaFgtsAmount !== 0) && (
+            <Card className="sm:col-span-2">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <Landmark className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-muted-foreground">
+                      Verbas rescisórias — {rescissionLabel}
+                    </p>
+                    <p className="font-medium text-lg">
+                      {formatCurrency(row.terminationAvisoPrevioAmount + row.terminationMultaFgtsAmount)}
+                    </p>
+                    <div className="mt-1 space-y-0.5">
+                      {row.terminationAvisoPrevioAmount !== 0 && (
+                        <BreakdownLine
+                          label={row.terminationAvisoPrevioAmount > 0 ? 'Aviso prévio indenizado' : 'Aviso prévio (desconto)'}
+                          value={row.terminationAvisoPrevioAmount}
+                        />
+                      )}
+                      {row.terminationMultaFgtsAmount !== 0 && (
+                        <BreakdownLine label="Multa FGTS" value={row.terminationMultaFgtsAmount} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

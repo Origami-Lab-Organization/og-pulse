@@ -285,6 +285,14 @@ export interface PayrollAnalysisRow {
   rescissionEncargosSobreProvisoesAmount: number;
   /** Fatia de `inssFuncionario` referente ao INSS retido sobre o saldo de salário da rescisão — 0 fora do regime de caixa (Folha de Pagamento); ao contrário de `rescissionBaseAmount`, aparece no mês SEGUINTE ao desligamento (mesma guia GPS de `inssPatronalAmount`), não no mês da rescisão. */
   rescissionInssFuncionarioAmount: number;
+  /**
+   * Aviso prévio indenizado somado ao custo do mês de rescisão em regime de COMPETÊNCIA
+   * (Custo x Hora) — negativo quando é desconto do funcionário (`avisoPrevioIsCredit` falso).
+   * 0 fora do mês de desligamento e no regime de caixa (Folha de Pagamento não modela esta verba).
+   */
+  terminationAvisoPrevioAmount: number;
+  /** Multa FGTS (40%/20%/2%, conforme tipo de rescisão) somada ao custo do mês de rescisão em regime de COMPETÊNCIA — mesma ressalva de `terminationAvisoPrevioAmount`. */
+  terminationMultaFgtsAmount: number;
   totalMonthlyCost: number;
   /**
    * INSS retido do colaborador (tabela progressiva) — descontado do próprio
@@ -422,6 +430,9 @@ export function calculatePayrollAnalysisRow(
     rescissionProvisaoRecessoAmount: 0,
     rescissionEncargosSobreProvisoesAmount: 0,
     rescissionInssFuncionarioAmount: 0,
+    // Idem — só a correção do mês de rescisão em competência (`payrollHistory.ts`) popula estes campos.
+    terminationAvisoPrevioAmount: 0,
+    terminationMultaFgtsAmount: 0,
     totalMonthlyCost,
     inssFuncionario,
     hoursWorked,
@@ -578,6 +589,10 @@ export function calculatePayrollAnalysisRowsByContractType(
       rescissionProvisaoRecessoAmount: 0,
       rescissionEncargosSobreProvisoesAmount: 0,
       rescissionInssFuncionarioAmount: 0,
+      // Custo x Hora não usa esta função (ver JSDoc acima) — só `correctRescissionSegment`
+      // (regime de caixa) parte deste retorno, e não modela aviso prévio/multa FGTS.
+      terminationAvisoPrevioAmount: 0,
+      terminationMultaFgtsAmount: 0,
       totalMonthlyCost: g.salaryOnlyCost + g.benefitsAmount + g.toolsAmount,
       inssFuncionario: g.inssFuncionario,
       hoursWorked: g.hoursWorked,
