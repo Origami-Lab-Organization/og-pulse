@@ -145,6 +145,43 @@ interface ResolvedSegment {
   totalToolsCost: number;
 }
 
+function sameSegmentData(a: ResolvedSegment, b: ResolvedSegment): boolean {
+  return (
+    a.tipoContratacao === b.tipoContratacao &&
+    a.salarioMensal === b.salarioMensal &&
+    a.proLabore === b.proLabore &&
+    a.jornadaDiaria === b.jornadaDiaria &&
+    a.bolsaAuxilio === b.bolsaAuxilio &&
+    a.valorContratoPj === b.valorContratoPj &&
+    a.dividendos === b.dividendos &&
+    a.totalBenefitsCost === b.totalBenefitsCost &&
+    a.totalToolsCost === b.totalToolsCost
+  );
+}
+
+/**
+ * Junta segmentos adjacentes (contíguos no tempo, por construção de `filled` em
+ * `resolveVersionSegments`) com dados idênticos num só. Um marco financeiro "fantasma"
+ * (registrado sem nenhuma mudança real de salário/cargo/tipo/etc.) fatiaria o mês em
+ * pedaços menores que os 30 dias do mês comercial — cada pedaço é limitado a 100%
+ * individualmente (`calendarFractionForWindow`), mas a SOMA dos pedaços pode passar de
+ * 100% (ex.: 16+5+10 dias = 31 dias reais do mês ÷ 30 em cada pedaço, somando mais que
+ * o salário cheio). Juntar os idênticos antes de calcular a fração evita esse
+ * vazamento, sem precisar confiar que nenhum marco sem mudança real seja criado.
+ */
+function mergeAdjacentIdenticalSegments(segments: ResolvedSegment[]): ResolvedSegment[] {
+  const merged: ResolvedSegment[] = [];
+  for (const seg of segments) {
+    const last = merged[merged.length - 1];
+    if (last && sameSegmentData(last, seg)) {
+      last.end = seg.end;
+    } else {
+      merged.push({ ...seg });
+    }
+  }
+  return merged;
+}
+
 /**
  * Segmentos do mês por marco financeiro (employee_versions) que se sobrepõem a ele,
  * recortados pela janela de emprego (admissão/desligamento) e ordenados
@@ -234,7 +271,7 @@ function resolveVersionSegments(
   }
   if (cursor <= employmentWindow.end) filled.push(currentSegment(cursor, employmentWindow.end));
 
-  return filled;
+  return mergeAdjacentIdenticalSegments(filled);
 }
 
 export interface PayrollAnalysisRow {
