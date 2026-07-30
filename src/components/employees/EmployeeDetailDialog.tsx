@@ -6,19 +6,12 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { formatCurrency, parseDateString } from '@/lib/formatters';
+import { formatCurrency, formatDate, formatPercent, parseDateString } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { CONTRACT_TYPE_LABELS } from '@/types/employee';
+import { CONTRACT_TYPE_LABELS, type ContractType, type EmployeeStatus } from '@/types/employee';
 import type { PayrollAnalysisRow } from '@/lib/payrollAnalysis';
-import {
-  User,
-  Banknote,
-  Landmark,
-  Gift,
-  Wrench,
-  PiggyBank,
-  Clock,
-} from 'lucide-react';
+import { EmployeeStatusBadge } from '@/components/employees/EmployeeStatusBadge';
+import { User } from 'lucide-react';
 
 interface EmployeeDetailDialogProps {
   open: boolean;
@@ -33,37 +26,66 @@ function dayMonth(date: Date): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-function BreakdownLine({ label, value }: { label: string; value: number }) {
+/** "X anos e Y meses" entre a admissão e hoje — null se não há data de admissão. */
+function tenureLabel(admissionDateStr: string | null): string | null {
+  if (!admissionDateStr) return null;
+  const admission = parseDateString(admissionDateStr);
+  const now = new Date();
+  if (admission > now || isNaN(admission.getTime())) return null;
+
+  let years = now.getFullYear() - admission.getFullYear();
+  let months = now.getMonth() - admission.getMonth();
+  if (now.getDate() < admission.getDate()) months -= 1;
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  const parts: string[] = [];
+  if (years > 0) parts.push(`${years} ${years > 1 ? 'anos' : 'ano'}`);
+  if (months > 0 || years === 0) parts.push(`${months} ${months === 1 ? 'mês' : 'meses'}`);
+  return parts.join(' e ');
+}
+
+// Rótulo da Remuneração varia por tipo de contratação — mesma origem em employeeCostCalculator.ts.
+const REMUNERACAO_LABELS: Record<ContractType, string> = {
+  SOCIO: 'Pró-labore',
+  PJ: 'Valor do contrato',
+  ESTAGIO: 'Bolsa auxílio',
+  CLT: 'Salário',
+  MENOR_APRENDIZ: 'Salário',
+};
+
+function encargosEmptyNote(tipo: ContractType): string | null {
+  if (tipo === 'SOCIO') return 'Retirada de sócio — sem encargos trabalhistas incidentes.';
+  if (tipo === 'PJ') return 'Prestador PJ — sem encargos trabalhistas incidentes.';
+  return null;
+}
+
+function provisoesEmptyNote(tipo: ContractType): string | null {
+  if (tipo === 'SOCIO') return 'Retirada de sócio — sem 13º ou férias a provisionar.';
+  if (tipo === 'PJ') return 'Prestador PJ — sem 13º ou férias a provisionar.';
+  return null;
+}
+
+function LineItem({ label, value, muted }: { label: string; value: number; muted?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-      <span className="min-w-0 flex-1 truncate" title={label}>{label}</span>
-      <span className="tabular-nums shrink-0">{formatCurrency(value)}</span>
+    <div className={cn('flex items-center justify-between gap-3 text-xs text-muted-foreground', muted && 'italic text-muted-foreground/80')}>
+      <span className="min-w-0 flex-1 truncate pl-3.5" title={label}>{label}</span>
+      <span className="tabular-nums shrink-0 font-mono">{formatCurrency(value)}</span>
     </div>
   );
 }
 
-/**
- * Divide uma linha em mês anterior (regular, sem data — é sempre o mês cheio) e rescisão
- * (com o dia do desligamento) — regime de caixa mistura os dois no mesmo total. Mostra uma
- * única linha, como antes, quando não há rescisão.
- */
-function SplittableLine({
-  label,
-  total,
-  rescissionValue,
-  rescissionLabel,
-}: {
-  label: string;
-  total: number;
-  rescissionValue: number;
-  rescissionLabel: string;
-}) {
-  if (rescissionValue === 0) return <BreakdownLine label={label} value={total} />;
+function CategoryHeader({ colorClass, label, value }: { colorClass: string; label: string; value: number }) {
   return (
-    <>
-      <BreakdownLine label={label} value={total - rescissionValue} />
-      <BreakdownLine label={rescissionLabel} value={rescissionValue} />
-    </>
+    <div className="flex items-center justify-between gap-3">
+      <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+        <span className={cn('h-2 w-2 shrink-0 rounded-sm', colorClass)} />
+        {label}
+      </span>
+      <span className="shrink-0 font-mono text-sm font-semibold tabular-nums">{formatCurrency(value)}</span>
+    </div>
   );
 }
 
@@ -83,230 +105,268 @@ export function EmployeeDetailDialog({
 
   const terminationDateObj = row.terminationDate ? parseDateString(row.terminationDate) : null;
   const terminationDayLabel = terminationDateObj ? dayMonth(terminationDateObj) : '';
-  const rescissionLabel = `Rescisão (${terminationDayLabel})`;
+  const tenure = tenureLabel(row.dataAdmissao);
+
+  // Aviso prévio/multa FGTS (só regime de competência) não pertencem a nenhuma das 5 categorias
+  // por definição — encaixados em Remuneração/Encargos para a composição continuar somando ao total.
+  const remuneracaoTotal = row.baseAmount + row.terminationAvisoPrevioAmount;
+  const encargosTotal = row.fgtsAmount + row.inssPatronalAmount + row.outrosEncargosAmount + row.terminationMultaFgtsAmount;
+  const provisoesTotal = row.provisionsAmount;
+
+  // Ordem e cores idênticas às já usadas em PayrollEvolutionChart.tsx (mesma fonte de dados) —
+  // não é 1,2,3,4,5 sequencial de propósito, é a convenção já estabelecida no app.
+  const composition = [
+    { key: 'remuneracao', label: 'Remuneração', colorClass: 'bg-chart-1', total: remuneracaoTotal },
+    { key: 'encargos', label: 'Encargos', colorClass: 'bg-chart-2', total: encargosTotal },
+    { key: 'beneficios', label: 'Benefícios', colorClass: 'bg-chart-4', total: row.benefitsAmount },
+    { key: 'ferramentas', label: 'Ferramentas', colorClass: 'bg-chart-5', total: row.toolsAmount },
+    { key: 'provisoes', label: 'Provisões', colorClass: 'bg-chart-3', total: provisoesTotal },
+  ];
+
+  const inssRetidoRegular =
+    row.inssFuncionario - row.rescissionInssRetidoSaldoAmount - row.rescissionInssRetidoDecimoTerceiroAmount;
+  const hasEncargosItems =
+    row.fgtsAmount !== 0 || row.inssPatronalAmount !== 0 || row.outrosEncargosAmount !== 0 || row.terminationMultaFgtsAmount !== 0;
+  const hasInssInformativo =
+    inssRetidoRegular !== 0 || row.rescissionInssRetidoSaldoAmount !== 0 || row.rescissionInssRetidoDecimoTerceiroAmount !== 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <DialogTitle className="flex flex-wrap items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
               <User className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <span className="text-xl">{row.nome}</span>
-              <Badge variant="outline" className="ml-2">{row.cargo}</Badge>
-              <Badge variant="secondary" className="ml-2">{CONTRACT_TYPE_LABELS[row.tipoContratacao]}</Badge>
-            </div>
+            <span className="text-xl">{row.nome}</span>
+            <Badge variant="outline">{row.cargo}</Badge>
+            <Badge variant="secondary">{CONTRACT_TYPE_LABELS[row.tipoContratacao]}</Badge>
+            <EmployeeStatusBadge status={row.status as EmployeeStatus} />
           </DialogTitle>
         </DialogHeader>
 
-        <p className="text-sm text-muted-foreground -mt-2">Custo de {monthLabel}</p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <Banknote className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-muted-foreground">Salário Base</p>
-                  <p className="font-medium text-lg">{formatCurrency(row.baseAmount)}</p>
-                  {row.rescissionBaseAmount !== 0 && (
-                    <div className="mt-1 space-y-0.5">
-                      <SplittableLine
-                        label="Salário"
-                        total={row.baseAmount}
-                        rescissionValue={row.rescissionBaseAmount}
-                        rescissionLabel={rescissionLabel}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <Landmark className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-muted-foreground">Encargos</p>
-                  <p className="font-medium text-lg">
-                    {formatCurrency(row.fgtsAmount + row.inssPatronalAmount + row.outrosEncargosAmount)}
-                  </p>
-                  <div className="mt-1 space-y-0.5">
-                    <SplittableLine
-                      label="FGTS"
-                      total={row.fgtsAmount}
-                      rescissionValue={row.rescissionChargesAmount}
-                      rescissionLabel={`FGTS rescisão (${terminationDayLabel})`}
-                    />
-                    <BreakdownLine label="INSS Patronal" value={row.inssPatronalAmount} />
-                    {row.outrosEncargosAmount !== 0 && (
-                      <BreakdownLine label="RAT/Terceiros/Outros" value={row.outrosEncargosAmount} />
-                    )}
-                  </div>
-                  {row.inssFuncionario !== 0 && (
-                    <div className="mt-1.5 pt-1.5 border-t space-y-0.5 italic text-muted-foreground/80">
-                      <SplittableLine
-                        label="INSS retido (informativo)"
-                        total={row.inssFuncionario}
-                        rescissionValue={row.rescissionInssFuncionarioAmount}
-                        rescissionLabel={`INSS retido rescisão, informativo (${terminationDayLabel})`}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <Gift className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-muted-foreground">Benefícios</p>
-                  <p className="font-medium text-lg">{formatCurrency(row.benefitsAmount)}</p>
-                  {row.benefitsBreakdown.length > 0 && (
-                    <div className="mt-1 space-y-0.5">
-                      {row.benefitsBreakdown.map((item) => (
-                        <BreakdownLine key={item.name} label={item.name} value={item.value} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <Wrench className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-muted-foreground">Ferramentas</p>
-                  <p className="font-medium text-lg">{formatCurrency(row.toolsAmount)}</p>
-                  {row.toolsBreakdown.length > 0 && (
-                    <div className="mt-1 space-y-0.5">
-                      {row.toolsBreakdown.map((item) => (
-                        <BreakdownLine key={item.name} label={item.name} value={item.value} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="sm:col-span-2">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <PiggyBank className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-muted-foreground">
-                    Provisões (13º/férias + encargos sobre as provisões)
-                  </p>
-                  <p className="font-medium text-lg">{formatCurrency(row.provisionsAmount)}</p>
-                  <div className="mt-1 space-y-0.5">
-                    {row.provisao13Amount !== 0 && (
-                      <SplittableLine
-                        label="13º salário"
-                        total={row.provisao13Amount}
-                        rescissionValue={row.rescissionProvisao13Amount}
-                        rescissionLabel={`13º salário rescisão (${terminationDayLabel})`}
-                      />
-                    )}
-                    {row.provisaoFeriasAmount !== 0 && (
-                      <SplittableLine
-                        label="Férias + 1/3"
-                        total={row.provisaoFeriasAmount}
-                        rescissionValue={row.rescissionProvisaoFeriasAmount}
-                        rescissionLabel={`Férias + 1/3 rescisão (${terminationDayLabel})`}
-                      />
-                    )}
-                    {row.provisaoRecessoAmount !== 0 && (
-                      <SplittableLine
-                        label="Recesso remunerado"
-                        total={row.provisaoRecessoAmount}
-                        rescissionValue={row.rescissionProvisaoRecessoAmount}
-                        rescissionLabel={`Recesso remunerado rescisão (${terminationDayLabel})`}
-                      />
-                    )}
-                    {row.encargosSobreProvisoesAmount !== 0 && (
-                      <SplittableLine
-                        label="Encargos sobre as provisões"
-                        total={row.encargosSobreProvisoesAmount}
-                        rescissionValue={row.rescissionEncargosSobreProvisoesAmount}
-                        rescissionLabel={`Encargos sobre as provisões rescisão (${terminationDayLabel})`}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {(row.terminationAvisoPrevioAmount !== 0 || row.terminationMultaFgtsAmount !== 0) && (
-            <Card className="sm:col-span-2">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-3">
-                  <Landmark className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-muted-foreground">
-                      Verbas rescisórias — {rescissionLabel}
-                    </p>
-                    <p className="font-medium text-lg">
-                      {formatCurrency(row.terminationAvisoPrevioAmount + row.terminationMultaFgtsAmount)}
-                    </p>
-                    <div className="mt-1 space-y-0.5">
-                      {row.terminationAvisoPrevioAmount !== 0 && (
-                        <BreakdownLine
-                          label={row.terminationAvisoPrevioAmount > 0 ? 'Aviso prévio indenizado' : 'Aviso prévio (desconto)'}
-                          value={row.terminationAvisoPrevioAmount}
-                        />
-                      )}
-                      {row.terminationMultaFgtsAmount !== 0 && (
-                        <BreakdownLine label="Multa FGTS" value={row.terminationMultaFgtsAmount} />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="-mt-2 flex flex-wrap gap-x-6 gap-y-2">
+          {row.dataAdmissao && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Admissão</p>
+              <p className="text-sm font-medium">{formatDate(row.dataAdmissao)}</p>
+            </div>
+          )}
+          {tenure && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Tempo de casa</p>
+              <p className="text-sm font-medium">{tenure}</p>
+            </div>
+          )}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Referência</p>
+            <p className="text-sm font-medium">{monthLabel} · {showHourlyCost ? 'competência' : 'caixa'}</p>
+          </div>
+          {showHourlyCost && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Custo/Hora</p>
+              <p className="text-sm font-medium">{formatCurrency(row.hourlyCost)} ({row.hoursWorked.toFixed(0)}h)</p>
+            </div>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card className={cn('bg-primary/5 border-primary/20', !showHourlyCost && 'sm:col-span-2')}>
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[220px_1fr]">
+          <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <Banknote className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Custo Total do Mês</p>
-                  <p className="font-bold text-xl text-primary">{formatCurrency(row.totalMonthlyCost)}</p>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Composição do Custo
+              </p>
+              <div className="flex h-56 gap-3">
+                {/* Barra: altura fixa (h-56), cada segmento com flexGrow proporcional ao valor
+                    (piso min-h-9 só pra segmento zerado não desaparecer). Legenda: solta da
+                    barra, só distribuída igualmente no mesmo espaço vertical via justify-between
+                    — não precisa mais bater linha por linha com o segmento correspondente. */}
+                <div className="flex w-3 shrink-0 flex-col overflow-hidden rounded-full bg-muted">
+                  {composition.map((c) => (
+                    <div
+                      key={c.key}
+                      className={cn('min-h-9', c.total > 0 && c.colorClass)}
+                      style={{ flexGrow: Math.max(c.total, 0), flexBasis: 0 }}
+                    />
+                  ))}
                 </div>
+                <div className="flex flex-1 flex-col justify-between">
+                  {composition.map((c) => (
+                    <div key={c.key}>
+                      <div className="flex items-center gap-1.5 text-[0.65rem] uppercase tracking-wide text-muted-foreground">
+                        <span className={cn('h-2 w-2 shrink-0 rounded-sm', c.colorClass)} />
+                        {c.label}
+                      </div>
+                      <div className="flex items-baseline gap-2 pl-3.5">
+                        <span className="font-mono text-sm font-semibold tabular-nums">{formatCurrency(c.total)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {c.total !== 0 && row.totalMonthlyCost !== 0
+                            ? formatPercent((c.total / row.totalMonthlyCost) * 100)
+                            : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-4 border-t pt-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Custo Total do Mês</p>
+                <p className="font-mono text-xl font-bold tabular-nums text-primary">
+                  {formatCurrency(row.totalMonthlyCost)}
+                </p>
               </div>
             </CardContent>
           </Card>
 
-          {showHourlyCost && (
-            <Card className="bg-secondary/50">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Custo/Hora</p>
-                    <p className="font-bold text-xl">{formatCurrency(row.hourlyCost)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {row.hoursWorked.toFixed(0)}h úteis trabalhadas no mês
-                    </p>
+          <Card>
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between border-b px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <span>Lançamento</span>
+                <span>Valor</span>
+              </div>
+              <div className="divide-y px-4">
+                <div className="py-3">
+                  <CategoryHeader colorClass="bg-chart-1" label="Remuneração" value={remuneracaoTotal} />
+                  <div className="mt-1 space-y-0.5">
+                    {row.baseAmount - row.rescissionBaseAmount !== 0 && (
+                      <LineItem
+                        label={REMUNERACAO_LABELS[row.tipoContratacao]}
+                        value={row.baseAmount - row.rescissionBaseAmount}
+                      />
+                    )}
+                    {row.rescissionBaseAmount !== 0 && (
+                      <LineItem label={`Rescisão (${terminationDayLabel})`} value={row.rescissionBaseAmount} />
+                    )}
+                    {row.terminationAvisoPrevioAmount !== 0 && (
+                      <LineItem
+                        label={row.terminationAvisoPrevioAmount > 0 ? 'Aviso prévio indenizado' : 'Aviso prévio (desconto)'}
+                        value={row.terminationAvisoPrevioAmount}
+                      />
+                    )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+
+                <div className="py-3">
+                  <CategoryHeader colorClass="bg-chart-2" label="Encargos Patronais" value={encargosTotal} />
+                  {hasEncargosItems ? (
+                    <div className="mt-1 space-y-0.5">
+                      {row.fgtsAmount - row.rescissionChargesAmount !== 0 && (
+                        <LineItem label="FGTS" value={row.fgtsAmount - row.rescissionChargesAmount} />
+                      )}
+                      {row.rescissionChargesAmount !== 0 && (
+                        <LineItem label={`FGTS s/ saldo, rescisão (${terminationDayLabel})`} value={row.rescissionChargesAmount} />
+                      )}
+                      {row.inssPatronalAmount !== 0 && (
+                        <LineItem label="INSS Patronal" value={row.inssPatronalAmount} />
+                      )}
+                      {row.outrosEncargosAmount !== 0 && (
+                        <LineItem label="RAT/Terceiros/Outros" value={row.outrosEncargosAmount} />
+                      )}
+                      {row.terminationMultaFgtsAmount !== 0 && (
+                        <LineItem label="Multa FGTS" value={row.terminationMultaFgtsAmount} />
+                      )}
+                    </div>
+                  ) : (
+                    encargosEmptyNote(row.tipoContratacao) && (
+                      <p className="mt-1 pl-3.5 text-xs italic text-muted-foreground">
+                        {encargosEmptyNote(row.tipoContratacao)}
+                      </p>
+                    )
+                  )}
+                  {hasInssInformativo && (
+                    <div className={cn('space-y-0.5', hasEncargosItems && 'mt-1.5 border-t pt-1.5')}>
+                      {inssRetidoRegular !== 0 && (
+                        <LineItem label="INSS retido (informativo)" value={inssRetidoRegular} muted />
+                      )}
+                      {row.rescissionInssRetidoSaldoAmount !== 0 && (
+                        <LineItem
+                          label={`INSS s/ saldo, rescisão (${terminationDayLabel}) — informativo`}
+                          value={row.rescissionInssRetidoSaldoAmount}
+                          muted
+                        />
+                      )}
+                      {row.rescissionInssRetidoDecimoTerceiroAmount !== 0 && (
+                        <LineItem
+                          label={`INSS s/ 13º, rescisão (${terminationDayLabel}) — informativo`}
+                          value={row.rescissionInssRetidoDecimoTerceiroAmount}
+                          muted
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="py-3">
+                  <CategoryHeader colorClass="bg-chart-4" label="Benefícios" value={row.benefitsAmount} />
+                  {row.benefitsBreakdown.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {row.benefitsBreakdown.map((item) => (
+                        <LineItem key={item.name} label={item.name} value={item.value} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="py-3">
+                  <CategoryHeader colorClass="bg-chart-5" label="Ferramentas" value={row.toolsAmount} />
+                  {row.toolsBreakdown.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {row.toolsBreakdown.map((item) => (
+                        <LineItem key={item.name} label={item.name} value={item.value} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="py-3">
+                  <CategoryHeader colorClass="bg-chart-3" label="Provisões (13º/Férias + Encargos)" value={provisoesTotal} />
+                  {provisoesTotal !== 0 ? (
+                    <div className="mt-1 space-y-0.5">
+                      {row.provisao13Amount - row.rescissionProvisao13Amount !== 0 && (
+                        <LineItem label="13º salário" value={row.provisao13Amount - row.rescissionProvisao13Amount} />
+                      )}
+                      {row.rescissionProvisao13Amount !== 0 && (
+                        <LineItem label={`13º rescisão (${terminationDayLabel})`} value={row.rescissionProvisao13Amount} />
+                      )}
+                      {row.provisaoFeriasAmount - row.rescissionProvisaoFeriasAmount !== 0 && (
+                        <LineItem label="Férias + 1/3" value={row.provisaoFeriasAmount - row.rescissionProvisaoFeriasAmount} />
+                      )}
+                      {row.rescissionProvisaoFeriasAmount !== 0 && (
+                        <LineItem label={`Férias rescisão (${terminationDayLabel})`} value={row.rescissionProvisaoFeriasAmount} />
+                      )}
+                      {row.provisaoRecessoAmount - row.rescissionProvisaoRecessoAmount !== 0 && (
+                        <LineItem
+                          label="Recesso remunerado"
+                          value={row.provisaoRecessoAmount - row.rescissionProvisaoRecessoAmount}
+                        />
+                      )}
+                      {row.rescissionProvisaoRecessoAmount !== 0 && (
+                        <LineItem label={`Recesso rescisão (${terminationDayLabel})`} value={row.rescissionProvisaoRecessoAmount} />
+                      )}
+                      {row.encargosSobreProvisoesAmount - row.rescissionEncargosSobreProvisoesAmount !== 0 && (
+                        <LineItem
+                          label="Encargos sobre as provisões"
+                          value={row.encargosSobreProvisoesAmount - row.rescissionEncargosSobreProvisoesAmount}
+                        />
+                      )}
+                      {row.rescissionEncargosSobreProvisoesAmount !== 0 && (
+                        <LineItem
+                          label={`Encargos s/ provisões, rescisão (${terminationDayLabel})`}
+                          value={row.rescissionEncargosSobreProvisoesAmount}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    provisoesEmptyNote(row.tipoContratacao) && (
+                      <p className="mt-1 pl-3.5 text-xs italic text-muted-foreground">
+                        {provisoesEmptyNote(row.tipoContratacao)}
+                      </p>
+                    )
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </DialogContent>
     </Dialog>

@@ -12,7 +12,7 @@
 import { calculateEmployeeCost } from './employeeCostCalculator';
 import { getBusinessDaysInMonth } from './employeeCost';
 import { countWorkingDays, type Holiday } from './workingDays';
-import { parseDateString } from './formatters';
+import { parseDateString, truncateToCents } from './formatters';
 import type { PayrollProfile } from '@/types/payrollProfile';
 import type { ContractType } from '@/types/employee';
 import type { TerminationType } from '@/types/termination';
@@ -114,11 +114,15 @@ function effectiveEmploymentWindow(
   return { start, end };
 }
 
-/** Fração pró-rata (dias corridos de `window` ÷ dias do mês) — 0 se `window` é null. */
-function calendarFractionForWindow(window: { start: Date; end: Date } | null, daysInMonth: number): number {
+/** Mês comercial: a CLT sempre considera o mês como tendo 30 dias pra fins de
+ *  proporcionalidade salarial, nunca os dias corridos reais do calendário (28 a 31). */
+const DIAS_MES_COMERCIAL = 30;
+
+/** Fração pró-rata (dias corridos de `window`, incluindo o dia da admissão/desligamento, ÷ 30) — 0 se `window` é null. */
+function calendarFractionForWindow(window: { start: Date; end: Date } | null): number {
   if (!window) return 0;
   const workedDays = Math.round((window.end.getTime() - window.start.getTime()) / MS_PER_DAY) + 1;
-  return Math.min(1, workedDays / daysInMonth);
+  return Math.min(1, workedDays / DIAS_MES_COMERCIAL);
 }
 
 /** Dias úteis (considerando feriados) dentro de `window` — 0 se `window` é null. */
@@ -163,7 +167,7 @@ function resolveVersionSegments(
     start,
     end,
     tipoContratacao: e.tipoContratacao,
-    salarioMensal: e.salarioMensal,
+    salarioMensal: truncateToCents(e.salarioMensal),
     proLabore: e.proLabore,
     jornadaDiaria: e.jornadaDiaria,
     bolsaAuxilio: e.bolsaAuxilio,
@@ -203,7 +207,7 @@ function resolveVersionSegments(
         start: segStart,
         end: segEnd,
         tipoContratacao: v.tipoContratacao,
-        salarioMensal: v.salarioMensal,
+        salarioMensal: truncateToCents(v.salarioMensal),
         proLabore: v.proLabore,
         jornadaDiaria: v.jornadaDiaria,
         bolsaAuxilio: v.bolsaAuxilio ?? e.bolsaAuxilio,
@@ -237,6 +241,10 @@ export interface PayrollAnalysisRow {
   employeeId: string;
   nome: string;
   cargo: string;
+  /** Status atual do cadastro (não histórico) — repassado de `PayrollAnalysisEmployeeInput.status` para exibição (badge), mesma ressalva de `benefitsBreakdown`. */
+  status: string;
+  /** 'YYYY-MM-DD' ou null — repassado de `PayrollAnalysisEmployeeInput.dataAdmissao` para exibição (tempo de casa). */
+  dataAdmissao: string | null;
   tipoContratacao: ContractType;
   baseAmount: number;
   chargesAmount: number;
@@ -283,8 +291,12 @@ export interface PayrollAnalysisRow {
   rescissionProvisaoRecessoAmount: number;
   /** Fatia de `encargosSobreProvisoesAmount` atribuível à rescisão deste mês — só o FGTS (`fgtsSobreProvisoesAmount`), já que o GPS sobre as provisões da rescisão é diferido para o mês seguinte, igual `rescissionChargesAmount`. */
   rescissionEncargosSobreProvisoesAmount: number;
-  /** Fatia de `inssFuncionario` referente ao INSS retido sobre o saldo de salário da rescisão — 0 fora do regime de caixa (Folha de Pagamento); ao contrário de `rescissionBaseAmount`, aparece no mês SEGUINTE ao desligamento (mesma guia GPS de `inssPatronalAmount`), não no mês da rescisão. */
+  /** Fatia de `inssFuncionario` referente à rescisão — soma `rescissionInssRetidoSaldoAmount` + `rescissionInssRetidoDecimoTerceiroAmount` (ver ADR-0013). 0 fora do regime de caixa (Folha de Pagamento); ao contrário de `rescissionBaseAmount`, aparece no mês SEGUINTE ao desligamento (mesma guia GPS de `inssPatronalAmount`), não no mês da rescisão. */
   rescissionInssFuncionarioAmount: number;
+  /** Fatia de `rescissionInssFuncionarioAmount` referente só ao INSS retido sobre o saldo de salário da rescisão — mesma ressalva de `rescissionInssFuncionarioAmount`. */
+  rescissionInssRetidoSaldoAmount: number;
+  /** Fatia de `rescissionInssFuncionarioAmount` referente só ao INSS retido sobre o 13º proporcional da rescisão (incidência própria, separada da do salário — ver ADR-0013) — mesma ressalva de `rescissionInssFuncionarioAmount`. */
+  rescissionInssRetidoDecimoTerceiroAmount: number;
   /**
    * Aviso prévio indenizado somado ao custo do mês de rescisão em regime de COMPETÊNCIA
    * (Custo x Hora) — negativo quando é desconto do funcionário (`avisoPrevioIsCredit` falso).
@@ -327,7 +339,6 @@ export function calculatePayrollAnalysisRow(
 ): PayrollAnalysisRow {
   const monthStart = parseDateString(month.start);
   const monthEnd = parseDateString(month.end);
-  const daysInMonth = monthEnd.getDate();
   const businessDaysInMonth = getBusinessDaysInMonth(monthStart.getFullYear(), monthStart.getMonth(), holidays);
 
   const segments = resolveVersionSegments(e, versions, monthStart, monthEnd);
@@ -355,7 +366,7 @@ export function calculatePayrollAnalysisRow(
 
   for (const seg of segments) {
     tipoContratacaoForRow = seg.tipoContratacao;
-    const segFraction = calendarFractionForWindow({ start: seg.start, end: seg.end }, daysInMonth);
+    const segFraction = calendarFractionForWindow({ start: seg.start, end: seg.end });
     const segBusinessDays = businessDaysForWindow({ start: seg.start, end: seg.end }, holidays);
 
     // Benefícios: ponderados por dias úteis de cada segmento dentro do mês — se o marco
@@ -405,6 +416,8 @@ export function calculatePayrollAnalysisRow(
     employeeId: e.id,
     nome: e.nome,
     cargo: e.cargo,
+    status: e.status,
+    dataAdmissao: e.dataAdmissao,
     tipoContratacao: tipoContratacaoForRow,
     baseAmount,
     chargesAmount,
@@ -430,6 +443,8 @@ export function calculatePayrollAnalysisRow(
     rescissionProvisaoRecessoAmount: 0,
     rescissionEncargosSobreProvisoesAmount: 0,
     rescissionInssFuncionarioAmount: 0,
+    rescissionInssRetidoSaldoAmount: 0,
+    rescissionInssRetidoDecimoTerceiroAmount: 0,
     // Idem — só a correção do mês de rescisão em competência (`payrollHistory.ts`) popula estes campos.
     terminationAvisoPrevioAmount: 0,
     terminationMultaFgtsAmount: 0,
@@ -501,7 +516,6 @@ export function calculatePayrollAnalysisRowsByContractType(
 ): PayrollAnalysisRow[] {
   const monthStart = parseDateString(month.start);
   const monthEnd = parseDateString(month.end);
-  const daysInMonth = monthEnd.getDate();
   const businessDaysInMonth = getBusinessDaysInMonth(monthStart.getFullYear(), monthStart.getMonth(), holidays);
 
   const segments = resolveVersionSegments(e, versions, monthStart, monthEnd);
@@ -521,7 +535,7 @@ export function calculatePayrollAnalysisRowsByContractType(
       groups.push(group);
     }
 
-    const segFraction = calendarFractionForWindow({ start: seg.start, end: seg.end }, daysInMonth);
+    const segFraction = calendarFractionForWindow({ start: seg.start, end: seg.end });
     const segBusinessDays = businessDaysForWindow({ start: seg.start, end: seg.end }, holidays);
 
     if (businessDaysInMonth > 0) group.benefitsAmount += (seg.totalBenefitsCost / businessDaysInMonth) * segBusinessDays;
@@ -565,6 +579,8 @@ export function calculatePayrollAnalysisRowsByContractType(
       employeeId: e.id,
       nome: e.nome,
       cargo: e.cargo,
+      status: e.status,
+      dataAdmissao: e.dataAdmissao,
       tipoContratacao: g.tipoContratacao,
       baseAmount: g.baseAmount,
       chargesAmount: g.chargesAmount,
@@ -589,6 +605,8 @@ export function calculatePayrollAnalysisRowsByContractType(
       rescissionProvisaoRecessoAmount: 0,
       rescissionEncargosSobreProvisoesAmount: 0,
       rescissionInssFuncionarioAmount: 0,
+      rescissionInssRetidoSaldoAmount: 0,
+      rescissionInssRetidoDecimoTerceiroAmount: 0,
       // Custo x Hora não usa esta função (ver JSDoc acima) — só `correctRescissionSegment`
       // (regime de caixa) parte deste retorno, e não modela aviso prévio/multa FGTS.
       terminationAvisoPrevioAmount: 0,

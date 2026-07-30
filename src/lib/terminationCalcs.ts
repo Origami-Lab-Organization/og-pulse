@@ -1,4 +1,4 @@
-import { parseDateString } from '@/lib/formatters';
+import { parseDateString, truncateToCents } from '@/lib/formatters';
 import { Employee } from '@/hooks/useEmployees';
 import { TerminationWizardData } from '@/components/employees/termination-wizard/types';
 import { TerminationType } from '@/types/termination';
@@ -14,6 +14,12 @@ export interface AutoCalcItem {
 function daysInMonthOf(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 }
+
+/** Mês comercial: para fins de proporcionalidade salarial (saldo de salário, PJ), a
+ *  CLT sempre considera o mês como tendo 30 dias, nunca os dias corridos reais (28 a
+ *  31) — diferente da contagem de avos de 13º/férias (`daysInMonthOf`, regra própria,
+ *  Lei 4.090/1962 e Súmula 261 TST), que usa o calendário real. */
+const DIAS_MES_COMERCIAL = 30;
 
 function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
@@ -150,10 +156,10 @@ export function calculateRealTerminationVerbas(
   payrollProfile?: Partial<PayrollProfile>,
 ): TerminationVerbas {
   const profile = { ...DEFAULT_PAYROLL_PROFILE, ...payrollProfile };
-  const salary = employee.salarioMensal;
+  const salary = truncateToCents(employee.salarioMensal);
   const termDate = inputs.terminationDate;
   const dayOfMonth = termDate.getDate();
-  const daysInMonth = daysInMonthOf(termDate);
+  const daysInMonth = DIAS_MES_COMERCIAL;
 
   const parsedAdmDate = employee.dataAdmissao ? parseDateString(employee.dataAdmissao) : null;
   const admDate = parsedAdmDate && !isNaN(parsedAdmDate.getTime()) ? parsedAdmDate : null;
@@ -294,7 +300,7 @@ export function calculateTerminationBreakdown(
 ): { items: AutoCalcItem[]; verbas: TerminationVerbas } {
   const termDate = data.termination_date ? parseDateString(data.termination_date) : new Date();
   const dayOfMonth = termDate.getDate();
-  const daysInMonth = daysInMonthOf(termDate);
+  const daysInMonth = DIAS_MES_COMERCIAL;
 
   const verbas = calculateRealTerminationVerbas(
     {

@@ -344,6 +344,8 @@ function correctRescissionSegment(
     provisionsAmount,
     chargesAmount,
     inssFuncionario,
+    rescissionInssRetidoSaldoAmount: verbas.inssRetidoSaldoSalario,
+    rescissionInssRetidoDecimoTerceiroAmount: verbas.inssRetidoDecimoTerceiro,
     totalMonthlyCost,
   };
 }
@@ -410,6 +412,8 @@ function correctCompetenceTerminationMonth(
     provisionsAmount,
     chargesAmount,
     inssFuncionario,
+    rescissionInssRetidoSaldoAmount: verbas.inssRetidoSaldoSalario,
+    rescissionInssRetidoDecimoTerceiroAmount: verbas.inssRetidoDecimoTerceiro,
     terminationAvisoPrevioAmount,
     terminationMultaFgtsAmount,
     totalMonthlyCost,
@@ -508,6 +512,8 @@ function buildCashRows(
       employeeId: e.id,
       nome: e.nome,
       cargo: e.cargo,
+      status: e.status,
+      dataAdmissao: e.dataAdmissao,
       tipoContratacao: tipo,
       baseAmount: add(shifted?.baseAmount, rescission?.baseAmount),
       chargesAmount: add(shifted?.chargesAmount, rescission?.chargesAmount) - rescissionGps + deferredGpsValue,
@@ -548,6 +554,8 @@ function buildCashRows(
       // isso também vem de `deferredGps`, não de `rescission`.
       inssFuncionario: add(shifted?.inssFuncionario, deferredGps?.inssFuncionario),
       rescissionInssFuncionarioAmount: deferredGps?.inssFuncionario ?? 0,
+      rescissionInssRetidoSaldoAmount: deferredGps?.rescissionInssRetidoSaldoAmount ?? 0,
+      rescissionInssRetidoDecimoTerceiroAmount: deferredGps?.rescissionInssRetidoDecimoTerceiroAmount ?? 0,
       // Aviso prévio/multa FGTS só são somados no regime de competência (`correctCompetenceTerminationMonth`).
       terminationAvisoPrevioAmount: 0,
       terminationMultaFgtsAmount: 0,
