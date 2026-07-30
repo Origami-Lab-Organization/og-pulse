@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
@@ -81,34 +80,14 @@ function RedirectAlocacaoEmployee() {
 }
 
 /**
- * Domínios institucionais que devem exibir a página pública "Em construção"
- * na raiz em vez de redirecionar para login/dashboard.
- */
-const INSTITUTIONAL_HOSTS = ["origamipulse.com.br", "www.origamipulse.com.br"];
-
-/**
  * Destino da raiz "/". No domínio institucional exibe a página pública
  * "Em construção" apenas para visitantes não autenticados; quem já está
  * logado (ex.: após login) segue o HomeRedirect para o dashboard do seu
  * nível. Nos demais domínios mantém sempre o fluxo autenticado.
  */
 function RootEntry() {
-  const { user, loading } = useAuth();
-  const isInstitutional = INSTITUTIONAL_HOSTS.includes(window.location.hostname);
-
-  if (isInstitutional) {
-    if (loading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      );
-    }
-    if (!user) {
-      return <SiteUnderConstruction />;
-    }
-  }
-
+  // Sem sessão, ProtectedRoute redireciona para /login (a página de construção
+  // segue acessível em /em-construcao).
   return (
     <ProtectedRoute>
       <HomeRedirect />
