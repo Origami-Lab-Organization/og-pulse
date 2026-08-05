@@ -16,6 +16,7 @@ import { RevenueAccumulatedChart } from '@/components/commercial/RevenueAccumula
 import { PipelineDonutChart } from '@/components/commercial/PipelineDonutChart';
 import { TopClientsChart } from '@/components/commercial/TopClientsChart';
 import { LossReasonsChart } from '@/components/commercial/LossReasonsChart';
+import { LeadsBySourceChart } from '@/components/commercial/LeadsBySourceChart';
 import { RecentLeadsTable } from '@/components/commercial/RecentLeadsTable';
 import { SERVICE_LINE_OPTIONS } from '@/types/lead';
 
@@ -94,6 +95,7 @@ export default function CommercialDashboard() {
       totalPipeline: data.totalPipeline,
       topClients: data.topClients,
       lossReasons: data.lossReasons,
+      leadsBySource: data.leadsBySource,
       activeLeads: data.activeLeadsPeriod,
     });
   };
@@ -241,6 +243,8 @@ export default function CommercialDashboard() {
               <TopClientsChart data={data.topClients} />
               <LossReasonsChart data={data.lossReasons} />
             </div>
+
+            <LeadsBySourceChart data={data.leadsBySource} />
 
             <RecentLeadsTable leads={data.recentLeads} />
           </>

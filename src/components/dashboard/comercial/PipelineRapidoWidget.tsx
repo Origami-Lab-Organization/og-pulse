@@ -17,14 +17,16 @@ const STAGE_COLOR: Record<CRMStage, string> = {
   proposal: 'hsl(var(--chart-3))',
   negotiation: 'hsl(var(--chart-4))',
   closed: 'hsl(var(--success))',
+  closed_lost: 'hsl(var(--destructive))',
 };
 
 const STAGE_LABEL: Record<CRMStage, string> = {
-  screening: 'Triagem',
+  screening: 'Prospecção/Oportunidade',
   qualification: 'Qualificação',
-  proposal: 'Proposta',
+  proposal: 'Proposta Enviada',
   negotiation: 'Negociação',
-  closed: 'Negócio Fechado',
+  closed: 'Fechado - Ganho',
+  closed_lost: 'Fechado - Perda',
 };
 
 const TOOLTIP_MAX = 5;
@@ -132,8 +134,8 @@ export function PipelineRapidoWidget({ leads, isLoading }: Props) {
   });
 
   const maxValue = Math.max(...stageData.map((s) => s.value), 1);
-  const totalValue = stageData.filter((s) => s.stage !== 'closed').reduce((sum, s) => sum + s.value, 0);
-  const totalCount = activeLeads.filter((l) => l.crm_stage !== 'closed').length;
+  const totalValue = stageData.filter((s) => s.stage !== 'closed' && s.stage !== 'closed_lost').reduce((sum, s) => sum + s.value, 0);
+  const totalCount = activeLeads.filter((l) => l.crm_stage !== 'closed' && l.crm_stage !== 'closed_lost').length;
   const hasAny = activeLeads.length > 0;
 
   return (

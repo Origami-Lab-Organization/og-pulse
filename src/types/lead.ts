@@ -1,4 +1,4 @@
-export type CRMStage = 'screening' | 'qualification' | 'proposal' | 'negotiation' | 'closed';
+export type CRMStage = 'screening' | 'qualification' | 'proposal' | 'negotiation' | 'closed' | 'closed_lost';
 
 export const SERVICE_LINE_OPTIONS = [
   { value: 'financiamento_inovacao', label: 'Financiamento da Inovação' },
@@ -13,12 +13,27 @@ export const SERVICE_LINE_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 export const CRM_LEAD_COLUMNS = [
-  { id: 'screening' as CRMStage, label: 'Triagem', color: 'bg-muted text-muted-foreground' },
+  { id: 'screening' as CRMStage, label: 'Prospecção/Oportunidade', color: 'bg-muted text-muted-foreground' },
   { id: 'qualification' as CRMStage, label: 'Qualificação', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-  { id: 'proposal' as CRMStage, label: 'Proposta', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+  { id: 'proposal' as CRMStage, label: 'Proposta Enviada', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
   { id: 'negotiation' as CRMStage, label: 'Negociação', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' },
-  { id: 'closed' as CRMStage, label: 'Negócio Fechado', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  { id: 'closed' as CRMStage, label: 'Fechado - Ganho', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  { id: 'closed_lost' as CRMStage, label: 'Fechado - Perda', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
 ] as const;
+
+export const LEAD_SOURCE_OPTIONS = [
+  { value: 'indicacao', label: 'Indicação' },
+  { value: 'evento', label: 'Evento' },
+  { value: 'parceiro', label: 'Parceiro' },
+  { value: 'abordagem_direta', label: 'Abordagem Direta' },
+  { value: 'expansao', label: 'Expansão' },
+  { value: 'inbound', label: 'Inbound — cliente nos procurou' },
+  { value: 'outro', label: 'Outro' },
+] as const;
+
+export const LEAD_SOURCE_LABELS: Record<string, string> = Object.fromEntries(
+  LEAD_SOURCE_OPTIONS.map((o) => [o.value, o.label])
+);
 
 export const ARCHIVE_REASONS = [
   { value: 'no_budget', label: 'Sem orçamento / Fora do perfil' },
@@ -56,6 +71,7 @@ export interface LeadDB {
   service_line: string | null;
   responsible_id: string | null;
   closed_at: string | null;
+  lost_at: string | null;
 }
 
 export interface LeadWithBudget extends LeadDB {

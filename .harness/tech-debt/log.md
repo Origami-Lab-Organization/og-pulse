@@ -105,6 +105,14 @@
 - **Causa raiz**: alteração de função de banco feita fora do fluxo de migration versionada — viola `.harness/boundaries.md` ("Nao alterar schema Supabase sem migration versionada"). `CREATE OR REPLACE FUNCTION` não avisa sobre divergência com a última versão versionada; drift fica invisível até alguém comparar manualmente.
 - **Próximo passo**: nenhuma alteração de função/policy/trigger deve ser aplicada direto no SQL Editor — sempre via migration, mesmo para "correções rápidas" durante debugging em paralelo. Se recorrer, considerar um script de CI que rode `pg_get_functiondef` das funções críticas de alocação/folha e diffe contra o corpo esperado nas migrations, para detectar drift automaticamente.
 
+### TD-0011 — cast `as any` em service_line_avg_tickets (tabela/RPCs fora dos tipos gerados)
+- **Status**: aberto
+- **Prioridade**: baixa
+- **Arquivos**: `src/hooks/useServiceLineAvgTicketsMap.ts`, `src/services/serviceLineAvgTicketService.ts`
+- **Impacto**: a migration `20260806130000_service_line_avg_tickets.sql` cria a tabela `service_line_avg_tickets` e as functions `get_service_line_avg_tickets()`/`recalculate_service_line_avg_tickets_now()`, mas o `src/integrations/supabase/types.ts` gerado ainda não as conhece (migration não aplicada no ambiente onde os tipos foram gerados pela última vez). Mesma situação de TD-0008/TD-0001/TD-0003 — sem risco funcional (erros de RLS/policy continuam sendo pegos em runtime pelo Postgres, só a tipagem estática do client fica cega).
+- **Causa raiz**: migration nova ainda não aplicada no ambiente onde os tipos foram gerados pela última vez.
+- **Próximo passo**: depois de aplicar a migration, rodar `supabase gen types typescript --local > src/integrations/supabase/types.ts` e remover os casts `as any`/`supabase.rpc as any` desses dois arquivos.
+
 ### TD-0010 — Semana sem nenhum projeto nunca é detectada como "enviada"
 - **Status**: aberto
 - **Prioridade**: média

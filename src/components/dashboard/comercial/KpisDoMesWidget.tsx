@@ -102,7 +102,7 @@ export function KpisDoMesWidget() {
       description: data && data.forecastLeadsCount > 0
         ? `${data.forecastLeadsCount} oportunidade${data.forecastLeadsCount !== 1 ? 's' : ''} ponderada${data.forecastLeadsCount !== 1 ? 's' : ''} por etapa`
         : 'Nenhuma oportunidade ativa no pipeline',
-      tooltip: 'Soma do valor das oportunidades ativas, ponderada pela probabilidade de fechamento de cada etapa do pipeline (Triagem 10%, Qualificação 25%, Proposta 50%, Negociação 75%).',
+      tooltip: 'Soma do valor das oportunidades ativas, ponderada pela probabilidade de fechamento de cada etapa do pipeline (Prospecção/Oportunidade 10%, Qualificação 25%, Proposta Enviada 50%, Negociação 75%).',
       current: data?.forecast ?? 0,
       prev: data?.prevForecast ?? 0,
     },

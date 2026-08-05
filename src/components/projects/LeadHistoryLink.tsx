@@ -32,11 +32,12 @@ async function fetchLeadSummary(leadId: string): Promise<LeadSummary> {
 }
 
 const STAGE_LABELS: Record<string, string> = {
-  screening: 'Triagem',
+  screening: 'Prospecção/Oportunidade',
   qualification: 'Qualificação',
-  proposal: 'Proposta',
+  proposal: 'Proposta Enviada',
   negotiation: 'Negociação',
-  closed: 'Negócio Fechado',
+  closed: 'Fechado - Ganho',
+  closed_lost: 'Fechado - Perda',
 };
 
 interface LeadHistoryLinkProps {

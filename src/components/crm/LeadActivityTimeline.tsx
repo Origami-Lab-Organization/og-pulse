@@ -10,6 +10,7 @@ import {
   Archive,
   ArchiveRestore,
   Trophy,
+  XCircle,
   History,
   CalendarClock,
 } from 'lucide-react';
@@ -39,6 +40,7 @@ const ACTIVITY_ICON: Record<LeadActivityType, typeof Plus> = {
   archived: Archive,
   unarchived: ArchiveRestore,
   closed: Trophy,
+  closed_lost: XCircle,
   note_added: Pencil,
 };
 
@@ -51,11 +53,12 @@ const FOLLOW_UP_BADGE_CLASSES: Record<FollowUpVisualStatus, string> = {
 
 function stageLabel(stage: string): string {
   const labels: Record<string, string> = {
-    screening: 'Triagem',
+    screening: 'Prospecção/Oportunidade',
     qualification: 'Qualificação',
-    proposal: 'Proposta',
+    proposal: 'Proposta Enviada',
     negotiation: 'Negociação',
-    closed: 'Negócio Fechado',
+    closed: 'Fechado - Ganho',
+    closed_lost: 'Fechado - Perda',
   };
   return labels[stage] || stage;
 }

@@ -8,6 +8,7 @@ import {
   updateLeadStage,
   updateLead,
   archiveLead,
+  closeLeadAsLost,
   linkBudgetToLead,
   fetchCRMReceivedValue,
   fetchArchivedLeads,
@@ -15,6 +16,7 @@ import {
   deleteLead,
   CreateLeadInput,
   ArchiveLeadInput,
+  CloseLeadAsLostInput,
 } from '@/services/leadService';
 import { leadActivityService } from '@/services/leadActivityService';
 import { CRMStage } from '@/types/lead';
@@ -150,6 +152,34 @@ export function useArchiveLead() {
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao arquivar lead', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useCloseLeadAsLost() {
+  const qc = useQueryClient();
+  const { employee } = useAuth();
+  return useMutation({
+    mutationFn: (input: CloseLeadAsLostInput & { fromStage: CRMStage }) =>
+      closeLeadAsLost(input),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-activities', variables.id] });
+      toast({ title: 'Oportunidade marcada como perdida' });
+
+      // Log activity (fire-and-forget)
+      if (employee) {
+        leadActivityService.logDealLost(
+          employee.tenant_id,
+          variables.id,
+          variables.fromStage,
+          variables.reason,
+          employee.id
+        ).catch(console.warn);
+      }
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao marcar oportunidade como perdida', description: err.message, variant: 'destructive' });
     },
   });
 }
