@@ -212,6 +212,10 @@ export interface MailMessageDetail extends MailMessage {
   body: string;
   bodyIsHtml: boolean;
   hasAttachments: boolean;
+  /** Referências `cid:` sem anexo correspondente — alimenta o diagnóstico em dev. */
+  unresolvedImageRefs: string[];
+  /** Chaves que os anexos oferecem — o outro lado da comparação, para o diagnóstico. */
+  inlineAttachmentKeys: string[];
 }
 
 export interface MailMessage {

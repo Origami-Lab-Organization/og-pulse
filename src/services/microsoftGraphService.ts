@@ -567,28 +567,6 @@ function escapeForRegExp(value: string): string {
 }
 
 /**
- * Troca as referências `cid:` do corpo por data URIs.
- *
- * Imagem colada no e-mail (logo de assinatura, print) viaja como anexo embutido
- * e é referenciada por `cid:`. O navegador não resolve esse esquema, então sem
- * esta substituição a imagem simplesmente não aparece — nem com CSP liberada.
- */
-function inlineAttachmentsIntoHtml(html: string, attachments: RawAttachment[]): string {
-  return attachments.reduce((current, attachment) => {
-    if (!attachment.contentId || !attachment.contentBytes || !attachment.contentType) {
-      return current;
-    }
-
-    const dataUri = `data:${attachment.contentType};base64,${attachment.contentBytes}`;
-    const reference = new RegExp(
-      `cid:${escapeForRegExp(normalizeContentId(attachment.contentId))}`,
-      'gi',
-    );
-    return current.replace(reference, dataUri);
-  }, html);
-}
-
-/**
  * O `contentId` às vezes vem entre sinais de menor/maior (`<abc@host>`) e o HTML
  * referencia sem eles (`cid:abc@host`). Comparar sem normalizar é o motivo
  * clássico de "algumas imagens aparecem e outras não".
@@ -597,47 +575,145 @@ function normalizeContentId(contentId: string): string {
   return contentId.replace(/^<|>$/g, '').trim();
 }
 
+/** Todas as referências `cid:` do corpo, como aparecem, sem duplicatas. */
+function extractCidRefs(html: string): string[] {
+  const refs = new Set<string>();
+  const pattern = /cid:([^"'\s>)]+)/gi;
+  let found: RegExpExecArray | null;
+  while ((found = pattern.exec(html)) !== null) {
+    refs.add(found[1]);
+  }
+  return [...refs];
+}
+
+interface InlineImageAttachment extends RawAttachment {
+  name: string | null;
+  contentLocation: string | null;
+  isInline: boolean;
+}
+
 /**
- * Anexos que o corpo realmente referencia por `cid:`.
- *
- * Vem em dois passos de propósito: primeiro a lista sem `contentBytes` (barata),
- * depois só os que o HTML cita. Assim um anexo grande e irrelevante não é
- * baixado à toa. Não filtra por `isInline` porque há remetente que embute imagem
- * sem marcar a flag — e aí a imagem sumia.
- *
- * Falha aqui não impede exibir o e-mail; ele abre sem as imagens embutidas.
+ * Chaves pelas quais o corpo pode referenciar este anexo. O caso óbvio é o
+ * `contentId`, mas há remetente (Apple Mail, assinaturas geradas) que usa o
+ * NOME do arquivo ou o `contentLocation` no `cid:` — só o contentId perde essas,
+ * e é a causa recorrente de "a assinatura não aparece".
  */
-async function fetchReferencedAttachments(
+function attachmentKeys(attachment: InlineImageAttachment): string[] {
+  const keys: string[] = [];
+  if (attachment.contentId) {
+    const id = normalizeContentId(attachment.contentId);
+    keys.push(id);
+    // O Outlook grava `uuid@sufixo` no anexo e referencia só `uuid` no HTML —
+    // a parte local precisa contar como chave, senão o caso mais comum falha.
+    const localPart = id.split('@')[0];
+    if (localPart && localPart !== id) keys.push(localPart);
+  }
+  if (attachment.name) keys.push(attachment.name.trim());
+  if (attachment.contentLocation) {
+    keys.push(attachment.contentLocation.trim());
+    const basename = attachment.contentLocation.split('/').pop();
+    if (basename) keys.push(basename.trim());
+  }
+  return keys.filter(Boolean).map((key) => key.toLowerCase());
+}
+
+/** A referência pode vir URL-encodada (`%40` no lugar de `@`) e com sufixo `@`. */
+function refCandidates(ref: string): string[] {
+  const forms = [ref];
+  try {
+    forms.push(decodeURIComponent(ref));
+  } catch {
+    // Referência com % solto não decodifica — segue só a forma crua.
+  }
+
+  const candidates = new Set<string>();
+  for (const form of forms) {
+    const lower = form.toLowerCase();
+    candidates.add(lower);
+    const localPart = lower.split('@')[0];
+    if (localPart) candidates.add(localPart);
+  }
+  return [...candidates];
+}
+
+interface InlineImagesResult {
+  html: string;
+  /** Referências `cid:` que nenhum anexo cobriu — vai para o diagnóstico em dev. */
+  unresolvedRefs: string[];
+  /** Chaves oferecidas pelos anexos — o outro lado da comparação, para o diagnóstico. */
+  attachmentKeys: string[];
+}
+
+/**
+ * Troca as referências `cid:` do corpo por data URIs.
+ *
+ * Imagem colada no e-mail (logo de assinatura, print) viaja como anexo e é
+ * referenciada por `cid:`, que o navegador não resolve — sem esta substituição
+ * ela não aparece, com qualquer CSP. Dois passos de propósito: lista barata sem
+ * bytes, download só do que o corpo cita. Falha aqui não impede exibir o
+ * e-mail; ele abre sem as imagens embutidas.
+ */
+async function resolveInlineImages(
   token: string,
   messageId: string,
   html: string,
-): Promise<RawAttachment[]> {
+): Promise<InlineImagesResult> {
+  const refs = extractCidRefs(html);
+  if (!refs.length) return { html, unresolvedRefs: [], attachmentKeys: [] };
+
   try {
-    const listQuery = buildQuery({ $select: 'id,contentId,contentType,size' });
-    const list = await graphFetch<GraphList<RawAttachment>>(
+    // $select só com propriedades do tipo base `attachment`: contentId e
+    // contentLocation são do derivado fileAttachment e derrubam a listagem
+    // inteira ("lista de anexos vazia"). Eles vêm na busca individual abaixo.
+    const listQuery = buildQuery({ $select: 'id,name,contentType,size,isInline' });
+    const list = await graphFetch<GraphList<InlineImageAttachment>>(
       token,
       `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments?${listQuery}`,
     );
 
-    const referenced = list.value.filter((item) => {
-      if (!item.contentId || item.size > MAX_INLINE_ATTACHMENT_BYTES) return false;
-      const id = normalizeContentId(item.contentId);
-      return id.length > 0 && html.toLowerCase().includes(`cid:${id.toLowerCase()}`);
-    });
+    const candidates = list.value.filter(
+      (item) =>
+        item.size <= MAX_INLINE_ATTACHMENT_BYTES &&
+        (item.isInline || (item.contentType ?? '').toLowerCase().startsWith('image/')),
+    );
 
-    return Promise.all(
-      referenced.map((item) =>
-        graphFetch<RawAttachment>(
+    const fullAttachments = await Promise.all(
+      candidates.map((item) =>
+        graphFetch<InlineImageAttachment>(
           token,
           `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(item.id)}`,
         ),
       ),
     );
+
+    let resolvedHtml = html;
+    const unresolvedRefs: string[] = [];
+    for (const ref of refs) {
+      const match = fullAttachments.find((attachment) =>
+        refCandidates(ref).some((candidate) =>
+          attachmentKeys(attachment).includes(candidate),
+        ),
+      );
+      if (!match?.contentBytes || !match.contentType) {
+        unresolvedRefs.push(ref);
+        continue;
+      }
+      const dataUri = `data:${match.contentType};base64,${match.contentBytes}`;
+      resolvedHtml = resolvedHtml.replace(
+        new RegExp(`cid:${escapeForRegExp(ref)}`, 'gi'),
+        dataUri,
+      );
+    }
+
+    const attachmentKeysFound = fullAttachments.flatMap(attachmentKeys);
+    return { html: resolvedHtml, unresolvedRefs, attachmentKeys: attachmentKeysFound };
   } catch (error) {
     const code = error instanceof GraphError ? error.message : 'erro inesperado';
     console.error('[microsoft] falha ao carregar imagens embutidas:', code);
     if (!(error instanceof GraphError)) throw error;
-    return [];
+    // O código do erro vai como "chave" para o diagnóstico em dev distinguir
+    // consulta que FALHOU de mensagem que realmente não tem anexos.
+    return { html, unresolvedRefs: refs, attachmentKeys: [`(erro: ${code})`] };
   }
 }
 
@@ -726,11 +802,13 @@ export async function getMailMessage(
   // `hasAttachments` NÃO conta anexo embutido — vem `false` numa mensagem que só
   // tem a imagem da assinatura. Usar essa propriedade como porta impedia
   // justamente o caso mais comum, então o gatilho é o `cid:` no corpo.
+  let unresolvedImageRefs: string[] = [];
+  let inlineAttachmentKeys: string[] = [];
   if (isHtml && /cid:/i.test(body)) {
-    body = inlineAttachmentsIntoHtml(
-      body,
-      await fetchReferencedAttachments(token, messageId, body),
-    );
+    const resolved = await resolveInlineImages(token, messageId, body);
+    body = resolved.html;
+    unresolvedImageRefs = resolved.unresolvedRefs;
+    inlineAttachmentKeys = resolved.attachmentKeys;
   }
 
   return {
@@ -740,6 +818,8 @@ export async function getMailMessage(
     body,
     bodyIsHtml: isHtml,
     hasAttachments: raw.hasAttachments,
+    unresolvedImageRefs,
+    inlineAttachmentKeys,
   };
 }
 

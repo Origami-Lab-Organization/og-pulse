@@ -42,10 +42,16 @@ const DOCUMENT_STYLE = `
   img { max-width: 100%; height: auto; }
 `;
 
+/** Pixel transparente no lugar de `cid:` sem anexo — melhor vazio que ícone quebrado. */
+const TRANSPARENT_PIXEL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
 function buildDocument(html: string, allowImages: boolean): string {
   const csp = `default-src 'none'; ${
     allowImages ? IMAGES_ALLOWED_CSP : IMAGES_BLOCKED_CSP
   }; style-src 'unsafe-inline'; font-src data:;`;
+
+  const displayHtml = html.replace(/cid:[^"'\s>]+/gi, TRANSPARENT_PIXEL);
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -55,8 +61,31 @@ function buildDocument(html: string, allowImages: boolean): string {
     <base target="_blank" />
     <style>${DOCUMENT_STYLE}</style>
   </head>
-  <body>${html}</body>
+  <body>${displayHtml}</body>
 </html>`;
+}
+
+/**
+ * Censo (dev) dos `src` de imagem no HTML final: diz se a substituição de
+ * `cid:` aconteceu e que tipo de imagem restou. Existe porque o DevTools está
+ * bloqueado por política da organização.
+ */
+function describeImageSources(html: string): string {
+  const counts = { 'data:': 0, remota: 0, 'cid: (não resolvida)': 0, outra: 0 };
+  const pattern = /<img[^>]+src\s*=\s*["']?([^"'\s>]+)/gi;
+  let found: RegExpExecArray | null;
+  while ((found = pattern.exec(html)) !== null) {
+    const src = found[1].toLowerCase();
+    if (src.startsWith('data:')) counts['data:'] += 1;
+    else if (src.startsWith('http')) counts.remota += 1;
+    else if (src.startsWith('cid:')) counts['cid: (não resolvida)'] += 1;
+    else counts.outra += 1;
+  }
+
+  const parts = Object.entries(counts)
+    .filter(([, count]) => count > 0)
+    .map(([kind, count]) => `${count} ${kind}`);
+  return parts.length ? parts.join(' · ') : 'nenhuma tag <img> no corpo';
 }
 
 export function MessageBody({ message }: { message: MailMessageDetail }) {
@@ -83,6 +112,21 @@ export function MessageBody({ message }: { message: MailMessageDetail }) {
 
   return (
     <div className="space-y-2">
+      {import.meta.env.DEV && (
+        <p className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+          Diagnóstico (dev) — imagens no corpo: {describeImageSources(message.body)}
+          {message.unresolvedImageRefs.length > 0 && (
+            <>
+              {' '}· referências sem anexo: {message.unresolvedImageRefs.join(' · ')}
+              {' '}· chaves dos anexos:{' '}
+              {message.inlineAttachmentKeys.length
+                ? message.inlineAttachmentKeys.join(' · ')
+                : '(lista de anexos veio vazia)'}
+            </>
+          )}
+        </p>
+      )}
+
       <iframe
         // Sem allow-scripts e sem allow-same-origin — ver comentário do módulo.
         sandbox="allow-popups allow-popups-to-escape-sandbox"
