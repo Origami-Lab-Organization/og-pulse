@@ -1,7 +1,7 @@
-export interface ServiceLineAvgTicketDB {
+export interface ServiceAvgTicketDB {
   id: string;
   tenant_id: string;
-  service_line_id: string | null;
+  service_id: string | null;
   legacy_source_key: string | null;
   label: string;
   avg_ticket_value: number;
@@ -14,10 +14,10 @@ export interface ServiceLineAvgTicketDB {
   created_at: string;
 }
 
-export interface ServiceLineAvgTicket {
+export interface ServiceAvgTicket {
   id: string;
   tenantId: string;
-  serviceLineId: string | null;
+  serviceId: string | null;
   legacySourceKey: string | null;
   label: string;
   avgTicketValue: number;
@@ -30,10 +30,10 @@ export interface ServiceLineAvgTicket {
   createdAt: string;
 }
 
-export const dbToServiceLineAvgTicket = (db: ServiceLineAvgTicketDB): ServiceLineAvgTicket => ({
+export const dbToServiceAvgTicket = (db: ServiceAvgTicketDB): ServiceAvgTicket => ({
   id: db.id,
   tenantId: db.tenant_id,
-  serviceLineId: db.service_line_id,
+  serviceId: db.service_id,
   legacySourceKey: db.legacy_source_key,
   label: db.label,
   avgTicketValue: db.avg_ticket_value,

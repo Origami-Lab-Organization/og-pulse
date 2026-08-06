@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Building2, Clock, Compass, DollarSign, Lock, FileText, User, CalendarClock } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS, LEAD_SOURCE_LABELS, isRecentlyRestored } from '@/types/lead';
-import { resolveLeadEstimatedValue, ServiceLineAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
+import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
@@ -57,7 +57,7 @@ interface LeadKanbanCardProps {
   currentStage: CRMStage;
   onClick?: () => void;
   services?: Service[];
-  avgTickets?: ServiceLineAvgTicketLookup;
+  avgTickets?: ServiceAvgTicketLookup;
   leadServices?: LeadServiceRow[];
   pendingFollowUps?: LeadFollowUp[];
 }
@@ -108,7 +108,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
     ? services.find((s) => s.id === lead.service_line) ?? null
     : null;
 
-  const estimatedValue = resolveLeadEstimatedValue(lead, services, avgTickets);
+  const estimatedValue = resolveLeadEstimatedValue(lead, avgTickets);
 
   const hasOverdueFollowUp = pendingFollowUps.some((f) => isFollowUpOverdue(f));
   const followUpIndicator = hasOverdueFollowUp

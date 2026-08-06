@@ -6,7 +6,7 @@ import { LeadWithBudget, CRMStage } from '@/types/lead';
 import { Service } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
-import { resolveLeadEstimatedValue, ServiceLineAvgTicketLookup } from '@/lib/leadValue';
+import { resolveLeadEstimatedValue, ServiceAvgTicketLookup } from '@/lib/leadValue';
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +21,7 @@ interface LeadKanbanColumnProps {
   leads: LeadWithBudget[];
   onCardClick: (lead: LeadWithBudget) => void;
   services: Service[];
-  avgTickets: ServiceLineAvgTicketLookup;
+  avgTickets: ServiceAvgTicketLookup;
   leadServicesMap: Record<string, LeadServiceRow[]>;
   followUpsByLead: Record<string, LeadFollowUp[]>;
 }
@@ -30,8 +30,8 @@ export function LeadKanbanColumn({ column, leads, onCardClick, services, avgTick
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   const totalValue = useMemo(
-    () => leads.reduce((sum, lead) => sum + resolveLeadEstimatedValue(lead, services, avgTickets), 0),
-    [leads, services, avgTickets]
+    () => leads.reduce((sum, lead) => sum + resolveLeadEstimatedValue(lead, avgTickets), 0),
+    [leads, avgTickets]
   );
 
   return (

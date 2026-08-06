@@ -25,7 +25,7 @@ import { useBudget } from '@/hooks/useBudgets';
 import { useServices } from '@/hooks/useServices';
 import { useLeadServicesMap } from '@/hooks/useLeadServices';
 import { useAllPendingFollowUps, LeadFollowUp } from '@/hooks/useLeadFollowUps';
-import { useServiceLineAvgTicketsMap } from '@/hooks/useServiceLineAvgTicketsMap';
+import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useToast } from '@/hooks/use-toast';
 
 interface LeadKanbanBoardProps {
@@ -47,7 +47,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const closeBusinessDeal = useCloseBusinessDeal();
   const { data: services = [] } = useServices();
   const leadServicesMap = useLeadServicesMap();
-  const { data: avgTickets = EMPTY_AVG_TICKET_LOOKUP } = useServiceLineAvgTicketsMap();
+  const { data: avgTickets = EMPTY_AVG_TICKET_LOOKUP } = useServiceAvgTicketsMap();
   const { data: pendingFollowUps = [] } = useAllPendingFollowUps();
   const { toast } = useToast();
 

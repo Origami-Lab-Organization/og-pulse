@@ -7,25 +7,25 @@ import { Label } from '@/components/ui/label';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Switch } from '@/components/ui/switch';
 import { Loader2 } from 'lucide-react';
-import { ServiceLineAvgTicket } from '@/types/serviceLineAvgTicket';
+import { ServiceAvgTicket } from '@/types/serviceAvgTicket';
 
-interface ServiceLineAvgTicketEditDialogProps {
+interface ServiceAvgTicketEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  item: ServiceLineAvgTicket | null;
+  item: ServiceAvgTicket | null;
   onSave: (value: number) => void;
   onResetToComputed: () => void;
   isSaving: boolean;
 }
 
-export function ServiceLineAvgTicketEditDialog({
+export function ServiceAvgTicketEditDialog({
   open,
   onOpenChange,
   item,
   onSave,
   onResetToComputed,
   isSaving,
-}: ServiceLineAvgTicketEditDialogProps) {
+}: ServiceAvgTicketEditDialogProps) {
   const [value, setValue] = useState(0);
   const [useComputed, setUseComputed] = useState(true);
 
@@ -48,7 +48,7 @@ export function ServiceLineAvgTicketEditDialog({
         <DialogHeader>
           <DialogTitle>Editar ticket médio — {item.label}</DialogTitle>
           <DialogDescription>
-            Esse valor é usado para estimar oportunidades desta linha que ainda não têm orçamento.
+            Esse valor é usado para estimar oportunidades deste serviço que ainda não têm orçamento.
           </DialogDescription>
         </DialogHeader>
 
@@ -57,9 +57,9 @@ export function ServiceLineAvgTicketEditDialog({
             <div className="space-y-0.5">
               <Label>Usar valor calculado automaticamente</Label>
               <p className="text-xs text-muted-foreground">
-                {item.computedValue != null
-                  ? `Último cálculo: valor médio dos negócios fechados nos últimos 12 meses`
-                  : 'Ainda não há negócios fechados suficientes para calcular'}
+                {item.sampleSize > 0
+                  ? `Média de ${item.sampleSize} negócio${item.sampleSize !== 1 ? 's' : ''} fechado${item.sampleSize !== 1 ? 's' : ''} nos últimos 12 meses`
+                  : 'Ainda não há negócios fechados neste serviço para calcular'}
               </p>
             </div>
             <Switch checked={useComputed} onCheckedChange={setUseComputed} />

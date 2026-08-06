@@ -1,30 +1,30 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { serviceLineAvgTicketService } from '@/services/serviceLineAvgTicketService';
-import { dbToServiceLineAvgTicket } from '@/types/serviceLineAvgTicket';
+import { serviceAvgTicketService } from '@/services/serviceAvgTicketService';
+import { dbToServiceAvgTicket } from '@/types/serviceAvgTicket';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 function invalidateAll(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: ['service-line-avg-tickets'] });
-  queryClient.invalidateQueries({ queryKey: ['service-line-avg-tickets-map'] });
+  queryClient.invalidateQueries({ queryKey: ['service-avg-tickets'] });
+  queryClient.invalidateQueries({ queryKey: ['service-avg-tickets-map'] });
 }
 
-export const useServiceLineAvgTicketsAdmin = () => {
+export const useServiceAvgTicketsAdmin = () => {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
 
   return useQuery({
-    queryKey: ['service-line-avg-tickets', tenantId],
+    queryKey: ['service-avg-tickets', tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const data = await serviceLineAvgTicketService.getAll(tenantId);
-      return data.map(dbToServiceLineAvgTicket);
+      const data = await serviceAvgTicketService.getAll(tenantId);
+      return data.map(dbToServiceAvgTicket);
     },
     enabled: !!tenantId,
   });
 };
 
-export const useUpdateServiceLineAvgTicket = () => {
+export const useUpdateServiceAvgTicket = () => {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
   const { toast } = useToast();
@@ -32,7 +32,7 @@ export const useUpdateServiceLineAvgTicket = () => {
   return useMutation({
     mutationFn: async ({ id, avgTicketValue }: { id: string; avgTicketValue: number }) => {
       if (!employee?.id) throw new Error('Usuário não autenticado');
-      return serviceLineAvgTicketService.update(id, {
+      return serviceAvgTicketService.update(id, {
         avgTicketValue,
         isManualOverride: true,
         updatedBy: employee.id,
@@ -48,7 +48,7 @@ export const useUpdateServiceLineAvgTicket = () => {
   });
 };
 
-export const useResetServiceLineAvgTicket = () => {
+export const useResetServiceAvgTicket = () => {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
   const { toast } = useToast();
@@ -56,7 +56,7 @@ export const useResetServiceLineAvgTicket = () => {
   return useMutation({
     mutationFn: async ({ id, computedValue }: { id: string; computedValue: number }) => {
       if (!employee?.id) throw new Error('Usuário não autenticado');
-      return serviceLineAvgTicketService.resetToComputed(id, computedValue, employee.id);
+      return serviceAvgTicketService.resetToComputed(id, computedValue, employee.id);
     },
     onSuccess: () => {
       invalidateAll(queryClient);
@@ -68,17 +68,17 @@ export const useResetServiceLineAvgTicket = () => {
   });
 };
 
-export const useRecalculateServiceLineAvgTicketsNow = () => {
+export const useRecalculateServiceAvgTicketsNow = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: () => serviceLineAvgTicketService.recalculateNow(),
+    mutationFn: () => serviceAvgTicketService.recalculateNow(),
     onSuccess: (rowsUpdated) => {
       invalidateAll(queryClient);
       toast({
         title: 'Ticket médio recalculado',
-        description: `${rowsUpdated} linha(s) de serviço atualizada(s) com base nos negócios fechados dos últimos 12 meses.`,
+        description: `${rowsUpdated} serviço(s) atualizado(s) com base nos negócios fechados dos últimos 12 meses.`,
       });
     },
     onError: (error: Error) => {

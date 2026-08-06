@@ -54,7 +54,7 @@ import TerminatedEmployees from "./pages/TerminatedEmployees";
 import Candidates from "./pages/Candidates";
 import Services from "./pages/Services";
 import ServiceLineDetail from "./pages/ServiceLineDetail";
-import ServiceLineAvgTickets from "./pages/ServiceLineAvgTickets";
+import ServiceAvgTickets from "./pages/ServiceAvgTickets";
 import Inbox from "./pages/Inbox";
 import JobOpenings from "./pages/JobOpenings";
 import JobApplicationVaga from "./pages/JobApplicationVaga";
@@ -385,7 +385,7 @@ const App = () => (
                 path="/comercial/ticket-medio"
                 element={
                   <RoleProtectedRoute requireManager>
-                    <ServiceLineAvgTickets />
+                    <ServiceAvgTickets />
                   </RoleProtectedRoute>
                 }
               />

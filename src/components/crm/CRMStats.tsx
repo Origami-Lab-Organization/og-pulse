@@ -1,19 +1,17 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Trophy, TrendingUp, Wallet, Target } from 'lucide-react';
 import { LeadWithBudget } from '@/types/lead';
-import { Service } from '@/types/service';
 import { formatCurrency } from '@/lib/formatters';
-import { resolveLeadEstimatedValue, ServiceLineAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
+import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { useCRMReceivedValue } from '@/hooks/useLeads';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface CRMStatsProps {
   leads: LeadWithBudget[];
-  services?: Service[];
-  avgTickets?: ServiceLineAvgTicketLookup;
+  avgTickets?: ServiceAvgTicketLookup;
 }
 
-const CRMStats = ({ leads, services = [], avgTickets = EMPTY_AVG_TICKET_LOOKUP }: CRMStatsProps) => {
+const CRMStats = ({ leads, avgTickets = EMPTY_AVG_TICKET_LOOKUP }: CRMStatsProps) => {
   const { employee } = useAuth();
   const { data: receivedValue = 0 } = useCRMReceivedValue(employee?.tenant_id);
 
@@ -28,7 +26,7 @@ const CRMStats = ({ leads, services = [], avgTickets = EMPTY_AVG_TICKET_LOOKUP }
   });
 
   const totalWon = closedLeads.reduce(
-    (acc, l) => acc + resolveLeadEstimatedValue(l, services, avgTickets),
+    (acc, l) => acc + resolveLeadEstimatedValue(l, avgTickets),
     0
   );
 
@@ -36,7 +34,7 @@ const CRMStats = ({ leads, services = [], avgTickets = EMPTY_AVG_TICKET_LOOKUP }
     ['proposal', 'negotiation'].includes(l.crm_stage)
   );
   const pipelineValue = pipelineLeads.reduce(
-    (acc, l) => acc + resolveLeadEstimatedValue(l, services, avgTickets),
+    (acc, l) => acc + resolveLeadEstimatedValue(l, avgTickets),
     0
   );
 

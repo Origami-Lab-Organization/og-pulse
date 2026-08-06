@@ -3,13 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useLeads, useArchivedLeads } from '@/hooks/useLeads';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useClients } from '@/hooks/useClients';
-import { useServices } from '@/hooks/useServices';
-import { useServiceLineAvgTicketsMap } from '@/hooks/useServiceLineAvgTicketsMap';
+import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { LeadWithBudget, CRM_LEAD_COLUMNS, ARCHIVE_REASONS, LEAD_SOURCE_LABELS } from '@/types/lead';
-import { Service } from '@/types/service';
-import { resolveLeadEstimatedValue, ServiceLineAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
+import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { differenceInDays, parseISO, getMonth, getYear, format, eachMonthOfInterval, startOfMonth, endOfMonth, differenceInMilliseconds } from 'date-fns';
 
 interface ResponsibleOption {
@@ -89,14 +87,14 @@ const STAGE_PROBABILITY: Record<string, number> = {
   closed_lost: 0,
 };
 
-function computeKPIs(leads: LeadWithBudget[], services: Service[], avgTickets: ServiceLineAvgTicketLookup) {
+function computeKPIs(leads: LeadWithBudget[], avgTickets: ServiceAvgTicketLookup) {
   const activeLeads = leads.filter(l => !l.archived);
   const closedLeads = leads.filter(l => l.crm_stage === 'closed' && !l.archived);
   const totalLeads = leads.length;
 
   const conversionRate = totalLeads > 0 ? (closedLeads.length / totalLeads) * 100 : 0;
 
-  const getLeadValue = (l: LeadWithBudget) => resolveLeadEstimatedValue(l, services, avgTickets);
+  const getLeadValue = (l: LeadWithBudget) => resolveLeadEstimatedValue(l, avgTickets);
 
   const closedValues = closedLeads.map(getLeadValue);
   const avgTicket = closedValues.length > 0 ? closedValues.reduce((a, b) => a + b, 0) / closedValues.length : 0;
@@ -132,8 +130,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
   const { data: archivedLeads = [], isLoading: archivedLoading } = useArchivedLeads();
   const { data: budgets = [], isLoading: budgetsLoading } = useBudgets();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
-  const { data: services = [], isLoading: servicesLoading } = useServices();
-  const { data: avgTickets = EMPTY_AVG_TICKET_LOOKUP, isLoading: avgTicketsLoading } = useServiceLineAvgTicketsMap();
+  const { data: avgTickets = EMPTY_AVG_TICKET_LOOKUP, isLoading: avgTicketsLoading } = useServiceAvgTicketsMap();
 
   // Fetch budget_ids of cancelled projects to exclude their leads
   const { data: cancelledBudgetIds = [], isLoading: cancelledLoading } = useQuery({
@@ -153,7 +150,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     enabled: !!tenantId,
   });
 
-  const isLoading = leadsLoading || archivedLoading || budgetsLoading || clientsLoading || cancelledLoading || servicesLoading || avgTicketsLoading;
+  const isLoading = leadsLoading || archivedLoading || budgetsLoading || clientsLoading || cancelledLoading || avgTicketsLoading;
 
   const data = useMemo<CommercialDashboardData | null>(() => {
     if (isLoading) return null;
@@ -192,14 +189,14 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     const activeLeadsPeriod = periodFiltered.filter(l => !l.archived);
 
     // Current period KPIs
-    const currentKPIs = computeKPIs(periodFiltered, services, avgTickets);
+    const currentKPIs = computeKPIs(periodFiltered, avgTickets);
 
     // Previous period KPIs (same duration shifted back)
     const durationMs = differenceInMilliseconds(dateTo, dateFrom);
     const prevTo = new Date(dateFrom.getTime() - 1); // day before dateFrom
     const prevFrom = new Date(prevTo.getTime() - durationMs);
     const prevPeriodFiltered = filtered.filter(l => isInRange(l.created_at, prevFrom, prevTo));
-    const prevKPIs = computeKPIs(prevPeriodFiltered, services, avgTickets);
+    const prevKPIs = computeKPIs(prevPeriodFiltered, avgTickets);
 
     // Funnel data
     const funnelData = CRM_LEAD_COLUMNS.map(col => ({
@@ -226,7 +223,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
           const d = parseISO(dateStr);
           return d >= mStart && d <= mEnd;
         })
-        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l, services, avgTickets), 0);
+        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0);
 
       const lostThisMonth = filtered
         .filter(l => l.archived || l.crm_stage === 'closed_lost')
@@ -235,7 +232,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
           const d = parseISO(dateStr);
           return d >= mStart && d <= mEnd;
         })
-        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l, services, avgTickets), 0);
+        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0);
 
       accWon += wonThisMonth;
       return { month: label, wonMonth: wonThisMonth, lostMonth: lostThisMonth, wonAccumulated: accWon };
@@ -248,7 +245,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       const col = CRM_LEAD_COLUMNS.find(c => c.id === stage);
       return {
         name: col?.label || stage,
-        value: stageLeads.reduce((sum, l) => sum + resolveLeadEstimatedValue(l, services, avgTickets), 0),
+        value: stageLeads.reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0),
         count: stageLeads.length,
       };
     }).filter(s => s.count > 0);
@@ -260,7 +257,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     const clientRevenue: Record<string, number> = {};
     closedLeads.forEach(l => {
       const name = l.company_name || 'Sem empresa';
-      const val = resolveLeadEstimatedValue(l, services, avgTickets);
+      const val = resolveLeadEstimatedValue(l, avgTickets);
       clientRevenue[name] = (clientRevenue[name] || 0) + val;
     });
     const topClients = Object.entries(clientRevenue)
@@ -326,7 +323,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       activeLeadsPeriod,
       responsibleOptions,
     };
-  }, [leads, archivedLeads, budgets, clients, services, avgTickets, cancelledBudgetIds, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
+  }, [leads, archivedLeads, budgets, clients, avgTickets, cancelledBudgetIds, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
 
   return { data, isLoading };
 }
