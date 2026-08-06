@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadWithBudget, CRMStage } from '@/types/lead';
 import { Service } from '@/types/service';
@@ -56,7 +55,9 @@ export function LeadKanbanColumn({ column, leads, onCardClick, services, avgTick
         )}
       </div>
 
-      <ScrollArea className="flex-1 p-2">
+      {/* Rolagem nativa + scrollbar-hide: o ScrollArea do Radix desenha uma
+          barra sobreposta que aparecia por cima dos cards no hover. */}
+      <div className="flex-1 overflow-y-auto scrollbar-hide p-2">
         <div className="space-y-2 min-h-[50px]">
           {leads.map((lead) => (
             <LeadKanbanCard
@@ -76,7 +77,7 @@ export function LeadKanbanColumn({ column, leads, onCardClick, services, avgTick
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
