@@ -93,6 +93,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
     requiresManager: true,
     children: [
       { title: 'Serviços', url: '/comercial/servicos', requiresAdmin: true },
+      { title: 'Ticket Médio', url: '/comercial/ticket-medio' },
       { title: 'Clientes', url: '/clients' },
     ],
   },

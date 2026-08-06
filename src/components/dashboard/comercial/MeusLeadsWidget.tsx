@@ -15,6 +15,7 @@ const STAGE_ORDER: Record<CRMStage, number> = {
   qualification: 2,
   screening: 3,
   closed: 4,
+  closed_lost: 5,
 };
 
 function getStageBadgeClass(stage: CRMStage): string {
@@ -62,7 +63,7 @@ export function MeusLeadsWidget({ leads, isLoading }: Props) {
   }
 
   const myLeads = leads
-    .filter((l) => !l.archived && l.crm_stage !== 'closed' && l.responsible_id === employee?.id)
+    .filter((l) => !l.archived && l.crm_stage !== 'closed' && l.crm_stage !== 'closed_lost' && l.responsible_id === employee?.id)
     .sort((a, b) => STAGE_ORDER[a.crm_stage] - STAGE_ORDER[b.crm_stage]);
 
   const visible = myLeads.slice(0, 3);

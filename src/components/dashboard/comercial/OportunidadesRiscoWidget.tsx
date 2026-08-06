@@ -72,7 +72,7 @@ export function OportunidadesRiscoWidget({ leads, followUps, isLoading }: Props)
   );
 
   const riskyLeads: RiskyLead[] = leads
-    .filter((l) => !l.archived && l.crm_stage !== 'closed' && l.crm_stage !== 'screening')
+    .filter((l) => !l.archived && l.crm_stage !== 'closed' && l.crm_stage !== 'closed_lost' && l.crm_stage !== 'screening')
     .map((lead) => {
       const daysSinceUpdate = differenceInDays(new Date(), parseISO(lead.updated_at));
       const threshold = STALL_THRESHOLDS[lead.crm_stage];

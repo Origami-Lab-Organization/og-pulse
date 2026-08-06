@@ -63,7 +63,7 @@ import {
   Lock,
   Zap,
 } from 'lucide-react'
-import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage, isRecentlyRestored } from '@/types/lead'
+import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage, LEAD_SOURCE_OPTIONS, isRecentlyRestored } from '@/types/lead'
 import { ArchiveLeadDialog } from './ArchiveLeadDialog'
 import { DeleteLeadDialog } from './DeleteLeadDialog'
 import { LeadActivityTimeline } from './LeadActivityTimeline'
@@ -349,7 +349,7 @@ export function LeadDetailDialog({
   const isDisabled = isArchived || !isEditing
   const currentStageIndex = STAGE_ORDER.indexOf(lead.crm_stage)
   const nextStage =
-    currentStageIndex < STAGE_ORDER.length - 1
+    currentStageIndex >= 0 && currentStageIndex < STAGE_ORDER.length - 1
       ? STAGE_ORDER[currentStageIndex + 1]
       : null
   const nextStageLabel = nextStage
@@ -855,7 +855,7 @@ export function LeadDetailDialog({
                                   <ExternalLink className='h-3.5 w-3.5 mr-1.5' />
                                   Ver Orçamento
                                 </Button>
-                                {lead.crm_stage !== 'closed' && (
+                                {!['closed', 'closed_lost'].includes(lead.crm_stage) && (
                                   <Button
                                     variant='outline'
                                     size='sm'
@@ -872,7 +872,7 @@ export function LeadDetailDialog({
                                   </Button>
                                 )}
                               </div>
-                              {['negotiation', 'closed'].includes(
+                              {['negotiation', 'closed', 'closed_lost'].includes(
                                 lead.crm_stage,
                               ) &&
                                 lead.budget_id && (
@@ -1047,14 +1047,9 @@ export function LeadDetailDialog({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value='indicacao'>Indicação</SelectItem>
-                            <SelectItem value='evento'>Evento</SelectItem>
-                            <SelectItem value='parceiro'>Parceiro</SelectItem>
-                            <SelectItem value='abordagem_direta'>
-                              Abordagem Direta
-                            </SelectItem>
-                            <SelectItem value='expansao'>Expansão</SelectItem>
-                            <SelectItem value='outro'>Outro</SelectItem>
+                            {LEAD_SOURCE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </FormItem>
@@ -1065,12 +1060,12 @@ export function LeadDetailDialog({
                 <TabsContent value='followups' className='px-5 py-4 mt-0 space-y-4'>
                   <LeadFollowUpSection
                     leadId={lead.id}
-                    disabled={lead.crm_stage === 'closed' || isArchived}
+                    disabled={['closed', 'closed_lost'].includes(lead.crm_stage) || isArchived}
                   />
                   <Separator />
                   <LeadInteractionsTab
                     leadId={lead.id}
-                    disabled={lead.crm_stage === 'closed' || isArchived}
+                    disabled={['closed', 'closed_lost'].includes(lead.crm_stage) || isArchived}
                   />
                 </TabsContent>
 

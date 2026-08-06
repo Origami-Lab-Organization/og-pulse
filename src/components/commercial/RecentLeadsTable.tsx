@@ -22,7 +22,7 @@ type SortKey = 'name' | 'company_name' | 'crm_stage' | 'value' | 'created_at' | 
 type SortDir = 'asc' | 'desc';
 
 const STAGE_ORDER: Record<string, number> = {
-  screening: 0, qualification: 1, proposal: 2, negotiation: 3, closed: 4,
+  screening: 0, qualification: 1, proposal: 2, negotiation: 3, closed: 4, closed_lost: 5,
 };
 
 const NEXT_STAGE: Partial<Record<CRMStage, CRMStage>> = {
@@ -34,9 +34,9 @@ const NEXT_STAGE: Partial<Record<CRMStage, CRMStage>> = {
 
 const NEXT_STAGE_LABEL: Partial<Record<CRMStage, string>> = {
   screening: 'Qualificação',
-  qualification: 'Proposta',
+  qualification: 'Proposta Enviada',
   proposal: 'Negociação',
-  negotiation: 'Negócio Fechado',
+  negotiation: 'Fechado - Ganho',
 };
 
 function getLeadValue(lead: LeadWithBudget): number {
@@ -164,7 +164,7 @@ export function RecentLeadsTable({ leads }: Props) {
                             </span>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="max-w-[200px] text-xs">
-                            Orçamento definido na etapa Proposta
+                            Orçamento definido na etapa Proposta Enviada
                           </TooltipContent>
                         </Tooltip>
                       ) : (

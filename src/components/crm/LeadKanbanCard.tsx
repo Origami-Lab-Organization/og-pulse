@@ -3,9 +3,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building2, Clock, DollarSign, Lock, FileText, User, CalendarClock } from 'lucide-react';
+import { Building2, Clock, Compass, DollarSign, Lock, FileText, User, CalendarClock } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
-import { LeadWithBudget, CRMStage, isRecentlyRestored } from '@/types/lead';
+import { LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS, LEAD_SOURCE_LABELS, isRecentlyRestored } from '@/types/lead';
+import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
@@ -56,16 +57,19 @@ interface LeadKanbanCardProps {
   currentStage: CRMStage;
   onClick?: () => void;
   services?: Service[];
+  avgTickets?: ServiceAvgTicketLookup;
   leadServices?: LeadServiceRow[];
   pendingFollowUps?: LeadFollowUp[];
 }
 
 const BILLING_TYPES: BillingType[] = ['fixed_scope', 'recurring', 'success_fee', 'no_revenue'];
 
-export function LeadKanbanCard({ lead, currentStage, onClick, services = [], leadServices = [], pendingFollowUps = [] }: LeadKanbanCardProps) {
+export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avgTickets = EMPTY_AVG_TICKET_LOOKUP, leadServices = [], pendingFollowUps = [] }: LeadKanbanCardProps) {
   const navigate = useNavigate();
   const updateLead = useUpdateLead();
-  const isLocked = currentStage === 'closed';
+  const isWon = currentStage === 'closed';
+  const isLost = currentStage === 'closed_lost';
+  const isLocked = isWon || isLost;
 
   const activeServices = services.filter((s) => s.isActive);
   const servicesByType = BILLING_TYPES.reduce((acc, type) => {
@@ -81,7 +85,8 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
   });
 
   const getEndDate = () => {
-    if (currentStage === 'closed') return lead.closed_at || lead.updated_at;
+    if (isWon) return lead.closed_at || lead.updated_at;
+    if (isLost) return lead.lost_at || lead.updated_at;
     if (lead.archived) return lead.archived_at;
     return null;
   };
@@ -102,6 +107,8 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
   const linkedService = lead.service_line
     ? services.find((s) => s.id === lead.service_line) ?? null
     : null;
+
+  const estimatedValue = resolveLeadEstimatedValue(lead, avgTickets);
 
   const hasOverdueFollowUp = pendingFollowUps.some((f) => isFollowUpOverdue(f));
   const followUpIndicator = hasOverdueFollowUp
@@ -130,8 +137,10 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
       className={cn(
         'transition-all hover:shadow-md border-l-4 cursor-grab active:cursor-grabbing',
         isLocked && 'cursor-default',
-        isLocked
+        isWon
           ? 'border-l-chart-2 bg-chart-2/10'
+          : isLost
+          ? 'border-l-destructive bg-destructive/10'
           : isStuck
           ? 'border-l-amber-400'
           : 'border-l-primary',
@@ -155,7 +164,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
               <Clock className="h-3 w-3" />
               {elapsedTime}
             </span>
-            {isLocked && <Lock className="h-3.5 w-3.5 text-chart-2" />}
+            {isLocked && <Lock className={cn('h-3.5 w-3.5', isLost ? 'text-destructive' : 'text-chart-2')} />}
           </div>
         </div>
 
@@ -232,10 +241,10 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
             <DollarSign className="h-3 w-3" />
             {formatCurrency(lead.budget.final_total)}
           </div>
-        ) : lead.estimated_value > 0 && linkedService?.billingType !== 'no_revenue' ? (
+        ) : estimatedValue > 0 && linkedService?.billingType !== 'no_revenue' ? (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <DollarSign className="h-3 w-3" />
-            <span>~ {formatCurrency(lead.estimated_value)}</span>
+            <span>~ {formatCurrency(estimatedValue)}</span>
           </div>
         ) : null}
 
@@ -251,6 +260,40 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
             <FileText className="h-3 w-3 mr-1" />
             Criar Orçamento
           </Button>
+        )}
+
+        {/* Origem — prospecção/oportunidade only, always last. Já é obrigatória na
+            criação (LeadFormDialog); aqui fica visível/editável direto no card
+            para o comercial revisar ou corrigir sem abrir o detalhe. */}
+        {currentStage === 'screening' && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="pt-1 border-t border-border/50"
+          >
+            <Select
+              value={lead.source || ''}
+              onValueChange={(value) => updateLead.mutate({ id: lead.id, source: value })}
+            >
+              <SelectTrigger className={cn('h-7 text-xs w-full', !lead.source && 'border-amber-400 text-amber-700')}>
+                <Compass className="h-3 w-3 mr-1 shrink-0 opacity-70" />
+                <SelectValue placeholder="De onde veio este lead?" />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAD_SOURCE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Origem — badge somente leitura nas demais etapas, para contexto rápido. */}
+        {currentStage !== 'screening' && lead.source && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Compass className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{LEAD_SOURCE_LABELS[lead.source] || lead.source}</span>
+          </div>
         )}
 
         {/* Service select — qualification only, always last */}

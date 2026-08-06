@@ -18,7 +18,7 @@ export function LossReasonsChart({ data }: Props) {
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 gap-3">
             <Archive className="h-10 w-10 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">Nenhum lead arquivado no período</p>
+            <p className="text-sm text-muted-foreground">Nenhuma oportunidade perdida no período</p>
             <Button variant="outline" size="sm" asChild>
               <Link to="/pipeline">Ir para o Pipeline</Link>
             </Button>

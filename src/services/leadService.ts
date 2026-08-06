@@ -139,6 +139,34 @@ export async function archiveLead(input: ArchiveLeadInput) {
   if (error) throw error;
 }
 
+export interface CloseLeadAsLostInput {
+  id: string;
+  reason: string;
+  notes?: string;
+  competitorName?: string | null;
+}
+
+/**
+ * Move a oportunidade para "Fechado - Perda" (crm_stage = 'closed_lost').
+ * Reaproveita a mesma taxonomia de motivo do arquivamento (archive_reason/
+ * archive_notes/competitor_name), mas NÃO seta archived=true — a oportunidade
+ * continua visível no Kanban, na coluna de perda.
+ */
+export async function closeLeadAsLost(input: CloseLeadAsLostInput) {
+  const { error } = await supabase
+    .from('leads')
+    .update({
+      crm_stage: 'closed_lost',
+      lost_at: new Date().toISOString(),
+      archive_reason: input.reason,
+      archive_notes: input.notes || null,
+      competitor_name: input.competitorName ?? null,
+    })
+    .eq('id', input.id);
+
+  if (error) throw error;
+}
+
 export async function fetchArchivedLeads(tenantId: string): Promise<LeadWithBudget[]> {
   const { data, error } = await supabase
     .from('leads')

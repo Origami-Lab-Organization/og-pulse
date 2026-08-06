@@ -15,7 +15,7 @@ import { useCreateLead, useUpdateLead } from '@/hooks/useLeads';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useAuth } from '@/contexts/AuthContext';
-import { LeadDB } from '@/types/lead';
+import { LeadDB, LEAD_SOURCE_OPTIONS } from '@/types/lead';
 import { formatPhone } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
@@ -195,7 +195,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
     if (!isEditing) {
       toast({
         title: 'Lead criado',
-        description: 'O lead foi criado e está na coluna Triagem do kanban.',
+        description: 'O lead foi criado e está na coluna Prospecção/Oportunidade do kanban.',
       });
     }
   };
@@ -303,13 +303,9 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="indicacao">Indicação</SelectItem>
-                    <SelectItem value="evento">Evento</SelectItem>
-                    <SelectItem value="parceiro">Parceiro</SelectItem>
-                    <SelectItem value="abordagem_direta">Abordagem Direta</SelectItem>
-                    <SelectItem value="expansao">Expansão</SelectItem>
-                    <SelectItem value="inbound">Inbound — cliente nos procurou</SelectItem>
-                    <SelectItem value="outro">Outro</SelectItem>
+                    {LEAD_SOURCE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />

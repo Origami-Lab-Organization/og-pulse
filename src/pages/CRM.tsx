@@ -27,6 +27,7 @@ import { LeadDetailDialog } from '@/components/crm/LeadDetailDialog';
 import { RestoreLeadDialog } from '@/components/crm/RestoreLeadDialog';
 import { DeleteLeadDialog } from '@/components/crm/DeleteLeadDialog';
 import { useLeads, useArchivedLeads } from '@/hooks/useLeads';
+import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useAuth } from '@/contexts/AuthContext';
 import CRMStats from '@/components/crm/CRMStats';
 import { formatCurrency, formatDate, formatShortDate } from '@/lib/formatters';
@@ -80,6 +81,8 @@ export default function CRM() {
 
   // Archived leads
   const { data: rawArchivedLeads = [], isLoading: loadingArchived } = useArchivedLeads();
+
+  const { data: avgTickets } = useServiceAvgTicketsMap();
 
   // Fetch lead IDs linked to cancelled projects
   const { data: cancelledLeadIds = [] } = useQuery({
@@ -267,7 +270,7 @@ export default function CRM() {
       >
         {/* Stats */}
         {activeTab !== 'archived' ? (
-          <CRMStats leads={activeLeads} />
+          <CRMStats leads={activeLeads} avgTickets={avgTickets} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>

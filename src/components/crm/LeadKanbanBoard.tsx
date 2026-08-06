@@ -7,8 +7,10 @@ import { LeadKanbanColumn } from './LeadKanbanColumn';
 import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadDetailDialog } from './LeadDetailDialog';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
+import { LoseDealDialog } from './LoseDealDialog';
 import { LeadWithBudget, CRMStage, CRM_LEAD_COLUMNS } from '@/types/lead';
 import { useUpdateLeadStage } from '@/hooks/useLeads';
+import { EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 
 const STAGE_INDEX: Record<CRMStage, number> = {
   screening: 0,
@@ -16,12 +18,14 @@ const STAGE_INDEX: Record<CRMStage, number> = {
   proposal: 2,
   negotiation: 3,
   closed: 4,
+  closed_lost: 5,
 };
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
 import { useServices } from '@/hooks/useServices';
 import { useLeadServicesMap } from '@/hooks/useLeadServices';
 import { useAllPendingFollowUps, LeadFollowUp } from '@/hooks/useLeadFollowUps';
+import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useToast } from '@/hooks/use-toast';
 
 interface LeadKanbanBoardProps {
@@ -34,6 +38,8 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const [selectedLead, setSelectedLead] = useState<LeadWithBudget | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [leadToClose, setLeadToClose] = useState<LeadWithBudget | null>(null);
+  const [lossDialogOpen, setLossDialogOpen] = useState(false);
+  const [leadToLose, setLeadToLose] = useState<LeadWithBudget | null>(null);
   const [activeLead, setActiveLead] = useState<LeadWithBudget | null>(null);
   const [highlightField, setHighlightField] = useState<'service_line' | 'budget_id' | null>(null);
 
@@ -41,6 +47,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const closeBusinessDeal = useCloseBusinessDeal();
   const { data: services = [] } = useServices();
   const leadServicesMap = useLeadServicesMap();
+  const { data: avgTickets = EMPTY_AVG_TICKET_LOOKUP } = useServiceAvgTicketsMap();
   const { data: pendingFollowUps = [] } = useAllPendingFollowUps();
   const { toast } = useToast();
 
@@ -73,7 +80,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
 
     // Resolver a coluna de destino: over pode ser uma coluna ou um card
     let newStage: CRMStage;
-    const validStages: string[] = ['screening', 'qualification', 'proposal', 'negotiation', 'closed'];
+    const validStages: string[] = ['screening', 'qualification', 'proposal', 'negotiation', 'closed', 'closed_lost'];
 
     if (validStages.includes(over.id as string)) {
       newStage = over.id as CRMStage;
@@ -96,6 +103,12 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     if (newStage === 'closed') {
       setLeadToClose(lead);
       setCloseDialogOpen(true);
+      return;
+    }
+
+    if (newStage === 'closed_lost') {
+      setLeadToLose(lead);
+      setLossDialogOpen(true);
       return;
     }
 
@@ -167,7 +180,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
 
   const leadsByStage = useMemo(() => {
     const grouped: Record<CRMStage, LeadWithBudget[]> = {
-      screening: [], qualification: [], proposal: [], negotiation: [], closed: [],
+      screening: [], qualification: [], proposal: [], negotiation: [], closed: [], closed_lost: [],
     };
     filteredLeads.forEach((lead) => {
       if (grouped[lead.crm_stage]) grouped[lead.crm_stage].push(lead);
@@ -223,7 +236,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     <>
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto pb-2">
-        <div className="grid grid-cols-[repeat(5,minmax(220px,1fr))] gap-3 h-[calc(100vh-220px)]">
+        <div className="grid grid-cols-[repeat(6,minmax(220px,1fr))] gap-3 h-[calc(100vh-220px)]">
           {CRM_LEAD_COLUMNS.map((column) => (
             <LeadKanbanColumn
               key={column.id}
@@ -231,6 +244,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
               leads={leadsByStage[column.id] || []}
               onCardClick={handleCardClick}
               services={services}
+              avgTickets={avgTickets}
               leadServicesMap={leadServicesMap}
               followUpsByLead={followUpsByLead}
             />
@@ -244,6 +258,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
               lead={activeLead}
               currentStage={activeLead.crm_stage}
               services={services}
+              avgTickets={avgTickets}
             />
           )}
         </DragOverlay>
@@ -266,6 +281,13 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
         onConfirm={handleCloseBusinessConfirm}
         isSubmitting={closeBusinessDeal.isPending}
         services={services}
+      />
+
+      <LoseDealDialog
+        open={lossDialogOpen}
+        onOpenChange={(open) => { setLossDialogOpen(open); if (!open) setLeadToLose(null); }}
+        lead={leadToLose}
+        fromStage={leadToLose?.crm_stage ?? null}
       />
     </>
   );

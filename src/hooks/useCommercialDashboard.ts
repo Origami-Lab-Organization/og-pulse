@@ -3,9 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useLeads, useArchivedLeads } from '@/hooks/useLeads';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useClients } from '@/hooks/useClients';
+import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { LeadWithBudget, CRM_LEAD_COLUMNS, ARCHIVE_REASONS } from '@/types/lead';
+import { LeadWithBudget, CRM_LEAD_COLUMNS, ARCHIVE_REASONS, LEAD_SOURCE_LABELS } from '@/types/lead';
+import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { differenceInDays, parseISO, getMonth, getYear, format, eachMonthOfInterval, startOfMonth, endOfMonth, differenceInMilliseconds } from 'date-fns';
 
 interface ResponsibleOption {
@@ -49,6 +51,9 @@ interface CommercialDashboardData {
   // Loss reasons
   lossReasons: { reason: string; count: number }[];
 
+  // Leads by source (origem)
+  leadsBySource: { source: string; label: string; count: number; wonCount: number; conversionRate: number }[];
+
   // Recent leads
   recentLeads: LeadWithBudget[];
 
@@ -65,6 +70,7 @@ const STAGE_COLORS: Record<string, string> = {
   proposal: 'hsl(var(--chart-3))',
   negotiation: 'hsl(var(--chart-4))',
   closed: 'hsl(var(--success))',
+  closed_lost: 'hsl(var(--destructive))',
 };
 
 function isInRange(dateStr: string, from: Date, to: Date): boolean {
@@ -78,19 +84,19 @@ const STAGE_PROBABILITY: Record<string, number> = {
   proposal: 0.50,
   negotiation: 0.75,
   closed: 1.0,
+  closed_lost: 0,
 };
 
-function computeKPIs(leads: LeadWithBudget[]) {
+function computeKPIs(leads: LeadWithBudget[], avgTickets: ServiceAvgTicketLookup) {
   const activeLeads = leads.filter(l => !l.archived);
   const closedLeads = leads.filter(l => l.crm_stage === 'closed' && !l.archived);
   const totalLeads = leads.length;
 
   const conversionRate = totalLeads > 0 ? (closedLeads.length / totalLeads) * 100 : 0;
 
-  const closedValues = closedLeads.map(l => {
-    if (l.budget?.final_total && l.budget.final_total > 0) return l.budget.final_total;
-    return l.estimated_value;
-  });
+  const getLeadValue = (l: LeadWithBudget) => resolveLeadEstimatedValue(l, avgTickets);
+
+  const closedValues = closedLeads.map(getLeadValue);
   const avgTicket = closedValues.length > 0 ? closedValues.reduce((a, b) => a + b, 0) / closedValues.length : 0;
 
   const cyclesInDays = closedLeads
@@ -98,10 +104,7 @@ function computeKPIs(leads: LeadWithBudget[]) {
     .map(l => differenceInDays(parseISO(l.closed_at!), parseISO(l.created_at)));
   const avgSalesCycleDays = cyclesInDays.length > 0 ? cyclesInDays.reduce((a, b) => a + b, 0) / cyclesInDays.length : null;
 
-  const getLeadValue = (l: LeadWithBudget) =>
-    (l.budget?.final_total && l.budget.final_total > 0) ? l.budget.final_total : l.estimated_value;
-
-  const pipelineLeads = activeLeads.filter(l => l.crm_stage !== 'closed');
+  const pipelineLeads = activeLeads.filter(l => l.crm_stage !== 'closed' && l.crm_stage !== 'closed_lost');
   const pipelineLeadsWithBudget = pipelineLeads.filter(l => getLeadValue(l) > 0);
   const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);
   const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
@@ -127,6 +130,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
   const { data: archivedLeads = [], isLoading: archivedLoading } = useArchivedLeads();
   const { data: budgets = [], isLoading: budgetsLoading } = useBudgets();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
+  const { data: avgTickets = EMPTY_AVG_TICKET_LOOKUP, isLoading: avgTicketsLoading } = useServiceAvgTicketsMap();
 
   // Fetch budget_ids of cancelled projects to exclude their leads
   const { data: cancelledBudgetIds = [], isLoading: cancelledLoading } = useQuery({
@@ -146,7 +150,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     enabled: !!tenantId,
   });
 
-  const isLoading = leadsLoading || archivedLoading || budgetsLoading || clientsLoading || cancelledLoading;
+  const isLoading = leadsLoading || archivedLoading || budgetsLoading || clientsLoading || cancelledLoading || avgTicketsLoading;
 
   const data = useMemo<CommercialDashboardData | null>(() => {
     if (isLoading) return null;
@@ -183,17 +187,16 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
 
     // Active leads in period
     const activeLeadsPeriod = periodFiltered.filter(l => !l.archived);
-    const archivedPeriod = periodFiltered.filter(l => l.archived);
 
     // Current period KPIs
-    const currentKPIs = computeKPIs(periodFiltered);
+    const currentKPIs = computeKPIs(periodFiltered, avgTickets);
 
     // Previous period KPIs (same duration shifted back)
     const durationMs = differenceInMilliseconds(dateTo, dateFrom);
     const prevTo = new Date(dateFrom.getTime() - 1); // day before dateFrom
     const prevFrom = new Date(prevTo.getTime() - durationMs);
     const prevPeriodFiltered = filtered.filter(l => isInRange(l.created_at, prevFrom, prevTo));
-    const prevKPIs = computeKPIs(prevPeriodFiltered);
+    const prevKPIs = computeKPIs(prevPeriodFiltered, avgTickets);
 
     // Funnel data
     const funnelData = CRM_LEAD_COLUMNS.map(col => ({
@@ -220,16 +223,16 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
           const d = parseISO(dateStr);
           return d >= mStart && d <= mEnd;
         })
-        .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
+        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0);
 
       const lostThisMonth = filtered
-        .filter(l => l.archived)
+        .filter(l => l.archived || l.crm_stage === 'closed_lost')
         .filter(l => {
-          const dateStr = l.archived_at || l.updated_at;
+          const dateStr = l.archived ? (l.archived_at || l.updated_at) : (l.lost_at || l.updated_at);
           const d = parseISO(dateStr);
           return d >= mStart && d <= mEnd;
         })
-        .reduce((sum, l) => sum + (l.budget?.final_total || l.estimated_value), 0);
+        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0);
 
       accWon += wonThisMonth;
       return { month: label, wonMonth: wonThisMonth, lostMonth: lostThisMonth, wonAccumulated: accWon };
@@ -242,7 +245,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       const col = CRM_LEAD_COLUMNS.find(c => c.id === stage);
       return {
         name: col?.label || stage,
-        value: stageLeads.reduce((sum, l) => sum + l.estimated_value, 0),
+        value: stageLeads.reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0),
         count: stageLeads.length,
       };
     }).filter(s => s.count > 0);
@@ -254,7 +257,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     const clientRevenue: Record<string, number> = {};
     closedLeads.forEach(l => {
       const name = l.company_name || 'Sem empresa';
-      const val = l.budget?.final_total || l.estimated_value;
+      const val = resolveLeadEstimatedValue(l, avgTickets);
       clientRevenue[name] = (clientRevenue[name] || 0) + val;
     });
     const topClients = Object.entries(clientRevenue)
@@ -262,9 +265,10 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
 
-    // Loss reasons
+    // Loss reasons — arquivadas OU movidas para "Fechado - Perda" (ambas reaproveitam archive_reason)
+    const lostPeriod = periodFiltered.filter(l => l.archived || l.crm_stage === 'closed_lost');
     const reasonCounts: Record<string, number> = {};
-    archivedPeriod.forEach(l => {
+    lostPeriod.forEach(l => {
       const reason = l.archive_reason || 'other';
       reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
     });
@@ -273,6 +277,26 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
         const label = ARCHIVE_REASONS.find(r => r.value === reason)?.label || reason;
         return { reason: label, count };
       })
+      .sort((a, b) => b.count - a.count);
+
+    // Leads by source (origem) — todos os leads criados no período, independente
+    // de etapa/arquivamento, com taxa de conversão (ganhos / total daquela origem).
+    const sourceGroups: Record<string, { count: number; wonCount: number }> = {};
+    periodFiltered.forEach(l => {
+      const source = l.source || 'not_informed';
+      const g = sourceGroups[source] ?? { count: 0, wonCount: 0 };
+      g.count += 1;
+      if (l.crm_stage === 'closed' && !l.archived) g.wonCount += 1;
+      sourceGroups[source] = g;
+    });
+    const leadsBySource = Object.entries(sourceGroups)
+      .map(([source, g]) => ({
+        source,
+        label: source === 'not_informed' ? 'Não informado' : (LEAD_SOURCE_LABELS[source] || source),
+        count: g.count,
+        wonCount: g.wonCount,
+        conversionRate: g.count > 0 ? (g.wonCount / g.count) * 100 : 0,
+      }))
       .sort((a, b) => b.count - a.count);
 
     // Recent leads (5 most recent from all, no filter)
@@ -294,11 +318,12 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       totalPipeline,
       topClients,
       lossReasons,
+      leadsBySource,
       recentLeads,
       activeLeadsPeriod,
       responsibleOptions,
     };
-  }, [leads, archivedLeads, budgets, clients, cancelledBudgetIds, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
+  }, [leads, archivedLeads, budgets, clients, avgTickets, cancelledBudgetIds, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
 
   return { data, isLoading };
 }

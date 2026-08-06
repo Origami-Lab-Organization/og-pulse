@@ -30,6 +30,7 @@ export interface CommercialPdfInput {
   totalPipeline: number;
   topClients: { name: string; value: number }[];
   lossReasons: { reason: string; count: number }[];
+  leadsBySource: { source: string; label: string; count: number; wonCount: number; conversionRate: number }[];
   activeLeads: LeadWithBudget[];
 }
 
@@ -52,11 +53,12 @@ const fmtDelta = (curr: number, prev: number): string => {
 
 const STAGE_ORDER: CRMStage[] = ['screening', 'qualification', 'proposal', 'negotiation', 'closed'];
 const STAGE_LABEL: Record<string, string> = {
-  screening: 'Triagem',
+  screening: 'Prospecção/Oportunidade',
   qualification: 'Qualificação',
-  proposal: 'Proposta',
+  proposal: 'Proposta Enviada',
   negotiation: 'Negociação',
-  closed: 'Negócio Fechado',
+  closed: 'Fechado - Ganho',
+  closed_lost: 'Fechado - Perda',
 };
 const STAGE_PROB: Record<string, number> = {
   screening: 10, qualification: 25, proposal: 50, negotiation: 75, closed: 100,
@@ -75,7 +77,7 @@ const C_HDR     = [204, 251, 241] as const;   // teal-100
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export function generateCommercialPdf(input: CommercialPdfInput): void {
-  const { periodLabel, kpis, funnelData, revenueByMonth, pipelineByStage, totalPipeline, topClients, lossReasons, activeLeads } = input;
+  const { periodLabel, kpis, funnelData, revenueByMonth, pipelineByStage, totalPipeline, topClients, lossReasons, leadsBySource, activeLeads } = input;
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -421,7 +423,29 @@ export function generateCommercialPdf(input: CommercialPdfInput): void {
     ry += 5.5;
   });
 
-  y = Math.max(y, ry);
+  y = Math.max(y, ry) + 6;
+
+  // Leads by source (origem)
+  checkBreak(20);
+  sectionTitle('Leads por Origem');
+
+  const sourceCols: ColDef[] = [
+    { label: 'Origem', w: 60 },
+    { label: 'Leads', w: 24, align: 'right' },
+    { label: 'Ganhos', w: 24, align: 'right' },
+    { label: 'Taxa de Conversão', w: 42, align: 'right' },
+  ];
+  tableHeader(sourceCols);
+
+  leadsBySource.forEach((s, i) => {
+    checkBreak(6);
+    tableRow([
+      { value: s.label, w: sourceCols[0].w, bold: true },
+      { value: String(s.count), w: sourceCols[1].w, align: 'right' },
+      { value: String(s.wonCount), w: sourceCols[2].w, align: 'right', color: s.wonCount > 0 ? C_GREEN : C_GRAY },
+      { value: fmtPct(s.conversionRate), w: sourceCols[3].w, align: 'right' },
+    ], i);
+  });
 
   drawFooter();
 

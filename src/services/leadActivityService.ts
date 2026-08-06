@@ -10,6 +10,7 @@ export type LeadActivityType =
   | 'archived'
   | 'unarchived'
   | 'closed'
+  | 'closed_lost'
   | 'note_added';
 
 export interface LeadActivityDB {
@@ -98,11 +99,12 @@ export const leadActivityService = {
     createdBy?: string | null
   ): Promise<LeadActivityDB> {
     const stageLabels: Record<string, string> = {
-      screening: 'Triagem',
+      screening: 'Prospecção/Oportunidade',
       qualification: 'Qualificação',
-      proposal: 'Proposta',
+      proposal: 'Proposta Enviada',
       negotiation: 'Negociação',
-      closed: 'Negócio Fechado',
+      closed: 'Fechado - Ganho',
+      closed_lost: 'Fechado - Perda',
     };
 
     return this.log({
@@ -170,6 +172,34 @@ export const leadActivityService = {
         project_type: projectType,
         final_value: finalValue,
       },
+      createdBy,
+    });
+  },
+
+  /**
+   * Helper: log deal lost
+   */
+  async logDealLost(
+    tenantId: string,
+    leadId: string,
+    fromStage: string,
+    reasonLabel: string,
+    createdBy?: string | null
+  ): Promise<LeadActivityDB> {
+    const stageLabels: Record<string, string> = {
+      screening: 'Prospecção/Oportunidade',
+      qualification: 'Qualificação',
+      proposal: 'Proposta Enviada',
+      negotiation: 'Negociação',
+      closed: 'Fechado - Ganho',
+    };
+
+    return this.log({
+      tenantId,
+      leadId,
+      activityType: 'closed_lost',
+      description: `Oportunidade perdida (${reasonLabel}) — estava em ${stageLabels[fromStage] || fromStage}`,
+      metadata: { from_stage: fromStage, reason: reasonLabel },
       createdBy,
     });
   },
