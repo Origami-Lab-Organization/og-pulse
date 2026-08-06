@@ -16,8 +16,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { MicrosoftLogo } from '@/components/auth/MicrosoftLogo';
+import { isMicrosoftConfigured } from '@/integrations/microsoft/msalClient';
 import logo from '@/assets/logo.png';
 
 const loginSchema = z.object({
@@ -27,14 +31,17 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+const isMicrosoftEnabled = isMicrosoftConfigured();
+
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { signIn } = useAuth();
+  const { signIn, signInWithMicrosoft, accessDenied } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isMicrosoftLoading, setIsMicrosoftLoading] = useState(false);
 
   // Pré-preenche o e-mail quando o acesso vem do link de convite (?email=...).
   const invitedEmail = searchParams.get('email') ?? '';
@@ -47,6 +54,23 @@ const Login = () => {
       password: '',
     },
   });
+
+  const onMicrosoftSignIn = async () => {
+    setIsMicrosoftLoading(true);
+    const { error } = await signInWithMicrosoft();
+    setIsMicrosoftLoading(false);
+
+    if (error) {
+      toast({
+        title: 'Não foi possível entrar',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    navigate(from, { replace: true });
+  };
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
@@ -135,6 +159,41 @@ const Login = () => {
               Gerencie a rentabilidade dos seus projetos com clareza.
             </p>
           </div>
+
+          {accessDenied && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription>
+                Autenticação concluída, mas não encontramos um funcionário ativo com
+                esse e-mail no Pulse. Fale com o administrador para liberar seu acesso.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {isMicrosoftEnabled && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={onMicrosoftSignIn}
+                disabled={isMicrosoftLoading || isLoading}
+              >
+                {isMicrosoftLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <MicrosoftLogo className="mr-2 h-4 w-4" />
+                )}
+                {isMicrosoftLoading ? 'Aguardando Microsoft...' : 'Entrar com Microsoft'}
+              </Button>
+
+              <div className="relative my-6">
+                <Separator />
+                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">
+                  ou entre com e-mail
+                </span>
+              </div>
+            </>
+          )}
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

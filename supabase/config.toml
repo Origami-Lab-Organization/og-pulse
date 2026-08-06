@@ -1,5 +1,10 @@
 project_id = "vkriobpmolgopbbpqeky"
 
+# Chamada sem sessão: é ela que CRIA a sessão a partir da identidade Microsoft.
+# A autenticação real acontece dentro da função, validando o token do Entra ID.
+[functions.microsoft-sso]
+verify_jwt = false
+
 [functions.send-invite-email]
 verify_jwt = false
 

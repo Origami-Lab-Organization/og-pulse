@@ -47,4 +47,14 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
+  build: {
+    rollupOptions: {
+      input: {
+        // Entry separado: carregar a SPA na página de retorno faria o roteador
+        // apagar o fragmento com o código do OAuth.
+        main: path.resolve(__dirname, "index.html"),
+        microsoftAuth: path.resolve(__dirname, "microsoft-auth.html"),
+      },
+    },
+  },
 }));

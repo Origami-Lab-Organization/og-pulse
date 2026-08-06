@@ -1,6 +1,7 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { TimesheetStatusWidget } from '@/components/dashboard/TimesheetStatusWidget';
+import { AgendaHojeWidget } from '@/components/dashboard/AgendaHojeWidget';
 import { MinhasTarefasWidget } from '@/components/dashboard/MinhasTarefasWidget';
 import { NotificacoesRecentesWidget } from '@/components/dashboard/NotificacoesRecentesWidget';
 import { MeusProjetosWidget } from '@/components/dashboard/MeusProjetosWidget';
@@ -20,9 +21,13 @@ export default function Dashboard() {
   return (
     <AppLayout title={greeting} description="Aqui está o resumo do seu dia">
       <div className="space-y-4">
-        {/* Linha 1: Timesheet + Tarefas */}
+        {/* Timesheet vira faixa: mantém o sinal de pendência sem ocupar o card
+            de destaque, que agora é a agenda do dia. */}
+        <TimesheetStatusWidget variant="compact" />
+
+        {/* Linha 1: Agenda + Tarefas */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <TimesheetStatusWidget />
+          <AgendaHojeWidget />
           <MinhasTarefasWidget />
         </div>
 

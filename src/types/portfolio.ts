@@ -5,6 +5,15 @@ export type PortfolioStage =
   | 'learning_case'
   | 'completed';
 
+/** Estágios canônicos — compare por aqui, nunca por string literal. */
+export const PORTFOLIO_STAGE = {
+  PLANNING: 'planning',
+  VALUE_DELIVERY: 'value_delivery',
+  RESULTS_PRESENTATION: 'results_presentation',
+  LEARNING_CASE: 'learning_case',
+  COMPLETED: 'completed',
+} as const;
+
 const COLUMN_COLOR = 'bg-muted text-muted-foreground';
 
 export const PORTFOLIO_COLUMNS = [
