@@ -186,6 +186,34 @@ export interface MicrosoftDiagnostics {
   sampleKeys: string[];
 }
 
+/**
+ * Classificação de importância que a própria Microsoft calcula — é o que
+ * alimenta as abas "Prioritários" e "Outros" da Caixa de Entrada Destaques do
+ * Outlook. Não é heurística nossa.
+ */
+export const MAIL_CLASSIFICATION = {
+  FOCUSED: 'focused',
+  OTHER: 'other',
+} as const;
+
+export type MailClassification =
+  (typeof MAIL_CLASSIFICATION)[keyof typeof MAIL_CLASSIFICATION];
+
+/**
+ * Mensagem completa, carregada ao abrir.
+ *
+ * O corpo vem como o remetente enviou — quase sempre HTML. Ele NUNCA é inserido
+ * na nossa página: renderiza dentro de um iframe restrito (ver MessageBody), que
+ * é o que permite mostrar formatação e imagem sem abrir porta para XSS.
+ */
+export interface MailMessageDetail extends MailMessage {
+  to: string[];
+  cc: string[];
+  body: string;
+  bodyIsHtml: boolean;
+  hasAttachments: boolean;
+}
+
 export interface MailMessage {
   id: string;
   subject: string;
@@ -194,4 +222,5 @@ export interface MailMessage {
   receivedAt: string;
   isRead: boolean;
   webLink: string | null;
+  classification: MailClassification;
 }

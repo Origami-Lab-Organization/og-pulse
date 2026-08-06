@@ -8,6 +8,7 @@
 
 import {
   ATTENDEE_RESPONSE,
+  MAIL_CLASSIFICATION,
   ATTENDEE_TYPE,
   EVENT_TYPE,
   GRAPH_ERROR_CODE,
@@ -17,6 +18,7 @@ import {
 } from '@/types/microsoftGraph';
 import type {
   AttendeeResponse,
+  MailClassification,
   CalendarEvent,
   CalendarEventCreated,
   CalendarEventDetail,
@@ -26,6 +28,7 @@ import type {
   EventType,
   GraphErrorCode,
   MailMessage,
+  MailMessageDetail,
   RecurrenceFrequency,
   RecurrenceInput,
 } from '@/types/microsoftGraph';
@@ -84,19 +87,30 @@ async function readGraphErrorCode(response: Response): Promise<string> {
   }
 }
 
+interface GraphRequestInit {
+  method?: string;
+  body?: unknown;
+  /** Valores extra do header `Prefer`, somados ao fuso. */
+  prefer?: string[];
+}
+
 async function graphFetch<T>(
   token: string,
   url: string,
-  init?: { method: string; body: unknown },
+  init?: GraphRequestInit,
 ): Promise<T> {
+  const method = init?.method || 'GET';
+  const sendsBody = method !== 'GET' && init?.body !== undefined;
+  const prefer = [`outlook.timezone="${GRAPH_TIMEZONE}"`, ...(init?.prefer ?? [])];
+
   const response = await fetch(url, {
-    method: init?.method ?? 'GET',
+    method,
     headers: {
       Authorization: `Bearer ${token}`,
-      Prefer: `outlook.timezone="${GRAPH_TIMEZONE}"`,
-      ...(init ? { 'Content-Type': 'application/json' } : {}),
+      Prefer: prefer.join(', '),
+      ...(sendsBody ? { 'Content-Type': 'application/json' } : {}),
     },
-    body: init ? JSON.stringify(init.body) : undefined,
+    body: sendsBody ? JSON.stringify(init.body) : undefined,
   });
 
   if (!response.ok) {
@@ -169,6 +183,7 @@ interface RawEvent {
 
 interface RawMessage {
   id: string;
+  inferenceClassification: string | null;
   subject: string | null;
   bodyPreview: string | null;
   receivedDateTime: string;
@@ -200,6 +215,10 @@ function toMailMessage(raw: RawMessage): MailMessage {
     receivedAt: raw.receivedDateTime,
     isRead: raw.isRead,
     webLink: raw.webLink,
+    classification:
+      raw.inferenceClassification === MAIL_CLASSIFICATION.OTHER
+        ? MAIL_CLASSIFICATION.OTHER
+        : MAIL_CLASSIFICATION.FOCUSED,
   };
 }
 
@@ -429,7 +448,7 @@ export async function deleteCalendarEvent(token: string, eventId: string): Promi
   await graphFetch<void>(
     token,
     `${GRAPH_BASE}/me/events/${encodeURIComponent(eventId)}`,
-    { method: 'DELETE', body: undefined },
+    { method: 'DELETE' },
   );
 }
 
@@ -446,6 +465,284 @@ export async function declineCalendarEvent(
   );
 }
 
+/** Uma página de mensagens, com o ponteiro para a próxima. */
+export interface MailPage {
+  messages: MailMessage[];
+  /** URL opaca do Graph para a página seguinte; ausente no fim da lista. */
+  nextLink: string | null;
+}
+
+/**
+ * Página da caixa de entrada, da mais recente para a mais antiga.
+ *
+ * NÃO filtra por classificação de propósito. O Graph recusa `$filter` de
+ * `inferenceClassification` junto com `$orderby` de `receivedDateTime`, e sem a
+ * ordenação a primeira página vem do começo da caixa — ou seja, os e-mails mais
+ * ANTIGOS. Ordenar depois no cliente não resolve: os recentes ficariam na última
+ * página. Entre ter ordem correta e ter paginação por aba, a ordem importa mais;
+ * a separação Prioritários/Outros é feita no cliente sobre o que já veio.
+ */
+export async function listInboxPage(
+  token: string,
+  options: { top: number; nextLink?: string | null },
+): Promise<MailPage> {
+  const url =
+    options.nextLink ??
+    `${GRAPH_BASE}/me/mailFolders/inbox/messages?${buildQuery({
+      $orderby: 'receivedDateTime desc',
+      $top: String(options.top),
+      $select:
+        'id,subject,bodyPreview,receivedDateTime,isRead,webLink,from,inferenceClassification',
+    })}`;
+
+  const data = await graphFetch<GraphList<RawMessage>>(token, url);
+
+  return {
+    messages: data.value.map(toMailMessage),
+    nextLink: data['@odata.nextLink'] ?? null,
+  };
+}
+
+/**
+ * Busca na caixa de entrada, no mesmo espírito da barra do Outlook: procura em
+ * remetente, assunto e corpo.
+ *
+ * O Graph **não aceita `$search` junto com `$filter` nem com `$orderby`** em
+ * mensagens. Por isso a busca ignora a separação Prioritários/Outros e vem por
+ * relevância, não por data — que é também como o Outlook se comporta ao buscar.
+ */
+export async function searchInboxPage(
+  token: string,
+  query: string,
+  options: { top: number; nextLink?: string | null },
+): Promise<MailPage> {
+  // Aspas quebrariam a expressão KQL de `$search="..."`.
+  const term = query.replace(/"/g, ' ').trim();
+
+  const url =
+    options.nextLink ??
+    `${GRAPH_BASE}/me/mailFolders/inbox/messages?${buildQuery({
+      $search: `"${term}"`,
+      $top: String(options.top),
+      $select:
+        'id,subject,bodyPreview,receivedDateTime,isRead,webLink,from,inferenceClassification',
+    })}`;
+
+  const data = await graphFetch<GraphList<RawMessage>>(token, url);
+
+  return {
+    messages: data.value.map(toMailMessage),
+    nextLink: data['@odata.nextLink'] ?? null,
+  };
+}
+
+interface RawMessageDetail extends RawMessage {
+  body: { contentType: string; content: string } | null;
+  hasAttachments: boolean;
+  toRecipients: { emailAddress: { name: string | null; address: string | null } | null }[];
+  ccRecipients: { emailAddress: { name: string | null; address: string | null } | null }[];
+}
+
+function recipientNames(
+  list: RawMessageDetail['toRecipients'] | undefined,
+): string[] {
+  return (list ?? [])
+    .map((item) => item.emailAddress?.name || item.emailAddress?.address || '')
+    .filter(Boolean);
+}
+
+interface RawAttachment {
+  id: string;
+  contentId: string | null;
+  contentType: string | null;
+  contentBytes?: string;
+  size: number;
+}
+
+/** Anexo embutido acima disso não vira data URI — inflaria o HTML sem ganho. */
+const MAX_INLINE_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Troca as referências `cid:` do corpo por data URIs.
+ *
+ * Imagem colada no e-mail (logo de assinatura, print) viaja como anexo embutido
+ * e é referenciada por `cid:`. O navegador não resolve esse esquema, então sem
+ * esta substituição a imagem simplesmente não aparece — nem com CSP liberada.
+ */
+function inlineAttachmentsIntoHtml(html: string, attachments: RawAttachment[]): string {
+  return attachments.reduce((current, attachment) => {
+    if (!attachment.contentId || !attachment.contentBytes || !attachment.contentType) {
+      return current;
+    }
+
+    const dataUri = `data:${attachment.contentType};base64,${attachment.contentBytes}`;
+    const reference = new RegExp(
+      `cid:${escapeForRegExp(normalizeContentId(attachment.contentId))}`,
+      'gi',
+    );
+    return current.replace(reference, dataUri);
+  }, html);
+}
+
+/**
+ * O `contentId` às vezes vem entre sinais de menor/maior (`<abc@host>`) e o HTML
+ * referencia sem eles (`cid:abc@host`). Comparar sem normalizar é o motivo
+ * clássico de "algumas imagens aparecem e outras não".
+ */
+function normalizeContentId(contentId: string): string {
+  return contentId.replace(/^<|>$/g, '').trim();
+}
+
+/**
+ * Anexos que o corpo realmente referencia por `cid:`.
+ *
+ * Vem em dois passos de propósito: primeiro a lista sem `contentBytes` (barata),
+ * depois só os que o HTML cita. Assim um anexo grande e irrelevante não é
+ * baixado à toa. Não filtra por `isInline` porque há remetente que embute imagem
+ * sem marcar a flag — e aí a imagem sumia.
+ *
+ * Falha aqui não impede exibir o e-mail; ele abre sem as imagens embutidas.
+ */
+async function fetchReferencedAttachments(
+  token: string,
+  messageId: string,
+  html: string,
+): Promise<RawAttachment[]> {
+  try {
+    const listQuery = buildQuery({ $select: 'id,contentId,contentType,size' });
+    const list = await graphFetch<GraphList<RawAttachment>>(
+      token,
+      `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments?${listQuery}`,
+    );
+
+    const referenced = list.value.filter((item) => {
+      if (!item.contentId || item.size > MAX_INLINE_ATTACHMENT_BYTES) return false;
+      const id = normalizeContentId(item.contentId);
+      return id.length > 0 && html.toLowerCase().includes(`cid:${id.toLowerCase()}`);
+    });
+
+    return Promise.all(
+      referenced.map((item) =>
+        graphFetch<RawAttachment>(
+          token,
+          `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(item.id)}`,
+        ),
+      ),
+    );
+  } catch (error) {
+    const code = error instanceof GraphError ? error.message : 'erro inesperado';
+    console.error('[microsoft] falha ao carregar imagens embutidas:', code);
+    if (!(error instanceof GraphError)) throw error;
+    return [];
+  }
+}
+
+/** Anexo visível para download (embutidos ficam fora: já aparecem no corpo). */
+export interface MailAttachment {
+  id: string;
+  name: string;
+  contentType: string;
+  size: number;
+}
+
+interface RawAttachmentMeta extends RawAttachment {
+  name: string | null;
+  isInline: boolean;
+}
+
+/** Anexos da mensagem, sem baixar conteúdo — só o suficiente para listar. */
+export async function listMessageAttachments(
+  token: string,
+  messageId: string,
+): Promise<MailAttachment[]> {
+  const query = buildQuery({ $select: 'id,name,contentType,size,isInline' });
+
+  const data = await graphFetch<GraphList<RawAttachmentMeta>>(
+    token,
+    `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments?${query}`,
+  );
+
+  return data.value
+    .filter((item) => !item.isInline)
+    .map((item) => ({
+      id: item.id,
+      name: item.name?.trim() || 'anexo',
+      contentType: item.contentType ?? 'application/octet-stream',
+      size: item.size,
+    }));
+}
+
+/** Conteúdo de um anexo, em base64 como o Graph devolve. */
+export async function fetchAttachmentContent(
+  token: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<{ name: string; contentType: string; contentBytes: string }> {
+  const raw = await graphFetch<RawAttachmentMeta>(
+    token,
+    `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+  );
+
+  if (!raw.contentBytes) {
+    throw new GraphError(
+      GRAPH_ERROR_CODE.UNKNOWN,
+      'Este anexo não tem conteúdo baixável (pode ser um item do Outlook ou link).',
+    );
+  }
+
+  return {
+    name: raw.name?.trim() || 'anexo',
+    contentType: raw.contentType ?? 'application/octet-stream',
+    contentBytes: raw.contentBytes,
+  };
+}
+
+/**
+ * Mensagem completa, com o corpo como o remetente enviou. A segurança fica na
+ * renderização isolada (iframe restrito), não em converter para texto — assim o
+ * e-mail aparece com formatação e imagens.
+ */
+export async function getMailMessage(
+  token: string,
+  messageId: string,
+): Promise<MailMessageDetail> {
+  const query = buildQuery({
+    $select:
+      'id,subject,body,receivedDateTime,isRead,webLink,from,toRecipients,ccRecipients,hasAttachments,inferenceClassification,bodyPreview',
+  });
+
+  const raw = await graphFetch<RawMessageDetail>(
+    token,
+    `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}?${query}`,
+  );
+
+  const isHtml = raw.body?.contentType?.toLowerCase() === 'html';
+  let body = raw.body?.content?.trim() ?? '';
+
+  // `hasAttachments` NÃO conta anexo embutido — vem `false` numa mensagem que só
+  // tem a imagem da assinatura. Usar essa propriedade como porta impedia
+  // justamente o caso mais comum, então o gatilho é o `cid:` no corpo.
+  if (isHtml && /cid:/i.test(body)) {
+    body = inlineAttachmentsIntoHtml(
+      body,
+      await fetchReferencedAttachments(token, messageId, body),
+    );
+  }
+
+  return {
+    ...toMailMessage(raw),
+    to: recipientNames(raw.toRecipients),
+    cc: recipientNames(raw.ccRecipients),
+    body,
+    bodyIsHtml: isHtml,
+    hasAttachments: raw.hasAttachments,
+  };
+}
+
 /** Mensagens mais recentes da caixa de entrada do próprio usuário. */
 export async function listRecentMessages(
   token: string,
@@ -454,7 +751,8 @@ export async function listRecentMessages(
   const params = new URLSearchParams({
     $orderby: 'receivedDateTime desc',
     $top: String(top),
-    $select: 'id,subject,bodyPreview,receivedDateTime,isRead,webLink,from',
+    $select:
+      'id,subject,bodyPreview,receivedDateTime,isRead,webLink,from,inferenceClassification',
   });
 
   const data = await graphGet<GraphList<RawMessage>>(

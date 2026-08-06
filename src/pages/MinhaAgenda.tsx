@@ -8,33 +8,27 @@ import {
   ChevronRight,
   ExternalLink,
   Loader2,
-  Mail,
   Unplug,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { MicrosoftLogo } from '@/components/auth/MicrosoftLogo';
+import { MicrosoftConnectPrompt } from '@/components/microsoft/MicrosoftConnectPrompt';
 import { DayEventsDialog } from '@/components/agenda/DayEventsDialog';
 import { EventDetailDialog } from '@/components/agenda/EventDetailDialog';
 import { MonthCalendar } from '@/components/agenda/MonthCalendar';
 import { getMonthGridRange } from '@/components/agenda/calendarGrid';
 import { EventFormDialog } from '@/components/agenda/EventFormDialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   describeGraphError,
   formatConnectErrorDetail,
   useMicrosoftCalendarRange,
   useMicrosoftConnection,
   useMicrosoftDiagnostics,
-  useMicrosoftMail,
 } from '@/hooks/useMicrosoftGraph';
-import type { CalendarEventDetail, MailMessage } from '@/types/microsoftGraph';
-
-const MAIL_PAGE_SIZE = 15;
+import type { CalendarEventDetail } from '@/types/microsoftGraph';
 
 function ListSkeleton() {
   return (
@@ -46,83 +40,11 @@ function ListSkeleton() {
   );
 }
 
-function EmptyState({ icon, message }: { icon: React.ReactNode; message: string }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-        <div className="text-muted-foreground">{icon}</div>
-        <p className="text-sm text-muted-foreground">{message}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function MessageRow({ message }: { message: MailMessage }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-wrap items-start justify-between gap-3 py-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-medium text-foreground truncate">{message.subject}</p>
-            {!message.isRead && <Badge variant="secondary">Não lido</Badge>}
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">{message.from}</p>
-          {message.preview && (
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{message.preview}</p>
-          )}
-          <p className="text-xs text-muted-foreground mt-1">
-            {format(parseISO(message.receivedAt), "d 'de' MMM 'às' HH:mm", { locale: ptBR })}
-          </p>
-        </div>
-        {message.webLink && (
-          <Button asChild variant="outline" size="sm">
-            <a href={message.webLink} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
-              Abrir no Outlook
-            </a>
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 function GraphErrorAlert({ error }: { error: unknown }) {
   return (
     <Alert variant="destructive">
       <AlertDescription>{describeGraphError(error)}</AlertDescription>
     </Alert>
-  );
-}
-
-function ConnectPrompt({
-  onConnect,
-  isConnecting,
-}: {
-  onConnect: () => void;
-  isConnecting: boolean;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-        <CalendarDays className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
-        <div>
-          <p className="font-medium text-foreground">Conecte sua conta Microsoft</p>
-          <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            Autorize o acesso para ver sua agenda e seus e-mails aqui dentro do Pulse e
-            criar compromissos sem sair do sistema. Só você vê estes dados.
-          </p>
-        </div>
-        <Button variant="gradient" onClick={onConnect} disabled={isConnecting}>
-          {isConnecting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <MicrosoftLogo className="mr-2 h-4 w-4" />
-          )}
-          {isConnecting ? 'Aguardando autorização...' : 'Conectar Microsoft'}
-        </Button>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -232,7 +154,6 @@ export default function MinhaAgenda() {
 
   const gridRange = getMonthGridRange(month);
   const calendar = useMicrosoftCalendarRange(gridRange.start, gridRange.end, isConnected);
-  const mail = useMicrosoftMail(MAIL_PAGE_SIZE, isConnected);
   const events = calendar.data ?? [];
 
   const openNewEvent = (day: Date) => {
@@ -263,7 +184,7 @@ export default function MinhaAgenda() {
     </div>
   ) : undefined;
 
-  const renderCalendarTab = () => {
+  const renderCalendar = () => {
     if (calendar.error) return <GraphErrorAlert error={calendar.error} />;
 
     return (
@@ -289,26 +210,6 @@ export default function MinhaAgenda() {
     );
   };
 
-  const renderMailTab = () => {
-    if (mail.isLoading) return <ListSkeleton />;
-    if (mail.error) return <GraphErrorAlert error={mail.error} />;
-    if (!mail.data?.length) {
-      return (
-        <EmptyState
-          icon={<Mail className="h-8 w-8" aria-hidden="true" />}
-          message="Nenhum e-mail recente na caixa de entrada."
-        />
-      );
-    }
-    return (
-      <div className="space-y-3">
-        {mail.data.map((message) => (
-          <MessageRow key={message.id} message={message} />
-        ))}
-      </div>
-    );
-  };
-
   const renderBody = () => {
     if (!isConfigured) {
       return (
@@ -324,37 +225,24 @@ export default function MinhaAgenda() {
     if (isLoading) return <ListSkeleton />;
 
     if (!isConnected) {
-      return <ConnectPrompt onConnect={connect} isConnecting={isConnecting} />;
+      return (
+        <MicrosoftConnectPrompt
+          icon={<CalendarDays className="h-8 w-8" aria-hidden="true" />}
+          title="Conecte sua conta Microsoft"
+          description="Autorize o acesso para ver sua agenda e criar compromissos sem sair do Pulse. Só você vê estes dados."
+          onConnect={connect}
+          isConnecting={isConnecting}
+        />
+      );
     }
 
-    return (
-      <Tabs defaultValue="agenda" className="w-full">
-        <TabsList>
-          <TabsTrigger value="agenda">
-            <CalendarDays className="mr-2 h-4 w-4" aria-hidden="true" />
-            Agenda
-          </TabsTrigger>
-          <TabsTrigger value="emails">
-            <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
-            E-mails
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="agenda" className="mt-4">
-          {renderCalendarTab()}
-        </TabsContent>
-
-        <TabsContent value="emails" className="mt-4">
-          {renderMailTab()}
-        </TabsContent>
-      </Tabs>
-    );
+    return renderCalendar();
   };
 
   return (
     <AppLayout
       title="Minha Agenda"
-      description="Seus compromissos e e-mails da conta Microsoft, sem sair do Pulse."
+      description="Seus compromissos da conta Microsoft, sem sair do Pulse."
       actions={headerActions}
     >
       {renderBody()}

@@ -1,5 +1,10 @@
 import { AuthError, BrowserAuthErrorCodes } from '@azure/msal-browser';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   acquireGraphToken,
@@ -16,14 +21,20 @@ import {
   declineCalendarEvent,
   deleteCalendarEvent,
   getCalendarEvent,
+  fetchAttachmentContent,
+  getMailMessage,
   GraphError,
   listCalendarEvents,
+  listInboxPage,
+  listMessageAttachments,
   listRecentMessages,
+  searchInboxPage,
   updateCalendarEvent,
 } from '@/services/microsoftGraphService';
 import { EVENT_ACTION, GRAPH_ERROR_CODE } from '@/types/microsoftGraph';
 import type {
   CalendarEventInput,
+  MailClassification,
   CalendarEventUpdate,
   EventAction,
 } from '@/types/microsoftGraph';
@@ -269,6 +280,186 @@ export function useEventAction() {
       console.error('[microsoft] falha na ação sobre o evento:', error);
       toast.error(describeGraphError(error));
     },
+  });
+}
+
+/**
+ * Caixa de entrada paginada, da mais recente para a mais antiga. Uma consulta
+ * só: a separação Prioritários/Outros acontece na tela. O cursor é a `nextLink`
+ * opaca do Graph — nunca montada por nós.
+ */
+export function useInboxPages(top: number, enabled: boolean) {
+  return useInfiniteQuery({
+    queryKey: [MAIL_QUERY_KEY, 'inbox', top],
+    enabled,
+    staleTime: 60_000,
+    retry: false,
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const token = await acquireGraphToken();
+      return listInboxPage(token, { top, nextLink: pageParam });
+    },
+    getNextPageParam: (lastPage) => lastPage.nextLink,
+  });
+}
+
+const MESSAGE_QUERY_KEY = 'microsoft-message';
+
+/** Mensagem completa — carregada só quando o e-mail é aberto. */
+export function useMailMessageDetail(messageId: string | null) {
+  return useQuery({
+    queryKey: [MESSAGE_QUERY_KEY, messageId],
+    enabled: Boolean(messageId),
+    retry: false,
+    queryFn: async () => {
+      const token = await acquireGraphToken();
+      return getMailMessage(token, messageId as string);
+    },
+  });
+}
+
+/** Anexos da mensagem aberta. */
+export function useMessageAttachments(messageId: string | null) {
+  return useQuery({
+    queryKey: [MESSAGE_QUERY_KEY, messageId, 'attachments'],
+    enabled: Boolean(messageId),
+    retry: false,
+    queryFn: async () => {
+      const token = await acquireGraphToken();
+      return listMessageAttachments(token, messageId as string);
+    },
+  });
+}
+
+/** Converte o base64 do Graph em bytes para o navegador salvar. */
+function base64ToBlob(base64: string, contentType: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: contentType });
+}
+
+/**
+ * Tipos que podem ser ABERTOS em aba nova.
+ *
+ * Uma URL `blob:` herda a nossa origem: abrir HTML ou SVG assim executaria o
+ * script do anexo com acesso à nossa sessão e ao localStorage. PDF e imagem
+ * rasterizada o navegador renderiza sem executar nada — SVG fica de fora
+ * justamente porque é XML com script. Todo o resto só baixa.
+ */
+const OPENABLE_CONTENT_TYPES = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/bmp',
+  'text/plain',
+];
+
+export function canOpenInBrowser(contentType: string): boolean {
+  return OPENABLE_CONTENT_TYPES.includes(contentType.toLowerCase().split(';')[0].trim());
+}
+
+/** Revogar de imediato corta o download/aba antes de começar em alguns navegadores. */
+const BLOB_LIFETIME_MS = 60_000;
+
+/**
+ * Baixa um anexo. O conteúdo vem em base64 e é convertido no navegador — nada
+ * passa por servidor nosso nem fica gravado.
+ */
+export function useDownloadAttachment() {
+  return useMutation({
+    mutationFn: async (variables: { messageId: string; attachmentId: string }) => {
+      const token = await acquireGraphToken();
+      const attachment = await fetchAttachmentContent(
+        token,
+        variables.messageId,
+        variables.attachmentId,
+      );
+
+      const url = URL.createObjectURL(
+        base64ToBlob(attachment.contentBytes, attachment.contentType),
+      );
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.name;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), BLOB_LIFETIME_MS);
+
+      return attachment.name;
+    },
+    onError: (error) => {
+      console.error('[microsoft] falha ao baixar anexo:', error);
+      toast.error(
+        error instanceof GraphError
+          ? error.message
+          : 'Não foi possível baixar o anexo.',
+      );
+    },
+  });
+}
+
+/**
+ * Abre o anexo em aba nova. Só é chamado para os tipos de
+ * `canOpenInBrowser` — ver o motivo lá.
+ */
+export function useOpenAttachment() {
+  return useMutation({
+    mutationFn: async (variables: { messageId: string; attachmentId: string }) => {
+      const token = await acquireGraphToken();
+      const attachment = await fetchAttachmentContent(
+        token,
+        variables.messageId,
+        variables.attachmentId,
+      );
+
+      if (!canOpenInBrowser(attachment.contentType)) {
+        throw new GraphError(
+          GRAPH_ERROR_CODE.UNKNOWN,
+          'Este tipo de arquivo não pode ser aberto aqui — use o download.',
+        );
+      }
+
+      const url = URL.createObjectURL(
+        base64ToBlob(attachment.contentBytes, attachment.contentType),
+      );
+
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(url), BLOB_LIFETIME_MS);
+
+      return attachment.name;
+    },
+    onError: (error) => {
+      console.error('[microsoft] falha ao abrir anexo:', error);
+      toast.error(
+        error instanceof GraphError ? error.message : 'Não foi possível abrir o anexo.',
+      );
+    },
+  });
+}
+
+/** Menor termo que vale consultar — uma letra traria a caixa inteira. */
+const MIN_SEARCH_LENGTH = 2;
+
+/** Busca paginada na caixa de entrada. Inativa com termo curto. */
+export function useInboxSearch(query: string, top: number, enabled: boolean) {
+  const term = query.trim();
+
+  return useInfiniteQuery({
+    queryKey: [MAIL_QUERY_KEY, 'search', term, top],
+    enabled: enabled && term.length >= MIN_SEARCH_LENGTH,
+    staleTime: 60_000,
+    retry: false,
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const token = await acquireGraphToken();
+      return searchInboxPage(token, term, { top, nextLink: pageParam });
+    },
+    getNextPageParam: (lastPage) => lastPage.nextLink,
   });
 }
 
