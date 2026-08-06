@@ -41,6 +41,7 @@ import Analytics from "./pages/Analytics";
 import PayrollAnalysis from "./pages/PayrollAnalysis";
 import CostPerHourAnalysis from "./pages/CostPerHourAnalysis";
 import MyTimesheet from "./pages/MyTimesheet";
+import MinhaAgenda from "./pages/MinhaAgenda";
 import Jornada from "./pages/Jornada";
 import JornadaConfiguracoes from "./pages/JornadaConfiguracoes";
 import JornadaAprovacoes from "./pages/JornadaAprovacoes";
@@ -148,6 +149,7 @@ const App = () => (
                 }
               />
               <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+              <Route path="/minha-agenda" element={<ProtectedRoute><MinhaAgenda /></ProtectedRoute>} />
               {/* My Timesheet - all authenticated users */}
               <Route 
                 path="/my-timesheet" 

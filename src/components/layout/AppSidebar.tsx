@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Clock,
+  CalendarDays,
   BarChart3,
   Kanban,
   FolderKanban,
@@ -65,6 +66,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
   { kind: 'link', title: 'Dashboard', url: '/admin-dashboard', icon: LayoutDashboard, requiresAdmin: true },
   { kind: 'link', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, notForAdmin: true },
   { kind: 'link', title: 'Timesheet', url: '/my-timesheet', icon: Clock },
+  { kind: 'link', title: 'Agenda', url: '/minha-agenda', icon: CalendarDays, devOnly: true },
   { kind: 'link', title: 'Meus Projetos', url: '/my-projects', icon: FolderOpen, employeeOnly: true },
   { kind: 'link', title: 'Pipeline', url: '/pipeline', icon: Kanban, requiresManager: true },
   { kind: 'link', title: 'Projetos', url: '/projetos', icon: FolderKanban, requiresManager: true },

@@ -92,10 +92,20 @@ function StackedProgressBar({
   );
 }
 
-export function TimesheetStatusWidget() {
+interface TimesheetStatusWidgetProps {
+  /**
+   * `compact` reduz o widget a uma faixa de uma linha — total, status e atalho.
+   * Usado quando o destaque do dashboard é outro card e o timesheet precisa
+   * apenas manter o sinal de pendência visível.
+   */
+  variant?: 'full' | 'compact';
+}
+
+export function TimesheetStatusWidget({ variant = 'full' }: TimesheetStatusWidgetProps) {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const [view, setView] = useState<'month' | 'week'>('month');
+  const isCompact = variant === 'compact';
 
   const today = new Date();
   const monthKey = format(today, 'yyyy-MM');
@@ -162,6 +172,17 @@ export function TimesheetStatusWidget() {
 
   const isLoading = view === 'month' ? loadingMonth : loadingWeek;
 
+  if (isLoading && isCompact) {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-3 py-3">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="ml-auto h-8 w-28 rounded-md" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (isLoading) {
     return (
       <Card className="flex flex-col">
@@ -211,6 +232,30 @@ export function TimesheetStatusWidget() {
       : ratio >= 0.5
       ? { label: 'Atenção', classes: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-0' }
       : { label: 'Pendente', classes: 'bg-destructive/10 text-destructive border-0' };
+
+  if (isCompact) {
+    return (
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
+          <Clock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="text-sm font-medium text-foreground">Timesheet — {monthName}</span>
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {actual.toFixed(1)}h de {expected.toFixed(1)}h esperadas
+          </span>
+          <Badge className={cn('shrink-0', statusInfo.classes)}>{statusInfo.label}</Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            onClick={() => navigate('/my-timesheet')}
+          >
+            Lançar horas
+            <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="flex flex-col">

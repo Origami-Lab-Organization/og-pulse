@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { clearPrivatePwaCaches } from '@/lib/pwa';
+import { acquireMicrosoftIdToken } from '@/integrations/microsoft/msalClient';
 
 interface EmployeeData {
   id: string;
@@ -33,12 +34,31 @@ function saveEmployeeSnapshot(userId: string, employee: EmployeeData) {
   localStorage.setItem(PWA_EMPLOYEE_SNAPSHOT, JSON.stringify({ userId, savedAt: Date.now(), employee }));
 }
 
+/**
+ * `functions.invoke` embrulha respostas não-2xx num erro genérico e deixa o
+ * corpo em `context`. A mensagem da função é acionável para o usuário ("não
+ * encontramos funcionário ativo"), então vale desembrulhar.
+ */
+async function readFunctionError(error: unknown): Promise<string> {
+  const response = (error as { context?: Response })?.context;
+  try {
+    const body = await response?.json();
+    if (typeof body?.error === 'string') return body.error;
+  } catch {
+    // Corpo ilegível — cai na mensagem genérica.
+  }
+  return 'Não foi possível entrar com a Microsoft.';
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   employee: EmployeeData | null;
   loading: boolean;
+  /** Autenticou no Supabase, mas não há funcionário ativo correspondente. */
+  accessDenied: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithMicrosoft: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
 }
@@ -62,6 +82,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const fetchEmployeeData = async (userId: string, opts?: { signOutIfInactive?: boolean }) => {
     if (!navigator.onLine) return readEmployeeSnapshot(userId);
@@ -126,6 +147,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return employeeData;
   };
 
+  // Sessão sem funcionário ativo derruba a sessão e sinaliza o motivo para a
+  // tela de login em vez de falhar em silêncio.
+  const applyEmployeeResult = (employeeData: EmployeeData | null) => {
+    setEmployee(employeeData);
+    // Offline sem snapshot também cai aqui e não é negação de acesso.
+    setAccessDenied(!employeeData && navigator.onLine);
+    if (!employeeData) {
+      setUser(null);
+      setSession(null);
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener BEFORE checking session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -146,11 +179,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Use setTimeout to avoid potential race conditions
           setTimeout(async () => {
             const employeeData = await fetchEmployeeData(session.user.id, { signOutIfInactive: true });
-            setEmployee(employeeData);
-            if (!employeeData) {
-              setUser(null);
-              setSession(null);
-            }
+            applyEmployeeResult(employeeData);
             setLoading(false);
           }, 0);
         } else {
@@ -167,11 +196,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (session?.user) {
         const employeeData = await fetchEmployeeData(session.user.id, { signOutIfInactive: true });
-        setEmployee(employeeData);
-        if (!employeeData) {
-          setUser(null);
-          setSession(null);
-        }
+        applyEmployeeResult(employeeData);
       }
 
       setLoading(false);
@@ -227,8 +252,54 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return { error: error as Error | null };
   };
 
+  /**
+   * Login pela identidade Microsoft. Convive com e-mail/senha de propósito: se
+   * a Edge Function falhar, ninguém fica trancado fora do sistema.
+   *
+   * A validação da identidade acontece na função `microsoft-sso` — o front
+   * apenas transporta a prova e troca o retorno por sessão.
+   */
+  const signInWithMicrosoft = async () => {
+    try {
+      const idToken = await acquireMicrosoftIdToken();
+
+      const { data, error } = await supabase.functions.invoke('microsoft-sso', {
+        body: { idToken },
+      });
+
+      if (error) {
+        return { error: new Error(await readFunctionError(error)) };
+      }
+
+      const tokenHash = (data as { tokenHash?: string } | null)?.tokenHash;
+      if (!tokenHash) {
+        return { error: new Error('Resposta inesperada ao entrar com a Microsoft.') };
+      }
+
+      const { error: sessionError } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: 'email',
+      });
+
+      if (sessionError) {
+        console.error('Falha ao abrir sessão via Microsoft:', sessionError.message);
+        return { error: new Error('Não foi possível abrir sua sessão. Tente novamente.') };
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Falha no login com Microsoft:', error);
+      return {
+        error: new Error(
+          'Não foi possível entrar com a Microsoft. Verifique se a janela de login foi concluída.',
+        ),
+      };
+    }
+  };
+
   const signOut = async () => {
     await clearPrivatePwaCaches();
+    setAccessDenied(false);
     localStorage.removeItem(PWA_EMPLOYEE_SNAPSHOT);
     await supabase.auth.signOut();
     setUser(null);
@@ -280,7 +351,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       session,
       employee,
       loading,
+      accessDenied,
       signIn,
+      signInWithMicrosoft,
       signOut,
       updatePassword,
     }}>

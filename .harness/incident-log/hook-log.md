@@ -362,3 +362,7 @@
 ### 2026-07-17T14:18:26.189Z
 - **Tipo:** missing-tests
 - **Detalhe:** Código de negócio sem teste: /Users/vrcouto/Projects/og-pulse/src/services/employeeService.ts
+
+### 2026-08-06T10:58:23.299Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível dado sensível em console.* em index.ts
