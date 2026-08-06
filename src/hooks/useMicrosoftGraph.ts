@@ -22,18 +22,27 @@ import {
   deleteCalendarEvent,
   getCalendarEvent,
   fetchAttachmentContent,
+  deleteEventIfPresent,
   getMailMessage,
   GraphError,
   listCalendarEvents,
   listInboxPage,
   listMessageAttachments,
   listRecentMessages,
+  respondToInvite,
   searchInboxPage,
   updateCalendarEvent,
 } from '@/services/microsoftGraphService';
-import { EVENT_ACTION, GRAPH_ERROR_CODE } from '@/types/microsoftGraph';
+import {
+  ATTENDEE_RESPONSE,
+  EVENT_ACTION,
+  GRAPH_ERROR_CODE,
+  INVITE_RESPONSE,
+} from '@/types/microsoftGraph';
 import type {
+  CalendarEvent,
   CalendarEventInput,
+  InviteResponse,
   MailClassification,
   CalendarEventUpdate,
   EventAction,
@@ -86,6 +95,9 @@ export function describeGraphError(error: unknown): string {
   }
   if (error instanceof GraphError && error.code === GRAPH_ERROR_CODE.FORBIDDEN) {
     return 'Sua conta Microsoft não tem permissão para este acesso. Fale com o administrador do Microsoft 365.';
+  }
+  if (error instanceof GraphError && error.code === GRAPH_ERROR_CODE.NOT_FOUND) {
+    return 'Este item não está mais na sua caixa — pode ter sido removido ou recusado.';
   }
   return 'Não foi possível consultar a Microsoft agora. Tente novamente em instantes.';
 }
@@ -197,6 +209,8 @@ export function useCreateCalendarEvent() {
     },
     onSuccess: (event) => {
       queryClient.invalidateQueries({ queryKey: [CALENDAR_QUERY_KEY] });
+      // Segunda leitura: o evento pode não aparecer na primeira releitura.
+      invalidateAfterSettle(queryClient, [CALENDAR_QUERY_KEY]);
       toast.success(`"${event.subject}" criado na sua agenda.`);
     },
     onError: (error) => {
@@ -217,6 +231,7 @@ export function useUpdateCalendarEvent() {
     onSuccess: (event) => {
       queryClient.invalidateQueries({ queryKey: [CALENDAR_QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [EVENT_QUERY_KEY] });
+      invalidateAfterSettle(queryClient, [CALENDAR_QUERY_KEY, EVENT_QUERY_KEY]);
       toast.success(`"${event.subject}" atualizado. Os convidados foram avisados.`);
     },
     onError: (error) => {
@@ -243,9 +258,17 @@ const ACTION_RUNNERS: Record<
   EventAction,
   (token: string, eventId: string, comment: string) => Promise<void>
 > = {
-  [EVENT_ACTION.CANCEL]: cancelCalendarEvent,
+  // Cancelar avisa os convidados; o delete em seguida garante que a reunião
+  // saia da agenda de quem organizou — sem isso ela fica lá como cancelada.
+  [EVENT_ACTION.CANCEL]: async (token, eventId, comment) => {
+    await cancelCalendarEvent(token, eventId, comment);
+    await deleteEventIfPresent(token, eventId);
+  },
   [EVENT_ACTION.DELETE]: (token, eventId) => deleteCalendarEvent(token, eventId),
-  [EVENT_ACTION.DECLINE]: declineCalendarEvent,
+  [EVENT_ACTION.DECLINE]: async (token, eventId, comment) => {
+    await declineCalendarEvent(token, eventId, comment);
+    await deleteEventIfPresent(token, eventId);
+  },
 };
 
 const ACTION_SUCCESS_MESSAGE: Record<EventAction, string> = {
@@ -269,11 +292,13 @@ export function useEventAction() {
     }) => {
       const token = await acquireGraphToken();
       await ACTION_RUNNERS[variables.action](token, variables.eventId, variables.comment);
-      return variables.action;
+      return variables;
     },
-    onSuccess: (action) => {
-      queryClient.invalidateQueries({ queryKey: [CALENDAR_QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: [EVENT_QUERY_KEY] });
+    onSuccess: ({ action, eventId }) => {
+      // As três ações tiram o compromisso da agenda, então ele sai da grade já.
+      dropEventFromCalendarCache(queryClient, eventId);
+      queryClient.removeQueries({ queryKey: [EVENT_QUERY_KEY, eventId] });
+      invalidateAfterSettle(queryClient, [CALENDAR_QUERY_KEY, EVENT_QUERY_KEY]);
       toast.success(ACTION_SUCCESS_MESSAGE[action]);
     },
     onError: (error) => {
@@ -438,6 +463,125 @@ export function useOpenAttachment() {
       toast.error(
         error instanceof GraphError ? error.message : 'Não foi possível abrir o anexo.',
       );
+    },
+  });
+}
+
+/**
+ * Aceitar/recusar/cancelar respondem `202 Accepted` — a Microsoft ENFILEIRA a
+ * mudança. Reler na hora devolve o estado antigo, e era isso que fazia a tela
+ * só atualizar no F5. A UI muda na hora (otimista) e a releitura acontece
+ * depois que o Graph assenta.
+ */
+const GRAPH_SETTLE_MS = 2500;
+
+function invalidateAfterSettle(
+  queryClient: ReturnType<typeof useQueryClient>,
+  keys: string[],
+) {
+  setTimeout(() => {
+    keys.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+  }, GRAPH_SETTLE_MS);
+}
+
+/**
+ * Tira o evento de todas as listas de agenda em cache.
+ *
+ * Sem isso, cancelar não some da grade até o F5: a releitura imediata pega o
+ * estado antigo (o Graph enfileira) e traz o evento de volta.
+ */
+function dropEventFromCalendarCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  eventId: string,
+) {
+  queryClient.setQueriesData<CalendarEvent[]>(
+    { queryKey: [CALENDAR_QUERY_KEY] },
+    (events) => events?.filter((event) => event.id !== eventId),
+  );
+}
+
+/** Atualiza a minha resposta nas listas em cache, para o destaque do chip mudar. */
+function patchResponseInCalendarCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  eventId: string,
+  myResponse: string,
+) {
+  queryClient.setQueriesData<CalendarEvent[]>(
+    { queryKey: [CALENDAR_QUERY_KEY] },
+    (events) =>
+      events?.map((event) => (event.id === eventId ? { ...event, myResponse } : event)),
+  );
+}
+
+/** Resposta enviada → como o Graph reporta o `responseStatus` depois. */
+const RESPONSE_TO_STATUS: Record<InviteResponse, string> = {
+  [INVITE_RESPONSE.ACCEPT]: ATTENDEE_RESPONSE.ACCEPTED,
+  [INVITE_RESPONSE.TENTATIVE]: ATTENDEE_RESPONSE.TENTATIVE,
+  [INVITE_RESPONSE.DECLINE]: ATTENDEE_RESPONSE.DECLINED,
+};
+
+const INVITE_SUCCESS_MESSAGE: Record<InviteResponse, string> = {
+  accept: 'Convite aceito. O organizador foi avisado.',
+  tentativelyAccept: 'Marcado como talvez. O organizador foi avisado.',
+  decline: 'Convite recusado. O organizador foi avisado.',
+};
+
+/** Responde a um convite de reunião a partir do e-mail. */
+export function useRespondToInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variables: {
+      eventId: string;
+      response: InviteResponse;
+      comment?: string;
+      /** Recusando, também apaga da própria agenda. */
+      removeFromCalendar?: boolean;
+    }) => {
+      const token = await acquireGraphToken();
+      await respondToInvite(
+        token,
+        variables.eventId,
+        variables.response,
+        variables.comment ?? '',
+      );
+
+      if (variables.removeFromCalendar) {
+        await deleteEventIfPresent(token, variables.eventId);
+      }
+
+      return variables;
+    },
+    onSuccess: ({ eventId, response, removeFromCalendar }) => {
+      // Otimista: a resposta é conhecida, então a tela reflete na hora em vez
+      // de esperar o Graph assentar.
+      queryClient.setQueryData(
+        [EVENT_QUERY_KEY, eventId],
+        (current: { myResponse?: string } | undefined) =>
+          current ? { ...current, myResponse: RESPONSE_TO_STATUS[response] } : current,
+      );
+
+      if (removeFromCalendar) {
+        dropEventFromCalendarCache(queryClient, eventId);
+      } else {
+        patchResponseInCalendarCache(queryClient, eventId, RESPONSE_TO_STATUS[response]);
+      }
+
+      invalidateAfterSettle(queryClient, [
+        CALENDAR_QUERY_KEY,
+        EVENT_QUERY_KEY,
+        MESSAGE_QUERY_KEY,
+      ]);
+
+      toast.success(
+        removeFromCalendar
+          ? 'Convite recusado e removido da sua agenda.'
+          : INVITE_SUCCESS_MESSAGE[response],
+      );
+    },
+    onError: (error) => {
+      console.error('[microsoft] falha ao responder convite:', error);
+      toast.error(describeGraphError(error));
     },
   });
 }

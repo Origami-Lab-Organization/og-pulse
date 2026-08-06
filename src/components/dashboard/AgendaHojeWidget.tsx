@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { endOfDay, format, isSameDay, parseISO, startOfDay } from 'date-fns';
-import { ArrowRight, CalendarDays, Video } from 'lucide-react';
+import { addDays, endOfDay, format, isSameDay, isToday, parseISO, startOfDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, Video } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,8 +29,19 @@ function hasFinished(event: CalendarEvent): boolean {
   return parseISO(event.end) < new Date();
 }
 
-function EventLine({ event }: { event: CalendarEvent }) {
-  const finished = hasFinished(event);
+/** Rótulo do dia exibido: Hoje/Ontem/Amanhã, senão a data. */
+function dayLabel(day: Date): string {
+  const diff = Math.round(
+    (startOfDay(day).getTime() - startOfDay(new Date()).getTime()) / 86_400_000,
+  );
+  if (diff === 0) return 'Hoje';
+  if (diff === -1) return 'Ontem';
+  if (diff === 1) return 'Amanhã';
+  return format(day, "EEE, d 'de' MMM", { locale: ptBR });
+}
+
+function EventLine({ event, dimPast }: { event: CalendarEvent; dimPast: boolean }) {
+  const finished = dimPast && hasFinished(event);
 
   return (
     <li className={cn('flex items-start gap-3', finished && 'opacity-50')}>
@@ -69,10 +81,12 @@ function EventLine({ event }: { event: CalendarEvent }) {
 export function AgendaHojeWidget() {
   const { isConfigured, isConnected, connect, isConnecting } = useMicrosoftConnection();
 
-  const today = useMemo(() => new Date(), []);
+  const [dayOffset, setDayOffset] = useState(0);
+  const day = useMemo(() => addDays(startOfDay(new Date()), dayOffset), [dayOffset]);
+
   const { data: events, isLoading } = useMicrosoftCalendarRange(
-    startOfDay(today),
-    endOfDay(today),
+    startOfDay(day),
+    endOfDay(day),
     isConnected,
   );
 
@@ -84,15 +98,48 @@ export function AgendaHojeWidget() {
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-sm font-medium text-foreground">
             <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            Agenda de hoje
+            Agenda
+            <span className="font-normal text-muted-foreground first-letter:uppercase">
+              · {dayLabel(day)}
+            </span>
           </CardTitle>
           {isConnected && (
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-              <Link to="/minha-agenda">
-                Ver tudo
-                <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
-              </Link>
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                aria-label="Dia anterior"
+                onClick={() => setDayOffset((current) => current - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              {dayOffset !== 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-muted-foreground"
+                  onClick={() => setDayOffset(0)}
+                >
+                  Hoje
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                aria-label="Próximo dia"
+                onClick={() => setDayOffset((current) => current + 1)}
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+                <Link to="/minha-agenda">
+                  Ver tudo
+                  <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
@@ -117,12 +164,12 @@ export function AgendaHojeWidget() {
           </div>
         ) : !events?.length ? (
           <p className="py-4 text-sm text-muted-foreground">
-            Nenhum compromisso hoje.
+            Nenhum compromisso neste dia.
           </p>
         ) : (
           <ul className="space-y-3">
             {events.map((event) => (
-              <EventLine key={event.id} event={event} />
+              <EventLine key={event.id} event={event} dimPast={isToday(day)} />
             ))}
           </ul>
         )}

@@ -7,7 +7,9 @@ import {
   parseISO,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Repeat, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ATTENDEE_RESPONSE } from '@/types/microsoftGraph';
 import { getMonthGridRange } from './calendarGrid';
 import type { CalendarEvent } from '@/types/microsoftGraph';
 
@@ -27,6 +29,20 @@ function eventsOfDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
   });
 }
 
+/**
+ * Destaque do chip segue a resposta ao convite, como no Outlook: confirmado é
+ * sólido, "talvez" fica tracejado, sem resposta fica só contornado.
+ */
+function chipStyle(event: CalendarEvent): string {
+  if (event.myResponse === ATTENDEE_RESPONSE.TENTATIVE) {
+    return 'border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10';
+  }
+  if (event.myResponse === ATTENDEE_RESPONSE.NOT_RESPONDED) {
+    return 'border border-primary/40 bg-transparent hover:bg-primary/10';
+  }
+  return 'bg-primary/10 hover:bg-primary/20';
+}
+
 function EventChip({ event, onSelect }: { event: CalendarEvent; onSelect: () => void }) {
   const start = eventStart(event);
   const time = start && !event.isAllDay ? format(start, 'HH:mm') : null;
@@ -36,12 +52,22 @@ function EventChip({ event, onSelect }: { event: CalendarEvent; onSelect: () => 
       type="button"
       onClick={onSelect}
       title={event.subject}
-      className="w-full truncate rounded px-1.5 py-0.5 text-left text-xs
-                 bg-primary/10 text-foreground hover:bg-primary/20
-                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={cn(
+        'flex w-full items-center gap-1 rounded px-1.5 py-0.5 text-left text-xs text-foreground',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        chipStyle(event),
+      )}
     >
-      {time && <span className="font-medium tabular-nums">{time} </span>}
-      {event.subject}
+      <span className="min-w-0 flex-1 truncate">
+        {time && <span className="font-medium tabular-nums">{time} </span>}
+        {event.subject}
+      </span>
+      {event.onlineMeetingUrl && (
+        <Video className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+      )}
+      {event.isRecurring && (
+        <Repeat className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+      )}
     </button>
   );
 }

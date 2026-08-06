@@ -27,8 +27,10 @@ import type {
   EventAttendee,
   EventType,
   GraphErrorCode,
+  InviteResponse,
   MailMessage,
   MailMessageDetail,
+  MeetingInvite,
   RecurrenceFrequency,
   RecurrenceInput,
 } from '@/types/microsoftGraph';
@@ -59,6 +61,7 @@ export class GraphError extends Error {
 function mapStatusToCode(status: number): GraphErrorCode {
   if (status === 401) return GRAPH_ERROR_CODE.EXPIRED;
   if (status === 403) return GRAPH_ERROR_CODE.FORBIDDEN;
+  if (status === 404) return GRAPH_ERROR_CODE.NOT_FOUND;
   return GRAPH_ERROR_CODE.UNKNOWN;
 }
 
@@ -125,11 +128,12 @@ async function graphFetch<T>(
     );
   }
 
-  // DELETE e as ações de cancelar/recusar respondem 204 sem corpo; chamar
-  // json() aqui estouraria com "Unexpected end of JSON input".
-  if (response.status === 204) return undefined as T;
-
-  return (await response.json()) as T;
+  // Ações (aceitar/recusar/cancelar) respondem 202/204 SEM corpo. Fazer parse
+  // de JSON do vazio estoura DEPOIS do sucesso — o clássico "enviou mas deu
+  // erro". Corpo vazio em sucesso é resultado, não falha.
+  const text = await response.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 function graphGet<T>(token: string, path: string): Promise<T> {
@@ -174,6 +178,8 @@ interface RawEvent {
   id: string;
   subject: string | null;
   isAllDay: boolean;
+  type: string | null;
+  responseStatus: { response: string | null } | null;
   start: { dateTime: string } | null;
   end: { dateTime: string } | null;
   location: { displayName: string | null } | null;
@@ -202,6 +208,11 @@ function toCalendarEvent(raw: RawEvent): CalendarEvent {
     location: raw.location?.displayName || null,
     organizer: raw.organizer?.emailAddress?.name || null,
     onlineMeetingUrl: raw.onlineMeeting?.joinUrl || null,
+    isRecurring:
+      raw.type === EVENT_TYPE.OCCURRENCE ||
+      raw.type === EVENT_TYPE.EXCEPTION ||
+      raw.type === EVENT_TYPE.SERIES_MASTER,
+    myResponse: raw.responseStatus?.response ?? ATTENDEE_RESPONSE.NONE,
   };
 }
 
@@ -233,7 +244,8 @@ export async function listCalendarEvents(
     endDateTime: rangeEnd.toISOString(),
     $orderby: 'start/dateTime',
     $top: '100',
-    $select: 'id,subject,start,end,isAllDay,location,organizer,onlineMeeting',
+    $select:
+      'id,subject,start,end,isAllDay,location,organizer,onlineMeeting,type,responseStatus',
   });
 
   const events = await graphGetAll<RawEvent>(token, `/me/calendarView?${query}`);
@@ -371,7 +383,7 @@ export async function getCalendarEvent(
 ): Promise<CalendarEventDetail> {
   const query = buildQuery({
     $select:
-      'id,iCalUId,subject,start,end,isAllDay,location,organizer,onlineMeeting,bodyPreview,isOrganizer,isCancelled,attendees,type,seriesMasterId',
+      'id,iCalUId,subject,start,end,isAllDay,location,organizer,onlineMeeting,bodyPreview,isOrganizer,isCancelled,attendees,type,seriesMasterId,responseStatus',
   });
 
   const raw = await graphGet<RawEventDetail>(
@@ -537,6 +549,7 @@ export async function searchInboxPage(
 }
 
 interface RawMessageDetail extends RawMessage {
+  '@odata.type'?: string;
   body: { contentType: string; content: string } | null;
   hasAttachments: boolean;
   toRecipients: { emailAddress: { name: string | null; address: string | null } | null }[];
@@ -777,6 +790,94 @@ export async function fetchAttachmentContent(
   };
 }
 
+interface RawEventMessage {
+  meetingMessageType: string | null;
+  event: {
+    id: string;
+    start: { dateTime: string } | null;
+    end: { dateTime: string } | null;
+    isAllDay: boolean;
+    location: { displayName: string | null } | null;
+    organizer: { emailAddress: { name: string | null } | null } | null;
+    responseStatus: { response: string | null } | null;
+  } | null;
+}
+
+/**
+ * Dados do convite quando o e-mail é um `eventMessage`. Segunda chamada de
+ * propósito: `meetingMessageType` é do tipo derivado, e pedi-lo no GET de uma
+ * mensagem comum derruba a consulta — mesma armadilha dos anexos. Falha aqui é
+ * não-fatal: o e-mail abre sem o cartão de convite.
+ */
+async function fetchMeetingInvite(
+  token: string,
+  messageId: string,
+): Promise<MeetingInvite | null> {
+  try {
+    const query = buildQuery({
+      $select: 'meetingMessageType',
+      $expand: 'event($select=id,start,end,isAllDay,location,organizer,responseStatus)',
+    });
+    const raw = await graphFetch<RawEventMessage>(
+      token,
+      `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}?${query}`,
+    );
+
+    if (!raw.event || !raw.meetingMessageType) return null;
+
+    return {
+      eventId: raw.event.id,
+      meetingMessageType: raw.meetingMessageType,
+      start: raw.event.start?.dateTime ?? '',
+      end: raw.event.end?.dateTime ?? '',
+      isAllDay: raw.event.isAllDay,
+      location: raw.event.location?.displayName || null,
+      organizer: raw.event.organizer?.emailAddress?.name || null,
+      myResponse: raw.event.responseStatus?.response ?? ATTENDEE_RESPONSE.NONE,
+    };
+  } catch (error) {
+    if (!(error instanceof GraphError)) throw error;
+    console.error('[microsoft] falha ao carregar dados do convite');
+    return null;
+  }
+}
+
+/**
+ * Responde a um convite de reunião. Age sobre o EVENTO vinculado (não sobre o
+ * e-mail) e avisa o organizador — mesmo efeito dos botões do Outlook.
+ */
+export async function respondToInvite(
+  token: string,
+  eventId: string,
+  response: InviteResponse,
+  comment = '',
+): Promise<void> {
+  await graphFetch<void>(
+    token,
+    `${GRAPH_BASE}/me/events/${encodeURIComponent(eventId)}/${response}`,
+    { method: 'POST', body: { sendResponse: true, comment } },
+  );
+}
+
+/**
+ * Remove o evento da própria agenda ignorando "já não existe".
+ *
+ * Usado depois de cancelar ou recusar: nesses fluxos o Graph pode ter removido
+ * o item por conta, e um 404 aqui é o resultado desejado, não falha.
+ */
+export async function deleteEventIfPresent(
+  token: string,
+  eventId: string,
+): Promise<void> {
+  try {
+    await deleteCalendarEvent(token, eventId);
+  } catch (error) {
+    const alreadyGone =
+      error instanceof GraphError && error.code === GRAPH_ERROR_CODE.NOT_FOUND;
+    if (!alreadyGone) throw error;
+  }
+}
+
 /**
  * Mensagem completa, com o corpo como o remetente enviou. A segurança fica na
  * renderização isolada (iframe restrito), não em converter para texto — assim o
@@ -802,6 +903,11 @@ export async function getMailMessage(
   // `hasAttachments` NÃO conta anexo embutido — vem `false` numa mensagem que só
   // tem a imagem da assinatura. Usar essa propriedade como porta impedia
   // justamente o caso mais comum, então o gatilho é o `cid:` no corpo.
+  const isInviteMessage = Boolean(raw['@odata.type']?.includes('eventMessage'));
+  const meetingInvite = isInviteMessage
+    ? await fetchMeetingInvite(token, messageId)
+    : null;
+
   let unresolvedImageRefs: string[] = [];
   let inlineAttachmentKeys: string[] = [];
   if (isHtml && /cid:/i.test(body)) {
@@ -820,6 +926,7 @@ export async function getMailMessage(
     hasAttachments: raw.hasAttachments,
     unresolvedImageRefs,
     inlineAttachmentKeys,
+    meetingInvite,
   };
 }
 

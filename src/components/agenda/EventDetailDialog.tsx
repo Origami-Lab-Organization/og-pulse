@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { describeGraphError, useCalendarEventDetail } from '@/hooks/useMicrosoftGraph';
-import { ATTENDEE_RESPONSE, EVENT_ACTION } from '@/types/microsoftGraph';
+import { ATTENDEE_RESPONSE, EVENT_ACTION, INVITE_RESPONSE } from '@/types/microsoftGraph';
 import type {
   AttendeeResponse,
   CalendarEventDetail,
@@ -21,6 +21,7 @@ import type {
   EventAttendee,
 } from '@/types/microsoftGraph';
 import { EventActionDialog } from './EventActionDialog';
+import { InviteResponseButtons } from '@/components/microsoft/InviteResponseButtons';
 import { RitoLinkSection } from './RitoLinkSection';
 
 const RESPONSE_LABEL: Record<AttendeeResponse, string> = {
@@ -50,11 +51,10 @@ function formatPeriod(event: CalendarEventDetail): string {
 }
 
 /**
- * A ação disponível depende do papel: quem organiza cancela (avisando todos) ou
- * exclui quando não há convidados; quem foi convidado recusa.
+ * Ação do organizador: cancela (avisando todos) ou exclui quando não há
+ * convidados. Convidado responde pelos botões de convite, não por aqui.
  */
 function resolveAction(event: CalendarEventDetail): EventAction {
-  if (!event.isOrganizer) return EVENT_ACTION.DECLINE;
   return event.attendees.length > 0 ? EVENT_ACTION.CANCEL : EVENT_ACTION.DELETE;
 }
 
@@ -170,7 +170,7 @@ export function EventDetailDialog({
   const { data: event, isLoading, error } = useCalendarEventDetail(eventId);
   const [actionOpen, setActionOpen] = useState(false);
 
-  const action = event ? resolveAction(event) : null;
+  const action = event?.isOrganizer ? resolveAction(event) : null;
 
   return (
     <>
@@ -207,22 +207,36 @@ export function EventDetailDialog({
           </div>
 
           {event && !isLoading && !event.isCancelled && (
-            <div className="flex flex-col gap-2 sm:flex-row">
-              {/* Editar só existe para quem organiza: o Graph recusa PATCH de convidado. */}
-              {event.isOrganizer && (
-                <Button variant="outline" className="flex-1" onClick={() => onEdit(event)}>
-                  <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Editar
-                </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              {/* Convidado responde; organizador edita/cancela. O Graph recusa
+                  PATCH de convidado, então Editar é só de quem organiza. */}
+              {!event.isOrganizer && (
+                <InviteResponseButtons
+                  eventId={event.id}
+                  currentResponse={event.myResponse}
+                  onResponded={(response) => {
+                    // Recusar remove o evento da agenda; manter o diálogo aberto
+                    // recarregaria um 404.
+                    if (response === INVITE_RESPONSE.DECLINE) onOpenChange(false);
+                  }}
+                />
               )}
-              {action && (
-                <Button
-                  variant="outline"
-                  className="flex-1 text-destructive hover:text-destructive"
-                  onClick={() => setActionOpen(true)}
-                >
-                  {ACTION_LABEL[action]}
-                </Button>
+              {event.isOrganizer && (
+                <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+                  <Button variant="outline" className="flex-1" onClick={() => onEdit(event)}>
+                    <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Editar
+                  </Button>
+                  {action && (
+                    <Button
+                      variant="outline"
+                      className="flex-1 text-destructive hover:text-destructive"
+                      onClick={() => setActionOpen(true)}
+                    >
+                      {ACTION_LABEL[action]}
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           )}

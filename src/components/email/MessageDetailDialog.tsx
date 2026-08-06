@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ExternalLink } from 'lucide-react';
+import { CalendarDays, ExternalLink } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,9 +12,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { describeGraphError, useMailMessageDetail } from '@/hooks/useMicrosoftGraph';
+import { InviteResponseButtons } from '@/components/microsoft/InviteResponseButtons';
 import { MessageAttachments } from './MessageAttachments';
 import { MessageBody } from './MessageBody';
-import type { MailMessageDetail } from '@/types/microsoftGraph';
+import { MEETING_MESSAGE_TYPE } from '@/types/microsoftGraph';
+import type { MailMessageDetail, MeetingInvite } from '@/types/microsoftGraph';
 
 /** Nomes visíveis antes do "+N" — o resto abre sob demanda, como no Outlook. */
 const RECIPIENTS_PREVIEW = 3;
@@ -62,6 +64,55 @@ function RecipientLine({ label, names }: { label: string; names: string[] }) {
   );
 }
 
+function invitePeriod(invite: MeetingInvite): string {
+  if (!invite.start) return 'Horário não informado';
+  const start = parseISO(invite.start);
+  if (invite.isAllDay) {
+    return `${format(start, "EEEE, d 'de' MMMM", { locale: ptBR })} · dia inteiro`;
+  }
+  const end = invite.end ? parseISO(invite.end) : null;
+  return `${format(start, "EEE, d 'de' MMM · HH:mm", { locale: ptBR })}${
+    end ? ` – ${format(end, 'HH:mm')}` : ''
+  }`;
+}
+
+/**
+ * Cartão de convite de reunião, com as mesmas respostas do Outlook. Age sobre o
+ * evento vinculado ao e-mail e avisa o organizador.
+ */
+function MeetingInviteCard({ invite }: { invite: MeetingInvite }) {
+  if (invite.meetingMessageType === MEETING_MESSAGE_TYPE.CANCELLED) {
+    return (
+      <Alert>
+        <AlertDescription>Esta reunião foi cancelada pelo organizador.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (invite.meetingMessageType !== MEETING_MESSAGE_TYPE.REQUEST) return null;
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+      <div className="flex items-start gap-2.5 text-sm">
+        <CalendarDays
+          className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <div className="min-w-0">
+          <p className="font-medium text-foreground first-letter:uppercase">
+            {invitePeriod(invite)}
+          </p>
+          {invite.location && (
+            <p className="text-muted-foreground">{invite.location}</p>
+          )}
+        </div>
+      </div>
+
+      <InviteResponseButtons eventId={invite.eventId} currentResponse={invite.myResponse} />
+    </div>
+  );
+}
+
 function DetailBody({ message }: { message: MailMessageDetail }) {
   return (
     <div className="space-y-4">
@@ -73,6 +124,8 @@ function DetailBody({ message }: { message: MailMessageDetail }) {
           {format(parseISO(message.receivedAt), "d 'de' MMMM 'às' HH:mm", { locale: ptBR })}
         </p>
       </div>
+
+      {message.meetingInvite && <MeetingInviteCard invite={message.meetingInvite} />}
 
       <MessageAttachments messageId={message.id} />
 

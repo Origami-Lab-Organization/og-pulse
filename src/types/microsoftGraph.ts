@@ -6,6 +6,8 @@ export const GRAPH_ERROR_CODE = {
   EXPIRED: 'expired',
   /** Escopo/consentimento insuficiente (403). */
   FORBIDDEN: 'forbidden',
+  /** Item não existe mais (404) — ex.: evento removido ao recusar. */
+  NOT_FOUND: 'not_found',
   UNKNOWN: 'unknown',
 } as const;
 
@@ -22,6 +24,10 @@ export interface CalendarEvent {
   location: string | null;
   organizer: string | null;
   onlineMeetingUrl: string | null;
+  /** Faz parte de uma série recorrente. */
+  isRecurring: boolean;
+  /** Minha resposta ao convite — dirige o destaque na grade, como no Outlook. */
+  myResponse: string;
 }
 
 /** Resposta do convidado ao convite, como o Graph reporta. */
@@ -199,6 +205,35 @@ export const MAIL_CLASSIFICATION = {
 export type MailClassification =
   (typeof MAIL_CLASSIFICATION)[keyof typeof MAIL_CLASSIFICATION];
 
+/** Tipos de e-mail de reunião que a UI trata (subconjunto do Graph). */
+export const MEETING_MESSAGE_TYPE = {
+  REQUEST: 'meetingRequest',
+  CANCELLED: 'meetingCancelled',
+} as const;
+
+/** Respostas possíveis a um convite, nos nomes das ações do Graph. */
+export const INVITE_RESPONSE = {
+  ACCEPT: 'accept',
+  TENTATIVE: 'tentativelyAccept',
+  DECLINE: 'decline',
+} as const;
+
+export type InviteResponse =
+  (typeof INVITE_RESPONSE)[keyof typeof INVITE_RESPONSE];
+
+/** Convite de reunião embutido num e-mail (`eventMessage` do Graph). */
+export interface MeetingInvite {
+  eventId: string;
+  meetingMessageType: string;
+  /** Minha resposta atual — destaca o botão ativo. */
+  myResponse: string;
+  start: string;
+  end: string;
+  isAllDay: boolean;
+  location: string | null;
+  organizer: string | null;
+}
+
 /**
  * Mensagem completa, carregada ao abrir.
  *
@@ -216,6 +251,8 @@ export interface MailMessageDetail extends MailMessage {
   unresolvedImageRefs: string[];
   /** Chaves que os anexos oferecem — o outro lado da comparação, para o diagnóstico. */
   inlineAttachmentKeys: string[];
+  /** Presente quando o e-mail é um convite de reunião respondível. */
+  meetingInvite: MeetingInvite | null;
 }
 
 export interface MailMessage {
