@@ -8,6 +8,7 @@ import {
 } from '@azure/msal-browser';
 import { GRAPH_SCOPES } from '@/services/microsoftGraphService';
 import type { MicrosoftDiagnostics } from '@/types/microsoftGraph';
+import { MICROSOFT_CLIENT_ID, MICROSOFT_TENANT_ID } from './config';
 
 /**
  * Autorização de leitura da Microsoft para o Pulse.
@@ -21,8 +22,8 @@ import type { MicrosoftDiagnostics } from '@/types/microsoftGraph';
  * tabela nossa, log ou Edge Function.
  */
 
-const clientId = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
-const tenantId = import.meta.env.VITE_MICROSOFT_TENANT_ID;
+const clientId = MICROSOFT_CLIENT_ID;
+const tenantId = MICROSOFT_TENANT_ID;
 
 export function isMicrosoftConfigured(): boolean {
   return Boolean(clientId && tenantId);
