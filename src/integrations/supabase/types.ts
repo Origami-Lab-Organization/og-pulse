@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backup_cost_per_hour_20260721: {
+        Row: {
+          backed_up_at: string
+          cost_per_hour: number | null
+          row_id: string
+          source_table: string
+        }
+        Insert: {
+          backed_up_at?: string
+          cost_per_hour?: number | null
+          row_id: string
+          source_table: string
+        }
+        Update: {
+          backed_up_at?: string
+          cost_per_hour?: number | null
+          row_id?: string
+          source_table?: string
+        }
+        Relationships: []
+      }
       activity_employee_months: {
         Row: {
           activity_type_id: string
@@ -940,7 +961,7 @@ export type Database = {
           exit_interview_notes: string | null
           final_payroll_adjustments: Json | null
           id: string
-          is_just_cause: boolean | null
+          is_just_cause: boolean
           notice_period_days: number | null
           notice_worked: boolean | null
           notification_date: string | null
@@ -960,7 +981,7 @@ export type Database = {
           exit_interview_notes?: string | null
           final_payroll_adjustments?: Json | null
           id?: string
-          is_just_cause?: boolean | null
+          is_just_cause?: boolean
           notice_period_days?: number | null
           notice_worked?: boolean | null
           notification_date?: string | null
@@ -980,7 +1001,7 @@ export type Database = {
           exit_interview_notes?: string | null
           final_payroll_adjustments?: Json | null
           id?: string
-          is_just_cause?: boolean | null
+          is_just_cause?: boolean
           notice_period_days?: number | null
           notice_worked?: boolean | null
           notification_date?: string | null
@@ -1051,130 +1072,76 @@ export type Database = {
       }
       employee_versions: {
         Row: {
-          bank_account: string | null
-          bank_account_type: string | null
-          bank_agency: string | null
-          bank_name: string | null
           beneficios: number
           bolsa_auxilio: number | null
-          breakdown_json: Json | null
           cargo: string
-          cpf: string | null
           created_at: string
-          data_admissao: string | null
-          data_nascimento: string | null
           decimo_terceiro: number
-          dividendos: number | null
           effective_from: string
           effective_until: string | null
           employee_id: string
           encargos: number
           ferias: number
           fgts: number
-          foto_url: string | null
           id: string
           inss_empresa: number
-          is_gerente: boolean | null
           jornada_diaria: number
           jornada_mensal: number
-          nome: string | null
-          pix_key: string | null
-          pix_key_type: string | null
           pro_labore: number
           salario_liquido: number
           salario_mensal: number
-          system_role: string | null
-          telefone: string | null
           tipo_contratacao: string
-          total_annual_cost_estimated: number | null
           total_benefits_cost: number | null
           total_monthly_cost_estimated: number | null
           total_tools_cost: number | null
-          valor_contrato_pj: number | null
         }
         Insert: {
-          bank_account?: string | null
-          bank_account_type?: string | null
-          bank_agency?: string | null
-          bank_name?: string | null
           beneficios?: number
           bolsa_auxilio?: number | null
-          breakdown_json?: Json | null
           cargo: string
-          cpf?: string | null
           created_at?: string
-          data_admissao?: string | null
-          data_nascimento?: string | null
           decimo_terceiro?: number
-          dividendos?: number | null
           effective_from?: string
           effective_until?: string | null
           employee_id: string
           encargos?: number
           ferias?: number
           fgts?: number
-          foto_url?: string | null
           id?: string
           inss_empresa?: number
-          is_gerente?: boolean | null
           jornada_diaria?: number
           jornada_mensal?: number
-          nome?: string | null
-          pix_key?: string | null
-          pix_key_type?: string | null
           pro_labore?: number
           salario_liquido?: number
           salario_mensal?: number
-          system_role?: string | null
-          telefone?: string | null
           tipo_contratacao?: string
-          total_annual_cost_estimated?: number | null
           total_benefits_cost?: number | null
           total_monthly_cost_estimated?: number | null
           total_tools_cost?: number | null
-          valor_contrato_pj?: number | null
         }
         Update: {
-          bank_account?: string | null
-          bank_account_type?: string | null
-          bank_agency?: string | null
-          bank_name?: string | null
           beneficios?: number
           bolsa_auxilio?: number | null
-          breakdown_json?: Json | null
           cargo?: string
-          cpf?: string | null
           created_at?: string
-          data_admissao?: string | null
-          data_nascimento?: string | null
           decimo_terceiro?: number
-          dividendos?: number | null
           effective_from?: string
           effective_until?: string | null
           employee_id?: string
           encargos?: number
           ferias?: number
           fgts?: number
-          foto_url?: string | null
           id?: string
           inss_empresa?: number
-          is_gerente?: boolean | null
           jornada_diaria?: number
           jornada_mensal?: number
-          nome?: string | null
-          pix_key?: string | null
-          pix_key_type?: string | null
           pro_labore?: number
           salario_liquido?: number
           salario_mensal?: number
-          system_role?: string | null
-          telefone?: string | null
           tipo_contratacao?: string
-          total_annual_cost_estimated?: number | null
           total_benefits_cost?: number | null
           total_monthly_cost_estimated?: number | null
           total_tools_cost?: number | null
-          valor_contrato_pj?: number | null
         }
         Relationships: [
           {
@@ -1237,6 +1204,8 @@ export type Database = {
           telefone: string
           tenant_id: string
           termination_id: string | null
+          timesheet_onboarding_seen: boolean
+          timesheet_onboarding_seen_at: string | null
           tipo_contratacao: string
           total_annual_cost_estimated: number
           total_monthly_cost_estimated: number
@@ -1293,6 +1262,8 @@ export type Database = {
           telefone: string
           tenant_id: string
           termination_id?: string | null
+          timesheet_onboarding_seen?: boolean
+          timesheet_onboarding_seen_at?: string | null
           tipo_contratacao?: string
           total_annual_cost_estimated?: number
           total_monthly_cost_estimated?: number
@@ -1349,6 +1320,8 @@ export type Database = {
           telefone?: string
           tenant_id?: string
           termination_id?: string | null
+          timesheet_onboarding_seen?: boolean
+          timesheet_onboarding_seen_at?: string | null
           tipo_contratacao?: string
           total_annual_cost_estimated?: number
           total_monthly_cost_estimated?: number
@@ -3912,6 +3885,119 @@ export type Database = {
           },
         ]
       }
+      project_rito_occurrences: {
+        Row: {
+          id: string
+          is_cancelled: boolean
+          occurred_on: string
+          project_rito_id: string
+          synced_at: string
+          synced_by: string
+          tenant_id: string
+        }
+        Insert: {
+          id?: string
+          is_cancelled?: boolean
+          occurred_on: string
+          project_rito_id: string
+          synced_at?: string
+          synced_by: string
+          tenant_id: string
+        }
+        Update: {
+          id?: string
+          is_cancelled?: boolean
+          occurred_on?: string
+          project_rito_id?: string
+          synced_at?: string
+          synced_by?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_rito_occurrences_project_rito_id_fkey"
+            columns: ["project_rito_id"]
+            isOneToOne: false
+            referencedRelation: "project_ritos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_rito_occurrences_synced_by_fkey"
+            columns: ["synced_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_rito_occurrences_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_ritos: {
+        Row: {
+          created_at: string
+          event_title: string
+          ical_uid: string
+          id: string
+          is_series: boolean
+          linked_by: string
+          project_id: string
+          rito_type: Database["public"]["Enums"]["project_rito_type"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_title: string
+          ical_uid: string
+          id?: string
+          is_series?: boolean
+          linked_by: string
+          project_id: string
+          rito_type: Database["public"]["Enums"]["project_rito_type"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_title?: string
+          ical_uid?: string
+          id?: string
+          is_series?: boolean
+          linked_by?: string
+          project_id?: string
+          rito_type?: Database["public"]["Enums"]["project_rito_type"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_ritos_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_ritos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_ritos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_role_allocation_edit_logs: {
         Row: {
           allocation_id: string
@@ -4316,6 +4402,7 @@ export type Database = {
           custom_role_name: string | null
           deallocated_at: string | null
           deallocated_by: string | null
+          deleted_at: string | null
           employee_id: string | null
           id: string
           project_id: string
@@ -4331,6 +4418,7 @@ export type Database = {
           custom_role_name?: string | null
           deallocated_at?: string | null
           deallocated_by?: string | null
+          deleted_at?: string | null
           employee_id?: string | null
           id?: string
           project_id: string
@@ -4346,6 +4434,7 @@ export type Database = {
           custom_role_name?: string | null
           deallocated_at?: string | null
           deallocated_by?: string | null
+          deleted_at?: string | null
           employee_id?: string | null
           id?: string
           project_id?: string
@@ -4512,6 +4601,7 @@ export type Database = {
           lead_id: string | null
           manager_id: string
           name: string
+          nf_emission_lead_days: number
           payment_method: string
           portfolio_stage: string | null
           renewal_date: string | null
@@ -4545,6 +4635,7 @@ export type Database = {
           lead_id?: string | null
           manager_id: string
           name: string
+          nf_emission_lead_days?: number
           payment_method?: string
           portfolio_stage?: string | null
           renewal_date?: string | null
@@ -4578,6 +4669,7 @@ export type Database = {
           lead_id?: string | null
           manager_id?: string
           name?: string
+          nf_emission_lead_days?: number
           payment_method?: string
           portfolio_stage?: string | null
           renewal_date?: string | null
@@ -4832,6 +4924,76 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      service_line_avg_tickets: {
+        Row: {
+          avg_ticket_value: number
+          computed_at: string | null
+          computed_value: number | null
+          created_at: string
+          id: string
+          is_manual_override: boolean
+          label: string
+          legacy_source_key: string | null
+          sample_size: number
+          service_line_id: string | null
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          avg_ticket_value?: number
+          computed_at?: string | null
+          computed_value?: number | null
+          created_at?: string
+          id?: string
+          is_manual_override?: boolean
+          label: string
+          legacy_source_key?: string | null
+          sample_size?: number
+          service_line_id?: string | null
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          avg_ticket_value?: number
+          computed_at?: string | null
+          computed_value?: number | null
+          created_at?: string
+          id?: string
+          is_manual_override?: boolean
+          label?: string
+          legacy_source_key?: string | null
+          sample_size?: number
+          service_line_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_line_avg_tickets_service_line_id_fkey"
+            columns: ["service_line_id"]
+            isOneToOne: false
+            referencedRelation: "service_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_line_avg_tickets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_line_avg_tickets_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_lines: {
         Row: {
@@ -6442,6 +6604,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _recalc_service_line_avg_tickets_core: {
+        Args: { p_tenant_id?: string }
+        Returns: number
+      }
+      activate_scheduled_employee_versions: { Args: never; Returns: undefined }
       apply_absence_period: {
         Args: {
           p_data_fim: string
@@ -6483,6 +6650,10 @@ export type Database = {
         }
         Returns: number
       }
+      can_link_project_rito: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_manage_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -6491,12 +6662,9 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
-      cancel_scheduled_employee_version: {
-        Args: { p_today: string; p_version_id: string }
-        Returns: undefined
-      }
       complete_onboarding: { Args: never; Returns: undefined }
       complete_password_change: { Args: never; Returns: undefined }
+      complete_timesheet_onboarding: { Args: never; Returns: undefined }
       count_employee_cost_business_days: {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
         Returns: number
@@ -6504,6 +6672,14 @@ export type Database = {
       deallocate_project_member: {
         Args: { p_employee_id: string; p_project_id: string }
         Returns: undefined
+      }
+      employee_termination_date: {
+        Args: { p_employee_id: string }
+        Returns: string
+      }
+      ensure_project_membership: {
+        Args: { p_employee_id: string; p_project_id: string }
+        Returns: string
       }
       first_access_status: { Args: { p_email: string }; Returns: string }
       generate_budget_number: { Args: { p_tenant_id: string }; Returns: string }
@@ -6643,6 +6819,14 @@ export type Database = {
           titulo: string
         }[]
       }
+      get_service_line_avg_tickets: {
+        Args: never
+        Returns: {
+          avg_ticket_value: number
+          legacy_source_key: string
+          service_line_id: string
+        }[]
+      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -6680,6 +6864,16 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: undefined
       }
+      recalculate_employee_cost_snapshots_for_active_projects: {
+        Args: never
+        Returns: {
+          updated_member_months: number
+          updated_role_allocations: number
+          updated_timesheets: number
+        }[]
+      }
+      recalculate_service_line_avg_tickets: { Args: never; Returns: undefined }
+      recalculate_service_line_avg_tickets_now: { Args: never; Returns: number }
       recompute_daily_summary: {
         Args: { p_data: string; p_employee_id: string }
         Returns: undefined
@@ -6745,6 +6939,7 @@ export type Database = {
         | "benefits_discount"
         | "advance_discount"
         | "other"
+      project_rito_type: "daily" | "planning" | "review" | "retro" | "outro"
       project_status:
         | "planning"
         | "active"
@@ -6773,9 +6968,9 @@ export type Database = {
         | "restructuring"
         | "personal_request"
         | "contract_expiration"
-        | "early_contract_termination"
         | "disciplinary"
         | "other"
+        | "early_contract_termination"
       termination_status:
         | "pending"
         | "in_progress"
@@ -6951,6 +7146,7 @@ export const Constants = {
         "advance_discount",
         "other",
       ],
+      project_rito_type: ["daily", "planning", "review", "retro", "outro"],
       project_status: [
         "planning",
         "active",
@@ -6981,9 +7177,9 @@ export const Constants = {
         "restructuring",
         "personal_request",
         "contract_expiration",
-        "early_contract_termination",
         "disciplinary",
         "other",
+        "early_contract_termination",
       ],
       termination_status: [
         "pending",
