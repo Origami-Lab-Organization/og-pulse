@@ -12,8 +12,8 @@ export type LeadActivityType =
   | 'unarchived'
   | 'closed'
   | 'closed_lost'
-  | 'moved_to_follow_up'
-  | 'follow_up_resumed'
+  | 'moved_to_stand_by'
+  | 'stand_by_resumed'
   | 'note_added';
 
 export interface LeadActivityDB {

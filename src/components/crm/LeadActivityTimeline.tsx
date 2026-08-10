@@ -44,8 +44,8 @@ const ACTIVITY_ICON: Record<LeadActivityType, typeof Plus> = {
   unarchived: ArchiveRestore,
   closed: Trophy,
   closed_lost: XCircle,
-  moved_to_follow_up: Sprout,
-  follow_up_resumed: Undo2,
+  moved_to_stand_by: Sprout,
+  stand_by_resumed: Undo2,
   note_added: Pencil,
 };
 

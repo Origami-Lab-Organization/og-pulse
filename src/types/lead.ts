@@ -5,7 +5,7 @@ export type CRMStage =
   | 'negotiation'
   | 'closed'
   | 'closed_lost'
-  | 'follow_up';
+  | 'stand_by';
 
 export const SERVICE_LINE_OPTIONS = [
   { value: 'financiamento_inovacao', label: 'Financiamento da Inovação' },
@@ -90,9 +90,9 @@ export const CRM_STAGE_META: Record<CRMStage, CRMStageMeta> = {
     forecastWeight: 0,
     stallDays: null,
   },
-  follow_up: {
-    id: 'follow_up',
-    label: 'Follow Up',
+  stand_by: {
+    id: 'stand_by',
+    label: 'Stand By',
     color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400',
     chartColor: 'hsl(var(--chart-2))',
     forecastWeight: 0,
@@ -123,7 +123,7 @@ export const CRM_FUNNEL_STAGES: readonly CRMStage[] = [
  */
 export const CRM_LEAD_COLUMNS: readonly CRMStageMeta[] = [
   ...CRM_FUNNEL_STAGES.map((stage) => CRM_STAGE_META[stage]),
-  CRM_STAGE_META.follow_up,
+  CRM_STAGE_META.stand_by,
 ];
 
 /** Índice da etapa no funil; -1 para etapas fora da sequência. */
@@ -131,8 +131,8 @@ export function getFunnelIndex(stage: string): number {
   return CRM_FUNNEL_STAGES.indexOf(stage as CRMStage);
 }
 
-export function isInFollowUpStage(stage: string | null | undefined): boolean {
-  return stage === 'follow_up';
+export function isInStandBy(stage: string | null | undefined): boolean {
+  return stage === 'stand_by';
 }
 
 /** Desfecho encerrado: ganho ou perdido. Não admite edição nem avanço. */
@@ -228,9 +228,9 @@ export interface LeadDB {
   responsible_id: string | null;
   closed_at: string | null;
   lost_at: string | null;
-  /** Etapa do funil à qual a oportunidade volta ao sair do Follow Up. */
-  follow_up_return_stage: CRMStage | null;
-  follow_up_since: string | null;
+  /** Etapa do funil à qual a oportunidade volta ao sair do Stand By. */
+  stand_by_return_stage: CRMStage | null;
+  stand_by_since: string | null;
 }
 
 export interface LeadWithBudget extends LeadDB {

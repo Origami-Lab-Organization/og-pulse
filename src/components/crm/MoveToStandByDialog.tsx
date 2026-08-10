@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useCreateFollowUp } from '@/hooks/useLeadFollowUps';
-import { useMoveLeadToFollowUp } from '@/hooks/useLeads';
+import { useMoveLeadToStandBy } from '@/hooks/useLeads';
 import { suggestFollowUpDate, toLocalDatetimeInputValue } from '@/lib/followUps';
 import { CRMStage, LeadDB, getStageLabel } from '@/types/lead';
 
@@ -22,25 +22,25 @@ const RETURN_PRESETS = [
   { days: 90, label: '90 dias' },
 ] as const;
 
-interface MoveToFollowUpDialogProps {
+interface MoveToStandByDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lead: LeadDB | null;
   fromStage: CRMStage | null;
 }
 
-export function MoveToFollowUpDialog({ open, onOpenChange, lead, fromStage }: MoveToFollowUpDialogProps) {
+export function MoveToStandByDialog({ open, onOpenChange, lead, fromStage }: MoveToStandByDialogProps) {
   const { employee } = useAuth();
   const { data: employees = [] } = useEmployees();
   const createFollowUp = useCreateFollowUp();
-  const moveToFollowUpStage = useMoveLeadToFollowUp();
+  const moveToStandBy = useMoveLeadToStandBy();
 
   const [returnAt, setReturnAt] = useState('');
   const [description, setDescription] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
 
   const activeEmployees = employees.filter((e) => e.status === 'ativo');
-  const isSubmitting = createFollowUp.isPending || moveToFollowUpStage.isPending;
+  const isSubmitting = createFollowUp.isPending || moveToStandBy.isPending;
   const canConfirm = !!returnAt && !!description.trim() && !isSubmitting;
 
   // Reabre sempre com sugestão de 30 dias e o usuário como responsável.
@@ -68,7 +68,7 @@ export function MoveToFollowUpDialog({ open, onOpenChange, lead, fromStage }: Mo
       assigned_to: assignedTo || null,
     });
 
-    await moveToFollowUpStage.mutateAsync({ id: lead.id, fromStage });
+    await moveToStandBy.mutateAsync({ id: lead.id, fromStage });
     onOpenChange(false);
   };
 
@@ -76,18 +76,18 @@ export function MoveToFollowUpDialog({ open, onOpenChange, lead, fromStage }: Mo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Mover para Follow Up</DialogTitle>
+          <DialogTitle>Mover para Stand By</DialogTitle>
           <DialogDescription>
-            A oportunidade sai do Pipeline e fica na coluna Follow Up até a data de retorno.
+            A oportunidade sai do Pipeline e fica na coluna Stand By até a data de retorno.
             {fromStage ? ` Ao retomar, ela volta para ${getStageLabel(fromStage)}.` : ''}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="follow-up-return-at">Data de retorno *</Label>
+            <Label htmlFor="stand-by-return-at">Data de retorno *</Label>
             <Input
-              id="follow-up-return-at"
+              id="stand-by-return-at"
               type="datetime-local"
               value={returnAt}
               onChange={(e) => setReturnAt(e.target.value)}
@@ -109,9 +109,9 @@ export function MoveToFollowUpDialog({ open, onOpenChange, lead, fromStage }: Mo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="follow-up-description">O que fazer no retorno *</Label>
+            <Label htmlFor="stand-by-description">O que fazer no retorno *</Label>
             <Textarea
-              id="follow-up-description"
+              id="stand-by-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Ex: retomar conversa sobre orçamento do próximo ciclo"
@@ -122,9 +122,9 @@ export function MoveToFollowUpDialog({ open, onOpenChange, lead, fromStage }: Mo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="follow-up-assigned">Responsável pelo retorno</Label>
+            <Label htmlFor="stand-by-assigned">Responsável pelo retorno</Label>
             <Select value={assignedTo} onValueChange={setAssignedTo}>
-              <SelectTrigger id="follow-up-assigned">
+              <SelectTrigger id="stand-by-assigned">
                 <SelectValue placeholder="Selecione o responsável" />
               </SelectTrigger>
               <SelectContent>
@@ -142,7 +142,7 @@ export function MoveToFollowUpDialog({ open, onOpenChange, lead, fromStage }: Mo
           </Button>
           <Button onClick={handleConfirm} disabled={!canConfirm}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Mover para Follow Up
+            Mover para Stand By
           </Button>
         </DialogFooter>
       </DialogContent>

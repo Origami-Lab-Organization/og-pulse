@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LeadWithBudget, CRMStage, getFunnelIndex, getStageColor, getStageLabel,
-  isClosedOutcome, isInFollowUpStage,
+  isClosedOutcome, isInStandBy,
 } from '@/types/lead';
 import { cn } from '@/lib/utils';
 
@@ -59,7 +59,7 @@ export function MeusLeadsWidget({ leads, isLoading }: Props) {
   }
 
   const myLeads = leads
-    .filter((l) => !l.archived && !isClosedOutcome(l.crm_stage) && !isInFollowUpStage(l.crm_stage) && l.responsible_id === employee?.id)
+    .filter((l) => !l.archived && !isClosedOutcome(l.crm_stage) && !isInStandBy(l.crm_stage) && l.responsible_id === employee?.id)
     .sort((a, b) => attentionOrder(a.crm_stage) - attentionOrder(b.crm_stage));
 
   const visible = myLeads.slice(0, 3);

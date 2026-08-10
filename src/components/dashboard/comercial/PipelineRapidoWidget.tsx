@@ -11,7 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import {
   LeadWithBudget, CRMStage, CRM_FUNNEL_STAGES, CRM_STAGE_META,
-  getStageChartColor, getStageLabel, isClosedOutcome, isInFollowUpStage,
+  getStageChartColor, getStageLabel, isClosedOutcome, isInStandBy,
 } from '@/types/lead';
 
 const TOOLTIP_MAX = 5;
@@ -122,7 +122,7 @@ export function PipelineRapidoWidget({ leads, isLoading }: Props) {
   const maxValue = Math.max(...stageData.map((s) => s.value), 1);
   // Valor em aberto: nem desfecho encerrado nem Follow Up — negócio frio não é pipeline.
   const totalValue = stageData.filter((s) => !isClosedOutcome(s.stage)).reduce((sum, s) => sum + s.value, 0);
-  const totalCount = activeLeads.filter((l) => !isClosedOutcome(l.crm_stage) && !isInFollowUpStage(l.crm_stage)).length;
+  const totalCount = activeLeads.filter((l) => !isClosedOutcome(l.crm_stage) && !isInStandBy(l.crm_stage)).length;
   const hasAny = activeLeads.length > 0;
 
   return (

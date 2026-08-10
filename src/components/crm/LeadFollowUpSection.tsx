@@ -17,7 +17,7 @@ import {
 } from '@/hooks/useLeadFollowUps';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmployees } from '@/hooks/useEmployees';
-import { useResumeLeadFromFollowUp } from '@/hooks/useLeads';
+import { useResumeLeadFromStandBy } from '@/hooks/useLeads';
 import { getFollowUpUrgency, suggestFollowUpDate, toLocalDatetimeInputValue } from '@/lib/followUps';
 import { CRMStage, getStageLabel } from '@/types/lead';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,8 +25,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 interface LeadFollowUpSectionProps {
   leadId: string;
   disabled?: boolean;
-  /** Em Follow Up, concluir o último retorno sem reagendar deixa a oportunidade órfã. */
-  inFollowUpStage?: boolean;
+  /** Em Stand By, concluir o último retorno sem reagendar deixa a oportunidade órfã. */
+  inStandBy?: boolean;
   resumeStage?: CRMStage;
 }
 
@@ -50,14 +50,14 @@ function toLocalDatetimeValue(): string {
   return toLocalDatetimeInputValue(suggestFollowUpDate());
 }
 
-export function LeadFollowUpSection({ leadId, disabled, inFollowUpStage, resumeStage }: LeadFollowUpSectionProps) {
+export function LeadFollowUpSection({ leadId, disabled, inStandBy, resumeStage }: LeadFollowUpSectionProps) {
   const { employee } = useAuth();
   const { data: followUps = [], isLoading } = useLeadFollowUps(leadId);
   const { data: employees = [] } = useEmployees();
   const createFollowUp = useCreateFollowUp();
   const updateFollowUp = useUpdateFollowUp();
   const deleteFollowUp = useDeleteFollowUp();
-  const resumeFromFollowUp = useResumeLeadFromFollowUp();
+  const resumeFromStandBy = useResumeLeadFromStandBy();
 
   const [showForm, setShowForm] = useState(false);
   const [description, setDescription] = useState('');
@@ -101,7 +101,7 @@ export function LeadFollowUpSection({ leadId, disabled, inFollowUpStage, resumeS
   const completed = followUps.filter(f => f.status !== 'pending');
   // Follow Up sem retorno agendado: o negócio ficaria esquecido justamente na
   // coluna criada para não esquecer. Oferecemos os próximos passos possíveis.
-  const needsNextStep = !!inFollowUpStage && !isLoading && pending.length === 0;
+  const needsNextStep = !!inStandBy && !isLoading && pending.length === 0;
 
   return (
     <div className="space-y-3">
@@ -127,7 +127,7 @@ export function LeadFollowUpSection({ leadId, disabled, inFollowUpStage, resumeS
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-            Em Follow Up sem retorno agendado
+            Em Stand By sem retorno agendado
           </div>
           <p className="text-xs text-muted-foreground">
             Defina o próximo passo para esta oportunidade não ficar esquecida.
@@ -148,10 +148,10 @@ export function LeadFollowUpSection({ leadId, disabled, inFollowUpStage, resumeS
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
-                onClick={() => resumeFromFollowUp.mutate({ id: leadId, targetStage: resumeStage })}
-                disabled={resumeFromFollowUp.isPending}
+                onClick={() => resumeFromStandBy.mutate({ id: leadId, targetStage: resumeStage })}
+                disabled={resumeFromStandBy.isPending}
               >
-                {resumeFromFollowUp.isPending ? (
+                {resumeFromStandBy.isPending ? (
                   <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                 ) : (
                   <Undo2 className="h-3 w-3 mr-1" />

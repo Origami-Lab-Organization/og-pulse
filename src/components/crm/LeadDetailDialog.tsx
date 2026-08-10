@@ -67,19 +67,19 @@ import {
 } from 'lucide-react'
 import {
   LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS,
-  getLossReasonLabel, getStageLabel, getNextFunnelStage, isClosedOutcome, isInFollowUpStage,
+  getLossReasonLabel, getStageLabel, getNextFunnelStage, isClosedOutcome, isInStandBy,
   isRecentlyRestored,
 } from '@/types/lead'
 import { LoseDealDialog } from './LoseDealDialog'
-import { MoveToFollowUpDialog } from './MoveToFollowUpDialog'
+import { MoveToStandByDialog } from './MoveToStandByDialog'
 import { DeleteLeadDialog } from './DeleteLeadDialog'
 import { LeadActivityTimeline } from './LeadActivityTimeline'
 import { LeadInteractionsTab } from './LeadInteractionsTab'
 import { LeadFollowUpSection } from './LeadFollowUpSection'
 import { LeadAttachmentsTab } from './LeadAttachmentsTab'
 import { BudgetVersionHistory } from './BudgetVersionHistory'
-import { useUpdateLead, useUpdateLeadStage, useResumeLeadFromFollowUp } from '@/hooks/useLeads'
-import { resolveFollowUpReturnStage } from '@/services/leadService'
+import { useUpdateLead, useUpdateLeadStage, useResumeLeadFromStandBy } from '@/hooks/useLeads'
+import { resolveStandByReturnStage } from '@/services/leadService'
 import { useApplyServiceTemplate } from '@/hooks/useBudgets'
 import { useClients } from '@/hooks/useClients'
 import { useEmployees } from '@/hooks/useEmployees'
@@ -161,8 +161,8 @@ export function LeadDetailDialog({
   const navigate = useNavigate()
   const { employee } = useAuth()
   const [loseOpen, setLoseOpen] = useState(false)
-  const [followUpStageOpen, setFollowUpStageOpen] = useState(false)
-  const resumeFromFollowUp = useResumeLeadFromFollowUp()
+  const [standByOpen, setStandByOpen] = useState(false)
+  const resumeFromStandBy = useResumeLeadFromStandBy()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -351,13 +351,13 @@ export function LeadDetailDialog({
 
   const isArchived = lead.archived
   const isDisabled = isArchived || !isEditing
-  const inFollowUpStage = isInFollowUpStage(lead.crm_stage)
+  const inStandBy = isInStandBy(lead.crm_stage)
   const nextStage = getNextFunnelStage(lead.crm_stage)
   const nextStageLabel = nextStage ? getStageLabel(nextStage) : null
-  const resumeStage = resolveFollowUpReturnStage(lead.follow_up_return_stage)
+  const resumeStage = resolveStandByReturnStage(lead.stand_by_return_stage)
 
   const advanceGate =
-    !isArchived && !inFollowUpStage && nextStage ? canAdvanceFrom(lead.crm_stage, lead) : null
+    !isArchived && !inStandBy && nextStage ? canAdvanceFrom(lead.crm_stage, lead) : null
 
   const handleAdvanceStage = () => {
     if (!nextStage || !advanceGate?.allowed) return
@@ -1065,7 +1065,7 @@ export function LeadDetailDialog({
                   <LeadFollowUpSection
                     leadId={lead.id}
                     disabled={isClosedOutcome(lead.crm_stage) || isArchived}
-                    inFollowUpStage={inFollowUpStage}
+                    inStandBy={inStandBy}
                     resumeStage={resumeStage}
                   />
                   <Separator />
@@ -1131,21 +1131,21 @@ export function LeadDetailDialog({
                         Dar perda
                       </Button>
 
-                      {inFollowUpStage ? (
+                      {inStandBy ? (
                         <Button
                           type='button'
                           variant='outline'
                           size='sm'
                           className='w-full sm:w-auto'
                           onClick={() =>
-                            resumeFromFollowUp.mutate(
+                            resumeFromStandBy.mutate(
                               { id: lead.id, targetStage: resumeStage },
                               { onSuccess: () => onOpenChange(false) },
                             )
                           }
-                          disabled={resumeFromFollowUp.isPending}
+                          disabled={resumeFromStandBy.isPending}
                         >
-                          {resumeFromFollowUp.isPending ? (
+                          {resumeFromStandBy.isPending ? (
                             <Loader2 className='mr-1.5 h-4 w-4 animate-spin' />
                           ) : (
                             <Undo2 className='h-4 w-4 mr-1.5' />
@@ -1158,10 +1158,10 @@ export function LeadDetailDialog({
                           variant='outline'
                           size='sm'
                           className='w-full sm:w-auto'
-                          onClick={() => setFollowUpStageOpen(true)}
+                          onClick={() => setStandByOpen(true)}
                         >
                           <Sprout className='h-4 w-4 mr-1.5' />
-                          Mover para Follow Up
+                          Mover para Stand By
                         </Button>
                       )}
                     </div>
@@ -1250,10 +1250,10 @@ export function LeadDetailDialog({
         fromStage={lead.crm_stage}
       />
 
-      <MoveToFollowUpDialog
-        open={followUpStageOpen}
+      <MoveToStandByDialog
+        open={standByOpen}
         onOpenChange={(v) => {
-          setFollowUpStageOpen(v)
+          setStandByOpen(v)
           if (!v) onOpenChange(false)
         }}
         lead={lead}

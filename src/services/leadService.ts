@@ -143,8 +143,8 @@ export async function closeLeadAsLost(input: CloseLeadAsLostInput) {
       archive_reason: input.reason,
       archive_notes: input.notes || null,
       competitor_name: input.competitorName ?? null,
-      follow_up_return_stage: null,
-      follow_up_since: null,
+      stand_by_return_stage: null,
+      stand_by_since: null,
     })
     .eq('id', input.id);
 
@@ -171,7 +171,7 @@ async function cancelPendingFollowUps(leadId: string) {
   if (error) throw error;
 }
 
-export interface MoveLeadToFollowUpInput {
+export interface MoveLeadToStandByInput {
   id: string;
   /** Etapa atual — guardada para o retorno voltar de onde saiu. */
   fromStage: CRMStage;
@@ -181,17 +181,17 @@ export interface MoveLeadToFollowUpInput {
  * Coloca a oportunidade em Follow Up, guardando a etapa de origem.
  *
  * A data de retorno NÃO é gravada aqui: ela é um `lead_follow_ups` pendente
- * criado pelo chamador na mesma ação (ver useMoveLeadToFollowUp). Follow Up sem
+ * criado pelo chamador na mesma ação (ver useMoveLeadToStandBy). Follow Up sem
  * follow-up pendente é estado inválido — é o esquecimento que a feature existe
  * para evitar.
  */
-export async function moveLeadToFollowUp(input: MoveLeadToFollowUpInput) {
+export async function moveLeadToStandBy(input: MoveLeadToStandByInput) {
   const { error } = await supabase
     .from('leads')
     .update({
-      crm_stage: 'follow_up',
-      follow_up_return_stage: input.fromStage,
-      follow_up_since: new Date().toISOString(),
+      crm_stage: 'stand_by',
+      stand_by_return_stage: input.fromStage,
+      stand_by_since: new Date().toISOString(),
     })
     .eq('id', input.id);
 
@@ -199,24 +199,24 @@ export async function moveLeadToFollowUp(input: MoveLeadToFollowUpInput) {
 }
 
 /** Etapa de retorno quando a origem não pôde ser recuperada. */
-const FOLLOW_UP_FALLBACK_STAGE: CRMStage = 'qualification';
+const STAND_BY_FALLBACK_STAGE: CRMStage = 'qualification';
 
-export function resolveFollowUpReturnStage(stage?: string | null): CRMStage {
+export function resolveStandByReturnStage(stage?: string | null): CRMStage {
   const isFunnelStage = !!stage && CRM_FUNNEL_STAGES.includes(stage as CRMStage);
   // 'closed' fica de fora: o fechamento tem fluxo próprio (criação de projeto)
   // e não pode ser alcançado por retomada.
   if (isFunnelStage && stage !== 'closed') return stage as CRMStage;
-  return FOLLOW_UP_FALLBACK_STAGE;
+  return STAND_BY_FALLBACK_STAGE;
 }
 
-/** Devolve a oportunidade ao funil, na etapa em que estava antes do Follow Up. */
-export async function resumeLeadFromFollowUp(id: string, targetStage: CRMStage) {
+/** Devolve a oportunidade ao funil, na etapa em que estava antes do Stand By. */
+export async function resumeLeadFromStandBy(id: string, targetStage: CRMStage) {
   const { error } = await supabase
     .from('leads')
     .update({
       crm_stage: targetStage,
-      follow_up_return_stage: null,
-      follow_up_since: null,
+      stand_by_return_stage: null,
+      stand_by_since: null,
     })
     .eq('id', id);
 

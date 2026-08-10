@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
   LeadWithBudget, ARCHIVE_REASONS, LEAD_SOURCE_LABELS, CRM_FUNNEL_STAGES,
-  getStageChartColor, getStageForecastWeight, getStageLabel, isClosedOutcome, isInFollowUpStage,
+  getStageChartColor, getStageForecastWeight, getStageLabel, isClosedOutcome, isInStandBy,
 } from '@/types/lead';
 import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { differenceInDays, parseISO, getMonth, getYear, format, eachMonthOfInterval, startOfMonth, endOfMonth, differenceInMilliseconds } from 'date-fns';
@@ -92,7 +92,7 @@ function computeKPIs(leads: LeadWithBudget[], avgTickets: ServiceAvgTicketLookup
   // Pipeline ativo exclui o Follow Up: negócio esfriado com data de retorno não é
   // pipeline em aberto, e contá-lo infla o valor projetado.
   const pipelineLeads = activeLeads.filter(
-    l => !isClosedOutcome(l.crm_stage) && !isInFollowUpStage(l.crm_stage)
+    l => !isClosedOutcome(l.crm_stage) && !isInStandBy(l.crm_stage)
   );
   const pipelineLeadsWithBudget = pipelineLeads.filter(l => getLeadValue(l) > 0);
   const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);

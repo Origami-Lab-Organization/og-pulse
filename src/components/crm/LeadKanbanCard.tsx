@@ -7,7 +7,7 @@ import { Building2, Clock, Compass, DollarSign, Lock, FileText, User, CalendarCl
 import { formatCurrency } from '@/lib/formatters';
 import {
   LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS, LEAD_SOURCE_LABELS,
-  getStageStallDays, isInFollowUpStage, isRecentlyRestored,
+  getStageStallDays, isInStandBy, isRecentlyRestored,
 } from '@/types/lead';
 import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
@@ -67,7 +67,7 @@ interface LeadKanbanCardProps {
   avgTickets?: ServiceAvgTicketLookup;
   leadServices?: LeadServiceRow[];
   pendingFollowUps?: LeadFollowUp[];
-  /** Presente apenas na coluna de Follow Up — devolve a oportunidade ao funil. */
+  /** Presente apenas na coluna de Stand By — devolve a oportunidade ao funil. */
   onResume?: () => void;
 }
 
@@ -79,7 +79,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
   const isWon = currentStage === 'closed';
   const isLost = currentStage === 'closed_lost';
   const isLocked = isWon || isLost;
-  const inFollowUpStage = isInFollowUpStage(currentStage);
+  const inStandBy = isInStandBy(currentStage);
 
   const activeServices = services.filter((s) => s.isActive);
   const servicesByType = BILLING_TYPES.reduce((acc, type) => {
@@ -132,7 +132,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
   const nextFollowUp = getNextPendingFollowUp(pendingFollowUps);
   // Follow Up sem retorno agendado é o cemitério que esta coluna existe para
   // evitar: sem data, ninguém volta a falar com o cliente.
-  const missingReturnDate = inFollowUpStage && !nextFollowUp;
+  const missingReturnDate = inStandBy && !nextFollowUp;
 
   const handleCreateBudget = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -160,7 +160,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
           ? 'border-l-destructive bg-destructive/10'
           : missingReturnDate
           ? 'border-l-destructive bg-destructive/5'
-          : inFollowUpStage
+          : inStandBy
           ? 'border-l-sky-400'
           : isStuck
           ? 'border-l-amber-400'
@@ -172,7 +172,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
         <div className="flex items-center justify-between gap-1">
           <h4 className="font-medium text-sm line-clamp-1 flex-1">{lead.name}</h4>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {followUpIndicator && !inFollowUpStage && (
+            {followUpIndicator && !inStandBy && (
               <CalendarClock
                 aria-label={followUpIndicator === 'overdue' ? 'Follow-up vencido' : 'Follow-up agendado'}
                 className={cn(
@@ -196,9 +196,9 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
           </span>
         )}
 
-        {/* Follow Up: a data de retorno em texto é a informação principal do card,
+        {/* Stand By: a data de retorno em texto é a informação principal do card,
             no lugar do tempo parado, que aqui não diz nada. */}
-        {inFollowUpStage && (
+        {inStandBy && (
           missingReturnDate ? (
             <div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
               <AlertTriangle className="h-3 w-3 flex-shrink-0" />
@@ -293,9 +293,9 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
           </div>
         ) : null}
 
-        {/* Retomar — única saída do Follow Up, para voltar à etapa de origem e
+        {/* Retomar — única saída do Stand By, para voltar à etapa de origem e
             não à coluna vizinha de um arraste. */}
-        {inFollowUpStage && onResume && (
+        {inStandBy && onResume && (
           <Button
             size="sm"
             variant="outline"

@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
 import {
   LeadWithBudget, getStageColor, getStageLabel, getStageStallDays,
-  isClosedOutcome, isInFollowUpStage,
+  isClosedOutcome, isInStandBy,
 } from '@/types/lead';
 import { isFollowUpOverdue } from '@/lib/followUps';
 import { cn } from '@/lib/utils';
@@ -23,7 +23,7 @@ interface RiskyLead {
 }
 
 function getRiskLabel(reason: RiskReason, days: number): string {
-  if (reason === 'no_return') return 'Em Follow Up sem retorno agendado';
+  if (reason === 'no_return') return 'Em Stand By sem retorno agendado';
   if (reason === 'overdue') return 'Follow-up vencido';
   if (reason === 'stalled') return `${days}d sem movimento`;
   return `Follow-up vencido · ${days}d parado`;
@@ -70,7 +70,7 @@ export function OportunidadesRiscoWidget({ leads, followUps, isLoading }: Props)
       const threshold = getStageStallDays(lead.crm_stage);
       const isStalled = threshold !== null && daysSinceUpdate > threshold;
       const hasOverdue = overdueLeadIds.has(lead.id);
-      const missingReturn = isInFollowUpStage(lead.crm_stage) && !leadIdsWithPendingFollowUp.has(lead.id);
+      const missingReturn = isInStandBy(lead.crm_stage) && !leadIdsWithPendingFollowUp.has(lead.id);
       if (!isStalled && !hasOverdue && !missingReturn) return null;
       const reason: RiskReason = missingReturn
         ? 'no_return'
