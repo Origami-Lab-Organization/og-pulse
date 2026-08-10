@@ -6,24 +6,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
-import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
+import {
+  LeadWithBudget, CRMStage, getFunnelIndex, getStageColor, getStageLabel,
+  isClosedOutcome, isInFollowUpStage,
+} from '@/types/lead';
 import { cn } from '@/lib/utils';
 
-const STAGE_ORDER: Record<CRMStage, number> = {
-  negotiation: 0,
-  proposal: 1,
-  qualification: 2,
-  screening: 3,
-  closed: 4,
-  closed_lost: 5,
-};
-
-function getStageBadgeClass(stage: CRMStage): string {
-  return CRM_LEAD_COLUMNS.find((c) => c.id === stage)?.color ?? 'bg-muted text-muted-foreground';
-}
-
-function getStageLabel(stage: CRMStage): string {
-  return CRM_LEAD_COLUMNS.find((c) => c.id === stage)?.label ?? stage;
+/**
+ * Ordem de atenção: quem está mais perto de fechar aparece primeiro, ou seja o
+ * inverso do funil. Follow Up vai para o fim — é o que menos precisa de ação hoje.
+ */
+function attentionOrder(stage: CRMStage): number {
+  const index = getFunnelIndex(stage);
+  if (index < 0) return Number.MAX_SAFE_INTEGER;
+  return -index;
 }
 
 function formatCurrencyCompact(value: number): string {
@@ -63,8 +59,8 @@ export function MeusLeadsWidget({ leads, isLoading }: Props) {
   }
 
   const myLeads = leads
-    .filter((l) => !l.archived && l.crm_stage !== 'closed' && l.crm_stage !== 'closed_lost' && l.responsible_id === employee?.id)
-    .sort((a, b) => STAGE_ORDER[a.crm_stage] - STAGE_ORDER[b.crm_stage]);
+    .filter((l) => !l.archived && !isClosedOutcome(l.crm_stage) && !isInFollowUpStage(l.crm_stage) && l.responsible_id === employee?.id)
+    .sort((a, b) => attentionOrder(a.crm_stage) - attentionOrder(b.crm_stage));
 
   const visible = myLeads.slice(0, 3);
   const extra = myLeads.length - visible.length;
@@ -123,7 +119,7 @@ export function MeusLeadsWidget({ leads, isLoading }: Props) {
                     <Badge
                       className={cn(
                         'text-[10px] border-0 font-medium mt-1 pointer-events-none',
-                        getStageBadgeClass(lead.crm_stage),
+                        getStageColor(lead.crm_stage),
                       )}
                     >
                       {getStageLabel(lead.crm_stage)}

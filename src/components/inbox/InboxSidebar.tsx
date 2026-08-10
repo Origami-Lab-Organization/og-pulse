@@ -7,7 +7,8 @@ import {
   UserSearch,
   FileText,
   FolderKanban,
-  Trash2
+  Trash2,
+  Handshake,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { InboxFolder, InboxCounts } from "@/hooks/useInboxNotifications";
@@ -29,6 +30,7 @@ const folders: FolderEntry[] = [
   { key: "candidates", label: "Candidaturas", icon: UserSearch },
   { key: "projeto", label: "Projetos", icon: FolderKanban },
   { key: "documentos", label: "Documentos", icon: FileText },
+  { key: "comercial", label: "Comercial", icon: Handshake },
   "separator",
   { key: "archived", label: "Arquivadas", icon: Archive },
   { key: "lixeira", label: "Lixeira", icon: Trash2 }
@@ -53,6 +55,7 @@ export function InboxSidebar({
     candidates: counts.candidates,
     projeto: counts.projeto,
     documentos: counts.documentos,
+    comercial: counts.comercial,
     archived: counts.archived,
     lixeira: counts.lixeira
   };

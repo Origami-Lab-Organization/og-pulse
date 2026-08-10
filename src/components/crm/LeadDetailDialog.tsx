@@ -52,6 +52,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   MoreVertical,
   ThumbsDown,
+  Sprout,
+  Undo2,
   DollarSign,
   ExternalLink,
   Trash2,
@@ -63,15 +65,21 @@ import {
   Lock,
   Zap,
 } from 'lucide-react'
-import { LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS, getLossReasonLabel, getStageLabel, isRecentlyRestored } from '@/types/lead'
+import {
+  LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS,
+  getLossReasonLabel, getStageLabel, getNextFunnelStage, isClosedOutcome, isInFollowUpStage,
+  isRecentlyRestored,
+} from '@/types/lead'
 import { LoseDealDialog } from './LoseDealDialog'
+import { MoveToFollowUpDialog } from './MoveToFollowUpDialog'
 import { DeleteLeadDialog } from './DeleteLeadDialog'
 import { LeadActivityTimeline } from './LeadActivityTimeline'
 import { LeadInteractionsTab } from './LeadInteractionsTab'
 import { LeadFollowUpSection } from './LeadFollowUpSection'
 import { LeadAttachmentsTab } from './LeadAttachmentsTab'
 import { BudgetVersionHistory } from './BudgetVersionHistory'
-import { useUpdateLead, useUpdateLeadStage } from '@/hooks/useLeads'
+import { useUpdateLead, useUpdateLeadStage, useResumeLeadFromFollowUp } from '@/hooks/useLeads'
+import { resolveFollowUpReturnStage } from '@/services/leadService'
 import { useApplyServiceTemplate } from '@/hooks/useBudgets'
 import { useClients } from '@/hooks/useClients'
 import { useEmployees } from '@/hooks/useEmployees'
@@ -118,13 +126,7 @@ interface LeadDetailDialogProps {
   initialTab?: string
 }
 
-const STAGE_ORDER: CRMStage[] = [
-  'screening',
-  'qualification',
-  'proposal',
-  'negotiation',
-  'closed',
-]
+
 
 export function canAdvanceFrom(
   stage: CRMStage,
@@ -159,6 +161,8 @@ export function LeadDetailDialog({
   const navigate = useNavigate()
   const { employee } = useAuth()
   const [loseOpen, setLoseOpen] = useState(false)
+  const [followUpStageOpen, setFollowUpStageOpen] = useState(false)
+  const resumeFromFollowUp = useResumeLeadFromFollowUp()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -347,15 +351,13 @@ export function LeadDetailDialog({
 
   const isArchived = lead.archived
   const isDisabled = isArchived || !isEditing
-  const currentStageIndex = STAGE_ORDER.indexOf(lead.crm_stage)
-  const nextStage =
-    currentStageIndex >= 0 && currentStageIndex < STAGE_ORDER.length - 1
-      ? STAGE_ORDER[currentStageIndex + 1]
-      : null
+  const inFollowUpStage = isInFollowUpStage(lead.crm_stage)
+  const nextStage = getNextFunnelStage(lead.crm_stage)
   const nextStageLabel = nextStage ? getStageLabel(nextStage) : null
+  const resumeStage = resolveFollowUpReturnStage(lead.follow_up_return_stage)
 
   const advanceGate =
-    !isArchived && nextStage ? canAdvanceFrom(lead.crm_stage, lead) : null
+    !isArchived && !inFollowUpStage && nextStage ? canAdvanceFrom(lead.crm_stage, lead) : null
 
   const handleAdvanceStage = () => {
     if (!nextStage || !advanceGate?.allowed) return
@@ -857,7 +859,7 @@ export function LeadDetailDialog({
                                   <ExternalLink className='h-3.5 w-3.5 mr-1.5' />
                                   Ver Orçamento
                                 </Button>
-                                {!['closed', 'closed_lost'].includes(lead.crm_stage) && (
+                                {!isClosedOutcome(lead.crm_stage) && (
                                   <Button
                                     variant='outline'
                                     size='sm'
@@ -1062,12 +1064,14 @@ export function LeadDetailDialog({
                 <TabsContent value='followups' className='px-5 py-4 mt-0 space-y-4'>
                   <LeadFollowUpSection
                     leadId={lead.id}
-                    disabled={['closed', 'closed_lost'].includes(lead.crm_stage) || isArchived}
+                    disabled={isClosedOutcome(lead.crm_stage) || isArchived}
+                    inFollowUpStage={inFollowUpStage}
+                    resumeStage={resumeStage}
                   />
                   <Separator />
                   <LeadInteractionsTab
                     leadId={lead.id}
-                    disabled={['closed', 'closed_lost'].includes(lead.crm_stage) || isArchived}
+                    disabled={isClosedOutcome(lead.crm_stage) || isArchived}
                   />
                 </TabsContent>
 
@@ -1115,16 +1119,52 @@ export function LeadDetailDialog({
               ) : (
                 <>
                   {lead.crm_stage !== 'closed' ? (
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='sm'
-                      onClick={() => setLoseOpen(true)}
-                      className='w-full sm:w-auto hover:border-destructive hover:text-destructive hover:bg-destructive/10'
-                    >
-                      <ThumbsDown className='h-4 w-4 mr-1.5' />
-                      Dar perda
-                    </Button>
+                    <div className='flex flex-col sm:flex-row gap-2'>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        onClick={() => setLoseOpen(true)}
+                        className='w-full sm:w-auto hover:border-destructive hover:text-destructive hover:bg-destructive/10'
+                      >
+                        <ThumbsDown className='h-4 w-4 mr-1.5' />
+                        Dar perda
+                      </Button>
+
+                      {inFollowUpStage ? (
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          className='w-full sm:w-auto'
+                          onClick={() =>
+                            resumeFromFollowUp.mutate(
+                              { id: lead.id, targetStage: resumeStage },
+                              { onSuccess: () => onOpenChange(false) },
+                            )
+                          }
+                          disabled={resumeFromFollowUp.isPending}
+                        >
+                          {resumeFromFollowUp.isPending ? (
+                            <Loader2 className='mr-1.5 h-4 w-4 animate-spin' />
+                          ) : (
+                            <Undo2 className='h-4 w-4 mr-1.5' />
+                          )}
+                          Retomar em {getStageLabel(resumeStage)}
+                        </Button>
+                      ) : (
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          className='w-full sm:w-auto'
+                          onClick={() => setFollowUpStageOpen(true)}
+                        >
+                          <Sprout className='h-4 w-4 mr-1.5' />
+                          Mover para Follow Up
+                        </Button>
+                      )}
+                    </div>
                   ) : (
                     <div className='hidden sm:block' />
                   )}
@@ -1204,6 +1244,16 @@ export function LeadDetailDialog({
         open={loseOpen}
         onOpenChange={(v) => {
           setLoseOpen(v)
+          if (!v) onOpenChange(false)
+        }}
+        lead={lead}
+        fromStage={lead.crm_stage}
+      />
+
+      <MoveToFollowUpDialog
+        open={followUpStageOpen}
+        onOpenChange={(v) => {
+          setFollowUpStageOpen(v)
           if (!v) onOpenChange(false)
         }}
         lead={lead}

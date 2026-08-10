@@ -41,6 +41,13 @@ export function useLeadFollowUps(leadId: string | null) {
   });
 }
 
+/**
+ * Junta `leads` com `!inner` para descartar follow-ups de oportunidade
+ * arquivada: sem isso, negócios já perdidos continuariam cobrando retorno nos
+ * indicadores e no widget de urgentes.
+ */
+const PENDING_SELECT = '*, lead:leads!inner(archived)';
+
 export function useAllPendingFollowUps() {
   const { employee } = useAuth();
   return useQuery<LeadFollowUp[]>({
@@ -48,9 +55,10 @@ export function useAllPendingFollowUps() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('lead_follow_ups' as any)
-        .select('*')
+        .select(PENDING_SELECT)
         .eq('tenant_id', employee!.tenant_id)
         .eq('status', 'pending')
+        .eq('lead.archived', false)
         .order('scheduled_at', { ascending: true });
       if (error) throw error;
       return (data || []) as unknown as LeadFollowUp[];
@@ -69,9 +77,10 @@ export function useMyPendingFollowUps() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('lead_follow_ups' as any)
-        .select('*')
+        .select(PENDING_SELECT)
         .eq('assigned_to', employee!.id)
         .eq('status', 'pending')
+        .eq('lead.archived', false)
         .order('scheduled_at', { ascending: true });
       if (error) throw error;
       return (data || []) as unknown as LeadFollowUp[];

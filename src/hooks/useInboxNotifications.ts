@@ -12,6 +12,7 @@ export type InboxFolder =
   | 'candidates'
   | 'projeto'
   | 'documentos'
+  | 'comercial'
   | 'archived'
   | 'lixeira';
 
@@ -23,6 +24,7 @@ export interface InboxCounts {
   candidates: number;
   projeto: number;
   documentos: number;
+  comercial: number;
   archived: number;
   lixeira: number;
 }
@@ -35,6 +37,7 @@ export const EMPTY_INBOX_COUNTS: InboxCounts = {
   candidates: 0,
   projeto: 0,
   documentos: 0,
+  comercial: 0,
   archived: 0,
   lixeira: 0,
 };
@@ -74,6 +77,7 @@ export function useInboxNotifications(folder: InboxFolder = 'all') {
           if (folder === 'budget') query = query.eq('category', 'budget');
           if (folder === 'projeto') query = query.eq('category', 'projeto');
           if (folder === 'documentos') query = query.eq('category', 'documento');
+          if (folder === 'comercial') query = query.eq('category', 'comercial');
         }
       }
 
@@ -113,6 +117,7 @@ export function useInboxCounts() {
         candidatesRes,
         projetoRes,
         documentosRes,
+        comercialRes,
         archivedRes,
         lixeiraRes,
       ] = await Promise.all([
@@ -122,6 +127,7 @@ export function useInboxCounts() {
         unreadActive().eq('category', 'candidatos'),
         unreadActive().eq('category', 'projeto'),
         unreadActive().eq('category', 'documento'),
+        unreadActive().eq('category', 'comercial'),
         (supabase as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
@@ -143,6 +149,7 @@ export function useInboxCounts() {
         candidates: candidatesRes.count || 0,
         projeto: projetoRes.count || 0,
         documentos: documentosRes.count || 0,
+        comercial: comercialRes.count || 0,
         archived: archivedRes.count || 0,
         lixeira: lixeiraRes.count || 0,
       };

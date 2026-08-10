@@ -13,11 +13,14 @@ import {
   fetchArchivedLeads,
   unarchiveLead,
   deleteLead,
+  moveLeadToFollowUp,
+  resumeLeadFromFollowUp,
   CreateLeadInput,
   CloseLeadAsLostInput,
+  MoveLeadToFollowUpInput,
 } from '@/services/leadService';
 import { leadActivityService } from '@/services/leadActivityService';
-import { CRMStage } from '@/types/lead';
+import { CRMStage, getStageLabel } from '@/types/lead';
 
 export function useLeads() {
   const { employee } = useAuth();
@@ -134,6 +137,10 @@ export function useCloseLeadAsLost() {
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['archived-leads'] });
       qc.invalidateQueries({ queryKey: ['lead-activities', variables.id] });
+      // Os follow-ups pendentes foram cancelados junto — atualiza indicadores.
+      qc.invalidateQueries({ queryKey: ['lead-follow-ups', variables.id] });
+      qc.invalidateQueries({ queryKey: ['all-pending-follow-ups'] });
+      qc.invalidateQueries({ queryKey: ['my-pending-follow-ups'] });
       toast({ title: 'Oportunidade movida para Perdas' });
 
       // Log activity (fire-and-forget)
@@ -149,6 +156,69 @@ export function useCloseLeadAsLost() {
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao marcar oportunidade como perdida', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+/**
+ * Coloca a oportunidade em Follow Up. O follow-up da data de retorno é criado
+ * ANTES desta mutation pelo chamador (MoveToFollowUpDialog) — se a criação do
+ * follow-up falhar, a oportunidade permanece no funil, que é o estado seguro.
+ */
+export function useMoveLeadToFollowUp() {
+  const qc = useQueryClient();
+  const { employee } = useAuth();
+  return useMutation({
+    mutationFn: (input: MoveLeadToFollowUpInput) => moveLeadToFollowUp(input),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-activities', variables.id] });
+      toast({ title: 'Oportunidade movida para Follow Up' });
+
+      if (employee) {
+        leadActivityService.log({
+          tenantId: employee.tenant_id,
+          leadId: variables.id,
+          activityType: 'moved_to_follow_up',
+          description: `Oportunidade movida para Follow Up (saiu de ${getStageLabel(variables.fromStage)})`,
+          metadata: { from_stage: variables.fromStage },
+          createdBy: employee.id,
+        }).catch(console.warn);
+      }
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao mover para Follow Up', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useResumeLeadFromFollowUp() {
+  const qc = useQueryClient();
+  const { employee } = useAuth();
+  return useMutation({
+    mutationFn: ({ id, targetStage }: { id: string; targetStage: CRMStage }) =>
+      resumeLeadFromFollowUp(id, targetStage),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-activities', variables.id] });
+      toast({
+        title: 'Oportunidade retomada',
+        description: `Voltou para ${getStageLabel(variables.targetStage)}.`,
+      });
+
+      if (employee) {
+        leadActivityService.log({
+          tenantId: employee.tenant_id,
+          leadId: variables.id,
+          activityType: 'follow_up_resumed',
+          description: `Oportunidade retomada em ${getStageLabel(variables.targetStage)}`,
+          metadata: { to_stage: variables.targetStage },
+          createdBy: employee.id,
+        }).catch(console.warn);
+      }
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao retomar oportunidade', description: err.message, variant: 'destructive' });
     },
   });
 }

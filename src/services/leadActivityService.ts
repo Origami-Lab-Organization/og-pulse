@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getStageLabel } from '@/types/lead';
 
 export type LeadActivityType =
   | 'created'
@@ -11,6 +12,8 @@ export type LeadActivityType =
   | 'unarchived'
   | 'closed'
   | 'closed_lost'
+  | 'moved_to_follow_up'
+  | 'follow_up_resumed'
   | 'note_added';
 
 export interface LeadActivityDB {
@@ -98,20 +101,11 @@ export const leadActivityService = {
     toStage: string,
     createdBy?: string | null
   ): Promise<LeadActivityDB> {
-    const stageLabels: Record<string, string> = {
-      screening: 'Prospecção/Oportunidade',
-      qualification: 'Qualificação',
-      proposal: 'Proposta Enviada',
-      negotiation: 'Negociação',
-      closed: 'Fechado - Ganho',
-      closed_lost: 'Fechado - Perda',
-    };
-
     return this.log({
       tenantId,
       leadId,
       activityType: 'stage_changed',
-      description: `Movido de ${stageLabels[fromStage] || fromStage} para ${stageLabels[toStage] || toStage}`,
+      description: `Movido de ${getStageLabel(fromStage)} para ${getStageLabel(toStage)}`,
       metadata: { from_stage: fromStage, to_stage: toStage },
       createdBy,
     });
@@ -186,19 +180,11 @@ export const leadActivityService = {
     reasonLabel: string,
     createdBy?: string | null
   ): Promise<LeadActivityDB> {
-    const stageLabels: Record<string, string> = {
-      screening: 'Prospecção/Oportunidade',
-      qualification: 'Qualificação',
-      proposal: 'Proposta Enviada',
-      negotiation: 'Negociação',
-      closed: 'Fechado - Ganho',
-    };
-
     return this.log({
       tenantId,
       leadId,
       activityType: 'closed_lost',
-      description: `Oportunidade perdida (${reasonLabel}) — estava em ${stageLabels[fromStage] || fromStage}`,
+      description: `Oportunidade perdida (${reasonLabel}) — estava em ${getStageLabel(fromStage)}`,
       metadata: { from_stage: fromStage, reason: reasonLabel },
       createdBy,
     });

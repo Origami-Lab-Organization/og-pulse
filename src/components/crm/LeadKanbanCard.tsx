@@ -3,14 +3,17 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building2, Clock, Compass, DollarSign, Lock, FileText, User, CalendarClock } from 'lucide-react';
+import { Building2, Clock, Compass, DollarSign, Lock, FileText, User, CalendarClock, AlertTriangle, Undo2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
-import { LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS, LEAD_SOURCE_LABELS, isRecentlyRestored } from '@/types/lead';
+import {
+  LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS, LEAD_SOURCE_LABELS,
+  getStageStallDays, isInFollowUpStage, isRecentlyRestored,
+} from '@/types/lead';
 import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
-import { isFollowUpOverdue } from '@/lib/followUps';
+import { getNextPendingFollowUp, isFollowUpOverdue } from '@/lib/followUps';
 import { useUpdateLead } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
 
@@ -46,6 +49,10 @@ function formatElapsedTime(createdAt: string, endDate?: string | null): string {
   return `${Math.max(1, minutes)}min`;
 }
 
+function formatReturnDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
 function getDaysInStage(createdAt: string, endDate?: string | null): number {
   const start = new Date(createdAt).getTime();
   const end = endDate ? new Date(endDate).getTime() : Date.now();
@@ -60,16 +67,19 @@ interface LeadKanbanCardProps {
   avgTickets?: ServiceAvgTicketLookup;
   leadServices?: LeadServiceRow[];
   pendingFollowUps?: LeadFollowUp[];
+  /** Presente apenas na coluna de Follow Up — devolve a oportunidade ao funil. */
+  onResume?: () => void;
 }
 
 const BILLING_TYPES: BillingType[] = ['fixed_scope', 'recurring', 'success_fee', 'no_revenue'];
 
-export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avgTickets = EMPTY_AVG_TICKET_LOOKUP, leadServices = [], pendingFollowUps = [] }: LeadKanbanCardProps) {
+export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avgTickets = EMPTY_AVG_TICKET_LOOKUP, leadServices = [], pendingFollowUps = [], onResume }: LeadKanbanCardProps) {
   const navigate = useNavigate();
   const updateLead = useUpdateLead();
   const isWon = currentStage === 'closed';
   const isLost = currentStage === 'closed_lost';
   const isLocked = isWon || isLost;
+  const inFollowUpStage = isInFollowUpStage(currentStage);
 
   const activeServices = services.filter((s) => s.isActive);
   const servicesByType = BILLING_TYPES.reduce((acc, type) => {
@@ -93,8 +103,10 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
   const elapsedTime = formatElapsedTime(lead.created_at, getEndDate());
 
   const daysInStage = getDaysInStage(lead.created_at, getEndDate());
-  const stuckThreshold = ['screening', 'qualification'].includes(currentStage) ? 14 : 7;
-  const isStuck = !isLocked && daysInStage > stuckThreshold;
+  // `stallDays: null` desliga o badge "Parado" — é o caso do Follow Up, em que
+  // ficar parado é o comportamento esperado e o sinal útil é o retorno vencido.
+  const stallDays = getStageStallDays(currentStage);
+  const isStuck = !isLocked && stallDays !== null && daysInStage > stallDays;
   const reactivated = isRecentlyRestored(lead);
 
   const linkedServices = leadServices
@@ -116,6 +128,11 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
     : pendingFollowUps.length > 0
     ? 'upcoming'
     : null;
+
+  const nextFollowUp = getNextPendingFollowUp(pendingFollowUps);
+  // Follow Up sem retorno agendado é o cemitério que esta coluna existe para
+  // evitar: sem data, ninguém volta a falar com o cliente.
+  const missingReturnDate = inFollowUpStage && !nextFollowUp;
 
   const handleCreateBudget = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -141,6 +158,10 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
           ? 'border-l-chart-2 bg-chart-2/10'
           : isLost
           ? 'border-l-destructive bg-destructive/10'
+          : missingReturnDate
+          ? 'border-l-destructive bg-destructive/5'
+          : inFollowUpStage
+          ? 'border-l-sky-400'
           : isStuck
           ? 'border-l-amber-400'
           : 'border-l-primary',
@@ -151,7 +172,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
         <div className="flex items-center justify-between gap-1">
           <h4 className="font-medium text-sm line-clamp-1 flex-1">{lead.name}</h4>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {followUpIndicator && (
+            {followUpIndicator && !inFollowUpStage && (
               <CalendarClock
                 aria-label={followUpIndicator === 'overdue' ? 'Follow-up vencido' : 'Follow-up agendado'}
                 className={cn(
@@ -173,6 +194,30 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
           <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium leading-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             Reativada
           </span>
+        )}
+
+        {/* Follow Up: a data de retorno em texto é a informação principal do card,
+            no lugar do tempo parado, que aqui não diz nada. */}
+        {inFollowUpStage && (
+          missingReturnDate ? (
+            <div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+              <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+              <span>Sem retorno agendado</span>
+            </div>
+          ) : (
+            <div
+              className={cn(
+                'flex items-center gap-1.5 text-xs font-medium',
+                hasOverdueFollowUp ? 'text-destructive' : 'text-sky-700 dark:text-sky-400',
+              )}
+            >
+              <CalendarClock className="h-3 w-3 flex-shrink-0" />
+              <span>
+                {hasOverdueFollowUp ? 'Retorno vencido' : 'Retorno'} em{' '}
+                {formatReturnDate(nextFollowUp!.scheduled_at)}
+              </span>
+            </div>
+          )
         )}
 
         {/* Company */}
@@ -247,6 +292,21 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
             <span>~ {formatCurrency(estimatedValue)}</span>
           </div>
         ) : null}
+
+        {/* Retomar — única saída do Follow Up, para voltar à etapa de origem e
+            não à coluna vizinha de um arraste. */}
+        {inFollowUpStage && onResume && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full text-xs h-7"
+            onClick={(e) => { e.stopPropagation(); onResume(); }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Undo2 className="h-3 w-3 mr-1" />
+            Retomar no Pipeline
+          </Button>
+        )}
 
         {/* Create budget button */}
         {canCreateBudget && (

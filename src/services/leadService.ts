@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { LeadWithBudget, CRMStage } from '@/types/lead';
+import { LeadWithBudget, CRMStage, CRM_FUNNEL_STAGES } from '@/types/lead';
 
 export async function fetchLeads(tenantId: string): Promise<LeadWithBudget[]> {
   const { data, error } = await supabase
@@ -143,8 +143,82 @@ export async function closeLeadAsLost(input: CloseLeadAsLostInput) {
       archive_reason: input.reason,
       archive_notes: input.notes || null,
       competitor_name: input.competitorName ?? null,
+      follow_up_return_stage: null,
+      follow_up_since: null,
     })
     .eq('id', input.id);
+
+  if (error) throw error;
+
+  await cancelPendingFollowUps(input.id);
+}
+
+/**
+ * Cancela os follow-ups pendentes de uma oportunidade encerrada.
+ *
+ * Sem isso o lembrete agendado (notify-lead-follow-ups) continuaria cobrando
+ * retorno de contato de negócio já perdido. Marcamos como 'skipped' em vez de
+ * apagar: o histórico de que o retorno estava agendado e não aconteceu é
+ * informação de diagnóstico comercial.
+ */
+async function cancelPendingFollowUps(leadId: string) {
+  const { error } = await supabase
+    .from('lead_follow_ups')
+    .update({ status: 'skipped', updated_at: new Date().toISOString() })
+    .eq('lead_id', leadId)
+    .eq('status', 'pending');
+
+  if (error) throw error;
+}
+
+export interface MoveLeadToFollowUpInput {
+  id: string;
+  /** Etapa atual — guardada para o retorno voltar de onde saiu. */
+  fromStage: CRMStage;
+}
+
+/**
+ * Coloca a oportunidade em Follow Up, guardando a etapa de origem.
+ *
+ * A data de retorno NÃO é gravada aqui: ela é um `lead_follow_ups` pendente
+ * criado pelo chamador na mesma ação (ver useMoveLeadToFollowUp). Follow Up sem
+ * follow-up pendente é estado inválido — é o esquecimento que a feature existe
+ * para evitar.
+ */
+export async function moveLeadToFollowUp(input: MoveLeadToFollowUpInput) {
+  const { error } = await supabase
+    .from('leads')
+    .update({
+      crm_stage: 'follow_up',
+      follow_up_return_stage: input.fromStage,
+      follow_up_since: new Date().toISOString(),
+    })
+    .eq('id', input.id);
+
+  if (error) throw error;
+}
+
+/** Etapa de retorno quando a origem não pôde ser recuperada. */
+const FOLLOW_UP_FALLBACK_STAGE: CRMStage = 'qualification';
+
+export function resolveFollowUpReturnStage(stage?: string | null): CRMStage {
+  const isFunnelStage = !!stage && CRM_FUNNEL_STAGES.includes(stage as CRMStage);
+  // 'closed' fica de fora: o fechamento tem fluxo próprio (criação de projeto)
+  // e não pode ser alcançado por retomada.
+  if (isFunnelStage && stage !== 'closed') return stage as CRMStage;
+  return FOLLOW_UP_FALLBACK_STAGE;
+}
+
+/** Devolve a oportunidade ao funil, na etapa em que estava antes do Follow Up. */
+export async function resumeLeadFromFollowUp(id: string, targetStage: CRMStage) {
+  const { error } = await supabase
+    .from('leads')
+    .update({
+      crm_stage: targetStage,
+      follow_up_return_stage: null,
+      follow_up_since: null,
+    })
+    .eq('id', id);
 
   if (error) throw error;
 }

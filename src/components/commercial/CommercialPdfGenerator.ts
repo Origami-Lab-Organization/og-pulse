@@ -1,7 +1,17 @@
 import jsPDF from 'jspdf';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { LeadWithBudget, CRMStage } from '@/types/lead';
+import type { LeadWithBudget } from '@/types/lead';
+import { getFunnelIndex, getStageForecastWeight, getStageLabel } from '@/types/lead';
+
+/**
+ * Índice de ordenação por etapa. Etapas fora do funil (nutrição) vão para o
+ * fim: `indexOf` devolveria -1 e as jogaria para o topo do relatório.
+ */
+function funnelSortIndex(stage: string): number {
+  const index = getFunnelIndex(stage);
+  return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+}
 import { truncateToCents } from '@/lib/formatters';
 
 // ─── Input types ─────────────────────────────────────────────────────────────
@@ -51,18 +61,6 @@ const fmtDelta = (curr: number, prev: number): string => {
   return `${sign}${fmtPct((delta / prev) * 100)} vs ant.`;
 };
 
-const STAGE_ORDER: CRMStage[] = ['screening', 'qualification', 'proposal', 'negotiation', 'closed'];
-const STAGE_LABEL: Record<string, string> = {
-  screening: 'Prospecção/Oportunidade',
-  qualification: 'Qualificação',
-  proposal: 'Proposta Enviada',
-  negotiation: 'Negociação',
-  closed: 'Fechado - Ganho',
-  closed_lost: 'Fechado - Perda',
-};
-const STAGE_PROB: Record<string, number> = {
-  screening: 10, qualification: 25, proposal: 50, negotiation: 75, closed: 100,
-};
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
@@ -262,7 +260,7 @@ export function generateCommercialPdf(input: CommercialPdfInput): void {
 
   funnelData.forEach((f, i) => {
     const pct = totalFunnel > 0 ? (f.count / totalFunnel) * 100 : 0;
-    const prob = STAGE_PROB[f.stage];
+    const prob = getStageForecastWeight(f.stage) * 100;
     tableRow([
       { value: f.label, w: funnelCols[0].w, bold: true },
       { value: String(f.count), w: funnelCols[1].w, align: 'right' },
@@ -477,7 +475,7 @@ export function generateCommercialPdf(input: CommercialPdfInput): void {
   const sortedLeads = [...activeLeads]
     .filter(l => !l.archived)
     .sort((a, b) => {
-      const stageOrder = STAGE_ORDER.indexOf(a.crm_stage) - STAGE_ORDER.indexOf(b.crm_stage);
+      const stageOrder = funnelSortIndex(a.crm_stage) - funnelSortIndex(b.crm_stage);
       if (stageOrder !== 0) return stageOrder;
       const va = a.budget?.final_total || a.estimated_value;
       const vb = b.budget?.final_total || b.estimated_value;
@@ -499,7 +497,7 @@ export function generateCommercialPdf(input: CommercialPdfInput): void {
       const stageLeads = sortedLeads.filter(l => l.crm_stage === lead.crm_stage);
       const stageTotal = stageLeads.reduce((s, l) => s + (l.budget?.final_total || l.estimated_value), 0);
       doc.text(
-        `${STAGE_LABEL[lead.crm_stage] ?? lead.crm_stage}   (${stageLeads.length} leads — ${fmtK(stageTotal)})`,
+        `${getStageLabel(lead.crm_stage)}   (${stageLeads.length} oportunidades — ${fmtK(stageTotal)})`,
         margin + 2, y + 5,
       );
       doc.setTextColor(...C_DARK);
@@ -520,7 +518,7 @@ export function generateCommercialPdf(input: CommercialPdfInput): void {
     tableRow([
       { value: lead.name.slice(0, 26), w: leadCols[0].w, bold: true },
       { value: (lead.company_name ?? '—').slice(0, 20), w: leadCols[1].w },
-      { value: STAGE_LABEL[lead.crm_stage] ?? lead.crm_stage, w: leadCols[2].w },
+      { value: getStageLabel(lead.crm_stage), w: leadCols[2].w },
       { value: value > 0 ? fmtK(value) : '—', w: leadCols[3].w, align: 'right' },
       { value: budget > 0 ? fmtK(budget) : '—', w: leadCols[4].w, align: 'right', color: budget > 0 ? C_GREEN : C_GRAY },
       { value: responsibleName, w: leadCols[5].w },

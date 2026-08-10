@@ -6,16 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
-import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
+import {
+  LeadWithBudget, getStageColor, getStageLabel, getStageStallDays,
+  isClosedOutcome, isInFollowUpStage,
+} from '@/types/lead';
+import { isFollowUpOverdue } from '@/lib/followUps';
 import { cn } from '@/lib/utils';
 
-const STALL_THRESHOLDS: Partial<Record<CRMStage, number>> = {
-  qualification: 14,
-  proposal: 7,
-  negotiation: 3,
-};
-
-type RiskReason = 'overdue' | 'stalled' | 'both';
+type RiskReason = 'overdue' | 'stalled' | 'both' | 'no_return';
 
 interface RiskyLead {
   lead: LeadWithBudget;
@@ -24,19 +22,8 @@ interface RiskyLead {
   hasOverdueFollowUp: boolean;
 }
 
-function isFollowUpOverdue(fu: LeadFollowUp): boolean {
-  return fu.status !== 'done' && new Date(fu.scheduled_at) < new Date();
-}
-
-function getStageBadgeClass(stage: CRMStage): string {
-  return CRM_LEAD_COLUMNS.find((c) => c.id === stage)?.color ?? 'bg-muted text-muted-foreground';
-}
-
-function getStageLabel(stage: CRMStage): string {
-  return CRM_LEAD_COLUMNS.find((c) => c.id === stage)?.label ?? stage;
-}
-
 function getRiskLabel(reason: RiskReason, days: number): string {
+  if (reason === 'no_return') return 'Em Follow Up sem retorno agendado';
   if (reason === 'overdue') return 'Follow-up vencido';
   if (reason === 'stalled') return `${days}d sem movimento`;
   return `Follow-up vencido · ${days}d parado`;
@@ -68,23 +55,35 @@ export function OportunidadesRiscoWidget({ leads, followUps, isLoading }: Props)
   }
 
   const overdueLeadIds = new Set(
-    followUps.filter(isFollowUpOverdue).map((fu) => fu.lead_id),
+    followUps.filter((fu) => isFollowUpOverdue(fu)).map((fu) => fu.lead_id),
+  );
+  const leadIdsWithPendingFollowUp = new Set(
+    followUps.filter((fu) => fu.status === 'pending').map((fu) => fu.lead_id),
   );
 
   const riskyLeads: RiskyLead[] = leads
-    .filter((l) => !l.archived && l.crm_stage !== 'closed' && l.crm_stage !== 'closed_lost' && l.crm_stage !== 'screening')
+    // Prospecção fica de fora: ainda não há compromisso a cobrar. Follow Up
+    // entra — é justamente onde o esquecimento custa caro.
+    .filter((l) => !l.archived && !isClosedOutcome(l.crm_stage) && l.crm_stage !== 'screening')
     .map((lead) => {
       const daysSinceUpdate = differenceInDays(new Date(), parseISO(lead.updated_at));
-      const threshold = STALL_THRESHOLDS[lead.crm_stage];
-      const isStalled = !!threshold && daysSinceUpdate > threshold;
+      const threshold = getStageStallDays(lead.crm_stage);
+      const isStalled = threshold !== null && daysSinceUpdate > threshold;
       const hasOverdue = overdueLeadIds.has(lead.id);
-      if (!isStalled && !hasOverdue) return null;
-      const reason: RiskReason = isStalled && hasOverdue ? 'both' : hasOverdue ? 'overdue' : 'stalled';
+      const missingReturn = isInFollowUpStage(lead.crm_stage) && !leadIdsWithPendingFollowUp.has(lead.id);
+      if (!isStalled && !hasOverdue && !missingReturn) return null;
+      const reason: RiskReason = missingReturn
+        ? 'no_return'
+        : isStalled && hasOverdue
+        ? 'both'
+        : hasOverdue
+        ? 'overdue'
+        : 'stalled';
       return { lead, reason, daysSinceUpdate, hasOverdueFollowUp: hasOverdue };
     })
     .filter((x): x is RiskyLead => x !== null)
     .sort((a, b) => {
-      const order: Record<RiskReason, number> = { both: 0, overdue: 1, stalled: 2 };
+      const order: Record<RiskReason, number> = { no_return: 0, both: 1, overdue: 2, stalled: 3 };
       if (order[a.reason] !== order[b.reason]) return order[a.reason] - order[b.reason];
       return b.daysSinceUpdate - a.daysSinceUpdate;
     });
@@ -133,7 +132,7 @@ export function OportunidadesRiscoWidget({ leads, followUps, isLoading }: Props)
               <Badge
                 className={cn(
                   'text-[10px] border-0 font-medium mt-1 pointer-events-none',
-                  getStageBadgeClass(lead.crm_stage),
+                  getStageColor(lead.crm_stage),
                 )}
               >
                 {getStageLabel(lead.crm_stage)}

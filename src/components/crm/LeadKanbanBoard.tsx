@@ -7,8 +7,12 @@ import { LeadKanbanColumn } from './LeadKanbanColumn';
 import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadDetailDialog } from './LeadDetailDialog';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
-import { LeadWithBudget, CRMStage, CRM_LEAD_COLUMNS, getStageLabel } from '@/types/lead';
-import { useUpdateLeadStage } from '@/hooks/useLeads';
+import { MoveToFollowUpDialog } from './MoveToFollowUpDialog';
+import {
+  LeadWithBudget, CRMStage, CRM_FUNNEL_STAGES, CRM_STAGE_META, getStageLabel, isInFollowUpStage,
+} from '@/types/lead';
+import { useUpdateLeadStage, useResumeLeadFromFollowUp } from '@/hooks/useLeads';
+import { resolveFollowUpReturnStage } from '@/services/leadService';
 import { EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
@@ -19,12 +23,15 @@ import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useToast } from '@/hooks/use-toast';
 
 /**
- * Ordem das colunas visíveis. `closed_lost` não entra: a perda é dada de dentro
- * do card (LeadDetailDialog) e arquiva a oportunidade na aba "Perdas".
+ * Colunas do board: o funil, mais a coluna de Follow Up, renderizada à parte.
+ *
+ * `closed_lost` não entra — a perda é dada de dentro do card e arquiva a
+ * oportunidade na aba "Perdas". Follow Up é coluna, mas fora da sequência: a
+ * régua de adjacência abaixo só considera o funil.
  */
-const BOARD_STAGES = CRM_LEAD_COLUMNS.map((c) => c.id);
-const STAGE_INDEX: Record<string, number> = Object.fromEntries(
-  BOARD_STAGES.map((stage, index) => [stage, index])
+const BOARD_STAGES: CRMStage[] = [...CRM_FUNNEL_STAGES, 'follow_up'];
+const FUNNEL_INDEX: Record<string, number> = Object.fromEntries(
+  CRM_FUNNEL_STAGES.map((stage, index) => [stage, index])
 );
 
 interface LeadKanbanBoardProps {
@@ -37,10 +44,13 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const [selectedLead, setSelectedLead] = useState<LeadWithBudget | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [leadToClose, setLeadToClose] = useState<LeadWithBudget | null>(null);
+  const [followUpStageDialogOpen, setFollowUpStageDialogOpen] = useState(false);
+  const [leadToFollowUpStage, setLeadToFollowUpStage] = useState<LeadWithBudget | null>(null);
   const [activeLead, setActiveLead] = useState<LeadWithBudget | null>(null);
   const [highlightField, setHighlightField] = useState<'service_line' | 'budget_id' | null>(null);
 
   const updateStage = useUpdateLeadStage();
+  const resumeFromFollowUp = useResumeLeadFromFollowUp();
   const closeBusinessDeal = useCloseBusinessDeal();
   const { data: services = [] } = useServices();
   const leadServicesMap = useLeadServicesMap();
@@ -103,8 +113,25 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       return;
     }
 
-    const currentIndex = STAGE_INDEX[lead.crm_stage];
-    const targetIndex = STAGE_INDEX[newStage];
+    // Entrar em Follow Up exige data de retorno — nunca grava direto no arraste.
+    if (isInFollowUpStage(newStage)) {
+      setLeadToFollowUpStage(lead);
+      setFollowUpStageDialogOpen(true);
+      return;
+    }
+
+    // Sair do Follow Up é sempre pelo botão "Retomar", que devolve a
+    // oportunidade à etapa de origem em vez da coluna vizinha do arraste.
+    if (isInFollowUpStage(lead.crm_stage)) {
+      toast({
+        title: 'Use "Retomar"',
+        description: 'Oportunidades em Follow Up voltam ao Pipeline pelo botão Retomar, na etapa em que estavam.',
+      });
+      return;
+    }
+
+    const currentIndex = FUNNEL_INDEX[lead.crm_stage];
+    const targetIndex = FUNNEL_INDEX[newStage];
     if (currentIndex === undefined || targetIndex === undefined) return;
     const diff = targetIndex - currentIndex;
 
@@ -148,8 +175,8 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       {
         onSuccess: () => {
           toast({
-            title: 'Lead movido',
-            description: `"${lead.name}" foi movido para ${stageLabel}.`,
+            title: 'Oportunidade movida',
+            description: `"${lead.name}" foi movida para ${stageLabel}.`,
           });
         },
       }
@@ -179,6 +206,13 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     });
     return grouped;
   }, [filteredLeads]);
+
+  const handleResume = (lead: LeadWithBudget) => {
+    resumeFromFollowUp.mutate({
+      id: lead.id,
+      targetStage: resolveFollowUpReturnStage(lead.follow_up_return_stage),
+    });
+  };
 
   const handleCardClick = (lead: LeadWithBudget) => {
     setSelectedLead(lead);
@@ -228,12 +262,14 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     <>
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto pb-2">
-        <div className="grid grid-cols-[repeat(5,minmax(220px,1fr))] gap-3 h-[calc(100vh-220px)]">
-          {CRM_LEAD_COLUMNS.map((column) => (
+        {/* Funil (5 colunas) + separador + Follow Up. O separador é o que impede
+            o Follow Up de ser lido como "o passo depois de Fechado - Ganho". */}
+        <div className="grid grid-cols-[repeat(5,minmax(220px,1fr))_auto_minmax(220px,1fr)] gap-3 h-[calc(100vh-220px)]">
+          {CRM_FUNNEL_STAGES.map((stage) => (
             <LeadKanbanColumn
-              key={column.id}
-              column={column}
-              leads={leadsByStage[column.id] || []}
+              key={stage}
+              column={CRM_STAGE_META[stage]}
+              leads={leadsByStage[stage] || []}
               onCardClick={handleCardClick}
               services={services}
               avgTickets={avgTickets}
@@ -241,6 +277,22 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
               followUpsByLead={followUpsByLead}
             />
           ))}
+
+          <div className="flex items-stretch" aria-hidden="true">
+            <div className="w-px bg-border" />
+          </div>
+
+          <LeadKanbanColumn
+            column={CRM_STAGE_META.follow_up}
+            leads={leadsByStage.follow_up || []}
+            onCardClick={handleCardClick}
+            services={services}
+            avgTickets={avgTickets}
+            leadServicesMap={leadServicesMap}
+            followUpsByLead={followUpsByLead}
+            emptyLabel="Arraste aqui o que precisa esfriar sem virar perda"
+            onResume={handleResume}
+          />
         </div>
         </div>
 
@@ -273,6 +325,13 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
         onConfirm={handleCloseBusinessConfirm}
         isSubmitting={closeBusinessDeal.isPending}
         services={services}
+      />
+
+      <MoveToFollowUpDialog
+        open={followUpStageDialogOpen}
+        onOpenChange={(open) => { setFollowUpStageDialogOpen(open); if (!open) setLeadToFollowUpStage(null); }}
+        lead={leadToFollowUpStage}
+        fromStage={leadToFollowUpStage?.crm_stage ?? null}
       />
     </>
   );

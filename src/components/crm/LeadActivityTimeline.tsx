@@ -13,7 +13,10 @@ import {
   XCircle,
   History,
   CalendarClock,
+  Sprout,
+  Undo2,
 } from 'lucide-react';
+import { getStageLabel } from '@/types/lead';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLeadTimeline, TimelineItem } from '@/hooks/useLeadTimeline';
@@ -41,6 +44,8 @@ const ACTIVITY_ICON: Record<LeadActivityType, typeof Plus> = {
   unarchived: ArchiveRestore,
   closed: Trophy,
   closed_lost: XCircle,
+  moved_to_follow_up: Sprout,
+  follow_up_resumed: Undo2,
   note_added: Pencil,
 };
 
@@ -50,18 +55,6 @@ const FOLLOW_UP_BADGE_CLASSES: Record<FollowUpVisualStatus, string> = {
   done: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30',
   skipped: 'bg-muted text-muted-foreground',
 };
-
-function stageLabel(stage: string): string {
-  const labels: Record<string, string> = {
-    screening: 'Prospecção/Oportunidade',
-    qualification: 'Qualificação',
-    proposal: 'Proposta Enviada',
-    negotiation: 'Negociação',
-    closed: 'Fechado - Ganho',
-    closed_lost: 'Fechado - Perda',
-  };
-  return labels[stage] || stage;
-}
 
 function relativeTime(iso: string): string {
   return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: ptBR });
@@ -108,11 +101,11 @@ function AutomaticActivityItem({ activity, isLast }: { activity: LeadActivityWit
       {activity.activity_type === 'stage_changed' && activity.metadata?.from_stage && (
         <div className="flex items-center gap-1.5 mt-1">
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-            {stageLabel(activity.metadata.from_stage as string)}
+            {getStageLabel(activity.metadata.from_stage as string)}
           </Badge>
           <ArrowRight className="h-3 w-3 text-muted-foreground" />
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-            {stageLabel(activity.metadata.to_stage as string)}
+            {getStageLabel(activity.metadata.to_stage as string)}
           </Badge>
         </div>
       )}

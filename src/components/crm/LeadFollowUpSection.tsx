@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CalendarClock, Check, SkipForward, Trash2, Plus, Loader2 } from 'lucide-react';
+import { CalendarClock, Check, SkipForward, Trash2, Plus, Loader2, Undo2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   LeadFollowUp,
@@ -17,11 +17,17 @@ import {
 } from '@/hooks/useLeadFollowUps';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmployees } from '@/hooks/useEmployees';
+import { useResumeLeadFromFollowUp } from '@/hooks/useLeads';
+import { getFollowUpUrgency, suggestFollowUpDate, toLocalDatetimeInputValue } from '@/lib/followUps';
+import { CRMStage, getStageLabel } from '@/types/lead';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface LeadFollowUpSectionProps {
   leadId: string;
   disabled?: boolean;
+  /** Em Follow Up, concluir o último retorno sem reagendar deixa a oportunidade órfã. */
+  inFollowUpStage?: boolean;
+  resumeStage?: CRMStage;
 }
 
 function formatScheduledAt(iso: string): string {
@@ -40,32 +46,18 @@ function formatScheduledAt(iso: string): string {
   return `${dateStr} às ${timeStr}`;
 }
 
-function getFollowUpUrgency(followUp: LeadFollowUp): 'overdue' | 'today' | 'upcoming' {
-  const now = new Date();
-  const scheduled = new Date(followUp.scheduled_at);
-  const diffMs = scheduled.getTime() - now.getTime();
-  if (diffMs < 0) return 'overdue';
-  if (diffMs < 86400000) return 'today';
-  return 'upcoming';
+function toLocalDatetimeValue(): string {
+  return toLocalDatetimeInputValue(suggestFollowUpDate());
 }
 
-function toLocalDatetimeValue(iso?: string): string {
-  if (!iso) {
-    const d = new Date();
-    d.setMinutes(0, 0, 0);
-    d.setHours(d.getHours() + 1);
-    return d.toISOString().slice(0, 16);
-  }
-  return new Date(iso).toISOString().slice(0, 16);
-}
-
-export function LeadFollowUpSection({ leadId, disabled }: LeadFollowUpSectionProps) {
+export function LeadFollowUpSection({ leadId, disabled, inFollowUpStage, resumeStage }: LeadFollowUpSectionProps) {
   const { employee } = useAuth();
   const { data: followUps = [], isLoading } = useLeadFollowUps(leadId);
   const { data: employees = [] } = useEmployees();
   const createFollowUp = useCreateFollowUp();
   const updateFollowUp = useUpdateFollowUp();
   const deleteFollowUp = useDeleteFollowUp();
+  const resumeFromFollowUp = useResumeLeadFromFollowUp();
 
   const [showForm, setShowForm] = useState(false);
   const [description, setDescription] = useState('');
@@ -107,6 +99,9 @@ export function LeadFollowUpSection({ leadId, disabled }: LeadFollowUpSectionPro
 
   const pending = followUps.filter(f => f.status === 'pending');
   const completed = followUps.filter(f => f.status !== 'pending');
+  // Follow Up sem retorno agendado: o negócio ficaria esquecido justamente na
+  // coluna criada para não esquecer. Oferecemos os próximos passos possíveis.
+  const needsNextStep = !!inFollowUpStage && !isLoading && pending.length === 0;
 
   return (
     <div className="space-y-3">
@@ -127,6 +122,46 @@ export function LeadFollowUpSection({ leadId, disabled }: LeadFollowUpSectionPro
           </Button>
         )}
       </div>
+
+      {needsNextStep && !showForm && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+            Em Follow Up sem retorno agendado
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Defina o próximo passo para esta oportunidade não ficar esquecida.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setShowForm(true)}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Agendar novo retorno
+            </Button>
+            {resumeStage && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => resumeFromFollowUp.mutate({ id: leadId, targetStage: resumeStage })}
+                disabled={resumeFromFollowUp.isPending}
+              >
+                {resumeFromFollowUp.isPending ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <Undo2 className="h-3 w-3 mr-1" />
+                )}
+                Retomar em {getStageLabel(resumeStage)}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {showForm && !disabled && (
         <div className="rounded-md border p-3 space-y-3 bg-muted/30">

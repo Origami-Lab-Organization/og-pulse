@@ -1,4 +1,4 @@
-import { Inbox, Clock, MailOpen, Archive, Search, UserSearch, FileText, Trash2 } from 'lucide-react';
+import { Inbox, Clock, MailOpen, Archive, Search, UserSearch, FileText, Trash2, Handshake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { InboxFolder } from '@/hooks/useInboxNotifications';
 
@@ -79,6 +79,13 @@ export function InboxEmptyState({ folder, searchQuery }: Props) {
       icon: FileText,
       title: 'Nenhuma notificação de documento',
       description: 'Avisos de novos documentos (holerites, contratos) aparecerão aqui.',
+      bgClassName: 'bg-sky-100 dark:bg-sky-900/30',
+      iconClassName: 'text-sky-600 dark:text-sky-400',
+    },
+    comercial: {
+      icon: Handshake,
+      title: 'Nenhum retorno de contato pendente',
+      description: 'Lembretes de retorno das oportunidades do Pipeline aparecerão aqui.',
       bgClassName: 'bg-sky-100 dark:bg-sky-900/30',
       iconClassName: 'text-sky-600 dark:text-sky-400',
     },

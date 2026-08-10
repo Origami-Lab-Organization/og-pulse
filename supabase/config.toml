@@ -51,3 +51,6 @@ verify_jwt = false
 
 [functions.notify-installment-alerts]
 verify_jwt = false
+
+[functions.notify-lead-follow-ups]
+verify_jwt = false

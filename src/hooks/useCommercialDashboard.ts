@@ -6,7 +6,10 @@ import { useClients } from '@/hooks/useClients';
 import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { LeadWithBudget, CRM_LEAD_COLUMNS, ARCHIVE_REASONS, LEAD_SOURCE_LABELS } from '@/types/lead';
+import {
+  LeadWithBudget, ARCHIVE_REASONS, LEAD_SOURCE_LABELS, CRM_FUNNEL_STAGES,
+  getStageChartColor, getStageForecastWeight, getStageLabel, isClosedOutcome, isInFollowUpStage,
+} from '@/types/lead';
 import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
 import { differenceInDays, parseISO, getMonth, getYear, format, eachMonthOfInterval, startOfMonth, endOfMonth, differenceInMilliseconds } from 'date-fns';
 
@@ -64,28 +67,10 @@ interface CommercialDashboardData {
   responsibleOptions: ResponsibleOption[];
 }
 
-const STAGE_COLORS: Record<string, string> = {
-  screening: 'hsl(var(--chart-1))',
-  qualification: 'hsl(var(--chart-5))',
-  proposal: 'hsl(var(--chart-3))',
-  negotiation: 'hsl(var(--chart-4))',
-  closed: 'hsl(var(--success))',
-  closed_lost: 'hsl(var(--destructive))',
-};
-
 function isInRange(dateStr: string, from: Date, to: Date): boolean {
   const d = parseISO(dateStr);
   return d >= from && d <= to;
 }
-
-const STAGE_PROBABILITY: Record<string, number> = {
-  screening: 0.10,
-  qualification: 0.25,
-  proposal: 0.50,
-  negotiation: 0.75,
-  closed: 1.0,
-  closed_lost: 0,
-};
 
 function computeKPIs(leads: LeadWithBudget[], avgTickets: ServiceAvgTicketLookup) {
   const activeLeads = leads.filter(l => !l.archived);
@@ -104,7 +89,11 @@ function computeKPIs(leads: LeadWithBudget[], avgTickets: ServiceAvgTicketLookup
     .map(l => differenceInDays(parseISO(l.closed_at!), parseISO(l.created_at)));
   const avgSalesCycleDays = cyclesInDays.length > 0 ? cyclesInDays.reduce((a, b) => a + b, 0) / cyclesInDays.length : null;
 
-  const pipelineLeads = activeLeads.filter(l => l.crm_stage !== 'closed' && l.crm_stage !== 'closed_lost');
+  // Pipeline ativo exclui o Follow Up: negócio esfriado com data de retorno não é
+  // pipeline em aberto, e contá-lo infla o valor projetado.
+  const pipelineLeads = activeLeads.filter(
+    l => !isClosedOutcome(l.crm_stage) && !isInFollowUpStage(l.crm_stage)
+  );
   const pipelineLeadsWithBudget = pipelineLeads.filter(l => getLeadValue(l) > 0);
   const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);
   const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
@@ -113,8 +102,7 @@ function computeKPIs(leads: LeadWithBudget[], avgTickets: ServiceAvgTicketLookup
   // Forecast: sum of (lead value × stage probability) only for leads with value > 0
   const forecastLeads = activeLeads.filter(l => getLeadValue(l) > 0);
   const forecast = forecastLeads.reduce((sum, l) => {
-    const prob = STAGE_PROBABILITY[l.crm_stage] ?? 0;
-    return sum + getLeadValue(l) * prob;
+    return sum + getLeadValue(l) * getStageForecastWeight(l.crm_stage);
   }, 0);
   const forecastLeadsCount = forecastLeads.length;
 
@@ -199,11 +187,13 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     const prevKPIs = computeKPIs(prevPeriodFiltered, avgTickets);
 
     // Funnel data
-    const funnelData = CRM_LEAD_COLUMNS.map(col => ({
-      stage: col.id,
-      label: col.label,
-      count: activeLeadsPeriod.filter(l => l.crm_stage === col.id).length,
-      color: STAGE_COLORS[col.id] || 'hsl(var(--muted))',
+    // Funil de conversão usa apenas as etapas sequenciais — Follow Up é estado
+    // lateral e apareceria como um degrau falso na taxa de conversão.
+    const funnelData = CRM_FUNNEL_STAGES.map(stage => ({
+      stage,
+      label: getStageLabel(stage),
+      count: activeLeadsPeriod.filter(l => l.crm_stage === stage).length,
+      color: getStageChartColor(stage),
     }));
 
     // Revenue by month — dynamic labels based on date range
@@ -239,12 +229,11 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     });
 
     // Pipeline by stage (donut)
-    const pipelineStages = ['screening', 'qualification', 'proposal', 'negotiation'] as const;
+    const pipelineStages = CRM_FUNNEL_STAGES.filter(s => s !== 'closed');
     const pipelineByStage = pipelineStages.map(stage => {
       const stageLeads = activeLeadsPeriod.filter(l => l.crm_stage === stage);
-      const col = CRM_LEAD_COLUMNS.find(c => c.id === stage);
       return {
-        name: col?.label || stage,
+        name: getStageLabel(stage),
         value: stageLeads.reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0),
         count: stageLeads.length,
       };

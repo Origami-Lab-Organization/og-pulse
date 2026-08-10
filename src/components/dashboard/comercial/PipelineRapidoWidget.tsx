@@ -9,25 +9,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
-
-const STAGE_COLOR: Record<CRMStage, string> = {
-  screening: 'hsl(var(--chart-2))',
-  qualification: 'hsl(var(--chart-5))',
-  proposal: 'hsl(var(--chart-3))',
-  negotiation: 'hsl(var(--chart-4))',
-  closed: 'hsl(var(--success))',
-  closed_lost: 'hsl(var(--destructive))',
-};
-
-const STAGE_LABEL: Record<CRMStage, string> = {
-  screening: 'Prospecção/Oportunidade',
-  qualification: 'Qualificação',
-  proposal: 'Proposta Enviada',
-  negotiation: 'Negociação',
-  closed: 'Fechado - Ganho',
-  closed_lost: 'Fechado - Perda',
-};
+import {
+  LeadWithBudget, CRMStage, CRM_FUNNEL_STAGES, CRM_STAGE_META,
+  getStageChartColor, getStageLabel, isClosedOutcome, isInFollowUpStage,
+} from '@/types/lead';
 
 const TOOLTIP_MAX = 5;
 
@@ -121,12 +106,13 @@ export function PipelineRapidoWidget({ leads, isLoading }: Props) {
 
   const activeLeads = leads.filter((l) => !l.archived);
 
-  const stageData: StageItem[] = CRM_LEAD_COLUMNS.map((col) => {
+  const stageData: StageItem[] = CRM_FUNNEL_STAGES.map((stage) => {
+    const col = CRM_STAGE_META[stage];
     const stageLeads = activeLeads.filter((l) => l.crm_stage === col.id);
     const totalValue = stageLeads.reduce((sum, l) => sum + getLeadValue(l), 0);
     return {
       stage: col.id as CRMStage,
-      label: STAGE_LABEL[col.id as CRMStage],
+      label: getStageLabel(col.id),
       count: stageLeads.length,
       value: totalValue,
       leads: stageLeads,
@@ -134,8 +120,9 @@ export function PipelineRapidoWidget({ leads, isLoading }: Props) {
   });
 
   const maxValue = Math.max(...stageData.map((s) => s.value), 1);
-  const totalValue = stageData.filter((s) => s.stage !== 'closed' && s.stage !== 'closed_lost').reduce((sum, s) => sum + s.value, 0);
-  const totalCount = activeLeads.filter((l) => l.crm_stage !== 'closed' && l.crm_stage !== 'closed_lost').length;
+  // Valor em aberto: nem desfecho encerrado nem Follow Up — negócio frio não é pipeline.
+  const totalValue = stageData.filter((s) => !isClosedOutcome(s.stage)).reduce((sum, s) => sum + s.value, 0);
+  const totalCount = activeLeads.filter((l) => !isClosedOutcome(l.crm_stage) && !isInFollowUpStage(l.crm_stage)).length;
   const hasAny = activeLeads.length > 0;
 
   return (
@@ -186,7 +173,7 @@ export function PipelineRapidoWidget({ leads, isLoading }: Props) {
                   <div className="flex items-center gap-1.5 min-w-0">
                     <div
                       className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: STAGE_COLOR[item.stage] }}
+                      style={{ backgroundColor: getStageChartColor(item.stage) }}
                     />
                     <span className="text-xs text-foreground/80 truncate leading-none">
                       {item.label}
@@ -206,7 +193,7 @@ export function PipelineRapidoWidget({ leads, isLoading }: Props) {
                           className="h-full rounded-full"
                           style={{
                             width: `${pct}%`,
-                            backgroundColor: STAGE_COLOR[item.stage],
+                            backgroundColor: getStageChartColor(item.stage),
                             opacity: 0.85,
                           }}
                         />

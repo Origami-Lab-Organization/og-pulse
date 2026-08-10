@@ -1,4 +1,11 @@
-export type CRMStage = 'screening' | 'qualification' | 'proposal' | 'negotiation' | 'closed' | 'closed_lost';
+export type CRMStage =
+  | 'screening'
+  | 'qualification'
+  | 'proposal'
+  | 'negotiation'
+  | 'closed'
+  | 'closed_lost'
+  | 'follow_up';
 
 export const SERVICE_LINE_OPTIONS = [
   { value: 'financiamento_inovacao', label: 'Financiamento da Inovação' },
@@ -15,35 +22,123 @@ export const SERVICE_LINE_LABELS: Record<string, string> = Object.fromEntries(
 interface CRMStageMeta {
   id: CRMStage;
   label: string;
+  /** Classe Tailwind de badge (tokens do tema — sem hex avulso). */
   color: string;
+  /** Cor de série em gráficos (funil, donut, barras). */
+  chartColor: string;
+  /** Peso da etapa no forecast ponderado. 0 = não entra na projeção. */
+  forecastWeight: number;
+  /**
+   * Dias sem movimento a partir dos quais a oportunidade é sinalizada como
+   * parada (jornada GP-J3 F3). `null` = a etapa não sinaliza — caso do Follow Up,
+   * onde ficar parado é o comportamento esperado, e dos desfechos encerrados.
+   */
+  stallDays: number | null;
 }
 
 /**
  * Metadados de TODAS as etapas, inclusive as que não aparecem como coluna do
- * Pipeline. Fonte de verdade para rótulo/cor em qualquer lugar que precise
- * exibir a etapa de uma oportunidade (tabelas, badges, timeline, PDF).
+ * Pipeline. Fonte ÚNICA de rótulo, cor, peso de forecast e limite de "parado" —
+ * qualquer consumidor deve derivar daqui em vez de manter cópia local.
  */
 export const CRM_STAGE_META: Record<CRMStage, CRMStageMeta> = {
-  screening: { id: 'screening', label: 'Prospecção/Oportunidade', color: 'bg-muted text-muted-foreground' },
-  qualification: { id: 'qualification', label: 'Qualificação', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-  proposal: { id: 'proposal', label: 'Proposta Enviada', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
-  negotiation: { id: 'negotiation', label: 'Negociação', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' },
-  closed: { id: 'closed', label: 'Fechado - Ganho', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
-  closed_lost: { id: 'closed_lost', label: 'Perdido', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
+  screening: {
+    id: 'screening',
+    label: 'Prospecção/Oportunidade',
+    color: 'bg-muted text-muted-foreground',
+    chartColor: 'hsl(var(--chart-1))',
+    forecastWeight: 0.1,
+    stallDays: 14,
+  },
+  qualification: {
+    id: 'qualification',
+    label: 'Qualificação',
+    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    chartColor: 'hsl(var(--chart-5))',
+    forecastWeight: 0.25,
+    stallDays: 14,
+  },
+  proposal: {
+    id: 'proposal',
+    label: 'Proposta Enviada',
+    color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+    chartColor: 'hsl(var(--chart-3))',
+    forecastWeight: 0.5,
+    stallDays: 7,
+  },
+  negotiation: {
+    id: 'negotiation',
+    label: 'Negociação',
+    color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+    chartColor: 'hsl(var(--chart-4))',
+    forecastWeight: 0.75,
+    stallDays: 3,
+  },
+  closed: {
+    id: 'closed',
+    label: 'Fechado - Ganho',
+    color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    chartColor: 'hsl(var(--success))',
+    forecastWeight: 1,
+    stallDays: null,
+  },
+  closed_lost: {
+    id: 'closed_lost',
+    label: 'Perdido',
+    color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    chartColor: 'hsl(var(--destructive))',
+    forecastWeight: 0,
+    stallDays: null,
+  },
+  follow_up: {
+    id: 'follow_up',
+    label: 'Follow Up',
+    color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400',
+    chartColor: 'hsl(var(--chart-2))',
+    forecastWeight: 0,
+    stallDays: null,
+  },
 };
 
 /**
- * Colunas visíveis do Kanban do Pipeline. `closed_lost` NÃO é coluna: dar perda
- * arquiva a oportunidade, que passa a viver na aba "Perdas" (ver
- * `closeLeadAsLost` em leadService). Toda perda é arquivamento e vice-versa.
+ * Etapas sequenciais do funil, em ordem. É a régua de progressão: alimenta o
+ * funil de conversão, a ordenação por etapa e a regra de adjacência do arraste.
+ *
+ * Nem `closed_lost` nem `follow_up` entram — são desfecho e estado lateral,
+ * respectivamente, e incluí-los distorceria conversão e forecast.
+ */
+export const CRM_FUNNEL_STAGES: readonly CRMStage[] = [
+  'screening',
+  'qualification',
+  'proposal',
+  'negotiation',
+  'closed',
+];
+
+/**
+ * Colunas visíveis do Kanban: o funil mais o Follow Up, renderizado à parte.
+ *
+ * `closed_lost` NÃO é coluna — dar perda arquiva a oportunidade, que passa a
+ * viver na aba "Perdas" (ver `closeLeadAsLost` em leadService).
  */
 export const CRM_LEAD_COLUMNS: readonly CRMStageMeta[] = [
-  CRM_STAGE_META.screening,
-  CRM_STAGE_META.qualification,
-  CRM_STAGE_META.proposal,
-  CRM_STAGE_META.negotiation,
-  CRM_STAGE_META.closed,
+  ...CRM_FUNNEL_STAGES.map((stage) => CRM_STAGE_META[stage]),
+  CRM_STAGE_META.follow_up,
 ];
+
+/** Índice da etapa no funil; -1 para etapas fora da sequência. */
+export function getFunnelIndex(stage: string): number {
+  return CRM_FUNNEL_STAGES.indexOf(stage as CRMStage);
+}
+
+export function isInFollowUpStage(stage: string | null | undefined): boolean {
+  return stage === 'follow_up';
+}
+
+/** Desfecho encerrado: ganho ou perdido. Não admite edição nem avanço. */
+export function isClosedOutcome(stage: string | null | undefined): boolean {
+  return stage === 'closed' || stage === 'closed_lost';
+}
 
 export function getStageLabel(stage: string): string {
   return CRM_STAGE_META[stage as CRMStage]?.label ?? stage;
@@ -51,6 +146,25 @@ export function getStageLabel(stage: string): string {
 
 export function getStageColor(stage: string): string {
   return CRM_STAGE_META[stage as CRMStage]?.color ?? 'bg-muted text-muted-foreground';
+}
+
+export function getStageChartColor(stage: string): string {
+  return CRM_STAGE_META[stage as CRMStage]?.chartColor ?? 'hsl(var(--muted))';
+}
+
+export function getStageForecastWeight(stage: string): number {
+  return CRM_STAGE_META[stage as CRMStage]?.forecastWeight ?? 0;
+}
+
+export function getStageStallDays(stage: string): number | null {
+  return CRM_STAGE_META[stage as CRMStage]?.stallDays ?? null;
+}
+
+/** Próxima etapa do funil, ou null se a etapa não avança. */
+export function getNextFunnelStage(stage: string): CRMStage | null {
+  const index = getFunnelIndex(stage);
+  if (index < 0 || index >= CRM_FUNNEL_STAGES.length - 1) return null;
+  return CRM_FUNNEL_STAGES[index + 1];
 }
 
 export const LEAD_SOURCE_OPTIONS = [
@@ -114,6 +228,9 @@ export interface LeadDB {
   responsible_id: string | null;
   closed_at: string | null;
   lost_at: string | null;
+  /** Etapa do funil à qual a oportunidade volta ao sair do Follow Up. */
+  follow_up_return_stage: CRMStage | null;
+  follow_up_since: string | null;
 }
 
 export interface LeadWithBudget extends LeadDB {

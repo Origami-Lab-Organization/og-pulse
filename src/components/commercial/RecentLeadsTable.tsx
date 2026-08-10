@@ -10,7 +10,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency, formatDate } from '@/lib/formatters';
-import { LeadWithBudget, CRMStage, getStageColor, getStageLabel } from '@/types/lead';
+import {
+  LeadWithBudget, CRMStage, getFunnelIndex, getNextFunnelStage, getStageColor, getStageLabel,
+} from '@/types/lead';
+
+/** Etapas fora do funil (nutrição) ordenam no fim, não no topo. */
+function funnelSortIndex(stage: string): number {
+  const index = getFunnelIndex(stage);
+  return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+}
 import { LoseDealDialog } from '@/components/crm/LoseDealDialog';
 import { useUpdateLeadStage } from '@/hooks/useLeads';
 
@@ -21,31 +29,18 @@ interface Props {
 type SortKey = 'name' | 'company_name' | 'crm_stage' | 'value' | 'created_at' | 'responsible';
 type SortDir = 'asc' | 'desc';
 
-const STAGE_ORDER: Record<string, number> = {
-  screening: 0, qualification: 1, proposal: 2, negotiation: 3, closed: 4, closed_lost: 5,
-};
-
-const NEXT_STAGE: Partial<Record<CRMStage, CRMStage>> = {
-  screening: 'qualification',
-  qualification: 'proposal',
-  proposal: 'negotiation',
-  negotiation: 'closed',
-};
-
-const NEXT_STAGE_LABEL: Partial<Record<CRMStage, string>> = {
-  screening: 'Qualificação',
-  qualification: 'Proposta Enviada',
-  proposal: 'Negociação',
-  negotiation: 'Fechado - Ganho',
-};
-
 function getLeadValue(lead: LeadWithBudget): number {
   if (lead.budget?.final_total && lead.budget.final_total > 0) return lead.budget.final_total;
   return lead.estimated_value;
 }
 
+/**
+ * Antes da Proposta não existe orçamento, então valor é sempre estimativa.
+ * Derivado da posição no funil para não precisar manutenção a cada etapa nova.
+ */
 function isPreProposalStage(stage: string): boolean {
-  return stage === 'screening' || stage === 'qualification';
+  const index = getFunnelIndex(stage);
+  return index >= 0 && index < getFunnelIndex('proposal');
 }
 
 function getInitials(name: string): string {
@@ -79,7 +74,7 @@ export function RecentLeadsTable({ leads }: Props) {
         case 'company_name':
           return dir * (a.company_name || '').localeCompare(b.company_name || '');
         case 'crm_stage':
-          return dir * ((STAGE_ORDER[a.crm_stage] ?? 0) - (STAGE_ORDER[b.crm_stage] ?? 0));
+          return dir * (funnelSortIndex(a.crm_stage) - funnelSortIndex(b.crm_stage));
         case 'value':
           return dir * (getLeadValue(a) - getLeadValue(b));
         case 'created_at':
@@ -97,9 +92,13 @@ export function RecentLeadsTable({ leads }: Props) {
     <Badge variant="outline" className={getStageColor(stage)}>{getStageLabel(stage)}</Badge>
   );
 
+  // Etapa de avanço do painel lateral: nula em Fechado e na nutrição, que sai
+  // pelo botão Retomar no Pipeline.
+  const advanceTargetStage = selectedLead ? getNextFunnelStage(selectedLead.crm_stage) : null;
+
   const handleAdvanceStage = () => {
     if (!selectedLead) return;
-    const next = NEXT_STAGE[selectedLead.crm_stage as CRMStage];
+    const next = getNextFunnelStage(selectedLead.crm_stage);
     if (!next) return;
     updateStage.mutate({ id: selectedLead.id, stage: next }, {
       onSuccess: () => setSelectedLead(null),
@@ -296,14 +295,14 @@ export function RecentLeadsTable({ leads }: Props) {
 
                 {/* Actions */}
                 <div className="space-y-2">
-                  {selectedLead.crm_stage !== 'closed' && NEXT_STAGE[selectedLead.crm_stage as CRMStage] && (
+                  {advanceTargetStage && (
                     <Button
                       className="w-full"
                       onClick={handleAdvanceStage}
                       disabled={updateStage.isPending}
                     >
                       <ChevronRight className="h-4 w-4 mr-2" />
-                      Avançar para {NEXT_STAGE_LABEL[selectedLead.crm_stage as CRMStage]}
+                      Avançar para {getStageLabel(advanceTargetStage)}
                     </Button>
                   )}
 

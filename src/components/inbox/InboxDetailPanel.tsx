@@ -18,7 +18,8 @@ import {
   Bell,
   RotateCcw,
   ArrowRight,
-  Timer
+  Timer,
+  Handshake,
 } from "lucide-react";
 
 // Rótulo do botão de ação primária por tipo (usa action_url da notificação).
@@ -159,6 +160,14 @@ const categoryConfig: Record<
     badge: "Orçamento",
     badgeClass:
       "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+  },
+  comercial: {
+    bg: "bg-sky-100 dark:bg-sky-900/30",
+    text: "text-sky-600 dark:text-sky-400",
+    icon: Handshake,
+    badge: "Comercial",
+    badgeClass:
+      "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
   },
   projeto: {
     bg: "bg-blue-100 dark:bg-blue-900/30",

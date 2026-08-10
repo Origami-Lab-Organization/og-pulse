@@ -29,13 +29,10 @@ import {
 } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/AuthContext';
 import { Client, ClientContact } from '@/types/client';
-import { CRM_LEAD_COLUMNS } from '@/types/lead';
+import { getStageLabel } from '@/types/lead';
 import { PROJECT_STATUS_LABELS } from '@/types/project';
 import { formatCNPJ, formatPhone } from '@/lib/masks';
 import { formatCurrency, formatDate } from '@/lib/formatters';
-
-const stageLabel = (stage: string) =>
-  CRM_LEAD_COLUMNS.find((c) => c.id === stage)?.label ?? stage;
 
 const SectionEmpty = ({ message }: { message: string }) => (
   <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -281,7 +278,7 @@ const ClientDetail = () => {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">{opp.name}</p>
                       <Badge variant="secondary" className="mt-1">
-                        {stageLabel(opp.crm_stage)}
+                        {getStageLabel(opp.crm_stage)}
                       </Badge>
                     </div>
                     <span className="shrink-0 text-sm font-medium text-foreground">

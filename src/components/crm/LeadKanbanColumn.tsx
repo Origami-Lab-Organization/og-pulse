@@ -23,9 +23,15 @@ interface LeadKanbanColumnProps {
   avgTickets: ServiceAvgTicketLookup;
   leadServicesMap: Record<string, LeadServiceRow[]>;
   followUpsByLead: Record<string, LeadFollowUp[]>;
+  /** Texto exibido quando a coluna está vazia. */
+  emptyLabel?: string;
+  onResume?: (lead: LeadWithBudget) => void;
 }
 
-export function LeadKanbanColumn({ column, leads, onCardClick, services, avgTickets, leadServicesMap, followUpsByLead }: LeadKanbanColumnProps) {
+export function LeadKanbanColumn({
+  column, leads, onCardClick, services, avgTickets, leadServicesMap, followUpsByLead,
+  emptyLabel = 'Nenhuma oportunidade', onResume,
+}: LeadKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   const totalValue = useMemo(
@@ -69,11 +75,12 @@ export function LeadKanbanColumn({ column, leads, onCardClick, services, avgTick
               avgTickets={avgTickets}
               leadServices={leadServicesMap[lead.id] ?? []}
               pendingFollowUps={followUpsByLead[lead.id] ?? []}
+              onResume={onResume ? () => onResume(lead) : undefined}
             />
           ))}
           {leads.length === 0 && (
-            <div className="flex items-center justify-center h-24 text-sm text-muted-foreground">
-              Nenhum lead
+            <div className="flex items-center justify-center h-24 px-2 text-center text-sm text-muted-foreground">
+              {emptyLabel}
             </div>
           )}
         </div>
