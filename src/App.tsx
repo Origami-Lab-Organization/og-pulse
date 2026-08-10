@@ -32,7 +32,6 @@ import BudgetDetail from "./pages/BudgetDetail";
 import LandingPage from "./pages/LandingPage";
 import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
-import ArchivedLeads from "./pages/ArchivedLeads";
 import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
@@ -356,14 +355,8 @@ const App = () => (
                   </RoleProtectedRoute>
                 }
               />
-              <Route
-                path="/pipeline/archived"
-                element={
-                  <RoleProtectedRoute requireManager>
-                    <ArchivedLeads />
-                  </RoleProtectedRoute>
-                }
-              />
+              {/* Perdas viram uma aba dentro do Pipeline — a tela dedicada foi removida. */}
+              <Route path="/pipeline/archived" element={<Navigate to="/pipeline" replace />} />
               {/* Cadastros */}
               <Route
                 path="/comercial/servicos"

@@ -56,10 +56,10 @@ export function LoseDealDialog({ open, onOpenChange, lead, fromStage }: LoseDeal
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Marcar oportunidade como perdida</DialogTitle>
+          <DialogTitle>Dar perda na oportunidade</DialogTitle>
           <DialogDescription>
-            Informe o motivo pelo qual esta oportunidade foi perdida. Ela continuará visível no
-            Pipeline, na coluna "Fechado - Perda".
+            Informe o motivo pelo qual esta oportunidade foi perdida. Ela sai do Pipeline e passa
+            a ser contabilizada na aba "Perdas", de onde pode ser reaberta.
           </DialogDescription>
         </DialogHeader>
 
@@ -108,7 +108,7 @@ export function LoseDealDialog({ open, onOpenChange, lead, fromStage }: LoseDeal
             disabled={!reason || competitorMissing || closeLeadAsLost.isPending}
           >
             {closeLeadAsLost.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Marcar como perdida
+            Dar perda
           </Button>
         </DialogFooter>
       </DialogContent>

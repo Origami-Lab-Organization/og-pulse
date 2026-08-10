@@ -116,29 +116,6 @@ export async function linkBudgetToLead(leadId: string, budgetId: string) {
   if (error) throw error;
 }
 
-export interface ArchiveLeadInput {
-  id: string;
-  archive_reason: string;
-  archive_notes?: string;
-  competitor_name?: string | null;
-}
-
-export async function archiveLead(input: ArchiveLeadInput) {
-  const { error } = await supabase
-    .from('leads')
-    .update({
-      archived: true,
-      archived_at: new Date().toISOString(),
-      archive_reason: input.archive_reason,
-      archive_notes: input.archive_notes || null,
-      competitor_name: input.competitor_name ?? null,
-      restored_at: null,
-    })
-    .eq('id', input.id);
-
-  if (error) throw error;
-}
-
 export interface CloseLeadAsLostInput {
   id: string;
   reason: string;
@@ -147,17 +124,22 @@ export interface CloseLeadAsLostInput {
 }
 
 /**
- * Move a oportunidade para "Fechado - Perda" (crm_stage = 'closed_lost').
- * Reaproveita a mesma taxonomia de motivo do arquivamento (archive_reason/
- * archive_notes/competitor_name), mas NÃO seta archived=true — a oportunidade
- * continua visível no Kanban, na coluna de perda.
+ * Dá perda na oportunidade. Perda e arquivamento são o MESMO evento: a
+ * oportunidade sai do Kanban (archived=true) e passa a viver na aba "Perdas",
+ * com `crm_stage='closed_lost'` registrando o desfecho e `lost_at`/`archived_at`
+ * o carimbo. Não existe mais coluna "Fechado - Perda" no Pipeline nem
+ * arquivamento sem motivo de perda.
  */
 export async function closeLeadAsLost(input: CloseLeadAsLostInput) {
+  const now = new Date().toISOString();
   const { error } = await supabase
     .from('leads')
     .update({
       crm_stage: 'closed_lost',
-      lost_at: new Date().toISOString(),
+      lost_at: now,
+      archived: true,
+      archived_at: now,
+      restored_at: null,
       archive_reason: input.reason,
       archive_notes: input.notes || null,
       competitor_name: input.competitorName ?? null,
@@ -184,6 +166,10 @@ export async function fetchArchivedLeads(tenantId: string): Promise<LeadWithBudg
   return (data as any) || [];
 }
 
+/**
+ * Reabre uma oportunidade perdida: limpa o desfecho (motivo, `lost_at`,
+ * `archived_at`) e devolve a oportunidade ao Pipeline na etapa escolhida.
+ */
 export async function unarchiveLead(id: string, targetStage: CRMStage) {
   const { error } = await supabase
     .from('leads')
@@ -193,6 +179,7 @@ export async function unarchiveLead(id: string, targetStage: CRMStage) {
       archive_reason: null,
       archive_notes: null,
       competitor_name: null,
+      lost_at: null,
       crm_stage: targetStage,
       restored_at: new Date().toISOString(),
     })
