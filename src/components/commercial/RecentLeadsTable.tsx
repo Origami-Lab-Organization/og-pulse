@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ArrowRight, ChevronRight, Archive, Edit, ExternalLink, DollarSign, HelpCircle } from 'lucide-react';
+import { ArrowUpDown, ArrowRight, ChevronRight, ThumbsDown, Edit, ExternalLink, DollarSign, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency, formatDate } from '@/lib/formatters';
-import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage } from '@/types/lead';
-import { ArchiveLeadDialog } from '@/components/crm/ArchiveLeadDialog';
+import { LeadWithBudget, CRMStage, getStageColor, getStageLabel } from '@/types/lead';
+import { LoseDealDialog } from '@/components/crm/LoseDealDialog';
 import { useUpdateLeadStage } from '@/hooks/useLeads';
 
 interface Props {
@@ -56,7 +56,7 @@ export function RecentLeadsTable({ leads }: Props) {
   const navigate = useNavigate();
   const updateStage = useUpdateLeadStage();
   const [selectedLead, setSelectedLead] = useState<LeadWithBudget | null>(null);
-  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [loseOpen, setLoseOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -93,14 +93,9 @@ export function RecentLeadsTable({ leads }: Props) {
     return arr;
   }, [leads, sortKey, sortDir]);
 
-  const getStageBadge = (stage: string) => {
-    const col = CRM_LEAD_COLUMNS.find(c => c.id === stage);
-    return col ? (
-      <Badge variant="outline" className={col.color}>{col.label}</Badge>
-    ) : (
-      <Badge variant="outline">{stage}</Badge>
-    );
-  };
+  const getStageBadge = (stage: string) => (
+    <Badge variant="outline" className={getStageColor(stage)}>{getStageLabel(stage)}</Badge>
+  );
 
   const handleAdvanceStage = () => {
     if (!selectedLead) return;
@@ -342,10 +337,10 @@ export function RecentLeadsTable({ leads }: Props) {
                     <Button
                       variant="ghost"
                       className="w-full text-destructive hover:text-destructive"
-                      onClick={() => setArchiveOpen(true)}
+                      onClick={() => setLoseOpen(true)}
                     >
-                      <Archive className="h-4 w-4 mr-2" />
-                      Arquivar Lead
+                      <ThumbsDown className="h-4 w-4 mr-2" />
+                      Dar perda
                     </Button>
                   )}
                 </div>
@@ -356,13 +351,14 @@ export function RecentLeadsTable({ leads }: Props) {
       </Sheet>
 
       {selectedLead && (
-        <ArchiveLeadDialog
-          open={archiveOpen}
+        <LoseDealDialog
+          open={loseOpen}
           onOpenChange={(v) => {
-            setArchiveOpen(v);
+            setLoseOpen(v);
             if (!v) setSelectedLead(null);
           }}
           lead={selectedLead}
+          fromStage={selectedLead.crm_stage}
         />
       )}
     </TooltipProvider>

@@ -12,14 +12,46 @@ export const SERVICE_LINE_LABELS: Record<string, string> = Object.fromEntries(
   SERVICE_LINE_OPTIONS.map((o) => [o.value, o.label])
 );
 
-export const CRM_LEAD_COLUMNS = [
-  { id: 'screening' as CRMStage, label: 'Prospecção/Oportunidade', color: 'bg-muted text-muted-foreground' },
-  { id: 'qualification' as CRMStage, label: 'Qualificação', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-  { id: 'proposal' as CRMStage, label: 'Proposta Enviada', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
-  { id: 'negotiation' as CRMStage, label: 'Negociação', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' },
-  { id: 'closed' as CRMStage, label: 'Fechado - Ganho', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
-  { id: 'closed_lost' as CRMStage, label: 'Fechado - Perda', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
-] as const;
+interface CRMStageMeta {
+  id: CRMStage;
+  label: string;
+  color: string;
+}
+
+/**
+ * Metadados de TODAS as etapas, inclusive as que não aparecem como coluna do
+ * Pipeline. Fonte de verdade para rótulo/cor em qualquer lugar que precise
+ * exibir a etapa de uma oportunidade (tabelas, badges, timeline, PDF).
+ */
+export const CRM_STAGE_META: Record<CRMStage, CRMStageMeta> = {
+  screening: { id: 'screening', label: 'Prospecção/Oportunidade', color: 'bg-muted text-muted-foreground' },
+  qualification: { id: 'qualification', label: 'Qualificação', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  proposal: { id: 'proposal', label: 'Proposta Enviada', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+  negotiation: { id: 'negotiation', label: 'Negociação', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' },
+  closed: { id: 'closed', label: 'Fechado - Ganho', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  closed_lost: { id: 'closed_lost', label: 'Perdido', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
+};
+
+/**
+ * Colunas visíveis do Kanban do Pipeline. `closed_lost` NÃO é coluna: dar perda
+ * arquiva a oportunidade, que passa a viver na aba "Perdas" (ver
+ * `closeLeadAsLost` em leadService). Toda perda é arquivamento e vice-versa.
+ */
+export const CRM_LEAD_COLUMNS: readonly CRMStageMeta[] = [
+  CRM_STAGE_META.screening,
+  CRM_STAGE_META.qualification,
+  CRM_STAGE_META.proposal,
+  CRM_STAGE_META.negotiation,
+  CRM_STAGE_META.closed,
+];
+
+export function getStageLabel(stage: string): string {
+  return CRM_STAGE_META[stage as CRMStage]?.label ?? stage;
+}
+
+export function getStageColor(stage: string): string {
+  return CRM_STAGE_META[stage as CRMStage]?.color ?? 'bg-muted text-muted-foreground';
+}
 
 export const LEAD_SOURCE_OPTIONS = [
   { value: 'indicacao', label: 'Indicação' },
@@ -35,6 +67,7 @@ export const LEAD_SOURCE_LABELS: Record<string, string> = Object.fromEntries(
   LEAD_SOURCE_OPTIONS.map((o) => [o.value, o.label])
 );
 
+/** Taxonomia de motivo de perda (persistida em `leads.archive_reason`). */
 export const ARCHIVE_REASONS = [
   { value: 'no_budget', label: 'Sem orçamento / Fora do perfil' },
   { value: 'price', label: 'Preço / Budget do cliente' },
@@ -44,6 +77,15 @@ export const ARCHIVE_REASONS = [
   { value: 'canceled', label: 'Projeto cancelado pelo cliente' },
   { value: 'other', label: 'Outro' },
 ] as const;
+
+export const ARCHIVE_REASON_LABELS: Record<string, string> = Object.fromEntries(
+  ARCHIVE_REASONS.map((r) => [r.value, r.label])
+);
+
+export function getLossReasonLabel(reason?: string | null): string {
+  if (!reason) return '-';
+  return ARCHIVE_REASON_LABELS[reason] ?? reason;
+}
 
 export interface LeadDB {
   id: string;

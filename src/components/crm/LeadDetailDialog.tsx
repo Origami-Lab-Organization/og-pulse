@@ -51,7 +51,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   MoreVertical,
-  Archive,
+  ThumbsDown,
   DollarSign,
   ExternalLink,
   Trash2,
@@ -63,8 +63,8 @@ import {
   Lock,
   Zap,
 } from 'lucide-react'
-import { LeadWithBudget, CRM_LEAD_COLUMNS, CRMStage, LEAD_SOURCE_OPTIONS, isRecentlyRestored } from '@/types/lead'
-import { ArchiveLeadDialog } from './ArchiveLeadDialog'
+import { LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS, getLossReasonLabel, getStageLabel, isRecentlyRestored } from '@/types/lead'
+import { LoseDealDialog } from './LoseDealDialog'
 import { DeleteLeadDialog } from './DeleteLeadDialog'
 import { LeadActivityTimeline } from './LeadActivityTimeline'
 import { LeadInteractionsTab } from './LeadInteractionsTab'
@@ -158,7 +158,7 @@ export function LeadDetailDialog({
 }: LeadDetailDialogProps) {
   const navigate = useNavigate()
   const { employee } = useAuth()
-  const [archiveOpen, setArchiveOpen] = useState(false)
+  const [loseOpen, setLoseOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -352,9 +352,7 @@ export function LeadDetailDialog({
     currentStageIndex >= 0 && currentStageIndex < STAGE_ORDER.length - 1
       ? STAGE_ORDER[currentStageIndex + 1]
       : null
-  const nextStageLabel = nextStage
-    ? CRM_LEAD_COLUMNS.find((c) => c.id === nextStage)?.label
-    : null
+  const nextStageLabel = nextStage ? getStageLabel(nextStage) : null
 
   const advanceGate =
     !isArchived && nextStage ? canAdvanceFrom(lead.crm_stage, lead) : null
@@ -399,7 +397,7 @@ export function LeadDetailDialog({
                   variant='secondary'
                   className='bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 shrink-0'
                 >
-                  Arquivado
+                  Perdido
                 </Badge>
               )}
               {!isArchived && isRecentlyRestored(lead) && (
@@ -418,11 +416,15 @@ export function LeadDetailDialog({
             )}
             {isArchived && (
               <p className='text-xs text-muted-foreground'>
-                Arquivado em{' '}
-                {lead.archived_at
-                  ? new Date(lead.archived_at).toLocaleDateString('pt-BR')
+                Perdido em{' '}
+                {lead.lost_at || lead.archived_at
+                  ? new Date(
+                      lead.lost_at ?? lead.archived_at!,
+                    ).toLocaleDateString('pt-BR')
                   : '-'}
-                {lead.archive_reason ? ` — ${lead.archive_reason}` : ''}
+                {lead.archive_reason
+                  ? ` — ${getLossReasonLabel(lead.archive_reason)}`
+                  : ''}
               </p>
             )}
           </DialogHeader>
@@ -1117,11 +1119,11 @@ export function LeadDetailDialog({
                       type='button'
                       variant='outline'
                       size='sm'
-                      onClick={() => setArchiveOpen(true)}
+                      onClick={() => setLoseOpen(true)}
                       className='w-full sm:w-auto hover:border-destructive hover:text-destructive hover:bg-destructive/10'
                     >
-                      <Archive className='h-4 w-4 mr-1.5' />
-                      Arquivar
+                      <ThumbsDown className='h-4 w-4 mr-1.5' />
+                      Dar perda
                     </Button>
                   ) : (
                     <div className='hidden sm:block' />
@@ -1198,13 +1200,14 @@ export function LeadDetailDialog({
         </AlertDialogContent>
       </AlertDialog>
 
-      <ArchiveLeadDialog
-        open={archiveOpen}
+      <LoseDealDialog
+        open={loseOpen}
         onOpenChange={(v) => {
-          setArchiveOpen(v)
+          setLoseOpen(v)
           if (!v) onOpenChange(false)
         }}
         lead={lead}
+        fromStage={lead.crm_stage}
       />
 
       <DeleteLeadDialog

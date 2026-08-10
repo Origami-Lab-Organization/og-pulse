@@ -7,7 +7,6 @@ import {
   createLead,
   updateLeadStage,
   updateLead,
-  archiveLead,
   closeLeadAsLost,
   linkBudgetToLead,
   fetchCRMReceivedValue,
@@ -15,7 +14,6 @@ import {
   unarchiveLead,
   deleteLead,
   CreateLeadInput,
-  ArchiveLeadInput,
   CloseLeadAsLostInput,
 } from '@/services/leadService';
 import { leadActivityService } from '@/services/leadActivityService';
@@ -125,37 +123,6 @@ export function useUpdateLead() {
   });
 }
 
-export function useArchiveLead() {
-  const qc = useQueryClient();
-  const { employee } = useAuth();
-  return useMutation({
-    mutationFn: (input: ArchiveLeadInput) => archiveLead(input),
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['leads'] });
-      toast({ title: 'Lead arquivado' });
-
-      // Log archive activity (fire-and-forget)
-      if (employee) {
-        leadActivityService.log({
-          tenantId: employee.tenant_id,
-          leadId: variables.id,
-          activityType: 'archived',
-          description: `Lead arquivado${variables.archive_reason ? ` — ${variables.archive_reason}` : ''}`,
-          metadata: {
-            reason: variables.archive_reason,
-            notes: variables.archive_notes,
-            competitor_name: variables.competitor_name ?? null,
-          },
-          createdBy: employee.id,
-        }).catch(console.warn);
-      }
-    },
-    onError: (err: any) => {
-      toast({ title: 'Erro ao arquivar lead', description: err.message, variant: 'destructive' });
-    },
-  });
-}
-
 export function useCloseLeadAsLost() {
   const qc = useQueryClient();
   const { employee } = useAuth();
@@ -163,9 +130,11 @@ export function useCloseLeadAsLost() {
     mutationFn: (input: CloseLeadAsLostInput & { fromStage: CRMStage }) =>
       closeLeadAsLost(input),
     onSuccess: (_data, variables) => {
+      // Dar perda arquiva a oportunidade: as duas listas mudam.
       qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['archived-leads'] });
       qc.invalidateQueries({ queryKey: ['lead-activities', variables.id] });
-      toast({ title: 'Oportunidade marcada como perdida' });
+      toast({ title: 'Oportunidade movida para Perdas' });
 
       // Log activity (fire-and-forget)
       if (employee) {
@@ -226,7 +195,7 @@ export function useUnarchiveLead() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['archived-leads'] });
-      toast({ title: 'Oportunidade restaurada com sucesso' });
+      toast({ title: 'Oportunidade reaberta no Pipeline' });
 
       // Log unarchive activity (fire-and-forget)
       if (employee) {
@@ -234,14 +203,14 @@ export function useUnarchiveLead() {
           tenantId: employee.tenant_id,
           leadId: variables.id,
           activityType: 'unarchived',
-          description: 'Oportunidade restaurada do arquivo',
+          description: 'Oportunidade reaberta a partir de Perdas',
           metadata: { to_stage: variables.targetStage },
           createdBy: employee.id,
         }).catch(console.warn);
       }
     },
     onError: (err: any) => {
-      toast({ title: 'Erro ao restaurar oportunidade', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro ao reabrir oportunidade', description: err.message, variant: 'destructive' });
     },
   });
 }

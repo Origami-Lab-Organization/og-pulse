@@ -9,12 +9,14 @@ import { Loader2 } from 'lucide-react';
 import { useUnarchiveLead } from '@/hooks/useLeads';
 import { CRM_LEAD_COLUMNS, CRMStage, LeadWithBudget } from '@/types/lead';
 
-// Etapas válidas para restauração: "Negócio Fechado" é excluído porque o
+// Etapas válidas para reabertura: "Fechado - Ganho" é excluído porque o
 // fechamento tem fluxo próprio (criação de projeto) que não pode ser pulado.
+// `closed_lost` também não entra — não é coluna do Pipeline.
 const RESTORE_STAGES = CRM_LEAD_COLUMNS.filter((c) => c.id !== 'closed');
 
 function defaultStage(stage?: CRMStage): CRMStage {
-  return stage && stage !== 'closed' ? stage : 'qualification';
+  const isReopenable = stage && RESTORE_STAGES.some((c) => c.id === stage);
+  return isReopenable ? stage! : 'qualification';
 }
 
 interface RestoreLeadDialogProps {
@@ -44,9 +46,10 @@ export function RestoreLeadDialog({ open, onOpenChange, lead }: RestoreLeadDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Restaurar Oportunidade</DialogTitle>
+          <DialogTitle>Reabrir Oportunidade</DialogTitle>
           <DialogDescription>
-            Escolha a etapa do pipeline em que esta oportunidade deve retornar.
+            A oportunidade sai de Perdas e volta ao Pipeline. Escolha a etapa de retorno — o
+            motivo da perda registrado será limpo.
           </DialogDescription>
         </DialogHeader>
 
@@ -70,7 +73,7 @@ export function RestoreLeadDialog({ open, onOpenChange, lead }: RestoreLeadDialo
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleConfirm} disabled={unarchiveMutation.isPending}>
             {unarchiveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Restaurar
+            Reabrir
           </Button>
         </DialogFooter>
       </DialogContent>

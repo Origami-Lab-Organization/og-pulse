@@ -7,19 +7,9 @@ import { LeadKanbanColumn } from './LeadKanbanColumn';
 import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadDetailDialog } from './LeadDetailDialog';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
-import { LoseDealDialog } from './LoseDealDialog';
-import { LeadWithBudget, CRMStage, CRM_LEAD_COLUMNS } from '@/types/lead';
+import { LeadWithBudget, CRMStage, CRM_LEAD_COLUMNS, getStageLabel } from '@/types/lead';
 import { useUpdateLeadStage } from '@/hooks/useLeads';
 import { EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
-
-const STAGE_INDEX: Record<CRMStage, number> = {
-  screening: 0,
-  qualification: 1,
-  proposal: 2,
-  negotiation: 3,
-  closed: 4,
-  closed_lost: 5,
-};
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
 import { useServices } from '@/hooks/useServices';
@@ -27,6 +17,15 @@ import { useLeadServicesMap } from '@/hooks/useLeadServices';
 import { useAllPendingFollowUps, LeadFollowUp } from '@/hooks/useLeadFollowUps';
 import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useToast } from '@/hooks/use-toast';
+
+/**
+ * Ordem das colunas visíveis. `closed_lost` não entra: a perda é dada de dentro
+ * do card (LeadDetailDialog) e arquiva a oportunidade na aba "Perdas".
+ */
+const BOARD_STAGES = CRM_LEAD_COLUMNS.map((c) => c.id);
+const STAGE_INDEX: Record<string, number> = Object.fromEntries(
+  BOARD_STAGES.map((stage, index) => [stage, index])
+);
 
 interface LeadKanbanBoardProps {
   leads: LeadWithBudget[];
@@ -38,8 +37,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const [selectedLead, setSelectedLead] = useState<LeadWithBudget | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [leadToClose, setLeadToClose] = useState<LeadWithBudget | null>(null);
-  const [lossDialogOpen, setLossDialogOpen] = useState(false);
-  const [leadToLose, setLeadToLose] = useState<LeadWithBudget | null>(null);
   const [activeLead, setActiveLead] = useState<LeadWithBudget | null>(null);
   const [highlightField, setHighlightField] = useState<'service_line' | 'budget_id' | null>(null);
 
@@ -80,7 +77,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
 
     // Resolver a coluna de destino: over pode ser uma coluna ou um card
     let newStage: CRMStage;
-    const validStages: string[] = ['screening', 'qualification', 'proposal', 'negotiation', 'closed', 'closed_lost'];
+    const validStages: string[] = BOARD_STAGES;
 
     if (validStages.includes(over.id as string)) {
       newStage = over.id as CRMStage;
@@ -106,14 +103,9 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       return;
     }
 
-    if (newStage === 'closed_lost') {
-      setLeadToLose(lead);
-      setLossDialogOpen(true);
-      return;
-    }
-
     const currentIndex = STAGE_INDEX[lead.crm_stage];
     const targetIndex = STAGE_INDEX[newStage];
+    if (currentIndex === undefined || targetIndex === undefined) return;
     const diff = targetIndex - currentIndex;
 
     // Bloquear pulo de colunas — só adjacente permitido
@@ -150,7 +142,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       }
     }
 
-    const stageLabel = CRM_LEAD_COLUMNS.find((c) => c.id === newStage)?.label ?? newStage;
+    const stageLabel = getStageLabel(newStage);
     updateStage.mutate(
       { id: lead.id, stage: newStage, fromStage: lead.crm_stage },
       {
@@ -179,9 +171,9 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   }, [leads, searchTerm]);
 
   const leadsByStage = useMemo(() => {
-    const grouped: Record<CRMStage, LeadWithBudget[]> = {
-      screening: [], qualification: [], proposal: [], negotiation: [], closed: [], closed_lost: [],
-    };
+    const grouped: Record<string, LeadWithBudget[]> = Object.fromEntries(
+      BOARD_STAGES.map((stage) => [stage, [] as LeadWithBudget[]])
+    );
     filteredLeads.forEach((lead) => {
       if (grouped[lead.crm_stage]) grouped[lead.crm_stage].push(lead);
     });
@@ -236,7 +228,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     <>
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto pb-2">
-        <div className="grid grid-cols-[repeat(6,minmax(220px,1fr))] gap-3 h-[calc(100vh-220px)]">
+        <div className="grid grid-cols-[repeat(5,minmax(220px,1fr))] gap-3 h-[calc(100vh-220px)]">
           {CRM_LEAD_COLUMNS.map((column) => (
             <LeadKanbanColumn
               key={column.id}
@@ -281,13 +273,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
         onConfirm={handleCloseBusinessConfirm}
         isSubmitting={closeBusinessDeal.isPending}
         services={services}
-      />
-
-      <LoseDealDialog
-        open={lossDialogOpen}
-        onOpenChange={(open) => { setLossDialogOpen(open); if (!open) setLeadToLose(null); }}
-        lead={leadToLose}
-        fromStage={leadToLose?.crm_stage ?? null}
       />
     </>
   );

@@ -10,8 +10,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Search, Loader2, Plus, Archive, TrendingDown, BarChart3, CalendarDays,
-  ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, ArchiveRestore, Trash2,
+  Search, Loader2, Plus, ThumbsDown, TrendingDown, BarChart3, CalendarDays,
+  ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, RotateCcw, Trash2,
   MoreHorizontal, FileText, Eye, Kanban, List,
 } from 'lucide-react';
 import {
@@ -31,18 +31,26 @@ import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useAuth } from '@/contexts/AuthContext';
 import CRMStats from '@/components/crm/CRMStats';
 import { formatCurrency, formatDate, formatShortDate } from '@/lib/formatters';
-import { ARCHIVE_REASONS, CRM_LEAD_COLUMNS, LeadWithBudget, SERVICE_LINE_LABELS, SERVICE_LINE_OPTIONS } from '@/types/lead';
+import {
+  ARCHIVE_REASONS, CRM_LEAD_COLUMNS, LeadWithBudget, SERVICE_LINE_LABELS, SERVICE_LINE_OPTIONS,
+  getLossReasonLabel, getStageColor, getStageLabel,
+} from '@/types/lead';
 import { BudgetStatusBadge } from '@/components/budgets/BudgetStatusBadge';
 import { BudgetStatus } from '@/types/budget';
 import { cn } from '@/lib/utils';
 
-type SortKey = 'name' | 'archived_at' | 'estimated_value' | 'created_at';
+type SortKey = 'name' | 'lost_at' | 'estimated_value' | 'created_at';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
-const REASON_LABELS: Record<string, string> = Object.fromEntries(
-  ARCHIVE_REASONS.map((r) => [r.value, r.label])
-);
+/**
+ * Data em que a oportunidade foi perdida. `lost_at` é o carimbo canônico; caímos
+ * em `archived_at` para as perdas registradas antes da unificação perda↔arquivo.
+ */
+function lostAtTime(lead: LeadWithBudget): number {
+  const stamp = lead.lost_at ?? lead.archived_at;
+  return stamp ? new Date(stamp).getTime() : 0;
+}
 
 function SortableHead({ label, sortKey, currentKey, currentDir, onSort, className }: {
   label: string; sortKey: SortKey; currentKey: SortKey; currentDir: SortDir; onSort: (k: SortKey) => void; className?: string;
@@ -71,7 +79,7 @@ export default function CRM() {
   const isManager = employee?.is_gerente || employee?.isAdmin;
   const isAdmin = employee?.isAdmin;
 
-  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'lost'>('active');
   const [displayMode, setDisplayMode] = useState<'kanban' | 'list'>('kanban');
   const [searchTerm, setSearchTerm] = useState('');
   const [newLeadOpen, setNewLeadOpen] = useState(false);
@@ -79,8 +87,8 @@ export default function CRM() {
   // Active leads
   const { data: rawActiveLeads = [], isLoading: loadingActive } = useLeads();
 
-  // Archived leads
-  const { data: rawArchivedLeads = [], isLoading: loadingArchived } = useArchivedLeads();
+  // Oportunidades perdidas — toda perda é arquivamento (ver leadService.closeLeadAsLost)
+  const { data: rawLostLeads = [], isLoading: loadingLost } = useArchivedLeads();
 
   const { data: avgTickets } = useServiceAvgTicketsMap();
 
@@ -101,15 +109,15 @@ export default function CRM() {
 
   const cancelledSet = useMemo(() => new Set(cancelledLeadIds), [cancelledLeadIds]);
   const activeLeads = useMemo(() => rawActiveLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawActiveLeads, cancelledSet]);
-  const archivedLeads = useMemo(() => rawArchivedLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawArchivedLeads, cancelledSet]);
+  const lostLeads = useMemo(() => rawLostLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawLostLeads, cancelledSet]);
 
-  // Archived view state
+  // Estado da visão de Perdas
   const [reasonFilter, setReasonFilter] = useState<string>('all');
-  const [sortKey, setSortKey] = useState<SortKey>('archived_at');
+  const [sortKey, setSortKey] = useState<SortKey>('lost_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
-  const [selectedArchivedLead, setSelectedArchivedLead] = useState<LeadWithBudget | null>(null);
+  const [selectedLostLead, setSelectedLostLead] = useState<LeadWithBudget | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<LeadWithBudget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LeadWithBudget | null>(null);
   const [selectedActiveLead, setSelectedActiveLead] = useState<LeadWithBudget | null>(null);
@@ -138,7 +146,7 @@ export default function CRM() {
   const [listServiceFilter, setListServiceFilter] = useState<string>('all');
   const [listBudgetFilter, setListBudgetFilter] = useState<string>('all');
 
-  const isLoading = activeTab === 'archived' ? loadingArchived : loadingActive;
+  const isLoading = activeTab === 'lost' ? loadingLost : loadingActive;
 
   // Reset search and filters when switching primary tab
   useEffect(() => {
@@ -157,7 +165,7 @@ export default function CRM() {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     } else {
       setSortKey(key);
-      setSortDir(key === 'archived_at' ? 'desc' : 'asc');
+      setSortDir(key === 'lost_at' ? 'desc' : 'asc');
     }
   };
 
@@ -170,8 +178,8 @@ export default function CRM() {
     }
   };
 
-  const filteredArchived = useMemo(() => {
-    let result = [...archivedLeads];
+  const filteredLost = useMemo(() => {
+    let result = [...lostLeads];
     if (reasonFilter !== 'all') {
       result = result.filter(l => l.archive_reason === reasonFilter);
     }
@@ -187,13 +195,13 @@ export default function CRM() {
     result.sort((a, b) => {
       switch (sortKey) {
         case 'name': return dir * a.name.localeCompare(b.name);
-        case 'archived_at': return dir * (new Date(a.archived_at || 0).getTime() - new Date(b.archived_at || 0).getTime());
+        case 'lost_at': return dir * (lostAtTime(a) - lostAtTime(b));
         case 'estimated_value': return dir * ((a.budget?.final_total ?? a.estimated_value) - (b.budget?.final_total ?? b.estimated_value));
         default: return 0;
       }
     });
     return result;
-  }, [archivedLeads, reasonFilter, searchTerm, sortKey, sortDir]);
+  }, [lostLeads, reasonFilter, searchTerm, sortKey, sortDir]);
 
   const filteredActiveList = useMemo(() => {
     let result = [...activeLeads];
@@ -228,59 +236,58 @@ export default function CRM() {
     return result;
   }, [activeLeads, searchTerm, listStageFilter, listServiceFilter, listBudgetFilter, listSortKey, listSortDir]);
 
-  const archivedStats = useMemo(() => {
+  // Estatísticas de perda: TODA oportunidade em "Perdas" conta como perda.
+  const lostStats = useMemo(() => {
     const now = new Date();
-    const lostValue = archivedLeads.reduce((s, l) => s + (l.budget?.final_total ?? l.estimated_value), 0);
+    const lostValue = lostLeads.reduce((s, l) => s + (l.budget?.final_total ?? l.estimated_value), 0);
     const reasonCounts: Record<string, number> = {};
-    archivedLeads.forEach(l => {
+    lostLeads.forEach(l => {
       if (l.archive_reason) reasonCounts[l.archive_reason] = (reasonCounts[l.archive_reason] || 0) + 1;
     });
     const topEntry = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0];
-    const topReason = topEntry ? `${REASON_LABELS[topEntry[0]] || topEntry[0]} (${topEntry[1]})` : '-';
-    const thisMonth = archivedLeads.filter(l => {
-      if (!l.archived_at) return false;
-      const d = new Date(l.archived_at);
+    const topReason = topEntry ? `${getLossReasonLabel(topEntry[0])} (${topEntry[1]})` : '-';
+    const thisMonth = lostLeads.filter(l => {
+      const time = lostAtTime(l);
+      if (!time) return false;
+      const d = new Date(time);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
-    return { total: archivedLeads.length, lostValue, topReason, thisMonth };
-  }, [archivedLeads]);
+    return { total: lostLeads.length, lostValue, topReason, thisMonth };
+  }, [lostLeads]);
 
-  const totalPages = Math.ceil(filteredArchived.length / pageSize);
+  const totalPages = Math.ceil(filteredLost.length / pageSize);
   const paginatedData = useMemo(() => {
     const start = currentPage * pageSize;
-    return filteredArchived.slice(start, start + pageSize);
-  }, [filteredArchived, currentPage, pageSize]);
-  const showPagination = filteredArchived.length > 10;
-
-  const stageLabel = (stage: string) => CRM_LEAD_COLUMNS.find(c => c.id === stage)?.label ?? stage;
-  const stageColor = (stage: string) => CRM_LEAD_COLUMNS.find(c => c.id === stage)?.color ?? 'bg-muted text-muted-foreground';
+    return filteredLost.slice(start, start + pageSize);
+  }, [filteredLost, currentPage, pageSize]);
+  const showPagination = filteredLost.length > 10;
 
   return (
     <TooltipProvider>
       <AppLayout
-        title="CRM"
-        description="Funil de vendas"
-        breadcrumbs={[{ label: 'CRM' }]}
+        title="Pipeline"
+        description="Pipeline comercial"
+        breadcrumbs={[{ label: 'Pipeline' }]}
         actions={
           <Button onClick={() => setNewLeadOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Novo Lead
+            Nova Oportunidade
           </Button>
         }
       >
         {/* Stats */}
-        {activeTab !== 'archived' ? (
+        {activeTab !== 'lost' ? (
           <CRMStats leads={activeLeads} avgTickets={avgTickets} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardContent className="flex items-center gap-3 p-4">
                 <div className="rounded-full p-2 bg-muted">
-                  <Archive className="h-5 w-5 text-muted-foreground" />
+                  <ThumbsDown className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Total Arquivados</p>
-                  <p className="text-lg font-semibold">{archivedStats.total}</p>
+                  <p className="text-xs text-muted-foreground">Total de Perdas</p>
+                  <p className="text-lg font-semibold">{lostStats.total}</p>
                 </div>
               </CardContent>
             </Card>
@@ -291,7 +298,7 @@ export default function CRM() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Valor Perdido</p>
-                  <p className="text-lg font-semibold">{formatCurrency(archivedStats.lostValue)}</p>
+                  <p className="text-lg font-semibold">{formatCurrency(lostStats.lostValue)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -302,7 +309,7 @@ export default function CRM() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Principal Motivo</p>
-                  <p className="text-lg font-semibold truncate max-w-[180px]">{archivedStats.topReason}</p>
+                  <p className="text-lg font-semibold truncate max-w-[180px]">{lostStats.topReason}</p>
                 </div>
               </CardContent>
             </Card>
@@ -312,8 +319,8 @@ export default function CRM() {
                   <CalendarDays className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Arquivados no Mês</p>
-                  <p className="text-lg font-semibold">{archivedStats.thisMonth}</p>
+                  <p className="text-xs text-muted-foreground">Perdas no Mês</p>
+                  <p className="text-lg font-semibold">{lostStats.thisMonth}</p>
                 </div>
               </CardContent>
             </Card>
@@ -326,7 +333,7 @@ export default function CRM() {
           <div className="relative flex-1 min-w-[280px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={activeTab === 'archived' ? 'Buscar arquivados...' : 'Buscar leads...'}
+              placeholder={activeTab === 'lost' ? 'Buscar perdas...' : 'Buscar oportunidades...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 w-full"
@@ -347,15 +354,15 @@ export default function CRM() {
               Ativos
             </button>
             <button
-              onClick={() => setActiveTab('archived')}
+              onClick={() => setActiveTab('lost')}
               className={cn(
                 'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                activeTab === 'archived'
+                activeTab === 'lost'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              Arquivados
+              Perdas
             </button>
           </div>
 
@@ -399,8 +406,8 @@ export default function CRM() {
             </>
           )}
 
-          {/* Archived filter */}
-          {activeTab === 'archived' && (
+          {/* Filtro de motivo — visão de Perdas */}
+          {activeTab === 'lost' && (
             <Select value={reasonFilter} onValueChange={setReasonFilter}>
               <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Filtrar por motivo" />
@@ -465,7 +472,7 @@ export default function CRM() {
                 {filteredActiveList.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
-                      Nenhum lead encontrado
+                      Nenhuma oportunidade encontrada
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -487,8 +494,8 @@ export default function CRM() {
                         <span className="block truncate">{lead.company_name || '-'}</span>
                       </TableCell>
                       <TableCell>
-                        <Badge className={stageColor(lead.crm_stage)} variant="secondary">
-                          {stageLabel(lead.crm_stage)}
+                        <Badge className={getStageColor(lead.crm_stage)} variant="secondary">
+                          {getStageLabel(lead.crm_stage)}
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[160px]">
@@ -549,16 +556,16 @@ export default function CRM() {
                     <TableHead>Empresa</TableHead>
                     <TableHead>Etapa</TableHead>
                     <TableHead>Motivo</TableHead>
-                    <SortableHead label="Data Arquivamento" sortKey="archived_at" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHead label="Data da Perda" sortKey="lost_at" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHead label="Valor" sortKey="estimated_value" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-right" />
                     {isManager && <TableHead className="w-[100px]">Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredArchived.length === 0 ? (
+                  {filteredLost.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={isManager ? 7 : 6} className="text-center text-muted-foreground py-8">
-                        Nenhum lead arquivado encontrado
+                        Nenhuma perda encontrada
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -566,7 +573,7 @@ export default function CRM() {
                       <TableRow
                         key={lead.id}
                         className="cursor-pointer hover:bg-accent/40 transition-colors"
-                        onClick={() => setSelectedArchivedLead(lead)}
+                        onClick={() => setSelectedLostLead(lead)}
                       >
                         <TableCell className="font-medium max-w-[200px]">
                           <Tooltip>
@@ -580,16 +587,16 @@ export default function CRM() {
                           <span className="block truncate">{lead.company_name || '-'}</span>
                         </TableCell>
                         <TableCell>
-                          <Badge className={stageColor(lead.crm_stage)} variant="secondary">
-                            {stageLabel(lead.crm_stage)}
+                          <Badge className={getStageColor(lead.crm_stage)} variant="secondary">
+                            {getStageLabel(lead.crm_stage)}
                           </Badge>
                         </TableCell>
                         <TableCell className="max-w-[180px]">
                           <span className="block truncate">
-                            {REASON_LABELS[lead.archive_reason || ''] || lead.archive_reason || '-'}
+                            {getLossReasonLabel(lead.archive_reason)}
                           </span>
                         </TableCell>
-                        <TableCell>{formatDate(lead.archived_at)}</TableCell>
+                        <TableCell>{formatDate(lead.lost_at ?? lead.archived_at)}</TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(lead.budget?.final_total ?? lead.estimated_value)}
                         </TableCell>
@@ -602,10 +609,10 @@ export default function CRM() {
                                     size="sm" variant="ghost" className="h-8 w-8 p-0"
                                     onClick={() => setRestoreTarget(lead)}
                                   >
-                                    <ArchiveRestore className="h-4 w-4" />
+                                    <RotateCcw className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Restaurar</TooltipContent>
+                                <TooltipContent>Reabrir no Pipeline</TooltipContent>
                               </Tooltip>
                               {isAdmin && (
                                 <Tooltip>
@@ -633,7 +640,7 @@ export default function CRM() {
             {showPagination && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
                 <p className="text-sm text-muted-foreground">
-                  Mostrando {currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, filteredArchived.length)} de {filteredArchived.length} lead{filteredArchived.length !== 1 ? 's' : ''}
+                  Mostrando {currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, filteredLost.length)} de {filteredLost.length} oportunidade{filteredLost.length !== 1 ? 's' : ''}
                 </p>
                 <div className="flex items-center gap-4">
                   <div className="hidden sm:flex items-center gap-2">
@@ -677,9 +684,9 @@ export default function CRM() {
         />
 
         <LeadDetailDialog
-          open={!!selectedArchivedLead}
-          onOpenChange={(open) => { if (!open) setSelectedArchivedLead(null); }}
-          lead={selectedArchivedLead}
+          open={!!selectedLostLead}
+          onOpenChange={(open) => { if (!open) setSelectedLostLead(null); }}
+          lead={selectedLostLead}
         />
 
         <RestoreLeadDialog
