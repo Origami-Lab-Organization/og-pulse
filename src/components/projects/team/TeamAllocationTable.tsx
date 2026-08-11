@@ -24,7 +24,8 @@ import {
 import { cn } from '@/lib/utils';
 import { buildProjectMonths, buildRollingMonths, ProjectMonth } from '@/lib/projectMonths';
 import { ProjectWithRelations } from '@/types/project';
-import { TeamAllocationRow } from '@/types/equipe.types';
+import { calculateGpoAllocation } from '@/lib/gpoAllocation';
+import type { GpoMonthInput, MonthStatus, TeamAllocationRow } from '@/types/equipe.types';
 import {
   useTeamAllocationRows,
   useSaveAllocationMonthHours,
@@ -38,8 +39,7 @@ import {
 } from '@/hooks/useProjectRoles';
 import { AllocationCell } from '@/components/projects/team/AllocationCell';
 import { DeallocateMemberDialog } from '@/components/projects/team/DeallocateMemberDialog';
-
-type MonthStatus = 'past' | 'current' | 'future';
+import { GpoAllocationSummary } from '@/components/projects/team/GpoAllocationSummary';
 
 function monthLabelPtBR(date: Date) {
   return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -155,6 +155,25 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
     });
     return totals;
   }, [activeRows, deallocatedRows, months]);
+
+  // Mesma base do rodapé (ativos + desalocados) para o KPI não divergir do Total.
+  const gpoAllocation = useMemo(() => {
+    const input: GpoMonthInput[] = months.map((m) => {
+      const key = monthKey(m.year, m.month);
+      const meta = monthMeta[key];
+      const totals = footerTotals[key];
+      return {
+        key,
+        label: m.label,
+        status: meta?.status ?? 'future',
+        workingDays: meta?.workingDays ?? 0,
+        elapsedWorkingDays: meta?.elapsed ?? 0,
+        plannedHours: totals?.plan ?? 0,
+        realizedHours: totals?.real ?? 0,
+      };
+    });
+    return calculateGpoAllocation(input);
+  }, [months, monthMeta, footerTotals]);
 
   const handleSaveCell = (
     row: TeamAllocationRow,
@@ -357,6 +376,8 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
 
   return (
     <div className="space-y-3">
+      <GpoAllocationSummary allocation={gpoAllocation} />
+
       {(deallocatedRows.length > 0 || project.is_continuous) && (
         <div className="flex items-center justify-between gap-2">
           {deallocatedRows.length > 0 ? (

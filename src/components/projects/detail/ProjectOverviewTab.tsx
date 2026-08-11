@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
 import { useMaskedCurrency, useMaskedPercent } from '@/contexts/HideValuesContext';
-import { ProjectTeamSection } from './ProjectTeamSection';
 import { InstallmentAlertsBanner } from './financial/InstallmentAlertsBanner';
 import { ProjectKPIBar } from './ProjectKPIBar';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
@@ -270,9 +269,6 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         marginVar={kpiData.marginVar}
         marginTarget={financialSettings?.gross_margin_target_percent ?? undefined}
       />
-
-      {/* Row 3: Team */}
-      <ProjectTeamSection members={project.members || []} projectId={project.id} memberMonths={memberMonths} timesheets={timesheets} />
     </div>
   );
 }

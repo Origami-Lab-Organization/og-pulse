@@ -1,3 +1,6 @@
+/** Posição de um mês da grade em relação ao mês corrente. */
+export type MonthStatus = 'past' | 'current' | 'future';
+
 // ─── Budget roles (from the project's linked budget) ─────────────────────────
 
 export interface BudgetRoleDB {
@@ -159,6 +162,40 @@ export interface CreateProjectRolePayload {
   hourlyRate?: number;
   monthlyRate?: number;
   cltEncargosMultiplier?: number;
+}
+
+// ─── Alocação GPO (glossário → "Alocação GPO") ────────────────────────────────
+
+export interface GpoMonthInput {
+  key: string;
+  label: string;
+  status: MonthStatus;
+  /** Dias úteis totais do mês. */
+  workingDays: number;
+  /** Dias úteis já decorridos — só relevante no mês corrente. */
+  elapsedWorkingDays: number;
+  plannedHours: number;
+  realizedHours: number;
+}
+
+export interface GpoMonthBreakdown extends GpoMonthInput {
+  /** Planejado que entra no acumulado — reduzido a pro-rata no mês corrente. */
+  plannedConsidered: number;
+  isProRata: boolean;
+  /** Fração aplicada ao planejado do mês corrente (0..1). Null fora dele. */
+  proRataFraction: number | null;
+}
+
+export type GpoBand = 'under' | 'healthy' | 'over' | 'unknown';
+
+export interface GpoAllocation {
+  /** Apenas meses fechados e o corrente — os futuros já saem de fora. */
+  months: GpoMonthBreakdown[];
+  plannedAccrued: number;
+  realizedAccrued: number;
+  /** Null quando não há planejado acumulado — a divisão não teria sentido. */
+  percent: number | null;
+  band: GpoBand;
 }
 
 // ─── Simulação de impacto na margem (aba Equipe v2, §5.3) ──────────────────────

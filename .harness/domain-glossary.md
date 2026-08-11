@@ -16,12 +16,15 @@
 - Versao de orcamento: snapshot comparavel de uma proposta.
 - Colaborador/Employee: pessoa interna alocavel, com custos, beneficios, ferramentas e status.
 - Timesheet: apontamento de horas por atividade/projeto/periodo.
+- Alocacao GPO: percentual de consumo de horas de um projeto no padrao da GPO da Origami Lab = realizado acumulado / planejado acumulado x 100. Meses fechados entram cheios (planejado e realizado). O mes corrente entra em pro-rata: planejado do mes x (dias uteis decorridos / dias uteis totais); o realizado do mes corrente entra pelo valor cheio apontado. Meses futuros sao ignorados. Sem planejado acumulado, o percentual e nulo — nao exibir 0% como dado real. Fonte unica: `calculateGpoAllocation` em src/lib/gpoAllocation.ts — nenhuma tela deve reimplementar o pro-rata. Base de linhas: a mesma do rodape da aba Equipe (membros ativos + desalocados). Ver ADR-0018.
+- Faixa saudavel de alocacao: 90–100%. Abaixo e subconsumo ou apontamento atrasado; acima e estouro de horas. Limites em src/lib/gpoAllocation.constants.ts (`GPO_HEALTHY_MIN`/`GPO_HEALTHY_MAX`). Para distinguir desvio pontual de tendencia, comparar o percentual dos meses fechados isoladamente — o mes corrente em pro-rata costuma parecer baixo por apontamento em atraso, nao por subconsumo real.
 - Activity Type: tipo de atividade usado em apontamentos.
 - Reembolso: solicitacao financeira feita por colaborador, com aprovacao e comprovantes.
 - Ferias: 30 dias por aniversario completo de 12 meses desde a admissao (lump, acumulativo); apenas CLT e Menor Aprendiz; aprovacao por todos os gerentes dos projetos ativos do colaborador (qualquer recusa reprova); gerente -> admin; admin -> auto-aprovado. Ver ADR-0003.
 - Desligamento/Termination: processo de saida de colaborador.
 - Turnover/Rotatividade: indice de rotatividade de pessoal no periodo. Formula adotada (SHRM): ((Admissoes + Desligamentos) / 2) / Headcount medio x 100. Headcount medio = (ativos no inicio + ativos no fim) / 2, reconstruido pelas datas (data_admissao e termination_date), nao pelo status atual. Desligamentos cancelados sao ignorados. Sem headcount medio => taxa nula (nao exibir 0% como dado real). Implementacao: src/lib/turnoverCalculator.ts.
 - OKR: objetivo e resultado-chave de estrategia.
+- Objetivo Principal (projeto): o objetivo mais antigo do projeto por `created_at` — e convencao de interface, nao existe campo de destaque em `project_okrs`. Exibido no card "Objetivo Principal" da aba Planejamento; os demais ficam na aba Objetivos. Se o time precisar eleger outro objetivo, isso vira flag no banco + ADR.
 - Iniciativa: acao estrategica ligada a objetivo.
 - Guardrail: limite ou indicador de controle estrategico.
 - Custo de folha (Dashboard): soma do salario base de cada colaborador com status 'ativo', independente do papel (admin/gerente/usuario) ou tipo de contratacao. Salario base por tipo: CLT/Menor Aprendiz = salario mensal; Estagio = bolsa-auxilio; PJ = valor do contrato; Socio = pro-labore + dividendos. Sem encargos/provisoes/beneficios/ferramentas. Implementacao: src/lib/payrollCalculator.ts (getBaseSalary).

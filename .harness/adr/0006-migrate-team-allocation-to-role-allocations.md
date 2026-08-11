@@ -19,6 +19,27 @@ A remoção física de `project_members`/`project_member_months` fica pendente a
 migrar `project_timesheets` e os fluxos de correção/aprovação/relatórios que ainda
 referenciam `project_member_id`.
 
+## Atualização 2026-08-11 — Fase 3 parcial
+
+Removidas as superfícies de escrita do modelo antigo na tela de projeto:
+
+- `ProjectTeamSection` (card "Equipe do Projeto" da Visão Geral) — lia
+  `project.members` e mostrava "0 membro(s)" em qualquer projeto montado pela aba
+  Equipe. O botão "Adicionar" gravava em `project_members`, criando alocação
+  invisível na aba Equipe mas contada pelo RPC de resumo (a guarda só suprime o
+  legado quando existe `project_role_allocation` para o mesmo employee/projeto/
+  ano/mês — não era o caso). Componente deletado.
+- `ProjectLaborSection` — já estava sem nenhum importador desde o cutover
+  anterior. Arquivo deletado.
+- Checklist de início (`ProjectPlanningOverviewTab`): "Pelo menos 1 membro com
+  horas alocadas" e os destinatários da notificação `project_execution_started`
+  passaram a ler `useProjectAllocations`.
+
+A leitura de `project.members` como equipe **persiste** em custos, timesheets e
+`ProjectDetailDialog` — mapeado em TD-0014. Os consumidores de timesheet só
+podem migrar depois da Fase 4, porque `project_timesheets` ainda referencia
+`project_member_id`.
+
 ## Contexto
 
 A equipe de um projeto era gerenciada na aba **Custos** pelo modelo antigo:

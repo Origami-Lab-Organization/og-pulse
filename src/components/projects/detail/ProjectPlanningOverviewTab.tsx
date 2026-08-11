@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Check, ChevronRight, Building2, Calendar,
-  DollarSign, User, CreditCard, Clock, AlertTriangle,
+  DollarSign, User, CreditCard, Clock, AlertTriangle, Target,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
+import { OKR_STATUS_LABELS } from '@/types/projectOkr';
 import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useProjectOKRs } from '@/hooks/useProjectOKRs';
 import { useProjectMilestones } from '@/hooks/useProjectMilestones';
+import { useProjectAllocations } from '@/hooks/useProjectRoles';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +47,8 @@ export function ProjectPlanningOverviewTab({
 
   const { data: okrs = [] } = useProjectOKRs(project.id);
   const { data: milestones = [] } = useProjectMilestones(project.id);
+  // Fonte canônica de equipe é project_role_allocations (ADR-0006), não project.members.
+  const { data: allocations = [] } = useProjectAllocations(project.id, false);
 
   const installments = project.installments || [];
   const isPlanning = project.portfolio_stage === 'planning';
@@ -55,7 +59,10 @@ export function ProjectPlanningOverviewTab({
   const clientName =
     project.client?.trading_name || project.client?.company_name || '';
   const gpName = project.manager?.nome || '';
-  const membersCount = project.members?.length || 0;
+  const membersCount = allocations.filter((a) => a.totalHours > 0).length;
+  // useProjectOKRs já ordena por created_at asc — o principal é o primeiro criado.
+  const primaryOkr = okrs[0];
+  const primaryKeyResults = primaryOkr?.key_results ?? [];
 
   const checks = [
     !!project.client_id && !!project.manager_id,
@@ -132,8 +139,9 @@ export function ProjectPlanningOverviewTab({
 
       if (error) throw error;
 
-      const memberIds = (project.members || [])
-        .map((m) => m.employee_id)
+      const memberIds = allocations
+        .filter((a) => a.totalHours > 0)
+        .map((a) => a.employeeId)
         .filter(Boolean);
 
       if (memberIds.length > 0) {
@@ -396,6 +404,84 @@ export function ProjectPlanningOverviewTab({
                 </div>
               </>
             ) : null}
+          </CardContent>
+        </Card>
+
+        {/* Objetivo Principal */}
+        <Card>
+          <div className="px-4 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold">Objetivo Principal</h3>
+          </div>
+          <CardContent className="pt-4">
+            {!primaryOkr ? (
+              <div className="flex items-start gap-3">
+                <Target className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Nenhum objetivo definido</p>
+                  {onNavigateToTab && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-sm"
+                      onClick={() => onNavigateToTab('okrs')}
+                    >
+                      Definir na aba Objetivos
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Target className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{primaryOkr.objective}</p>
+                    {primaryOkr.target_date && (
+                      <p className="text-xs text-muted-foreground">
+                        Alvo em {format(parseISO(primaryOkr.target_date), 'dd/MM/yyyy', { locale: ptBR })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between text-xs">
+                    <Badge variant="outline">{OKR_STATUS_LABELS[primaryOkr.status]}</Badge>
+                    <span className="font-mono tabular-nums text-muted-foreground">
+                      {Math.round(primaryOkr.progress_percent)}%
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary-deep transition-all duration-500 ease-out"
+                      style={{ width: `${Math.min(100, Math.max(0, primaryOkr.progress_percent))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {primaryKeyResults.length > 0 && (
+                  <ul className="space-y-1.5 border-t border-border pt-3">
+                    {primaryKeyResults.map((kr) => (
+                      <li key={kr.id} className="flex items-start gap-2 text-xs">
+                        <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" aria-hidden />
+                        <span className="text-muted-foreground">{kr.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {okrs.length > 1 && onNavigateToTab && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => onNavigateToTab('okrs')}
+                  >
+                    Ver os outros {okrs.length - 1} objetivo{okrs.length - 1 !== 1 ? 's' : ''}
+                  </Button>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
