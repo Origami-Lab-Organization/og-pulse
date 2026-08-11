@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { resolveLeadEstimatedValue as getLeadValue } from '@/lib/leadValue';
 import {
   LeadWithBudget, CRMStage, CRM_FUNNEL_STAGES, CRM_STAGE_META,
   getStageChartColor, getStageLabel, isClosedOutcome, isInStandBy,
@@ -21,10 +22,6 @@ function formatCurrencyCompact(value: number): string {
   if (value >= 1_000) return `R$ ${Math.round(value / 1_000)}k`;
   if (value === 0) return '—';
   return `R$ ${Math.round(value)}`;
-}
-
-function getLeadValue(lead: LeadWithBudget): number {
-  return (lead.budget?.final_total ?? 0) > 0 ? lead.budget!.final_total : lead.estimated_value;
 }
 
 interface StageItem {

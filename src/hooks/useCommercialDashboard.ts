@@ -3,14 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useLeads, useArchivedLeads } from '@/hooks/useLeads';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useClients } from '@/hooks/useClients';
-import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
   LeadWithBudget, ARCHIVE_REASONS, LEAD_SOURCE_LABELS, CRM_FUNNEL_STAGES,
   getStageChartColor, getStageForecastWeight, getStageLabel, isClosedOutcome, isInStandBy,
 } from '@/types/lead';
-import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
+import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 import { differenceInDays, parseISO, getMonth, getYear, format, eachMonthOfInterval, startOfMonth, endOfMonth, differenceInMilliseconds } from 'date-fns';
 
 interface ResponsibleOption {
@@ -72,14 +71,14 @@ function isInRange(dateStr: string, from: Date, to: Date): boolean {
   return d >= from && d <= to;
 }
 
-function computeKPIs(leads: LeadWithBudget[], avgTickets: ServiceAvgTicketLookup) {
+function computeKPIs(leads: LeadWithBudget[]) {
   const activeLeads = leads.filter(l => !l.archived);
   const closedLeads = leads.filter(l => l.crm_stage === 'closed' && !l.archived);
   const totalLeads = leads.length;
 
   const conversionRate = totalLeads > 0 ? (closedLeads.length / totalLeads) * 100 : 0;
 
-  const getLeadValue = (l: LeadWithBudget) => resolveLeadEstimatedValue(l, avgTickets);
+  const getLeadValue = (l: LeadWithBudget) => resolveLeadEstimatedValue(l);
 
   const closedValues = closedLeads.map(getLeadValue);
   const avgTicket = closedValues.length > 0 ? closedValues.reduce((a, b) => a + b, 0) / closedValues.length : 0;
@@ -118,7 +117,6 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
   const { data: archivedLeads = [], isLoading: archivedLoading } = useArchivedLeads();
   const { data: budgets = [], isLoading: budgetsLoading } = useBudgets();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
-  const { data: avgTickets = EMPTY_AVG_TICKET_LOOKUP, isLoading: avgTicketsLoading } = useServiceAvgTicketsMap();
 
   // Fetch budget_ids of cancelled projects to exclude their leads
   const { data: cancelledBudgetIds = [], isLoading: cancelledLoading } = useQuery({
@@ -138,7 +136,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     enabled: !!tenantId,
   });
 
-  const isLoading = leadsLoading || archivedLoading || budgetsLoading || clientsLoading || cancelledLoading || avgTicketsLoading;
+  const isLoading = leadsLoading || archivedLoading || budgetsLoading || clientsLoading || cancelledLoading;
 
   const data = useMemo<CommercialDashboardData | null>(() => {
     if (isLoading) return null;
@@ -177,14 +175,14 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     const activeLeadsPeriod = periodFiltered.filter(l => !l.archived);
 
     // Current period KPIs
-    const currentKPIs = computeKPIs(periodFiltered, avgTickets);
+    const currentKPIs = computeKPIs(periodFiltered);
 
     // Previous period KPIs (same duration shifted back)
     const durationMs = differenceInMilliseconds(dateTo, dateFrom);
     const prevTo = new Date(dateFrom.getTime() - 1); // day before dateFrom
     const prevFrom = new Date(prevTo.getTime() - durationMs);
     const prevPeriodFiltered = filtered.filter(l => isInRange(l.created_at, prevFrom, prevTo));
-    const prevKPIs = computeKPIs(prevPeriodFiltered, avgTickets);
+    const prevKPIs = computeKPIs(prevPeriodFiltered);
 
     // Funnel data
     // Funil de conversão usa apenas as etapas sequenciais — Follow Up é estado
@@ -213,7 +211,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
           const d = parseISO(dateStr);
           return d >= mStart && d <= mEnd;
         })
-        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0);
+        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l), 0);
 
       const lostThisMonth = filtered
         .filter(l => l.archived || l.crm_stage === 'closed_lost')
@@ -222,7 +220,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
           const d = parseISO(dateStr);
           return d >= mStart && d <= mEnd;
         })
-        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0);
+        .reduce((sum, l) => sum + resolveLeadEstimatedValue(l), 0);
 
       accWon += wonThisMonth;
       return { month: label, wonMonth: wonThisMonth, lostMonth: lostThisMonth, wonAccumulated: accWon };
@@ -234,7 +232,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       const stageLeads = activeLeadsPeriod.filter(l => l.crm_stage === stage);
       return {
         name: getStageLabel(stage),
-        value: stageLeads.reduce((sum, l) => sum + resolveLeadEstimatedValue(l, avgTickets), 0),
+        value: stageLeads.reduce((sum, l) => sum + resolveLeadEstimatedValue(l), 0),
         count: stageLeads.length,
       };
     }).filter(s => s.count > 0);
@@ -246,7 +244,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     const clientRevenue: Record<string, number> = {};
     closedLeads.forEach(l => {
       const name = l.company_name || 'Sem empresa';
-      const val = resolveLeadEstimatedValue(l, avgTickets);
+      const val = resolveLeadEstimatedValue(l);
       clientRevenue[name] = (clientRevenue[name] || 0) + val;
     });
     const topClients = Object.entries(clientRevenue)
@@ -312,7 +310,7 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       activeLeadsPeriod,
       responsibleOptions,
     };
-  }, [leads, archivedLeads, budgets, clients, avgTickets, cancelledBudgetIds, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
+  }, [leads, archivedLeads, budgets, clients, cancelledBudgetIds, isLoading, dateFrom, dateTo, selectedServiceLine, selectedResponsible]);
 
   return { data, isLoading };
 }

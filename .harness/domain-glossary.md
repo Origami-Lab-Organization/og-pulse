@@ -1,8 +1,14 @@
 # Glossario de Dominio
 
 - Cliente: organizacao compradora de servicos.
-- Lead: oportunidade comercial em negociacao.
-- CRM: gestao de pipeline, interacoes, follow-ups e conversao.
+- Oportunidade: negocio comercial em andamento. Tabela `leads` no banco por razao historica — na INTERFACE e sempre "Oportunidade", nunca "Lead" (ver boundaries.md e gp-comercial.md J2).
+- Pipeline: gestao das oportunidades por etapa, interacoes, follow-ups e conversao. Na interface e sempre "Pipeline"/"Orcamentos", nunca "CRM" ou "Funil".
+- Etapas do pipeline (`leads.crm_stage`): Prospeccao/Oportunidade (`screening`) -> Qualificacao (`qualification`) -> Proposta Enviada (`proposal`) -> Negociacao (`negotiation`) -> Fechado - Ganho (`closed`). Fora do funil: Perdido (`closed_lost`, arquiva a oportunidade na aba "Perdas") e Stand By (`stand_by`, esfriamento com etapa de retorno guardada). Definicao canonica: `CRM_FUNNEL_STAGES` e `CRM_STAGE_META` em src/types/lead.ts.
+- Valor da oportunidade: orcamento vinculado quando `final_total > 0`; sem orcamento, vale o Valor Estimado informado manualmente (`leads.estimated_value`); sem nenhum dos dois, zero. Fonte unica: `resolveLeadEstimatedValue` em src/lib/leadValue.ts — nenhuma tela deve reimplementar esse fallback. Nao existe estimativa automatica por ticket medio de servico. Ver ADR-0017.
+- Valor Estimado: estimativa manual do valor da oportunidade, editavel enquanto nao houver orcamento vinculado, em qualquer etapa. Ao vincular orcamento, o campo da lugar ao resumo do orcamento.
+- Orcamento obrigatorio: pre-requisito da transicao Proposta Enviada -> Negociacao. Propor sem orcamento e permitido; avancar para Negociacao sem `budget_id` nao. Validado no frontend (`canAdvanceFrom` e o drag & drop do Kanban). Ver ADR-0017.
+- Forecast (Receita Prevista): soma do valor da oportunidade ponderado pela probabilidade da etapa (`CRM_STAGE_META.forecastWeight`): Prospeccao 10%, Qualificacao 25%, Proposta Enviada 50%, Negociacao 75%, Fechado 100%, Stand By e Perdido 0%.
+- Ticket Medio (Fechados): KPI do Dashboard Comercial — media do valor dos negocios fechados no periodo, calculada em memoria. Nao confundir com o antigo cadastro de ticket medio por servico, removido em 2026-08-11 (ADR-0017).
 - Servico: oferta comercial precificada e associada a projetos/orcamentos.
 - Projeto: entrega contratada, com membros, receitas, parcelas, milestones e status.
 - Portfolio: visao consolidada de projetos e saude operacional.

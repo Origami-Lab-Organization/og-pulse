@@ -4925,76 +4925,6 @@ export type Database = {
         }
         Relationships: []
       }
-      service_line_avg_tickets: {
-        Row: {
-          avg_ticket_value: number
-          computed_at: string | null
-          computed_value: number | null
-          created_at: string
-          id: string
-          is_manual_override: boolean
-          label: string
-          legacy_source_key: string | null
-          sample_size: number
-          service_line_id: string | null
-          tenant_id: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          avg_ticket_value?: number
-          computed_at?: string | null
-          computed_value?: number | null
-          created_at?: string
-          id?: string
-          is_manual_override?: boolean
-          label: string
-          legacy_source_key?: string | null
-          sample_size?: number
-          service_line_id?: string | null
-          tenant_id: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          avg_ticket_value?: number
-          computed_at?: string | null
-          computed_value?: number | null
-          created_at?: string
-          id?: string
-          is_manual_override?: boolean
-          label?: string
-          legacy_source_key?: string | null
-          sample_size?: number
-          service_line_id?: string | null
-          tenant_id?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "service_line_avg_tickets_service_line_id_fkey"
-            columns: ["service_line_id"]
-            isOneToOne: false
-            referencedRelation: "service_lines"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_line_avg_tickets_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_line_avg_tickets_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       service_lines: {
         Row: {
           created_at: string
@@ -6604,10 +6534,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      _recalc_service_line_avg_tickets_core: {
-        Args: { p_tenant_id?: string }
-        Returns: number
-      }
       activate_scheduled_employee_versions: { Args: never; Returns: undefined }
       apply_absence_period: {
         Args: {
@@ -6819,14 +6745,6 @@ export type Database = {
           titulo: string
         }[]
       }
-      get_service_line_avg_tickets: {
-        Args: never
-        Returns: {
-          avg_ticket_value: number
-          legacy_source_key: string
-          service_line_id: string
-        }[]
-      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -6872,8 +6790,6 @@ export type Database = {
           updated_timesheets: number
         }[]
       }
-      recalculate_service_line_avg_tickets: { Args: never; Returns: undefined }
-      recalculate_service_line_avg_tickets_now: { Args: never; Returns: number }
       recompute_daily_summary: {
         Args: { p_data: string; p_employee_id: string }
         Returns: undefined

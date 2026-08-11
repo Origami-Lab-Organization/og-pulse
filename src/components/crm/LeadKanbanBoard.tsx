@@ -13,13 +13,12 @@ import {
 } from '@/types/lead';
 import { useUpdateLeadStage, useResumeLeadFromStandBy } from '@/hooks/useLeads';
 import { resolveStandByReturnStage } from '@/services/leadService';
-import { EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
+import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
 import { useServices } from '@/hooks/useServices';
 import { useLeadServicesMap } from '@/hooks/useLeadServices';
 import { useAllPendingFollowUps, LeadFollowUp } from '@/hooks/useLeadFollowUps';
-import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useToast } from '@/hooks/use-toast';
 
 /**
@@ -54,7 +53,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const closeBusinessDeal = useCloseBusinessDeal();
   const { data: services = [] } = useServices();
   const leadServicesMap = useLeadServicesMap();
-  const { data: avgTickets = EMPTY_AVG_TICKET_LOOKUP } = useServiceAvgTicketsMap();
   const { data: pendingFollowUps = [] } = useAllPendingFollowUps();
   const { toast } = useToast();
 
@@ -249,7 +247,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       serviceLine: leadToClose.service_line || undefined,
       projectName: formData.projectName || leadToClose.name,
       clientId: formData.clientId || leadToClose.client_id || '',
-      totalValue: formData.totalValue || leadToClose.estimated_value || 0,
+      totalValue: formData.totalValue || resolveLeadEstimatedValue(leadToClose),
       monthlyValue: formData.monthlyValue,
       customInstallments: formData.projectType === 'fixed_scope' ? formData.installments : undefined,
     });
@@ -272,7 +270,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
               leads={leadsByStage[stage] || []}
               onCardClick={handleCardClick}
               services={services}
-              avgTickets={avgTickets}
               leadServicesMap={leadServicesMap}
               followUpsByLead={followUpsByLead}
             />
@@ -287,7 +284,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
             leads={leadsByStage.stand_by || []}
             onCardClick={handleCardClick}
             services={services}
-            avgTickets={avgTickets}
             leadServicesMap={leadServicesMap}
             followUpsByLead={followUpsByLead}
             emptyLabel="Arraste aqui o que precisa esfriar sem virar perda"
@@ -302,7 +298,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
               lead={activeLead}
               currentStage={activeLead.crm_stage}
               services={services}
-              avgTickets={avgTickets}
             />
           )}
         </DragOverlay>

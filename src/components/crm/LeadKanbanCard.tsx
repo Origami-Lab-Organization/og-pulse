@@ -9,7 +9,7 @@ import {
   LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS, LEAD_SOURCE_LABELS,
   getStageStallDays, isInStandBy, isRecentlyRestored,
 } from '@/types/lead';
-import { resolveLeadEstimatedValue, ServiceAvgTicketLookup, EMPTY_AVG_TICKET_LOOKUP } from '@/lib/leadValue';
+import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
@@ -64,7 +64,6 @@ interface LeadKanbanCardProps {
   currentStage: CRMStage;
   onClick?: () => void;
   services?: Service[];
-  avgTickets?: ServiceAvgTicketLookup;
   leadServices?: LeadServiceRow[];
   pendingFollowUps?: LeadFollowUp[];
   /** Presente apenas na coluna de Stand By — devolve a oportunidade ao funil. */
@@ -73,7 +72,7 @@ interface LeadKanbanCardProps {
 
 const BILLING_TYPES: BillingType[] = ['fixed_scope', 'recurring', 'success_fee', 'no_revenue'];
 
-export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avgTickets = EMPTY_AVG_TICKET_LOOKUP, leadServices = [], pendingFollowUps = [], onResume }: LeadKanbanCardProps) {
+export function LeadKanbanCard({ lead, currentStage, onClick, services = [], leadServices = [], pendingFollowUps = [], onResume }: LeadKanbanCardProps) {
   const navigate = useNavigate();
   const updateLead = useUpdateLead();
   const isWon = currentStage === 'closed';
@@ -120,7 +119,7 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], avg
     ? services.find((s) => s.id === lead.service_line) ?? null
     : null;
 
-  const estimatedValue = resolveLeadEstimatedValue(lead, avgTickets);
+  const estimatedValue = resolveLeadEstimatedValue(lead);
 
   const hasOverdueFollowUp = pendingFollowUps.some((f) => isFollowUpOverdue(f));
   const followUpIndicator = hasOverdueFollowUp

@@ -24,9 +24,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -657,40 +659,34 @@ export function LeadDetailDialog({
                       )}
                     />
 
-                    {/* Estimated value: only when no budget, not in proposal/negotiation/closed, and service generates revenue */}
-                    {!lead.budget_id &&
-                      !['proposal', 'negotiation', 'closed'].includes(
-                        lead.crm_stage,
-                      ) &&
-                      !isNoRevenue && (
-                        <FormField
-                          control={form.control}
-                          name='estimated_value'
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Valor Estimado</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type='number'
-                                  min='0'
-                                  step='0.01'
-                                  placeholder='0,00'
-                                  value={field.value ?? ''}
-                                  onChange={(e) =>
-                                    field.onChange(
-                                      e.target.value
-                                        ? Number(e.target.value)
-                                        : undefined,
-                                    )
-                                  }
-                                  disabled={isDisabled}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
+                    {/* Valor estimado: enquanto não houver orçamento vinculado, o
+                        valor da oportunidade é o que o responsável informa aqui —
+                        em qualquer etapa. A partir do orçamento, ele passa a ser a
+                        fonte do valor e este campo dá lugar ao resumo do orçamento. */}
+                    {!lead.budget_id && !isNoRevenue && (
+                      <FormField
+                        control={form.control}
+                        name='estimated_value'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Valor Estimado</FormLabel>
+                            <FormControl>
+                              <CurrencyInput
+                                value={field.value ?? 0}
+                                onValueChange={field.onChange}
+                                placeholder='0,00'
+                                disabled={isDisabled}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Estimativa da oportunidade. Ao vincular um orçamento,
+                              o valor dele passa a valer no lugar desta estimativa.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
 
                     {/* Budget section: proposal / negotiation / closed, OR any stage when budget is already linked */}
                     {(lead.budget_id || ['proposal', 'negotiation', 'closed'].includes(

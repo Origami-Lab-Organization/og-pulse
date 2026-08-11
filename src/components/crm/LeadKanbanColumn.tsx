@@ -5,7 +5,7 @@ import { LeadWithBudget, CRMStage } from '@/types/lead';
 import { Service } from '@/types/service';
 import { LeadServiceRow } from '@/services/leadServicesService';
 import { LeadFollowUp } from '@/hooks/useLeadFollowUps';
-import { resolveLeadEstimatedValue, ServiceAvgTicketLookup } from '@/lib/leadValue';
+import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
@@ -20,7 +20,6 @@ interface LeadKanbanColumnProps {
   leads: LeadWithBudget[];
   onCardClick: (lead: LeadWithBudget) => void;
   services: Service[];
-  avgTickets: ServiceAvgTicketLookup;
   leadServicesMap: Record<string, LeadServiceRow[]>;
   followUpsByLead: Record<string, LeadFollowUp[]>;
   /** Texto exibido quando a coluna está vazia. */
@@ -29,14 +28,14 @@ interface LeadKanbanColumnProps {
 }
 
 export function LeadKanbanColumn({
-  column, leads, onCardClick, services, avgTickets, leadServicesMap, followUpsByLead,
+  column, leads, onCardClick, services, leadServicesMap, followUpsByLead,
   emptyLabel = 'Nenhuma oportunidade', onResume,
 }: LeadKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   const totalValue = useMemo(
-    () => leads.reduce((sum, lead) => sum + resolveLeadEstimatedValue(lead, avgTickets), 0),
-    [leads, avgTickets]
+    () => leads.reduce((sum, lead) => sum + resolveLeadEstimatedValue(lead), 0),
+    [leads]
   );
 
   return (
@@ -72,7 +71,6 @@ export function LeadKanbanColumn({
               currentStage={column.id}
               onClick={() => onCardClick(lead)}
               services={services}
-              avgTickets={avgTickets}
               leadServices={leadServicesMap[lead.id] ?? []}
               pendingFollowUps={followUpsByLead[lead.id] ?? []}
               onResume={onResume ? () => onResume(lead) : undefined}

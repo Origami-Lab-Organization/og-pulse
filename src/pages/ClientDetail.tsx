@@ -33,6 +33,7 @@ import { getStageLabel } from '@/types/lead';
 import { PROJECT_STATUS_LABELS } from '@/types/project';
 import { formatCNPJ, formatPhone } from '@/lib/masks';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 
 const SectionEmpty = ({ message }: { message: string }) => (
   <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -282,7 +283,7 @@ const ClientDetail = () => {
                       </Badge>
                     </div>
                     <span className="shrink-0 text-sm font-medium text-foreground">
-                      {formatCurrency(opp.budget?.final_total ?? opp.estimated_value ?? 0)}
+                      {formatCurrency(resolveLeadEstimatedValue(opp))}
                     </span>
                   </div>
                 ))

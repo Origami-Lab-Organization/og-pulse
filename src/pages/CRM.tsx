@@ -27,9 +27,9 @@ import { LeadDetailDialog } from '@/components/crm/LeadDetailDialog';
 import { RestoreLeadDialog } from '@/components/crm/RestoreLeadDialog';
 import { DeleteLeadDialog } from '@/components/crm/DeleteLeadDialog';
 import { useLeads, useArchivedLeads } from '@/hooks/useLeads';
-import { useServiceAvgTicketsMap } from '@/hooks/useServiceAvgTicketsMap';
 import { useAuth } from '@/contexts/AuthContext';
 import CRMStats from '@/components/crm/CRMStats';
+import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 import { formatCurrency, formatDate, formatShortDate } from '@/lib/formatters';
 import {
   ARCHIVE_REASONS, CRM_LEAD_COLUMNS, LeadWithBudget, SERVICE_LINE_LABELS, SERVICE_LINE_OPTIONS,
@@ -90,7 +90,6 @@ export default function CRM() {
   // Oportunidades perdidas — toda perda é arquivamento (ver leadService.closeLeadAsLost)
   const { data: rawLostLeads = [], isLoading: loadingLost } = useArchivedLeads();
 
-  const { data: avgTickets } = useServiceAvgTicketsMap();
 
   // Fetch lead IDs linked to cancelled projects
   const { data: cancelledLeadIds = [] } = useQuery({
@@ -196,7 +195,7 @@ export default function CRM() {
       switch (sortKey) {
         case 'name': return dir * a.name.localeCompare(b.name);
         case 'lost_at': return dir * (lostAtTime(a) - lostAtTime(b));
-        case 'estimated_value': return dir * ((a.budget?.final_total ?? a.estimated_value) - (b.budget?.final_total ?? b.estimated_value));
+        case 'estimated_value': return dir * (resolveLeadEstimatedValue(a) - resolveLeadEstimatedValue(b));
         default: return 0;
       }
     });
@@ -229,7 +228,7 @@ export default function CRM() {
       switch (listSortKey) {
         case 'name': return dir * a.name.localeCompare(b.name);
         case 'created_at': return dir * (new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
-        case 'estimated_value': return dir * ((a.budget?.final_total ?? a.estimated_value) - (b.budget?.final_total ?? b.estimated_value));
+        case 'estimated_value': return dir * (resolveLeadEstimatedValue(a) - resolveLeadEstimatedValue(b));
         default: return 0;
       }
     });
@@ -239,7 +238,7 @@ export default function CRM() {
   // Estatísticas de perda: TODA oportunidade em "Perdas" conta como perda.
   const lostStats = useMemo(() => {
     const now = new Date();
-    const lostValue = lostLeads.reduce((s, l) => s + (l.budget?.final_total ?? l.estimated_value), 0);
+    const lostValue = lostLeads.reduce((s, l) => s + resolveLeadEstimatedValue(l), 0);
     const reasonCounts: Record<string, number> = {};
     lostLeads.forEach(l => {
       if (l.archive_reason) reasonCounts[l.archive_reason] = (reasonCounts[l.archive_reason] || 0) + 1;
@@ -277,7 +276,7 @@ export default function CRM() {
       >
         {/* Stats */}
         {activeTab !== 'lost' ? (
-          <CRMStats leads={activeLeads} avgTickets={avgTickets} />
+          <CRMStats leads={activeLeads} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
@@ -504,7 +503,7 @@ export default function CRM() {
                       <TableCell>{lead.responsible?.nome || '-'}</TableCell>
                       <TableCell>{lead.budget?.budget_number ?? '—'}</TableCell>
                       <TableCell className="text-right">
-                        {formatCurrency(lead.budget?.final_total ?? lead.estimated_value)}
+                        {formatCurrency(resolveLeadEstimatedValue(lead))}
                       </TableCell>
                       <TableCell>
                         {lead.budget
@@ -598,7 +597,7 @@ export default function CRM() {
                         </TableCell>
                         <TableCell>{formatDate(lead.lost_at ?? lead.archived_at)}</TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(lead.budget?.final_total ?? lead.estimated_value)}
+                          {formatCurrency(resolveLeadEstimatedValue(lead))}
                         </TableCell>
                         {isManager && (
                           <TableCell onClick={(e) => e.stopPropagation()}>

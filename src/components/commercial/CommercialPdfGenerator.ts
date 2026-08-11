@@ -13,6 +13,7 @@ function funnelSortIndex(stage: string): number {
   return index < 0 ? Number.MAX_SAFE_INTEGER : index;
 }
 import { truncateToCents } from '@/lib/formatters';
+import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 
 // ─── Input types ─────────────────────────────────────────────────────────────
 
@@ -477,9 +478,7 @@ export function generateCommercialPdf(input: CommercialPdfInput): void {
     .sort((a, b) => {
       const stageOrder = funnelSortIndex(a.crm_stage) - funnelSortIndex(b.crm_stage);
       if (stageOrder !== 0) return stageOrder;
-      const va = a.budget?.final_total || a.estimated_value;
-      const vb = b.budget?.final_total || b.estimated_value;
-      return vb - va;
+      return resolveLeadEstimatedValue(b) - resolveLeadEstimatedValue(a);
     });
 
   let lastStage = '';
@@ -495,7 +494,7 @@ export function generateCommercialPdf(input: CommercialPdfInput): void {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       const stageLeads = sortedLeads.filter(l => l.crm_stage === lead.crm_stage);
-      const stageTotal = stageLeads.reduce((s, l) => s + (l.budget?.final_total || l.estimated_value), 0);
+      const stageTotal = stageLeads.reduce((s, l) => s + resolveLeadEstimatedValue(l), 0);
       doc.text(
         `${getStageLabel(lead.crm_stage)}   (${stageLeads.length} oportunidades — ${fmtK(stageTotal)})`,
         margin + 2, y + 5,

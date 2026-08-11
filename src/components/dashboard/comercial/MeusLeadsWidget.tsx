@@ -11,6 +11,7 @@ import {
   isClosedOutcome, isInStandBy,
 } from '@/types/lead';
 import { cn } from '@/lib/utils';
+import { resolveLeadEstimatedValue as getLeadValue } from '@/lib/leadValue';
 
 /**
  * Ordem de atenção: quem está mais perto de fechar aparece primeiro, ou seja o
@@ -27,10 +28,6 @@ function formatCurrencyCompact(value: number): string {
   if (value >= 1_000) return `R$ ${Math.round(value / 1_000)}k`;
   if (value === 0) return '—';
   return `R$ ${Math.round(value)}`;
-}
-
-function getLeadValue(lead: LeadWithBudget): number {
-  return (lead.budget?.final_total ?? 0) > 0 ? lead.budget!.final_total : lead.estimated_value;
 }
 
 interface Props {

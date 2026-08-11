@@ -106,9 +106,9 @@
 - **Próximo passo**: nenhuma alteração de função/policy/trigger deve ser aplicada direto no SQL Editor — sempre via migration, mesmo para "correções rápidas" durante debugging em paralelo. Se recorrer, considerar um script de CI que rode `pg_get_functiondef` das funções críticas de alocação/folha e diffe contra o corpo esperado nas migrations, para detectar drift automaticamente.
 
 ### TD-0011 — cast `as any` em service_line_avg_tickets (tabela/RPCs fora dos tipos gerados)
-- **Status**: aberto
+- **Status**: resolvido por remoção (2026-08-11) — o subsistema de ticket médio foi removido inteiro (frontend e banco) pela migration `20260811120000_drop_service_avg_tickets.sql`. Os arquivos que carregavam os casts deixaram de existir. Ver ADR-0017.
 - **Prioridade**: baixa
-- **Arquivos**: `src/hooks/useServiceLineAvgTicketsMap.ts`, `src/services/serviceLineAvgTicketService.ts`
+- **Arquivos**: `src/hooks/useServiceLineAvgTicketsMap.ts`, `src/services/serviceLineAvgTicketService.ts` (removidos)
 - **Impacto**: a migration `20260806130000_service_line_avg_tickets.sql` cria a tabela `service_line_avg_tickets` e as functions `get_service_line_avg_tickets()`/`recalculate_service_line_avg_tickets_now()`, mas o `src/integrations/supabase/types.ts` gerado ainda não as conhece (migration não aplicada no ambiente onde os tipos foram gerados pela última vez). Mesma situação de TD-0008/TD-0001/TD-0003 — sem risco funcional (erros de RLS/policy continuam sendo pegos em runtime pelo Postgres, só a tipagem estática do client fica cega).
 - **Causa raiz**: migration nova ainda não aplicada no ambiente onde os tipos foram gerados pela última vez.
 - **Próximo passo**: depois de aplicar a migration, rodar `supabase gen types typescript --local > src/integrations/supabase/types.ts` e remover os casts `as any`/`supabase.rpc as any` desses dois arquivos.
@@ -120,6 +120,14 @@
 - **Impacto**: `allProjectsLocked` retorna sempre `false` quando `projects.length === 0`. Um colaborador que só lança horas em atividades internas (sem nenhum projeto alocado naquela semana) nunca vê "Semana enviada" no rodapé, o botão "Enviar semana" nunca desabilita (pode reenviar indefinidamente), e mesmo depois do fix de 2026-07-29 — que passou a usar `allProjectsLocked` como override para travar QUALQUER linha da semana enviada, inclusive atividades nunca tocadas — as células de atividade continuam editáveis indefinidamente para esse perfil, porque o sinal de "semana travada" nunca liga.
 - **Causa raiz**: o único sinal de "semana enviada" hoje é agregado a partir de `project_timesheets`/`project_timesheet_submissions`, por projeto. Não existe uma submissão de semana (ou de atividades internas) independente de projeto.
 - **Próximo passo**: modelar um sinal explícito de "semana enviada" que não dependa de existir pelo menos um projeto — ex.: submissão por atividade análoga a `project_timesheet_submissions`, ou uma submissão de semana agregada por colaborador. É decisão de produto, não só de código — candidato a ADR se afetar mais de uma tela.
+
+### TD-0012 — Gate de orçamento do pipeline existe só no frontend
+- **Status**: aberto
+- **Prioridade**: média
+- **Arquivos**: `src/services/leadService.ts` (`updateLeadStage`), `src/components/crm/LeadDetailDialog.tsx` (`canAdvanceFrom`), `src/components/crm/LeadKanbanBoard.tsx` (drag & drop)
+- **Impacto**: a exigência de `budget_id` para avançar de Proposta Enviada para Negociação é validada apenas no cliente. `updateLeadStage` grava `crm_stage` sem checar nada, e não há CHECK constraint, trigger nem policy RLS no banco impedindo uma oportunidade chegar a `negotiation` ou `closed` sem orçamento. Qualquer chamada direta ao PostgREST com um token válido do tenant contorna a regra. Também há duplicação: a mesma regra vive em dois lugares no frontend, com mensagens diferentes, e pode divergir.
+- **Causa raiz**: a regra nasceu como validação de UX (GP-J3) e nunca foi promovida a invariante de domínio no banco.
+- **Próximo passo**: mover o gate para o banco — trigger `BEFORE UPDATE` em `leads` validando a transição, ou uma RPC `advance_lead_stage` que centralize as pré-condições e vire o único caminho de escrita de `crm_stage`. Descoberto durante o ADR-0017; fora do escopo daquele diff.
 
 ### TD-0001 — `as any` em Edge Functions de alertas de parcelas
 - **Status:** aberto

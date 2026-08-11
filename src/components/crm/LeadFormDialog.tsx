@@ -7,7 +7,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Check, Building2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -31,6 +32,7 @@ const schema = z.object({
   contact_email: z.string().optional(),
   client_id: z.string().optional(),
   notes: z.string().optional(),
+  estimated_value: z.coerce.number().min(0).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -66,6 +68,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       contact_email: '',
       client_id: '',
       notes: '',
+      estimated_value: 0,
     },
   });
 
@@ -86,6 +89,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
           contact_email: lead.contact_email || '',
           client_id: lead.client_id || '',
           notes: lead.notes || '',
+          estimated_value: lead.estimated_value || 0,
         });
       } else {
         form.reset({
@@ -98,6 +102,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
           contact_email: '',
           client_id: '',
           notes: '',
+          estimated_value: 0,
         });
       }
     }
@@ -178,7 +183,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       contact_phone: values.contact_phone || null,
       source: values.source || null,
       notes: values.notes || null,
-      estimated_value: 0,
+      estimated_value: values.estimated_value ?? 0,
     };
 
     try {
@@ -194,8 +199,8 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
     handleClose();
     if (!isEditing) {
       toast({
-        title: 'Lead criado',
-        description: 'O lead foi criado e está na coluna Prospecção/Oportunidade do kanban.',
+        title: 'Oportunidade criada',
+        description: 'A oportunidade foi criada e está na coluna Prospecção/Oportunidade do pipeline.',
       });
     }
   };
@@ -394,7 +399,26 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
               </FormItem>
             )} />
 
-            {/* 8. Observações */}
+            {/* 8. Valor Estimado */}
+            <FormField control={form.control} name="estimated_value" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Valor Estimado</FormLabel>
+                <FormControl>
+                  <CurrencyInput
+                    value={field.value ?? 0}
+                    onValueChange={field.onChange}
+                    placeholder="0,00"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Opcional. Vale até existir um orçamento vinculado — a partir daí o
+                  valor do orçamento passa a valer no lugar desta estimativa.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            {/* 9. Observações */}
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>
                 <FormLabel>Observações</FormLabel>

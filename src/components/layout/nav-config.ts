@@ -47,7 +47,6 @@ export const NAV_SECTIONS: NavSection[] = [
     tabs: [
       { title: 'Funcionários', url: '/employees' },
       { title: 'Serviços', url: '/comercial/servicos' },
-      { title: 'Ticket Médio', url: '/comercial/ticket-medio' },
       { title: 'Clientes', url: '/clients' },
     ],
   },

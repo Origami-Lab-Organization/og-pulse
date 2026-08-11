@@ -25,6 +25,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { resolveLeadEstimatedValue } from "@/lib/leadValue";
 import {
 	Dialog,
 	DialogContent,
@@ -179,7 +180,12 @@ function getBaseValue(
 	lead?: LeadWithBudget | null,
 ): number {
 	if (projectType === "non_revenue") return 0;
-	return budget?.final_total ?? lead?.estimated_value ?? 0;
+	// Mesma regra única do pipeline: orçamento fechado vence; sem ele, vale a
+	// estimativa informada na oportunidade. Ver `resolveLeadEstimatedValue`.
+	return resolveLeadEstimatedValue({
+		estimated_value: lead?.estimated_value ?? 0,
+		budget: budget ? { final_total: budget.final_total } : null,
+	});
 }
 
 function normalizeInstallments(

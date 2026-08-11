@@ -33,12 +33,12 @@ interface KPIConfig {
 
 const row1: KPIConfig[] = [
   { key: 'conversionRate', prevKey: 'prevConversionRate', label: 'Taxa de Conversão', icon: Percent, format: (v: number) => `${v.toFixed(1)}%`, tooltip: 'Percentual de leads que se tornaram negócio fechado no período', invertColor: false },
-  { key: 'avgTicket', prevKey: 'prevAvgTicket', label: 'Ticket Médio', icon: Receipt, format: (v: number) => formatCurrency(v), tooltip: 'Valor médio dos negócios fechados. O valor é definido na etapa Proposta Enviada, quando o orçamento é gerado', invertColor: false },
+  { key: 'avgTicket', prevKey: 'prevAvgTicket', label: 'Ticket Médio', icon: Receipt, format: (v: number) => formatCurrency(v), tooltip: 'Valor médio dos negócios fechados. Vale o orçamento vinculado quando existe; sem orçamento, o valor estimado informado na oportunidade', invertColor: false },
   { key: 'forecast', prevKey: 'prevForecast', label: 'Receita Prevista (Forecast)', icon: Target, format: (v: number) => formatCurrency(v), tooltip: 'Estimativa ponderada de receita com base nos orçamentos em andamento e probabilidade de fechamento por etapa: Proposta Enviada 50%, Negociação 75%, Fechado 100%', invertColor: false },
 ];
 
 const row2: KPIConfig[] = [
-  { key: 'activePipeline', prevKey: 'prevActivePipeline', label: 'Pipeline Ativo', icon: TrendingUp, format: (v: number) => formatCurrency(v), tooltip: 'Soma dos orçamentos em andamento (etapas Proposta Enviada e Negociação). Leads em Prospecção/Oportunidade e Qualificação ainda não possuem valor definido', invertColor: false },
+  { key: 'activePipeline', prevKey: 'prevActivePipeline', label: 'Pipeline Ativo', icon: TrendingUp, format: (v: number) => formatCurrency(v), tooltip: 'Soma do valor das oportunidades em aberto (exclui Fechado, Perdido e Stand By). Vale o orçamento vinculado quando existe; sem orçamento, o valor estimado informado na oportunidade. Oportunidades sem valor informado não entram na conta', invertColor: false },
   { key: 'avgSalesCycleDays', prevKey: 'prevAvgSalesCycleDays', label: 'Ciclo Médio de Venda', icon: Clock, format: (v: number | null) => v !== null ? `${Math.round(v)} dias` : '—', tooltip: 'Tempo médio em dias desde a criação do lead até o fechamento do negócio', invertColor: true },
   { key: 'newLeadsThisYear', prevKey: 'prevNewLeadsThisYear', label: 'Leads no Período', icon: UserPlus, format: (v: number) => String(v), tooltip: 'Quantidade de novos leads criados no período, independente da etapa', invertColor: false },
 ];

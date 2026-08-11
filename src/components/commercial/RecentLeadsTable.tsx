@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { resolveLeadEstimatedValue as getLeadValue } from '@/lib/leadValue';
 import {
   LeadWithBudget, CRMStage, getFunnelIndex, getNextFunnelStage, getStageColor, getStageLabel,
 } from '@/types/lead';
@@ -28,11 +29,6 @@ interface Props {
 
 type SortKey = 'name' | 'company_name' | 'crm_stage' | 'value' | 'created_at' | 'responsible';
 type SortDir = 'asc' | 'desc';
-
-function getLeadValue(lead: LeadWithBudget): number {
-  if (lead.budget?.final_total && lead.budget.final_total > 0) return lead.budget.final_total;
-  return lead.estimated_value;
-}
 
 /**
  * Antes da Proposta não existe orçamento, então valor é sempre estimativa.
