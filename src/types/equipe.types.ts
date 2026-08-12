@@ -45,6 +45,7 @@ export interface ProjectAllocationWithEmployee extends ProjectAllocationDB {
     nome: string;
     cargo: string;
     foto_url?: string | null;
+    email?: string | null;
   };
   budget_role?: BudgetRoleDB | null;
 }
@@ -67,6 +68,7 @@ export interface ProjectAllocation {
     nome: string;
     cargo: string;
     foto_url?: string | null;
+    email?: string | null;
   };
   budgetRoleId: string | null;
   budgetRole: BudgetRoleDB | null;
@@ -135,7 +137,7 @@ export interface TeamAllocationRow {
   kind: TeamAllocationRowKind;
   key: string; // employeeId (member/deallocated) ou team_row id (vaga)
   employeeId: string | null;
-  employee: { id: string; nome: string; cargo: string; foto_url?: string | null } | null;
+  employee: { id: string; nome: string; cargo: string; foto_url?: string | null; email?: string | null } | null;
   roleName: string;
   budgetRoleId: string | null;
   isUnbudgeted: boolean; // badge "Não orçado"

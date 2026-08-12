@@ -146,6 +146,14 @@ sequenceDiagram
     SB-->>F: sessão Supabase
 ```
 
+O `msalClient` serve dois tipos de token, com finalidades que não se misturam:
+**ID token** (`acquireMicrosoftIdToken:184`), prova de identidade que só a Edge
+Function valida, e **access token do Graph**
+(`acquireGraphTokenForScopes:219`), usado para chamar a API. O segundo aceita o
+conjunto de escopos por parâmetro para permitir consentimento incremental — o
+seletor de pasta do OneDrive pede `Files.ReadWrite.All` sem contaminar as
+aquisições de agenda e e-mail. Ver `.harness/integrations/onedrive.md`.
+
 ## PWA / Service worker (`src/sw.ts`)
 
 - Cacheia **apenas GETs** ao REST do Supabase de uma allowlist de 15 tabelas

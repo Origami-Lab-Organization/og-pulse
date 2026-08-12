@@ -265,3 +265,75 @@ export interface MailMessage {
   webLink: string | null;
   classification: MailClassification;
 }
+
+// ─── OneDrive / SharePoint (ADR-0019) ─────────────────────────────────────────
+
+/** Pasta do OneDrive como o Pulse precisa dela: identidade + rótulo. */
+export interface DriveFolder {
+  /** driveItem id. */
+  id: string;
+  /** Drive onde o item vive — precisa ser guardado junto: id sozinho não resolve. */
+  driveId: string;
+  name: string;
+  /** Caminho legível para mostrar ao GP (ex.: "/Documentos/Clientes"). */
+  path: string;
+  childFolderCount: number;
+}
+
+/** Vínculo do projeto com a pasta raiz escolhida no OneDrive. */
+export interface ProjectDriveLink {
+  driveId: string;
+  rootItemId: string;
+  rootPath: string;
+  linkedAt: string;
+}
+
+export interface LinkProjectDriveInput {
+  projectId: string;
+  driveId: string;
+  rootItemId: string;
+  rootPath: string;
+  linkedBy?: string | null;
+}
+
+/** Item dentro da pasta raiz do projeto: pasta ou arquivo. */
+export interface DriveEntry {
+  id: string;
+  driveId: string;
+  name: string;
+  isFolder: boolean;
+  /** Bytes. 0 para pasta. */
+  size: number;
+  lastModifiedAt: string;
+  /** Nome de quem alterou por último, como o OneDrive exibe. */
+  lastModifiedBy: string | null;
+  /** Link para abrir no OneDrive; null quando o Graph não devolve. */
+  webUrl: string | null;
+  childCount: number;
+}
+
+/** Nó da varredura da árvore do projeto, achatado com o vínculo de pai. */
+export interface DriveTreeNode {
+  externalId: string;
+  name: string;
+  parentExternalId: string | null;
+}
+
+export type DrivePermissionRole = 'read' | 'write' | 'owner';
+
+/** Quem tem acesso a um item, como o Pulse precisa exibir. */
+export interface DrivePermission {
+  id: string;
+  /** Nome de quem recebeu; para link de compartilhamento, descreve o escopo. */
+  displayName: string;
+  email: string | null;
+  role: DrivePermissionRole;
+  /** Texto fiel do papel — usa o valor cru quando o vocabulário é desconhecido. */
+  roleLabel: string;
+  /** Veio de um link de compartilhamento, não de concessão nominal. */
+  isLink: boolean;
+  /** Herdado da pasta acima — só pode ser removido na pasta de origem. */
+  isInherited: boolean;
+  /** Falso quando remover exigiria apagar o link inteiro ou é dono/herdado. */
+  isRevocable: boolean;
+}

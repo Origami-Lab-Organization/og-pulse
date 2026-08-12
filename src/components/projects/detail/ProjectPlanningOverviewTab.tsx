@@ -18,6 +18,7 @@ import { useMaskedCurrency } from '@/contexts/HideValuesContext';
 import { useProjectOKRs } from '@/hooks/useProjectOKRs';
 import { useProjectMilestones } from '@/hooks/useProjectMilestones';
 import { useProjectAllocations } from '@/hooks/useProjectRoles';
+import { useProjectDriveLink } from '@/hooks/useProjectDrive';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +50,7 @@ export function ProjectPlanningOverviewTab({
   const { data: milestones = [] } = useProjectMilestones(project.id);
   // Fonte canônica de equipe é project_role_allocations (ADR-0006), não project.members.
   const { data: allocations = [] } = useProjectAllocations(project.id, false);
+  const { data: driveLink } = useProjectDriveLink(project.id);
 
   const installments = project.installments || [];
   const isPlanning = project.portfolio_stage === 'planning';
@@ -70,9 +72,10 @@ export function ProjectPlanningOverviewTab({
     membersCount > 0,
     milestones.length > 0,
     installments.length > 0,
+    Boolean(driveLink),
   ];
   const completedCount = checks.filter(Boolean).length;
-  const totalItems = 5;
+  const totalItems = 6;
   const allDone = completedCount === totalItems;
   const progressPct = (completedCount / totalItems) * 100;
 
@@ -108,6 +111,14 @@ export function ProjectPlanningOverviewTab({
       subtitle: `${installments.length} parcela${installments.length !== 1 ? 's' : ''}`,
       completed: checks[4],
       tab: 'financial',
+    },
+    {
+      label: 'Pasta do projeto criada e vinculada',
+      subtitle: driveLink
+        ? driveLink.rootPath
+        : 'Vincule a pasta do projeto no OneDrive',
+      completed: checks[5],
+      tab: 'files',
     },
   ];
 
@@ -208,7 +219,7 @@ export function ProjectPlanningOverviewTab({
                 Pronto para começar?
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Cinco verificações antes de habilitar timesheets, alocações reais e cobrança.
+                Seis verificações antes de habilitar timesheets, alocações reais e cobrança.
               </p>
             </div>
             <div className="shrink-0 text-right">

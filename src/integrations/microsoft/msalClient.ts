@@ -216,25 +216,23 @@ export async function disconnectMicrosoft(): Promise<void> {
  * popup se a Microsoft exigir interação (senha trocada, MFA, consentimento
  * revogado).
  */
-export async function acquireGraphToken(): Promise<string> {
+export async function acquireGraphTokenForScopes(scopes: string[]): Promise<string> {
   const instance = await getInstance();
   const account = firstAccount(instance);
   if (!account) throw new MicrosoftNotConnectedError();
 
   try {
-    const result = await instance.acquireTokenSilent({
-      scopes: GRAPH_SCOPES,
-      account,
-    });
+    const result = await instance.acquireTokenSilent({ scopes, account });
     return result.accessToken;
   } catch (error) {
     if (error instanceof InteractionRequiredAuthError) {
-      const result = await instance.acquireTokenPopup({
-        scopes: GRAPH_SCOPES,
-        account,
-      });
+      const result = await instance.acquireTokenPopup({ scopes, account });
       return result.accessToken;
     }
     throw error;
   }
+}
+
+export async function acquireGraphToken(): Promise<string> {
+  return acquireGraphTokenForScopes(GRAPH_SCOPES);
 }

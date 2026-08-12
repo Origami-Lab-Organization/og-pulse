@@ -34,7 +34,7 @@ flowchart LR
 
     subgraph Microsoft
         ENTRA[Entra ID<br/>OAuth PKCE]
-        GRAPH[Graph v1.0<br/>Calendário + Email]
+        GRAPH[Graph v1.0<br/>Calendário + Email + OneDrive]
     end
 
     EXT1[Resend<br/>email transacional]
@@ -44,7 +44,8 @@ flowchart LR
     SPA -->|"JWT anon (RLS)"| REST
     SPA -->|functions.invoke| EF
     SPA -->|"MSAL popup, sem secret<br/>msalClient.ts:51-54"| ENTRA
-    SPA -->|"Bearer MSAL<br/>microsoftGraphService.ts:109"| GRAPH
+    SPA -->|"Bearer MSAL<br/>microsoftGraphService.ts:101"| GRAPH
+    SPA -->|"consentimento incremental Files<br/>msalClient.ts:219"| GRAPH
     CRON -->|"Bearer service_role<br/>lead_follow_up_cron.sql:27-34"| EF
     EF -->|service role| REST
     EF -->|"JWKS (verificação idToken)<br/>microsoft-sso/index.ts:91-95"| ENTRA
@@ -60,7 +61,8 @@ flowchart LR
 | Serviço | Consumidor | O quê | Credencial |
 |---|---|---|---|
 | Microsoft Entra ID | Browser (`msalClient.ts:54`) | Login OAuth Auth Code + PKCE | client_id público, sem secret (`config.ts:1-16`) |
-| Microsoft Graph v1.0 | Browser (`microsoftGraphService.ts:38`) | Calendário (`/me/calendarView`, `/me/events`) e Email (`/me/mailFolders/inbox/messages`); escopos `Calendars.ReadWrite`, `Mail.Read` (`:46`) | Bearer MSAL, renovado silent; backend nunca vê o token |
+| Microsoft Graph v1.0 | Browser (`microsoftGraphService.ts:39`) | Calendário (`/me/calendarView`, `/me/events`) e Email (`/me/mailFolders/inbox/messages`); escopos `Calendars.ReadWrite`, `Mail.Read` (`:47`) | Bearer MSAL, renovado silent; backend nunca vê o token |
+| Microsoft Graph — OneDrive | Browser (`microsoftGraphService.ts:962-1075`) | Seletor de pasta raiz do projeto: `/me/drive/root`, `/drives/{id}/items/{id}/children`, `/me/drive/sharedWithMe` e `/shares/u!{b64}/driveItem`. Escopo `Files.ReadWrite.All` **em conjunto separado** (`FILES_SCOPES`, `:962`) | Bearer MSAL adquirido por consentimento incremental (`msalClient.ts:219`), só ao abrir o seletor |
 | Resend | `send-invite-email/index.ts:135`, `send-candidate-hired-email/index.ts:126` | Email transacional (ver divergência 2) | `RESEND_API_KEY` |
 | Anthropic | `market-analysis-start/index.ts:317` (Opus 4), `market-analysis-refine/index.ts:37` (Sonnet 4) | Relatórios de análise de mercado | `ANTHROPIC_API_KEY` |
 | Lovable AI Gateway (Gemini 2.5 Flash) | `parse-cnpj-card/index.ts:35-42` | Extração estruturada de Cartão CNPJ (PDF); usado por `ClientForm` e `SupplierFormDialog` | `LOVABLE_API_KEY` |
@@ -132,6 +134,12 @@ Edge Functions: `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 4. **Verificação facial é client-side**: `record-time-punch` aceita
    `face_match_status`/`score` calculados no navegador (`index.ts:330-349`) —
    o servidor não re-verifica.
+5. **`FILES_SCOPES` não pode ser fundido em `GRAPH_SCOPES`**
+   (`microsoftGraphService.ts:962` vs `:47`). `GRAPH_SCOPES` é usado em toda
+   aquisição de token, inclusive as silenciosas de agenda; somar o escopo de
+   arquivos ali faria agenda e e-mail exigirem o consentimento de admin de
+   `Files.ReadWrite.All` e quebrarem num tenant sem ele. Ver
+   `.harness/integrations/onedrive.md`.
 
 ## Divergências código × doc
 

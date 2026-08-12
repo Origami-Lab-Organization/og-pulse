@@ -47,7 +47,7 @@ export const equipeService = {
       'month',
       'planned_hours',
       ...(includeCost ? ['cost_per_hour'] : []),
-      'employee:employees(id, nome, cargo, foto_url)',
+      'employee:employees(id, nome, cargo, foto_url, email)',
       'budget_role:budget_roles(id, role_name, seniority, hourly_rate)',
     ].join(', ');
 

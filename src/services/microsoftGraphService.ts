@@ -24,6 +24,11 @@ import type {
   CalendarEventDetail,
   CalendarEventInput,
   CalendarEventUpdate,
+  DriveEntry,
+  DriveFolder,
+  DrivePermission,
+  DrivePermissionRole,
+  DriveTreeNode,
   EventAttendee,
   EventType,
   GraphErrorCode,
@@ -948,4 +953,554 @@ export async function listRecentMessages(
   );
 
   return data.value.map(toMailMessage);
+}
+
+// ─── OneDrive (ADR-0019) ──────────────────────────────────────────────────────
+
+/**
+ * Pedido à parte de propósito. Somar isto a GRAPH_SCOPES faria toda aquisição
+ * de token — inclusive as silenciosas de agenda e caixa de entrada — passar a
+ * exigir o consentimento de arquivos; num tenant sem esse consentimento, agenda
+ * e e-mail quebrariam para todo mundo. Aqui só falha quem abre o seletor.
+ */
+export const FILES_SCOPES = ['Files.ReadWrite.All'];
+
+interface GraphDriveItem {
+  id: string;
+  name: string;
+  folder?: { childCount?: number };
+  file?: { mimeType?: string };
+  size?: number;
+  webUrl?: string;
+  lastModifiedDateTime?: string;
+  lastModifiedBy?: { user?: { displayName?: string } };
+  parentReference?: { driveId?: string; path?: string };
+  /**
+   * Presente em atalho para item de outro drive ("Adicionar atalho aos Meus
+   * arquivos") e em cada linha de `sharedWithMe`. Quando existe, a identidade
+   * navegável é a de dentro — a de fora aponta para o atalho, não para a pasta.
+   */
+  remoteItem?: GraphDriveItem;
+}
+
+/** Pasta de verdade: a própria, ou a que o atalho aponta. */
+function folderFacetOf(item: GraphDriveItem): GraphDriveItem | null {
+  if (item.folder !== undefined) return item;
+  if (item.remoteItem?.folder !== undefined) return item.remoteItem;
+  return null;
+}
+
+/**
+ * `parentReference.path` vem como `/drive/root:/A/B` no drive próprio e como
+ * `/drives/{driveId}/root:/A/B` quando o item mora em outro drive. Sem cortar
+ * até o `root:`, o id do drive vaza para a tela como se fosse pasta.
+ */
+function readablePath(rawPath: string | undefined): string {
+  if (!rawPath) return '';
+  const afterRoot = rawPath.replace(/^.*?\/root:?/, '');
+  return decodeURIComponent(afterRoot);
+}
+
+function toDriveFolder(item: GraphDriveItem, fallbackDriveId: string): DriveFolder {
+  const target = folderFacetOf(item) ?? item;
+  const parentPath = readablePath(target.parentReference?.path);
+  const name = item.name || target.name;
+  return {
+    id: target.id,
+    driveId: target.parentReference?.driveId ?? fallbackDriveId,
+    name,
+    path: `${parentPath}/${name}`,
+    childFolderCount: target.folder?.childCount ?? 0,
+  };
+}
+
+/** Raiz do OneDrive da pessoa autenticada — ponto de partida do seletor. */
+export async function getMyDriveRoot(token: string): Promise<DriveFolder> {
+  const item = await graphGet<GraphDriveItem>(
+    token,
+    '/me/drive/root?$select=id,name,folder,parentReference',
+  );
+
+  return {
+    id: item.id,
+    driveId: item.parentReference?.driveId ?? '',
+    name: item.name || 'OneDrive',
+    path: '/',
+    childFolderCount: item.folder?.childCount ?? 0,
+  };
+}
+
+/**
+ * Subpastas de um item. O Graph não filtra por faceta `folder` de forma
+ * confiável no $filter, então a separação é feita aqui — arquivo não interessa
+ * ao seletor de raiz.
+ */
+export async function listChildFolders(
+  token: string,
+  driveId: string,
+  itemId: string,
+): Promise<DriveFolder[]> {
+  const path = driveId
+    ? `/drives/${driveId}/items/${itemId}/children`
+    : `/me/drive/items/${itemId}/children`;
+
+  const items = await graphGetAll<GraphDriveItem>(
+    token,
+    `${path}?$select=id,name,folder,parentReference,remoteItem&$top=200`,
+  );
+
+  return items
+    .filter((item) => folderFacetOf(item) !== null)
+    .map((item) => toDriveFolder(item, driveId))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+/**
+ * "Compartilhados comigo". A resposta traz atalhos, não os itens reais: a
+ * identidade utilizável está em `remoteItem` — usar o `id` de fora navega no
+ * drive errado (ou em nenhum). Só pastas interessam ao seletor de raiz.
+ */
+export async function listSharedWithMe(token: string): Promise<DriveFolder[]> {
+  const items = await graphGetAll<GraphDriveItem>(token, '/me/drive/sharedWithMe');
+
+  return items
+    .filter((item) => folderFacetOf(item) !== null)
+    .map((item) => toDriveFolder(item, ''))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+/**
+ * Resolve uma URL de compartilhamento do OneDrive/SharePoint em driveItem.
+ *
+ * Necessário porque pasta que chega por LINK não aparece em `sharedWithMe` —
+ * esse endpoint lista concessões diretas. Sem este caminho, a pasta de projeto
+ * compartilhada por link fica inalcançável pelo seletor.
+ */
+export async function resolveSharedUrl(token: string, sharingUrl: string): Promise<DriveFolder> {
+  const bytes = new TextEncoder().encode(sharingUrl.trim());
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  const encoded = `u!${btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
+
+  const item = await graphGet<GraphDriveItem>(
+    token,
+    `/shares/${encoded}/driveItem?$select=id,name,folder,parentReference,remoteItem`,
+  );
+
+  if (folderFacetOf(item) === null) {
+    throw new GraphError(GRAPH_ERROR_CODE.NOT_FOUND, 'O link aponta para um arquivo, não para uma pasta');
+  }
+
+  return toDriveFolder(item, '');
+}
+
+/** Segmento de caminho para as APIs `:/nome:/` do Graph. */
+function encodePathSegment(name: string): string {
+  return encodeURIComponent(name.trim()).replace(/'/g, "%27");
+}
+
+function itemsBase(driveId: string): string {
+  return driveId ? `/drives/${driveId}/items` : '/me/drive/items';
+}
+
+function toDriveEntry(item: GraphDriveItem, fallbackDriveId: string): DriveEntry {
+  const target = item.remoteItem ?? item;
+  return {
+    id: target.id,
+    driveId: target.parentReference?.driveId ?? fallbackDriveId,
+    name: item.name || target.name,
+    isFolder: folderFacetOf(item) !== null,
+    size: target.size ?? 0,
+    lastModifiedAt: target.lastModifiedDateTime ?? '',
+    lastModifiedBy: target.lastModifiedBy?.user?.displayName ?? null,
+    webUrl: target.webUrl ?? null,
+    childCount: target.folder?.childCount ?? 0,
+  };
+}
+
+/** Pastas E arquivos de uma pasta, pastas primeiro — a ordem que o usuário espera. */
+export async function listDriveChildren(
+  token: string,
+  driveId: string,
+  itemId: string,
+): Promise<DriveEntry[]> {
+  const items = await graphGetAll<GraphDriveItem>(
+    token,
+    `${itemsBase(driveId)}/${itemId}/children?$select=id,name,folder,file,size,webUrl,lastModifiedDateTime,lastModifiedBy,parentReference,remoteItem&$top=200`,
+  );
+
+  return items
+    .map((item) => toDriveEntry(item, driveId))
+    .sort((a, b) => {
+      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+      return a.name.localeCompare(b.name, 'pt-BR');
+    });
+}
+
+export async function createDriveFolder(
+  token: string,
+  driveId: string,
+  parentItemId: string,
+  name: string,
+): Promise<DriveEntry> {
+  const item = await graphFetch<GraphDriveItem>(
+    token,
+    `${GRAPH_BASE}${itemsBase(driveId)}/${parentItemId}/children`,
+    {
+      method: 'POST',
+      body: {
+        name: name.trim(),
+        folder: {},
+        // Falha em vez de renomear em silêncio: "Contratos" virar "Contratos 1"
+        // sem avisar é pior que o erro.
+        '@microsoft.graph.conflictBehavior': 'fail',
+      },
+    },
+  );
+
+  return toDriveEntry(item, driveId);
+}
+
+/** Acima disso o Graph recusa PUT direto e exige sessão de upload. */
+const SIMPLE_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Envia bytes crus. Não passa por `graphFetch` de propósito: aquele serializa
+ * o corpo em JSON, o que corromperia o arquivo.
+ */
+async function putBytes(url: string, file: File, headers: Record<string, string>): Promise<Response> {
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream', ...headers },
+    body: file,
+  });
+
+  if (!response.ok) {
+    const graphCode = await readGraphErrorCode(response);
+    console.error(`[microsoft] upload ${response.status} (${graphCode})`);
+    throw new GraphError(mapStatusToCode(response.status), `Upload falhou (${response.status})`);
+  }
+
+  return response;
+}
+
+export async function uploadDriveFile(
+  token: string,
+  driveId: string,
+  parentItemId: string,
+  file: File,
+  fileName: string,
+): Promise<void> {
+  const target = `${GRAPH_BASE}${itemsBase(driveId)}/${parentItemId}:/${encodePathSegment(fileName)}`;
+
+  if (file.size <= SIMPLE_UPLOAD_MAX_BYTES) {
+    await putBytes(`${target}:/content`, file, { Authorization: `Bearer ${token}` });
+    return;
+  }
+
+  // A sessão devolve uma uploadUrl pré-autorizada: o PUT seguinte NÃO leva o
+  // Authorization — mandar o token junto faz o Graph recusar.
+  const session = await graphFetch<{ uploadUrl: string }>(token, `${target}:/createUploadSession`, {
+    method: 'POST',
+    body: { item: { '@microsoft.graph.conflictBehavior': 'rename' } },
+  });
+
+  await putBytes(session.uploadUrl, file, {
+    'Content-Range': `bytes 0-${file.size - 1}/${file.size}`,
+  });
+}
+
+/**
+ * Item por id, ou null quando o Graph nega. O null é resultado esperado, não
+ * falha: é assim que se descobre a quais pastas conhecidas a pessoa tem acesso
+ * sem conseguir listar o pai.
+ */
+export async function getDriveItemOrNull(
+  token: string,
+  driveId: string,
+  itemId: string,
+): Promise<DriveEntry | null> {
+  try {
+    const item = await graphGet<GraphDriveItem>(
+      token,
+      `${itemsBase(driveId)}/${itemId}?$select=id,name,folder,file,size,webUrl,lastModifiedDateTime,lastModifiedBy,parentReference,remoteItem`,
+    );
+    return toDriveEntry(item, driveId);
+  } catch (error) {
+    const denied =
+      error instanceof GraphError &&
+      (error.code === GRAPH_ERROR_CODE.FORBIDDEN || error.code === GRAPH_ERROR_CODE.NOT_FOUND);
+    if (denied) return null;
+    throw error;
+  }
+}
+
+/** Teto de segurança: árvore grande não pode virar centenas de chamadas. */
+const TREE_MAX_NODES = 400;
+
+/**
+ * Varre a árvore de pastas a partir da raiz, em largura. Só pastas — arquivo é
+ * lido sob demanda ao navegar, não faz sentido indexar.
+ *
+ * A profundidade acompanha o limite de 10 níveis que o banco já impõe em
+ * `validate_project_folder_parent`.
+ */
+export async function collectDriveFolderTree(
+  token: string,
+  driveId: string,
+  rootItemId: string,
+  maxDepth = 10,
+): Promise<DriveTreeNode[]> {
+  const nodes: DriveTreeNode[] = [];
+  let frontier: { id: string; depth: number }[] = [{ id: rootItemId, depth: 0 }];
+
+  while (frontier.length > 0 && nodes.length < TREE_MAX_NODES) {
+    const next: { id: string; depth: number }[] = [];
+
+    for (const current of frontier) {
+      if (current.depth >= maxDepth) continue;
+
+      const children = await listDriveChildren(token, driveId, current.id);
+
+      for (const child of children) {
+        if (!child.isFolder || nodes.length >= TREE_MAX_NODES) continue;
+        nodes.push({
+          externalId: child.id,
+          name: child.name,
+          parentExternalId: current.id === rootItemId ? null : current.id,
+        });
+        next.push({ id: child.id, depth: current.depth + 1 });
+      }
+    }
+
+    frontier = next;
+  }
+
+  if (nodes.length >= TREE_MAX_NODES) {
+    console.warn(`[microsoft] árvore truncada em ${TREE_MAX_NODES} pastas`);
+  }
+
+  return nodes;
+}
+
+/**
+ * Remove item no OneDrive. Vai para a lixeira da conta dona, não some de vez —
+ * mas para quem usa o Pulse o efeito é o arquivo sumir do drive da empresa.
+ */
+export async function deleteDriveItem(token: string, driveId: string, itemId: string): Promise<void> {
+  await graphFetch<void>(token, `${GRAPH_BASE}${itemsBase(driveId)}/${itemId}`, { method: 'DELETE' });
+}
+
+export async function renameDriveItem(
+  token: string,
+  driveId: string,
+  itemId: string,
+  name: string,
+): Promise<void> {
+  await graphFetch<GraphDriveItem>(token, `${GRAPH_BASE}${itemsBase(driveId)}/${itemId}`, {
+    method: 'PATCH',
+    body: { name: name.trim() },
+  });
+}
+
+export async function moveDriveItem(
+  token: string,
+  driveId: string,
+  itemId: string,
+  targetFolderId: string,
+): Promise<void> {
+  await graphFetch<GraphDriveItem>(token, `${GRAPH_BASE}${itemsBase(driveId)}/${itemId}`, {
+    method: 'PATCH',
+    body: { parentReference: { id: targetFolderId } },
+  });
+}
+
+/**
+ * Link de compartilhamento no escopo da organização — quem já é da empresa abre,
+ * ninguém de fora. `anonymous` seria link público e nunca é o default aqui.
+ */
+export async function createDriveShareLink(
+  token: string,
+  driveId: string,
+  itemId: string,
+): Promise<string> {
+  const result = await graphFetch<{ link?: { webUrl?: string } }>(
+    token,
+    `${GRAPH_BASE}${itemsBase(driveId)}/${itemId}/createLink`,
+    { method: 'POST', body: { type: 'view', scope: 'organization' } },
+  );
+
+  const url = result.link?.webUrl;
+  if (!url) throw new GraphError(GRAPH_ERROR_CODE.UNKNOWN, 'O Graph não devolveu o link');
+  return url;
+}
+
+/**
+ * URL de download direto. Vem como anotação `@microsoft.graph.downloadUrl`, que
+ * não sobrevive a um `$select` — por isso o item é lido inteiro aqui, e só no
+ * clique.
+ */
+export async function getDriveDownloadUrl(
+  token: string,
+  driveId: string,
+  itemId: string,
+): Promise<string> {
+  const item = await graphGet<Record<string, unknown>>(token, `${itemsBase(driveId)}/${itemId}`);
+  const url = item['@microsoft.graph.downloadUrl'];
+
+  if (typeof url !== 'string') {
+    throw new GraphError(GRAPH_ERROR_CODE.NOT_FOUND, 'Item sem URL de download');
+  }
+  return url;
+}
+
+interface GraphIdentity {
+  displayName?: string;
+  email?: string;
+  userPrincipalName?: string;
+}
+
+interface GraphPermission {
+  id: string;
+  roles?: string[];
+  grantedToV2?: { user?: GraphIdentity; siteUser?: GraphIdentity };
+  grantedToIdentitiesV2?: { user?: GraphIdentity }[];
+  link?: { scope?: string; type?: string };
+  inheritedFrom?: { id?: string };
+}
+
+/**
+ * O Graph devolve papel de dois vocabulários: `read`/`write`/`owner` no OneDrive
+ * e `sp.*` no SharePoint. Mapear só o primeiro faria uma permissão de controle
+ * total aparecer como "Pode ver" — numa tela de acesso, isso é mentira.
+ */
+function toPermissionRole(roles: string[] | undefined): DrivePermissionRole {
+  const normalized = (roles ?? []).map((role) => role.toLowerCase());
+  if (normalized.includes('owner') || normalized.includes('sp.full control')) return 'owner';
+  if (normalized.some((role) => role === 'write' || role.startsWith('sp.'))) return 'write';
+  return 'read';
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: 'Proprietário',
+  write: 'Pode editar',
+  read: 'Pode ver',
+  'sp.full control': 'Controle total',
+};
+
+/** Rótulo fiel: usa o papel cru quando o vocabulário é desconhecido. */
+function toRoleLabel(roles: string[] | undefined): string {
+  const first = (roles ?? [])[0];
+  if (!first) return 'Sem papel definido';
+  return ROLE_LABELS[first.toLowerCase()] ?? first;
+}
+
+function describeLinkScope(scope: string | undefined): string {
+  if (scope === 'anonymous') return 'Link público (qualquer pessoa com o link)';
+  if (scope === 'organization') return 'Link da organização';
+  return 'Link de compartilhamento';
+}
+
+function identityOf(identity: GraphIdentity | undefined) {
+  return {
+    displayName: identity?.displayName ?? identity?.email ?? identity?.userPrincipalName ?? null,
+    email: identity?.email ?? identity?.userPrincipalName ?? null,
+  };
+}
+
+/**
+ * Uma permissão do Graph pode representar VÁRIAS pessoas: link compartilhado com
+ * destinatários nomeados guarda cada um em `grantedToIdentitiesV2`. Ler só
+ * `grantedToV2` esconderia todos eles atrás de "Link de compartilhamento" — a
+ * lista mostraria menos gente com acesso do que realmente tem.
+ */
+function toDrivePermissions(permission: GraphPermission): DrivePermission[] {
+  const role = toPermissionRole(permission.roles);
+  const roleLabel = toRoleLabel(permission.roles);
+  const isInherited = permission.inheritedFrom !== undefined;
+  const isLink = permission.link !== undefined;
+
+  const namedOnLink = (permission.grantedToIdentitiesV2 ?? [])
+    .map((entry) => identityOf(entry.user))
+    .filter((entry) => entry.displayName !== null);
+
+  if (namedOnLink.length > 0) {
+    return namedOnLink.map((entry, index) => ({
+      id: `${permission.id}:${index}`,
+      displayName: entry.displayName as string,
+      email: entry.email,
+      role,
+      roleLabel,
+      isLink: true,
+      isInherited,
+      /** Veio de link: revogar exige apagar o link inteiro, não só esta pessoa. */
+      isRevocable: false,
+    }));
+  }
+
+  const direct = identityOf(permission.grantedToV2?.user ?? permission.grantedToV2?.siteUser);
+
+  return [
+    {
+      id: permission.id,
+      displayName: isLink
+        ? describeLinkScope(permission.link?.scope)
+        : (direct.displayName ?? 'Identidade não informada pelo OneDrive'),
+      email: direct.email,
+      role,
+      roleLabel,
+      isLink,
+      isInherited,
+      isRevocable: !isInherited && role !== 'owner',
+    },
+  ];
+}
+
+export async function listDriveItemPermissions(
+  token: string,
+  driveId: string,
+  itemId: string,
+): Promise<DrivePermission[]> {
+  const items = await graphGetAll<GraphPermission>(token, `${itemsBase(driveId)}/${itemId}/permissions`);
+  return items.flatMap(toDrivePermissions);
+}
+
+/**
+ * Concede acesso nominal. `requireSignIn` e `sendInvitation` ficam ligados: o
+ * convite exige login corporativo e a pessoa recebe o aviso por e-mail, que é o
+ * comportamento que o time já espera do OneDrive.
+ */
+export async function inviteToDriveItem(
+  token: string,
+  driveId: string,
+  itemId: string,
+  emails: string[],
+  role: Exclude<DrivePermissionRole, 'owner'>,
+  message?: string,
+): Promise<void> {
+  await graphFetch<unknown>(token, `${GRAPH_BASE}${itemsBase(driveId)}/${itemId}/invite`, {
+    method: 'POST',
+    body: {
+      recipients: emails.map((email) => ({ email })),
+      requireSignIn: true,
+      sendInvitation: true,
+      roles: [role],
+      message: message ?? '',
+    },
+  });
+}
+
+export async function removeDriveItemPermission(
+  token: string,
+  driveId: string,
+  itemId: string,
+  permissionId: string,
+): Promise<void> {
+  await graphFetch<void>(
+    token,
+    `${GRAPH_BASE}${itemsBase(driveId)}/${itemId}/permissions/${permissionId}`,
+    { method: 'DELETE' },
+  );
 }

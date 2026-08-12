@@ -195,7 +195,6 @@ export const projectService = {
         first_invoice_date: input.firstInvoiceDate || null,
         due_day: input.dueDay,
         status: input.status || 'planning',
-        contract_url: input.contractUrl || null,
         duration_months: input.durationMonths || 1,
         renewal_date: input.renewalDate || null,
         service_line: input.serviceLine || null,
@@ -277,7 +276,6 @@ export const projectService = {
     if (updates.firstInvoiceDate !== undefined) updateData.first_invoice_date = updates.firstInvoiceDate || null;
     if (updates.dueDay !== undefined) updateData.due_day = updates.dueDay;
     if (updates.status !== undefined) updateData.status = updates.status;
-    if (updates.contractUrl !== undefined) updateData.contract_url = updates.contractUrl || null;
     if (updates.renewalDate !== undefined) updateData.renewal_date = updates.renewalDate || null;
     if (updates.durationMonths !== undefined) updateData.duration_months = updates.durationMonths;
     if (updates.serviceLine !== undefined) updateData.service_line = updates.serviceLine;
