@@ -1,25 +1,42 @@
 #!/usr/bin/env bash
 #
-# Instala o MCP de arquivos de projeto para quem não é desenvolvedor.
+# Instalador do MCP de arquivos de projeto do Pulse.
 #
-# Pergunta as credenciais em vez de recebê-las por argumento: senha em linha de
-# comando fica no histórico do shell e vaza em qualquer print de tela.
+# Não exige o repositório: baixa o servidor já compilado do último release.
+# Quem só quer subir arquivo não precisa do código do Pulse na máquina.
 #
-#   bash apps/mcp-drive/install.sh
+#   curl -fsSL https://github.com/Origami-Lab-Organization/og-pulse/releases/latest/download/install.sh | bash
 
 set -euo pipefail
 
-APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="Origami-Lab-Organization/og-pulse"
+BASE_URL="https://github.com/$REPO/releases/latest/download"
 
-SUPABASE_URL="https://vkriobpmolgopbbpqeky.supabase.co"
-MICROSOFT_CLIENT_ID="53d51c7c-a706-4c82-ba99-63192a93202f"
-MICROSOFT_TENANT_ID="a3d591d4-0b3e-4a17-9745-b78bcf007f74"
+INSTALL_DIR="$HOME/.og-pulse/mcp-drive"
+SERVER_PATH="$INSTALL_DIR/og-pulse-mcp-drive.mjs"
+SKILL_DIR="$HOME/.claude/skills/arquivos-de-projeto"
+
+# Os placeholders abaixo sao substituidos pela CI na publicacao do release.
+# Ficam como marcador no repositorio de proposito: a chave publicavel e um JWT e
+# nao deve ser versionada, mesmo sendo publica (ela ja vai no bundle do site).
+SUPABASE_URL="__SUPABASE_URL__"
+SUPABASE_PUBLISHABLE_KEY="__SUPABASE_PUBLISHABLE_KEY__"
+MICROSOFT_CLIENT_ID="__MICROSOFT_CLIENT_ID__"
+MICROSOFT_TENANT_ID="__MICROSOFT_TENANT_ID__"
+
+if [ "$SUPABASE_URL" = "__SUPABASE_URL__" ]; then
+  echo "✗ Este script é um template do repositório."
+  echo "  Use o instalador publicado:"
+  echo "  curl -fsSL https://github.com/$REPO/releases/latest/download/install.sh | bash"
+  exit 1
+fi
 
 echo "→ Instalando o MCP de arquivos de projeto do Pulse"
 echo
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "✗ Node.js não encontrado. Instale em https://nodejs.org (versão 20 ou maior) e rode de novo."
+  echo "✗ Node.js não encontrado."
+  echo "  Instale em https://nodejs.org (escolha a opção LTS) e rode este comando de novo."
   exit 1
 fi
 
@@ -29,25 +46,22 @@ if [ "$NODE_MAJOR" -lt 20 ]; then
   exit 1
 fi
 
-# A chave sai do .env local — ela é um JWT e não é versionada, mesmo sendo
-# pública. Quem não tem o repositório usa o instalador do release, que já vem
-# preenchido pela CI.
-ENV_FILE="$APP_DIR/../../.env"
-PUBLISHABLE_KEY="$(grep -m1 '^VITE_SUPABASE_PUBLISHABLE_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' || true)"
+echo "→ Baixando o servidor..."
+mkdir -p "$INSTALL_DIR"
+curl -fsSL "$BASE_URL/og-pulse-mcp-drive.mjs" -o "$SERVER_PATH"
 
-if [ -z "$PUBLISHABLE_KEY" ]; then
-  echo "✗ Não encontrei VITE_SUPABASE_PUBLISHABLE_KEY no .env do repositório."
-  echo "  Se você não é do time de desenvolvimento, use o instalador publicado:"
-  echo "  curl -fsSL https://github.com/Origami-Lab-Organization/og-pulse/releases/latest/download/install.sh | bash"
-  exit 1
-fi
-
-echo "→ Compilando..."
-(cd "$APP_DIR" && npm install --silent && npm run build --silent)
-echo "✓ Compilado"
+# A skill ensina o Claude a convenção de pastas da Origami, o que é o Pulse e
+# como diagnosticar falha. Sem ela o MCP funciona, mas o agente não sabe o
+# contexto nem como orientar quando algo quebra.
+mkdir -p "$SKILL_DIR"
+curl -fsSL "$BASE_URL/SKILL.md" -o "$SKILL_DIR/SKILL.md"
+echo "✓ Baixado"
 echo
 
+PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+
 read -r -p "Seu e-mail do Pulse: " PULSE_EMAIL
+# -s: a senha não aparece na tela nem entra no histórico do shell.
 read -r -s -p "Sua senha do Pulse: " PULSE_PASSWORD
 echo
 echo
@@ -61,17 +75,16 @@ if command -v claude >/dev/null 2>&1; then
     --env "PULSE_PASSWORD=$PULSE_PASSWORD" \
     --env "MICROSOFT_CLIENT_ID=$MICROSOFT_CLIENT_ID" \
     --env "MICROSOFT_TENANT_ID=$MICROSOFT_TENANT_ID" \
-    -- node "$APP_DIR/dist/index.js"
+    -- node "$SERVER_PATH"
   echo "✓ Registrado no Claude Code"
 fi
 
-# Claude Desktop lê um JSON próprio. Mesclar com node evita destruir outros
-# servidores que a pessoa já tenha configurado.
 DESKTOP_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
 
 if [ -d "$(dirname "$DESKTOP_CONFIG")" ]; then
-  APP_DIR="$APP_DIR" \
+  # Mesclar com node evita apagar outros servidores já configurados.
   DESKTOP_CONFIG="$DESKTOP_CONFIG" \
+  SERVER_PATH="$SERVER_PATH" \
   SUPABASE_URL="$SUPABASE_URL" \
   PUBLISHABLE_KEY="$PUBLISHABLE_KEY" \
   PULSE_EMAIL="$PULSE_EMAIL" \
@@ -86,7 +99,7 @@ if [ -d "$(dirname "$DESKTOP_CONFIG")" ]; then
     config.mcpServers = config.mcpServers || {};
     config.mcpServers["og-pulse-drive"] = {
       command: "node",
-      args: [process.env.APP_DIR + "/dist/index.js"],
+      args: [process.env.SERVER_PATH],
       env: {
         SUPABASE_URL: process.env.SUPABASE_URL,
         SUPABASE_PUBLISHABLE_KEY: process.env.PUBLISHABLE_KEY,
@@ -100,20 +113,7 @@ if [ -d "$(dirname "$DESKTOP_CONFIG")" ]; then
     fs.writeFileSync(path, JSON.stringify(config, null, 2));
     fs.chmodSync(path, 0o600);
   '
-  echo "✓ Registrado no Claude Desktop (reinicie o app)"
-fi
-
-# A skill ensina o Claude a operar isto: convenção de pastas da Origami, o que é
-# o Pulse e como diagnosticar falha. Sem ela o MCP funciona, mas o agente não
-# sabe o contexto nem como orientar quando algo quebra.
-SKILL_SRC="$APP_DIR/../../.claude/skills/arquivos-de-projeto"
-SKILL_DEST="$HOME/.claude/skills/arquivos-de-projeto"
-
-if [ -d "$SKILL_SRC" ]; then
-  mkdir -p "$(dirname "$SKILL_DEST")"
-  rm -rf "$SKILL_DEST"
-  cp -R "$SKILL_SRC" "$SKILL_DEST"
-  echo "✓ Skill 'arquivos-de-projeto' instalada"
+  echo "✓ Registrado no Claude Desktop (feche e abra o app)"
 fi
 
 echo

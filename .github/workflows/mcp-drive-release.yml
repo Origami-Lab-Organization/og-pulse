@@ -1,0 +1,106 @@
+name: Release do MCP Drive
+
+# Publica o servidor MCP compilado num release, para o time instalar sem clonar
+# o repositório — quem só sobe arquivo não precisa do código do Pulse.
+on:
+  push:
+    tags:
+      - 'mcp-drive-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências
+        working-directory: apps/mcp-drive
+        run: npm ci
+
+      - name: Verificar tipos
+        working-directory: apps/mcp-drive
+        run: npm run typecheck
+
+      - name: Empacotar em arquivo único
+        working-directory: apps/mcp-drive
+        run: npm run bundle
+
+      - name: Conferir que o servidor sobe
+        working-directory: apps/mcp-drive
+        env:
+          SUPABASE_URL: https://exemplo.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: verificacao
+          MICROSOFT_CLIENT_ID: verificacao
+          MICROSOFT_TENANT_ID: verificacao
+        run: |
+          # Handshake mínimo do MCP: pega bundle quebrado antes de publicar.
+          printf '%s\n%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1.0"}}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | node dist/og-pulse-mcp-drive.mjs > /tmp/handshake.txt
+          grep -q '"tools"' /tmp/handshake.txt
+
+      # Os valores saem de secret, não do repositório: a chave publicável é um
+      # JWT e não deve ser versionada, mesmo sendo pública. O instalador
+      # publicado sai autocontido — uma requisição a menos na instalação.
+      - name: Preencher o instalador
+        env:
+          SUPABASE_URL: ${{ secrets.MCP_SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MCP_SUPABASE_PUBLISHABLE_KEY }}
+          MICROSOFT_CLIENT_ID: ${{ secrets.MCP_MICROSOFT_CLIENT_ID }}
+          MICROSOFT_TENANT_ID: ${{ secrets.MCP_MICROSOFT_TENANT_ID }}
+        run: |
+          for var in SUPABASE_URL SUPABASE_PUBLISHABLE_KEY MICROSOFT_CLIENT_ID MICROSOFT_TENANT_ID; do
+            if [ -z "${!var}" ]; then
+              echo "Secret MCP_$var não configurado no repositório."
+              exit 1
+            fi
+          done
+
+          node -e '
+            const fs = require("fs");
+            let script = fs.readFileSync("apps/mcp-drive/scripts/install-remote.sh", "utf-8");
+            const values = {
+              __SUPABASE_URL__: process.env.SUPABASE_URL,
+              __SUPABASE_PUBLISHABLE_KEY__: process.env.SUPABASE_PUBLISHABLE_KEY,
+              __MICROSOFT_CLIENT_ID__: process.env.MICROSOFT_CLIENT_ID,
+              __MICROSOFT_TENANT_ID__: process.env.MICROSOFT_TENANT_ID,
+            };
+            for (const [token, value] of Object.entries(values)) {
+              script = script.split(token).join(value);
+            }
+            if (script.includes("__SUPABASE")) throw new Error("placeholder nao substituido");
+            fs.writeFileSync("install.sh", script);
+          '
+
+      - name: Reunir os arquivos do release
+        run: |
+          mkdir -p release
+          cp apps/mcp-drive/dist/og-pulse-mcp-drive.mjs release/
+          cp install.sh release/install.sh
+          cp .claude/skills/arquivos-de-projeto/SKILL.md release/
+          cp apps/mcp-drive/INSTALACAO.txt release/
+
+      - name: Publicar
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          tag_name: ${{ github.ref_name }}
+          name: MCP Drive ${{ github.ref_name }}
+          body: |
+            Instalação sem clonar o repositório:
+
+            ```bash
+            curl -fsSL https://github.com/${{ github.repository }}/releases/latest/download/install.sh | bash
+            ```
+
+            Requisito: Node.js 20 ou maior. O instalador pergunta e-mail e senha
+            do Pulse; a autorização da Microsoft é feita depois, pelo chat.
