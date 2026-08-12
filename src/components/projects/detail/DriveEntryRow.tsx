@@ -1,6 +1,7 @@
 import {
   Copy,
   Download,
+  ExternalLink,
   FileText,
   Folder,
   MoreHorizontal,
@@ -67,6 +68,20 @@ export function DriveEntryRow({
             <Folder className="h-4 w-4 shrink-0 text-primary-deep" />
             <span className="truncate text-sm font-medium">{entry.name}</span>
           </button>
+        ) : entry.webUrl ? (
+          // Abre no visualizador do OneDrive: ver um arquivo não deveria exigir
+          // baixar uma cópia para a máquina.
+          <a
+            href={entry.webUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-w-0 items-center gap-2 rounded text-sm transition-colors hover:text-primary-deep hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            title={`Abrir ${entry.name} no OneDrive`}
+          >
+            <FileText className="h-4 w-4 shrink-0 text-primary" />
+            <span className="truncate">{entry.name}</span>
+            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+          </a>
         ) : (
           <div className="flex min-w-0 items-center gap-2">
             <FileText className="h-4 w-4 shrink-0 text-primary" />
@@ -98,6 +113,14 @@ export function DriveEntryRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {entry.webUrl && (
+              <DropdownMenuItem asChild>
+                <a href={entry.webUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Abrir no OneDrive
+                </a>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => onShare(entry)}>
               <Users className="mr-2 h-4 w-4" />
               Gerenciar acesso
