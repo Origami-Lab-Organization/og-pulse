@@ -15,6 +15,14 @@ SUPABASE_URL="https://vkriobpmolgopbbpqeky.supabase.co"
 MICROSOFT_CLIENT_ID="53d51c7c-a706-4c82-ba99-63192a93202f"
 MICROSOFT_TENANT_ID="a3d591d4-0b3e-4a17-9745-b78bcf007f74"
 
+# A chave publicavel (anon) fica aqui de proposito, pelo mesmo motivo dos ids da
+# Microsoft: ela ja e embutida no bundle publico do site, entao qualquer pessoa a
+# le abrindo o JavaScript. O controle de acesso e a RLS, nao o sigilo dela.
+#
+# Sem isso o instalador dependeria do .env, que e gitignored — quem clona o repo
+# nao tem o arquivo e cairia num prompt pedindo uma chave que nao sabe o que e.
+DEFAULT_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrcmlvYnBtb2xnb3BiYnBxZWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NDMzMzksImV4cCI6MjA4NDUxOTMzOX0.z15Rvj4FN9_OtoERF6ptKlaI4zYDkLh-8OvjL2teljk"
+
 echo "→ Instalando o MCP de arquivos de projeto do Pulse"
 echo
 
@@ -29,14 +37,11 @@ if [ "$NODE_MAJOR" -lt 20 ]; then
   exit 1
 fi
 
-# A chave publicável vem do .env do repositório; ela é pública (vai no bundle
-# do site), então não há segredo em lê-la aqui.
+# O .env local tem prioridade, para apontar outro ambiente em desenvolvimento
+# sem editar este script. Sem ele, usa o padrão acima.
 ENV_FILE="$APP_DIR/../../.env"
 PUBLISHABLE_KEY="$(grep -m1 '^VITE_SUPABASE_PUBLISHABLE_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' || true)"
-
-if [ -z "$PUBLISHABLE_KEY" ]; then
-  read -r -p "Chave publicável do Supabase: " PUBLISHABLE_KEY
-fi
+PUBLISHABLE_KEY="${PUBLISHABLE_KEY:-$DEFAULT_PUBLISHABLE_KEY}"
 
 echo "→ Compilando..."
 (cd "$APP_DIR" && npm install --silent && npm run build --silent)
