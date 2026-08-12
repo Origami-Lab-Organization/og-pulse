@@ -41,8 +41,8 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
-if [ "$NODE_MAJOR" -lt 20 ]; then
-  echo "✗ Node.js $NODE_MAJOR é antigo demais. Precisa da versão 20 ou maior."
+if [ "$NODE_MAJOR" -lt 22 ]; then
+  echo "✗ Node.js $NODE_MAJOR é antigo demais. Precisa da versão 22 ou maior — o cliente do Supabase exige."
   exit 1
 fi
 

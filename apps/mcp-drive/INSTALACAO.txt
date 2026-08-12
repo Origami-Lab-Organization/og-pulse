@@ -16,7 +16,7 @@ ANTES DE COMEÇAR
 
 Você precisa de:
 
-  1. Node.js versão 20 ou maior
+  1. Node.js versão 22 ou maior
      Baixe em https://nodejs.org (pegue a opção "LTS").
      Para conferir se já tem, abra o Terminal e digite:  node -v
 

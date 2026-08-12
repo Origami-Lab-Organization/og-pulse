@@ -19,13 +19,13 @@ echo "→ Instalando o MCP de arquivos de projeto do Pulse"
 echo
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "✗ Node.js não encontrado. Instale em https://nodejs.org (versão 20 ou maior) e rode de novo."
+  echo "✗ Node.js não encontrado. Instale em https://nodejs.org (versão 22 ou maior) e rode de novo."
   exit 1
 fi
 
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
-if [ "$NODE_MAJOR" -lt 20 ]; then
-  echo "✗ Node.js $NODE_MAJOR é antigo demais. Precisa da versão 20 ou maior."
+if [ "$NODE_MAJOR" -lt 22 ]; then
+  echo "✗ Node.js $NODE_MAJOR é antigo demais. Precisa da versão 22 ou maior — o cliente do Supabase exige."
   exit 1
 fi
 
