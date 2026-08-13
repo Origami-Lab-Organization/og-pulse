@@ -51,7 +51,15 @@ fi
 # Ordem: valores do release, .env do repositório, pergunta. Nunca aborta sem
 # antes perguntar — a versão anterior desistia e virava beco sem saída.
 
-if [ "$SUPABASE_URL" = "__SUPABASE_URL__" ]; then
+# Detecta pelo FORMATO, não comparando com o texto do placeholder: a CI faz
+# substituição cega, e comparar com o literal fazia a própria condição ser
+# substituída — no release ela virava sempre verdadeira e apagava a chave.
+case "$SUPABASE_URL" in
+  __*__) IS_TEMPLATE=true ;;
+  *) IS_TEMPLATE=false ;;
+esac
+
+if [ "$IS_TEMPLATE" = true ]; then
   SUPABASE_URL="https://vkriobpmolgopbbpqeky.supabase.co"
   MICROSOFT_CLIENT_ID="53d51c7c-a706-4c82-ba99-63192a93202f"
   MICROSOFT_TENANT_ID="a3d591d4-0b3e-4a17-9745-b78bcf007f74"

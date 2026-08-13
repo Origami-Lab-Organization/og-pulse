@@ -78,6 +78,21 @@ jobs:
               script = script.split(token).join(value);
             }
             if (script.includes("__SUPABASE")) throw new Error("placeholder nao substituido");
+
+            // A substituição é cega: já aconteceu de ela reescrever a própria
+            // condição que detectava o template, e o release apagar a chave que
+            // acabara de receber. Conferir o resultado, não só a ausência de
+            // placeholder.
+            const keyLine = script.split("\n").find((l) => l.startsWith("SUPABASE_PUBLISHABLE_KEY="));
+            if (!keyLine || !keyLine.includes("eyJ")) {
+              throw new Error("install.sh publicado sem a chave publicavel");
+            }
+            if (script.includes('SUPABASE_PUBLISHABLE_KEY=""')) {
+              // Só é aceitável dentro do ramo de template.
+              const guarded = script.includes('IS_TEMPLATE" = true');
+              if (!guarded) throw new Error("install.sh zera a chave fora do ramo de template");
+            }
+
             fs.writeFileSync("install.sh", script);
           '
 
