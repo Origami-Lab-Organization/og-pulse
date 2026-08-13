@@ -29,16 +29,24 @@ if [ "$NODE_MAJOR" -lt 22 ]; then
   exit 1
 fi
 
-# A chave sai do .env local — ela é um JWT e não é versionada, mesmo sendo
-# pública. Quem não tem o repositório usa o instalador do release, que já vem
-# preenchido pela CI.
-ENV_FILE="$APP_DIR/../../.env"
-PUBLISHABLE_KEY="$(grep -m1 '^VITE_SUPABASE_PUBLISHABLE_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' || true)"
+# Três fontes, em ordem, para nunca dar beco sem saída: variável de ambiente,
+# .env do repositório, ou pergunta. A chave é pública (vai no bundle do site) —
+# só não fica versionada por ser um JWT.
+if [ -n "${SUPABASE_PUBLISHABLE_KEY:-}" ]; then
+  PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+else
+  ENV_FILE="$APP_DIR/../../.env"
+  PUBLISHABLE_KEY="$(grep -m1 '^VITE_SUPABASE_PUBLISHABLE_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' || true)"
+fi
 
 if [ -z "$PUBLISHABLE_KEY" ]; then
-  echo "✗ Não encontrei VITE_SUPABASE_PUBLISHABLE_KEY no .env do repositório."
-  echo "  Se você não é do time de desenvolvimento, use o instalador publicado:"
-  echo "  curl -fsSL https://github.com/Origami-Lab-Organization/og-pulse/releases/latest/download/install.sh | bash"
+  echo "Não achei a chave publicável do Supabase automaticamente."
+  echo "Ela está no .env do projeto, em VITE_SUPABASE_PUBLISHABLE_KEY (começa com eyJ)."
+  read -r -p "Cole a chave aqui: " PUBLISHABLE_KEY
+fi
+
+if [ -z "$PUBLISHABLE_KEY" ]; then
+  echo "✗ Sem a chave não dá para continuar."
   exit 1
 fi
 

@@ -5,12 +5,15 @@
 # Não exige o repositório: baixa o servidor já compilado do último release.
 # Quem só quer subir arquivo não precisa do código do Pulse na máquina.
 #
-#   curl -fsSL https://github.com/Origami-Lab-Organization/og-pulse/releases/latest/download/install.sh | bash
+#   gh release download --repo Origami-Lab-Organization/og-pulse \
+#     --pattern install.sh --output /tmp/install.sh --clobber && bash /tmp/install.sh
+#
+# Usa o gh, nao curl: o repositorio e privado e asset de release privado exige
+# autenticacao. O gh ja resolve isso com o login que a pessoa tem.
 
 set -euo pipefail
 
 REPO="Origami-Lab-Organization/og-pulse"
-BASE_URL="https://github.com/$REPO/releases/latest/download"
 
 INSTALL_DIR="$HOME/.og-pulse/mcp-drive"
 SERVER_PATH="$INSTALL_DIR/og-pulse-mcp-drive.mjs"
@@ -24,15 +27,30 @@ SUPABASE_PUBLISHABLE_KEY="__SUPABASE_PUBLISHABLE_KEY__"
 MICROSOFT_CLIENT_ID="__MICROSOFT_CLIENT_ID__"
 MICROSOFT_TENANT_ID="__MICROSOFT_TENANT_ID__"
 
+INSTALL_CMD="gh release download --repo $REPO --pattern install.sh --output /tmp/install.sh --clobber && bash /tmp/install.sh"
+
 if [ "$SUPABASE_URL" = "__SUPABASE_URL__" ]; then
-  echo "✗ Este script é um template do repositório."
+  echo "✗ Este script é um template do repositório, sem os valores preenchidos."
   echo "  Use o instalador publicado:"
-  echo "  curl -fsSL https://github.com/$REPO/releases/latest/download/install.sh | bash"
+  echo "  $INSTALL_CMD"
   exit 1
 fi
 
 echo "→ Instalando o MCP de arquivos de projeto do Pulse"
 echo
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "✗ GitHub CLI (gh) não encontrado — ele é necessário porque o repositório é privado."
+  echo "  Instale com:  brew install gh"
+  echo "  Depois entre com:  gh auth login"
+  exit 1
+fi
+
+if ! gh auth status >/dev/null 2>&1; then
+  echo "✗ Você não está autenticado no GitHub."
+  echo "  Rode:  gh auth login"
+  exit 1
+fi
 
 if ! command -v node >/dev/null 2>&1; then
   echo "✗ Node.js não encontrado."
@@ -48,13 +66,15 @@ fi
 
 echo "→ Baixando o servidor..."
 mkdir -p "$INSTALL_DIR"
-curl -fsSL "$BASE_URL/og-pulse-mcp-drive.mjs" -o "$SERVER_PATH"
+gh release download --repo "$REPO" --pattern og-pulse-mcp-drive.mjs \
+  --output "$SERVER_PATH" --clobber
 
 # A skill ensina o Claude a convenção de pastas da Origami, o que é o Pulse e
 # como diagnosticar falha. Sem ela o MCP funciona, mas o agente não sabe o
 # contexto nem como orientar quando algo quebra.
 mkdir -p "$SKILL_DIR"
-curl -fsSL "$BASE_URL/SKILL.md" -o "$SKILL_DIR/SKILL.md"
+gh release download --repo "$REPO" --pattern SKILL.md \
+  --output "$SKILL_DIR/SKILL.md" --clobber
 echo "✓ Baixado"
 echo
 

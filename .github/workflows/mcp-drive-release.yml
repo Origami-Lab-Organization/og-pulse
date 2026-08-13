@@ -99,8 +99,12 @@ jobs:
             Instalação sem clonar o repositório:
 
             ```bash
-            curl -fsSL https://github.com/${{ github.repository }}/releases/latest/download/install.sh | bash
+            gh release download --repo ${{ github.repository }} \
+              --pattern install.sh --output /tmp/install.sh --clobber && bash /tmp/install.sh
             ```
 
-            Requisito: Node.js 20 ou maior. O instalador pergunta e-mail e senha
-            do Pulse; a autorização da Microsoft é feita depois, pelo chat.
+            Requisitos: Node.js 22 ou maior e GitHub CLI (`gh`) autenticado — o
+            repositório é privado, então o download exige login.
+
+            O instalador pergunta e-mail e senha do Pulse; a autorização da
+            Microsoft é feita depois, pelo chat.

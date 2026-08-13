@@ -366,3 +366,7 @@
 ### 2026-08-06T10:58:23.299Z
 - **Tipo:** boundary-violation
 - **Detalhe:** Possível dado sensível em console.* em index.ts
+
+### 2026-08-12T14:50:09.619Z
+- **Tipo:** boundary-violation
+- **Detalhe:** JWT possivelmente sensível hardcoded em install-remote.sh

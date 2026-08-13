@@ -20,24 +20,28 @@ Você precisa de:
      Baixe em https://nodejs.org (pegue a opção "LTS").
      Para conferir se já tem, abra o Terminal e digite:  node -v
 
-  2. O repositório og-pulse no seu computador
-     Se ainda não tem, peça ao time de tecnologia.
+  2. GitHub CLI, com login feito
+     Instale com:  brew install gh
+     Depois entre com:  gh auth login
+     (escolha GitHub.com e siga pelo navegador)
 
   3. Sua senha do Pulse
      Se você entra só pelo botão da Microsoft e nunca criou senha,
      avise antes — precisamos resolver isso primeiro.
 
+Você NÃO precisa baixar o código do Pulse.
+
 
 PASSO 1 — RODAR O INSTALADOR
 ----------------------------
 
-Abra o Terminal, vá até a pasta do projeto e rode:
+Abra o Terminal e cole isto (é uma linha só):
 
-  bash apps/mcp-drive/install.sh
+  gh release download --repo Origami-Lab-Organization/og-pulse --pattern install.sh --output /tmp/install.sh --clobber && bash /tmp/install.sh
 
 Ele vai:
-  - conferir se o Node está ok
-  - compilar o programa
+  - conferir se o Node e o gh estão ok
+  - baixar o programa já pronto
   - perguntar seu e-mail e sua senha do Pulse
   - configurar o Claude sozinho
 
@@ -102,6 +106,9 @@ O QUE FAZER SE DER ERRADO
 
 "node: command not found"
   → o Node.js não está instalado. Volte ao item 1.
+
+"gh: command not found" ou "não está autenticado no GitHub"
+  → falta o GitHub CLI. Volte ao item 2.
 
 Qualquer outra coisa: mande print da mensagem para o time de tecnologia.
 
