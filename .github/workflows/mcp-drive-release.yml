@@ -87,10 +87,11 @@ jobs:
             if (!keyLine || !keyLine.includes("eyJ")) {
               throw new Error("install.sh publicado sem a chave publicavel");
             }
-            if (script.includes('SUPABASE_PUBLISHABLE_KEY=""')) {
-              // Só é aceitável dentro do ramo de template.
-              const guarded = script.includes('IS_TEMPLATE" = true');
-              if (!guarded) throw new Error("install.sh zera a chave fora do ramo de template");
+            // Aspas simples não podem aparecer aqui dentro: este bloco já está
+            // entre aspas simples no shell do runner.
+            if (script.includes("SUPABASE_PUBLISHABLE_KEY=\"\"") &&
+                !script.includes("IS_TEMPLATE\" = true")) {
+              throw new Error("install.sh zera a chave fora do ramo de template");
             }
 
             fs.writeFileSync("install.sh", script);
