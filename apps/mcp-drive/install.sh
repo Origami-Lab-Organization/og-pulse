@@ -1,25 +1,43 @@
 #!/usr/bin/env bash
 #
-# Instala o MCP de arquivos de projeto para quem não é desenvolvedor.
+# Instala o MCP de arquivos de projeto do Pulse.
 #
-# Pergunta as credenciais em vez de recebê-las por argumento: senha em linha de
-# comando fica no histórico do shell e vaza em qualquer print de tela.
+# Funciona dos dois jeitos, detectando sozinho onde está:
 #
-#   bash apps/mcp-drive/install.sh
+#   - dentro do repositório og-pulse: compila do código-fonte
+#   - solto em qualquer pasta: baixa o servidor pronto do release
+#
+# A detecção existe porque antes havia dois scripts parecidos, e o que ficava
+# visível no repositório era justamente o que não funcionava sozinho — quem
+# recebia uma cópia por mensagem batia em erro de package.json ausente.
+#
+#   gh release download --repo Origami-Lab-Organization/og-pulse \
+#     --pattern install.sh --output /tmp/install.sh --clobber && bash /tmp/install.sh
 
 set -euo pipefail
 
+REPO="Origami-Lab-Organization/og-pulse"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="$HOME/.og-pulse/mcp-drive"
+SKILL_DIR="$HOME/.claude/skills/arquivos-de-projeto"
 
-SUPABASE_URL="https://vkriobpmolgopbbpqeky.supabase.co"
-MICROSOFT_CLIENT_ID="53d51c7c-a706-4c82-ba99-63192a93202f"
-MICROSOFT_TENANT_ID="a3d591d4-0b3e-4a17-9745-b78bcf007f74"
+# Preenchidos pela CI ao publicar o release. No repositório ficam como marcador:
+# a chave publicável é um JWT e não é versionada, mesmo sendo pública.
+SUPABASE_URL="__SUPABASE_URL__"
+SUPABASE_PUBLISHABLE_KEY="__SUPABASE_PUBLISHABLE_KEY__"
+MICROSOFT_CLIENT_ID="__MICROSOFT_CLIENT_ID__"
+MICROSOFT_TENANT_ID="__MICROSOFT_TENANT_ID__"
+
+# Rodando de dentro do repositório? O package.json ao lado é o sinal.
+IS_SOURCE_CHECKOUT=false
+[ -f "$APP_DIR/package.json" ] && IS_SOURCE_CHECKOUT=true
 
 echo "→ Instalando o MCP de arquivos de projeto do Pulse"
 echo
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "✗ Node.js não encontrado. Instale em https://nodejs.org (versão 22 ou maior) e rode de novo."
+  echo "✗ Node.js não encontrado."
+  echo "  Instale em https://nodejs.org (escolha a opção LTS) e rode de novo."
   exit 1
 fi
 
@@ -29,12 +47,20 @@ if [ "$NODE_MAJOR" -lt 22 ]; then
   exit 1
 fi
 
-# Três fontes, em ordem, para nunca dar beco sem saída: variável de ambiente,
-# .env do repositório, ou pergunta. A chave é pública (vai no bundle do site) —
-# só não fica versionada por ser um JWT.
-if [ -n "${SUPABASE_PUBLISHABLE_KEY:-}" ]; then
-  PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
-else
+# ── Identificadores ───────────────────────────────────────────────────────────
+# Ordem: valores do release, .env do repositório, pergunta. Nunca aborta sem
+# antes perguntar — a versão anterior desistia e virava beco sem saída.
+
+if [ "$SUPABASE_URL" = "__SUPABASE_URL__" ]; then
+  SUPABASE_URL="https://vkriobpmolgopbbpqeky.supabase.co"
+  MICROSOFT_CLIENT_ID="53d51c7c-a706-4c82-ba99-63192a93202f"
+  MICROSOFT_TENANT_ID="a3d591d4-0b3e-4a17-9745-b78bcf007f74"
+  SUPABASE_PUBLISHABLE_KEY=""
+fi
+
+PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY:-}"
+
+if [ -z "$PUBLISHABLE_KEY" ] && [ "$IS_SOURCE_CHECKOUT" = true ]; then
   ENV_FILE="$APP_DIR/../../.env"
   PUBLISHABLE_KEY="$(grep -m1 '^VITE_SUPABASE_PUBLISHABLE_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' || true)"
 fi
@@ -50,12 +76,49 @@ if [ -z "$PUBLISHABLE_KEY" ]; then
   exit 1
 fi
 
-echo "→ Compilando..."
-(cd "$APP_DIR" && npm install --silent && npm run build --silent)
-echo "✓ Compilado"
+# ── Servidor ──────────────────────────────────────────────────────────────────
+
+mkdir -p "$INSTALL_DIR" "$SKILL_DIR"
+
+if [ "$IS_SOURCE_CHECKOUT" = true ]; then
+  # Sem --silent: na primeira vez o npm baixa dependências e demora. Sem saída
+  # nenhuma isso parece travamento, e a pessoa mata o processo no meio.
+  echo "→ Instalando dependências (a primeira vez demora)..."
+  (cd "$APP_DIR" && npm install --no-fund --no-audit)
+  echo "→ Compilando..."
+  (cd "$APP_DIR" && npm run build)
+  SERVER_PATH="$APP_DIR/dist/index.js"
+  cp -R "$APP_DIR/../../.claude/skills/arquivos-de-projeto/." "$SKILL_DIR/" 2>/dev/null || true
+  echo "✓ Compilado"
+else
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "✗ GitHub CLI (gh) não encontrado — necessário porque o repositório é privado."
+    echo "  macOS:  brew install gh"
+    echo "  Fedora: sudo dnf install gh"
+    echo "  Depois: gh auth login"
+    exit 1
+  fi
+
+  if ! gh auth status >/dev/null 2>&1; then
+    echo "✗ Você não está autenticado no GitHub. Rode:  gh auth login"
+    exit 1
+  fi
+
+  echo "→ Baixando o servidor..."
+  SERVER_PATH="$INSTALL_DIR/og-pulse-mcp-drive.mjs"
+  gh release download --repo "$REPO" --pattern og-pulse-mcp-drive.mjs \
+    --output "$SERVER_PATH" --clobber
+  gh release download --repo "$REPO" --pattern SKILL.md \
+    --output "$SKILL_DIR/SKILL.md" --clobber
+  echo "✓ Baixado"
+fi
+
 echo
 
+# ── Credenciais e registro ────────────────────────────────────────────────────
+
 read -r -p "Seu e-mail do Pulse: " PULSE_EMAIL
+# -s: a senha não aparece na tela nem entra no histórico do shell.
 read -r -s -p "Sua senha do Pulse: " PULSE_PASSWORD
 echo
 echo
@@ -69,17 +132,20 @@ if command -v claude >/dev/null 2>&1; then
     --env "PULSE_PASSWORD=$PULSE_PASSWORD" \
     --env "MICROSOFT_CLIENT_ID=$MICROSOFT_CLIENT_ID" \
     --env "MICROSOFT_TENANT_ID=$MICROSOFT_TENANT_ID" \
-    -- node "$APP_DIR/dist/index.js"
+    -- node "$SERVER_PATH"
   echo "✓ Registrado no Claude Code"
 fi
 
-# Claude Desktop lê um JSON próprio. Mesclar com node evita destruir outros
-# servidores que a pessoa já tenha configurado.
-DESKTOP_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+# O caminho do Claude Desktop muda por sistema — Linux não usa o do macOS.
+case "$(uname -s)" in
+  Darwin) DESKTOP_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json" ;;
+  *) DESKTOP_CONFIG="$HOME/.config/Claude/claude_desktop_config.json" ;;
+esac
 
 if [ -d "$(dirname "$DESKTOP_CONFIG")" ]; then
-  APP_DIR="$APP_DIR" \
+  # Mesclar com node evita apagar outros servidores já configurados.
   DESKTOP_CONFIG="$DESKTOP_CONFIG" \
+  SERVER_PATH="$SERVER_PATH" \
   SUPABASE_URL="$SUPABASE_URL" \
   PUBLISHABLE_KEY="$PUBLISHABLE_KEY" \
   PULSE_EMAIL="$PULSE_EMAIL" \
@@ -94,7 +160,7 @@ if [ -d "$(dirname "$DESKTOP_CONFIG")" ]; then
     config.mcpServers = config.mcpServers || {};
     config.mcpServers["og-pulse-drive"] = {
       command: "node",
-      args: [process.env.APP_DIR + "/dist/index.js"],
+      args: [process.env.SERVER_PATH],
       env: {
         SUPABASE_URL: process.env.SUPABASE_URL,
         SUPABASE_PUBLISHABLE_KEY: process.env.PUBLISHABLE_KEY,
@@ -108,20 +174,7 @@ if [ -d "$(dirname "$DESKTOP_CONFIG")" ]; then
     fs.writeFileSync(path, JSON.stringify(config, null, 2));
     fs.chmodSync(path, 0o600);
   '
-  echo "✓ Registrado no Claude Desktop (reinicie o app)"
-fi
-
-# A skill ensina o Claude a operar isto: convenção de pastas da Origami, o que é
-# o Pulse e como diagnosticar falha. Sem ela o MCP funciona, mas o agente não
-# sabe o contexto nem como orientar quando algo quebra.
-SKILL_SRC="$APP_DIR/../../.claude/skills/arquivos-de-projeto"
-SKILL_DEST="$HOME/.claude/skills/arquivos-de-projeto"
-
-if [ -d "$SKILL_SRC" ]; then
-  mkdir -p "$(dirname "$SKILL_DEST")"
-  rm -rf "$SKILL_DEST"
-  cp -R "$SKILL_SRC" "$SKILL_DEST"
-  echo "✓ Skill 'arquivos-de-projeto' instalada"
+  echo "✓ Registrado no Claude Desktop (feche e abra o app)"
 fi
 
 echo
