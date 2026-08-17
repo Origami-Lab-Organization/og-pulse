@@ -20,6 +20,7 @@ import { useHolidays } from '@/hooks/useHolidays';
 import { monthLoadKey, useEmployeeMonthlyLoad } from '@/hooks/useEmployeeMonthlyLoad';
 import { buildManagerByProject, buildMonthBreakdown } from '@/lib/allocationBreakdown';
 import { buildAllocationMonthsRange, emptyAllocationCell, getAllocationStatusClasses } from '@/lib/allocationGrid';
+import { GPO_HEALTHY_MAX, GPO_HEALTHY_MIN } from '@/lib/gpoAllocation.constants';
 import { cn } from '@/lib/utils';
 import type {
   AllocationMonth,
@@ -64,12 +65,17 @@ interface HealthCount {
   slack: number;
 }
 
-function countHealth(people: AllocationPerson[], monthKey: string): HealthCount {
+function countHealth(
+  people: AllocationPerson[],
+  monthKey: string,
+  lensManagerId: string | null,
+  managerByProject: ManagerByProject,
+): HealthCount {
   return people.reduce<HealthCount>(
     (acc, person) => {
       const cell = person.cells[monthKey];
       if (!cell) return acc;
-      acc[bucketForStatus(cell.status)] += 1;
+      acc[bucketForBreakdown(buildMonthBreakdown(cell, lensManagerId ?? undefined, managerByProject))] += 1;
       return acc;
     },
     { overloaded: 0, healthy: 0, slack: 0 },
@@ -91,13 +97,17 @@ function normalizeText(value: string) {
     .toLocaleLowerCase('pt-BR');
 }
 
+/** Régua única da tela: estourou > 100% · no ponto 90–100% (faixa saudável) · com folga < 90%. */
 function statusFromBreakdown(breakdown: MonthBreakdown): AllocationStatusKey {
   if (breakdown.utilization === null) return 'unallocated';
-  if (breakdown.utilization > 115) return 'critical';
-  if (breakdown.utilization > 100) return 'limit';
-  if (breakdown.utilization >= 70) return 'healthy';
+  if (breakdown.utilization > GPO_HEALTHY_MAX) return breakdown.utilization > 115 ? 'critical' : 'limit';
+  if (breakdown.utilization >= GPO_HEALTHY_MIN) return 'healthy';
   if (breakdown.utilization >= 40) return 'idle';
   return 'unallocated';
+}
+
+function bucketForBreakdown(breakdown: MonthBreakdown): HealthBucket {
+  return bucketForStatus(statusFromBreakdown(breakdown));
 }
 
 function HealthChip({
@@ -577,6 +587,8 @@ function ProjectSection({
   months,
   referenceMonthKey,
   showManager,
+  lensManagerId,
+  managerByProject,
   onOpen,
 }: {
   project: AllocationProjectOption;
@@ -584,10 +596,12 @@ function ProjectSection({
   months: AllocationMonth[];
   referenceMonthKey: string;
   showManager: boolean;
+  lensManagerId: string | null;
+  managerByProject: ManagerByProject;
   onOpen: (employeeId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const health = countHealth(people, referenceMonthKey);
+  const health = countHealth(people, referenceMonthKey, lensManagerId, managerByProject);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-card shadow-card">
@@ -739,14 +753,19 @@ export default function MinhaEquipeAlocacaoPage() {
     });
   }, [projectTeams, projectFilter, search]);
 
-  const overallHealth = useMemo(() => countHealth(uniquePeople, activeMonthKey), [uniquePeople, activeMonthKey]);
+  const overallHealth = useMemo(
+    () => countHealth(uniquePeople, activeMonthKey, myLensId, managerByProject),
+    [uniquePeople, activeMonthKey, myLensId, managerByProject],
+  );
 
   const personRows = useMemo(() => {
     return uniquePeople
       .map((person) => ({
         person,
         breakdown: buildMonthBreakdown(person.cells[activeMonthKey], myLensId ?? undefined, managerByProject),
-        bucket: bucketForStatus(person.cells[activeMonthKey]?.status ?? 'unallocated'),
+        bucket: bucketForBreakdown(
+          buildMonthBreakdown(person.cells[activeMonthKey], myLensId ?? undefined, managerByProject),
+        ),
       }))
       .filter((row) => (focusBucket ? row.bucket === focusBucket : true))
       .sort((a, b) => (b.breakdown.utilization ?? -1) - (a.breakdown.utilization ?? -1));
@@ -990,6 +1009,8 @@ export default function MinhaEquipeAlocacaoPage() {
                 months={months}
                 referenceMonthKey={referenceMonthKey}
                 showManager={isAdmin}
+                lensManagerId={myLensId}
+                managerByProject={managerByProject}
                 onOpen={openPerson}
               />
             ))}
