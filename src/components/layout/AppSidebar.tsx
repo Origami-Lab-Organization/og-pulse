@@ -75,11 +75,11 @@ const NAV_ITEMS: SidebarNavItem[] = [
   {
     kind: 'group',
     title: 'Análises',
-    url: '/analises/alocacoes',
+    url: '/analises/meu-time',
     icon: BarChart3,
     requiresManager: true,
     children: [
-      { title: 'Alocações', url: '/analises/alocacoes' },
+      { title: 'Meu Time', url: '/analises/meu-time' },
       { title: 'Financeiro', url: '/analises/financeiro' },
       { title: 'Comercial', url: '/analises/comercial' },
       { title: 'Custo x Hora', url: '/analises/custo-hora', requiresAdmin: true },

@@ -32,10 +32,10 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: 'Análises',
-    url: '/analises/alocacoes',
+    url: '/analises/meu-time',
     requiresManager: true,
     tabs: [
-      { title: 'Alocações', url: '/analises/alocacoes' },
+      { title: 'Meu Time', url: '/analises/meu-time' },
       { title: 'Financeiro', url: '/analises/financeiro' },
       { title: 'Comercial', url: '/analises/comercial' },
     ],

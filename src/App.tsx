@@ -34,6 +34,7 @@ import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
 import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
+import MinhaEquipeAlocacaoPage from "./pages/MinhaEquipeAlocacaoPage";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import EmployeeAllocationDetailPage from "./pages/EmployeeAllocationDetailPage";
 import Analytics from "./pages/Analytics";
@@ -293,6 +294,14 @@ const App = () => (
                 }
               />
               {/* Análises */}
+              <Route
+                path="/analises/meu-time"
+                element={
+                  <RoleProtectedRoute requireManager>
+                    <MinhaEquipeAlocacaoPage />
+                  </RoleProtectedRoute>
+                }
+              />
               <Route
                 path="/analises/alocacoes"
                 element={

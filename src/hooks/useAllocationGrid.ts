@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { allocationService } from '@/services/allocationService';
 import { buildAllocationMonths } from '@/lib/allocationGrid';
-import { AllocationFiltersState } from '@/types/allocation';
+import { AllocationFiltersState, AllocationMonth } from '@/types/allocation';
 import { useHolidays } from '@/hooks/useHolidays';
 
 export function useAllocationGrid({
@@ -11,18 +11,21 @@ export function useAllocationGrid({
   offsetStart,
   periodLength,
   baseDate,
+  monthsOverride,
 }: {
   tenantId: string | undefined;
   filters: AllocationFiltersState;
   offsetStart: number;
   periodLength: number;
   baseDate: Date;
+  /** Janela explícita (planejamento). Quando informada, ignora offsetStart/periodLength e o clamp padrão. */
+  monthsOverride?: AllocationMonth[];
 }) {
   const { data: holidays = [] } = useHolidays();
 
   const months = useMemo(
-    () => buildAllocationMonths(baseDate, offsetStart, periodLength, holidays),
-    [baseDate, holidays, offsetStart, periodLength],
+    () => monthsOverride ?? buildAllocationMonths(baseDate, offsetStart, periodLength, holidays),
+    [monthsOverride, baseDate, holidays, offsetStart, periodLength],
   );
 
   return useQuery({

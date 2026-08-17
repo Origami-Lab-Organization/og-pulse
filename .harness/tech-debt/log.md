@@ -170,6 +170,22 @@
 - **Impacto:** Deno não tem inferência automática das respostas do Supabase JS SDK; os casts `as any` existem nos campos `installment_number`, `value`, `invoice_date` e `projects` dos registros retornados pela query. Sem risco funcional imediato — mas reduz segurança de tipos e pode mascarar erros de schema no futuro.
 - **Próximo passo:** Criar interfaces tipadas para as rows de `project_installments` + `projects` no contexto Deno (ou extrair um tipo compartilhado via `supabase gen types`), removendo os casts.
 
+### TD-0017 — Lente "Projetos" do Meu Time mostra lançamento numa tela de planejamento
+- **Status**: aberto
+- **Prioridade**: média
+- **Arquivos**: `src/pages/MinhaEquipeAlocacaoPage.tsx` (`AllocationRowTable`, `ProjectSection`), `src/components/allocation/AllocationGrid.tsx` (`ReferenceMonthCell`)
+- **Impacto**: a tela `/analises/meu-time` se declara de planejamento (capacidade × planejado) e a lente Pessoas cumpre isso, mas a lente Projetos reusa `ReferenceMonthCell`, que no mês corrente exibe lançado, esperado até hoje e ritmo. Duas métricas diferentes convivem na mesma tela sob o mesmo rótulo, o que levou a leitura de "é igual à tela de Alocação" e sustenta ambiguidade de interpretação para o GP.
+- **Causa raiz**: a lente Projetos foi construída antes da decisão de que a tela seria exclusivamente de planejamento; ela reaproveitou as células da grade operacional e não foi migrada quando a base do cálculo passou a ser `plannedHours`.
+- **Próximo passo**: trocar as células da lente Projetos por `CapacityBar` + colunas de capacidade/planejado/livre (mesmo componente da lente Pessoas), eliminando `ReferenceMonthCell` desta tela.
+
+### TD-0018 — Acompanhamento de lançamento/aderência ficou sem entrada no menu
+- **Status**: aberto
+- **Prioridade**: média
+- **Arquivos**: `src/components/layout/AppSidebar.tsx`, `src/components/layout/nav-config.ts`, `src/pages/AlocacaoPage.tsx`, `src/lib/allocationGrid.ts` (`filterAllocationPeople`, `isOutOfPace`)
+- **Impacto**: o item "Alocações" foi removido do menu Análises em 2026-08-17 por redundância visual com Meu Time. A rota `/analises/alocacoes` continua funcional (breadcrumbs de `EmployeeAllocationDetailPage`/`EmployeeTimesheetPage` e redirect `/alocacao` apontam para ela), mas os recursos exclusivos de acompanhamento de lançamento — filtros `missingLogs` (sem lançamento), `outOfPace` (lançamento atrasado), `abovePlan`, KPIs de aderência e a célula de ritmo — deixaram de ser alcançáveis pela navegação. Capacidade existente no produto ficou invisível.
+- **Causa raiz**: decisão consciente de reduzir duas entradas parecidas a uma, sem antes definir onde a visão de lançamento passaria a morar.
+- **Próximo passo**: decidir o destino da visão de lançamento — aba dentro de Meu Time, tela própria "Lançamento" no menu, ou aposentar formalmente (com remoção do código e ADR). Enquanto não decidido, a funcionalidade permanece órfã.
+
 ## Resolvido
 
 - Nenhum item registrado ainda.

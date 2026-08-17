@@ -1,4 +1,4 @@
-import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
+import { addMonths, differenceInCalendarMonths, endOfMonth, format, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AllocationCell, AllocationFiltersState, AllocationMetrics, AllocationMonth, AllocationPerson, AllocationStatusKey } from '@/types/allocation';
 import { countWorkingDays } from '@/lib/workingDays';
@@ -83,6 +83,40 @@ export function buildAllocationMonths(baseDate: Date, offsetStart: number, lengt
     const end = endOfMonth(date);
     // Meses passados contam o mês inteiro (elapsed = workingDays); meses futuros ainda
     // não começaram (elapsed = 0); o mês corrente conta só até hoje, inclusive.
+    const elapsedEnd = baseDate < start ? null : baseDate > end ? end : baseDate;
+
+    return {
+      key: format(date, 'yyyy-MM'),
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      startDate: format(start, 'yyyy-MM-dd'),
+      endDate: format(end, 'yyyy-MM-dd'),
+      label: format(date, 'MMM', { locale: ptBR }).replace('.', '').toUpperCase(),
+      workingDays: countWorkingDays(start, end, holidays),
+      workingDaysElapsed: elapsedEnd ? countWorkingDays(start, elapsedEnd, holidays) : 0,
+    };
+  });
+}
+
+/**
+ * Meses de uma faixa explícita (planejamento), sem o clamp de `buildAllocationMonths`.
+ * Limitado a 18 meses para não estourar as consultas por ano.
+ */
+export function buildAllocationMonthsRange(
+  fromDate: Date,
+  toDate: Date,
+  holidays: HolidayLike[] = [],
+  baseDate: Date = new Date(),
+): AllocationMonth[] {
+  const first = startOfMonth(fromDate);
+  const last = startOfMonth(toDate);
+  const span = Math.max(0, differenceInCalendarMonths(last, first));
+  const length = Math.min(18, span + 1);
+
+  return Array.from({ length }, (_, index) => {
+    const date = addMonths(first, index);
+    const start = startOfMonth(date);
+    const end = endOfMonth(date);
     const elapsedEnd = baseDate < start ? null : baseDate > end ? end : baseDate;
 
     return {
