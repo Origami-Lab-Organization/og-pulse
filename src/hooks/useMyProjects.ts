@@ -77,14 +77,10 @@ export const useMyProjects = () => {
         { data: milestones },
         { data: myCards },
       ] = await Promise.all([
-        supabase
-          .from('project_member_months')
-          .select('project_member_id, hours')
-          .in('project_member_id', allMemberIds),
-        supabase
-          .from('project_timesheets')
-          .select('project_id, hours')
-          .in('project_id', projectIds),
+        // Horas vêm por RPC com projeção fixa (PUL-164): as tabelas carregam
+        // cost_per_hour e não são mais legíveis para linha de terceiro.
+        supabase.rpc('get_member_planned_hours', { p_member_ids: allMemberIds }),
+        supabase.rpc('get_project_actual_hours', { p_project_ids: projectIds }),
         supabase
           .from('project_milestones')
           .select('project_id, title, end_date, status, completed_date')

@@ -135,17 +135,14 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
 
       // 3. Buscar horas planejadas e registros de timesheet em paralelo
       const [memberMonthsResult, timesheetsResult] = await Promise.all([
+        // Horas por RPC com projeção fixa (PUL-164): as tabelas carregam
+        // cost_per_hour e não são mais legíveis para linha de terceiro. O shape
+        // devolvido é o mesmo, então a agregação abaixo não muda.
         allMemberIds.length > 0
-          ? supabase
-              .from('project_member_months')
-              .select('project_member_id, month_number, hours')
-              .in('project_member_id', allMemberIds)
+          ? supabase.rpc('get_member_planned_hours', { p_member_ids: allMemberIds })
           : Promise.resolve({ data: [], error: null }),
         allMemberIds.length > 0
-          ? supabase
-              .from('project_timesheets')
-              .select('project_member_id, work_date, hours')
-              .in('project_member_id', allMemberIds)
+          ? supabase.rpc('get_member_actual_hours', { p_member_ids: allMemberIds })
           : Promise.resolve({ data: [], error: null }),
       ]);
 

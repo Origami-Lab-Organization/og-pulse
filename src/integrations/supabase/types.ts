@@ -6712,6 +6712,19 @@ export type Database = {
         }[]
       }
       get_crm_received_value: { Args: { p_tenant_id: string }; Returns: number }
+      can_read_project_hours: { Args: { p_project_id: string }; Returns: boolean }
+      get_member_planned_hours: {
+        Args: { p_member_ids: string[] }
+        Returns: { hours: number; month_number: number; project_member_id: string }[]
+      }
+      get_member_actual_hours: {
+        Args: { p_member_ids: string[] }
+        Returns: { hours: number; project_member_id: string; work_date: string }[]
+      }
+      get_project_actual_hours: {
+        Args: { p_project_ids: string[] }
+        Returns: { hours: number; project_id: string }[]
+      }
       get_employee_directory: {
         Args: Record<PropertyKey, never>
         Returns: {
