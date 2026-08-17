@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getEmployeeDirectoryMap } from '@/services/employeeDirectoryService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -29,11 +30,14 @@ export const useMyProjects = () => {
   const { employee } = useAuth();
   const employeeId = employee?.id;
   const tenantId = employee?.tenant_id;
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ['my-projects', tenantId, employeeId],
     queryFn: async (): Promise<MyProjectSummary[]> => {
       if (!employeeId || !tenantId) return [];
+
+      const directory = await getEmployeeDirectoryMap(queryClient);
 
       // 1. Buscar memberships do employee com joins em projetos, clientes e gerente
       const { data: myMemberships, error } = await supabase
@@ -47,7 +51,7 @@ export const useMyProjects = () => {
             id, name, description, start_date, end_date, is_continuous,
             duration_months, status, portfolio_stage, service_line,
             clients!inner (company_name, trading_name),
-            employees!projects_manager_id_fkey (nome, cargo)
+            manager_id
           )
         `)
         .eq('employee_id', employeeId)
@@ -61,7 +65,7 @@ export const useMyProjects = () => {
       // 2. Buscar todos os membros desses projetos (contagem, IDs de horas planejadas e equipe)
       const { data: allMembers } = await supabase
         .from('project_members')
-        .select('id, project_id, employee_id, employees(nome, cargo, foto_url)')
+        .select('id, project_id, employee_id')
         .in('project_id', projectIds);
 
       const allMemberIds = (allMembers || []).map((m: any) => m.id);
@@ -73,14 +77,10 @@ export const useMyProjects = () => {
         { data: milestones },
         { data: myCards },
       ] = await Promise.all([
-        supabase
-          .from('project_member_months')
-          .select('project_member_id, hours')
-          .in('project_member_id', allMemberIds),
-        supabase
-          .from('project_timesheets')
-          .select('project_id, hours')
-          .in('project_id', projectIds),
+        // Horas vêm por RPC com projeção fixa (PUL-164): as tabelas carregam
+        // cost_per_hour e não são mais legíveis para linha de terceiro.
+        supabase.rpc('get_member_planned_hours', { p_member_ids: allMemberIds }),
+        supabase.rpc('get_project_actual_hours', { p_project_ids: projectIds }),
         supabase
           .from('project_milestones')
           .select('project_id, title, end_date, status, completed_date')
@@ -152,15 +152,18 @@ export const useMyProjects = () => {
         if (projectMap.has(project.id)) return;
 
         const client = project.clients;
-        const manager = project.employees || { nome: '', cargo: '' };
+        const managerEntry = project.manager_id ? directory.get(project.manager_id) : undefined;
+        const manager = { nome: managerEntry?.nome ?? '', cargo: managerEntry?.cargo ?? '' };
         const projectMembers = membersByProject.get(project.id) || [];
-        const namedMembers = projectMembers.filter((m: any) => !!m.employee_id && !!m.employees);
         const membersCount = projectMembers.filter((m: any) => !!m.employee_id).length;
-        const members = namedMembers.map((m: any) => ({
-          nome: m.employees.nome,
-          cargo: m.employees.cargo,
-          fotoUrl: m.employees.foto_url ?? null,
-        }));
+        const members = projectMembers
+          .map((m: any) => (m.employee_id ? directory.get(m.employee_id) : undefined))
+          .filter((entry): entry is NonNullable<typeof entry> => !!entry)
+          .map((entry) => ({
+            nome: entry.nome,
+            cargo: entry.cargo ?? '',
+            fotoUrl: entry.foto_url ?? null,
+          }));
 
         projectMap.set(project.id, {
           id: project.id,

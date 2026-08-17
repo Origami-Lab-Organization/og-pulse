@@ -11,7 +11,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useEmployees } from '@/hooks/useEmployees';
+import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,17 +23,17 @@ interface AttendeePickerProps {
 
 /**
  * Convidados a partir do cadastro de funcionários, com espaço para e-mail
- * externo (cliente, fornecedor). A lista vem do `employees` do próprio Pulse —
- * não usa o diretório da Microsoft, que exigiria permissão de leitura de todo
- * o tenant.
+ * externo (cliente, fornecedor). A lista vem do diretório do Pulse (identidade
+ * apenas — sem remuneração ou dado pessoal, PUL-162), não do diretório da
+ * Microsoft, que exigiria permissão de leitura de todo o tenant.
  */
 export function AttendeePicker({ value, onChange }: AttendeePickerProps) {
-  const { data: employees = [] } = useEmployees();
+  const { data: employees = [] } = useEmployeeDirectory();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
   const selectable = useMemo(
-    () => employees.filter((employee) => Boolean(employee.email)),
+    () => employees.filter((employee): employee is typeof employee & { email: string } => !!employee.email),
     [employees],
   );
 

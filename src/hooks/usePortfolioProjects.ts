@@ -62,7 +62,7 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
         .select(`
           id,
           name,
-          total_value,
+          financials:project_financials(total_value),
           start_date,
           end_date,
           completed_date,
@@ -91,7 +91,13 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
         throw error;
       }
 
-      let projects = (data || []) as unknown as PortfolioProject[];
+      // total_value vive em project_financials (PUL-164): reexposto na raiz para
+      // não mudar o contrato dos consumidores do portfólio.
+      let projects = ((data || []) as unknown[]).map((row) => {
+        const record = row as Record<string, unknown>;
+        const financials = record.financials as { total_value?: number | null } | null | undefined;
+        return { ...record, total_value: Number(financials?.total_value ?? 0) };
+      }) as unknown as PortfolioProject[];
 
       if (searchQuery && searchQuery.length > 0) {
         const q = searchQuery.toLowerCase();
