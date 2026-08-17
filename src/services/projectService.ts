@@ -69,12 +69,27 @@ export interface ProjectFilterOptions {
   managerId?: string;
 }
 
+
+/**
+ * Reexpõe `total_value` na raiz do projeto a partir de `project_financials`.
+ * A coluna saiu de `projects` (PUL-164): projects precisa ser legível por qualquer
+ * membro e RLS não restringe coluna. Os consumidores continuam lendo
+ * `project.total_value`; quem não pode ver o financeiro recebe 0, porque a RLS da
+ * tabela-filha não devolve a linha.
+ */
+function withTotalValue<T>(row: T): T {
+  const record = row as Record<string, unknown>;
+  const financials = record.financials as { total_value?: number | null } | null | undefined;
+  return { ...record, total_value: Number(financials?.total_value ?? 0) } as T;
+}
+
 export const projectService = {
   async getAll(tenantId: string, options?: ProjectFilterOptions): Promise<ProjectWithRelations[]> {
     let query = supabase
       .from('projects')
       .select(`
         *,
+        financials:project_financials(total_value),
         client:clients(id, company_name, trading_name),
         manager:employees!projects_manager_id_fkey(id, nome, cargo),
         installments:project_installments(id, project_id, installment_number, value, due_date, status, invoice_number, payment_date)
@@ -93,7 +108,7 @@ export const projectService = {
       throw error;
     }
 
-    return (data || []) as unknown as ProjectWithRelations[];
+    return ((data || []) as unknown[]).map(withTotalValue) as unknown as ProjectWithRelations[];
   },
 
   async getByClient(clientId: string, tenantId: string): Promise<ProjectWithRelations[]> {
@@ -101,6 +116,7 @@ export const projectService = {
       .from('projects')
       .select(`
         *,
+        financials:project_financials(total_value),
         client:clients(id, company_name, trading_name),
         manager:employees!projects_manager_id_fkey(id, nome, cargo)
       `)
@@ -113,7 +129,7 @@ export const projectService = {
       throw error;
     }
 
-    return (data || []) as unknown as ProjectWithRelations[];
+    return ((data || []) as unknown[]).map(withTotalValue) as unknown as ProjectWithRelations[];
   },
 
   async getById(id: string, tenantId?: string): Promise<ProjectWithRelations | null> {
@@ -121,6 +137,7 @@ export const projectService = {
       .from('projects')
       .select(`
         *,
+        financials:project_financials(total_value),
         client:clients(id, company_name, trading_name),
         manager:employees!projects_manager_id_fkey(id, nome, cargo)
       `)
@@ -187,7 +204,7 @@ export const projectService = {
     }
 
     return {
-      ...data,
+      ...withTotalValue(data),
       members: membersWithIdentity,
       installments: installments || [],
       suppliers: suppliers || [],
@@ -210,7 +227,6 @@ export const projectService = {
         start_date: input.startDate,
         end_date: input.endDate || null,
         is_continuous: input.isContinuous || false,
-        total_value: input.totalValue,
         payment_method: input.paymentMethod,
         installments_count: input.installmentsCount,
         first_invoice_date: input.firstInvoiceDate || null,
@@ -291,7 +307,6 @@ export const projectService = {
     if (updates.startDate !== undefined) updateData.start_date = updates.startDate;
     if (updates.endDate !== undefined) updateData.end_date = updates.endDate || null;
     if (updates.isContinuous !== undefined) updateData.is_continuous = updates.isContinuous;
-    if (updates.totalValue !== undefined) updateData.total_value = updates.totalValue;
     if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
     if (updates.installmentsCount !== undefined) updateData.installments_count = updates.installmentsCount;
     if (updates.firstInvoiceDate !== undefined) updateData.first_invoice_date = updates.firstInvoiceDate || null;
@@ -315,6 +330,17 @@ export const projectService = {
       throw error;
     }
 
+    // Valor de contrato mora em project_financials (PUL-164).
+    if (updates.totalValue !== undefined) {
+      const { error: financialsError } = await supabase
+        .from('project_financials')
+        .upsert({ project_id: id, total_value: updates.totalValue }, { onConflict: 'project_id' });
+      if (financialsError) {
+        console.error('Error updating project total value:', financialsError);
+        throw financialsError;
+      }
+    }
+
     // Regenerate installments if financial data changed
     const shouldRegenerateInstallments = 
       updates.totalValue !== undefined ||
@@ -330,7 +356,15 @@ export const projectService = {
       const projectIsContinuous = updates.isContinuous !== undefined ? updates.isContinuous : data.is_continuous;
       const projectFirstInvoiceDate = updates.firstInvoiceDate || data.first_invoice_date;
       const projectDueDay = updates.dueDay !== undefined ? updates.dueDay : data.due_day;
-      const projectTotalValue = updates.totalValue !== undefined ? updates.totalValue : data.total_value;
+      let projectTotalValue = updates.totalValue;
+      if (projectTotalValue === undefined) {
+        const { data: currentFinancials } = await supabase
+          .from('project_financials')
+          .select('total_value')
+          .eq('project_id', id)
+          .maybeSingle();
+        projectTotalValue = Number(currentFinancials?.total_value ?? 0);
+      }
       const projectRenewalDate = updates.renewalDate || data.renewal_date;
       const projectInstallmentsCount = updates.installmentsCount !== undefined ? updates.installmentsCount : data.installments_count;
 
@@ -791,6 +825,7 @@ export const projectService = {
       .from('projects')
       .select(`
         *,
+        financials:project_financials(total_value),
         client:clients(id, company_name, trading_name),
         manager:employees!projects_manager_id_fkey(id, nome, cargo)
       `)
@@ -803,6 +838,6 @@ export const projectService = {
       throw error;
     }
 
-    return (data || []) as unknown as ProjectWithRelations[];
+    return ((data || []) as unknown[]).map(withTotalValue) as unknown as ProjectWithRelations[];
   },
 };

@@ -411,7 +411,6 @@ Deno.serve(async (req) => {
       end_date: '2026-03-31',
       duration_months: 6,
       status: 'active',
-      total_value: 210000,
       payment_method: 'mensal',
       installments_count: 6,
       first_invoice_date: '2025-10-31',
@@ -432,7 +431,6 @@ Deno.serve(async (req) => {
       end_date: '2026-07-31',
       duration_months: 4,
       status: 'planning',
-      total_value: 96000,
       payment_method: 'por_entrega',
       installments_count: 3,
       first_invoice_date: '2026-04-30',
@@ -453,7 +451,6 @@ Deno.serve(async (req) => {
       end_date: '2025-09-30',
       duration_months: 5,
       status: 'completed',
-      total_value: 155000,
       payment_method: 'por_entrega',
       installments_count: 3,
       first_invoice_date: '2025-06-30',
@@ -474,7 +471,6 @@ Deno.serve(async (req) => {
       end_date: null,
       duration_months: 12,
       status: 'active',
-      total_value: 0,
       payment_method: 'mensal',
       installments_count: 0,
       due_day: 15,
@@ -482,6 +478,16 @@ Deno.serve(async (req) => {
       is_continuous: true,
     }).select().single();
     if (p4Err) throw new Error(`proj4: ${p4Err.message}`);
+
+    // Valor de contrato mora em project_financials (PUL-164). O trigger
+    // create_project_financials já criou a linha com 0 para cada projeto acima.
+    const { error: pfErr } = await db.from('project_financials').upsert([
+      { project_id: proj1.id, total_value: 210000 },
+      { project_id: proj2.id, total_value: 96000 },
+      { project_id: proj3.id, total_value: 155000 },
+      { project_id: proj4.id, total_value: 0 },
+    ], { onConflict: 'project_id' });
+    if (pfErr) throw new Error(`project_financials: ${pfErr.message}`);
 
     // ═══════════════════════════════════════════════════════════════════════
     // 7. PROJECT MEMBERS

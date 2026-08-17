@@ -3556,6 +3556,35 @@ export type Database = {
           },
         ]
       }
+      project_financials: {
+        Row: {
+          created_at: string
+          project_id: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          project_id: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          project_id?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_financials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_installments: {
         Row: {
           created_at: string
@@ -4610,7 +4639,6 @@ export type Database = {
           status: Database["public"]["Enums"]["project_status"]
           success_fee_percent: number | null
           tenant_id: string
-          total_value: number
           updated_at: string
           value_book_url: string | null
         }
@@ -4644,7 +4672,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["project_status"]
           success_fee_percent?: number | null
           tenant_id: string
-          total_value?: number
           updated_at?: string
           value_book_url?: string | null
         }
@@ -4678,7 +4705,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["project_status"]
           success_fee_percent?: number | null
           tenant_id?: string
-          total_value?: number
           updated_at?: string
           value_book_url?: string | null
         }
@@ -5610,7 +5636,6 @@ export type Database = {
           reference_month: string
           rpa: number | null
           tenant_id: string
-          total_value: number
           updated_at: string
         }
         Insert: {
@@ -5631,7 +5656,6 @@ export type Database = {
           reference_month: string
           rpa?: number | null
           tenant_id: string
-          total_value?: number
           updated_at?: string
         }
         Update: {
@@ -5652,7 +5676,6 @@ export type Database = {
           reference_month?: string
           rpa?: number | null
           tenant_id?: string
-          total_value?: number
           updated_at?: string
         }
         Relationships: [
