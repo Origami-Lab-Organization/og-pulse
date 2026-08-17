@@ -9,6 +9,7 @@ import type {
   ProjectRitoType,
   RitoProjectOption,
 } from '@/types/projectRito';
+import { fetchEmployeeDirectory } from '@/services/employeeDirectoryService';
 
 /**
  * Vínculos de rito.
@@ -27,6 +28,7 @@ interface RitoRow {
   rito_type: ProjectRitoType;
   event_title: string;
   projects: { name: string } | null;
+  linked_by: string | null;
   employees: { nome: string } | null;
 }
 
@@ -50,12 +52,22 @@ export const projectRitoService = {
     if (!icalUid) return [];
 
     const { data, error } = await supabase.from('project_ritos' as any)
-      .select('id, project_id, rito_type, event_title, projects(name), employees(nome)')
+      .select('id, project_id, rito_type, event_title, linked_by, projects(name)')
       .eq('tenant_id', tenantId)
       .eq('ical_uid', icalUid);
 
     if (error) throw error;
-    return ((data ?? []) as RitoRow[]).map(toLink);
+
+    // Nome de quem vinculou vem do diretório (PUL-162): employees(...) aninhado
+    // não retorna colegas para quem não é admin/gerente.
+    const directory = await fetchEmployeeDirectory();
+    const nameById = new Map(directory.map((entry) => [entry.id, entry.nome]));
+    return ((data ?? []) as RitoRow[]).map((row) =>
+      toLink({
+        ...row,
+        employees: row.linked_by ? { nome: nameById.get(row.linked_by) ?? '' } : null,
+      }),
+    );
   },
 
   async create(

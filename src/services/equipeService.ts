@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectAllocationWithEmployee, ProjectTeamRowDB } from '@/types/equipe.types';
 import { AllocationMarginImpact, SimulationMonth } from '@/types/equipe.types';
+import { fetchEmployeeDirectoryMap, withDirectoryIdentity } from '@/services/employeeDirectoryService';
 
 export const equipeService = {
   /**
@@ -59,7 +60,14 @@ export const equipeService = {
       .order('year')
       .order('month');
     if (error) throw error;
-    return (data || []).map((row: any) => ({
+
+    // Identidade pelo diretório quando o embed vier vazio por RLS (PUL-162).
+    const directory = await fetchEmployeeDirectoryMap();
+    const withIdentity = withDirectoryIdentity(data || [], directory, {
+      idField: 'employee_id',
+      embedField: 'employee',
+    });
+    return withIdentity.map((row: any) => ({
       ...row,
       cost_per_hour: includeCost ? row.cost_per_hour ?? null : null,
     })) as ProjectAllocationWithEmployee[];

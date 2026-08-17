@@ -10,15 +10,18 @@ import {
   UpdateActivityInput,
 } from '@/types/projectActivity';
 import { checklistService } from '@/services/checklistService';
+import { getEmployeeDirectoryMap } from '@/services/employeeDirectoryService';
 
 export const useProjectActivities = (projectId: string | undefined) => {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: ['project-activities', projectId],
     queryFn: async () => {
       // Break up builder chain to avoid TS2589 "excessively deep type instantiation"
       const query = supabase
         .from('project_activity_cards')
-        .select('*, assignee:employees!project_activity_cards_assignee_id_fkey(id, nome, foto_url), card_tags:project_activity_card_tags(*, tag:project_activity_tags(*)), card_checklist:project_activity_card_checklist(id, type, is_checked), card_tasks:project_activity_tasks(id, completed_at)') as any;
+        .select('*, card_tags:project_activity_card_tags(*, tag:project_activity_tags(*)), card_checklist:project_activity_card_checklist(id, type, is_checked), card_tasks:project_activity_tasks(id, completed_at)') as any;
 
       const { data, error } = await query
         .eq('project_id', projectId!)
@@ -27,7 +30,14 @@ export const useProjectActivities = (projectId: string | undefined) => {
         .order('position');
 
       if (error) throw error;
-      return (data || []) as ProjectActivityCardWithRelations[];
+
+      // Identidade do responsável vem do diretório (PUL-162): a policy de
+      // co-membro em employees foi removida, então o embed retornaria null.
+      const directory = await getEmployeeDirectoryMap(queryClient);
+      return ((data || []) as ProjectActivityCardWithRelations[]).map((card) => ({
+        ...card,
+        assignee: card.assignee_id ? directory.get(card.assignee_id) ?? null : null,
+      })) as ProjectActivityCardWithRelations[];
     },
     enabled: !!projectId,
   });

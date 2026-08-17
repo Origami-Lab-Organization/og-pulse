@@ -11,6 +11,7 @@ import {
   ProjectWithRelations,
   InstallmentStatus,
 } from '@/types/project';
+import { fetchEmployeeDirectoryMap, withDirectoryIdentity } from '@/services/employeeDirectoryService';
 
 function generateInstallments(
   projectId: string,
@@ -141,6 +142,26 @@ export const projectService = {
       `)
       .eq('project_id', id);
 
+    // Identidade dos membros e do gerente pelo diretório quando o embed vier
+    // vazio por RLS (PUL-162). Campos de custo seguem só para admin/gerente.
+    const directory = await fetchEmployeeDirectoryMap();
+    const membersWithIdentity = withDirectoryIdentity(members ?? [], directory, {
+      idField: 'employee_id',
+      embedField: 'employee',
+    });
+    const projectRow = data as Record<string, unknown>;
+    const managerId = projectRow.manager_id;
+    if (!projectRow.manager && typeof managerId === 'string') {
+      const managerEntry = directory.get(managerId);
+      if (managerEntry) {
+        projectRow.manager = {
+          id: managerEntry.id,
+          nome: managerEntry.nome,
+          cargo: managerEntry.cargo,
+        };
+      }
+    }
+
     // Fetch installments separately
     const { data: installments } = await supabase
       .from('project_installments')
@@ -167,7 +188,7 @@ export const projectService = {
 
     return {
       ...data,
-      members: members || [],
+      members: membersWithIdentity,
       installments: installments || [],
       suppliers: suppliers || [],
       materials: materials || [],
@@ -598,7 +619,11 @@ export const projectService = {
       throw error;
     }
 
-    return (data || []) as unknown as (ProjectMemberDB & { employee?: { id: string; nome: string; cargo: string } })[];
+    const directory = await fetchEmployeeDirectoryMap();
+    return withDirectoryIdentity(data || [], directory, {
+      idField: 'employee_id',
+      embedField: 'employee',
+    }) as unknown as (ProjectMemberDB & { employee?: { id: string; nome: string; cargo: string } })[];
   },
 
   /**

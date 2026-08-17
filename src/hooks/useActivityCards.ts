@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { ActivityCardType, ActivityColumnName, UpdateActivityInput } from '@/types/projectActivity';
+import { getEmployeeDirectoryMap } from '@/services/employeeDirectoryService';
 
 // Fields tracked in history (column_name is handled by the DB trigger)
 type HistoryEntry = {
@@ -68,20 +69,31 @@ export interface CardHistoryEntry {
   } | null;
 }
 
-export const useCardHistory = (cardId: string) =>
-  useQuery({
+export const useCardHistory = (cardId: string) => {
+  const queryClient = useQueryClient();
+
+  return useQuery({
     queryKey: ['card-history', cardId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_activity_card_history')
-        .select('*, changed_by_employee:employees!project_activity_card_history_changed_by_fkey(nome, foto_url)')
+        .select('*')
         .eq('card_id', cardId)
         .order('changed_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as CardHistoryEntry[];
+
+      const directory = await getEmployeeDirectoryMap(queryClient);
+      return (data || []).map((entry) => {
+        const author = entry.changed_by ? directory.get(entry.changed_by) : undefined;
+        return {
+          ...entry,
+          changed_by_employee: author ? { nome: author.nome, foto_url: author.foto_url } : null,
+        };
+      }) as CardHistoryEntry[];
     },
     enabled: !!cardId,
   });
+};
 
 export const useUpdateActivityCard = () => {
   const queryClient = useQueryClient();
@@ -216,21 +228,32 @@ export interface ArchivedCardRow {
   archived_by_employee: { nome: string } | null;
 }
 
-export const useArchivedCards = (projectId: string | undefined) =>
-  useQuery({
+export const useArchivedCards = (projectId: string | undefined) => {
+  const queryClient = useQueryClient();
+
+  return useQuery({
     queryKey: ['archived-cards', projectId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_activity_cards')
-        .select('id, title, card_type, column_name, tenant_id, archived_at, archived_by, points, assignee_id, archived_by_employee:employees!project_activity_cards_archived_by_fkey(nome)')
+        .select('id, title, card_type, column_name, tenant_id, archived_at, archived_by, points, assignee_id')
         .eq('project_id', projectId!)
         .eq('is_archived', true)
         .order('archived_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as ArchivedCardRow[];
+
+      const directory = await getEmployeeDirectoryMap(queryClient);
+      return (data || []).map((card) => {
+        const archiver = card.archived_by ? directory.get(card.archived_by) : undefined;
+        return {
+          ...card,
+          archived_by_employee: archiver ? { nome: archiver.nome } : null,
+        };
+      }) as ArchivedCardRow[];
     },
     enabled: !!projectId,
   });
+};
 
 // ── Restore card ─────────────────────────────────────────────────────────────
 

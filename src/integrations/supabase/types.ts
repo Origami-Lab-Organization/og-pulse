@@ -6689,7 +6689,22 @@ export type Database = {
         }[]
       }
       get_crm_received_value: { Args: { p_tenant_id: string }; Returns: number }
+      get_employee_directory: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cargo: string
+          email: string
+          foto_url: string
+          id: string
+          nome: string
+          status: string
+        }[]
+      }
       get_employee_status: { Args: { p_auth_id: string }; Returns: string }
+      get_tenant_admin_employee_ids: {
+        Args: Record<PropertyKey, never>
+        Returns: { employee_id: string }[]
+      }
       get_employee_version_at_date: {
         Args: { p_date?: string; p_employee_id: string }
         Returns: {

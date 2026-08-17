@@ -14,6 +14,7 @@ import {
   resolveApprovers,
   resolveRequestStatus,
 } from '@/lib/vacationApproval';
+import { fetchEmployeeDirectory } from '@/services/employeeDirectoryService';
 
 // As tabelas de férias ainda não estão no types.ts gerado — casts `as any` são
 // temporários até a regeneração dos tipos do Supabase.
@@ -57,12 +58,13 @@ async function fetchAdminEmployeeIds(tenantId: string): Promise<string[]> {
     .eq('role', 'admin');
   const userIds = ((roles || []) as any[]).map((r) => r.user_id);
   if (userIds.length === 0) return [];
-  const { data: emps } = await supabase
-    .from('employees')
-    .select('id')
-    .eq('tenant_id', tenantId)
-    .in('auth_id', userIds);
-  return ((emps || []) as any[]).map((e) => e.id);
+
+  // Ids via RPC: mapear auth_id -> employee.id exigia ler employees de terceiros,
+  // o que a policy de co-membro concedia (removida em PUL-162) e já falhava
+  // quando o admin não compartilhava projeto com o solicitante.
+  const { data, error } = await supabase.rpc('get_tenant_admin_employee_ids');
+  if (error) throw error;
+  return (data ?? []).map((row) => row.employee_id);
 }
 
 async function fetchApprovalsByRequestIds(requestIds: string[]): Promise<Map<string, VacationApproval[]>> {
@@ -79,16 +81,14 @@ async function fetchApprovalsByRequestIds(requestIds: string[]): Promise<Map<str
   const approverIds = [...new Set(approvals.map((a) => a.approver_id))];
   const projectIds = [...new Set(approvals.filter((a) => a.project_id).map((a) => a.project_id!))];
 
-  const [empsRes, projsRes] = await Promise.all([
-    approverIds.length > 0
-      ? supabase.from('employees').select('id, nome').in('id', approverIds)
-      : Promise.resolve({ data: [] as any[] }),
+  const [directory, projsRes] = await Promise.all([
+    approverIds.length > 0 ? fetchEmployeeDirectory() : Promise.resolve([]),
     projectIds.length > 0
       ? supabase.from('projects').select('id, name').in('id', projectIds)
       : Promise.resolve({ data: [] as any[] }),
   ]);
 
-  const nameMap = new Map(((empsRes as any).data || []).map((e: any) => [e.id, e.nome]));
+  const nameMap = new Map(directory.map((entry) => [entry.id, entry.nome]));
   const projMap = new Map(((projsRes as any).data || []).map((p: any) => [p.id, p.name]));
 
   for (const approval of approvals) {

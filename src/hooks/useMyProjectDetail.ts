@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getEmployeeDirectoryMap } from '@/services/employeeDirectoryService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, format, parseISO } from 'date-fns';
@@ -67,11 +68,14 @@ export interface MyProjectDetail {
 export const useMyProjectDetail = (projectId: string | undefined) => {
   const { employee } = useAuth();
   const employeeId = employee?.id;
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ['my-project-detail', projectId, employeeId],
     queryFn: async (): Promise<MyProjectDetail | null> => {
       if (!projectId || !employeeId) return null;
+
+      const directory = await getEmployeeDirectoryMap(queryClient);
 
       // 1. Verificar membership + buscar projeto em paralelo
       const [membershipResult, projectResult] = await Promise.all([
@@ -87,7 +91,7 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
             id, name, description, start_date, end_date, duration_months,
             status, portfolio_stage, service_line, is_continuous,
             clients(company_name, trading_name),
-            employees!projects_manager_id_fkey(nome, cargo)
+            manager_id
           `)
           .eq('id', projectId)
           .single(),
@@ -117,10 +121,7 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
           .order('start_date', { ascending: true }),
         supabase
           .from('project_members')
-          .select(`
-            id, employee_id, role, hours_per_month,
-            employees(id, nome, cargo, foto_url)
-          `)
+          .select('id, employee_id, role, hours_per_month')
           .eq('project_id', projectId),
       ]);
 
@@ -189,7 +190,7 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
 
           return {
             memberId: m.id,
-            employeeName: m.employees?.nome ?? '',
+            employeeName: (m.employee_id ? directory.get(m.employee_id)?.nome : undefined) ?? '',
             role: m.role,
             months,
           };
@@ -201,20 +202,22 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
 
       // 5. Montar lista de membros (somente com funcionário alocado)
       const members = allMembers
-        .filter((m) => !!m.employee_id && !!m.employees)
-        .map((m) => ({
-          id: m.id,
-          employeeId: m.employee_id,
-          nome: m.employees.nome,
-          cargo: m.employees.cargo,
-          fotoUrl: m.employees.foto_url ?? null,
-          role: m.role,
-          hoursPerMonth: m.hours_per_month ?? 0,
+        .map((m) => ({ membership: m, entry: m.employee_id ? directory.get(m.employee_id) : undefined }))
+        .filter((row) => !!row.entry)
+        .map(({ membership, entry }) => ({
+          id: membership.id,
+          employeeId: membership.employee_id,
+          nome: entry!.nome,
+          cargo: entry!.cargo ?? '',
+          fotoUrl: entry!.foto_url ?? null,
+          role: membership.role,
+          hoursPerMonth: membership.hours_per_month ?? 0,
         }));
 
       const myMembership = membershipResult.data as any;
       const client = project.clients as any;
-      const manager = (project.employees || { nome: '', cargo: '' }) as any;
+      const managerEntry = project.manager_id ? directory.get(project.manager_id) : undefined;
+      const manager = { nome: managerEntry?.nome ?? '', cargo: managerEntry?.cargo ?? '' };
 
       return {
         id: project.id,
