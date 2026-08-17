@@ -6,6 +6,45 @@
 --
 -- Ver ADR-0023.
 
+
+-- Idempotência: remove também os nomes novos, para o arquivo poder ser
+-- reexecutado depois de uma falha parcial sem erro de "policy already exists".
+
+DROP POLICY IF EXISTS "Admins and managers can view payroll profiles" ON public.payroll_profiles;
+DROP POLICY IF EXISTS "Admins and managers can view role rates" ON public.role_rates;
+DROP POLICY IF EXISTS "Admins and managers can view financial settings" ON public.financial_settings;
+DROP POLICY IF EXISTS "Admins and managers can view leads" ON public.leads;
+DROP POLICY IF EXISTS "Admins and managers can view budgets" ON public.budgets;
+DROP POLICY IF EXISTS "services_insert" ON public.services;
+DROP POLICY IF EXISTS "services_update" ON public.services;
+DROP POLICY IF EXISTS "services_delete" ON public.services;
+DROP POLICY IF EXISTS "service_lines_insert" ON public.service_lines;
+DROP POLICY IF EXISTS "service_lines_update" ON public.service_lines;
+DROP POLICY IF EXISTS "service_lines_delete" ON public.service_lines;
+DROP POLICY IF EXISTS "activity_types_insert" ON public.activity_types;
+DROP POLICY IF EXISTS "activity_types_update" ON public.activity_types;
+DROP POLICY IF EXISTS "activity_types_delete" ON public.activity_types;
+DROP POLICY IF EXISTS "activity_type_employees_insert" ON public.activity_type_employees;
+DROP POLICY IF EXISTS "activity_type_employees_delete" ON public.activity_type_employees;
+DROP POLICY IF EXISTS "Recruiters can create job openings" ON public.job_openings;
+DROP POLICY IF EXISTS "Recruiters can update job openings" ON public.job_openings;
+DROP POLICY IF EXISTS "Recruiters can delete job openings" ON public.job_openings;
+DROP POLICY IF EXISTS "Admins and managers can view follow-ups" ON public.lead_follow_ups;
+DROP POLICY IF EXISTS "Admins and managers can insert follow-ups" ON public.lead_follow_ups;
+DROP POLICY IF EXISTS "Admins and managers can update follow-ups" ON public.lead_follow_ups;
+DROP POLICY IF EXISTS "Admins and managers can delete follow-ups" ON public.lead_follow_ups;
+DROP POLICY IF EXISTS "Admins and managers can view interactions" ON public.lead_interactions;
+DROP POLICY IF EXISTS "Admins and managers can insert interactions" ON public.lead_interactions;
+DROP POLICY IF EXISTS "Admins and managers can update interactions" ON public.lead_interactions;
+DROP POLICY IF EXISTS "lead_services_select" ON public.lead_services;
+DROP POLICY IF EXISTS "lead_services_insert" ON public.lead_services;
+DROP POLICY IF EXISTS "lead_services_update" ON public.lead_services;
+DROP POLICY IF EXISTS "lead_services_delete" ON public.lead_services;
+DROP POLICY IF EXISTS "Admins and managers can view lead activities" ON public.lead_activity_log;
+DROP POLICY IF EXISTS "Admins and managers can insert lead activities" ON public.lead_activity_log;
+DROP POLICY IF EXISTS "Recruiters can view job applications" ON public.job_applications;
+DROP POLICY IF EXISTS "Recruiters can update job applications" ON public.job_applications;
+DROP POLICY IF EXISTS "Recruiters can read curriculos" ON storage.objects;
 -- =============================================================================
 -- PUL-165 — Parâmetros de folha e financeiros
 -- =============================================================================
@@ -57,11 +96,20 @@ CREATE POLICY "Admins and managers can view budgets"
 ON public.budgets FOR SELECT TO authenticated
 USING (public.is_admin_or_manager(auth.uid(), tenant_id));
 
+-- budget_versions não tem tenant_id: o tenant vem por budget_id, mesmo padrão das
+-- policies de escrita que já existiam nesta tabela.
 DROP POLICY IF EXISTS "Users can view budget versions in their tenant" ON public.budget_versions;
+DROP POLICY IF EXISTS "Admins and managers can view budget versions" ON public.budget_versions;
 
 CREATE POLICY "Admins and managers can view budget versions"
 ON public.budget_versions FOR SELECT TO authenticated
-USING (public.is_admin_or_manager(auth.uid(), tenant_id));
+USING (
+  EXISTS (
+    SELECT 1 FROM public.budgets b
+    WHERE b.id = budget_versions.budget_id
+      AND public.is_admin_or_manager(auth.uid(), b.tenant_id)
+  )
+);
 
 -- =============================================================================
 -- PUL-167 — Escrita de catálogo e comercial exige perfil

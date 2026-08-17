@@ -25,7 +25,10 @@ export function AppNavbar() {
   const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
 
-  const homeRoute = isAdmin ? '/admin-dashboard' : isManager ? '/inbox' : '/dashboard';
+  // Mesmo destino de "/" (HomeRedirect) e do logo do sidebar: gerente também vai
+  // para /dashboard. Antes o navbar mandava gerente para /inbox, divergindo dos
+  // outros dois pontos de entrada (PUL-169).
+  const homeRoute = isAdmin ? '/admin-dashboard' : '/dashboard';
 
   const isVisible = (section: NavSection): boolean => {
     if (isStandalone && section.label !== "Início") return false;
