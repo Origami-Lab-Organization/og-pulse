@@ -653,7 +653,7 @@ export default function MinhaEquipeAlocacaoPage() {
     setProjectFilter(ALL_OPTION);
   };
 
-  const openPerson = (id: string) => navigate(`/analises/alocacoes/pessoa/${id}`);
+  const openPerson = (id: string) => navigate(`/projetos/alocacoes/pessoa/${id}`);
   const toggleBucket = (bucket: HealthBucket) => setFocusBucket((current) => (current === bucket ? null : bucket));
 
   return (

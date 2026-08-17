@@ -288,7 +288,7 @@ export default function EmployeeTimesheetPage() {
       title={employeeInfo?.nome || 'Funcionário'}
       description={employeeInfo ? `${employeeInfo.cargo} · Jornada: ${employeeInfo.jornada_mensal}h/mês` : ''}
       breadcrumbs={[
-        { label: 'Alocação', href: '/analises/alocacoes' },
+        { label: 'Alocação', href: '/projetos/alocacoes' },
         { label: employeeInfo?.nome || '...' },
       ]}
     >

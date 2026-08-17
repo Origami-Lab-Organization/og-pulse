@@ -29,6 +29,10 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Projetos',
     url: '/projetos',
     requiresManager: true,
+    tabs: [
+      { title: 'Portfólio', url: '/projetos' },
+      { title: 'Alocações', url: '/projetos/alocacoes' },
+    ],
   },
   {
     label: 'Análises',
@@ -36,7 +40,6 @@ export const NAV_SECTIONS: NavSection[] = [
     requiresManager: true,
     tabs: [
       { title: 'Meu Time', url: '/analises/meu-time' },
-      { title: 'Alocações', url: '/analises/alocacoes' },
       { title: 'Financeiro', url: '/analises/financeiro' },
       { title: 'Comercial', url: '/analises/comercial' },
     ],

@@ -157,7 +157,7 @@ export default function EmployeeAllocationDetailPage() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Alocação" breadcrumbs={[{ label: 'Alocação da Equipe', href: '/analises/alocacoes' }, { label: 'Carregando...' }]}>
+      <AppLayout title="Alocação" breadcrumbs={[{ label: 'Alocação da Equipe', href: '/projetos/alocacoes' }, { label: 'Carregando...' }]}>
         <Skeleton className="h-64 w-full" />
       </AppLayout>
     );
@@ -165,7 +165,7 @@ export default function EmployeeAllocationDetailPage() {
 
   if (!person) {
     return (
-      <AppLayout title="Alocação" breadcrumbs={[{ label: 'Alocação da Equipe', href: '/analises/alocacoes' }, { label: 'Não encontrado' }]}>
+      <AppLayout title="Alocação" breadcrumbs={[{ label: 'Alocação da Equipe', href: '/projetos/alocacoes' }, { label: 'Não encontrado' }]}>
         <div className="flex flex-col items-center gap-4 py-16">
           <p className="text-muted-foreground">Funcionário não encontrado no período selecionado.</p>
           <Button variant="outline" onClick={goBack}>
@@ -179,7 +179,7 @@ export default function EmployeeAllocationDetailPage() {
   return (
     <AppLayout
       title={person.name}
-      breadcrumbs={[{ label: 'Alocação da Equipe', href: '/analises/alocacoes' }, { label: person.name }]}
+      breadcrumbs={[{ label: 'Alocação da Equipe', href: '/projetos/alocacoes' }, { label: person.name }]}
     >
       <TooltipProvider delayDuration={150}>
         <div className="space-y-4">

@@ -71,7 +71,17 @@ const NAV_ITEMS: SidebarNavItem[] = [
   { kind: 'link', title: 'E-mails', url: '/meus-emails', icon: Mail, devOnly: true },
   { kind: 'link', title: 'Meus Projetos', url: '/my-projects', icon: FolderOpen, employeeOnly: true },
   { kind: 'link', title: 'Pipeline', url: '/pipeline', icon: Kanban, requiresManager: true },
-  { kind: 'link', title: 'Projetos', url: '/projetos', icon: FolderKanban, requiresManager: true },
+  {
+    kind: 'group',
+    title: 'Projetos',
+    url: '/projetos',
+    icon: FolderKanban,
+    requiresManager: true,
+    children: [
+      { title: 'Portfólio', url: '/projetos' },
+      { title: 'Alocações', url: '/projetos/alocacoes' },
+    ],
+  },
   {
     kind: 'group',
     title: 'Análises',
@@ -80,7 +90,6 @@ const NAV_ITEMS: SidebarNavItem[] = [
     requiresManager: true,
     children: [
       { title: 'Meu Time', url: '/analises/meu-time' },
-      { title: 'Alocações', url: '/analises/alocacoes' },
       { title: 'Financeiro', url: '/analises/financeiro' },
       { title: 'Comercial', url: '/analises/comercial' },
       { title: 'Custo x Hora', url: '/analises/custo-hora', requiresAdmin: true },

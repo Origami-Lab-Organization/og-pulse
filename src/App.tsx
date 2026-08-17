@@ -78,7 +78,12 @@ const queryClient = new QueryClient({
 
 function RedirectAlocacaoEmployee() {
   const { employeeId } = useParams();
-  return <Navigate to={`/analises/alocacoes/${employeeId}`} replace />;
+  return <Navigate to={`/projetos/alocacoes/${employeeId}`} replace />;
+}
+
+function RedirectAlocacaoPessoa() {
+  const { employeeId } = useParams();
+  return <Navigate to={`/projetos/alocacoes/pessoa/${employeeId}`} replace />;
 }
 
 /**
@@ -303,7 +308,7 @@ const App = () => (
                 }
               />
               <Route
-                path="/analises/alocacoes"
+                path="/projetos/alocacoes"
                 element={
                   <RoleProtectedRoute requireManager>
                     <AlocacaoPage />
@@ -311,7 +316,7 @@ const App = () => (
                 }
               />
               <Route
-                path="/analises/alocacoes/pessoa/:employeeId"
+                path="/projetos/alocacoes/pessoa/:employeeId"
                 element={
                   <RoleProtectedRoute requireManager>
                     <EmployeeAllocationDetailPage />
@@ -319,7 +324,7 @@ const App = () => (
                 }
               />
               <Route
-                path="/analises/alocacoes/:employeeId"
+                path="/projetos/alocacoes/:employeeId"
                 element={
                   <RoleProtectedRoute requireManager>
                     <EmployeeTimesheetPage />
@@ -390,7 +395,10 @@ const App = () => (
               <Route path="/crm" element={<Navigate to="/pipeline" replace />} />
               <Route path="/crm/archived" element={<Navigate to="/pipeline/archived" replace />} />
               <Route path="/portfolio" element={<Navigate to="/projetos" replace />} />
-              <Route path="/alocacao" element={<Navigate to="/analises/alocacoes" replace />} />
+              <Route path="/alocacao" element={<Navigate to="/projetos/alocacoes" replace />} />
+              <Route path="/analises/alocacoes" element={<Navigate to="/projetos/alocacoes" replace />} />
+              <Route path="/analises/alocacoes/pessoa/:employeeId" element={<RedirectAlocacaoPessoa />} />
+              <Route path="/analises/alocacoes/:employeeId" element={<RedirectAlocacaoEmployee />} />
               <Route path="/alocacao/:employeeId" element={<RedirectAlocacaoEmployee />} />
               <Route path="/analytics" element={<Navigate to="/analises/financeiro" replace />} />
               <Route path="/comercial" element={<Navigate to="/analises/comercial" replace />} />
