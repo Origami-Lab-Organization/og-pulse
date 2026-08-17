@@ -2,24 +2,23 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { addMonths, format, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, CalendarRange, ChevronDown, ChevronRight, FolderKanban, LineChart, Search, Users } from 'lucide-react';
+import { AlertCircle, CalendarRange, ChevronDown, ChevronRight, LineChart, Search, Users } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { MonthCell, PersonButton, ReferenceMonthCell } from '@/components/allocation/AllocationGrid';
+import { PersonButton } from '@/components/allocation/AllocationGrid';
 import { CapacityBar, CapacityLegend } from '@/components/allocation/CapacityBar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAllocationGrid } from '@/hooks/useAllocationGrid';
 import { useHolidays } from '@/hooks/useHolidays';
 import { monthLoadKey, useEmployeeMonthlyLoad } from '@/hooks/useEmployeeMonthlyLoad';
 import { buildManagerByProject, buildMonthBreakdown } from '@/lib/allocationBreakdown';
-import { buildAllocationMonthsRange, emptyAllocationCell, getAllocationStatusClasses } from '@/lib/allocationGrid';
+import { buildAllocationMonthsRange, getAllocationStatusClasses } from '@/lib/allocationGrid';
 import { cn } from '@/lib/utils';
 import type {
   AllocationMonth,
@@ -43,9 +42,6 @@ const EMPTY_FILTERS = {
   search: '',
   showTerminated: false,
 } as const;
-
-const VIEW = { people: 'people', projects: 'projects' } as const;
-type ViewMode = (typeof VIEW)[keyof typeof VIEW];
 
 const BUCKET = { overloaded: 'overloaded', healthy: 'healthy', slack: 'slack' } as const;
 type HealthBucket = (typeof BUCKET)[keyof typeof BUCKET];
@@ -511,140 +507,6 @@ function PeopleCapacityTable({
   );
 }
 
-function AllocationRowTable({
-  people,
-  months,
-  referenceMonthKey,
-  onOpen,
-}: {
-  people: AllocationPerson[];
-  months: AllocationMonth[];
-  referenceMonthKey: string;
-  onOpen: (employeeId: string) => void;
-}) {
-  return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
-      <table className="w-full min-w-[900px] table-fixed border-collapse">
-        <thead>
-          <tr>
-            <th className="sticky left-0 z-10 w-[220px] border-b border-r bg-muted p-3 text-left">
-              <span className="ol-label text-muted-foreground">Pessoa</span>
-            </th>
-            {months.map((month) => {
-              const isReference = month.key === referenceMonthKey;
-              return (
-                <th
-                  key={month.key}
-                  className={cn(
-                    'border-b border-r bg-muted p-3 text-left last:border-r-0',
-                    isReference ? 'min-w-[320px] bg-success-subtle/40' : 'w-[150px]',
-                  )}
-                >
-                  <span className="block text-sm font-semibold uppercase tracking-normal text-foreground">
-                    {month.label}
-                    {isReference && <span className="ml-1.5 text-[10px] font-semibold normal-case text-primary-deep">hoje</span>}
-                  </span>
-                  <span className="mt-0.5 block text-[11px] text-muted-foreground">% carga · planejado / cap.</span>
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {people.map((person) => (
-            <tr key={person.id} className="group">
-              <td className="sticky left-0 z-[1] border-r border-t bg-card p-0 transition-colors group-hover:bg-accent/60">
-                <PersonButton person={person} onOpen={() => onOpen(person.id)} />
-              </td>
-              {months.map((month) => {
-                const isReference = month.key === referenceMonthKey;
-                const cell = person.cells[month.key] ?? emptyAllocationCell(month.key);
-                return (
-                  <td
-                    key={`${person.id}-${month.key}`}
-                    className={cn(
-                      'border-r border-t p-0 align-middle last:border-r-0 transition-colors group-hover:bg-accent/50',
-                      isReference ? 'bg-success-subtle/40' : 'bg-card',
-                    )}
-                  >
-                    {isReference ? (
-                      <ReferenceMonthCell cell={cell} month={month} onOpen={() => onOpen(person.id)} />
-                    ) : (
-                      <MonthCell cell={cell} month={month} onOpen={() => onOpen(person.id)} />
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function ProjectSection({
-  project,
-  people,
-  months,
-  referenceMonthKey,
-  showManager,
-  lensManagerId,
-  managerByProject,
-  onOpen,
-}: {
-  project: AllocationProjectOption;
-  people: AllocationPerson[];
-  months: AllocationMonth[];
-  referenceMonthKey: string;
-  showManager: boolean;
-  lensManagerId: string | null;
-  managerByProject: ManagerByProject;
-  onOpen: (employeeId: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const health = countHealth(people, referenceMonthKey, lensManagerId, managerByProject);
-
-  return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-card shadow-card">
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          {open ? (
-            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          ) : (
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          )}
-          <FolderKanban className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-foreground">{project.name}</p>
-            <p className="truncate text-[11px] text-muted-foreground">
-              {showManager && project.managerName ? `GP ${project.managerName} · ` : ''}
-              {people.length} pessoa{people.length !== 1 ? 's' : ''} no time
-            </p>
-          </div>
-          <div className="hidden items-center gap-2 sm:flex">
-            {health.overloaded > 0 && <HealthChip tone="critical" label="sobrecarregados" value={health.overloaded} />}
-            {health.healthy > 0 && <HealthChip tone="healthy" label="no ponto" value={health.healthy} />}
-            {health.slack > 0 && <HealthChip tone="idle" label="com folga" value={health.slack} />}
-          </div>
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="border-t p-4">
-          {people.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">Ninguém alocado neste projeto no período.</p>
-          ) : (
-            <AllocationRowTable people={people} months={months} referenceMonthKey={referenceMonthKey} onOpen={onOpen} />
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 export default function MinhaEquipeAlocacaoPage() {
   const navigate = useNavigate();
   const { employee } = useAuth();
@@ -652,7 +514,6 @@ export default function MinhaEquipeAlocacaoPage() {
   const employeeId = employee?.id;
   const isAdmin = !!employee?.isAdmin;
   const baseDate = useMemo(() => new Date(), []);
-  const [view, setView] = useState<ViewMode>(VIEW.people);
   const [managerFilter, setManagerFilter] = useState<string>(ALL_OPTION);
   const [fromOffset, setFromOffset] = useState<number>(DEFAULT_FROM_OFFSET);
   const [toOffset, setToOffset] = useState<number>(DEFAULT_TO_OFFSET);
@@ -822,15 +683,6 @@ export default function MinhaEquipeAlocacaoPage() {
                   </SelectContent>
                 </Select>
               )}
-              <ToggleGroup
-                type="single"
-                value={view}
-                onValueChange={(value) => value && setView(value as ViewMode)}
-                aria-label="Modo de visualização"
-              >
-                <ToggleGroupItem value={VIEW.people}>Pessoas</ToggleGroupItem>
-                <ToggleGroupItem value={VIEW.projects}>Projetos</ToggleGroupItem>
-              </ToggleGroup>
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -951,19 +803,18 @@ export default function MinhaEquipeAlocacaoPage() {
               <Skeleton key={index} className="h-16 w-full rounded-lg" />
             ))}
           </div>
-        ) : view === VIEW.people ? (
-          uniquePeople.length === 0 ? (
-            <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
-              <p className="font-semibold text-foreground">
-                {isAdmin ? 'Nenhuma pessoa alocada no recorte atual' : 'Você ainda não é o gerente de nenhum projeto'}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {isAdmin
-                  ? 'Ajuste o filtro de GP ou o período.'
-                  : 'Esta visão mostra a alocação dos projetos em que você é o GP responsável.'}
-              </p>
-            </div>
-          ) : (
+        ) : uniquePeople.length === 0 ? (
+          <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
+            <p className="font-semibold text-foreground">
+              {isAdmin ? 'Nenhuma pessoa alocada no recorte atual' : 'Você ainda não é o gerente de nenhum projeto'}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isAdmin
+                ? 'Ajuste o filtro de GP ou o período.'
+                : 'Esta visão mostra a alocação dos projetos em que você é o GP responsável.'}
+            </p>
+          </div>
+        ) : (
             <div className="space-y-3">
               <ToggleGroup
                 type="single"
@@ -990,32 +841,6 @@ export default function MinhaEquipeAlocacaoPage() {
               />
 
               <CapacityLegend lensLabel={lensLabel} />
-            </div>
-          )
-        ) : myProjects.length === 0 ? (
-          <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
-            <p className="font-semibold text-foreground">
-              {isAdmin ? 'Nenhum projeto para exibir' : 'Você ainda não é o gerente de nenhum projeto'}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isAdmin ? 'Ajuste o filtro de GP.' : 'Esta visão mostra os projetos em que você é o GP responsável.'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {projectTeams.map(({ project, people }) => (
-              <ProjectSection
-                key={project.id}
-                project={project}
-                people={people}
-                months={months}
-                referenceMonthKey={referenceMonthKey}
-                showManager={isAdmin}
-                lensManagerId={myLensId}
-                managerByProject={managerByProject}
-                onOpen={openPerson}
-              />
-            ))}
           </div>
         )}
       </div>

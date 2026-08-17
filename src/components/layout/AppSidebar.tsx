@@ -80,6 +80,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
     requiresManager: true,
     children: [
       { title: 'Meu Time', url: '/analises/meu-time' },
+      { title: 'Alocações', url: '/analises/alocacoes' },
       { title: 'Financeiro', url: '/analises/financeiro' },
       { title: 'Comercial', url: '/analises/comercial' },
       { title: 'Custo x Hora', url: '/analises/custo-hora', requiresAdmin: true },
