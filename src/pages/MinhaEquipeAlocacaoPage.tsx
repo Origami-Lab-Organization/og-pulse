@@ -20,7 +20,6 @@ import { useHolidays } from '@/hooks/useHolidays';
 import { monthLoadKey, useEmployeeMonthlyLoad } from '@/hooks/useEmployeeMonthlyLoad';
 import { buildManagerByProject, buildMonthBreakdown } from '@/lib/allocationBreakdown';
 import { buildAllocationMonthsRange, emptyAllocationCell, getAllocationStatusClasses } from '@/lib/allocationGrid';
-import { GPO_HEALTHY_MAX, GPO_HEALTHY_MIN } from '@/lib/gpoAllocation.constants';
 import { cn } from '@/lib/utils';
 import type {
   AllocationMonth,
@@ -97,13 +96,16 @@ function normalizeText(value: string) {
     .toLocaleLowerCase('pt-BR');
 }
 
-/** Régua única da tela: estourou > 100% · no ponto 90–100% (faixa saudável) · com folga < 90%. */
+/**
+ * Régua única da tela, derivada das horas livres (não do % arredondado):
+ * sobrecarregado = passou da capacidade · no ponto = capacidade cheia, 0h livres ·
+ * com folga = ainda tem hora para alocar.
+ */
 function statusFromBreakdown(breakdown: MonthBreakdown): AllocationStatusKey {
   if (breakdown.utilization === null) return 'unallocated';
-  if (breakdown.utilization > GPO_HEALTHY_MAX) return breakdown.utilization > 115 ? 'critical' : 'limit';
-  if (breakdown.utilization >= GPO_HEALTHY_MIN) return 'healthy';
-  if (breakdown.utilization >= 40) return 'idle';
-  return 'unallocated';
+  if (breakdown.overflowHours > 0) return breakdown.utilization > 115 ? 'critical' : 'limit';
+  if (breakdown.freeHours === 0) return 'healthy';
+  return breakdown.utilization >= 40 ? 'idle' : 'unallocated';
 }
 
 function bucketForBreakdown(breakdown: MonthBreakdown): HealthBucket {
