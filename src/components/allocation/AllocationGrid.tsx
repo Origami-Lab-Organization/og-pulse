@@ -150,7 +150,7 @@ function AllocationPaginationFooter({
   );
 }
 
-function PersonButton({
+export function PersonButton({
   person,
   onOpen,
 }: {
@@ -179,7 +179,7 @@ function PersonButton({
   );
 }
 
-function MonthCell({
+export function MonthCell({
   cell,
   month,
   onOpen,
@@ -222,7 +222,7 @@ function MonthCell({
   );
 }
 
-function ReferenceMonthCell({
+export function ReferenceMonthCell({
   cell,
   month,
   onOpen,

@@ -12,6 +12,12 @@ injetada no SessionStart. Gerada em 2026-08-11.
 | [architecture/erd.md](architecture/erd.md) | ~32 entidades núcleo em 5 clusters, multi-tenant (tenant_id + RLS), enums e status | glossário (`.harness/domain-glossary.md`), ADR-0003/0004 (custos), ADR-0006 (alocações), ADR-0010 (aloca_em_projetos), ADR-0017 (GPO) |
 | [architecture/integrations.md](architecture/integrations.md) | Sistemas externos (Microsoft Graph/Entra, Resend, Anthropic, Lovable Gateway), 27 Edge Functions, crons pg_cron, env vars, direção e credencial de cada chamada | ADR-0016 (SSO), ADR-0009 (ponto facial), ADR-0004 (alertas de parcela) |
 
+## Planejamento (não código-derivado — sem drift-check)
+
+| Doc | O que mostra | Fonte |
+|---|---|---|
+| [roadmap.md](roadmap.md) | Roadmap por tema (ondas de valor) ancorado nos OKRs do PUL; objetivo/valor/storytelling por tema; modelo de sprint quinzenal | Épicos e OKRs do projeto PUL (Jira), 2026-08-17 |
+
 ## Ainda não gerado (sob demanda)
 
 - `flows/` — ciclos de vida por entidade (`stateDiagram-v2`): oportunidade

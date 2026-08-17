@@ -170,6 +170,14 @@
 - **Impacto:** Deno não tem inferência automática das respostas do Supabase JS SDK; os casts `as any` existem nos campos `installment_number`, `value`, `invoice_date` e `projects` dos registros retornados pela query. Sem risco funcional imediato — mas reduz segurança de tipos e pode mascarar erros de schema no futuro.
 - **Próximo passo:** Criar interfaces tipadas para as rows de `project_installments` + `projects` no contexto Deno (ou extrair um tipo compartilhado via `supabase gen types`), removendo os casts.
 
+
+
 ## Resolvido
 
-- Nenhum item registrado ainda.
+### TD-0017 — Lente "Projetos" do Meu Time mostrava lançamento numa tela de planejamento
+- **Status**: resolvido em 2026-08-17 (mesma sessão em que foi aberto)
+- **Como**: a lente Projetos foi removida de `/analises/meu-time`. A tela passou a ter uma única visão (Pessoas), inteiramente sobre planejamento (capacidade × planejado). A visão por projeto com célula de lançamento continua sendo a responsabilidade de `/analises/alocacoes`.
+
+### TD-0018 — Acompanhamento de lançamento/aderência ficou sem entrada no menu
+- **Status**: resolvido em 2026-08-17 (mesma sessão em que foi aberto)
+- **Como**: "Alocações" foi devolvida ao menu Análises. Com a lente Projetos fora do Meu Time, não há mais redundância entre as duas telas: Meu Time é planejamento de capacidade, Alocações é operação/lançamento (filtros `missingLogs`/`outOfPace`, célula de ritmo).

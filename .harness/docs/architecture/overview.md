@@ -66,7 +66,7 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 | Pessoas / RH | `/employees*`, `/rh/desligamentos`, `/rh/candidatos`, `/rh/vagas`, `/rh/ferias`, `/rh/ferramentas-beneficios` | Manager (benefícios: Admin) | 221-244, 436-461 |
 | Clientes / Fornecedores | `/clients*`, `/suppliers` | Manager | 245-284 |
 | Projetos | `/projetos` (Portfolio), `/projects/:id` | Manager / **apenas Protected** | 286-301 |
-| Análises | `/analises/alocacoes*`, `/analises/financeiro`, `/analises/comercial`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 303-358 |
+| Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/comercial`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 303-358 |
 | Pipeline Comercial | `/pipeline`, `/comercial/servicos*`, `/comercial/ticket-medio`, `/budgets/:id*` | Manager | 360-427 |
 | Estratégia | `/estrategia` | Manager | 459 |
 | Admin | `/admin`, `/admin-dashboard` | Admin | 147-154, 428-435 |

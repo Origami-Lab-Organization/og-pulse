@@ -104,6 +104,29 @@ export interface AllocationPanelMonthData {
   internalHours: number;
 }
 
+export interface OwnerSlice {
+  projectId: string;
+  projectName: string;
+  managerId: string | null;
+  managerName: string | null;
+  hours: number;
+}
+
+/** Visão de PLANEJAMENTO: sempre horas planejadas × capacidade. Realizado/lançamento é outra visão. */
+export interface MonthBreakdown {
+  capacityHours: number;
+  plannedHours: number;
+  mineHours: number;
+  othersHours: number;
+  freeHours: number;
+  overflowHours: number;
+  utilization: number | null;
+  mine: OwnerSlice[];
+  others: OwnerSlice[];
+}
+
+export type ManagerByProject = Map<string, Pick<AllocationProjectOption, 'managerId' | 'managerName'>>;
+
 export interface AllocationPanelData {
   employee: Pick<AllocationPerson, 'id' | 'name' | 'role' | 'status' | 'hireDate' | 'terminationDate' | 'dailyHours'>;
   months: AllocationPanelMonthData[];
