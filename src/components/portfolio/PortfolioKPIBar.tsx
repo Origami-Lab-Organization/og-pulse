@@ -22,9 +22,8 @@ export function PortfolioKPIBar({ projects, hideValues, isLoading }: PortfolioKP
   }).length;
 
   const portfolioValue = projects.reduce((sum, p) => {
-    const installments = p.installments || [];
-    const installmentsSum = installments.reduce((s, i) => s + Number(i.value), 0);
-    return sum + (installmentsSum > 0 ? installmentsSum : (p.total_value || 0));
+    // Valor do contrato, coerente com o cartão e o detalhe do projeto.
+    return sum + (p.total_value || 0);
   }, 0);
 
   const totalReceived = projects.reduce((sum, p) => {

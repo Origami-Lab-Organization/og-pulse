@@ -109,16 +109,11 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
         );
       }
 
-      // Filter installments by year if selected
-      if (yearFilter) {
-        projects = projects.map(p => ({
-          ...p,
-          installments: (p.installments || []).filter(i => {
-            if (!i.due_date) return false;
-            return new Date(i.due_date).getFullYear() === yearFilter;
-          }),
-        }));
-      }
+      // O array de parcelas NÃO é recortado por ano. Os cartões, a tabela e a barra
+      // de KPI passaram a exibir o VALOR DO CONTRATO (não a soma das parcelas do
+      // ano), e o gerador de PDF de receita faz o próprio recorte anual — com o
+      // tratamento correto de data (meio-dia local). Pré-filtrar aqui truncava o
+      // insumo dele: escolher 2027 no portfólio deixava o PDF de 2026 vazio.
 
       // service_line is a plain text column — some projects may have old slugs instead of UUIDs
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

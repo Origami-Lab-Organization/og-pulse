@@ -63,12 +63,9 @@ const createColumns = (hideValues: boolean): ColumnDef<PortfolioProject>[] => [
   },
   {
     id: 'total_value',
-    accessorFn: row => {
-      const installments = row.installments || [];
-      const sum = installments.reduce((s, i) => s + Number(i.value), 0);
-      return sum > 0 ? sum : (row.total_value || 0);
-    },
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Valor Total" />,
+    // Valor do contrato, coerente com o cartão e o detalhe do projeto.
+    accessorFn: row => row.total_value || 0,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Valor do Contrato" />,
     cell: ({ getValue }) => (
       <span className="font-medium">{hideValues ? '•••••' : formatCurrency(getValue() as number)}</span>
     ),
@@ -76,10 +73,10 @@ const createColumns = (hideValues: boolean): ColumnDef<PortfolioProject>[] => [
   {
     id: 'receipt_percent',
     accessorFn: row => {
-      const installments = row.installments || [];
-      const sum = installments.reduce((s, i) => s + Number(i.value), 0);
-      const total = sum > 0 ? sum : (row.total_value || 0);
-      const received = installments.filter(i => i.status === 'received').reduce((s, i) => s + Number(i.value), 0);
+      const total = row.total_value || 0;
+      const received = (row.installments || [])
+        .filter(i => i.status === 'received')
+        .reduce((s, i) => s + Number(i.value), 0);
       return total > 0 ? Math.round((received / total) * 100) : 0;
     },
     header: ({ column }) => <DataTableColumnHeader column={column} title="Recebimento" />,
