@@ -48,8 +48,10 @@ export function PortfolioCard({ project, canEdit = false, onRemove, hideValues }
 
   const isNoRevenue = project.service?.billing_type === 'no_revenue';
   const installments = project.installments || [];
-  const installmentsSum = installments.reduce((sum, i) => sum + Number(i.value), 0);
-  const totalValue = installmentsSum > 0 ? installmentsSum : (project.total_value || 0);
+  // Valor do contrato, não a soma das parcelas: as duas telas do projeto precisam
+  // mostrar o mesmo número. A soma das parcelas divergia quando o portfólio estava
+  // filtrado por ano.
+  const totalValue = project.total_value || 0;
 
   const receivedValue = installments
     .filter(i => i.status === 'received')
@@ -168,7 +170,7 @@ export function PortfolioCard({ project, canEdit = false, onRemove, hideValues }
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs space-y-0.5">
-              <p>Valor projetado: {hideValues ? '•••••' : formatCurrency(totalValue)}</p>
+              <p>Valor do contrato: {hideValues ? '•••••' : formatCurrency(totalValue)}</p>
               <p>Valor recebido: {hideValues ? '•••••' : formatCurrency(receivedValue)}</p>
               <p>Percentual: {hideValues ? '•••' : `${progressPercent}%`}</p>
             </TooltipContent>

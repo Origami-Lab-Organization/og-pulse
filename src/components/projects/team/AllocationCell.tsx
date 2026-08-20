@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { TeamMonthCell } from '@/types/equipe.types';
+import type { MonthStatus, TeamMonthCell } from '@/types/equipe.types';
 
 const PAST_MONTH_EDIT_REASONS = [
   { value: 'planning_error', label: 'Erro de planejamento' },
@@ -37,7 +37,7 @@ const TONE_CLASSES: Record<CellTone, string> = {
 interface AllocationCellProps {
   cell: TeamMonthCell | undefined;
   editable: boolean;
-  monthStatus: 'past' | 'current' | 'future';
+  monthStatus: MonthStatus;
   isAdmin: boolean;
   onSave: (newHours: number, reasonCode?: string, justification?: string) => void;
 }

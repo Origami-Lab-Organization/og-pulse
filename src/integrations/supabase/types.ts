@@ -3556,6 +3556,35 @@ export type Database = {
           },
         ]
       }
+      project_financials: {
+        Row: {
+          created_at: string
+          project_id: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          project_id: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          project_id?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_financials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_installments: {
         Row: {
           created_at: string
@@ -4610,7 +4639,6 @@ export type Database = {
           status: Database["public"]["Enums"]["project_status"]
           success_fee_percent: number | null
           tenant_id: string
-          total_value: number
           updated_at: string
           value_book_url: string | null
         }
@@ -4644,7 +4672,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["project_status"]
           success_fee_percent?: number | null
           tenant_id: string
-          total_value?: number
           updated_at?: string
           value_book_url?: string | null
         }
@@ -4678,7 +4705,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["project_status"]
           success_fee_percent?: number | null
           tenant_id?: string
-          total_value?: number
           updated_at?: string
           value_book_url?: string | null
         }
@@ -5610,7 +5636,6 @@ export type Database = {
           reference_month: string
           rpa: number | null
           tenant_id: string
-          total_value: number
           updated_at: string
         }
         Insert: {
@@ -5631,7 +5656,6 @@ export type Database = {
           reference_month: string
           rpa?: number | null
           tenant_id: string
-          total_value?: number
           updated_at?: string
         }
         Update: {
@@ -5652,7 +5676,6 @@ export type Database = {
           reference_month?: string
           rpa?: number | null
           tenant_id?: string
-          total_value?: number
           updated_at?: string
         }
         Relationships: [
@@ -6689,7 +6712,35 @@ export type Database = {
         }[]
       }
       get_crm_received_value: { Args: { p_tenant_id: string }; Returns: number }
+      can_read_project_hours: { Args: { p_project_id: string }; Returns: boolean }
+      get_member_planned_hours: {
+        Args: { p_member_ids: string[] }
+        Returns: { hours: number; month_number: number; project_member_id: string }[]
+      }
+      get_member_actual_hours: {
+        Args: { p_member_ids: string[] }
+        Returns: { hours: number; project_member_id: string; work_date: string }[]
+      }
+      get_project_actual_hours: {
+        Args: { p_project_ids: string[] }
+        Returns: { hours: number; project_id: string }[]
+      }
+      get_employee_directory: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cargo: string
+          email: string
+          foto_url: string
+          id: string
+          nome: string
+          status: string
+        }[]
+      }
       get_employee_status: { Args: { p_auth_id: string }; Returns: string }
+      get_tenant_admin_employee_ids: {
+        Args: Record<PropertyKey, never>
+        Returns: { employee_id: string }[]
+      }
       get_employee_version_at_date: {
         Args: { p_date?: string; p_employee_id: string }
         Returns: {

@@ -22,7 +22,8 @@ import { ProjectRoadmapTab } from "@/components/projects/detail/ProjectRoadmapTa
 import { ProjectExpectedResultTab } from "@/components/projects/detail/ProjectExpectedResultTab";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
 import { EquipeTab } from "@/components/projects/detail/EquipeTab";
-import { ProjectContractUpload } from "@/components/projects/ProjectContractUpload";
+import { ProjectFilesTab } from "@/components/projects/detail/ProjectFilesTab";
+import { useProjectAllocations } from "@/hooks/useProjectRoles";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog";
 import { ProjectRemoveDialog } from "@/components/projects/ProjectRemoveDialog";
 import {
@@ -68,6 +69,7 @@ export default function ProjectDetail() {
     ? searchParams.get("tab") || "overview"
     : "activities";
   const { data: project, isLoading } = useProject(id);
+  const { data: allocations = [] } = useProjectAllocations(id ?? '', false);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
   const archiveProject = useArchiveProject();
@@ -157,10 +159,15 @@ export default function ProjectDetail() {
   const canEdit = canManageProject && (isAdmin || !isCompleted);
   const isReadOnly = !canManageProject || (isCompleted && !isAdmin);
   const canManageInstallments = canManageProject && !isReadOnly;
-  const isMember =
-    project.members?.some((m) => m.employee_id === employee?.id) ?? false;
+  // Equipe vem de project_role_allocations (ADR-0006); project.members está
+  // vazio em todo projeto montado pela aba Equipe.
+  const isMember = allocations.some((a) => a.employeeId === employee?.id);
   const canViewActivities =
     isAdmin || isManager || isProjectManager || isMember;
+  // Membro alocado sobe arquivo; pasta é só de GP/admin. Projeto encerrado
+  // congela a escrita para todo mundo menos admin.
+  const filesReadOnly = isCompleted && !isAdmin;
+  const canManageFolders = canManageProject && !filesReadOnly;
   const cancellation = project as typeof project & ProjectCancellationFields;
 
   const showMenu = canAccessFullProject && (canEdit || isAdmin);
@@ -366,13 +373,10 @@ export default function ProjectDetail() {
 				  <ProjectActivitiesTab project={project} isReadOnly={isReadOnly} />
 				</TabsContent>
 				<TabsContent value="files" className="mt-6">
-				  <ProjectContractUpload
+				  <ProjectFilesTab
 					projectId={project.id}
-					currentPath={project.contract_url}
-					isReadOnly={isReadOnly}
-					onUploadSuccess={() =>
-					  queryClient.invalidateQueries({ queryKey: ["project", id] })
-					}
+					canManageFolders={canManageFolders}
+					isReadOnly={filesReadOnly}
 				  />
 				</TabsContent>
 			  </>

@@ -3,23 +3,32 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { ActivityTaskWithRelations } from '@/types/projectActivity';
+import { getEmployeeDirectoryMap } from '@/services/employeeDirectoryService';
 
 // ── Query ─────────────────────────────────────────────────────────────────────
 
-export const useCardTasks = (cardId: string) =>
-  useQuery({
+export const useCardTasks = (cardId: string) => {
+  const queryClient = useQueryClient();
+
+  return useQuery({
     queryKey: ['card-tasks', cardId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_activity_tasks')
-        .select('*, assignee:employees!project_activity_tasks_assignee_id_fkey(id, nome, foto_url)')
+        .select('*')
         .eq('card_id', cardId)
         .order('position');
       if (error) throw error;
-      return (data || []) as ActivityTaskWithRelations[];
+
+      const directory = await getEmployeeDirectoryMap(queryClient);
+      return (data || []).map((task) => ({
+        ...task,
+        assignee: task.assignee_id ? directory.get(task.assignee_id) ?? null : null,
+      })) as unknown as ActivityTaskWithRelations[];
     },
     enabled: !!cardId,
   });
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

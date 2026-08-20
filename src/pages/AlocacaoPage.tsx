@@ -224,7 +224,7 @@ export default function AlocacaoPage() {
     // Consolidação v1.3: abre direto a tela de detalhe, preservando o estado da
     // lista (filtros/período/ordenação) na query — o "voltar" restaura tudo.
     const query = searchParams.toString();
-    navigate(`/analises/alocacoes/pessoa/${employeeId}${query ? `?${query}` : ''}`);
+    navigate(`/projetos/alocacoes/pessoa/${employeeId}${query ? `?${query}` : ''}`);
   };
 
   const emptyMessage = data?.people.length === 0

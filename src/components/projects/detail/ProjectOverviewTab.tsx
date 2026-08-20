@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
 import { useMaskedCurrency, useMaskedPercent } from '@/contexts/HideValuesContext';
-import { ProjectTeamSection } from './ProjectTeamSection';
 import { InstallmentAlertsBanner } from './financial/InstallmentAlertsBanner';
 import { ProjectKPIBar } from './ProjectKPIBar';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
@@ -17,7 +16,7 @@ import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
 import { useHolidays } from '@/hooks/useHolidays';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
-import { formatPercent } from '@/lib/formatters';
+import { formatDate, formatPercent } from '@/lib/formatters';
 import { format, parseISO, startOfMonth, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -187,9 +186,9 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
             <div>
               <p className="ol-label text-muted-foreground mb-0.5">Período</p>
               <p className="text-sm font-medium text-foreground">
-                {format(new Date(project.start_date), 'dd/MM/yyyy', { locale: ptBR })}
+                {formatDate(project.start_date)}
                 {project.end_date && (
-                  <> a {format(new Date(project.end_date), 'dd/MM/yyyy', { locale: ptBR })}</>
+                  <> a {formatDate(project.end_date)}</>
                 )}
                 {project.is_continuous && (
                   <Badge variant="outline" className="ml-2">Contínuo</Badge>
@@ -270,9 +269,6 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         marginVar={kpiData.marginVar}
         marginTarget={financialSettings?.gross_margin_target_percent ?? undefined}
       />
-
-      {/* Row 3: Team */}
-      <ProjectTeamSection members={project.members || []} projectId={project.id} memberMonths={memberMonths} timesheets={timesheets} />
     </div>
   );
 }

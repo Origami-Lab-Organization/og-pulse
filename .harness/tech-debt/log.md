@@ -105,6 +105,40 @@
 - **Causa raiz**: alteração de função de banco feita fora do fluxo de migration versionada — viola `.harness/boundaries.md` ("Nao alterar schema Supabase sem migration versionada"). `CREATE OR REPLACE FUNCTION` não avisa sobre divergência com a última versão versionada; drift fica invisível até alguém comparar manualmente.
 - **Próximo passo**: nenhuma alteração de função/policy/trigger deve ser aplicada direto no SQL Editor — sempre via migration, mesmo para "correções rápidas" durante debugging em paralelo. Se recorrer, considerar um script de CI que rode `pg_get_functiondef` das funções críticas de alocação/folha e diffe contra o corpo esperado nas migrations, para detectar drift automaticamente.
 
+### TD-0016 — Stack local do Supabase não sobe: replay das migrations falha
+- **Status**: aberto
+- **Prioridade**: alta
+- **Arquivos**: `supabase/migrations/` (falha ao aplicar a migration que cria `activity_types`)
+- **Impacto**: `npx supabase start` não conclui — o replay do histórico quebra ao criar `activity_types`. Consequências práticas: ninguém consegue regenerar `src/integrations/supabase/types.ts` localmente (é o que sustenta TD-0008, TD-0011 e TD-0015, todos "cast `as any` até rodar gen types"), não dá para testar migration antes de aplicar, e a skill `db-testing` do Harness não tem ambiente descartável para rodar. Toda validação de RLS e trigger vira inspeção manual de SQL.
+- **Causa raiz**: não diagnosticada. O erro aparece ao executar o `CREATE TABLE activity_types`; a migration isolada parece válida, então a hipótese mais provável é ordem/dependência entre migrations antigas ou divergência entre o schema real (evoluído pelo painel do Lovable Cloud) e o histórico versionado — mesma família do TD-0009.
+- **Próximo passo**: rodar `npx supabase start --debug` para capturar o erro real do Postgres, e comparar o schema remoto com o replay local (`supabase db diff`). Se a divergência for grande, o caminho provável é uma migration de squash/baseline consolidando o estado atual, o que também destrava a regeneração de tipos.
+
+### TD-0015 — cast `as any` em project_folders e project_files.folder_id
+- **Status**: aberto
+- **Prioridade**: baixa
+- **Arquivos**: `src/services/projectFolderService.ts`, `src/services/projectFileService.ts`
+- **Impacto**: a tabela `project_folders` e a coluna `project_files.folder_id` foram criadas em `20260811170000_project_folders.sql`, mas o `src/integrations/supabase/types.ts` gerado ainda não as conhece. Mesma situação de TD-0008/TD-0011 — sem risco funcional (RLS e triggers continuam sendo aplicados pelo Postgres), só a tipagem estática do client fica cega nessas duas bordas. O mapeamento de linha é tipado à mão por `ProjectFolderRow`/`ProjectFileRow`, então o formato esperado está explícito no código.
+- **Causa raiz**: **não há caminho para regenerar os tipos hoje.** Verificado em 2026-08-11: o caminho local falha porque a stack não sobe (TD-0016), e o remoto (`npx supabase gen types typescript --project-id vkriobpmolgopbbpqeky`) responde `Your account does not have the necessary privileges to access this endpoint` — o projeto é gerenciado pelo Lovable Cloud e a conta não tem acesso à API de plataforma do Supabase (mesma limitação registrada no ADR-0016 sobre o dashboard bruto). As migrations em si JÁ foram aplicadas; o problema é só a geração de tipos.
+- **Impacto ampliado**: esta é a causa raiz comum de TD-0008, TD-0011 e TD-0015 — todos "cast `as any` até rodar gen types". Nenhum deles fecha enquanto isso não for destravado, o que explica por que ficam abertos há meses.
+- **Próximo passo**: destravar o acesso, por uma das vias — (a) obter um `SUPABASE_ACCESS_TOKEN` com privilégio no projeto, se o Lovable permitir emitir; (b) resolver o TD-0016 e gerar contra a stack local; (c) migrar para um Supabase próprio (alternativa já considerada e adiada no ADR-0016). Com qualquer uma delas: `supabase gen types typescript > src/integrations/supabase/types.ts` e trocar os acessores `folders()`/`filesTable()` pelo `supabase.from(...)` tipado, removendo os `eslint-disable`.
+
+### TD-0014 — `project.members` (modelo antigo) ainda é lido como se fosse a equipe do projeto
+- **Status**: aberto
+- **Prioridade**: alta
+- **Arquivos**: `src/components/projects/ProjectDetailDialog.tsx`, `src/components/projects/ProjectMembersTable.tsx`, `src/components/projects/detail/ProjectCostsTab.tsx`, `src/components/projects/detail/ProjectCostBreakdownChart.tsx`, `src/components/projects/detail/ProjectOverviewTab.tsx` (cálculo financeiro), `src/components/timesheets/TimesheetByProject.tsx`, `src/components/timesheets/AdminWeekEditDialog.tsx`, `src/components/timesheets/weekly/WeeklyTimesheetGrid.tsx`
+- **Impacto**: o ADR-0006 tornou `project_role_allocations` a fonte única de alocação, mas `project.members` (tabela `project_members`) continua sendo lido como "a equipe do projeto" em várias telas. Como o backfill correu uma vez e só na direção legado→novo, todo projeto montado pela aba Equipe tem `project_members` vazio. Consequência observada em produção no projeto "Cobrança Automática": a Visão Geral mostrava "0 membro(s) alocado(s)" convivendo com R$ 8.876,48 de custo realizado, e o checklist de início travava em "Pelo menos 1 membro com horas alocadas · 0 pessoas" com o projeto já em execução e gente alocada. Três consumidores foram corrigidos nesta sessão (card da Visão Geral removido, contagem do checklist e destinatários da notificação de início de execução); os listados acima seguem no modelo antigo. Os de timesheet são os mais delicados: `project_timesheets` ainda referencia `project_member_id`, então não é troca de fonte, é a Fase 4 do ADR-0006.
+- **Causa raiz**: a Fase 3 do ADR-0006 (cutover de leitura) foi executada só parcialmente. Não há guarda impedindo novo código de ler `project.members` como equipe, e o tipo `ProjectWithRelations` continua expondo o campo sem marcação de legado.
+- **Próximo passo**: separar os consumidores em dois grupos e tratar diferente — (a) os que querem "quem está alocado" devem migrar para `useProjectAllocations`/`useTeamAllocationRows` agora; (b) os de timesheet dependem da migração de `project_timesheets` (Fase 4) e não devem ser tocados antes dela. Marcar `ProjectWithRelations.members` como deprecated com comentário apontando para o ADR-0006 ajuda a estancar novos usos enquanto a Fase 4 não vem.
+- **Atualização 2026-08-11**: o defeito também estava em **RLS**, não só em tela. `can_view_project_document` (20260619150000) resolvia "membro do projeto" por `project_members`, então a equipe alocada não enxergava arquivo nenhum do projeto — e `ProjectDetail.tsx` calculava `isMember` da mesma forma, escondendo a própria aba Arquivos. Ambos corrigidos (migration `20260811160000`, que introduz `is_project_team_member` com fallback legado). Vale varrer o resto das policies atrás de outras que resolvem participação por `project_members`.
+
+### TD-0013 — Total da aba Equipe soma desalocados ocultos sem sinalizar
+- **Status**: aberto
+- **Prioridade**: média
+- **Arquivos**: `src/components/projects/team/TeamAllocationTable.tsx` (`footerTotals`, botão "Mostrar desalocados")
+- **Impacto**: `footerTotals` soma `activeRows` **e** `deallocatedRows`, mas as linhas de desalocado só são renderizadas quando `showDeallocated` está ligado. Com o toggle desligado — que é o default — o rodapé "Total" não bate com a soma das linhas visíveis e nada na tela explica a diferença. Observado num projeto real: linhas visíveis somavam 84h/68h em jun/26 contra 92h/80h no Total (8h planejadas e 12h realizadas vindas de uma pessoa desalocada oculta), e 108h/95h contra 114h/101h em jul/26. Quem lê o Total conclui que a tela está com defeito, ou reporta o número errado para fora. O KPI de Alocação GPO (ADR-0018) herda a mesma base e, portanto, a mesma ambiguidade.
+- **Causa raiz**: o toggle de visibilidade foi tratado como filtro de exibição de linhas, sem contrapartida no agregado do rodapé — nem excluindo do total, nem sinalizando a inclusão.
+- **Próximo passo**: decidir e aplicar UMA das duas leituras, não as duas: (a) o Total inclui desalocados e passa a sinalizar isso quando eles estão ocultos (ex.: "inclui 1 desalocado" no rodapé, com o mesmo texto no popover do KPI); ou (b) o Total passa a seguir o toggle, e o KPI segue junto. É decisão de produto — a opção (a) preserva o número atual e não altera nenhum histórico de leitura. Descoberto durante o ADR-0018; deixado fora daquele diff por escolha explícita de escopo.
+
 ### TD-0011 — cast `as any` em service_line_avg_tickets (tabela/RPCs fora dos tipos gerados)
 - **Status**: resolvido por remoção (2026-08-11) — o subsistema de ticket médio foi removido inteiro (frontend e banco) pela migration `20260811120000_drop_service_avg_tickets.sql`. Os arquivos que carregavam os casts deixaram de existir. Ver ADR-0017.
 - **Prioridade**: baixa
@@ -136,6 +170,14 @@
 - **Impacto:** Deno não tem inferência automática das respostas do Supabase JS SDK; os casts `as any` existem nos campos `installment_number`, `value`, `invoice_date` e `projects` dos registros retornados pela query. Sem risco funcional imediato — mas reduz segurança de tipos e pode mascarar erros de schema no futuro.
 - **Próximo passo:** Criar interfaces tipadas para as rows de `project_installments` + `projects` no contexto Deno (ou extrair um tipo compartilhado via `supabase gen types`), removendo os casts.
 
+
+
 ## Resolvido
 
-- Nenhum item registrado ainda.
+### TD-0017 — Lente "Projetos" do Meu Time mostrava lançamento numa tela de planejamento
+- **Status**: resolvido em 2026-08-17 (mesma sessão em que foi aberto)
+- **Como**: a lente Projetos foi removida de `/analises/meu-time`. A tela passou a ter uma única visão (Pessoas), inteiramente sobre planejamento (capacidade × planejado). A visão por projeto com célula de lançamento continua sendo a responsabilidade de `/analises/alocacoes`.
+
+### TD-0018 — Acompanhamento de lançamento/aderência ficou sem entrada no menu
+- **Status**: resolvido em 2026-08-17 (mesma sessão em que foi aberto)
+- **Como**: "Alocações" foi devolvida ao menu Análises. Com a lente Projetos fora do Meu Time, não há mais redundância entre as duas telas: Meu Time é planejamento de capacidade, Alocações é operação/lançamento (filtros `missingLogs`/`outOfPace`, célula de ritmo).

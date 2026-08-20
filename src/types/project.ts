@@ -44,7 +44,6 @@ export interface ProjectDB {
   first_invoice_date: string | null;
   due_day: number;
   status: ProjectStatus;
-  contract_url: string | null;
   duration_months: number;
   renewal_date: string | null;
   created_at: string;
@@ -185,7 +184,6 @@ export interface CreateProjectInput {
   firstInvoiceDate?: string;
   dueDay: number;
   status?: ProjectStatus;
-  contractUrl?: string;
   durationMonths?: number;
   renewalDate?: string;
   serviceLine?: string;

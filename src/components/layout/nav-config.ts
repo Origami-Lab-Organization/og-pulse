@@ -29,13 +29,17 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Projetos',
     url: '/projetos',
     requiresManager: true,
+    tabs: [
+      { title: 'Portfólio', url: '/projetos' },
+      { title: 'Alocações', url: '/projetos/alocacoes' },
+    ],
   },
   {
     label: 'Análises',
-    url: '/analises/alocacoes',
+    url: '/analises/meu-time',
     requiresManager: true,
     tabs: [
-      { title: 'Alocações', url: '/analises/alocacoes' },
+      { title: 'Meu Time', url: '/analises/meu-time' },
       { title: 'Financeiro', url: '/analises/financeiro' },
       { title: 'Comercial', url: '/analises/comercial' },
     ],

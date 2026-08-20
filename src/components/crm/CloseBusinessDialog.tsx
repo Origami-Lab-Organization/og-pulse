@@ -83,7 +83,7 @@ import {
 	type ProjectType,
 } from "@/types/project";
 import type { Service } from "@/types/service";
-import { ProjectContractUpload } from "@/components/projects/ProjectContractUpload";
+import { CloseDealContractUpload } from "@/components/crm/CloseDealContractUpload";
 
 const PROJECT_TYPE_ICONS: Record<ProjectType, LucideIcon> = {
 	fixed_scope: Target,
@@ -1268,15 +1268,13 @@ export function CloseBusinessDialog({
 					<div className="rounded-lg border p-4 text-left">
 						<p className="font-medium">Deseja anexar o contrato agora?</p>
 						<p className="mb-4 mt-1 text-sm text-muted-foreground">
-							PDF de até 10MB. Você também poderá anexá-lo depois na aba
-							Arquivos do projeto.
+							O contrato vai para a pasta do projeto no OneDrive. Você também
+							poderá anexá-lo depois na aba Arquivos.
 						</p>
 						{celebration?.projectId ? (
-							<ProjectContractUpload
-								compact
+							<CloseDealContractUpload
 								projectId={celebration.projectId}
-								onSkip={() => onOpenChange(false)}
-								onUploadSuccess={() => onOpenChange(false)}
+								onDone={() => onOpenChange(false)}
 							/>
 						) : (
 							<Button
