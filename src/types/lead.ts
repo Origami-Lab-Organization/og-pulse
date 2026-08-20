@@ -140,6 +140,26 @@ export function isClosedOutcome(stage: string | null | undefined): boolean {
   return stage === 'closed' || stage === 'closed_lost';
 }
 
+/** Desfecho ganho: o negócio fechou e o relacionamento continua. */
+export function isWonOutcome(stage: string | null | undefined): boolean {
+  return stage === 'closed';
+}
+
+/**
+ * A oportunidade ainda aceita follow-up e comentário?
+ *
+ * Ganho NÃO encerra o acompanhamento: case de sucesso, checkpoint pós-projeto e
+ * expansão são registrados no mesmo card, sem módulo de pós-venda paralelo.
+ * Perdido/arquivado, sim: o histórico fica congelado como registro da perda
+ * (reabrir exige restaurar a oportunidade).
+ */
+export function allowsRelationshipTracking(lead: {
+  crm_stage: string | null | undefined;
+  archived?: boolean;
+}): boolean {
+  return !lead.archived && lead.crm_stage !== 'closed_lost';
+}
+
 export function getStageLabel(stage: string): string {
   return CRM_STAGE_META[stage as CRMStage]?.label ?? stage;
 }

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CalendarClock, Check, SkipForward, Trash2, Plus, Loader2, Undo2, AlertTriangle } from 'lucide-react';
+import { CalendarClock, Check, SkipForward, Trash2, Plus, Loader2, Undo2, AlertTriangle, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   LeadFollowUp,
@@ -28,6 +28,11 @@ interface LeadFollowUpSectionProps {
   /** Em Stand By, concluir o último retorno sem reagendar deixa a oportunidade órfã. */
   inStandBy?: boolean;
   resumeStage?: CRMStage;
+  /**
+   * Oportunidade ganha: aqui o follow-up é acompanhamento de relacionamento
+   * (checkpoint pós-projeto, case de sucesso, expansão), não avanço de funil.
+   */
+  isWon?: boolean;
 }
 
 function formatScheduledAt(iso: string): string {
@@ -46,11 +51,20 @@ function formatScheduledAt(iso: string): string {
   return `${dateStr} às ${timeStr}`;
 }
 
-function toLocalDatetimeValue(): string {
-  return toLocalDatetimeInputValue(suggestFollowUpDate());
+/**
+ * Sugestão de data do formulário. Em oportunidade ganha o próximo contato é um
+ * checkpoint de relacionamento, não um retorno de negociação — sugerir "daqui a
+ * uma hora" só obrigaria a corrigir a data toda vez.
+ */
+const WON_FOLLOW_UP_SUGGESTION_DAYS = 30;
+
+function toLocalDatetimeValue(isWon?: boolean): string {
+  return toLocalDatetimeInputValue(
+    suggestFollowUpDate(isWon ? WON_FOLLOW_UP_SUGGESTION_DAYS : 0),
+  );
 }
 
-export function LeadFollowUpSection({ leadId, disabled, inStandBy, resumeStage }: LeadFollowUpSectionProps) {
+export function LeadFollowUpSection({ leadId, disabled, inStandBy, resumeStage, isWon }: LeadFollowUpSectionProps) {
   const { employee } = useAuth();
   const { data: followUps = [], isLoading } = useLeadFollowUps(leadId);
   const { data: employees = [] } = useEmployees();
@@ -61,7 +75,7 @@ export function LeadFollowUpSection({ leadId, disabled, inStandBy, resumeStage }
 
   const [showForm, setShowForm] = useState(false);
   const [description, setDescription] = useState('');
-  const [scheduledAt, setScheduledAt] = useState(() => toLocalDatetimeValue());
+  const [scheduledAt, setScheduledAt] = useState(() => toLocalDatetimeValue(isWon));
   const [assignedTo, setAssignedTo] = useState<string>('');
 
   const activeEmployees = employees.filter(e => e.status === 'ativo');
@@ -81,7 +95,7 @@ export function LeadFollowUpSection({ leadId, disabled, inStandBy, resumeStage }
       {
         onSuccess: () => {
           setDescription('');
-          setScheduledAt(toLocalDatetimeValue());
+          setScheduledAt(toLocalDatetimeValue(isWon));
           setAssignedTo('');
           setShowForm(false);
         },
@@ -122,6 +136,16 @@ export function LeadFollowUpSection({ leadId, disabled, inStandBy, resumeStage }
           </Button>
         )}
       </div>
+
+      {isWon && (
+        <div className="flex items-start gap-1.5 rounded-md border bg-muted/30 p-2.5">
+          <Sparkles className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground leading-snug">
+            Negócio ganho — use os retornos para acompanhamento pós-projeto,
+            coleta de case de sucesso e novas oportunidades com o cliente.
+          </p>
+        </div>
+      )}
 
       {needsNextStep && !showForm && (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
@@ -166,7 +190,9 @@ export function LeadFollowUpSection({ leadId, disabled, inStandBy, resumeStage }
       {showForm && !disabled && (
         <div className="rounded-md border p-3 space-y-3 bg-muted/30">
           <Textarea
-            placeholder="Descreva a ação de follow-up..."
+            placeholder={isWon
+              ? 'Ex.: checkpoint de 30 dias, coletar depoimento para o case...'
+              : 'Descreva a ação de follow-up...'}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}

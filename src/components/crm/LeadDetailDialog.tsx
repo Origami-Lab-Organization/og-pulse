@@ -70,7 +70,7 @@ import {
 import {
   LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS,
   getLossReasonLabel, getStageLabel, getNextFunnelStage, isClosedOutcome, isInStandBy,
-  isRecentlyRestored,
+  isRecentlyRestored, isWonOutcome, allowsRelationshipTracking,
 } from '@/types/lead'
 import { LoseDealDialog } from './LoseDealDialog'
 import { MoveToStandByDialog } from './MoveToStandByDialog'
@@ -354,6 +354,10 @@ export function LeadDetailDialog({
   const isArchived = lead.archived
   const isDisabled = isArchived || !isEditing
   const inStandBy = isInStandBy(lead.crm_stage)
+  const isWon = isWonOutcome(lead.crm_stage)
+  // Ganho segue aceitando follow-up e comentário — o relacionamento continua
+  // depois do fechamento (case de sucesso, pós-projeto, expansão).
+  const trackingAllowed = allowsRelationshipTracking(lead)
   const nextStage = getNextFunnelStage(lead.crm_stage)
   const nextStageLabel = nextStage ? getStageLabel(nextStage) : null
   const resumeStage = resolveStandByReturnStage(lead.stand_by_return_stage)
@@ -1060,14 +1064,15 @@ export function LeadDetailDialog({
                 <TabsContent value='followups' className='px-5 py-4 mt-0 space-y-4'>
                   <LeadFollowUpSection
                     leadId={lead.id}
-                    disabled={isClosedOutcome(lead.crm_stage) || isArchived}
+                    disabled={!trackingAllowed}
                     inStandBy={inStandBy}
                     resumeStage={resumeStage}
+                    isWon={isWon}
                   />
                   <Separator />
                   <LeadInteractionsTab
                     leadId={lead.id}
-                    disabled={isClosedOutcome(lead.crm_stage) || isArchived}
+                    disabled={!trackingAllowed}
                   />
                 </TabsContent>
 
