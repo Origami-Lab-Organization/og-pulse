@@ -95,7 +95,7 @@ async function fetchApprovalsByRequestIds(requestIds: string[]): Promise<Map<str
     const enriched: VacationApproval = {
       ...approval,
       approver_name: nameMap.get(approval.approver_id) || 'Desconhecido',
-      project_name: approval.project_id ? projMap.get(approval.project_id) || '' : '',
+      project_name: approval.project_id ? String(projMap.get(approval.project_id) || '') : '',
     };
     const list = byRequest.get(approval.request_id) || [];
     list.push(enriched);
