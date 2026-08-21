@@ -62,7 +62,7 @@ export const usePendingAdjustmentRequests = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('time_adjustment_requests')
-        .select('*, employees:employee_id(nome)')
+        .select('*, employees!time_adjustment_requests_employee_id_fkey(nome)')
         .eq('status', 'pendente')
         .order('created_at', { ascending: true });
 
@@ -80,7 +80,7 @@ export const useAllAdjustmentRequests = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('time_adjustment_requests')
-        .select('*, employees:employee_id(nome)')
+        .select('*, employees!time_adjustment_requests_employee_id_fkey(nome)')
         .order('created_at', { ascending: false })
         .limit(200);
 

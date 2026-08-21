@@ -52,7 +52,7 @@ async function deallocateEmployee(employeeId: string, terminationDate: string): 
 
   const termDate = new Date(terminationDate);
   const notifiedManagers = new Set<string>();
-  const notifications: object[] = [];
+  const notifications: TablesInsert<'notifications'>[] = [];
 
   for (const pm of members as any[]) {
     const project = pm.projects;
