@@ -79,7 +79,7 @@ interface PlannedRoleAllocationRow {
 
 interface SupplierEvolutionRow {
   project_id: string;
-  actuals?: { month_number: number; value: number | null }[];
+  actuals?: { month_number: number; value: number | null; invoice_date?: string | null }[];
   plannedMonths?: { month_number: number; value: number | null }[];
 }
 
