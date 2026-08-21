@@ -75,6 +75,11 @@ const baseEmployeeDB = {
   auth_id: 'auth-1',
   must_change_password: false,
   termination_id: null,
+  aloca_em_projetos: true,
+  contrato_experiencia: false,
+  experiencia_periodo1_fim: null,
+  experiencia_prorrogado: false,
+  experiencia_periodo2_fim: null,
   created_at: NOW,
   updated_at: NOW,
   // Campos bancários novos
