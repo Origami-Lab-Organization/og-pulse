@@ -62,7 +62,7 @@ export const projectRitoService = {
     // não retorna colegas para quem não é admin/gerente.
     const directory = await fetchEmployeeDirectory();
     const nameById = new Map(directory.map((entry) => [entry.id, entry.nome]));
-    return ((data ?? []) as RitoRow[]).map((row) =>
+    return ((data ?? []) as unknown as RitoRow[]).map((row) =>
       toLink({
         ...row,
         employees: row.linked_by ? { nome: nameById.get(row.linked_by) ?? '' } : null,

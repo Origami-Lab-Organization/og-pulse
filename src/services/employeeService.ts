@@ -520,7 +520,7 @@ export const employeeService = {
         // system_role/is_gerente sempre vêm de `updatedEmployee` mesmo aqui — nunca são adiados
         // (aplicam-se imediatamente em employees + user_roles), então o snapshot da versão deve
         // refletir o valor atual, não o de `base` (que ficaria com o valor anterior ao edit).
-        const base: EmployeeDB | EmployeeVersionDB = supersededVersion ?? oldEmployee;
+        const base: EmployeeDB | EmployeeVersionDB = (supersededVersion as EmployeeVersionDB | null) ?? oldEmployee;
         const next = isFutureDated
           ? {
               ...base,
