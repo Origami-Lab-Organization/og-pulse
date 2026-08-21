@@ -20,6 +20,7 @@ import { useServices } from '@/hooks/useServices';
 import { useLeadServicesMap } from '@/hooks/useLeadServices';
 import { useAllPendingFollowUps, LeadFollowUp } from '@/hooks/useLeadFollowUps';
 import { useToast } from '@/hooks/use-toast';
+import type { CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
 
 /**
  * Colunas do board: o funil, mais a coluna de Stand By, renderizada à parte.
@@ -249,7 +250,7 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
       clientId: formData.clientId || leadToClose.client_id || '',
       totalValue: formData.totalValue || resolveLeadEstimatedValue(leadToClose),
       monthlyValue: formData.monthlyValue,
-      customInstallments: formData.projectType === 'fixed_scope' ? formData.installments : undefined,
+      customInstallments: formData.projectType === 'fixed_scope' ? (formData.installments as CloseBusinessInstallment[]) : undefined,
     });
 
     updateStage.mutate({ id: leadToClose.id, stage: 'closed', fromStage: leadToClose.crm_stage });

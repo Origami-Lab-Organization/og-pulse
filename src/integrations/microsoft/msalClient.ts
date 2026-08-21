@@ -60,7 +60,6 @@ function buildConfig(): Configuration {
       // Sem localStorage a MSAL depende de cookie de terceiro para o refresh
       // silencioso, que os navegadores bloqueiam.
       cacheLocation: 'localStorage',
-      storeAuthStateInCookie: false,
     },
   };
 }

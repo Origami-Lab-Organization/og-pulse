@@ -275,7 +275,7 @@ export const employeeVersionService = {
    * Supabase/PostgREST não trata UPDATE/DELETE filtrado pelo RLS como erro.
    */
   async cancelScheduledVersion(versionId: string): Promise<void> {
-    const { error } = await supabase.rpc('cancel_scheduled_employee_version', {
+    const { error } = await (supabase.rpc as any)('cancel_scheduled_employee_version', {
       p_version_id: versionId,
       p_today: todayLocalDateString(),
     });

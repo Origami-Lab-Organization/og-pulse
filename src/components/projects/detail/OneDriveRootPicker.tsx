@@ -252,7 +252,7 @@ export function OneDriveRootPicker({ open, onOpenChange, onConfirm, isSaving = f
           ) : error ? (
             <div className="space-y-3 p-4 text-center">
               <p className="text-sm text-muted-foreground">{error}</p>
-              <Button variant="outline" size="sm" onClick={() => void start()}>
+              <Button variant="outline" size="sm" onClick={() => void start(source)}>
                 Tentar de novo
               </Button>
             </div>

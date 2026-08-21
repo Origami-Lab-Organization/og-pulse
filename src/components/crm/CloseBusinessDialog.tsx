@@ -440,27 +440,27 @@ export function CloseBusinessDialog({
 		});
 	};
 
-	const handleSubmit = async (values: CloseBusinessFormValues) => {
-		let project: ProjectDB | void;
+  const handleSubmit = async (values: CloseBusinessFormValues) => {
+    let project: ProjectDB | void;
 
-		try {
-			project = await onConfirm(values);
-		} catch {
-			return;
-		}
+    try {
+      project = await onConfirm(values);
+    } catch {
+      return;
+    }
 
-		const projectId = project?.id;
+    const projectId = project && 'id' in project ? project.id : undefined;
 
-		runCelebration();
-		setCelebration({
-			projectId,
-			clientName,
-			projectName: project?.name || values.projectName || lead?.name || "Projeto",
-			valueLabel: formatCurrencyValue(reviewTotal),
-		});
+    runCelebration();
+    setCelebration({
+      projectId,
+      clientName,
+      projectName: (project && 'name' in project ? project.name : undefined) || values.projectName || lead?.name || "Projeto",
+      valueLabel: formatCurrencyValue(reviewTotal),
+    });
 
-		if (projectId) onClosed?.(projectId);
-	};
+    if (projectId) onClosed?.(projectId);
+  };
 
 	if (!budget && !lead) return null;
 

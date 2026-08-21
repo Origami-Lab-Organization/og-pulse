@@ -54,7 +54,7 @@ export function MarginRankingChart({ byProject, byClient, byManager, byServiceLi
 
   const rawData: DimensionFinancialRow[] = useMemo(() => {
     switch (dimension) {
-      case 'project': return byProject;
+      case 'project': return byProject.map((p) => ({ ...p, numProjetos: 1 }));
       case 'client': return byClient;
       case 'manager': return byManager;
       case 'serviceLine': return byServiceLine;

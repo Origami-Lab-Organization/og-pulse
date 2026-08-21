@@ -175,6 +175,7 @@ export interface MaterialCostRecord {
   month_number: number | null;
   value: number;
   is_realized: boolean;
+  purchase_date?: string | null;
 }
 
 /** Mês relativo do projeto (1-based) → data de calendário. */

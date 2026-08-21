@@ -42,7 +42,7 @@ export function ProjectMarginTable({
 
   const data: DimensionFinancialRow[] =
     dimension === 'project'
-      ? byProject
+      ? byProject.map((p) => ({ ...p, numProjetos: 1 }))
       : dimension === 'client'
         ? byClient
         : dimension === 'manager'

@@ -218,32 +218,32 @@ export function FinanceEvolutionChart({ months, onMonthClick }: FinanceEvolution
             )}
             <Bar yAxisId="val" dataKey="faturadoReal" name="Faturamento" stackId="faturamento" fill={FATURAMENTO} barSize={12}>
               {chartData.map((d) => (
-                <Cell key={d.label} fill={FATURAMENTO} fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={d.faturadoRestante > 0 ? RADIUS_FLAT : RADIUS_TOP} />
+                <Cell key={d.label} fill={FATURAMENTO} fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={(d.faturadoRestante > 0 ? RADIUS_FLAT : RADIUS_TOP) as number} />
               ))}
             </Bar>
             <Bar yAxisId="val" dataKey="faturadoRestante" name="Faturamento (previsto)" legendType="none" stackId="faturamento" fill="url(#evo-stripe-faturado)" barSize={12}>
               {chartData.map((d) => (
-                <Cell key={d.label} fill="url(#evo-stripe-faturado)" fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={RADIUS_TOP} />
+                <Cell key={d.label} fill="url(#evo-stripe-faturado)" fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={RADIUS_TOP as number} />
               ))}
             </Bar>
             <Bar yAxisId="val" dataKey="receitaReal" name="Receita" stackId="receita" fill={RECEITA} barSize={12}>
               {chartData.map((d) => (
-                <Cell key={d.label} fill={RECEITA} fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={d.receitaRestante > 0 ? RADIUS_FLAT : RADIUS_TOP} />
+                <Cell key={d.label} fill={RECEITA} fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={(d.receitaRestante > 0 ? RADIUS_FLAT : RADIUS_TOP) as number} />
               ))}
             </Bar>
             <Bar yAxisId="val" dataKey="receitaRestante" name="Receita (previsto)" legendType="none" stackId="receita" fill="url(#evo-stripe-receita)" barSize={12}>
               {chartData.map((d) => (
-                <Cell key={d.label} fill="url(#evo-stripe-receita)" fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={RADIUS_TOP} />
+                <Cell key={d.label} fill="url(#evo-stripe-receita)" fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={RADIUS_TOP as number} />
               ))}
             </Bar>
             <Bar yAxisId="val" dataKey="custosReal" name="Custos" stackId="custos" fill={CUSTOS} barSize={12}>
               {chartData.map((d) => (
-                <Cell key={d.label} fill={CUSTOS} fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={d.custosRestante > 0 ? RADIUS_FLAT : RADIUS_TOP} />
+                <Cell key={d.label} fill={CUSTOS} fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={(d.custosRestante > 0 ? RADIUS_FLAT : RADIUS_TOP) as number} />
               ))}
             </Bar>
             <Bar yAxisId="val" dataKey="custosRestante" name="Custos (previsto)" legendType="none" stackId="custos" fill="url(#evo-stripe-custos)" barSize={12}>
               {chartData.map((d) => (
-                <Cell key={d.label} fill="url(#evo-stripe-custos)" fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={RADIUS_TOP} />
+                <Cell key={d.label} fill="url(#evo-stripe-custos)" fillOpacity={d.isHighlighted ? 1 : DIMMED_OPACITY} radius={RADIUS_TOP as number} />
               ))}
             </Bar>
             <Line yAxisId="pct" type="monotone" dataKey="margemPct" name="Margem %" stroke={MARGEM} strokeWidth={2} strokeDasharray="5 4" dot={projectionDot(MARGEM)} activeDot={{ r: 5 }} connectNulls />

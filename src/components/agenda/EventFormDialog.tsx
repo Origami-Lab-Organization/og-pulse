@@ -253,7 +253,7 @@ export function EventFormDialog({
       location: data.location.trim(),
       withTeamsMeeting: data.withTeamsMeeting,
       notes: data.notes.trim(),
-      recurrence: data.isRecurring ? data.recurrence : null,
+      recurrence: data.isRecurring ? (data.recurrence as RecurrenceInput) : null,
     });
 
     // O vínculo só é possível depois da criação, porque o iCalUId nasce com o
@@ -409,7 +409,7 @@ export function EventFormDialog({
                   <FormItem>
                     <FormControl>
                       <RecurrenceFields
-                        value={field.value}
+                        value={field.value as RecurrenceInput}
                         onChange={field.onChange}
                         error={fieldState.error?.message}
                       />

@@ -1935,12 +1935,15 @@ export type Database = {
           crm_stage: string
           estimated_value: number
           id: string
+          lost_at: string | null
           name: string
           notes: string | null
           responsible_id: string | null
           restored_at: string | null
           service_line: string | null
           source: string | null
+          stand_by_return_stage: string | null
+          stand_by_since: string | null
           tenant_id: string
           updated_at: string
         }
@@ -1962,12 +1965,15 @@ export type Database = {
           crm_stage?: string
           estimated_value?: number
           id?: string
+          lost_at?: string | null
           name: string
           notes?: string | null
           responsible_id?: string | null
           restored_at?: string | null
           service_line?: string | null
           source?: string | null
+          stand_by_return_stage?: string | null
+          stand_by_since?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -1989,12 +1995,15 @@ export type Database = {
           crm_stage?: string
           estimated_value?: number
           id?: string
+          lost_at?: string | null
           name?: string
           notes?: string | null
           responsible_id?: string | null
           restored_at?: string | null
           service_line?: string | null
           source?: string | null
+          stand_by_return_stage?: string | null
+          stand_by_since?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -3072,37 +3081,46 @@ export type Database = {
           assignee_id: string | null
           card_id: string
           completed_at: string | null
+          completed_by: string | null
           created_at: string
           created_by: string
           description: string
           due_date: string | null
           id: string
           position: number
+          status: string
           tenant_id: string
+          updated_at: string
         }
         Insert: {
           assignee_id?: string | null
           card_id: string
           completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           created_by: string
           description: string
           due_date?: string | null
           id?: string
           position?: number
+          status?: string
           tenant_id: string
+          updated_at?: string
         }
         Update: {
           assignee_id?: string | null
           card_id?: string
           completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           created_by?: string
           description?: string
           due_date?: string | null
           id?: string
           position?: number
+          status?: string
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -3117,6 +3135,13 @@ export type Database = {
             columns: ["card_id"]
             isOneToOne: false
             referencedRelation: "project_activity_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activity_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
@@ -3501,6 +3526,7 @@ export type Database = {
           created_at: string
           file_name: string
           file_size: number
+          folder_id: string | null
           id: string
           mime_type: string
           project_id: string
@@ -3513,6 +3539,7 @@ export type Database = {
           created_at?: string
           file_name: string
           file_size: number
+          folder_id?: string | null
           id?: string
           mime_type: string
           project_id: string
@@ -3525,6 +3552,7 @@ export type Database = {
           created_at?: string
           file_name?: string
           file_size?: number
+          folder_id?: string | null
           id?: string
           mime_type?: string
           project_id?: string
@@ -3533,6 +3561,13 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_files_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "project_folders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_files_project_id_fkey"
             columns: ["project_id"]
@@ -3581,6 +3616,279 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: true
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_folders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          external_id: string | null
+          external_provider: string | null
+          external_synced_at: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          project_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          external_id?: string | null
+          external_provider?: string | null
+          external_synced_at?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          project_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          external_id?: string | null
+          external_provider?: string | null
+          external_synced_at?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          project_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "project_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_folders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_folders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_gpo_action_reviews: {
+        Row: {
+          action_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          outcome: Database["public"]["Enums"]["project_gpo_action_outcome"]
+          report_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          action_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          outcome: Database["public"]["Enums"]["project_gpo_action_outcome"]
+          report_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          action_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          outcome?: Database["public"]["Enums"]["project_gpo_action_outcome"]
+          report_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_gpo_action_reviews_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "project_gpo_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_gpo_action_reviews_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "project_gpo_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_gpo_action_reviews_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_gpo_actions: {
+        Row: {
+          created_at: string
+          details: string
+          due_date: string
+          id: string
+          is_carry_in: boolean
+          position: number
+          source_report_id: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string
+          due_date: string
+          id?: string
+          is_carry_in?: boolean
+          position?: number
+          source_report_id: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string
+          due_date?: string
+          id?: string
+          is_carry_in?: boolean
+          position?: number
+          source_report_id?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_gpo_actions_source_report_id_fkey"
+            columns: ["source_report_id"]
+            isOneToOne: false
+            referencedRelation: "project_gpo_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_gpo_actions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_gpo_reports: {
+        Row: {
+          attention_points_html: string
+          created_at: string
+          created_by: string
+          delivered_at: string | null
+          delivered_by: string | null
+          gpo_date: string
+          highlights_html: string
+          id: string
+          manual_sprint_number: number | null
+          metrics_snapshot: Json | null
+          project_id: string
+          reopened_at: string | null
+          reopened_by: string | null
+          status: Database["public"]["Enums"]["project_gpo_report_status"]
+          tenant_id: string
+          updated_at: string
+          window_start: string | null
+        }
+        Insert: {
+          attention_points_html?: string
+          created_at?: string
+          created_by: string
+          delivered_at?: string | null
+          delivered_by?: string | null
+          gpo_date: string
+          highlights_html?: string
+          id?: string
+          manual_sprint_number?: number | null
+          metrics_snapshot?: Json | null
+          project_id: string
+          reopened_at?: string | null
+          reopened_by?: string | null
+          status?: Database["public"]["Enums"]["project_gpo_report_status"]
+          tenant_id: string
+          updated_at?: string
+          window_start?: string | null
+        }
+        Update: {
+          attention_points_html?: string
+          created_at?: string
+          created_by?: string
+          delivered_at?: string | null
+          delivered_by?: string | null
+          gpo_date?: string
+          highlights_html?: string
+          id?: string
+          manual_sprint_number?: number | null
+          metrics_snapshot?: Json | null
+          project_id?: string
+          reopened_at?: string | null
+          reopened_by?: string | null
+          status?: Database["public"]["Enums"]["project_gpo_report_status"]
+          tenant_id?: string
+          updated_at?: string
+          window_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_gpo_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_gpo_reports_delivered_by_fkey"
+            columns: ["delivered_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_gpo_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_gpo_reports_reopened_by_fkey"
+            columns: ["reopened_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_gpo_reports_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -4631,6 +4939,11 @@ export type Database = {
           manager_id: string
           name: string
           nf_emission_lead_days: number
+          onedrive_drive_id: string | null
+          onedrive_linked_at: string | null
+          onedrive_linked_by: string | null
+          onedrive_root_item_id: string | null
+          onedrive_root_path: string | null
           payment_method: string
           portfolio_stage: string | null
           renewal_date: string | null
@@ -4664,6 +4977,11 @@ export type Database = {
           manager_id: string
           name: string
           nf_emission_lead_days?: number
+          onedrive_drive_id?: string | null
+          onedrive_linked_at?: string | null
+          onedrive_linked_by?: string | null
+          onedrive_root_item_id?: string | null
+          onedrive_root_path?: string | null
           payment_method?: string
           portfolio_stage?: string | null
           renewal_date?: string | null
@@ -4697,6 +5015,11 @@ export type Database = {
           manager_id?: string
           name?: string
           nf_emission_lead_days?: number
+          onedrive_drive_id?: string | null
+          onedrive_linked_at?: string | null
+          onedrive_linked_by?: string | null
+          onedrive_root_item_id?: string | null
+          onedrive_root_path?: string | null
           payment_method?: string
           portfolio_stage?: string | null
           renewal_date?: string | null
@@ -4726,6 +5049,13 @@ export type Database = {
           {
             foreignKeyName: "projects_manager_id_fkey"
             columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_onedrive_linked_by_fkey"
+            columns: ["onedrive_linked_by"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
@@ -5636,6 +5966,7 @@ export type Database = {
           reference_month: string
           rpa: number | null
           tenant_id: string
+          total_value: number
           updated_at: string
         }
         Insert: {
@@ -5656,6 +5987,7 @@ export type Database = {
           reference_month: string
           rpa?: number | null
           tenant_id: string
+          total_value?: number
           updated_at?: string
         }
         Update: {
@@ -5676,6 +6008,7 @@ export type Database = {
           reference_month?: string
           rpa?: number | null
           tenant_id?: string
+          total_value?: number
           updated_at?: string
         }
         Relationships: [
@@ -6552,6 +6885,81 @@ export type Database = {
           },
         ]
       }
+      work_item_user_state: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          is_important: boolean
+          is_urgent: boolean
+          personal_card_id: string | null
+          project_card_id: string | null
+          project_task_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_important: boolean
+          is_urgent: boolean
+          personal_card_id?: string | null
+          project_card_id?: string | null
+          project_task_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_important?: boolean
+          is_urgent?: boolean
+          personal_card_id?: string | null
+          project_card_id?: string | null
+          project_task_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_item_user_state_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_item_user_state_personal_card_id_fkey"
+            columns: ["personal_card_id"]
+            isOneToOne: false
+            referencedRelation: "personal_kanban_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_item_user_state_project_card_id_fkey"
+            columns: ["project_card_id"]
+            isOneToOne: false
+            referencedRelation: "project_activity_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_item_user_state_project_task_id_fkey"
+            columns: ["project_task_id"]
+            isOneToOne: false
+            referencedRelation: "project_activity_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_item_user_state_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -6566,6 +6974,10 @@ export type Database = {
           p_status: string
           p_tenant_id: string
         }
+        Returns: undefined
+      }
+      assert_tenant_access: {
+        Args: { p_tenant_id: string }
         Returns: undefined
       }
       assign_employee_to_vacancy_row: {
@@ -6599,12 +7011,24 @@ export type Database = {
         }
         Returns: number
       }
+      calculate_employee_hourly_cost_for_month_unguarded: {
+        Args: {
+          p_employee_id: string
+          p_month_start: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
       can_link_project_rito: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
       can_manage_project: {
         Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_read_project_hours: {
+        Args: { p_project_id: string }
         Returns: boolean
       }
       can_view_project_document: {
@@ -6618,9 +7042,121 @@ export type Database = {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
         Returns: number
       }
+      create_project_activity_task: {
+        Args: {
+          p_assignee_id?: string
+          p_card_id: string
+          p_description: string
+          p_due_date?: string
+          p_position?: number
+        }
+        Returns: {
+          assignee_id: string | null
+          card_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          position: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "project_activity_tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_project_task_capture: {
+        Args: {
+          p_assignee_id?: string
+          p_card_id?: string
+          p_description: string
+          p_due_date?: string
+          p_project_id: string
+        }
+        Returns: {
+          assignee_id: string | null
+          card_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          position: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "project_activity_tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       deallocate_project_member: {
         Args: { p_employee_id: string; p_project_id: string }
         Returns: undefined
+      }
+      delete_project_activity_task: {
+        Args: { p_task_id: string }
+        Returns: {
+          assignee_id: string | null
+          card_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          position: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "project_activity_tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      deliver_project_gpo_report: {
+        Args: { _metrics_snapshot?: Json; _report_id: string }
+        Returns: {
+          attention_points_html: string
+          created_at: string
+          created_by: string
+          delivered_at: string | null
+          delivered_by: string | null
+          gpo_date: string
+          highlights_html: string
+          id: string
+          manual_sprint_number: number | null
+          metrics_snapshot: Json | null
+          project_id: string
+          reopened_at: string | null
+          reopened_by: string | null
+          status: Database["public"]["Enums"]["project_gpo_report_status"]
+          tenant_id: string
+          updated_at: string
+          window_start: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "project_gpo_reports"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       employee_termination_date: {
         Args: { p_employee_id: string }
@@ -6632,6 +7168,10 @@ export type Database = {
       }
       first_access_status: { Args: { p_email: string }; Returns: string }
       generate_budget_number: { Args: { p_tenant_id: string }; Returns: string }
+      generate_budget_number_unguarded: {
+        Args: { p_tenant_id: string }
+        Returns: string
+      }
       get_allocation_employee_detail: {
         Args: {
           p_employee_id: string
@@ -6685,6 +7225,28 @@ export type Database = {
           termination_date: string
         }[]
       }
+      get_allocation_employee_month_summary_unguarded: {
+        Args: {
+          p_manager_id?: string
+          p_project_id?: string
+          p_team_key?: string
+          p_tenant_id: string
+          p_year: number
+        }
+        Returns: {
+          actual_hours: number
+          capacity_hours: number
+          cargo: string
+          employee_id: string
+          employee_name: string
+          hire_date: string
+          jornada_diaria: number
+          month: number
+          planned_hours: number
+          status: string
+          termination_date: string
+        }[]
+      }
       get_allocation_type_kpis: {
         Args: {
           p_current_month: number
@@ -6712,21 +7274,12 @@ export type Database = {
         }[]
       }
       get_crm_received_value: { Args: { p_tenant_id: string }; Returns: number }
-      can_read_project_hours: { Args: { p_project_id: string }; Returns: boolean }
-      get_member_planned_hours: {
-        Args: { p_member_ids: string[] }
-        Returns: { hours: number; month_number: number; project_member_id: string }[]
-      }
-      get_member_actual_hours: {
-        Args: { p_member_ids: string[] }
-        Returns: { hours: number; project_member_id: string; work_date: string }[]
-      }
-      get_project_actual_hours: {
-        Args: { p_project_ids: string[] }
-        Returns: { hours: number; project_id: string }[]
+      get_crm_received_value_unguarded: {
+        Args: { p_tenant_id: string }
+        Returns: number
       }
       get_employee_directory: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           cargo: string
           email: string
@@ -6737,10 +7290,6 @@ export type Database = {
         }[]
       }
       get_employee_status: { Args: { p_auth_id: string }; Returns: string }
-      get_tenant_admin_employee_ids: {
-        Args: Record<PropertyKey, never>
-        Returns: { employee_id: string }[]
-      }
       get_employee_version_at_date: {
         Args: { p_date?: string; p_employee_id: string }
         Returns: {
@@ -6759,6 +7308,29 @@ export type Database = {
           salario_mensal: number
           tipo_contratacao: string
           version_id: string
+        }[]
+      }
+      get_member_actual_hours: {
+        Args: { p_member_ids: string[] }
+        Returns: {
+          hours: number
+          project_member_id: string
+          work_date: string
+        }[]
+      }
+      get_member_planned_hours: {
+        Args: { p_member_ids: string[] }
+        Returns: {
+          hours: number
+          month_number: number
+          project_member_id: string
+        }[]
+      }
+      get_project_actual_hours: {
+        Args: { p_project_ids: string[] }
+        Returns: {
+          hours: number
+          project_id: string
         }[]
       }
       get_project_assignable_members: {
@@ -6796,7 +7368,14 @@ export type Database = {
           titulo: string
         }[]
       }
+      get_tenant_admin_employee_ids: {
+        Args: never
+        Returns: {
+          employee_id: string
+        }[]
+      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
+      gpo_report_is_editable: { Args: { _report_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -6813,8 +7392,22 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      is_project_team_member: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_vacation_approver: {
         Args: { _request_id: string; _user_id: string }
+        Returns: boolean
+      }
+      owns_work_item_state_source: {
+        Args: {
+          _employee_id: string
+          _personal_card_id: string
+          _project_card_id: string
+          _project_task_id: string
+          _tenant_id: string
+        }
         Returns: boolean
       }
       project_child_tenant_matches: {
@@ -6823,6 +7416,10 @@ export type Database = {
       }
       project_employee_has_actual_hours: {
         Args: { p_employee_id: string; p_project_id: string }
+        Returns: boolean
+      }
+      project_folder_belongs_to_project: {
+        Args: { _folder_id: string; _project_id: string }
         Returns: boolean
       }
       reactivate_project_member: {
@@ -6845,9 +7442,61 @@ export type Database = {
         Args: { p_data: string; p_employee_id: string }
         Returns: undefined
       }
+      reopen_project_gpo_report: {
+        Args: { _report_id: string }
+        Returns: {
+          attention_points_html: string
+          created_at: string
+          created_by: string
+          delivered_at: string | null
+          delivered_by: string | null
+          gpo_date: string
+          highlights_html: string
+          id: string
+          manual_sprint_number: number | null
+          metrics_snapshot: Json | null
+          project_id: string
+          reopened_at: string | null
+          reopened_by: string | null
+          status: Database["public"]["Enums"]["project_gpo_report_status"]
+          tenant_id: string
+          updated_at: string
+          window_start: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "project_gpo_reports"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       reprocess_time_bank_from_date: {
         Args: { p_data_inicio: string; p_employee_id: string }
         Returns: undefined
+      }
+      set_project_activity_task_status: {
+        Args: { p_status: string; p_task_id: string }
+        Returns: {
+          assignee_id: string | null
+          card_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          position: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "project_activity_tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       simulate_allocation_margin_impact: {
         Args: { p_employee_id: string; p_months: Json; p_project_id: string }
@@ -6866,6 +7515,36 @@ export type Database = {
         }[]
       }
       update_overdue_installments: { Args: never; Returns: undefined }
+      update_project_activity_task: {
+        Args: {
+          p_assignee_id: string
+          p_description: string
+          p_due_date: string
+          p_position: number
+          p_task_id: string
+        }
+        Returns: {
+          assignee_id: string | null
+          card_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          position: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "project_activity_tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       user_belongs_to_tenant: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
@@ -6876,6 +7555,16 @@ export type Database = {
       }
       vacation_request_owner_or_admin: {
         Args: { _request_id: string; _user_id: string }
+        Returns: boolean
+      }
+      work_item_state_source_is_valid: {
+        Args: {
+          _employee_id: string
+          _personal_card_id: string
+          _project_card_id: string
+          _project_task_id: string
+          _tenant_id: string
+        }
         Returns: boolean
       }
     }
@@ -6906,6 +7595,8 @@ export type Database = {
         | "benefits_discount"
         | "advance_discount"
         | "other"
+      project_gpo_action_outcome: "completed" | "not_completed"
+      project_gpo_report_status: "draft" | "delivered"
       project_rito_type: "daily" | "planning" | "review" | "retro" | "outro"
       project_status:
         | "planning"
@@ -7113,6 +7804,8 @@ export const Constants = {
         "advance_discount",
         "other",
       ],
+      project_gpo_action_outcome: ["completed", "not_completed"],
+      project_gpo_report_status: ["draft", "delivered"],
       project_rito_type: ["daily", "planning", "review", "retro", "outro"],
       project_status: [
         "planning",

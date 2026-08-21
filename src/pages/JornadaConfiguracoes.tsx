@@ -48,7 +48,14 @@ const JornadaConfiguracoes = () => {
 
   useEffect(() => {
     if (settings) {
-      form.reset(settings);
+      form.reset({
+        tolerancia_entrada_minutos: settings.tolerancia_entrada_minutos,
+        tolerancia_saida_minutos: settings.tolerancia_saida_minutos,
+        intervalo_minimo_minutos: settings.intervalo_minimo_minutos,
+        limite_horas_extras_diarias: settings.limite_horas_extras_diarias,
+        exigir_selfie: settings.exigir_selfie,
+        exigir_reconhecimento_facial: settings.exigir_reconhecimento_facial,
+      });
     }
   }, [settings, form]);
 

@@ -7,6 +7,7 @@ import type { CloseBusinessFormValues } from './CloseBusinessDialog';
 import { BudgetWithDetails, BudgetStatus, CRM_COLUMNS } from '@/types/budget';
 import { useUpdateBudgetStatus } from '@/hooks/useBudgets';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
+import type { CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
 
 interface KanbanBoardProps {
   budgets: BudgetWithDetails[];
@@ -118,7 +119,7 @@ export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
       leadId: '',
       budget: budgetToClose,
       ...formData,
-      customInstallments: formData.projectType === 'fixed_scope' ? formData.installments : undefined,
+      customInstallments: formData.projectType === 'fixed_scope' ? (formData.installments as CloseBusinessInstallment[]) : undefined,
     });
   };
 

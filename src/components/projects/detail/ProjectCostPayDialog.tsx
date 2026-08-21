@@ -97,7 +97,6 @@ export function ProjectCostPayDialog({
               value={actualAmount}
               onValueChange={setActualAmount}
               showPrefix={!isForeign}
-              autoFocus
             />
             {isForeign && actualAmount > 0 && (
               <p className="text-xs text-muted-foreground" aria-live="polite">
