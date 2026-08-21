@@ -500,14 +500,8 @@ export const projectService = {
     if ((commissionCount ?? 0) > 0) return true;
 
     // Check key results
-    const { count: krCount } = await (supabase.from as (relation: string) => {
-      select: (
-        columns: string,
-        options: { count: 'exact'; head: true }
-      ) => {
-        eq: (column: string, value: string) => PromiseLike<{ count: number | null }>;
-      };
-    })('project_key_results')
+    const { count: krCount } = await (supabase as any)
+      .from('project_key_results')
       .select('*', { count: 'exact', head: true })
       .eq('project_id', projectId);
     if ((krCount ?? 0) > 0) return true;
@@ -667,10 +661,7 @@ export const projectService = {
    */
   async recalculateMemberCosts(employeeId: string): Promise<void> {
     try {
-      const { error } = await (supabase.rpc as (
-        fn: string,
-        args: { p_employee_id: string }
-      ) => Promise<{ error: Error | null }>)('recalculate_employee_cost_snapshots', {
+      const { error } = await (supabase.rpc as any)('recalculate_employee_cost_snapshots', {
         p_employee_id: employeeId,
       });
 
