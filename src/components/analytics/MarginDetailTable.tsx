@@ -33,7 +33,7 @@ export function MarginDetailTable({ byProject, byClient, byManager, byServiceLin
   const [dimension, setDimension] = useState<Dimension>('project');
 
   const data: DimensionFinancialRow[] =
-    dimension === 'project' ? byProject
+    dimension === 'project' ? byProject.map((p) => ({ ...p, numProjetos: 1 }))
       : dimension === 'client' ? byClient
         : dimension === 'manager' ? byManager
           : byServiceLine;
