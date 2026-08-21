@@ -20,6 +20,7 @@ import { useServices } from '@/hooks/useServices';
 import { useLeadServicesMap } from '@/hooks/useLeadServices';
 import { useAllPendingFollowUps, LeadFollowUp } from '@/hooks/useLeadFollowUps';
 import { useToast } from '@/hooks/use-toast';
+import type { CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
 
 /**
  * Colunas do board: o funil, mais a coluna de Stand By, renderizada à parte.

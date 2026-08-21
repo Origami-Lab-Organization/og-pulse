@@ -7,6 +7,7 @@ import type { CloseBusinessFormValues } from './CloseBusinessDialog';
 import { BudgetWithDetails, BudgetStatus, CRM_COLUMNS } from '@/types/budget';
 import { useUpdateBudgetStatus } from '@/hooks/useBudgets';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
+import type { CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
 
 interface KanbanBoardProps {
   budgets: BudgetWithDetails[];
