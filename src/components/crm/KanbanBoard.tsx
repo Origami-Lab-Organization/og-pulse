@@ -118,7 +118,7 @@ export function KanbanBoard({ budgets, searchTerm }: KanbanBoardProps) {
       leadId: '',
       budget: budgetToClose,
       ...formData,
-      customInstallments: formData.projectType === 'fixed_scope' ? formData.installments : undefined,
+      customInstallments: formData.projectType === 'fixed_scope' ? (formData.installments as CloseBusinessInstallment[]) : undefined,
     });
   };
 
